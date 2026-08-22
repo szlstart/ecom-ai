@@ -16,7 +16,7 @@ LEGAL_DOCUMENTS = {
     "terms_of_service": {
         "title": "用户协议",
         "version": "terms_2026_08",
-        "content": "欢迎使用 Ecom AI 在线商城。使用本平台前，请阅读并遵守本用户协议。",  # noqa: RUF001
+        "content": "欢迎使用 Ecom AI 在线商城。使用本平台前，请阅读并遵守本用户协议。",
     },
     "privacy_policy": {
         "title": "隐私政策",

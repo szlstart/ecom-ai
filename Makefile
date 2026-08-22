@@ -1,5 +1,6 @@
-CONDA_ENV := ecom-ai
-PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
+CONDA_ENV ?= ecom-ai
+CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
+PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
 
 .PHONY: bootstrap install lock lint format test build registry-check openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down api frontend check
@@ -16,7 +17,7 @@ install:
 	cd frontend && pnpm install --frozen-lockfile
 
 lock:
-	cd backend && ../.scripts/compile-requirements.sh
+	cd backend && PYTHON_BIN="$(PYTHON)" ../.scripts/compile-requirements.sh
 
 lint:
 	cd backend && $(PYTHON) -m ruff check app tests

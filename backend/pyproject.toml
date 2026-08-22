@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecom-ai-backend"
+version = "0.1.0"
+description = "Enterprise commerce and AI customer service backend"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "alembic>=1.17,<2",
+  "asyncmy>=0.2,<0.3",
+  "asyncpg>=0.30,<1",
+  "fastapi>=0.136,<0.137",
+  "httpx>=0.28,<0.29",
+  "pydantic>=2.12,<3",
+  "pydantic-settings>=2.10,<3",
+  "psycopg[binary]>=3.2,<4",
+  "PyMySQL>=1.1,<2",
+  "PyYAML>=6.0,<7",
+  "redis>=6.4,<8",
+  "SQLAlchemy[asyncio]>=2.0.40,<2.1",
+  "structlog>=25.4,<26",
+  "ulid-py>=1.1,<2",
+  "uvicorn[standard]>=0.35,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.18,<2",
+  "pip-tools>=7.5,<8",
+  "pytest>=8.4,<10",
+  "pytest-asyncio>=1.2,<2",
+  "pytest-cov>=7,<8",
+  "ruff>=0.13,<1",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers --disable-warnings"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["migrations"]

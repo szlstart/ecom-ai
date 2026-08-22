@@ -1,0 +1,93 @@
+version: 1
+status: normative
+ulid_length: 26
+defaults:
+  storage_length: 40
+  url_allowed: false
+  client_generated: false
+  status: active
+resources:
+  user: {prefix: usr_, url_allowed: true, owner: identity}
+  store: {prefix: sto_, url_allowed: true, owner: stores}
+  product: {prefix: prd_, url_allowed: true, owner: catalog}
+  sku: {prefix: sku_, url_allowed: true, owner: catalog}
+  auth_session: {prefix: ses_, owner: identity}
+  address: {prefix: addr_, url_allowed: true, owner: users}
+  verification: {prefix: ver_, owner: identity}
+  reset_ticket: {prefix: rst_, owner: identity}
+  agreement_acceptance: {prefix: agr_, owner: identity}
+  auth_attempt: {prefix: aat_, owner: identity}
+  cart: {prefix: cart_, owner: cart}
+  cart_item: {prefix: ci_, url_allowed: true, owner: cart}
+  checkout: {prefix: chk_, url_allowed: true, owner: checkout}
+  eligibility_ref: {prefix: ret_, owner: after_sale}
+  trade_order: {prefix: trd_, storage_length: 32, url_allowed: true, owner: orders}
+  order: {prefix: ord_, storage_length: 32, url_allowed: true, owner: orders}
+  order_item: {prefix: oit_, url_allowed: true, owner: orders}
+  payment: {prefix: pay_, storage_length: 32, url_allowed: true, owner: payments}
+  shipment: {prefix: shp_, url_allowed: true, owner: logistics}
+  refund: {prefix: ref_, storage_length: 32, url_allowed: true, owner: after_sale}
+  refund_draft: {prefix: rfd_, owner: after_sale}
+  refund_policy_snapshot: {prefix: rsp_, owner: after_sale}
+  refund_appeal: {prefix: rap_, url_allowed: true, owner: after_sale}
+  review: {prefix: rev_, url_allowed: true, owner: reviews}
+  product_faq: {prefix: faq_, url_allowed: true, owner: catalog}
+  contact_ref: {prefix: ctk_, owner: support}
+  conversation: {prefix: conv_, url_allowed: true, owner: conversations}
+  conversation_context: {prefix: ctx_, owner: conversations}
+  message: {prefix: msg_, url_allowed: true, owner: conversations}
+  client_message: {prefix: cmsg_, client_generated: true, owner: conversations}
+  human_ticket: {prefix: tkt_, storage_length: 32, url_allowed: true, owner: support}
+  human_assignment: {prefix: asg_, owner: support}
+  agent_run: {prefix: run_, url_allowed: true, owner: agent_runtime}
+  agent: {prefix: agt_, url_allowed: true, owner: ai_governance}
+  skill: {prefix: skl_, url_allowed: true, owner: ai_governance}
+  tool: {prefix: tol_, url_allowed: true, owner: ai_governance}
+  user_agent_consent: {prefix: con_, url_allowed: true, owner: ai_governance}
+  agent_approval: {prefix: apr_, owner: agent_runtime}
+  agent_action: {prefix: act_, owner: agent_runtime}
+  admin_approval_request: {prefix: aar_, url_allowed: true, owner: admin_governance}
+  admin_approval_decision: {prefix: aad_, owner: admin_governance}
+  role_grant: {prefix: rgr_, owner: rbac}
+  mfa_authenticator: {prefix: mfa_, owner: identity}
+  sensitive_access_grant: {prefix: sag_, owner: admin_governance}
+  ai_feedback: {prefix: fdb_, owner: ai_governance}
+  file: {prefix: file_, url_allowed: true, owner: files}
+  upload_session: {prefix: upl_, owner: files}
+  outbox_event: {prefix: evt_, owner: events}
+  audit: {prefix: aud_, owner: audit}
+  notification_task: {prefix: ntf_, owner: notifications}
+  batch_job: {prefix: job_, url_allowed: true, owner: jobs}
+  dead_letter: {prefix: dlq_, url_allowed: true, owner: events}
+  knowledge_document: {prefix: doc_, url_allowed: true, owner: knowledge}
+  knowledge_chunk: {prefix: kch_, owner: knowledge}
+  indexing_job: {prefix: kjob_, owner: knowledge}
+  retrieval: {prefix: rtv_, owner: knowledge}
+  memory_item: {prefix: mem_, url_allowed: true, owner: memory}
+  memory_event: {prefix: mev_, owner: memory}
+  conversation_summary: {prefix: sum_, owner: memory}
+  content: {prefix: cnt_, url_allowed: true, owner: content}
+  content_version: {prefix: cver_, url_allowed: true, owner: content}
+non_resource_identifiers:
+  request_id:
+    prefix: req_
+    pattern: '^req_[0-9A-HJKMNP-TV-Z]{26}$'
+    client_generated: false
+  idempotency_key:
+    format: opaque
+    client_generated: true
+  cursor:
+    format: signed_opaque
+    client_generated: false
+  approval_token:
+    format: signed_opaque
+    client_generated: false
+  upload_ticket:
+    format: signed_opaque
+    client_generated: false
+  configuration_version:
+    format: registered_semantic_version
+    examples: [regcfg_2026_08_01, username_v1, password_v3]
+  legal_document_version:
+    format: registered_semantic_version
+    examples: [terms_2026_08, privacy_2026_08]

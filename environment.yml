@@ -1,0 +1,6 @@
+name: ecom-ai
+channels:
+  - defaults
+dependencies:
+  - python=3.13.14
+  - pip=25.3

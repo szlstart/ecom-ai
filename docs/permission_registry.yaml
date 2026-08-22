@@ -1,0 +1,100 @@
+version: 1
+status: normative
+code_pattern: '^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$'
+required_fields:
+  - code
+  - resource
+  - action
+  - risk_level
+  - allowed_scope_types
+  - delegation_policy
+  - requires_mfa
+  - requires_recent_auth
+  - approval_policy
+  - owner
+  - status
+defaults: &defaults
+  delegation_policy: role_policy
+  requires_mfa: false
+  requires_recent_auth: false
+  approval_policy: none
+  status: active
+permissions:
+  - {<<: *defaults, code: 'dashboard:read', resource: dashboard, action: read, risk_level: low, allowed_scope_types: [platform, store], owner: analytics}
+  - {<<: *defaults, code: 'users:read', resource: users, action: read, risk_level: medium, allowed_scope_types: [platform], owner: identity}
+  - {<<: *defaults, code: 'users:manage', resource: users, action: manage, risk_level: critical, allowed_scope_types: [platform], delegation_policy: non_delegable, requires_mfa: true, requires_recent_auth: true, approval_policy: risk_based, owner: identity}
+  - {<<: *defaults, code: 'users:read_sensitive', resource: users, action: read_sensitive, risk_level: critical, allowed_scope_types: [platform], delegation_policy: non_delegable, requires_mfa: true, requires_recent_auth: true, approval_policy: single_use_grant, owner: identity}
+  - {<<: *defaults, code: 'users:sessions_revoke', resource: users, action: sessions_revoke, risk_level: high, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, owner: identity}
+  - {<<: *defaults, code: 'users:force_password_reset', resource: users, action: force_password_reset, risk_level: high, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, owner: identity}
+  - {<<: *defaults, code: 'rbac:read', resource: rbac, action: read, risk_level: high, allowed_scope_types: [platform, store], owner: rbac}
+  - {<<: *defaults, code: 'rbac:manage', resource: rbac, action: manage, risk_level: critical, allowed_scope_types: [platform, store], delegation_policy: non_delegable, requires_mfa: true, requires_recent_auth: true, approval_policy: risk_based, owner: rbac}
+  - {<<: *defaults, code: 'stores:read', resource: stores, action: read, risk_level: low, allowed_scope_types: [platform, store], owner: stores}
+  - {<<: *defaults, code: 'stores:review', resource: stores, action: review, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: stores}
+  - {<<: *defaults, code: 'stores:manage', resource: stores, action: manage, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, owner: stores}
+  - {<<: *defaults, code: 'store_policies:read', resource: store_policies, action: read, risk_level: low, allowed_scope_types: [platform, store], owner: stores}
+  - {<<: *defaults, code: 'store_policies:create', resource: store_policies, action: create, risk_level: medium, allowed_scope_types: [platform, store], owner: stores}
+  - {<<: *defaults, code: 'store_policies:update', resource: store_policies, action: update, risk_level: medium, allowed_scope_types: [platform, store], owner: stores}
+  - {<<: *defaults, code: 'store_policies:publish', resource: store_policies, action: publish, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, approval_policy: risk_based, owner: stores}
+  - {<<: *defaults, code: 'products:read', resource: products, action: read, risk_level: low, allowed_scope_types: [platform, store], owner: catalog}
+  - {<<: *defaults, code: 'products:create', resource: products, action: create, risk_level: medium, allowed_scope_types: [platform, store], owner: catalog}
+  - {<<: *defaults, code: 'products:update', resource: products, action: update, risk_level: medium, allowed_scope_types: [platform, store], owner: catalog}
+  - {<<: *defaults, code: 'products:review', resource: products, action: review, risk_level: high, allowed_scope_types: [platform], owner: catalog}
+  - {<<: *defaults, code: 'products:publish', resource: products, action: publish, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, owner: catalog}
+  - {<<: *defaults, code: 'catalog_taxonomy:manage', resource: catalog_taxonomy, action: manage, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: catalog}
+  - {<<: *defaults, code: 'inventories:read', resource: inventories, action: read, risk_level: medium, allowed_scope_types: [platform, store], owner: inventory}
+  - {<<: *defaults, code: 'inventories:adjust', resource: inventories, action: adjust, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, approval_policy: risk_based, owner: inventory}
+  - {<<: *defaults, code: 'orders:read', resource: orders, action: read, risk_level: medium, allowed_scope_types: [platform, store], owner: orders}
+  - {<<: *defaults, code: 'orders:adjust', resource: orders, action: adjust, risk_level: critical, allowed_scope_types: [platform, store], requires_mfa: true, requires_recent_auth: true, approval_policy: amount_based, owner: orders}
+  - {<<: *defaults, code: 'orders:cancel', resource: orders, action: cancel, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, owner: orders}
+  - {<<: *defaults, code: 'payments:read', resource: payments, action: read, risk_level: high, allowed_scope_types: [platform, store], owner: payments}
+  - {<<: *defaults, code: 'payments:reconcile', resource: payments, action: reconcile, risk_level: critical, allowed_scope_types: [platform], delegation_policy: non_delegable, requires_mfa: true, requires_recent_auth: true, approval_policy: dual_control, owner: payments}
+  - {<<: *defaults, code: 'shipments:read', resource: shipments, action: read, risk_level: medium, allowed_scope_types: [platform, store], owner: logistics}
+  - {<<: *defaults, code: 'shipments:create', resource: shipments, action: create, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, owner: logistics}
+  - {<<: *defaults, code: 'shipments:correct', resource: shipments, action: correct, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, owner: logistics}
+  - {<<: *defaults, code: 'shipments:void', resource: shipments, action: void, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, owner: logistics}
+  - {<<: *defaults, code: 'shipments:refresh', resource: shipments, action: refresh, risk_level: medium, allowed_scope_types: [platform, store], owner: logistics}
+  - {<<: *defaults, code: 'refunds:read', resource: refunds, action: read, risk_level: high, allowed_scope_types: [platform, store], owner: after_sale}
+  - {<<: *defaults, code: 'refunds:review', resource: refunds, action: review, risk_level: critical, allowed_scope_types: [platform, store], requires_mfa: true, requires_recent_auth: true, approval_policy: amount_based, owner: after_sale}
+  - {<<: *defaults, code: 'refund_appeals:read', resource: refund_appeals, action: read, risk_level: high, allowed_scope_types: [platform], owner: after_sale}
+  - {<<: *defaults, code: 'refund_appeals:review', resource: refund_appeals, action: review, risk_level: critical, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, approval_policy: dual_control, owner: after_sale}
+  - {<<: *defaults, code: 'reviews:read', resource: reviews, action: read, risk_level: medium, allowed_scope_types: [platform, store], owner: reviews}
+  - {<<: *defaults, code: 'reviews:reply', resource: reviews, action: reply, risk_level: medium, allowed_scope_types: [platform, store], owner: reviews}
+  - {<<: *defaults, code: 'reviews:moderate', resource: reviews, action: moderate, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, owner: reviews}
+  - {<<: *defaults, code: 'support:queue_read', resource: support, action: queue_read, risk_level: medium, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:claim', resource: support, action: claim, risk_level: medium, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:reply', resource: support, action: reply, risk_level: medium, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:wait', resource: support, action: wait, risk_level: medium, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:resume', resource: support, action: resume, risk_level: medium, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:transfer', resource: support, action: transfer, risk_level: high, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:resolve', resource: support, action: resolve, risk_level: high, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:internal_notes_read', resource: support, action: internal_notes_read, risk_level: high, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:internal_notes_write', resource: support, action: internal_notes_write, risk_level: high, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'ai_agents:read', resource: ai_agents, action: read, risk_level: medium, allowed_scope_types: [platform], owner: ai_governance}
+  - {<<: *defaults, code: 'ai_agents:manage', resource: ai_agents, action: manage, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: ai_governance}
+  - {<<: *defaults, code: 'ai_agents:publish', resource: ai_agents, action: publish, risk_level: critical, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, approval_policy: dual_control, owner: ai_governance}
+  - {<<: *defaults, code: 'ai_skills:read', resource: ai_skills, action: read, risk_level: medium, allowed_scope_types: [platform], owner: ai_governance}
+  - {<<: *defaults, code: 'ai_skills:manage', resource: ai_skills, action: manage, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: ai_governance}
+  - {<<: *defaults, code: 'ai_skills:publish', resource: ai_skills, action: publish, risk_level: critical, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, approval_policy: dual_control, owner: ai_governance}
+  - {<<: *defaults, code: 'ai_tools:read', resource: ai_tools, action: read, risk_level: medium, allowed_scope_types: [platform], owner: ai_governance}
+  - {<<: *defaults, code: 'ai_tools:manage', resource: ai_tools, action: manage, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: ai_governance}
+  - {<<: *defaults, code: 'ai_tools:publish', resource: ai_tools, action: publish, risk_level: critical, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, approval_policy: dual_control, owner: ai_governance}
+  - {<<: *defaults, code: 'ai_policies:read', resource: ai_policies, action: read, risk_level: medium, allowed_scope_types: [platform], owner: ai_governance}
+  - {<<: *defaults, code: 'ai_policies:manage', resource: ai_policies, action: manage, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: ai_governance}
+  - {<<: *defaults, code: 'ai_policies:publish', resource: ai_policies, action: publish, risk_level: critical, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, approval_policy: dual_control, owner: ai_governance}
+  - {<<: *defaults, code: 'ai_runtime:kill', resource: ai_runtime, action: kill, risk_level: critical, allowed_scope_types: [platform], delegation_policy: non_delegable, requires_mfa: true, requires_recent_auth: true, owner: ai_governance}
+  - {<<: *defaults, code: 'knowledge:read', resource: knowledge, action: read, risk_level: medium, allowed_scope_types: [platform, store], owner: knowledge}
+  - {<<: *defaults, code: 'knowledge:manage', resource: knowledge, action: manage, risk_level: high, allowed_scope_types: [platform, store], owner: knowledge}
+  - {<<: *defaults, code: 'knowledge:publish', resource: knowledge, action: publish, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, approval_policy: risk_based, owner: knowledge}
+  - {<<: *defaults, code: 'ai_evaluations:read', resource: ai_evaluations, action: read, risk_level: medium, allowed_scope_types: [platform], owner: ai_evaluation}
+  - {<<: *defaults, code: 'ai_evaluations:run', resource: ai_evaluations, action: run, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: ai_evaluation}
+  - {<<: *defaults, code: 'ai_observability:read', resource: ai_observability, action: read, risk_level: high, allowed_scope_types: [platform], owner: observability}
+  - {<<: *defaults, code: 'observability:read', resource: observability, action: read, risk_level: high, allowed_scope_types: [platform, store], owner: observability}
+  - {<<: *defaults, code: 'content:read', resource: content, action: read, risk_level: low, allowed_scope_types: [platform], owner: content}
+  - {<<: *defaults, code: 'content:manage', resource: content, action: manage, risk_level: high, allowed_scope_types: [platform], owner: content}
+  - {<<: *defaults, code: 'content:publish', resource: content, action: publish, risk_level: critical, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, approval_policy: risk_based, owner: content}
+  - {<<: *defaults, code: 'admin_approvals:read', resource: admin_approvals, action: read, risk_level: high, allowed_scope_types: [platform, store], owner: admin_governance}
+  - {<<: *defaults, code: 'admin_approvals:decide', resource: admin_approvals, action: decide, risk_level: critical, allowed_scope_types: [platform, store], delegation_policy: non_delegable, requires_mfa: true, requires_recent_auth: true, owner: admin_governance}
+  - {<<: *defaults, code: 'audit:read', resource: audit, action: read, risk_level: high, allowed_scope_types: [platform, store], owner: audit}
+  - {<<: *defaults, code: 'jobs:read', resource: jobs, action: read, risk_level: medium, allowed_scope_types: [platform, store], owner: jobs}
+  - {<<: *defaults, code: 'events:read', resource: events, action: read, risk_level: high, allowed_scope_types: [platform, store], owner: events}
+  - {<<: *defaults, code: 'events:operate', resource: events, action: operate, risk_level: critical, allowed_scope_types: [platform, store], requires_mfa: true, requires_recent_auth: true, approval_policy: dual_control, owner: events}

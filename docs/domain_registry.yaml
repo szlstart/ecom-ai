@@ -1,0 +1,110 @@
+version: 1
+status: normative
+description: >-
+  Core domain enum and transition registry. Domain code, database constraints,
+  OpenAPI enums, available_actions and state-machine tests must be generated
+  from or checked against this file. A transition not listed here is illegal.
+defaults:
+  illegal_transition:
+    http_status: 409
+    error_code_suffix: STATE_CONFLICT
+    write_effect: none
+    event_effect: none
+  concurrency:
+    optimistic_version_required: true
+    lock_aggregate_for_write: true
+    idempotency_returns_first_result: true
+aggregates:
+  order:
+    field: order_status
+    states: [pending_payment, paid, pending_shipment, shipped, completed, cancelled, closed]
+    terminal_states: [completed, cancelled, closed]
+    transitions:
+      - {command: RecordPaymentSucceeded, from: [pending_payment], to: paid, event: order.paid}
+      - {command: InitializeFulfillment, from: [paid], to: pending_shipment, event: order.fulfillment_initialized}
+      - {command: CancelUnpaidOrder, from: [pending_payment], to: cancelled, event: order.cancelled}
+      - {command: CloseBeforeShipment, from: [paid, pending_shipment], to: closed, event: order.closed}
+      - {command: RecordAllItemsShipped, from: [pending_shipment], to: shipped, event: order.shipped}
+      - {command: ConfirmReceipt, from: [shipped], to: completed, event: order.completed}
+      - {command: AutoConfirmReceipt, from: [shipped], to: completed, event: order.auto_completed}
+      - {command: CloseAbnormalFulfillment, from: [shipped], to: closed, event: order.closed}
+  payment:
+    field: payment_status
+    states: [created, pending, succeeded, failed, closed, partially_refunded, refunded]
+    terminal_states: [failed, closed, refunded]
+    transitions:
+      - {command: MarkProviderAccepted, from: [created], to: pending, event: payment.pending}
+      - {command: ConfirmPaymentSucceeded, from: [created, pending], to: succeeded, event: payment.succeeded}
+      - {command: ConfirmPaymentFailed, from: [created, pending], to: failed, event: payment.failed}
+      - {command: ClosePaymentAttempt, from: [created, pending], to: closed, event: payment.closed}
+      - {command: RecordPartialRefund, from: [succeeded], to: partially_refunded, event: payment.partially_refunded}
+      - {command: RecordFullRefund, from: [succeeded, partially_refunded], to: refunded, event: payment.refunded}
+  fulfillment:
+    field: fulfillment_status
+    states: [unfulfilled, partial, shipped, received]
+    terminal_states: [received]
+    transitions:
+      - {command: RecordPartialShipment, from: [unfulfilled], to: partial, event: fulfillment.partial}
+      - {command: RecordAllItemsShipped, from: [unfulfilled, partial], to: shipped, event: fulfillment.shipped}
+      - {command: ConfirmReceipt, from: [shipped], to: received, event: fulfillment.received}
+      - {command: AutoConfirmReceipt, from: [shipped], to: received, event: fulfillment.auto_received}
+  shipment:
+    field: shipment_status
+    states: [created, picked_up, in_transit, delivered, exception, returned, closed, voided]
+    terminal_states: [delivered, returned, closed, voided]
+    transitions:
+      - {command: VoidShipment, from: [created], to: voided, event: shipment.voided}
+      - {command: RecordPickup, from: [created], to: picked_up, event: shipment.picked_up}
+      - {command: RecordInTransit, from: [picked_up, exception], to: in_transit, event: shipment.in_transit}
+      - {command: RecordDelivery, from: [picked_up, in_transit, exception], to: delivered, event: shipment.delivered}
+      - {command: RecordException, from: [picked_up, in_transit], to: exception, event: shipment.exception}
+      - {command: RecordReturn, from: [picked_up, in_transit, exception], to: returned, event: shipment.returned}
+      - {command: CloseShipment, from: [created, picked_up, in_transit, exception], to: closed, event: shipment.closed}
+  refund_application:
+    field: refund_status
+    states: [submitted, merchant_review, approved, waiting_return, returning, received, refunding, succeeded, rejected, cancelled, closed]
+    terminal_states: [succeeded, rejected, cancelled, closed]
+    transitions:
+      - {command: RouteToMerchantReview, from: [submitted], to: merchant_review, event: refund.merchant_review_requested}
+      - {command: AutoApproveRefund, from: [submitted], to: approved, event: refund.approved}
+      - {command: ApproveRefund, from: [merchant_review], to: approved, event: refund.approved}
+      - {command: RejectRefund, from: [merchant_review], to: rejected, event: refund.rejected}
+      - {command: CancelRefundApplication, from: [submitted, merchant_review], to: cancelled, event: refund.cancelled}
+      - {command: StartRefundOnlyPayment, from: [approved], to: refunding, event: refund.refunding}
+      - {command: RequestReturn, from: [approved], to: waiting_return, event: refund.return_requested}
+      - {command: SubmitReturnShipment, from: [waiting_return], to: returning, event: refund.returning}
+      - {command: ReceiveReturnedItems, from: [returning], to: received, event: refund.return_received}
+      - {command: StartReturnRefundPayment, from: [received], to: refunding, event: refund.refunding}
+      - {command: CompleteRefundPayment, from: [refunding], to: succeeded, event: refund.succeeded}
+      - {command: CloseExpiredReturn, from: [waiting_return], to: closed, event: refund.closed}
+      - {command: ControlledCloseRefund, from: [merchant_review, approved], to: closed, event: refund.closed}
+  conversation:
+    field: conversation_status
+    states: [active, human_pending, human_active, closed]
+    terminal_states: []
+    transitions:
+      - {command: QueueHumanService, from: [active], to: human_pending, event: conversation.human_pending}
+      - {command: StartHumanService, from: [human_pending], to: human_active, event: conversation.human_started}
+      - {command: EndHumanService, from: [human_active], to: active, event: conversation.human_ended}
+      - {command: CloseConversation, from: [active, human_pending, human_active], to: closed, event: conversation.closed}
+      - command: ReopenConversation
+        from: [closed]
+        to: active
+        event: conversation.reopened
+        guards: [no_nonterminal_human_ticket]
+        transaction_effects: [increment_version, clear_user_hidden_at, append_status_log, append_outbox]
+derived_fields:
+  order_payment_status:
+    states: [unpaid, paid, partially_refunded, refunded]
+    source: payment_ledger_projection
+  order_after_sale_status:
+    states: [none, in_progress, partial, completed]
+    source: order_item_after_sale_projection
+generation_targets:
+  - backend_domain_enums
+  - database_check_constraints
+  - openapi_enums
+  - frontend_generated_types
+  - available_actions_rules
+  - legal_transition_tests
+  - illegal_transition_tests

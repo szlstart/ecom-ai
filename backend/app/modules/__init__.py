@@ -1,0 +1,1 @@
+"""Vertically organized business modules."""

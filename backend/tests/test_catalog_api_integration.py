@@ -4,16 +4,20 @@ import secrets
 from datetime import timedelta
 from decimal import Decimal
 
+import pyotp
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import func, select
 
+from app.bootstrap.admin import provision_platform_super_admin
 from app.core.config import get_settings
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
 from app.database.mysql import mysql_session
 from app.modules.catalog.models import Brand, Category, Product, ProductSku
 from app.modules.identity.models import AuthSession, User
-from app.modules.inventory.models import Inventory
+from app.modules.inventory.models import Inventory, InventoryLog
+from app.modules.rbac.models import AdminOperationLog
 from app.modules.stores.models import (
     Store,
     StoreAnnouncement,
@@ -22,6 +26,7 @@ from app.modules.stores.models import (
     StoreProductGroupItem,
     StoreServicePolicy,
 )
+from app.modules.system.models import OutboxEvent
 
 pytestmark = [
     pytest.mark.integration,
@@ -279,3 +284,234 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
     followed = await client.get("/api/v1/users/me/followed-stores", headers=auth)
     assert followed.status_code == 200
     assert store_no in [item["store_id"] for item in followed.json()["data"]["items"]]
+
+
+async def test_admin_taxonomy_and_inventory_adjustment_invariants(client: AsyncClient) -> None:
+    suffix = secrets.token_hex(5)
+    now = utc_now()
+    security = SecurityService(get_settings())
+    password = f"Admin-Catalog-{suffix}-Correct-Horse!"
+
+    async for session in mysql_session():
+        provisioning = await provision_platform_super_admin(
+            session,
+            security,
+            username=f"catalog_admin_{suffix}",
+            password=password,
+        )
+        owner = await session.scalar(select(User).where(User.user_no == provisioning.user_no))
+        assert owner is not None
+        category = Category(
+            category_no=new_prefixed_ulid("cat_"),
+            category_name=f"库存分类 {suffix}",
+            category_code=f"inventory-{suffix}",
+            path="/inventory",
+            level=1,
+            sort_order=1,
+            category_status="active",
+        )
+        store = Store(
+            store_no=new_prefixed_ulid("sto_"),
+            owner_user_id=owner.id,
+            store_name=f"库存店铺 {suffix}",
+            store_name_normalized=f"inventory-store-{suffix}",
+            store_status="active",
+            rating_score=Decimal("5.00"),
+            rating_count=0,
+            follower_count=0,
+            sales_count=0,
+            opened_at=now,
+        )
+        session.add_all([category, store])
+        await session.flush()
+        product = Product(
+            product_no=new_prefixed_ulid("prd_"),
+            store_id=store.id,
+            category_id=category.id,
+            product_name=f"库存商品 {suffix}",
+            product_status="draft",
+            min_price_amount=1000,
+            max_price_amount=1000,
+            currency="CNY",
+            sales_count=0,
+            review_count=0,
+            rating_score=Decimal("0.00"),
+        )
+        session.add(product)
+        await session.flush()
+        sku = ProductSku(
+            sku_no=new_prefixed_ulid("sku_"),
+            product_id=product.id,
+            store_id=store.id,
+            merchant_sku_code=f"admin-{suffix}",
+            sku_name="库存测试 SKU",
+            spec_values=[{"name": "规格", "value": "测试"}],
+            spec_signature=hashlib.sha256(f"admin-spec-{suffix}".encode()).digest(),
+            sale_price_amount=1000,
+            market_price_amount=1000,
+            currency="CNY",
+            sku_status="active",
+        )
+        session.add(sku)
+        await session.flush()
+        inventory = Inventory(
+            sku_id=sku.id,
+            on_hand_quantity=10,
+            reserved_quantity=3,
+            safety_stock_quantity=2,
+            sold_quantity=0,
+            inventory_status="active",
+        )
+        session.add(inventory)
+        await session.commit()
+        sku_no = sku.sku_no
+        sku_internal_id = sku.id
+
+    login = await client.post(
+        "/api/v1/admin/auth/login",
+        json={
+            "identifier": f"catalog_admin_{suffix}",
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Catalog Admin Test"},
+        },
+    )
+    assert login.status_code == 200, login.text
+    challenge_id = login.json()["data"]["challenge_id"]
+    mfa = await client.post(
+        "/api/v1/admin/auth/mfa-verifications",
+        headers={"Idempotency-Key": f"catalog-mfa-{suffix}-001"},
+        json={
+            "challenge_id": challenge_id,
+            "method": "totp",
+            "code": pyotp.TOTP(provisioning.totp_secret).now(),
+        },
+    )
+    assert mfa.status_code == 200, mfa.text
+    token = mfa.json()["data"]["session"]["access_token"]
+    admin_headers = {"Authorization": f"Bearer {token}"}
+
+    root = await client.post(
+        "/api/v1/admin/categories",
+        headers={
+            **admin_headers,
+            "Idempotency-Key": f"category-root-{suffix}-001",
+        },
+        json={
+            "parent_id": None,
+            "category_name": f"根分类 {suffix}",
+            "category_code": f"root-{suffix}",
+            "sort_order": 1,
+            "icon_file_id": None,
+        },
+    )
+    assert root.status_code == 201, root.text
+    root_id = root.json()["data"]["category_id"]
+
+    child = await client.post(
+        "/api/v1/admin/categories",
+        headers={
+            **admin_headers,
+            "Idempotency-Key": f"category-child-{suffix}-01",
+        },
+        json={
+            "parent_id": root_id,
+            "category_name": f"子分类 {suffix}",
+            "category_code": f"child-{suffix}",
+            "sort_order": 1,
+            "icon_file_id": None,
+        },
+    )
+    assert child.status_code == 201, child.text
+    child_id = child.json()["data"]["category_id"]
+
+    cycle = await client.patch(
+        f"/api/v1/admin/categories/{root_id}",
+        headers={**admin_headers, "If-Match": root.headers["etag"]},
+        json={"parent_id": child_id},
+    )
+    assert cycle.status_code == 409
+    assert cycle.json()["code"] == "CATEGORY_CYCLE"
+
+    brand = await client.post(
+        "/api/v1/admin/brands",
+        headers={
+            **admin_headers,
+            "Idempotency-Key": f"brand-create-{suffix}-0001",
+        },
+        json={
+            "brand_name": f"管理品牌 {suffix}",
+            "logo_file_id": None,
+            "description": "管理端品牌测试",
+        },
+    )
+    assert brand.status_code == 201, brand.text
+
+    inventory_response = await client.get(
+        f"/api/v1/admin/inventories/{sku_no}", headers=admin_headers
+    )
+    assert inventory_response.status_code == 200, inventory_response.text
+    assert inventory_response.json()["data"]["available_quantity"] == 5
+
+    adjustment_key = f"inventory-adjust-{suffix}-001"
+    adjustment_payload = {
+        "sku_id": sku_no,
+        "on_hand_delta": 5,
+        "reason_code": "STOCKTAKE_GAIN",
+        "reason": "盘点发现库存增加",
+        "reference_no": f"stocktake-{suffix}",
+        "expected_version": inventory_response.json()["data"]["version"],
+    }
+    adjusted = await client.post(
+        "/api/v1/admin/inventory-adjustments",
+        headers={**admin_headers, "Idempotency-Key": adjustment_key},
+        json=adjustment_payload,
+    )
+    assert adjusted.status_code == 200, adjusted.text
+    adjusted_data = adjusted.json()["data"]
+    assert adjusted_data["inventory"]["on_hand_quantity"] == 15
+    assert adjusted_data["inventory"]["available_quantity"] == 10
+
+    replayed = await client.post(
+        "/api/v1/admin/inventory-adjustments",
+        headers={**admin_headers, "Idempotency-Key": adjustment_key},
+        json=adjustment_payload,
+    )
+    assert replayed.status_code == 200, replayed.text
+    assert replayed.json()["data"]["adjustment_id"] == adjusted_data["adjustment_id"]
+
+    violating = await client.post(
+        "/api/v1/admin/inventory-adjustments",
+        headers={
+            **admin_headers,
+            "Idempotency-Key": f"inventory-negative-{suffix}-01",
+        },
+        json={
+            **adjustment_payload,
+            "on_hand_delta": -11,
+            "expected_version": adjusted_data["inventory"]["version"],
+        },
+    )
+    assert violating.status_code == 409
+    assert violating.json()["code"] == "INVENTORY_ADJUSTMENT_WOULD_VIOLATE_RESERVATIONS"
+
+    async for session in mysql_session():
+        log_count = await session.scalar(
+            select(func.count(InventoryLog.id)).where(InventoryLog.sku_id == sku_internal_id)
+        )
+        audit_count = await session.scalar(
+            select(func.count(AdminOperationLog.id)).where(
+                AdminOperationLog.target_type == "sku",
+                AdminOperationLog.target_no == sku_no,
+                AdminOperationLog.action == "adjust_inventory",
+            )
+        )
+        event_count = await session.scalar(
+            select(func.count(OutboxEvent.id)).where(
+                OutboxEvent.aggregate_type == "inventory",
+                OutboxEvent.aggregate_no == sku_no,
+                OutboxEvent.event_type == "inventory.adjusted.v1",
+            )
+        )
+        assert log_count == 1
+        assert audit_count == 1
+        assert event_count == 1

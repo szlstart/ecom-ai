@@ -2395,6 +2395,525 @@
         }
       }
     },
+    "/api/v1/admin/categories": {
+      "get": {
+        "tags": [
+          "catalog-administration"
+        ],
+        "summary": "List Categories",
+        "operationId": "AdminCategory_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_AdminCategoryView__"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalog-administration"
+        ],
+        "summary": "Create Category",
+        "operationId": "AdminCategory_Upsert",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCategoryCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminCategoryView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/categories/{category_id}": {
+      "patch": {
+        "tags": [
+          "catalog-administration"
+        ],
+        "summary": "Update Category",
+        "operationId": "AdminCategory_Update",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCategoryUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminCategoryView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/brands": {
+      "get": {
+        "tags": [
+          "catalog-administration"
+        ],
+        "summary": "List Brands",
+        "operationId": "AdminBrand_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_AdminBrandView__"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalog-administration"
+        ],
+        "summary": "Create Brand",
+        "operationId": "AdminBrand_Upsert",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminBrandCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminBrandView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/brands/{brand_id}": {
+      "patch": {
+        "tags": [
+          "catalog-administration"
+        ],
+        "summary": "Update Brand",
+        "operationId": "AdminBrand_Update",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "brand_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Brand Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminBrandUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminBrandView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/inventories": {
+      "get": {
+        "tags": [
+          "catalog-administration"
+        ],
+        "summary": "List Inventories",
+        "operationId": "AdminInventory_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminInventoryList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/inventories/{sku_id}": {
+      "get": {
+        "tags": [
+          "catalog-administration"
+        ],
+        "summary": "Get Inventory",
+        "operationId": "AdminInventory_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sku_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sku Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminInventoryView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/inventory-adjustments": {
+      "post": {
+        "tags": [
+          "catalog-administration"
+        ],
+        "summary": "Adjust Inventory",
+        "operationId": "AdminInventory_Adjust",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminInventoryAdjustmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminInventoryAdjustmentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/auth/login": {
       "post": {
         "tags": [
@@ -4611,6 +5130,368 @@
         ],
         "title": "AdminBootstrap"
       },
+      "AdminBrandCreateRequest": {
+        "properties": {
+          "brand_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Brand Name"
+          },
+          "logo_file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo File Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "brand_name"
+        ],
+        "title": "AdminBrandCreateRequest"
+      },
+      "AdminBrandUpdateRequest": {
+        "properties": {
+          "brand_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand Name"
+          },
+          "logo_file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo File Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "disabled"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AdminBrandUpdateRequest"
+      },
+      "AdminBrandView": {
+        "properties": {
+          "brand_id": {
+            "type": "string",
+            "title": "Brand Id"
+          },
+          "brand_name": {
+            "type": "string",
+            "title": "Brand Name"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "brand_id",
+          "brand_name",
+          "logo_url",
+          "description",
+          "status",
+          "version"
+        ],
+        "title": "AdminBrandView"
+      },
+      "AdminCategoryCreateRequest": {
+        "properties": {
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "category_name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Category Name"
+          },
+          "category_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{1,63}$",
+            "title": "Category Code"
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "minimum": 0.0,
+            "title": "Sort Order",
+            "default": 0
+          },
+          "icon_file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon File Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "category_name",
+          "category_code"
+        ],
+        "title": "AdminCategoryCreateRequest"
+      },
+      "AdminCategoryUpdateRequest": {
+        "properties": {
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "category_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name"
+          },
+          "category_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]{1,63}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Code"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
+          "icon_file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon File Id"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "disabled"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AdminCategoryUpdateRequest"
+      },
+      "AdminCategoryView": {
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "title": "Category Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "category_name": {
+            "type": "string",
+            "title": "Category Name"
+          },
+          "category_code": {
+            "type": "string",
+            "title": "Category Code"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "icon_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon Url"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "category_id",
+          "parent_id",
+          "category_name",
+          "category_code",
+          "path",
+          "level",
+          "sort_order",
+          "icon_url",
+          "status",
+          "version"
+        ],
+        "title": "AdminCategoryView"
+      },
       "AdminDashboardSummary": {
         "properties": {
           "generated_at": {
@@ -4668,6 +5549,203 @@
           "unavailable_sections"
         ],
         "title": "AdminDashboardSummary"
+      },
+      "AdminInventoryAdjustmentRequest": {
+        "properties": {
+          "sku_id": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 5,
+            "title": "Sku Id"
+          },
+          "on_hand_delta": {
+            "type": "integer",
+            "maximum": 1000000000.0,
+            "minimum": -1000000000.0,
+            "title": "On Hand Delta"
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason"
+          },
+          "reference_no": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 2,
+            "title": "Reference No"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sku_id",
+          "on_hand_delta",
+          "reason_code",
+          "reason",
+          "reference_no",
+          "expected_version"
+        ],
+        "title": "AdminInventoryAdjustmentRequest"
+      },
+      "AdminInventoryAdjustmentView": {
+        "properties": {
+          "adjustment_id": {
+            "type": "string",
+            "title": "Adjustment Id"
+          },
+          "inventory": {
+            "$ref": "#/components/schemas/AdminInventoryView"
+          },
+          "on_hand_delta": {
+            "type": "integer",
+            "title": "On Hand Delta"
+          },
+          "reason_code": {
+            "type": "string",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "reference_no": {
+            "type": "string",
+            "title": "Reference No"
+          },
+          "adjusted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Adjusted At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adjustment_id",
+          "inventory",
+          "on_hand_delta",
+          "reason_code",
+          "reason",
+          "reference_no",
+          "adjusted_at"
+        ],
+        "title": "AdminInventoryAdjustmentView"
+      },
+      "AdminInventoryList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminInventoryView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AdminInventoryList"
+      },
+      "AdminInventoryView": {
+        "properties": {
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "sku_name": {
+            "type": "string",
+            "title": "Sku Name"
+          },
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "store_id": {
+            "type": "string",
+            "title": "Store Id"
+          },
+          "store_name": {
+            "type": "string",
+            "title": "Store Name"
+          },
+          "on_hand_quantity": {
+            "type": "integer",
+            "title": "On Hand Quantity"
+          },
+          "reserved_quantity": {
+            "type": "integer",
+            "title": "Reserved Quantity"
+          },
+          "safety_stock_quantity": {
+            "type": "integer",
+            "title": "Safety Stock Quantity"
+          },
+          "available_quantity": {
+            "type": "integer",
+            "title": "Available Quantity"
+          },
+          "sold_quantity": {
+            "type": "integer",
+            "title": "Sold Quantity"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "last_reconciled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Reconciled At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sku_id",
+          "sku_name",
+          "product_id",
+          "product_name",
+          "store_id",
+          "store_name",
+          "on_hand_quantity",
+          "reserved_quantity",
+          "safety_stock_quantity",
+          "available_quantity",
+          "sold_quantity",
+          "status",
+          "last_reconciled_at",
+          "version"
+        ],
+        "title": "AdminInventoryView"
       },
       "AdminLoginRequest": {
         "properties": {
@@ -5524,6 +6602,36 @@
         ],
         "title": "Envelope[AdminBootstrap]"
       },
+      "Envelope_AdminBrandView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminBrandView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminBrandView]"
+      },
+      "Envelope_AdminCategoryView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminCategoryView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminCategoryView]"
+      },
       "Envelope_AdminDashboardSummary_": {
         "properties": {
           "data": {
@@ -5538,6 +6646,51 @@
           "data"
         ],
         "title": "Envelope[AdminDashboardSummary]"
+      },
+      "Envelope_AdminInventoryAdjustmentView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminInventoryAdjustmentView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminInventoryAdjustmentView]"
+      },
+      "Envelope_AdminInventoryList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminInventoryList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminInventoryList]"
+      },
+      "Envelope_AdminInventoryView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminInventoryView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminInventoryView]"
       },
       "Envelope_AdminMe_": {
         "properties": {
@@ -6020,6 +7173,44 @@
           "data"
         ],
         "title": "Envelope[dict[str, object]]"
+      },
+      "Envelope_list_AdminBrandView__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AdminBrandView"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[list[AdminBrandView]]"
+      },
+      "Envelope_list_AdminCategoryView__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AdminCategoryView"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[list[AdminCategoryView]]"
       },
       "Envelope_list_ApprovalView__": {
         "properties": {

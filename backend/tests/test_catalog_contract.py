@@ -27,6 +27,12 @@ def test_catalog_and_store_openapi_operations_are_stable() -> None:
         ("/api/v1/users/me/followed-stores", "get"): "FollowedStore_ListMine",
         ("/api/v1/users/me/followed-stores/{store_id}", "put"): "FollowedStore_Put",
         ("/api/v1/users/me/followed-stores/{store_id}", "delete"): "FollowedStore_Delete",
+        ("/api/v1/admin/categories", "get"): "AdminCategory_List",
+        ("/api/v1/admin/categories", "post"): "AdminCategory_Upsert",
+        ("/api/v1/admin/brands", "get"): "AdminBrand_List",
+        ("/api/v1/admin/brands", "post"): "AdminBrand_Upsert",
+        ("/api/v1/admin/inventories", "get"): "AdminInventory_List",
+        ("/api/v1/admin/inventory-adjustments", "post"): "AdminInventory_Adjust",
     }
     for (path, method), operation_id in expected.items():
         assert paths[path][method]["operationId"] == operation_id

@@ -708,6 +708,127 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Categories */
+        get: operations["AdminCategory_List"];
+        put?: never;
+        /** Create Category */
+        post: operations["AdminCategory_Upsert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Category */
+        patch: operations["AdminCategory_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Brands */
+        get: operations["AdminBrand_List"];
+        put?: never;
+        /** Create Brand */
+        post: operations["AdminBrand_Upsert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/brands/{brand_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Brand */
+        patch: operations["AdminBrand_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/inventories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Inventories */
+        get: operations["AdminInventory_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/inventories/{sku_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Inventory */
+        get: operations["AdminInventory_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/inventory-adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust Inventory */
+        post: operations["AdminInventory_Adjust"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/auth/login": {
         parameters: {
             query?: never;
@@ -1326,6 +1447,95 @@ export interface components {
                 [key: string]: string | number;
             }[];
         };
+        /** AdminBrandCreateRequest */
+        AdminBrandCreateRequest: {
+            /** Brand Name */
+            brand_name: string;
+            /** Logo File Id */
+            logo_file_id?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** AdminBrandUpdateRequest */
+        AdminBrandUpdateRequest: {
+            /** Brand Name */
+            brand_name?: string | null;
+            /** Logo File Id */
+            logo_file_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Status */
+            status?: ("active" | "disabled") | null;
+        };
+        /** AdminBrandView */
+        AdminBrandView: {
+            /** Brand Id */
+            brand_id: string;
+            /** Brand Name */
+            brand_name: string;
+            /** Logo Url */
+            logo_url: string | null;
+            /** Description */
+            description: string | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+        };
+        /** AdminCategoryCreateRequest */
+        AdminCategoryCreateRequest: {
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Category Name */
+            category_name: string;
+            /** Category Code */
+            category_code: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Icon File Id */
+            icon_file_id?: string | null;
+        };
+        /** AdminCategoryUpdateRequest */
+        AdminCategoryUpdateRequest: {
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Category Name */
+            category_name?: string | null;
+            /** Category Code */
+            category_code?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Icon File Id */
+            icon_file_id?: string | null;
+            /** Status */
+            status?: ("active" | "disabled") | null;
+        };
+        /** AdminCategoryView */
+        AdminCategoryView: {
+            /** Category Id */
+            category_id: string;
+            /** Parent Id */
+            parent_id: string | null;
+            /** Category Name */
+            category_name: string;
+            /** Category Code */
+            category_code: string;
+            /** Path */
+            path: string;
+            /** Level */
+            level: number;
+            /** Sort Order */
+            sort_order: number;
+            /** Icon Url */
+            icon_url: string | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+        };
         /** AdminDashboardSummary */
         AdminDashboardSummary: {
             /**
@@ -1343,6 +1553,76 @@ export interface components {
             pending_approval_count: number;
             /** Unavailable Sections */
             unavailable_sections: string[];
+        };
+        /** AdminInventoryAdjustmentRequest */
+        AdminInventoryAdjustmentRequest: {
+            /** Sku Id */
+            sku_id: string;
+            /** On Hand Delta */
+            on_hand_delta: number;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            /** Reference No */
+            reference_no: string;
+            /** Expected Version */
+            expected_version: number;
+        };
+        /** AdminInventoryAdjustmentView */
+        AdminInventoryAdjustmentView: {
+            /** Adjustment Id */
+            adjustment_id: string;
+            inventory: components["schemas"]["AdminInventoryView"];
+            /** On Hand Delta */
+            on_hand_delta: number;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            /** Reference No */
+            reference_no: string;
+            /**
+             * Adjusted At
+             * Format: date-time
+             */
+            adjusted_at: string;
+        };
+        /** AdminInventoryList */
+        AdminInventoryList: {
+            /** Items */
+            items: components["schemas"]["AdminInventoryView"][];
+        };
+        /** AdminInventoryView */
+        AdminInventoryView: {
+            /** Sku Id */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** On Hand Quantity */
+            on_hand_quantity: number;
+            /** Reserved Quantity */
+            reserved_quantity: number;
+            /** Safety Stock Quantity */
+            safety_stock_quantity: number;
+            /** Available Quantity */
+            available_quantity: number;
+            /** Sold Quantity */
+            sold_quantity: number;
+            /** Status */
+            status: string;
+            /** Last Reconciled At */
+            last_reconciled_at: string | null;
+            /** Version */
+            version: number;
         };
         /** AdminLoginRequest */
         AdminLoginRequest: {
@@ -1657,9 +1937,34 @@ export interface components {
             data: components["schemas"]["AdminBootstrap"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AdminBrandView] */
+        Envelope_AdminBrandView_: {
+            data: components["schemas"]["AdminBrandView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminCategoryView] */
+        Envelope_AdminCategoryView_: {
+            data: components["schemas"]["AdminCategoryView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AdminDashboardSummary] */
         Envelope_AdminDashboardSummary_: {
             data: components["schemas"]["AdminDashboardSummary"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminInventoryAdjustmentView] */
+        Envelope_AdminInventoryAdjustmentView_: {
+            data: components["schemas"]["AdminInventoryAdjustmentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminInventoryList] */
+        Envelope_AdminInventoryList_: {
+            data: components["schemas"]["AdminInventoryList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminInventoryView] */
+        Envelope_AdminInventoryView_: {
+            data: components["schemas"]["AdminInventoryView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminMe] */
@@ -1823,6 +2128,18 @@ export interface components {
             data: {
                 [key: string]: unknown;
             };
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminBrandView]] */
+        Envelope_list_AdminBrandView__: {
+            /** Data */
+            data: components["schemas"]["AdminBrandView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminCategoryView]] */
+        Envelope_list_AdminCategoryView__: {
+            /** Data */
+            data: components["schemas"]["AdminCategoryView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[list[ApprovalView]] */
@@ -4231,6 +4548,289 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminCategory_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminCategoryView__"];
+                };
+            };
+        };
+    };
+    AdminCategory_Upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCategoryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminCategoryView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminCategory_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCategoryUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminCategoryView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminBrand_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminBrandView__"];
+                };
+            };
+        };
+    };
+    AdminBrand_Upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminBrandCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminBrandView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminBrand_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                brand_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminBrandUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminBrandView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminInventory_List: {
+        parameters: {
+            query?: {
+                store_id?: string | null;
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminInventoryList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminInventory_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sku_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminInventoryView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminInventory_Adjust: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminInventoryAdjustmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminInventoryAdjustmentView_"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import hashlib
 import pprint
+import subprocess
+import sys
 from pathlib import Path
 
 import yaml
@@ -31,6 +33,10 @@ def main() -> None:
     )
     TARGET.parent.mkdir(parents=True, exist_ok=True)
     TARGET.write_text(rendered, encoding="utf-8")
+    subprocess.run(
+        [sys.executable, "-m", "ruff", "format", "--quiet", str(TARGET)],
+        check=True,
+    )
 
 
 if __name__ == "__main__":

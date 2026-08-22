@@ -2,7 +2,7 @@ CONDA_ENV := ecom-ai
 PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
 PIP := $(PYTHON) -m pip
 
-.PHONY: bootstrap install lock lint format test registry-check migrate infra-up infra-down app-up app-down api frontend check
+.PHONY: bootstrap install lock lint format test registry-check migrate seed infra-up infra-down app-up app-down api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -36,6 +36,9 @@ registry-check:
 migrate:
 	cd backend && $(PYTHON) -m alembic -c alembic.mysql.ini upgrade head
 	cd backend && $(PYTHON) -m alembic -c alembic.postgres.ini upgrade head
+
+seed:
+	cd backend && $(PYTHON) -m app.bootstrap.cli
 
 infra-up:
 	docker compose up -d mysql postgres redis

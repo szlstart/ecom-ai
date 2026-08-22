@@ -1,0 +1,1 @@
+"""Versioned platform content domain."""

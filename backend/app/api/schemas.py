@@ -5,8 +5,17 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.core.context import request_id_context
 
 
+class PaginationMeta(BaseModel):
+    previous_cursor: str | None = None
+    next_cursor: str | None = None
+    has_previous: bool = False
+    has_next: bool = False
+    limit: int
+
+
 class ResponseMeta(BaseModel):
     request_id: str | None = None
+    pagination: PaginationMeta | None = None
 
 
 class Envelope[T](BaseModel):

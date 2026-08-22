@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Awaitable, Callable
+from typing import Literal
 
 from app.core.config import Settings
 from app.database.mysql import probe_mysql
@@ -34,5 +35,7 @@ async def get_readiness(settings: Settings) -> ReadinessResponse:
         name: DependencyStatus(status="down" if isinstance(result, BaseException) else "up")
         for name, result in zip(probes, results, strict=True)
     }
-    overall = "ready" if all(item.status == "up" for item in dependencies.values()) else "not_ready"
+    overall: Literal["ready", "not_ready"] = (
+        "ready" if all(item.status == "up" for item in dependencies.values()) else "not_ready"
+    )
     return ReadinessResponse(status=overall, dependencies=dependencies)

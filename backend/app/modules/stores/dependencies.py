@@ -4,6 +4,7 @@ from fastapi import Depends
 
 from app.api.dependencies import DatabaseSession
 from app.core.config import get_settings
+from app.modules.stores.admin_service import AdminStoreService
 from app.modules.stores.service import StoreService
 
 
@@ -12,3 +13,10 @@ def get_store_service(session: DatabaseSession) -> StoreService:
 
 
 StoreServiceDependency = Annotated[StoreService, Depends(get_store_service)]
+
+
+def get_admin_store_service(session: DatabaseSession) -> AdminStoreService:
+    return AdminStoreService(session, get_settings())
+
+
+AdminStoreServiceDependency = Annotated[AdminStoreService, Depends(get_admin_store_service)]

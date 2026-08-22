@@ -33,6 +33,48 @@ def test_catalog_and_store_openapi_operations_are_stable() -> None:
         ("/api/v1/admin/brands", "post"): "AdminBrand_Upsert",
         ("/api/v1/admin/inventories", "get"): "AdminInventory_List",
         ("/api/v1/admin/inventory-adjustments", "post"): "AdminInventory_Adjust",
+        ("/api/v1/admin/stores", "get"): "AdminStore_List",
+        ("/api/v1/admin/stores/{store_id}", "get"): "AdminStore_Get",
+        (
+            "/api/v1/admin/stores/{store_id}/status-changes",
+            "post",
+        ): "AdminStore_ChangeStatus",
+        (
+            "/api/v1/admin/store-certifications",
+            "get",
+        ): "AdminStoreCertification_List",
+        (
+            "/api/v1/admin/store-certifications/{certification_id}",
+            "get",
+        ): "AdminStoreCertification_Get",
+        (
+            "/api/v1/admin/store-certifications/{certification_id}/decisions",
+            "post",
+        ): "AdminStoreCertification_Decide",
+        (
+            "/api/v1/admin/store-certifications/{certification_id}/material-versions",
+            "post",
+        ): "AdminStoreCertification_AddMaterialVersion",
+        (
+            "/api/v1/admin/stores/{store_id}/service-policies",
+            "get",
+        ): "AdminStorePolicy_List",
+        (
+            "/api/v1/admin/stores/{store_id}/service-policies",
+            "post",
+        ): "AdminStorePolicy_Create",
+        (
+            "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}",
+            "patch",
+        ): "AdminStorePolicy_Update",
+        (
+            "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}/publications",
+            "post",
+        ): "AdminStorePolicy_Publish",
+        (
+            "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}/withdrawals",
+            "post",
+        ): "AdminStorePolicy_Withdraw",
     }
     for (path, method), operation_id in expected.items():
         assert paths[path][method]["operationId"] == operation_id

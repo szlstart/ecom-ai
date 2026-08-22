@@ -829,6 +829,212 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Stores */
+        get: operations["AdminStore_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Store */
+        get: operations["AdminStore_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/status-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change Store Status */
+        post: operations["AdminStore_ChangeStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-certifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Certifications */
+        get: operations["AdminStoreCertification_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-certifications/{certification_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Certification */
+        get: operations["AdminStoreCertification_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-certifications/{certification_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Certification Events */
+        get: operations["AdminStoreCertificationEvent_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-certifications/{certification_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Certification */
+        post: operations["AdminStoreCertification_Decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/store-certifications/{certification_id}/material-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Certification Material Version */
+        post: operations["AdminStoreCertification_AddMaterialVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/service-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Store Policies */
+        get: operations["AdminStorePolicy_List"];
+        put?: never;
+        /** Create Store Policy */
+        post: operations["AdminStorePolicy_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Store Policy */
+        get: operations["AdminStorePolicy_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Store Policy */
+        patch: operations["AdminStorePolicy_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Store Policy */
+        post: operations["AdminStorePolicy_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw Store Policy */
+        post: operations["AdminStorePolicy_Withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/auth/login": {
         parameters: {
             query?: never;
@@ -1536,6 +1742,129 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AdminCertificationDecisionRequest */
+        AdminCertificationDecisionRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject" | "request_more_info";
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid Until */
+            valid_until?: string | null;
+            /** Required Materials */
+            required_materials?: components["schemas"]["AdminCertificationRequiredMaterial"][] | null;
+        };
+        /** AdminCertificationDetail */
+        AdminCertificationDetail: {
+            /** Certification Id */
+            certification_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Certification Type */
+            certification_type: string;
+            /** Review Status */
+            review_status: string;
+            /** Material Version */
+            material_version: number;
+            /** Valid From */
+            valid_from: string | null;
+            /** Valid Until */
+            valid_until: string | null;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            /** Version */
+            version: number;
+            /** Evidence File Ids */
+            evidence_file_ids: string[];
+            /** Decision Reason Code */
+            decision_reason_code: string | null;
+            /** Decision Reason */
+            decision_reason: string | null;
+        };
+        /** AdminCertificationEventView */
+        AdminCertificationEventView: {
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** Material Version */
+            material_version: number;
+            /** Evidence File Ids */
+            evidence_file_ids: string[];
+            /** Reason Code */
+            reason_code: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Required Materials */
+            required_materials: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Actor Type */
+            actor_type: string;
+            /** Certification Version */
+            certification_version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** AdminCertificationList */
+        AdminCertificationList: {
+            /** Items */
+            items: components["schemas"]["AdminCertificationSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** AdminCertificationMaterialRequest */
+        AdminCertificationMaterialRequest: {
+            /** Evidence File Ids */
+            evidence_file_ids: string[];
+            /** Reason */
+            reason: string;
+        };
+        /** AdminCertificationRequiredMaterial */
+        AdminCertificationRequiredMaterial: {
+            /** Material Code */
+            material_code: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description?: string | null;
+            /** Due At */
+            due_at?: string | null;
+        };
+        /** AdminCertificationSummary */
+        AdminCertificationSummary: {
+            /** Certification Id */
+            certification_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Certification Type */
+            certification_type: string;
+            /** Review Status */
+            review_status: string;
+            /** Material Version */
+            material_version: number;
+            /** Valid From */
+            valid_from: string | null;
+            /** Valid Until */
+            valid_until: string | null;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            /** Version */
+            version: number;
+        };
         /** AdminDashboardSummary */
         AdminDashboardSummary: {
             /**
@@ -1689,6 +2018,11 @@ export interface components {
                 [key: string]: string | number;
             }[];
         };
+        /** AdminPolicyCommandRequest */
+        AdminPolicyCommandRequest: {
+            /** Reason */
+            reason: string;
+        };
         /** AdminReauthenticationRequest */
         AdminReauthenticationRequest: {
             /** Password */
@@ -1700,6 +2034,105 @@ export interface components {
             method: "totp" | "recovery_code";
             /** Code */
             code: string;
+        };
+        /** AdminStoreList */
+        AdminStoreList: {
+            /** Items */
+            items: components["schemas"]["AdminStoreView"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** AdminStorePolicyCreateRequest */
+        AdminStorePolicyCreateRequest: {
+            /** Policy Type */
+            policy_type: string;
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /** Effective At */
+            effective_at?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** AdminStorePolicyUpdateRequest */
+        AdminStorePolicyUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Content */
+            content?: string | null;
+            /** Effective At */
+            effective_at?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** AdminStorePolicyView */
+        AdminStorePolicyView: {
+            /** Policy Id */
+            policy_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Policy Type */
+            policy_type: string;
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /** Policy Version */
+            policy_version: number;
+            /** Status */
+            status: string;
+            /** Effective At */
+            effective_at: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** Published At */
+            published_at: string | null;
+            /** Withdrawn At */
+            withdrawn_at: string | null;
+            /** Version */
+            version: number;
+        };
+        /** AdminStoreStatusChangeRequest */
+        AdminStoreStatusChangeRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "activate" | "suspend" | "resume" | "close";
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminStoreView */
+        AdminStoreView: {
+            /** Store Id */
+            store_id: string;
+            /** Owner User Id */
+            owner_user_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Description */
+            description: string | null;
+            /** Status */
+            status: string;
+            /** Rating Score */
+            rating_score: string;
+            /** Rating Count */
+            rating_count: number;
+            /** Follower Count */
+            follower_count: number;
+            /** Sales Count */
+            sales_count: number;
+            /** Opened At */
+            opened_at: string | null;
+            /** Suspended At */
+            suspended_at: string | null;
+            /** Closed At */
+            closed_at: string | null;
+            /** Version */
+            version: number;
         };
         /** AdminUserList */
         AdminUserList: {
@@ -1947,6 +2380,16 @@ export interface components {
             data: components["schemas"]["AdminCategoryView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AdminCertificationDetail] */
+        Envelope_AdminCertificationDetail_: {
+            data: components["schemas"]["AdminCertificationDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminCertificationList] */
+        Envelope_AdminCertificationList_: {
+            data: components["schemas"]["AdminCertificationList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AdminDashboardSummary] */
         Envelope_AdminDashboardSummary_: {
             data: components["schemas"]["AdminDashboardSummary"];
@@ -1980,6 +2423,21 @@ export interface components {
         /** Envelope[AdminNavigation] */
         Envelope_AdminNavigation_: {
             data: components["schemas"]["AdminNavigation"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStoreList] */
+        Envelope_AdminStoreList_: {
+            data: components["schemas"]["AdminStoreList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStorePolicyView] */
+        Envelope_AdminStorePolicyView_: {
+            data: components["schemas"]["AdminStorePolicyView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStoreView] */
+        Envelope_AdminStoreView_: {
+            data: components["schemas"]["AdminStoreView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminUserList] */
@@ -2140,6 +2598,18 @@ export interface components {
         Envelope_list_AdminCategoryView__: {
             /** Data */
             data: components["schemas"]["AdminCategoryView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminCertificationEventView]] */
+        Envelope_list_AdminCertificationEventView__: {
+            /** Data */
+            data: components["schemas"]["AdminCertificationEventView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminStorePolicyView]] */
+        Envelope_list_AdminStorePolicyView__: {
+            /** Data */
+            data: components["schemas"]["AdminStorePolicyView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[list[ApprovalView]] */
@@ -4830,6 +5300,496 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_AdminInventoryAdjustmentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStore_List: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                q?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStore_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStore_ChangeStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreStatusChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreCertification_List: {
+        parameters: {
+            query?: {
+                review_status?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminCertificationList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreCertification_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                certification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminCertificationDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreCertificationEvent_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                certification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminCertificationEventView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreCertification_Decide: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                certification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCertificationDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminCertificationDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreCertification_AddMaterialVersion: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                certification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCertificationMaterialRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminCertificationDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStorePolicy_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminStorePolicyView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStorePolicy_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStorePolicyCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStorePolicy_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStorePolicy_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStorePolicyUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStorePolicy_Publish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPolicyCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStorePolicy_Withdraw: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPolicyCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
                 };
             };
             /** @description Validation Error */

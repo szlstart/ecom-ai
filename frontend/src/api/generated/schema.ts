@@ -1330,6 +1330,163 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/stores/{store_id}/product-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Groups */
+        get: operations["AdminStoreProductGroup_List"];
+        put?: never;
+        /** Create Product Group */
+        post: operations["AdminStoreProductGroup_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/product-groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Product Group */
+        patch: operations["AdminStoreProductGroup_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/product-groups/{group_id}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Product Group Products */
+        put: operations["AdminStoreProductGroup_ReplaceProducts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/shipping-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Shipping Templates */
+        get: operations["AdminShippingTemplate_List"];
+        put?: never;
+        /** Create Shipping Template */
+        post: operations["AdminShippingTemplate_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/shipping-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Shipping Template */
+        patch: operations["AdminShippingTemplate_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/shipping-templates/{template_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Shipping Template */
+        post: operations["AdminShippingTemplate_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Announcements */
+        get: operations["AdminStoreAnnouncement_List"];
+        put?: never;
+        /** Create Announcement */
+        post: operations["AdminStoreAnnouncement_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/announcements/{announcement_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Announcement */
+        patch: operations["AdminStoreAnnouncement_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/featured-products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Featured Products */
+        get: operations["AdminStoreFeaturedProduct_List"];
+        /** Replace Featured Products */
+        put: operations["AdminStoreFeaturedProduct_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/auth/login": {
         parameters: {
             query?: never;
@@ -2273,6 +2430,38 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AdminFeaturedProductInput */
+        AdminFeaturedProductInput: {
+            /** Product Id */
+            product_id: string;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+        };
+        /** AdminFeaturedProductSetRequest */
+        AdminFeaturedProductSetRequest: {
+            /**
+             * Slot Type
+             * @enum {string}
+             */
+            slot_type: "recommended" | "hot";
+            /** Items */
+            items: components["schemas"]["AdminFeaturedProductInput"][];
+        };
+        /** AdminFeaturedProductView */
+        AdminFeaturedProductView: {
+            /** Product Id */
+            product_id: string;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Slot Type */
+            slot_type: string;
+            /** Sort Order */
+            sort_order: number;
+        };
         /** AdminInventoryAdjustmentRequest */
         AdminInventoryAdjustmentRequest: {
             /** Sku Id */
@@ -2686,6 +2875,103 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** AdminShippingRuleInput */
+        AdminShippingRuleInput: {
+            /** Region Scope */
+            region_scope: {
+                [key: string]: unknown;
+            };
+            /** First Unit */
+            first_unit: number;
+            /** Additional Unit */
+            additional_unit: number;
+            /** First Fee Amount */
+            first_fee_amount: number;
+            /** Additional Fee Amount */
+            additional_fee_amount: number;
+            /** Estimated Min Days */
+            estimated_min_days?: number | null;
+            /** Estimated Max Days */
+            estimated_max_days?: number | null;
+        };
+        /** AdminShippingTemplateCreateRequest */
+        AdminShippingTemplateCreateRequest: {
+            /** Template Family Id */
+            template_family_id?: string | null;
+            /** Template Name */
+            template_name: string;
+            /**
+             * Delivery Type
+             * @enum {string}
+             */
+            delivery_type: "express" | "same_day" | "self_pickup";
+            /**
+             * Charge Mode
+             * @enum {string}
+             */
+            charge_mode: "fixed" | "by_item" | "by_weight";
+            /**
+             * Currency
+             * @default CNY
+             * @constant
+             */
+            currency: "CNY";
+            /** Dispatch Min Hours */
+            dispatch_min_hours: number;
+            /** Dispatch Max Hours */
+            dispatch_max_hours: number;
+            /** Rules */
+            rules: components["schemas"]["AdminShippingRuleInput"][];
+        };
+        /** AdminShippingTemplatePublicationRequest */
+        AdminShippingTemplatePublicationRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** AdminShippingTemplateUpdateRequest */
+        AdminShippingTemplateUpdateRequest: {
+            /** Template Name */
+            template_name?: string | null;
+            /** Delivery Type */
+            delivery_type?: ("express" | "same_day" | "self_pickup") | null;
+            /** Charge Mode */
+            charge_mode?: ("fixed" | "by_item" | "by_weight") | null;
+            /** Dispatch Min Hours */
+            dispatch_min_hours?: number | null;
+            /** Dispatch Max Hours */
+            dispatch_max_hours?: number | null;
+            /** Rules */
+            rules?: components["schemas"]["AdminShippingRuleInput"][] | null;
+        };
+        /** AdminShippingTemplateView */
+        AdminShippingTemplateView: {
+            /** Template Id */
+            template_id: string;
+            /** Template Family Id */
+            template_family_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Template Name */
+            template_name: string;
+            /** Delivery Type */
+            delivery_type: string;
+            /** Charge Mode */
+            charge_mode: string;
+            /** Currency */
+            currency: string;
+            /** Status */
+            status: string;
+            /** Dispatch Min Hours */
+            dispatch_min_hours: number;
+            /** Dispatch Max Hours */
+            dispatch_max_hours: number;
+            /** Policy Version */
+            policy_version: number;
+            /** Rules */
+            rules: components["schemas"]["AdminShippingRuleInput"][];
+            /** Version */
+            version: number;
+        };
         /** AdminSkuCreateRequest */
         AdminSkuCreateRequest: {
             /** Merchant Sku Code */
@@ -2772,6 +3058,64 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AdminStoreAnnouncementCreateRequest */
+        AdminStoreAnnouncementCreateRequest: {
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /**
+             * Status
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "published" | "disabled";
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminStoreAnnouncementUpdateRequest */
+        AdminStoreAnnouncementUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Content */
+            content?: string | null;
+            /** Status */
+            status?: ("draft" | "published" | "disabled") | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** AdminStoreAnnouncementView */
+        AdminStoreAnnouncementView: {
+            /** Announcement Id */
+            announcement_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /** Status */
+            status: string;
+            /** Starts At */
+            starts_at: string | null;
+            /** Ends At */
+            ends_at: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Version */
+            version: number;
+        };
         /** AdminStoreList */
         AdminStoreList: {
             /** Items */
@@ -2827,6 +3171,53 @@ export interface components {
             published_at: string | null;
             /** Withdrawn At */
             withdrawn_at: string | null;
+            /** Version */
+            version: number;
+        };
+        /** AdminStoreProductGroupCreateRequest */
+        AdminStoreProductGroupCreateRequest: {
+            /** Parent Group Id */
+            parent_group_id?: string | null;
+            /** Group Name */
+            group_name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminStoreProductGroupProductsRequest */
+        AdminStoreProductGroupProductsRequest: {
+            /** Product Ids */
+            product_ids: string[];
+        };
+        /** AdminStoreProductGroupUpdateRequest */
+        AdminStoreProductGroupUpdateRequest: {
+            /** Parent Group Id */
+            parent_group_id?: string | null;
+            /** Group Name */
+            group_name?: string | null;
+            /** Status */
+            status?: ("active" | "disabled") | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** AdminStoreProductGroupView */
+        AdminStoreProductGroupView: {
+            /** Group Id */
+            group_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Parent Group Id */
+            parent_group_id: string | null;
+            /** Group Name */
+            group_name: string;
+            /** Status */
+            status: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Product Ids */
+            product_ids: string[];
             /** Version */
             version: number;
         };
@@ -3187,9 +3578,19 @@ export interface components {
             data: components["schemas"]["AdminProductList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AdminShippingTemplateView] */
+        Envelope_AdminShippingTemplateView_: {
+            data: components["schemas"]["AdminShippingTemplateView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AdminSkuView] */
         Envelope_AdminSkuView_: {
             data: components["schemas"]["AdminSkuView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStoreAnnouncementView] */
+        Envelope_AdminStoreAnnouncementView_: {
+            data: components["schemas"]["AdminStoreAnnouncementView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminStoreList] */
@@ -3200,6 +3601,11 @@ export interface components {
         /** Envelope[AdminStorePolicyView] */
         Envelope_AdminStorePolicyView_: {
             data: components["schemas"]["AdminStorePolicyView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStoreProductGroupView] */
+        Envelope_AdminStoreProductGroupView_: {
+            data: components["schemas"]["AdminStoreProductGroupView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminStoreView] */
@@ -3379,6 +3785,12 @@ export interface components {
             data: components["schemas"]["AdminFaqView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[list[AdminFeaturedProductView]] */
+        Envelope_list_AdminFeaturedProductView__: {
+            /** Data */
+            data: components["schemas"]["AdminFeaturedProductView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[list[AdminProductAttributeInput]] */
         Envelope_list_AdminProductAttributeInput__: {
             /** Data */
@@ -3391,16 +3803,34 @@ export interface components {
             data: components["schemas"]["AdminProductImageView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[list[AdminShippingTemplateView]] */
+        Envelope_list_AdminShippingTemplateView__: {
+            /** Data */
+            data: components["schemas"]["AdminShippingTemplateView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[list[AdminSkuView]] */
         Envelope_list_AdminSkuView__: {
             /** Data */
             data: components["schemas"]["AdminSkuView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[list[AdminStoreAnnouncementView]] */
+        Envelope_list_AdminStoreAnnouncementView__: {
+            /** Data */
+            data: components["schemas"]["AdminStoreAnnouncementView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[list[AdminStorePolicyView]] */
         Envelope_list_AdminStorePolicyView__: {
             /** Data */
             data: components["schemas"]["AdminStorePolicyView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminStoreProductGroupView]] */
+        Envelope_list_AdminStoreProductGroupView__: {
+            /** Data */
+            data: components["schemas"]["AdminStoreProductGroupView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[list[ApprovalView]] */
@@ -7402,6 +7832,471 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreProductGroup_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminStoreProductGroupView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreProductGroup_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreProductGroupCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreProductGroupView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreProductGroup_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreProductGroupUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreProductGroupView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreProductGroup_ReplaceProducts: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreProductGroupProductsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreProductGroupView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminShippingTemplate_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminShippingTemplateView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminShippingTemplate_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShippingTemplateCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShippingTemplateView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminShippingTemplate_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShippingTemplateUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShippingTemplateView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminShippingTemplate_Publish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShippingTemplatePublicationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShippingTemplateView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreAnnouncement_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminStoreAnnouncementView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreAnnouncement_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreAnnouncementCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreAnnouncementView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreAnnouncement_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                announcement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreAnnouncementUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreAnnouncementView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreFeaturedProduct_List: {
+        parameters: {
+            query?: {
+                slot_type?: string;
+            };
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminFeaturedProductView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStoreFeaturedProduct_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFeaturedProductSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminFeaturedProductView__"];
                 };
             };
             /** @description Validation Error */

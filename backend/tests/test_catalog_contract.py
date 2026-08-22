@@ -75,6 +75,58 @@ def test_catalog_and_store_openapi_operations_are_stable() -> None:
             "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}/withdrawals",
             "post",
         ): "AdminStorePolicy_Withdraw",
+        (
+            "/api/v1/admin/stores/{store_id}/product-groups",
+            "get",
+        ): "AdminStoreProductGroup_List",
+        (
+            "/api/v1/admin/stores/{store_id}/product-groups",
+            "post",
+        ): "AdminStoreProductGroup_Create",
+        (
+            "/api/v1/admin/stores/{store_id}/product-groups/{group_id}",
+            "patch",
+        ): "AdminStoreProductGroup_Update",
+        (
+            "/api/v1/admin/stores/{store_id}/product-groups/{group_id}/products",
+            "put",
+        ): "AdminStoreProductGroup_ReplaceProducts",
+        (
+            "/api/v1/admin/stores/{store_id}/shipping-templates",
+            "get",
+        ): "AdminShippingTemplate_List",
+        (
+            "/api/v1/admin/stores/{store_id}/shipping-templates",
+            "post",
+        ): "AdminShippingTemplate_Create",
+        (
+            "/api/v1/admin/stores/{store_id}/shipping-templates/{template_id}",
+            "patch",
+        ): "AdminShippingTemplate_Update",
+        (
+            "/api/v1/admin/stores/{store_id}/shipping-templates/{template_id}/publications",
+            "post",
+        ): "AdminShippingTemplate_Publish",
+        (
+            "/api/v1/admin/stores/{store_id}/announcements",
+            "get",
+        ): "AdminStoreAnnouncement_List",
+        (
+            "/api/v1/admin/stores/{store_id}/announcements",
+            "post",
+        ): "AdminStoreAnnouncement_Create",
+        (
+            "/api/v1/admin/stores/{store_id}/announcements/{announcement_id}",
+            "patch",
+        ): "AdminStoreAnnouncement_Update",
+        (
+            "/api/v1/admin/stores/{store_id}/featured-products",
+            "get",
+        ): "AdminStoreFeaturedProduct_List",
+        (
+            "/api/v1/admin/stores/{store_id}/featured-products",
+            "put",
+        ): "AdminStoreFeaturedProduct_Replace",
         ("/api/v1/admin/products", "get"): "AdminProduct_List",
         ("/api/v1/admin/products", "post"): "AdminProduct_Create",
         ("/api/v1/admin/products/{product_id}", "get"): "AdminProduct_Get",

@@ -1,8 +1,9 @@
-CONDA_ENV := ecom-ai
-PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
+CONDA_ENV ?= ecom-ai
+CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
+PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
 
-.PHONY: bootstrap install lock lint format test registry-check migrate infra-up infra-down app-up app-down api frontend check
+.PHONY: bootstrap install lock lint format test build registry-check openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -16,11 +17,11 @@ install:
 	cd frontend && pnpm install --frozen-lockfile
 
 lock:
-	cd backend && ../.scripts/compile-requirements.sh
+	cd backend && PYTHON_BIN="$(PYTHON)" ../.scripts/compile-requirements.sh
 
 lint:
 	cd backend && $(PYTHON) -m ruff check app tests
-	cd backend && $(PYTHON) -m mypy app
+	cd backend && $(PYTHON) -m mypy app tests
 	cd frontend && pnpm typecheck
 
 format:
@@ -29,13 +30,28 @@ format:
 
 test:
 	cd backend && $(PYTHON) -m pytest
+	cd frontend && pnpm test
+
+build:
+	cd frontend && pnpm build
 
 registry-check:
 	$(PYTHON) scripts/validate_registries.py
 
+openapi:
+	PYTHONPATH=backend $(PYTHON) scripts/export_openapi.py
+	cd frontend && pnpm generate:api
+
 migrate:
 	cd backend && $(PYTHON) -m alembic -c alembic.mysql.ini upgrade head
 	cd backend && $(PYTHON) -m alembic -c alembic.postgres.ini upgrade head
+
+seed:
+	cd backend && $(PYTHON) -m app.bootstrap.cli
+
+admin-bootstrap:
+	@test -n "$(USERNAME)" || (echo "Usage: make admin-bootstrap USERNAME=<admin_username>" && exit 2)
+	cd backend && $(PYTHON) -m app.bootstrap.admin_cli "$(USERNAME)"
 
 infra-up:
 	docker compose up -d mysql postgres redis
@@ -55,4 +71,4 @@ api:
 frontend:
 	cd frontend && pnpm dev
 
-check: registry-check lint test
+check: registry-check openapi lint test build

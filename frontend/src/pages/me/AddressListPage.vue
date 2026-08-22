@@ -1,0 +1,17 @@
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue'
+import { apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
+import { useUserAuthStore } from '@/stores/user-auth'
+interface Address { address_id: string; recipient_name: string; phone: string; province_code: string; city_code: string; district_code: string; address: string; label: string | null; is_default: boolean; version: number }
+const auth = useUserAuthStore(), items = ref<Address[]>([]), error = ref(''), showForm = ref(false)
+const form = reactive({ recipient_name: '', phone: '', country_code: 'CN', province_code: '', city_code: '', district_code: '', address: '', postal_code: '', label: '', is_default: false })
+async function load() { items.value = (await apiRequest<{ items: Address[] }>('/users/me/addresses', {}, auth.accessToken)).data.items }
+onMounted(() => load().catch((reason) => { error.value = errorMessage(reason) }))
+async function create() { try { await apiRequest('/users/me/addresses', { method: 'POST', headers: { 'Idempotency-Key': createIdempotencyKey('address') }, body: JSON.stringify(form) }, auth.accessToken); showForm.value = false; Object.assign(form, { recipient_name: '', phone: '', province_code: '', city_code: '', district_code: '', address: '', postal_code: '', label: '', is_default: false }); await load() } catch (reason) { error.value = errorMessage(reason) } }
+async function remove(item: Address) { if (!confirm('确定删除这个地址吗？')) return; try { await apiRequest(`/users/me/addresses/${item.address_id}`, { method: 'DELETE', headers: { 'If-Match': `"v${item.version}"` } }, auth.accessToken); await load() } catch (reason) { error.value = errorMessage(reason) } }
+async function setDefault(item: Address) { try { await apiRequest('/users/me/default-address', { method: 'PUT', body: JSON.stringify({ address_id: item.address_id }) }, auth.accessToken); await load() } catch (reason) { error.value = errorMessage(reason) } }
+</script>
+<template><section><div class="page-heading"><div><p class="eyebrow">我的</p><h1>收货地址</h1></div><button @click="showForm = !showForm">{{ showForm ? '取消' : '新增地址' }}</button></div><p v-if="error" class="alert error">{{ error }}</p>
+  <form v-if="showForm" class="card address-form" @submit.prevent="create"><label>收货人<input v-model="form.recipient_name" required /></label><label>联系电话<input v-model="form.phone" required /></label><div class="field-row"><label>省代码<input v-model="form.province_code" required /></label><label>市代码<input v-model="form.city_code" required /></label><label>区代码<input v-model="form.district_code" required /></label></div><label>详细地址<input v-model="form.address" required /></label><div class="field-row"><label>邮编<input v-model="form.postal_code" /></label><label>标签<input v-model="form.label" placeholder="家 / 公司" /></label></div><label class="check-row"><input v-model="form.is_default" type="checkbox" />设为默认地址</label><button>保存地址</button></form>
+  <div class="stack"><article v-for="item in items" :key="item.address_id" class="card address-card"><div><span v-if="item.is_default" class="badge">默认</span><strong>{{ item.recipient_name }}</strong> · {{ item.phone }}<p>{{ item.province_code }} {{ item.city_code }} {{ item.district_code }} {{ item.address }}</p></div><div class="actions"><button v-if="!item.is_default" class="secondary small" @click="setDefault(item)">设为默认</button><button class="danger small" @click="remove(item)">删除</button></div></article><p v-if="!items.length" class="empty-state card">暂无收货地址</p></div>
+</section></template>

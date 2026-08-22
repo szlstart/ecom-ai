@@ -2637,6 +2637,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | :--- | :--- | :--- | :--- | :--- |
 | 管理登录 | `/admin/login` / `AdminLoginPage.vue` | `AdminAuth_Login`、`POST /admin/auth/login` | 管理身份准入 | 已登录安全跳转；不加载 User Audience |
 | MFA/近期认证 | `/admin/login/mfa` / `AdminMfaPage.vue` | `AdminAuth_MfaVerify`、`AdminAuth_Reauthenticate` | 待验证 Admin Session | AAL/Challenge 绑定，禁止开放跳转 |
+| 管理身份安全 | `/admin/security` / `AdminSecurityPage.vue` | `AdminAuthSession_ListMine/Revoke`、`AdminAuth_Reauthenticate` | 当前 Admin Audience 身份 | 仅管理会话；近期认证；不得读取 User Audience 会话 |
 | 仪表盘 | `/admin/dashboard` / `AdminDashboardPage.vue` | `AdminDashboard_Get`、`GET /admin/dashboard` | `dashboard:read` + Platform/Store | 指标口径、新鲜度和 Scope 一起返回 |
 | 用户列表 | `/admin/users` / `AdminUserListPage.vue` | `AdminUser_List`、`GET /admin/users` | `users:read` + Platform | Cursor；默认脱敏 |
 | 用户详情/安全 | `/admin/users/:userId` / `AdminUserDetailPage.vue` | `AdminUser_Get/ChangeStatus`、`AdminSensitiveGrant_Create`、`AdminRoleGrant_List/Create/Revoke` | `users:*`、`rbac:*` 对应原子权限 + Platform | ETag；敏感访问 Ticket；MFA/SoD/审计 |
@@ -5126,7 +5127,7 @@ RBAC 同时支持平台级和店铺级作用域。归属关系不等于授权：
 | `description` | `VARCHAR(500)` | NULL |
 | `role_status` | `VARCHAR(16)` | `active/disabled` |
 
-约束：`UNIQUE(scope_type, role_code)`。System Role 不可删除或改变其基本语义。
+约束：`UNIQUE(scope_type, role_code)`。System Role 不可删除或改变其基本语义。`store` Role 是平台维护的可复用权限模板，具体租户边界只存在于 `user_roles.scope_id`；因此 Role Definition 的创建、修改和 Permission 替换仅接受 Platform Scope，店铺范围的 `rbac:manage` 只能在自身 Store Scope 内授予、撤销已有 Store Role，避免某店修改共享模板后影响其他店铺。
 
 ##### 3.7.2.2 permissions 权限表
 
@@ -9034,6 +9035,8 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `POST` | `/admin/auth/logout` | 撤销当前管理 Session；重复调用一致 |
 | `GET` | `/admin/me` | 返回管理员公开资料、Assurance、Permission/Scope 摘要和 Session 安全状态 |
 | `GET` | `/admin/navigation` | 返回按权限裁剪的菜单、路由 Code 和可选 Scope；不包含任意前端代码或外部 URL |
+| `GET` | `/admin/auth/sessions` | 列出当前管理员自己的有效 Admin Audience 会话；不混入用户端会话 |
+| `DELETE` | `/admin/auth/sessions/{session_id}` | 撤销当前管理员自己的指定管理会话；跨 Audience 或跨用户统一按不存在处理 |
 
 管理登录与用户 `/auth/login` 使用独立 Operation、限流、Cookie Path、Audience 和审计事件。管理端 Token 调用用户购物接口返回 403 `AUTH_AUDIENCE_MISMATCH`；不能为了“管理员也能测试”放开生产购物权限。MFA 绑定/撤销和恢复码管理使用独立安全流程、近期认证及 3.7.2.6，不允许管理员替其他管理员查看 Secret。
 

@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any, cast
 
 import yaml
 
@@ -6,11 +7,11 @@ ROOT = Path(__file__).resolve().parents[2]
 REGISTRY_DIRECTORY = ROOT / "docs"
 
 
-def load_registry(name: str) -> dict[str, object]:
+def load_registry(name: str) -> dict[str, Any]:
     with (REGISTRY_DIRECTORY / name).open(encoding="utf-8") as registry_file:
         value = yaml.safe_load(registry_file)
     assert isinstance(value, dict)
-    return value
+    return cast(dict[str, Any], value)
 
 
 def test_all_registries_are_normative_and_versioned() -> None:

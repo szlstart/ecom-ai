@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import importlib.util
 import sys
 from pathlib import Path
 from typing import Any
@@ -8,13 +10,15 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
+PERMISSION_SOURCE = DOCS / "permission_registry.yaml"
+PERMISSION_CATALOG = ROOT / "backend" / "app" / "generated" / "permission_catalog.py"
 
 
 def load(name: str) -> dict[str, Any]:
     with (DOCS / name).open(encoding="utf-8") as file:
         value = yaml.safe_load(file)
     if not isinstance(value, dict):
-        raise ValueError(f"{name}: root must be a mapping")
+        raise TypeError(f"{name}: root must be a mapping")
     if value.get("status") != "normative" or not isinstance(value.get("version"), int):
         raise ValueError(f"{name}: normative integer version is required")
     return value
@@ -48,10 +52,14 @@ def validate() -> None:
         missing = {
             value
             for value in values
-            if isinstance(value, str) and ":" in value and value not in registered_permissions
+            if isinstance(value, str)
+            and ":" in value
+            and value not in registered_permissions
         }
         if missing:
-            raise ValueError(f"{route['requirement_id']}: unregistered permissions {missing}")
+            raise ValueError(
+                f"{route['requirement_id']}: unregistered permissions {missing}"
+            )
 
     for name, aggregate in domains["aggregates"].items():
         states = set(aggregate["states"])
@@ -60,11 +68,30 @@ def validate() -> None:
             if not referenced <= states:
                 raise ValueError(f"{name}/{transition['command']}: unknown state")
 
+    validate_generated_permission_catalog()
+
     print(
         "Registry validation passed: "
         f"{len(prefixes)} ID prefixes, {len(permission_codes)} permissions, "
         f"{len(routes)} routes, {len(domains['aggregates'])} aggregates."
     )
+
+
+def validate_generated_permission_catalog() -> None:
+    if not PERMISSION_CATALOG.exists():
+        raise ValueError("generated permission catalog is missing")
+    spec = importlib.util.spec_from_file_location(
+        "permission_catalog", PERMISSION_CATALOG
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("generated permission catalog cannot be imported")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    expected = hashlib.sha256(PERMISSION_SOURCE.read_bytes()).hexdigest()
+    if module.SOURCE_SHA256 != expected:
+        raise ValueError(
+            "generated permission catalog is stale; run scripts/generate_permission_catalog.py"
+        )
 
 
 if __name__ == "__main__":
@@ -73,4 +100,3 @@ if __name__ == "__main__":
     except (KeyError, TypeError, ValueError, yaml.YAMLError) as exc:
         print(f"Registry validation failed: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
-

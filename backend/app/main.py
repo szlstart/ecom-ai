@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
@@ -21,6 +22,22 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url="/openapi.json" if settings.debug else None,
         lifespan=application_lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "If-Match",
+            "X-CSRF-Token",
+            "X-Request-ID",
+        ],
+        expose_headers=["ETag", "Retry-After", "X-Request-ID"],
+        max_age=600,
     )
     app.add_middleware(RequestContextMiddleware)
     install_exception_handlers(app)

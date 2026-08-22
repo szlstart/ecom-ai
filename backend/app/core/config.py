@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,10 +31,43 @@ class Settings(BaseSettings):
     )
     redis_url: str = "redis://:local-redis-change-me@127.0.0.1:16379/0"
 
+    access_token_secret: SecretStr = SecretStr("development-access-token-secret-change-me")
+    security_hmac_secret: SecretStr = SecretStr("development-hmac-secret-change-me")
+    field_encryption_key: SecretStr = SecretStr("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
+    access_token_ttl_seconds: int = Field(default=900, ge=300, le=3600)
+    refresh_token_ttl_days: int = Field(default=30, ge=1, le=90)
+    admin_refresh_token_ttl_hours: int = Field(default=8, ge=1, le=24)
+    admin_recent_auth_seconds: int = Field(default=300, ge=60, le=1800)
+    password_min_length: int = Field(default=15, ge=15, le=64)
+    password_max_length: int = Field(default=128, ge=64, le=256)
+    refresh_cookie_secure: bool = False
+    allowed_origins: str = "http://127.0.0.1:5173,http://127.0.0.1:8080"
+    debug_verification_code: SecretStr | None = None
+
     object_storage_enabled: bool = False
     object_storage_endpoint: str = "http://127.0.0.1:19000"
     object_storage_access_key: str = ""
     object_storage_secret_key: str = ""
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+
+    @model_validator(mode="after")
+    def reject_development_secrets_in_production(self) -> "Settings":
+        if self.environment.lower() != "production":
+            return self
+        secrets = (
+            self.access_token_secret.get_secret_value(),
+            self.security_hmac_secret.get_secret_value(),
+        )
+        if any("development" in secret or "change-me" in secret for secret in secrets):
+            raise ValueError("production authentication secrets must be provided")
+        if self.debug_verification_code is not None:
+            raise ValueError("debug verification code is forbidden in production")
+        if not self.refresh_cookie_secure:
+            raise ValueError("Secure refresh cookies are required in production")
+        return self
 
 
 @lru_cache

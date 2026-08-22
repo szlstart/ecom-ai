@@ -15,6 +15,70 @@ defaults:
     lock_aggregate_for_write: true
     idempotency_returns_first_result: true
 aggregates:
+  store:
+    field: store_status
+    states: [pending, active, suspended, closed]
+    terminal_states: [closed]
+    transitions:
+      - {command: ActivateStore, from: [pending], to: active, event: store.activated}
+      - {command: SuspendStore, from: [active], to: suspended, event: store.suspended}
+      - {command: ResumeStore, from: [suspended], to: active, event: store.resumed}
+      - {command: CloseStore, from: [pending, active, suspended], to: closed, event: store.closed}
+  store_certification:
+    field: review_status
+    states: [pending, more_info_required, approved, rejected, expired, revoked]
+    terminal_states: [rejected, expired, revoked]
+    transitions:
+      - {command: RequestMoreCertificationInfo, from: [pending], to: more_info_required, event: store.certification_more_info_requested}
+      - {command: ResubmitCertificationMaterials, from: [more_info_required], to: pending, event: store.certification_materials_resubmitted}
+      - {command: ApproveCertification, from: [pending], to: approved, event: store.certification_approved}
+      - {command: RejectCertification, from: [pending], to: rejected, event: store.certification_rejected}
+      - {command: ExpireCertification, from: [approved], to: expired, event: store.certification_expired}
+      - {command: RevokeCertification, from: [approved], to: revoked, event: store.certification_revoked}
+  store_service_policy:
+    field: policy_status
+    states: [draft, published, withdrawn, expired]
+    terminal_states: [withdrawn, expired]
+    transitions:
+      - {command: PublishStorePolicy, from: [draft], to: published, event: store.policy_published}
+      - {command: WithdrawStorePolicy, from: [published], to: withdrawn, event: store.policy_withdrawn}
+      - {command: ExpireStorePolicy, from: [published], to: expired, event: store.policy_expired}
+  shipping_template:
+    field: template_status
+    states: [draft, effective, disabled]
+    terminal_states: [disabled]
+    transitions:
+      - {command: PublishShippingTemplate, from: [draft], to: effective, event: store.shipping_template_published}
+      - {command: DisableShippingTemplate, from: [draft, effective], to: disabled, event: store.shipping_template_disabled}
+  product:
+    field: product_status
+    states: [draft, pending_review, on_sale, off_shelf, rejected, archived]
+    terminal_states: [archived]
+    transitions:
+      - {command: SubmitProductReview, from: [draft, rejected, off_shelf], to: pending_review, event: product.review_submitted}
+      - {command: ApproveProduct, from: [pending_review], to: on_sale, event: product.published}
+      - {command: RejectProduct, from: [pending_review], to: rejected, event: product.rejected}
+      - {command: TakeProductOffShelf, from: [on_sale], to: off_shelf, event: product.off_shelf}
+      - {command: ArchiveProduct, from: [draft, rejected, off_shelf], to: archived, event: product.archived}
+  inventory_reservation:
+    field: reservation_status
+    states: [active, confirmed, released, expired]
+    terminal_states: [confirmed, released, expired]
+    transitions:
+      - {command: ConfirmInventoryReservation, from: [active], to: confirmed, event: inventory.reservation_confirmed}
+      - {command: ReleaseInventoryReservation, from: [active], to: released, event: inventory.reservation_released}
+      - {command: ExpireInventoryReservation, from: [active], to: expired, event: inventory.reservation_expired}
+  file_upload:
+    field: upload_status
+    states: [created, uploading, uploaded, completed, expired, aborted, rejected]
+    terminal_states: [completed, expired, aborted, rejected]
+    transitions:
+      - {command: StartFileUpload, from: [created], to: uploading, event: file.upload_started}
+      - {command: RecordFileUploaded, from: [created, uploading], to: uploaded, event: file.uploaded}
+      - {command: CompleteFileUpload, from: [uploaded], to: completed, event: file.upload_completed}
+      - {command: ExpireFileUpload, from: [created, uploading, uploaded], to: expired, event: file.upload_expired}
+      - {command: AbortFileUpload, from: [created, uploading, uploaded], to: aborted, event: file.upload_aborted}
+      - {command: RejectFileUpload, from: [uploaded], to: rejected, event: file.upload_rejected}
   order:
     field: order_status
     states: [pending_payment, paid, pending_shipment, shipped, completed, cancelled, closed]

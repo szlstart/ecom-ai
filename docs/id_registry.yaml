@@ -9,8 +9,18 @@ defaults:
 resources:
   user: {prefix: usr_, url_allowed: true, owner: identity}
   store: {prefix: sto_, url_allowed: true, owner: stores}
+  store_certification: {prefix: cert_, url_allowed: true, owner: stores}
+  store_product_group: {prefix: grp_, url_allowed: true, owner: stores}
+  store_service_policy: {prefix: pol_, url_allowed: true, owner: stores}
+  shipping_template: {prefix: sht_, url_allowed: true, owner: stores}
+  store_announcement: {prefix: ann_, url_allowed: true, owner: stores}
+  category: {prefix: cat_, url_allowed: true, owner: catalog}
+  brand: {prefix: brd_, url_allowed: true, owner: catalog}
   product: {prefix: prd_, url_allowed: true, owner: catalog}
   sku: {prefix: sku_, url_allowed: true, owner: catalog}
+  product_content_version: {prefix: pcv_, url_allowed: true, owner: catalog}
+  product_faq_version: {prefix: fqv_, url_allowed: true, owner: catalog}
+  inventory_reservation: {prefix: irs_, owner: inventory}
   auth_session: {prefix: ses_, owner: identity}
   address: {prefix: addr_, url_allowed: true, owner: users}
   verification: {prefix: ver_, owner: identity}

@@ -5,10 +5,14 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.database.base import MySQLBase
+from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.content import models as content_models  # noqa: F401
+from app.modules.files import models as file_models  # noqa: F401
 from app.modules.identity import models as identity_models  # noqa: F401
+from app.modules.inventory import models as inventory_models  # noqa: F401
 from app.modules.messaging import models as messaging_models  # noqa: F401
 from app.modules.rbac import models as rbac_models  # noqa: F401
+from app.modules.stores import models as store_models  # noqa: F401
 from app.modules.system import models as system_models  # noqa: F401
 
 config = context.config

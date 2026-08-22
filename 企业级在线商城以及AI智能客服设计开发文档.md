@@ -4675,7 +4675,12 @@ pending → processing → published
 | 资源类型 | 前缀 | 存储上限 | URL | 客户端生成 | 资源类型 | 前缀 | 存储上限 | URL | 客户端生成 |
 | :--- | :--- | :---: | :---: | :---: | :--- | :--- | :---: | :---: | :---: |
 | User | `usr_` | 40 | 是 | 否 | Store | `sto_` | 40 | 是 | 否 |
+| Store Certification | `cert_` | 40 | 是 | 否 | Store Product Group | `grp_` | 40 | 是 | 否 |
+| Store Service Policy | `pol_` | 40 | 是 | 否 | Shipping Template | `sht_` | 40 | 是 | 否 |
+| Store Announcement | `ann_` | 40 | 是 | 否 | Category | `cat_` | 40 | 是 | 否 |
+| Brand | `brd_` | 40 | 是 | 否 | Inventory Reservation | `irs_` | 40 | 否 | 否 |
 | Product | `prd_` | 40 | 是 | 否 | SKU | `sku_` | 40 | 是 | 否 |
+| Product Content Version | `pcv_` | 40 | 是 | 否 | Product FAQ Version | `fqv_` | 40 | 是 | 否 |
 | Auth Session | `ses_` | 40 | 否 | 否 | Address | `addr_` | 40 | 是 | 否 |
 | Verification | `ver_` | 40 | 否 | 否 | Reset Ticket | `rst_` | 40 | 否 | 否 |
 | Agreement Acceptance | `agr_` | 40 | 否 | 否 | Auth Attempt | `aat_` | 40 | 否 | 否 |

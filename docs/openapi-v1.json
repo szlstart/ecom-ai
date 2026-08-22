@@ -1345,6 +1345,357 @@
         }
       }
     },
+    "/api/v1/file-upload-policies/{purpose}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Get Upload Policy",
+        "operationId": "FileUploadPolicy_Get",
+        "parameters": [
+          {
+            "name": "purpose",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Purpose"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FileUploadPolicyView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/file-upload-sessions": {
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Create Upload Session",
+        "operationId": "FileUploadSession_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUploadSessionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FileUploadSessionView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/file-upload-sessions/{upload_id}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Get Upload Session",
+        "operationId": "FileUploadSession_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Upload Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FileUploadSessionView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Abort Upload Session",
+        "operationId": "FileUploadSession_Abort",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Upload Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/file-upload-sessions/{upload_id}/complete": {
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Complete Upload Session",
+        "operationId": "FileUploadSession_Complete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Upload Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUploadCompleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FileUploadSessionView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{file_id}/metadata": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Get File Metadata",
+        "operationId": "File_GetMetadata",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FileMetadataView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{file_id}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Get File",
+        "operationId": "File_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/homepage": {
       "get": {
         "tags": [
@@ -4712,6 +5063,77 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminStoreView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "store-administration"
+        ],
+        "summary": "Update Store",
+        "operationId": "AdminStore_Update",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminStoreUpdateRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -12700,6 +13122,50 @@
         ],
         "title": "AdminStoreStatusChangeRequest"
       },
+      "AdminStoreUpdateRequest": {
+        "properties": {
+          "store_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "logo_file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo File Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AdminStoreUpdateRequest"
+      },
       "AdminStoreView": {
         "properties": {
           "store_id": {
@@ -12724,6 +13190,28 @@
               }
             ],
             "title": "Description"
+          },
+          "logo_file_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo File Id"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
           },
           "status": {
             "type": "string",
@@ -12793,6 +13281,8 @@
           "owner_user_id",
           "store_name",
           "description",
+          "logo_file_id",
+          "logo_url",
           "status",
           "rating_score",
           "rating_count",
@@ -13841,6 +14331,51 @@
         ],
         "title": "Envelope[ContactChangeTicketResult]"
       },
+      "Envelope_FileMetadataView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FileMetadataView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[FileMetadataView]"
+      },
+      "Envelope_FileUploadPolicyView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FileUploadPolicyView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[FileUploadPolicyView]"
+      },
+      "Envelope_FileUploadSessionView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FileUploadSessionView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[FileUploadSessionView]"
+      },
       "Envelope_FollowedStoreList_": {
         "properties": {
           "data": {
@@ -14616,6 +15151,424 @@
           "data"
         ],
         "title": "Envelope[list[UserStatusEventView]]"
+      },
+      "FileMetadataView": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "scan_status": {
+            "type": "string",
+            "title": "Scan Status"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "owner_type": {
+            "type": "string",
+            "title": "Owner Type"
+          },
+          "owner_id": {
+            "type": "string",
+            "title": "Owner Id"
+          },
+          "visibility": {
+            "type": "string",
+            "title": "Visibility"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "file_id",
+          "variant",
+          "status",
+          "scan_status",
+          "content_type",
+          "size_bytes",
+          "width",
+          "height",
+          "url",
+          "purpose",
+          "owner_type",
+          "owner_id",
+          "visibility"
+        ],
+        "title": "FileMetadataView"
+      },
+      "FileUploadCompleteRequest": {
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "title": "Sha256"
+          },
+          "provider_checksum": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Checksum"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sha256"
+        ],
+        "title": "FileUploadCompleteRequest"
+      },
+      "FileUploadInstruction": {
+        "properties": {
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Headers"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "method",
+          "url",
+          "headers",
+          "expires_at"
+        ],
+        "title": "FileUploadInstruction"
+      },
+      "FileUploadPolicyView": {
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version"
+          },
+          "allowed_mime_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Mime Types"
+          },
+          "allowed_extensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Extensions"
+          },
+          "max_size_bytes": {
+            "type": "integer",
+            "title": "Max Size Bytes"
+          },
+          "max_count": {
+            "type": "integer",
+            "title": "Max Count"
+          },
+          "max_pixels": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Pixels"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "purpose",
+          "policy_version",
+          "allowed_mime_types",
+          "allowed_extensions",
+          "max_size_bytes",
+          "max_count",
+          "max_pixels"
+        ],
+        "title": "FileUploadPolicyView"
+      },
+      "FileUploadSessionCreateRequest": {
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}$",
+            "title": "Purpose"
+          },
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "maximum": 104857600.0,
+            "minimum": 1.0,
+            "title": "Size Bytes"
+          },
+          "content_type": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 3,
+            "title": "Content Type"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "title": "Sha256"
+          },
+          "business_context_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Context Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "purpose",
+          "filename",
+          "size_bytes",
+          "content_type",
+          "sha256"
+        ],
+        "title": "FileUploadSessionCreateRequest"
+      },
+      "FileUploadSessionView": {
+        "properties": {
+          "upload_id": {
+            "type": "string",
+            "title": "Upload Id"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "owner_type": {
+            "type": "string",
+            "title": "Owner Type"
+          },
+          "owner_id": {
+            "type": "string",
+            "title": "Owner Id"
+          },
+          "upload_status": {
+            "type": "string",
+            "title": "Upload Status"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "upload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileUploadInstruction"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileVariantView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bindable_file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileVariantView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/FileVariantView"
+            },
+            "type": "array",
+            "title": "Variants"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "upload_id",
+          "purpose",
+          "owner_type",
+          "owner_id",
+          "upload_status",
+          "expires_at"
+        ],
+        "title": "FileUploadSessionView"
+      },
+      "FileVariantView": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id"
+          },
+          "variant": {
+            "type": "string",
+            "title": "Variant"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "scan_status": {
+            "type": "string",
+            "title": "Scan Status"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "file_id",
+          "variant",
+          "status",
+          "scan_status",
+          "content_type",
+          "size_bytes",
+          "width",
+          "height",
+          "url"
+        ],
+        "title": "FileVariantView"
       },
       "FollowedStoreList": {
         "properties": {

@@ -24,6 +24,7 @@ from app.modules.catalog.admin_schemas import (
     AdminInventoryView,
 )
 from app.modules.catalog.models import Brand, Category, Product, ProductSku
+from app.modules.files.models import FileObject
 from app.modules.inventory.models import Inventory, InventoryLog
 from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
@@ -40,7 +41,12 @@ class AdminCatalogService:
     async def list_categories(self, access: AdminAccess) -> list[AdminCategoryView]:
         access.require_scope("platform", 0)
         rows = await self.repository.categories()
-        return [self._category_view(item, rows) for item in rows]
+        assets = await self.repository.files_by_object_keys(
+            [item.icon_object_key for item in rows if item.icon_object_key]
+        )
+        return [
+            self._category_view(item, rows, assets.get(item.icon_object_key or "")) for item in rows
+        ]
 
     async def create_category(
         self,
@@ -58,7 +64,13 @@ class AdminCatalogService:
         if claim.replayed and claim.record.resource_no:
             existing = await self.repository.category_by_no(claim.record.resource_no)
             if existing is not None:
-                return self._category_view(existing, await self.repository.categories())
+                rows = await self.repository.categories()
+                assets = await self.repository.files_by_object_keys(
+                    [existing.icon_object_key] if existing.icon_object_key else []
+                )
+                return self._category_view(
+                    existing, rows, assets.get(existing.icon_object_key or "")
+                )
         parent = await self._category_parent(payload.parent_id)
         category = Category(
             category_no=new_prefixed_ulid("cat_"),
@@ -88,7 +100,11 @@ class AdminCatalogService:
         )
         self.idempotency.complete(claim, response_status=201, resource_no=category.category_no)
         await self.session.commit()
-        return self._category_view(category, await self.repository.categories())
+        rows = await self.repository.categories()
+        assets = await self.repository.files_by_object_keys(
+            [category.icon_object_key] if category.icon_object_key else []
+        )
+        return self._category_view(category, rows, assets.get(category.icon_object_key or ""))
 
     async def update_category(
         self,
@@ -144,11 +160,19 @@ class AdminCatalogService:
         except IntegrityError as exc:
             await self.session.rollback()
             raise _conflict("CATEGORY_ALREADY_EXISTS", "分类编码已存在。") from exc
-        return self._category_view(category, await self.repository.categories())
+        rows = await self.repository.categories()
+        assets = await self.repository.files_by_object_keys(
+            [category.icon_object_key] if category.icon_object_key else []
+        )
+        return self._category_view(category, rows, assets.get(category.icon_object_key or ""))
 
     async def list_brands(self, access: AdminAccess) -> list[AdminBrandView]:
         access.require_scope("platform", 0)
-        return [self._brand_view(item) for item in await self.repository.brands()]
+        rows = await self.repository.brands()
+        assets = await self.repository.files_by_object_keys(
+            [item.logo_object_key for item in rows if item.logo_object_key]
+        )
+        return [self._brand_view(item, assets.get(item.logo_object_key or "")) for item in rows]
 
     async def create_brand(
         self,
@@ -166,7 +190,10 @@ class AdminCatalogService:
         if claim.replayed and claim.record.resource_no:
             existing = await self.repository.brand_by_no(claim.record.resource_no)
             if existing is not None:
-                return self._brand_view(existing)
+                assets = await self.repository.files_by_object_keys(
+                    [existing.logo_object_key] if existing.logo_object_key else []
+                )
+                return self._brand_view(existing, assets.get(existing.logo_object_key or ""))
         brand = Brand(
             brand_no=new_prefixed_ulid("brd_"),
             brand_name=payload.brand_name,
@@ -191,7 +218,10 @@ class AdminCatalogService:
         )
         self.idempotency.complete(claim, response_status=201, resource_no=brand.brand_no)
         await self.session.commit()
-        return self._brand_view(brand)
+        assets = await self.repository.files_by_object_keys(
+            [brand.logo_object_key] if brand.logo_object_key else []
+        )
+        return self._brand_view(brand, assets.get(brand.logo_object_key or ""))
 
     async def update_brand(
         self,
@@ -230,7 +260,10 @@ class AdminCatalogService:
         except IntegrityError as exc:
             await self.session.rollback()
             raise _conflict("BRAND_ALREADY_EXISTS", "品牌名称已存在。") from exc
-        return self._brand_view(brand)
+        assets = await self.repository.files_by_object_keys(
+            [brand.logo_object_key] if brand.logo_object_key else []
+        )
+        return self._brand_view(brand, assets.get(brand.logo_object_key or ""))
 
     async def list_inventories(
         self,
@@ -392,7 +425,9 @@ class AdminCatalogService:
         return file_object.object_key
 
     @staticmethod
-    def _category_view(category: Category, rows: list[Category]) -> AdminCategoryView:
+    def _category_view(
+        category: Category, rows: list[Category], icon: FileObject | None
+    ) -> AdminCategoryView:
         by_id = {item.id: item for item in rows}
         parent = by_id.get(category.parent_id) if category.parent_id else None
         path_codes: list[str] = []
@@ -411,17 +446,17 @@ class AdminCatalogService:
             path="/" + "/".join(path_codes),
             level=category.level,
             sort_order=category.sort_order,
-            icon_url=None,
+            icon_url=f"/api/v1/files/{icon.file_no}" if icon else None,
             status=category.category_status,
             version=category.version,
         )
 
     @staticmethod
-    def _brand_view(brand: Brand) -> AdminBrandView:
+    def _brand_view(brand: Brand, logo: FileObject | None) -> AdminBrandView:
         return AdminBrandView(
             brand_id=brand.brand_no,
             brand_name=brand.brand_name,
-            logo_url=None,
+            logo_url=f"/api/v1/files/{logo.file_no}" if logo else None,
             description=brand.description,
             status=brand.brand_status,
             version=brand.version,

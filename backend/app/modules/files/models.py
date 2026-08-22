@@ -104,7 +104,7 @@ class FileObject(MutableMySQLModel, MySQLBase):
     height: Mapped[int | None] = mapped_column(INTEGER(unsigned=True))
     duration_ms: Mapped[int | None] = mapped_column(INTEGER(unsigned=True))
     page_count: Mapped[int | None] = mapped_column(INTEGER(unsigned=True))
-    visibility: Mapped[str] = mapped_column(String(16), nullable=False, default="private")
+    visibility: Mapped[str] = mapped_column(String(24), nullable=False, default="private")
     sensitivity_level: Mapped[str] = mapped_column(String(4), nullable=False)
     scan_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
     file_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending_upload")

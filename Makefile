@@ -54,7 +54,7 @@ admin-bootstrap:
 	cd backend && $(PYTHON) -m app.bootstrap.admin_cli "$(USERNAME)"
 
 infra-up:
-	docker compose up -d mysql postgres redis
+	docker compose up -d mysql postgres redis minio clamav
 
 infra-down:
 	docker compose down

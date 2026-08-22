@@ -417,6 +417,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/file-upload-policies/{purpose}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Upload Policy */
+        get: operations["FileUploadPolicy_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/file-upload-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Upload Session */
+        post: operations["FileUploadSession_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/file-upload-sessions/{upload_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Upload Session */
+        get: operations["FileUploadSession_Get"];
+        put?: never;
+        post?: never;
+        /** Abort Upload Session */
+        delete: operations["FileUploadSession_Abort"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/file-upload-sessions/{upload_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Upload Session */
+        post: operations["FileUploadSession_Complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{file_id}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get File Metadata */
+        get: operations["File_GetMetadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get File */
+        get: operations["File_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/homepage": {
         parameters: {
             query?: never;
@@ -1155,7 +1258,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Store */
+        patch: operations["AdminStore_Update"];
         trace?: never;
     };
     "/api/v1/admin/stores/{store_id}/status-changes": {
@@ -3233,6 +3337,15 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** AdminStoreUpdateRequest */
+        AdminStoreUpdateRequest: {
+            /** Store Name */
+            store_name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Logo File Id */
+            logo_file_id?: string | null;
+        };
         /** AdminStoreView */
         AdminStoreView: {
             /** Store Id */
@@ -3243,6 +3356,10 @@ export interface components {
             store_name: string;
             /** Description */
             description: string | null;
+            /** Logo File Id */
+            logo_file_id: string | null;
+            /** Logo Url */
+            logo_url: string | null;
             /** Status */
             status: string;
             /** Rating Score */
@@ -3633,6 +3750,21 @@ export interface components {
             data: components["schemas"]["ContactChangeTicketResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[FileMetadataView] */
+        Envelope_FileMetadataView_: {
+            data: components["schemas"]["FileMetadataView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[FileUploadPolicyView] */
+        Envelope_FileUploadPolicyView_: {
+            data: components["schemas"]["FileUploadPolicyView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[FileUploadSessionView] */
+        Envelope_FileUploadSessionView_: {
+            data: components["schemas"]["FileUploadSessionView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[FollowedStoreList] */
         Envelope_FollowedStoreList_: {
             data: components["schemas"]["FollowedStoreList"];
@@ -3886,6 +4018,134 @@ export interface components {
             /** Data */
             data: components["schemas"]["UserStatusEventView"][];
             meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** FileMetadataView */
+        FileMetadataView: {
+            /** File Id */
+            file_id: string;
+            /** Variant */
+            variant: string;
+            /** Status */
+            status: string;
+            /** Scan Status */
+            scan_status: string;
+            /** Content Type */
+            content_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Width */
+            width: number | null;
+            /** Height */
+            height: number | null;
+            /** Url */
+            url: string | null;
+            /** Purpose */
+            purpose: string;
+            /** Owner Type */
+            owner_type: string;
+            /** Owner Id */
+            owner_id: string;
+            /** Visibility */
+            visibility: string;
+        };
+        /** FileUploadCompleteRequest */
+        FileUploadCompleteRequest: {
+            /** Sha256 */
+            sha256: string;
+            /** Provider Checksum */
+            provider_checksum?: string | null;
+        };
+        /** FileUploadInstruction */
+        FileUploadInstruction: {
+            /** Method */
+            method: string;
+            /** Url */
+            url: string;
+            /** Headers */
+            headers: {
+                [key: string]: string;
+            };
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** FileUploadPolicyView */
+        FileUploadPolicyView: {
+            /** Purpose */
+            purpose: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Allowed Mime Types */
+            allowed_mime_types: string[];
+            /** Allowed Extensions */
+            allowed_extensions: string[];
+            /** Max Size Bytes */
+            max_size_bytes: number;
+            /** Max Count */
+            max_count: number;
+            /** Max Pixels */
+            max_pixels: number | null;
+        };
+        /** FileUploadSessionCreateRequest */
+        FileUploadSessionCreateRequest: {
+            /** Purpose */
+            purpose: string;
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Content Type */
+            content_type: string;
+            /** Sha256 */
+            sha256: string;
+            /** Business Context Id */
+            business_context_id?: string | null;
+        };
+        /** FileUploadSessionView */
+        FileUploadSessionView: {
+            /** Upload Id */
+            upload_id: string;
+            /** Purpose */
+            purpose: string;
+            /** Owner Type */
+            owner_type: string;
+            /** Owner Id */
+            owner_id: string;
+            /** Upload Status */
+            upload_status: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            upload?: components["schemas"]["FileUploadInstruction"] | null;
+            source_file?: components["schemas"]["FileVariantView"] | null;
+            bindable_file?: components["schemas"]["FileVariantView"] | null;
+            /** Variants */
+            variants?: components["schemas"]["FileVariantView"][];
+        };
+        /** FileVariantView */
+        FileVariantView: {
+            /** File Id */
+            file_id: string;
+            /** Variant */
+            variant: string;
+            /** Status */
+            status: string;
+            /** Scan Status */
+            scan_status: string;
+            /** Content Type */
+            content_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Width */
+            width: number | null;
+            /** Height */
+            height: number | null;
+            /** Url */
+            url: string | null;
         };
         /** FollowedStoreList */
         FollowedStoreList: {
@@ -5676,6 +5936,229 @@ export interface operations {
             };
         };
     };
+    FileUploadPolicy_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileUploadPolicyView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    FileUploadSession_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileUploadSessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileUploadSessionView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    FileUploadSession_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileUploadSessionView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    FileUploadSession_Abort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    FileUploadSession_Complete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileUploadCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileUploadSessionView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    File_GetMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileMetadataView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    File_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            307: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     Homepage_Get: {
         parameters: {
             query?: never;
@@ -7399,6 +7882,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminStore_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreUpdateRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

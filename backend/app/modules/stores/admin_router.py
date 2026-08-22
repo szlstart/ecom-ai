@@ -24,6 +24,7 @@ from app.modules.stores.admin_schemas import (
     AdminStorePolicyUpdateRequest,
     AdminStorePolicyView,
     AdminStoreStatusChangeRequest,
+    AdminStoreUpdateRequest,
     AdminStoreView,
 )
 from app.modules.stores.dependencies import AdminStoreServiceDependency
@@ -69,6 +70,25 @@ async def get_store(
     access: Annotated[AdminAccess, require_admin_permission("stores:read")],
 ) -> Envelope[AdminStoreView]:
     item = await service.get_store(access, store_id)
+    response.headers["ETag"] = _etag(item.version)
+    _no_store(response)
+    return Envelope(data=item)
+
+
+@router.patch(
+    "/stores/{store_id}",
+    response_model=Envelope[AdminStoreView],
+    operation_id="AdminStore_Update",
+)
+async def update_store(
+    store_id: str,
+    payload: AdminStoreUpdateRequest,
+    response: Response,
+    service: AdminStoreServiceDependency,
+    access: Annotated[AdminAccess, require_admin_permission("stores:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AdminStoreView]:
+    item = await service.update_store(access, store_id, payload, _expected_version(if_match))
     response.headers["ETag"] = _etag(item.version)
     _no_store(response)
     return Envelope(data=item)

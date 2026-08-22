@@ -280,7 +280,7 @@ class CatalogRepository:
             await self.session.scalar(
                 select(FileObject).where(
                     FileObject.object_key == object_key,
-                    FileObject.visibility == "public",
+                    FileObject.visibility == "public_derivative",
                     FileObject.file_status == "active",
                     FileObject.scan_status == "safe",
                 )

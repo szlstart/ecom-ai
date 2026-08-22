@@ -94,7 +94,7 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
             sha256=hashlib.sha256(f"image-{suffix}".encode()).digest(),
             width=1200,
             height=1200,
-            visibility="public",
+            visibility="public_derivative",
             sensitivity_level="S1",
             scan_status="safe",
             file_status="active",

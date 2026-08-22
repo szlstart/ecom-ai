@@ -1,6 +1,6 @@
 from typing import cast
 
-from sqlalchemy import ForeignKeyConstraint, UniqueConstraint
+from sqlalchemy import ForeignKeyConstraint, String, UniqueConstraint
 
 from app.database.base import MySQLBase
 from app.modules.catalog import models as catalog_models  # noqa: F401
@@ -46,6 +46,9 @@ def test_phase03_tables_are_registered_in_shared_metadata() -> None:
     }
 
     assert expected <= set(MySQLBase.metadata.tables)
+    visibility_type = MySQLBase.metadata.tables["file_objects"].c.visibility.type
+    assert isinstance(visibility_type, String)
+    assert visibility_type.length == 24
 
 
 def test_product_cycle_foreign_keys_have_mysql_safe_explicit_names() -> None:

@@ -153,6 +153,29 @@ class AdminStoreRepository:
             ),
         )
 
+    async def file_by_no(self, file_no: str) -> FileObject | None:
+        return cast(
+            FileObject | None,
+            await self.session.scalar(select(FileObject).where(FileObject.file_no == file_no)),
+        )
+
+    async def files_by_object_keys(self, object_keys: list[str]) -> dict[str, FileObject]:
+        if not object_keys:
+            return {}
+        files = list(
+            (
+                await self.session.scalars(
+                    select(FileObject).where(
+                        FileObject.object_key.in_(object_keys),
+                        FileObject.file_status == "active",
+                        FileObject.scan_status == "safe",
+                        FileObject.visibility == "public_derivative",
+                    )
+                )
+            ).all()
+        )
+        return {item.object_key: item for item in files}
+
     async def policies(self, store_id: int) -> list[StoreServicePolicy]:
         return list(
             (

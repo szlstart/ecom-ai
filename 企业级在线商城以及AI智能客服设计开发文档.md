@@ -7041,7 +7041,7 @@ Tool Version 是运行、绑定、权限、审计和回滚的不可变单位。�
 | :--- | :--- | :--- |
 | `file_no` | `VARCHAR(40)` | NOT NULL，UK，对外 `file_id`，使用 `file_` 前缀 |
 | `bucket` / `object_key` | `VARCHAR(64)` / `VARCHAR(512)` | NOT NULL，服务端生成，不包含用户隐私或自增 ID |
-| `purpose` | `VARCHAR(32)` | `product/store_logo/avatar/review/refund/knowledge/platform_content/admin_import/admin_export` |
+| `purpose` | `VARCHAR(32)` | `product/store_logo/brand_logo/category_icon/store_certification/avatar/review/refund/knowledge/platform_content/admin_import/admin_export` |
 | `owner_type` / `owner_no` | `VARCHAR(32)` / `VARCHAR(64)` | 当前归属主体类型和公开 ID；待绑定时归属 Upload Session |
 | `upload_session_id` | `BIGINT UNSIGNED` | NULL，FK `file_upload_sessions.id` |
 | `parent_file_id` | `BIGINT UNSIGNED` | NULL，FK `file_objects.id`，派生图指向受控原图 |
@@ -7052,8 +7052,8 @@ Tool Version 是运行、绑定、权限、审计和回滚的不可变单位。�
 | `size_bytes` | `BIGINT UNSIGNED` | NOT NULL |
 | `sha256` / `provider_checksum` | `BINARY(32)` / `VARCHAR(128)` | NOT NULL / NULL |
 | `width` / `height` / `duration_ms` / `page_count` | `INT UNSIGNED` | NULL，按媒体类型填写 |
-| `visibility` / `sensitivity_level` | `VARCHAR(16)` / `VARCHAR(4)` | `private/authenticated/public_derivative` 与 `L0..L3` |
-| `scan_status` | `VARCHAR(16)` | `pending/safe/rejected/error` |
+| `visibility` / `sensitivity_level` | `VARCHAR(24)` / `VARCHAR(4)` | `private/authenticated/public_derivative` 与 `L0..L3` |
+| `scan_status` | `VARCHAR(16)` | `pending/processing/safe/rejected/error`；`processing` 只表示 Worker 已原子领取任务 |
 | `file_status` | `VARCHAR(16)` | `pending_upload/uploaded/scanning/active/rejected/pending_delete/deleted` |
 | `storage_version_id` / `encryption_key_version` | `VARCHAR(128)` / `SMALLINT UNSIGNED` | NULL |
 | `reference_count` | `INT UNSIGNED` | NOT NULL DEFAULT 0，可重建的引用计数 |
@@ -7779,6 +7779,8 @@ XREADGROUP GROUP <group> <consumer> COUNT <n> BLOCK <ms> STREAMS <stream> >
 | Bucket | 可见性 | 内容 | 基本控制 |
 | :--- | :--- | :--- | :--- |
 | `public-assets` | 公开/CDN | 已审核商品图、店铺 Logo、可公开头像/评价图派生版 | 只读公开派生文件，原图不直接公开 |
+| `private-image-sources` | 私有 | 已完成上传校验、等待扫描或用于重建派生图的商品/Logo 原件 | 仅文件处理 Worker 可读，不复用客户端可覆盖的临时 Key |
+| `private-certifications` | 严格私有 | 店铺认证证件原件 | 仅认证审核服务和文件处理 Worker 可读，禁止公开派生 |
 | `private-user-assets` | 私有 | 用户头像原图、待处理用户文件 | 服务身份/短期签名 |
 | `review-assets` | 受控原图 | 评价图原件和审核中文件 | 扫描/内容审核后才发布派生版 |
 | `after-sale-evidence` | 严格私有 | 退款图片、视频、PDF 凭证 | 业务鉴权、短签名、访问审计、独立密钥 |
@@ -7891,7 +7893,7 @@ MySQL 权威表统一使用 3.7.15 的 `file_objects` 与 `file_upload_sessions`
 5. POST /api/v1/file-upload-sessions/{upload_id}/complete：提交 Checksum/分段清单
 6. 后端 HEAD 验证 Bucket/Key/Size/Checksum/Metadata，不信任 Complete 请求声明
 7. 文件进入 scanning，Worker 执行类型检测、病毒/恶意文件、内容和解码限制
-8. 安全后生成派生文件，在 MySQL 事务内绑定业务主体并标记 active
+8. Complete 先将已校验字节复制到服务端控制的不可变私有 Key；安全后生成派生文件，由业务接口再次校验后绑定并标记 active
 9. 临时对象到期清理
 ```
 
@@ -9085,6 +9087,7 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `GET` | `/admin/store-certifications/{certification_id}/events` | `stores:review` 或 `stores:manage` + 本店 Scope；Cursor 返回材料版本与审核时间线 |
 | `POST` | `/admin/store-certifications/{certification_id}/material-versions` | `stores:manage` + 本店 Scope；仅 `more_info_required`，提交完整 Active 私有文件集、材料版本、If-Match 与幂等，成功后回到 `pending` |
 | `GET` | `/admin/stores`、`/admin/stores/{store_id}` | `stores:read` + Data Scope |
+| `PATCH` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；修改名称、简介或已通过扫描且归属本店的 `store_logo` 派生文件，If-Match 必填 |
 | `POST` | `/admin/stores/{store_id}/status-changes` | `stores:manage`；展示/提交影响码，不能覆盖认证历史 |
 | `GET/POST/PATCH` | `/admin/stores/{store_id}/product-groups` | 店铺运营权限；If-Match、店铺归属校验 |
 | `PUT` | `/admin/stores/{store_id}/product-groups/{group_id}/products` | 完整目标商品集；所有 Product 必须属于本店 |

@@ -13,6 +13,8 @@ class AdminStoreView(StrictRequest):
     owner_user_id: str
     store_name: str
     description: str | None
+    logo_file_id: str | None
+    logo_url: str | None
     status: str
     rating_score: str
     rating_count: int
@@ -22,6 +24,18 @@ class AdminStoreView(StrictRequest):
     suspended_at: datetime | None
     closed_at: datetime | None
     version: int
+
+
+class AdminStoreUpdateRequest(StrictRequest):
+    store_name: str | None = Field(default=None, min_length=2, max_length=128)
+    description: str | None = Field(default=None, max_length=2000)
+    logo_file_id: str | None = Field(default=None, max_length=40)
+
+    @model_validator(mode="after")
+    def require_change(self) -> AdminStoreUpdateRequest:
+        if not self.model_fields_set:
+            raise ValueError("at least one field must be supplied")
+        return self
 
 
 class AdminStoreList(StrictRequest):

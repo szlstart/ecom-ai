@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -12,6 +13,7 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.pagination import CursorCodec
 from app.core.security import utc_now
+from app.modules.files.models import FileObject
 from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
 from app.modules.stores.admin_repository import AdminStoreRepository
@@ -28,6 +30,7 @@ from app.modules.stores.admin_schemas import (
     AdminStorePolicyUpdateRequest,
     AdminStorePolicyView,
     AdminStoreStatusChangeRequest,
+    AdminStoreUpdateRequest,
     AdminStoreView,
 )
 from app.modules.stores.models import (
@@ -66,8 +69,14 @@ class AdminStoreService:
         )
         has_more = len(rows) > limit
         visible = rows[:limit]
+        logos = await self.repository.files_by_object_keys(
+            [store.logo_object_key for store, _ in visible if store.logo_object_key]
+        )
         return AdminStoreList(
-            items=[_store_view(store, owner.user_no) for store, owner in visible],
+            items=[
+                _store_view(store, owner.user_no, logos.get(store.logo_object_key or ""))
+                for store, owner in visible
+            ],
             next_cursor=(
                 self.cursor.encode(
                     filter_key=filter_key,
@@ -84,7 +93,92 @@ class AdminStoreService:
             raise _not_found()
         store, owner = row
         access.require_scope("store", store.id)
-        return _store_view(store, owner.user_no)
+        logo = (
+            await self.repository.file_by_object_key(store.logo_object_key)
+            if store.logo_object_key
+            else None
+        )
+        return _store_view(store, owner.user_no, logo)
+
+    async def update_store(
+        self,
+        access: AdminAccess,
+        store_no: str,
+        payload: AdminStoreUpdateRequest,
+        expected_version: int,
+    ) -> AdminStoreView:
+        row = await self.repository.store_by_no(store_no, for_update=True)
+        if row is None:
+            raise _not_found()
+        store, owner = row
+        access.require_scope("store", store.id)
+        _check_version(store.version, expected_version)
+        before: dict[str, object] = {
+            "store_name": store.store_name,
+            "description": store.description,
+            "logo_object_key": store.logo_object_key,
+            "version": store.version,
+        }
+        logo: FileObject | None = None
+        if payload.store_name is not None:
+            store.store_name = payload.store_name
+            store.store_name_normalized = _normalize_name(payload.store_name)
+        if "description" in payload.model_fields_set:
+            store.description = payload.description
+        if "logo_file_id" in payload.model_fields_set:
+            if payload.logo_file_id is None:
+                store.logo_object_key = None
+            else:
+                logo = await self.repository.file_by_no(payload.logo_file_id)
+                if (
+                    logo is None
+                    or logo.purpose != "store_logo"
+                    or logo.owner_type != "store"
+                    or logo.owner_no != store.store_no
+                    or logo.file_status != "active"
+                    or logo.scan_status != "safe"
+                    or logo.visibility != "public_derivative"
+                ):
+                    raise ApplicationError(
+                        status=422,
+                        code="FILE_NOT_BINDABLE",
+                        title="File cannot be bound",
+                        detail="店铺 Logo 文件不存在、尚未完成安全处理或不属于当前店铺。",
+                    )
+                store.logo_object_key = logo.object_key
+        store.version += 1
+        _add_outbox(
+            self.session,
+            event_type="store.profile_updated.v1",
+            aggregate_type="store",
+            aggregate_no=store.store_no,
+            aggregate_version=store.version,
+            payload={"store_id": store.store_no},
+        )
+        record_admin_operation(
+            self.session,
+            access,
+            action="update_store",
+            target_type="store",
+            target_no=store.store_no,
+            before=before,
+            after={
+                "store_name": store.store_name,
+                "description": store.description,
+                "logo_object_key": store.logo_object_key,
+                "version": store.version,
+            },
+            scope_type="store",
+            scope_id=store.id,
+        )
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise _conflict("STORE_NAME_ALREADY_EXISTS", "店铺名称已被使用。") from exc
+        if logo is None and store.logo_object_key:
+            logo = await self.repository.file_by_object_key(store.logo_object_key)
+        return _store_view(store, owner.user_no, logo)
 
     async def change_store_status(
         self,
@@ -106,7 +200,12 @@ class AdminStoreService:
         store, owner = row
         access.require_scope("store", store.id)
         if claim.replayed:
-            return _store_view(store, owner.user_no)
+            logo = (
+                await self.repository.file_by_object_key(store.logo_object_key)
+                if store.logo_object_key
+                else None
+            )
+            return _store_view(store, owner.user_no, logo)
         _check_version(store.version, expected_version)
         transitions = {
             "activate": ({"pending"}, "active", "store.activated.v1"),
@@ -160,7 +259,12 @@ class AdminStoreService:
             scope_id=store.id,
         )
         self.idempotency.complete(claim, response_status=200, resource_no=store.store_no)
-        result = _store_view(store, owner.user_no)
+        logo = (
+            await self.repository.file_by_object_key(store.logo_object_key)
+            if store.logo_object_key
+            else None
+        )
+        result = _store_view(store, owner.user_no, logo)
         await self.session.commit()
         return result
 
@@ -745,12 +849,14 @@ class AdminStoreService:
         return [file_object.file_no] if file_object else []
 
 
-def _store_view(store: Store, owner_user_no: str) -> AdminStoreView:
+def _store_view(store: Store, owner_user_no: str, logo: FileObject | None) -> AdminStoreView:
     return AdminStoreView(
         store_id=store.store_no,
         owner_user_id=owner_user_no,
         store_name=store.store_name,
         description=store.description,
+        logo_file_id=logo.file_no if logo else None,
+        logo_url=f"/api/v1/files/{logo.file_no}" if logo else None,
         status=store.store_status,
         rating_score=format(store.rating_score, "f"),
         rating_count=store.rating_count,
@@ -761,6 +867,10 @@ def _store_view(store: Store, owner_user_no: str) -> AdminStoreView:
         closed_at=store.closed_at,
         version=store.version,
     )
+
+
+def _normalize_name(value: str) -> str:
+    return " ".join(value.casefold().split())
 
 
 def _certification_summary(
@@ -899,4 +1009,13 @@ def _not_found() -> ApplicationError:
         code="RESOURCE_NOT_FOUND",
         title="Resource not found",
         detail="未找到该资源。",
+    )
+
+
+def _conflict(code: str, detail: str) -> ApplicationError:
+    return ApplicationError(
+        status=409,
+        code=code,
+        title="Resource conflict",
+        detail=detail,
     )

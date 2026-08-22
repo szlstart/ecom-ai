@@ -46,8 +46,15 @@ class Settings(BaseSettings):
 
     object_storage_enabled: bool = False
     object_storage_endpoint: str = "http://127.0.0.1:19000"
+    object_storage_public_endpoint: str = "http://127.0.0.1:19000"
     object_storage_access_key: str = ""
     object_storage_secret_key: str = ""
+    object_storage_region: str = "us-east-1"
+    object_storage_presign_seconds: int = Field(default=600, ge=60, le=3600)
+    file_scanner_enabled: bool = False
+    file_scanner_host: str = "127.0.0.1"
+    file_scanner_port: int = Field(default=13310, ge=1, le=65535)
+    file_scanner_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
 
     @property
     def cors_origins(self) -> list[str]:

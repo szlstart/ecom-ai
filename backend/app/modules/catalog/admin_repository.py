@@ -69,10 +69,27 @@ class AdminCatalogRepository:
                     FileObject.purpose == purpose,
                     FileObject.file_status == "active",
                     FileObject.scan_status == "safe",
-                    FileObject.visibility == "public",
+                    FileObject.visibility == "public_derivative",
                 )
             ),
         )
+
+    async def files_by_object_keys(self, object_keys: list[str]) -> dict[str, FileObject]:
+        if not object_keys:
+            return {}
+        files = list(
+            (
+                await self.session.scalars(
+                    select(FileObject).where(
+                        FileObject.object_key.in_(object_keys),
+                        FileObject.file_status == "active",
+                        FileObject.scan_status == "safe",
+                        FileObject.visibility == "public_derivative",
+                    )
+                )
+            ).all()
+        )
+        return {item.object_key: item for item in files}
 
     async def inventory_by_sku_no(
         self, sku_no: str, *, for_update: bool = False

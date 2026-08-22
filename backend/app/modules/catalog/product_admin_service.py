@@ -975,9 +975,7 @@ class ProductAdminService:
         access.require_scope("store", row[1].id)
         return row
 
-    async def _fresh_detail(
-        self, access: AdminAccess, product_no: str
-    ) -> AdminProductDetail:
+    async def _fresh_detail(self, access: AdminAccess, product_no: str) -> AdminProductDetail:
         return await self._detail(await self._product(access, product_no))
 
     async def _references(
@@ -1073,7 +1071,7 @@ class ProductAdminService:
             or file.purpose not in {"product", "product_detail"}
             or file.file_status != "active"
             or file.scan_status != "safe"
-            or file.visibility != "public"
+            or file.visibility != "public_derivative"
             for file in files
         ):
             raise _invalid(
@@ -1209,7 +1207,7 @@ def _bindable_image(file: FileObject | None, store: Store) -> bool:
         and file.purpose == "product"
         and file.file_status == "active"
         and file.scan_status == "safe"
-        and file.visibility == "public"
+        and file.visibility == "public_derivative"
         and file.detected_mime_type in {"image/jpeg", "image/png", "image/webp", "image/avif"}
         and file.width
         and file.height

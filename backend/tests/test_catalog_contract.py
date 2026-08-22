@@ -75,6 +75,51 @@ def test_catalog_and_store_openapi_operations_are_stable() -> None:
             "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}/withdrawals",
             "post",
         ): "AdminStorePolicy_Withdraw",
+        ("/api/v1/admin/products", "get"): "AdminProduct_List",
+        ("/api/v1/admin/products", "post"): "AdminProduct_Create",
+        ("/api/v1/admin/products/{product_id}", "get"): "AdminProduct_Get",
+        ("/api/v1/admin/products/{product_id}", "patch"): "AdminProduct_Update",
+        (
+            "/api/v1/admin/products/{product_id}/review-submissions",
+            "post",
+        ): "AdminProduct_Submit",
+        (
+            "/api/v1/admin/products/{product_id}/moderation-decisions",
+            "post",
+        ): "AdminProduct_Moderate",
+        (
+            "/api/v1/admin/products/{product_id}/publications",
+            "post",
+        ): "AdminProduct_Publish",
+        (
+            "/api/v1/admin/products/{product_id}/off-shelf-commands",
+            "post",
+        ): "AdminProduct_OffShelf",
+        ("/api/v1/admin/products/{product_id}/skus", "post"): "AdminProductSku_Create",
+        (
+            "/api/v1/admin/products/{product_id}/images",
+            "put",
+        ): "AdminProductImage_Replace",
+        (
+            "/api/v1/admin/products/{product_id}/attributes",
+            "put",
+        ): "AdminProductAttribute_Replace",
+        (
+            "/api/v1/admin/products/{product_id}/fulfillment-profile",
+            "put",
+        ): "AdminProductFulfillment_Upsert",
+        (
+            "/api/v1/admin/products/{product_id}/detail-content-versions",
+            "post",
+        ): "AdminProductContentVersion_Create",
+        (
+            "/api/v1/admin/products/{product_id}/faqs",
+            "post",
+        ): "AdminProductFaq_Create",
+        (
+            "/api/v1/admin/products/{product_id}/faqs/{faq_id}/publications",
+            "post",
+        ): "AdminProductFaq_Publish",
     }
     for (path, method), operation_id in expected.items():
         assert paths[path][method]["operationId"] == operation_id

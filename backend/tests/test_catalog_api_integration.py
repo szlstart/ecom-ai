@@ -565,7 +565,7 @@ async def test_admin_store_certification_status_and_policy_lifecycle(
         await session.flush()
 
         first_file = FileObject(
-            file_no=new_prefixed_ulid("fil_"),
+            file_no=new_prefixed_ulid("file_"),
             bucket="private",
             object_key=f"certifications/{store.store_no}/v1.pdf",
             purpose="store_certification",
@@ -582,7 +582,7 @@ async def test_admin_store_certification_status_and_policy_lifecycle(
             activated_at=now,
         )
         second_file = FileObject(
-            file_no=new_prefixed_ulid("fil_"),
+            file_no=new_prefixed_ulid("file_"),
             bucket="private",
             object_key=f"certifications/{store.store_no}/v2.pdf",
             purpose="store_certification",

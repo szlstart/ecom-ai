@@ -829,6 +829,301 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Products */
+        get: operations["AdminProduct_List"];
+        put?: never;
+        /** Create Product */
+        post: operations["AdminProduct_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Product */
+        get: operations["AdminProduct_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Product */
+        patch: operations["AdminProduct_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/review-submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Product */
+        post: operations["AdminProduct_Submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/moderation-decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Moderate Product */
+        post: operations["AdminProduct_Moderate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Product */
+        post: operations["AdminProduct_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/off-shelf-commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Off Shelf Product */
+        post: operations["AdminProduct_OffShelf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/skus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Skus */
+        get: operations["AdminProductSku_List"];
+        put?: never;
+        /** Create Sku */
+        post: operations["AdminProductSku_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/skus/{sku_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Sku */
+        patch: operations["AdminProductSku_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/skus/{sku_id}/status-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change Sku Status */
+        post: operations["AdminProductSku_ChangeStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Images */
+        get: operations["AdminProductImage_List"];
+        /** Replace Images */
+        put: operations["AdminProductImage_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Attributes */
+        get: operations["AdminProductAttribute_List"];
+        /** Replace Attributes */
+        put: operations["AdminProductAttribute_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/fulfillment-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Fulfillment */
+        put: operations["AdminProductFulfillment_Upsert"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/detail-content-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Content Version */
+        post: operations["AdminProductContentVersion_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/detail-content-versions/{version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Content Version */
+        get: operations["AdminProductContentVersion_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/faqs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Faqs */
+        get: operations["AdminProductFaq_List"];
+        put?: never;
+        /** Create Faq */
+        post: operations["AdminProductFaq_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/faqs/{faq_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Faq Version */
+        post: operations["AdminProductFaqVersion_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/faqs/{faq_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Faq */
+        post: operations["AdminProductFaq_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/stores": {
         parameters: {
             query?: never;
@@ -1865,6 +2160,46 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AdminContentVersionCreateRequest */
+        AdminContentVersionCreateRequest: {
+            /**
+             * Source Format
+             * @enum {string}
+             */
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+        };
+        /** AdminContentVersionView */
+        AdminContentVersionView: {
+            /** Version Id */
+            version_id: string;
+            /** Content Version */
+            content_version: number;
+            /** Source Format */
+            source_format: string;
+            /** Source Content */
+            source_content: string;
+            /** Public Content Format */
+            public_content_format: string;
+            /** Safe Blocks */
+            safe_blocks: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Safe Html */
+            safe_html: string | null;
+            /** Safe Text */
+            safe_text: string;
+            /** Security Scan Status */
+            security_scan_status: string;
+            /** Status */
+            status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** AdminDashboardSummary */
         AdminDashboardSummary: {
             /**
@@ -1882,6 +2217,61 @@ export interface components {
             pending_approval_count: number;
             /** Unavailable Sections */
             unavailable_sections: string[];
+        };
+        /** AdminFaqCreateRequest */
+        AdminFaqCreateRequest: {
+            /**
+             * Source Format
+             * @enum {string}
+             */
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+            /** Question */
+            question: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminFaqPublicationRequest */
+        AdminFaqPublicationRequest: {
+            /** Version Id */
+            version_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminFaqVersionCreateRequest */
+        AdminFaqVersionCreateRequest: {
+            /**
+             * Source Format
+             * @enum {string}
+             */
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+        };
+        /** AdminFaqView */
+        AdminFaqView: {
+            /** Faq Id */
+            faq_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Question */
+            question: string;
+            /** Status */
+            status: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Current Version Id */
+            current_version_id: string | null;
+            /** Published Version Id */
+            published_version_id: string | null;
+            /** Published At */
+            published_at: string | null;
+            /** Version */
+            version: number;
         };
         /** AdminInventoryAdjustmentRequest */
         AdminInventoryAdjustmentRequest: {
@@ -2023,6 +2413,267 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** AdminProductAttributeInput */
+        AdminProductAttributeInput: {
+            /** Attribute Code */
+            attribute_code: string;
+            /** Attribute Name */
+            attribute_name: string;
+            /** Value Text */
+            value_text: string;
+            /** Value Normalized */
+            value_normalized?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Is Searchable
+             * @default false
+             */
+            is_searchable: boolean;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminProductAttributeSetRequest */
+        AdminProductAttributeSetRequest: {
+            /** Items */
+            items: components["schemas"]["AdminProductAttributeInput"][];
+        };
+        /** AdminProductCommandRequest */
+        AdminProductCommandRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminProductCompleteness */
+        AdminProductCompleteness: {
+            /** Basic */
+            basic: boolean;
+            /** Sku */
+            sku: boolean;
+            /** Main Image */
+            main_image: boolean;
+            /** Attributes */
+            attributes: boolean;
+            /** Fulfillment */
+            fulfillment: boolean;
+            /** Detail Content */
+            detail_content: boolean;
+            /** Missing Requirements */
+            missing_requirements: string[];
+        };
+        /** AdminProductCreateRequest */
+        AdminProductCreateRequest: {
+            /** Store Id */
+            store_id: string;
+            /** Category Id */
+            category_id: string;
+            /** Brand Id */
+            brand_id?: string | null;
+            /** Product Name */
+            product_name: string;
+            /** Subtitle */
+            subtitle?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** AdminProductDetail */
+        AdminProductDetail: {
+            /** Product Id */
+            product_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Category Id */
+            category_id: string;
+            /** Category Name */
+            category_name: string;
+            /** Brand Id */
+            brand_id: string | null;
+            /** Brand Name */
+            brand_name: string | null;
+            /** Product Name */
+            product_name: string;
+            /** Subtitle */
+            subtitle: string | null;
+            /** Status */
+            status: string;
+            /** Min Price */
+            min_price: string;
+            /** Max Price */
+            max_price: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Description */
+            description: string | null;
+            /** Default Sku Id */
+            default_sku_id: string | null;
+            /** Current Detail Content Version Id */
+            current_detail_content_version_id: string | null;
+            /** Published Detail Content Version Id */
+            published_detail_content_version_id: string | null;
+            completeness: components["schemas"]["AdminProductCompleteness"];
+            /** Available Actions */
+            available_actions: string[];
+            /** Published At */
+            published_at: string | null;
+            /** Off Shelf At */
+            off_shelf_at: string | null;
+        };
+        /** AdminProductFulfillmentRequest */
+        AdminProductFulfillmentRequest: {
+            /** Shipping Template Id */
+            shipping_template_id: string;
+            /** Origin Region Code */
+            origin_region_code: string;
+            /** Dispatch Min Hours */
+            dispatch_min_hours: number;
+            /** Dispatch Max Hours */
+            dispatch_max_hours: number;
+            /** Purchase Notice */
+            purchase_notice?: string | null;
+        };
+        /** AdminProductFulfillmentView */
+        AdminProductFulfillmentView: {
+            /** Shipping Template Id */
+            shipping_template_id: string;
+            /** Origin Region Code */
+            origin_region_code: string;
+            /** Dispatch Min Hours */
+            dispatch_min_hours: number;
+            /** Dispatch Max Hours */
+            dispatch_max_hours: number;
+            /** Purchase Notice */
+            purchase_notice?: string | null;
+            /** Profile Version */
+            profile_version: number;
+            /** Version */
+            version: number;
+        };
+        /** AdminProductImageInput */
+        AdminProductImageInput: {
+            /** File Id */
+            file_id: string;
+            /** Sku Id */
+            sku_id?: string | null;
+            /**
+             * Image Type
+             * @enum {string}
+             */
+            image_type: "main" | "gallery" | "detail" | "spec";
+            /** Alt Text */
+            alt_text?: string | null;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /** AdminProductImageSetRequest */
+        AdminProductImageSetRequest: {
+            /** Items */
+            items: components["schemas"]["AdminProductImageInput"][];
+        };
+        /** AdminProductImageView */
+        AdminProductImageView: {
+            /** File Id */
+            file_id: string;
+            /** Sku Id */
+            sku_id?: string | null;
+            /**
+             * Image Type
+             * @enum {string}
+             */
+            image_type: "main" | "gallery" | "detail" | "spec";
+            /** Alt Text */
+            alt_text?: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Image Url */
+            image_url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Status */
+            status: string;
+        };
+        /** AdminProductList */
+        AdminProductList: {
+            /** Items */
+            items: components["schemas"]["AdminProductSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** AdminProductModerationRequest */
+        AdminProductModerationRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject" | "request_changes";
+        };
+        /** AdminProductSummary */
+        AdminProductSummary: {
+            /** Product Id */
+            product_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Category Id */
+            category_id: string;
+            /** Category Name */
+            category_name: string;
+            /** Brand Id */
+            brand_id: string | null;
+            /** Brand Name */
+            brand_name: string | null;
+            /** Product Name */
+            product_name: string;
+            /** Subtitle */
+            subtitle: string | null;
+            /** Status */
+            status: string;
+            /** Min Price */
+            min_price: string;
+            /** Max Price */
+            max_price: string;
+            /** Currency */
+            currency: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** AdminProductUpdateRequest */
+        AdminProductUpdateRequest: {
+            /** Category Id */
+            category_id?: string | null;
+            /** Brand Id */
+            brand_id?: string | null;
+            /** Product Name */
+            product_name?: string | null;
+            /** Subtitle */
+            subtitle?: string | null;
+            /** Description */
+            description?: string | null;
+        };
         /** AdminReauthenticationRequest */
         AdminReauthenticationRequest: {
             /** Password */
@@ -2034,6 +2685,92 @@ export interface components {
             method: "totp" | "recovery_code";
             /** Code */
             code: string;
+        };
+        /** AdminSkuCreateRequest */
+        AdminSkuCreateRequest: {
+            /** Merchant Sku Code */
+            merchant_sku_code?: string | null;
+            /** Sku Name */
+            sku_name: string;
+            /** Spec Values */
+            spec_values: components["schemas"]["AdminSkuSpecValue"][];
+            /** Sale Price Amount */
+            sale_price_amount: number;
+            /** Market Price Amount */
+            market_price_amount: number;
+            /**
+             * Currency
+             * @default CNY
+             * @constant
+             */
+            currency: "CNY";
+            /** Weight Grams */
+            weight_grams?: number | null;
+            /** Barcode */
+            barcode?: string | null;
+        };
+        /** AdminSkuSpecValue */
+        AdminSkuSpecValue: {
+            /** Name */
+            name: string;
+            /** Value */
+            value: string;
+        };
+        /** AdminSkuStatusRequest */
+        AdminSkuStatusRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "enable" | "disable";
+        };
+        /** AdminSkuUpdateRequest */
+        AdminSkuUpdateRequest: {
+            /** Merchant Sku Code */
+            merchant_sku_code?: string | null;
+            /** Sku Name */
+            sku_name?: string | null;
+            /** Spec Values */
+            spec_values?: components["schemas"]["AdminSkuSpecValue"][] | null;
+            /** Sale Price Amount */
+            sale_price_amount?: number | null;
+            /** Market Price Amount */
+            market_price_amount?: number | null;
+            /** Weight Grams */
+            weight_grams?: number | null;
+            /** Barcode */
+            barcode?: string | null;
+        };
+        /** AdminSkuView */
+        AdminSkuView: {
+            /** Sku Id */
+            sku_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Merchant Sku Code */
+            merchant_sku_code: string | null;
+            /** Sku Name */
+            sku_name: string;
+            /** Spec Values */
+            spec_values: components["schemas"]["AdminSkuSpecValue"][];
+            /** Sale Price */
+            sale_price: string;
+            /** Market Price */
+            market_price: string;
+            /** Currency */
+            currency: string;
+            /** Weight Grams */
+            weight_grams: number | null;
+            /** Barcode */
+            barcode: string | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
         };
         /** AdminStoreList */
         AdminStoreList: {
@@ -2390,9 +3127,19 @@ export interface components {
             data: components["schemas"]["AdminCertificationList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AdminContentVersionView] */
+        Envelope_AdminContentVersionView_: {
+            data: components["schemas"]["AdminContentVersionView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AdminDashboardSummary] */
         Envelope_AdminDashboardSummary_: {
             data: components["schemas"]["AdminDashboardSummary"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminFaqView] */
+        Envelope_AdminFaqView_: {
+            data: components["schemas"]["AdminFaqView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminInventoryAdjustmentView] */
@@ -2423,6 +3170,26 @@ export interface components {
         /** Envelope[AdminNavigation] */
         Envelope_AdminNavigation_: {
             data: components["schemas"]["AdminNavigation"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductDetail] */
+        Envelope_AdminProductDetail_: {
+            data: components["schemas"]["AdminProductDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductFulfillmentView] */
+        Envelope_AdminProductFulfillmentView_: {
+            data: components["schemas"]["AdminProductFulfillmentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductList] */
+        Envelope_AdminProductList_: {
+            data: components["schemas"]["AdminProductList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminSkuView] */
+        Envelope_AdminSkuView_: {
+            data: components["schemas"]["AdminSkuView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminStoreList] */
@@ -2604,6 +3371,30 @@ export interface components {
         Envelope_list_AdminCertificationEventView__: {
             /** Data */
             data: components["schemas"]["AdminCertificationEventView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminFaqView]] */
+        Envelope_list_AdminFaqView__: {
+            /** Data */
+            data: components["schemas"]["AdminFaqView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminProductAttributeInput]] */
+        Envelope_list_AdminProductAttributeInput__: {
+            /** Data */
+            data: components["schemas"]["AdminProductAttributeInput"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminProductImageView]] */
+        Envelope_list_AdminProductImageView__: {
+            /** Data */
+            data: components["schemas"]["AdminProductImageView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminSkuView]] */
+        Envelope_list_AdminSkuView__: {
+            /** Data */
+            data: components["schemas"]["AdminSkuView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[list[AdminStorePolicyView]] */
@@ -5300,6 +6091,827 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_AdminInventoryAdjustmentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProduct_List: {
+        parameters: {
+            query?: {
+                store_id?: string | null;
+                status?: string | null;
+                q?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProduct_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProduct_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProduct_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProduct_Submit: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProduct_Moderate: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductModerationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProduct_Publish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProduct_OffShelf: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductSku_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminSkuView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductSku_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSkuCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminSkuView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductSku_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+                sku_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSkuUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminSkuView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductSku_ChangeStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+                sku_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSkuStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminSkuView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductImage_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminProductImageView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductImage_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductImageSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminProductImageView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductAttribute_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminProductAttributeInput__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductAttribute_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductAttributeSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminProductAttributeInput__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductFulfillment_Upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductFulfillmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductFulfillmentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductContentVersion_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminContentVersionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminContentVersionView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductContentVersion_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminContentVersionView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductFaq_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminFaqView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductFaq_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFaqCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminFaqView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductFaqVersion_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+                faq_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFaqVersionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminContentVersionView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductFaq_Publish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+                faq_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFaqPublicationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminFaqView_"];
                 };
             };
             /** @description Validation Error */

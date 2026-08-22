@@ -216,3 +216,31 @@ class AccountClosureRequest(StrictRequest):
     reason_code: Literal["no_longer_needed", "privacy_concern", "other"]
     reason: str | None = Field(default=None, max_length=500)
     confirmation: Literal["CLOSE_MY_ACCOUNT"]
+
+
+class ContactChangeTicketRequest(StrictRequest):
+    credential_type: Literal["phone", "email"]
+    current_password: str = Field(min_length=1, max_length=128)
+
+
+class ContactChangeTicketResult(StrictRequest):
+    change_ticket_id: str
+    credential_type: Literal["phone", "email"]
+    expires_at: datetime
+
+
+class ContactChangeRequest(StrictRequest):
+    change_ticket_id: str = Field(min_length=5, max_length=40)
+    new_target: str = Field(min_length=3, max_length=254)
+    verification_id: str = Field(min_length=5, max_length=40)
+    verification_code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+class UserDashboard(StrictRequest):
+    order_counts: dict[str, int]
+    review_counts: dict[str, int]
+    default_address: AddressView | None
+    unread_message_count: int
+    favorite_product_count: int
+    followed_store_count: int
+    unavailable_sections: list[str]

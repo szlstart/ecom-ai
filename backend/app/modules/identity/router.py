@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Header, Request, Response, status
 
-from app.api.dependencies import IdempotencyKey, UserContext
+from app.api.dependencies import IdempotencyKey, OptionalUserContext, UserContext
 from app.api.schemas import Envelope
 from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
@@ -15,6 +15,9 @@ from app.modules.identity.schemas import (
     AddressPatch,
     AddressView,
     AddressWrite,
+    ContactChangeRequest,
+    ContactChangeTicketRequest,
+    ContactChangeTicketResult,
     DefaultAddressRequest,
     LoginRequest,
     MessageResult,
@@ -26,6 +29,7 @@ from app.modules.identity.schemas import (
     SecuritySummary,
     SessionBootstrap,
     SessionSummary,
+    UserDashboard,
     UserProfile,
     UserProfileUpdate,
     VerificationCodeAccepted,
@@ -37,6 +41,7 @@ user_router = APIRouter(prefix="/users/me", tags=["current-user"])
 
 USER_REFRESH_COOKIE = "ecom_user_refresh"
 USER_REFRESH_COOKIE_PATH = "/api/v1/auth"
+USER_CSRF_COOKIE = "ecom_user_csrf"
 
 
 @auth_router.get(
@@ -61,9 +66,14 @@ async def create_verification_code(
     request: Request,
     response: Response,
     service: IdentityServiceDependency,
+    context: OptionalUserContext,
 ) -> Envelope[VerificationCodeAccepted]:
     _no_store(response)
-    result = await service.send_verification_code(payload, _client_ip(request))
+    result = await service.send_verification_code(
+        payload,
+        _client_ip(request),
+        context.user.id if context is not None else None,
+    )
     response.headers["Retry-After"] = str(result.retry_after_seconds)
     return Envelope(data=result)
 
@@ -87,7 +97,7 @@ async def register_user(
         _client_ip(request),
         request.headers.get("user-agent", "unknown")[:512],
     )
-    _set_refresh_cookie(response, result.refresh_token)
+    _set_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
     _no_store(response)
     return Envelope(data=result.payload)
 
@@ -108,7 +118,7 @@ async def login(
         _client_ip(request),
         request.headers.get("user-agent", "unknown")[:512],
     )
-    _set_refresh_cookie(response, result.refresh_token)
+    _set_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
     _no_store(response)
     return Envelope(data=result.payload)
 
@@ -132,7 +142,7 @@ async def refresh_token(
         _client_ip(request),
         request.headers.get("user-agent", "unknown")[:512],
     )
-    _set_refresh_cookie(response, result.refresh_token)
+    _set_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
     _no_store(response)
     return Envelope(data=result.payload)
 
@@ -154,6 +164,13 @@ async def logout(
         path=USER_REFRESH_COOKIE_PATH,
         secure=get_settings().refresh_cookie_secure,
         httponly=True,
+        samesite="lax",
+    )
+    response.delete_cookie(
+        USER_CSRF_COOKIE,
+        path="/",
+        secure=get_settings().refresh_cookie_secure,
+        httponly=False,
         samesite="lax",
     )
     _no_store(response)
@@ -230,6 +247,18 @@ async def reset_password(
 
 
 @user_router.get(
+    "/dashboard",
+    response_model=Envelope[UserDashboard],
+    operation_id="UserDashboard_Get",
+)
+async def get_dashboard(
+    context: UserContext,
+    service: IdentityServiceDependency,
+) -> Envelope[UserDashboard]:
+    return Envelope(data=await service.dashboard(context.user.id))
+
+
+@user_router.get(
     "",
     response_model=Envelope[UserProfile],
     operation_id="UserProfile_Get",
@@ -290,6 +319,66 @@ async def get_security_summary(
 ) -> Envelope[SecuritySummary]:
     _no_store(response)
     return Envelope(data=await service.security_summary(context.user))
+
+
+@user_router.post(
+    "/contact-change-tickets",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[ContactChangeTicketResult],
+    operation_id="UserContactChangeTicket_Create",
+)
+async def create_contact_change_ticket(
+    payload: ContactChangeTicketRequest,
+    request: Request,
+    response: Response,
+    context: UserContext,
+    idempotency_key: IdempotencyKey,
+    service: IdentityServiceDependency,
+) -> Envelope[ContactChangeTicketResult]:
+    _no_store(response)
+    return Envelope(
+        data=await service.create_contact_change_ticket(
+            context.user,
+            payload,
+            _client_ip(request),
+            idempotency_key,
+        )
+    )
+
+
+@user_router.post(
+    "/contact-changes",
+    response_model=Envelope[MessageResult],
+    operation_id="UserContactChange_Complete",
+)
+async def complete_contact_change(
+    payload: ContactChangeRequest,
+    response: Response,
+    context: UserContext,
+    idempotency_key: IdempotencyKey,
+    service: IdentityServiceDependency,
+) -> Envelope[MessageResult]:
+    await service.complete_contact_change(
+        context.user,
+        context.session,
+        payload,
+        idempotency_key,
+    )
+    _no_store(response)
+    return Envelope(data=MessageResult(message="联系方式已更新。"))
+
+
+@user_router.delete(
+    "/contact-change-tickets/{change_ticket_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="UserContactChangeTicket_Cancel",
+)
+async def cancel_contact_change(
+    change_ticket_id: str,
+    context: UserContext,
+    service: IdentityServiceDependency,
+) -> None:
+    await service.cancel_contact_change(context.user.id, change_ticket_id)
 
 
 @user_router.get(
@@ -409,7 +498,7 @@ async def request_account_closure(
     return Envelope(data=MessageResult(message="账号注销申请已受理，当前进入冷静期。"))
 
 
-def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+def _set_refresh_cookie(response: Response, refresh_token: str, csrf_token: str) -> None:
     settings = get_settings()
     response.set_cookie(
         USER_REFRESH_COOKIE,
@@ -418,6 +507,15 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         path=USER_REFRESH_COOKIE_PATH,
         secure=settings.refresh_cookie_secure,
         httponly=True,
+        samesite="lax",
+    )
+    response.set_cookie(
+        USER_CSRF_COOKIE,
+        csrf_token,
+        max_age=settings.refresh_token_ttl_days * 24 * 60 * 60,
+        path="/",
+        secure=settings.refresh_cookie_secure,
+        httponly=False,
         samesite="lax",
     )
 

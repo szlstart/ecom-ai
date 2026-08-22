@@ -12,6 +12,7 @@ cp .env.example .env
 make bootstrap
 make infra-up
 make migrate
+make seed
 make api
 ```
 
@@ -32,6 +33,15 @@ make app-up
 
 基础设施只使用 Docker 容器，不启动宿主机 MySQL。默认调试端口为 MySQL `13306`、PostgreSQL `15432`、Redis `16379`。
 
+首次使用管理端前，在本机交互式创建首位平台超级管理员：
+
+```bash
+conda activate ecom-ai
+make admin-bootstrap USERNAME=your_admin_name
+```
+
+命令会提示输入密码，并只显示一次 TOTP Secret、绑定 URI 和恢复码。请立即保存到密码管理器，不要写入 `.env`、截图或提交到 Git。管理端入口为 `http://127.0.0.1:8080/admin/login`。
+
 对象存储通过 S3 兼容适配层接入，当前基线默认关闭；选定持续维护的本地/生产对象存储实现后再启用，避免把已停止维护的镜像固化进开发环境。
 
 ## 质量检查
@@ -40,6 +50,8 @@ make app-up
 make registry-check
 make lint
 make test
+make openapi
+make check
 ```
 
 真实 Secret 只放 `.env` 或 Secret Manager，严禁提交版本库。

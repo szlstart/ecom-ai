@@ -127,8 +127,19 @@ async def require_admin(
     return await _authenticate("admin", credentials, session, security)
 
 
+async def optional_user(
+    session: DatabaseSession,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    security: Annotated[SecurityService, Depends(get_security_service)],
+) -> AuthContext | None:
+    if credentials is None:
+        return None
+    return await _authenticate("user", credentials, session, security)
+
+
 UserContext = Annotated[AuthContext, Depends(require_user)]
 AdminContext = Annotated[AuthContext, Depends(require_admin)]
+OptionalUserContext = Annotated[AuthContext | None, Depends(optional_user)]
 
 
 def require_idempotency_key(

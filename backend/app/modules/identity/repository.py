@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
 from app.modules.identity.models import (
     AuthSession,
+    CredentialChangeRecord,
     PasswordResetRecord,
     User,
     UserAddress,
@@ -262,6 +263,22 @@ class IdentityRepository:
                 )
             )
             or 0
+        )
+
+    async def credential_change_by_no(
+        self,
+        user_id: int,
+        change_no: str,
+        *,
+        for_update: bool = False,
+    ) -> CredentialChangeRecord | None:
+        statement = select(CredentialChangeRecord).where(
+            CredentialChangeRecord.user_id == user_id,
+            CredentialChangeRecord.change_no == change_no,
+        )
+        return cast(
+            CredentialChangeRecord | None,
+            await self.session.scalar(_locked(statement, for_update)),
         )
 
 

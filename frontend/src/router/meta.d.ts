@@ -9,6 +9,6 @@ declare module 'vue-router' {
     requiresAuth: boolean
     title: string
     requirementId: string
+    requiredPermission?: string
   }
 }
-

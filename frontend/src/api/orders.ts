@@ -1,4 +1,5 @@
-import { apiRequest, type ApiResult } from '@/api/http'
+import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
+import type { CartData } from '@/api/cart'
 import type { Money } from '@/api/catalog'
 
 export type OrderView = 'all' | 'pending_payment' | 'pending_shipment' | 'in_transit' | 'completed' | 'pending_review' | 'after_sale' | 'cancelled'
@@ -94,6 +95,16 @@ export interface OrderFilters {
   limit?: number
 }
 
+export interface OrderCommandResult { order: OrderSummary; events: OrderEvent[] }
+export interface OrderHideResult { order_id: string; undo_until: string; restore_url: string; version: number }
+export interface OrderRepurchaseResult {
+  order_id: string
+  added_items: string[]
+  unavailable_items: Array<{ order_item_id: string; sku_id: string; product_name: string; reason_code: string; reason_message: string }>
+  requires_reselection: boolean
+  cart: CartData
+}
+
 export function listMyOrders(filters: OrderFilters, token: string): Promise<ApiResult<{ items: OrderSummary[] }>> {
   const query = new URLSearchParams({ view: filters.view, limit: String(filters.limit ?? 10) })
   if (filters.q) query.set('q', filters.q)
@@ -105,4 +116,25 @@ export function listMyOrders(filters: OrderFilters, token: string): Promise<ApiR
 
 export function getMyOrder(orderId: string, token: string): Promise<ApiResult<OrderDetail>> {
   return apiRequest(`/orders/${encodeURIComponent(orderId)}`, {}, token)
+}
+
+export function cancelOrder(orderId: string, version: number, token: string, reasonCode = 'no_longer_needed', description?: string): Promise<ApiResult<OrderCommandResult>> {
+  return apiRequest(`/orders/${encodeURIComponent(orderId)}/cancellations`, { method: 'POST', headers: { 'If-Match': `"v${version}"`, 'Idempotency-Key': createIdempotencyKey('order-cancel') }, body: JSON.stringify({ reason_code: reasonCode, ...(description ? { description } : {}) }) }, token)
+}
+
+export function confirmOrderReceipt(orderId: string, version: number, token: string): Promise<ApiResult<OrderCommandResult>> {
+  return apiRequest(`/orders/${encodeURIComponent(orderId)}/receipt-confirmations`, { method: 'POST', headers: { 'If-Match': `"v${version}"`, 'Idempotency-Key': createIdempotencyKey('order-receipt') } }, token)
+}
+
+export function hideOrder(orderId: string, version: number, token: string): Promise<ApiResult<OrderHideResult>> {
+  return apiRequest(`/users/me/orders/${encodeURIComponent(orderId)}`, { method: 'DELETE', headers: { 'If-Match': `"v${version}"` } }, token)
+}
+
+export function restoreOrder(result: OrderHideResult, token: string): Promise<ApiResult<OrderSummary>> {
+  const path = result.restore_url.replace(/^\/api\/v1/, '')
+  return apiRequest(path, { method: 'POST', headers: { 'If-Match': `"v${result.version}"`, 'Idempotency-Key': createIdempotencyKey('order-restore') } }, token)
+}
+
+export function repurchaseOrder(orderId: string, cartVersion: number, token: string): Promise<ApiResult<OrderRepurchaseResult>> {
+  return apiRequest(`/orders/${encodeURIComponent(orderId)}/repurchases`, { method: 'POST', headers: { 'If-Match': `"v${cartVersion}"`, 'Idempotency-Key': createIdempotencyKey('order-repurchase') } }, token)
 }

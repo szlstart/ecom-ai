@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { formatMoney } from '@/api/catalog'
+import { getCart } from '@/api/cart'
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
-import { getMyOrder, type OrderDetail } from '@/api/orders'
+import { cancelOrder, confirmOrderReceipt, getMyOrder, hideOrder, repurchaseOrder, restoreOrder, type OrderAction, type OrderDetail, type OrderHideResult } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const route = useRoute()
+const router = useRouter()
 const auth = useUserAuthStore()
 const order = ref<OrderDetail | null>(null)
 const loading = ref(true)
 const error = ref('')
+const message = ref('')
+const busy = ref(false)
+const hidden = ref<OrderHideResult | null>(null)
 
 function token(): string {
   if (!auth.accessToken) throw new Error('missing user token')
@@ -38,6 +43,47 @@ async function load() {
   catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
 }
+async function runAction(action: OrderAction) {
+  if (!order.value || busy.value || !action.enabled) return
+  if (action.code === 'pay') {
+    await router.push({ name: action.target.name, params: action.target.params })
+    return
+  }
+  if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !window.confirm(`${actionLabel(action.code)}？服务端会再次校验订单状态。`)) return
+  busy.value = true
+  error.value = ''
+  message.value = ''
+  try {
+    if (action.code === 'cancel_order') {
+      const description = window.prompt('可选：请补充取消原因（最多 200 字）')?.trim() || undefined
+      await cancelOrder(order.value.order_id, order.value.version, token(), 'no_longer_needed', description)
+      await load()
+    } else if (action.code === 'confirm_receipt') {
+      await confirmOrderReceipt(order.value.order_id, order.value.version, token())
+      await load()
+    } else if (action.code === 'delete_order') {
+      hidden.value = (await hideOrder(order.value.order_id, order.value.version, token())).data
+      message.value = `订单已隐藏，可在 ${dateTime(hidden.value.undo_until)} 前撤销。`
+    } else if (action.code === 'repurchase') {
+      const cart = await getCart(token())
+      const result = (await repurchaseOrder(order.value.order_id, cart.data.version, token())).data
+      if (result.requires_reselection) message.value = `${result.added_items.length} 件已加入购物车，${result.unavailable_items.length} 件原规格当前不可购买。`
+      else await router.push('/cart')
+    }
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { busy.value = false }
+}
+async function undoHide() {
+  if (!hidden.value || busy.value) return
+  busy.value = true
+  try {
+    await restoreOrder(hidden.value, token())
+    hidden.value = null
+    message.value = '订单已恢复。'
+    await load()
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { busy.value = false }
+}
 onMounted(load)
 </script>
 
@@ -45,12 +91,13 @@ onMounted(load)
   <section class="order-detail-page">
     <RouterLink class="back-link" to="/me/orders">← 返回我的订单</RouterLink>
     <div v-if="error" class="alert error" role="alert">{{ error }}</div>
+    <div v-if="message" class="alert success" role="status">{{ message }} <button v-if="hidden" type="button" class="link-button" :disabled="busy" @click="undoHide">撤销隐藏</button></div>
     <PageState :loading="loading" :error="''" :empty="!order" empty-title="未找到订单" empty-message="该订单不存在或已不可见。" @retry="load">
       <template v-if="order">
         <header class="order-detail-hero">
           <div><p class="eyebrow">订单状态</p><h1>{{ statusLabel(order.order_status) }}</h1><p>订单号 {{ order.order_id }} · {{ dateTime(order.created_at) }}</p></div>
           <div class="order-actions">
-            <RouterLink v-for="action in order.available_actions" :key="action.code" class="button-link" :to="{ name: action.target.name, params: action.target.params }">{{ actionLabel(action.code) }}</RouterLink>
+            <button v-for="action in order.available_actions" :key="action.code" type="button" :disabled="busy || !action.enabled || hidden !== null" @click="runAction(action)">{{ busy ? '处理中…' : actionLabel(action.code) }}</button>
           </div>
         </header>
         <div class="order-detail-grid">

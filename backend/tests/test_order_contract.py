@@ -35,3 +35,12 @@ def test_order_create_operation_is_present_in_openapi() -> None:
         schema["paths"]["/api/v1/trade-orders/{trade_order_id}"]["get"]["operationId"]
         == "TradeOrder_GetMine"
     )
+    expected_commands = {
+        ("/api/v1/orders/{order_id}/cancellations", "post"): "Order_CancelMine",
+        ("/api/v1/orders/{order_id}/receipt-confirmations", "post"): ("Order_ConfirmReceiptMine"),
+        ("/api/v1/users/me/orders/{order_id}", "delete"): "Order_HideMine",
+        ("/api/v1/users/me/orders/{order_id}/restorations", "post"): ("Order_RestoreMine"),
+        ("/api/v1/orders/{order_id}/repurchases", "post"): "Order_RepurchaseMine",
+    }
+    for (path, method), operation_id in expected_commands.items():
+        assert schema["paths"][path][method]["operationId"] == operation_id

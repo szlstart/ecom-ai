@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.pagination import CursorPosition
 from app.core.security import utc_now
 from app.modules.cart.models import Cart, CartItem
-from app.modules.catalog.models import ProductImage
+from app.modules.catalog.models import Product, ProductImage, ProductSku
 from app.modules.files.models import FileObject
-from app.modules.inventory.models import Inventory
+from app.modules.inventory.models import Inventory, InventoryReservation
 from app.modules.orders.models import Order, OrderAddress, OrderItem, OrderStatusLog, TradeOrder
 from app.modules.stores.models import Store
 
@@ -78,7 +78,12 @@ class OrderRepository:
         return [(row[0], row[1], row[2]) for row in rows], has_more
 
     async def user_order(
-        self, user_id: int, order_no: str, *, include_hidden: bool = False
+        self,
+        user_id: int,
+        order_no: str,
+        *,
+        include_hidden: bool = False,
+        for_update: bool = False,
     ) -> tuple[Order, Store, TradeOrder] | None:
         statement = (
             select(Order, Store, TradeOrder)
@@ -88,8 +93,62 @@ class OrderRepository:
         )
         if not include_hidden:
             statement = statement.where(Order.user_hidden_at.is_(None))
+        if for_update:
+            statement = statement.with_for_update()
         row = (await self.session.execute(statement)).one_or_none()
         return (row[0], row[1], row[2]) if row else None
+
+    async def trade_orders_for_update(self, trade_order_id: int) -> list[Order]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(Order)
+                    .where(Order.trade_order_id == trade_order_id)
+                    .order_by(Order.id)
+                    .with_for_update()
+                )
+            ).all()
+        )
+
+    async def active_reservations_for_orders(
+        self, order_ids: Sequence[int]
+    ) -> list[tuple[InventoryReservation, Inventory]]:
+        if not order_ids:
+            return []
+        rows = list(
+            (
+                await self.session.execute(
+                    select(InventoryReservation, Inventory)
+                    .join(Inventory, Inventory.id == InventoryReservation.inventory_id)
+                    .where(
+                        InventoryReservation.order_id.in_(order_ids),
+                        InventoryReservation.reservation_status == "active",
+                    )
+                    .order_by(Inventory.sku_id, InventoryReservation.id)
+                    .with_for_update()
+                )
+            ).all()
+        )
+        return [(row[0], row[1]) for row in rows]
+
+    async def repurchase_contexts(
+        self, order_id: int
+    ) -> list[tuple[OrderItem, ProductSku, Product, Store, Inventory | None]]:
+        rows = list(
+            (
+                await self.session.execute(
+                    select(OrderItem, ProductSku, Product, Store, Inventory)
+                    .join(ProductSku, ProductSku.id == OrderItem.sku_id)
+                    .join(Product, Product.id == ProductSku.product_id)
+                    .join(Store, Store.id == ProductSku.store_id)
+                    .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
+                    .where(OrderItem.order_id == order_id)
+                    .order_by(ProductSku.id)
+                    .with_for_update()
+                )
+            ).all()
+        )
+        return [(row[0], row[1], row[2], row[3], row[4]) for row in rows]
 
     async def user_trade(
         self, user_id: int, trade_no: str

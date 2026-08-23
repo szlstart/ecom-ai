@@ -3261,6 +3261,395 @@
         }
       }
     },
+    "/api/v1/orders/{order_id}/cancellations": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Cancel My Order",
+        "operationId": "Order_CancelMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCancellationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OrderCommandResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}/receipt-confirmations": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Confirm My Order Receipt",
+        "operationId": "Order_ConfirmReceiptMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OrderCommandResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/orders/{order_id}": {
+      "delete": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Hide My Order",
+        "operationId": "Order_HideMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OrderHideResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/orders/{order_id}/restorations": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Restore My Order",
+        "operationId": "Order_RestoreMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OrderListItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}/repurchases": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Repurchase My Order",
+        "operationId": "Order_RepurchaseMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OrderRepurchaseResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/favorite-products": {
       "get": {
         "tags": [
@@ -17247,6 +17636,21 @@
         ],
         "title": "Envelope[MessageResult]"
       },
+      "Envelope_OrderCommandResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OrderCommandResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[OrderCommandResult]"
+      },
       "Envelope_OrderCreateResponse_": {
         "properties": {
           "data": {
@@ -17292,6 +17696,36 @@
         ],
         "title": "Envelope[OrderEventList]"
       },
+      "Envelope_OrderHideResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OrderHideResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[OrderHideResult]"
+      },
+      "Envelope_OrderListItem_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OrderListItem"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[OrderListItem]"
+      },
       "Envelope_OrderList_": {
         "properties": {
           "data": {
@@ -17306,6 +17740,21 @@
           "data"
         ],
         "title": "Envelope[OrderList]"
+      },
+      "Envelope_OrderRepurchaseResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OrderRepurchaseResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[OrderRepurchaseResult]"
       },
       "Envelope_PasswordResetTicketResult_": {
         "properties": {
@@ -18953,6 +19402,60 @@
         ],
         "title": "OrderAmountsView"
       },
+      "OrderCancellationRequest": {
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "enum": [
+              "no_longer_needed",
+              "wrong_product",
+              "wrong_address",
+              "price_changed",
+              "other"
+            ],
+            "title": "Reason Code"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason_code"
+        ],
+        "title": "OrderCancellationRequest"
+      },
+      "OrderCommandResult": {
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/OrderListItem"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/OrderEventView"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order",
+          "events"
+        ],
+        "title": "OrderCommandResult"
+      },
       "OrderCreateRequest": {
         "properties": {
           "checkout_id": {
@@ -19246,6 +19749,36 @@
         ],
         "title": "OrderEventView"
       },
+      "OrderHideResult": {
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "title": "Order Id"
+          },
+          "undo_until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Undo Until"
+          },
+          "restore_url": {
+            "type": "string",
+            "title": "Restore Url"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_id",
+          "undo_until",
+          "restore_url",
+          "version"
+        ],
+        "title": "OrderHideResult"
+      },
       "OrderItemView": {
         "properties": {
           "order_item_id": {
@@ -19471,6 +20004,45 @@
           "version"
         ],
         "title": "OrderListItem"
+      },
+      "OrderRepurchaseResult": {
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "title": "Order Id"
+          },
+          "added_items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Added Items"
+          },
+          "unavailable_items": {
+            "items": {
+              "$ref": "#/components/schemas/RepurchaseUnavailableItem"
+            },
+            "type": "array",
+            "title": "Unavailable Items"
+          },
+          "requires_reselection": {
+            "type": "boolean",
+            "title": "Requires Reselection"
+          },
+          "cart": {
+            "$ref": "#/components/schemas/CartView"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_id",
+          "added_items",
+          "unavailable_items",
+          "requires_reselection",
+          "cart"
+        ],
+        "title": "OrderRepurchaseResult"
       },
       "OrderStoreView": {
         "properties": {
@@ -20572,6 +21144,40 @@
           "agreement_acceptances"
         ],
         "title": "RegistrationRequest"
+      },
+      "RepurchaseUnavailableItem": {
+        "properties": {
+          "order_item_id": {
+            "type": "string",
+            "title": "Order Item Id"
+          },
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "reason_code": {
+            "type": "string",
+            "title": "Reason Code"
+          },
+          "reason_message": {
+            "type": "string",
+            "title": "Reason Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_item_id",
+          "sku_id",
+          "product_name",
+          "reason_code",
+          "reason_message"
+        ],
+        "title": "RepurchaseUnavailableItem"
       },
       "ResponseMeta": {
         "properties": {

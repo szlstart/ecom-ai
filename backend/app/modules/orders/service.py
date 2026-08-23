@@ -3,10 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import PaginationMeta
@@ -17,6 +17,9 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.pagination import CursorCodec, CursorPosition
 from app.core.security import SecurityService, canonical_request_hash, utc_now
+from app.modules.cart.models import Cart, CartItem
+from app.modules.cart.repository import CartRepository
+from app.modules.cart.service import CartService
 from app.modules.catalog.schemas import Money
 from app.modules.checkout.service import CheckoutService, CheckoutSubmissionContext
 from app.modules.files.models import FileObject
@@ -36,16 +39,21 @@ from app.modules.orders.schemas import (
     OrderActionTarget,
     OrderAddressView,
     OrderAmountsView,
+    OrderCancellationRequest,
+    OrderCommandResult,
     OrderCreateRequest,
     OrderCreateResponse,
     OrderDetail,
     OrderEventList,
     OrderEventView,
+    OrderHideResult,
     OrderItemView,
     OrderList,
     OrderListItem,
+    OrderRepurchaseResult,
     OrderStoreView,
     OrderView,
+    RepurchaseUnavailableItem,
     SignedMoney,
     TradeOrderView,
 )
@@ -399,6 +407,412 @@ class OrderService:
             version=trade.version,
         )
 
+    async def cancel(
+        self,
+        user: User,
+        order_no: str,
+        payload: OrderCancellationRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> OrderCommandResult:
+        claim = await self.idempotency.begin(
+            scope_key=f"order:cancel:{user.user_no}:{order_no}",
+            idempotency_key=idempotency_key,
+            payload={"version": expected_version, **payload.model_dump(mode="json")},
+            resource_type="order",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return OrderCommandResult.model_validate(claim.record.response_body)
+        row = await self.repository.user_order(user.id, order_no, for_update=True)
+        if row is None:
+            raise _not_found()
+        order, _, trade = row
+        _require_version(order, expected_version)
+        if (
+            order.order_status != "pending_payment"
+            or order.payment_status != "unpaid"
+            or trade.trade_status != "pending_payment"
+        ):
+            raise _state_conflict(order, "cancel_order")
+
+        now = utc_now()
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        sibling_orders = await self.repository.trade_orders_for_update(trade.id)
+        if any(
+            sibling.order_status != "pending_payment" or sibling.payment_status != "unpaid"
+            for sibling in sibling_orders
+        ):
+            raise _state_conflict(order, "cancel_order")
+        reservations = await self.repository.active_reservations_for_orders(
+            [sibling.id for sibling in sibling_orders]
+        )
+        order_by_id = {sibling.id: sibling for sibling in sibling_orders}
+        for reservation, inventory in reservations:
+            before = inventory.reserved_quantity
+            if before < reservation.quantity:
+                raise RuntimeError("active reservation exceeds reserved inventory")
+            inventory.reserved_quantity -= reservation.quantity
+            inventory.version += 1
+            reservation.reservation_status = "released"
+            reservation.released_at = now
+            reservation.release_reason = "user_cancelled"
+            reservation.version += 1
+            sibling = order_by_id[reservation.order_id]
+            self.session.add(
+                InventoryLog(
+                    inventory_id=inventory.id,
+                    sku_id=inventory.sku_id,
+                    operation_type="release",
+                    on_hand_delta=0,
+                    reserved_delta=-reservation.quantity,
+                    on_hand_before=inventory.on_hand_quantity,
+                    on_hand_after=inventory.on_hand_quantity,
+                    reserved_before=before,
+                    reserved_after=before - reservation.quantity,
+                    reference_type="order",
+                    reference_no=sibling.order_no,
+                    idempotency_key=f"cancel:{reservation.reservation_no}",
+                    actor_type="user",
+                    actor_id=user.id,
+                    reason=payload.reason_code,
+                    inventory_version=inventory.version,
+                )
+            )
+        new_events: list[OrderStatusLog] = []
+        for sibling in sibling_orders:
+            previous = sibling.order_status
+            sibling.order_status = "cancelled"
+            sibling.closed_at = now
+            sibling.version += 1
+            event = OrderStatusLog(
+                order_id=sibling.id,
+                state_dimension="order",
+                from_status=previous,
+                to_status="cancelled",
+                event_code="order.user_cancelled",
+                actor_type="user",
+                actor_id=user.id,
+                reason=payload.description or payload.reason_code,
+                order_version=sibling.version,
+                request_id=request_id,
+                trace_id=request_id,
+                created_at=now,
+            )
+            self.session.add(event)
+            if sibling.id == order.id:
+                new_events.append(event)
+            self.session.add(
+                OrderOperationLog(
+                    operation_no=new_prefixed_ulid("oop_"),
+                    order_id=sibling.id,
+                    operation_type="cancel",
+                    actor_type="user",
+                    actor_id=user.id,
+                    request_payload_hash=canonical_request_hash(payload.model_dump(mode="json")),
+                    result_status="success",
+                    request_id=request_id,
+                    trace_id=request_id,
+                )
+            )
+        trade.trade_status = "closed"
+        trade.closed_at = now
+        trade.version += 1
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="trade_order.cancelled.v1",
+                aggregate_type="trade_order",
+                aggregate_no=trade.trade_no,
+                aggregate_version=trade.version,
+                payload={
+                    "trade_order_id": trade.trade_no,
+                    "order_ids": [sibling.order_no for sibling in sibling_orders],
+                    "reason_code": payload.reason_code,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        await self.session.flush()
+        refreshed = await self.repository.user_order(user.id, order_no)
+        if refreshed is None:
+            raise RuntimeError("cancelled order disappeared")
+        view = (await self._order_views([refreshed]))[0]
+        result = OrderCommandResult(order=view, events=[_event_view(event) for event in new_events])
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=order.order_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
+
+    async def confirm_receipt(
+        self,
+        user: User,
+        order_no: str,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> OrderCommandResult:
+        claim = await self.idempotency.begin(
+            scope_key=f"order:receipt:{user.user_no}:{order_no}",
+            idempotency_key=idempotency_key,
+            payload={"version": expected_version},
+            resource_type="order",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return OrderCommandResult.model_validate(claim.record.response_body)
+        row = await self.repository.user_order(user.id, order_no, for_update=True)
+        if row is None:
+            raise _not_found()
+        order, _, _ = row
+        _require_version(order, expected_version)
+        if order.order_status != "shipped" or order.fulfillment_status != "shipped":
+            raise _state_conflict(order, "confirm_receipt")
+        now = utc_now()
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        order.order_status = "completed"
+        order.fulfillment_status = "received"
+        order.completed_at = now
+        order.version += 1
+        events = [
+            OrderStatusLog(
+                order_id=order.id,
+                state_dimension="fulfillment",
+                from_status="shipped",
+                to_status="received",
+                event_code="order.receipt_confirmed",
+                actor_type="user",
+                actor_id=user.id,
+                order_version=order.version,
+                request_id=request_id,
+                trace_id=request_id,
+                created_at=now,
+            ),
+            OrderStatusLog(
+                order_id=order.id,
+                state_dimension="order",
+                from_status="shipped",
+                to_status="completed",
+                event_code="order.receipt_confirmed",
+                actor_type="user",
+                actor_id=user.id,
+                order_version=order.version,
+                request_id=request_id,
+                trace_id=request_id,
+                created_at=now,
+            ),
+        ]
+        self.session.add_all(events)
+        self.session.add(
+            OrderOperationLog(
+                operation_no=new_prefixed_ulid("oop_"),
+                order_id=order.id,
+                operation_type="confirm_receipt",
+                actor_type="user",
+                actor_id=user.id,
+                result_status="success",
+                request_id=request_id,
+                trace_id=request_id,
+            )
+        )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="order.receipt_confirmed.v1",
+                aggregate_type="order",
+                aggregate_no=order.order_no,
+                aggregate_version=order.version,
+                payload={"order_id": order.order_no, "confirmed_at": now.isoformat()},
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        await self.session.flush()
+        refreshed = await self.repository.user_order(user.id, order_no)
+        if refreshed is None:
+            raise RuntimeError("completed order disappeared")
+        result = OrderCommandResult(
+            order=(await self._order_views([refreshed]))[0],
+            events=[_event_view(event) for event in events],
+        )
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=order.order_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
+
+    async def hide(self, user: User, order_no: str, expected_version: int) -> OrderHideResult:
+        row = await self.repository.user_order(user.id, order_no, for_update=True)
+        if row is None:
+            raise _not_found()
+        order, _, _ = row
+        _require_version(order, expected_version)
+        items = (await self.repository.order_items([order.id])).get(order.id, [])
+        if not _can_hide(order, items):
+            raise _state_conflict(order, "delete_order")
+        now = utc_now()
+        order.user_hidden_at = now
+        order.undo_until = now + timedelta(minutes=5)
+        order.version += 1
+        self.session.add(_operation(order, user, "hide"))
+        await self.session.commit()
+        return OrderHideResult(
+            order_id=order.order_no,
+            undo_until=order.undo_until,
+            restore_url=f"/api/v1/users/me/orders/{order.order_no}/restorations",
+            version=order.version,
+        )
+
+    async def restore(
+        self,
+        user: User,
+        order_no: str,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> OrderListItem:
+        claim = await self.idempotency.begin(
+            scope_key=f"order:restore:{user.user_no}:{order_no}",
+            idempotency_key=idempotency_key,
+            payload={"version": expected_version},
+            resource_type="order",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return OrderListItem.model_validate(claim.record.response_body)
+        row = await self.repository.user_order(
+            user.id, order_no, include_hidden=True, for_update=True
+        )
+        if row is None:
+            raise _not_found()
+        order, _, _ = row
+        _require_version(order, expected_version)
+        if order.user_hidden_at is None or order.undo_until is None or order.undo_until < utc_now():
+            raise _conflict("ORDER_RESTORE_WINDOW_EXPIRED", "订单撤销隐藏窗口已过期。")
+        order.user_hidden_at = None
+        order.undo_until = None
+        order.version += 1
+        self.session.add(_operation(order, user, "restore"))
+        await self.session.flush()
+        refreshed = await self.repository.user_order(user.id, order_no)
+        if refreshed is None:
+            raise RuntimeError("restored order disappeared")
+        result = (await self._order_views([refreshed]))[0]
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=order.order_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
+
+    async def repurchase(
+        self,
+        user: User,
+        order_no: str,
+        expected_cart_version: int,
+        idempotency_key: str,
+    ) -> OrderRepurchaseResult:
+        claim = await self.idempotency.begin(
+            scope_key=f"order:repurchase:{user.user_no}:{order_no}",
+            idempotency_key=idempotency_key,
+            payload={"cart_version": expected_cart_version},
+            resource_type="cart",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return OrderRepurchaseResult.model_validate(claim.record.response_body)
+        row = await self.repository.user_order(user.id, order_no)
+        if row is None:
+            raise _not_found()
+        order, _, _ = row
+        cart_repository = CartRepository(self.session)
+        await self.session.execute(select(User.id).where(User.id == user.id).with_for_update())
+        cart = await cart_repository.cart(user.id, for_update=True)
+        if cart is None:
+            if expected_cart_version != 0:
+                raise _cart_version_conflict()
+            cart = Cart(
+                cart_no=new_prefixed_ulid("cart_"),
+                user_id=user.id,
+                cart_status="active",
+                item_count=0,
+                last_activity_at=utc_now(),
+            )
+            self.session.add(cart)
+            await self.session.flush()
+        elif cart.version != expected_cart_version:
+            raise _cart_version_conflict()
+        contexts = await self.repository.repurchase_contexts(order.id)
+        added: list[str] = []
+        unavailable: list[RepurchaseUnavailableItem] = []
+        for source, sku, product, store, inventory in contexts:
+            reason = _repurchase_unavailable(source, sku, product, store, inventory)
+            existing = await cart_repository.item_for_sku(cart.id, sku.id, for_update=True)
+            if reason is None and existing is not None and existing.quantity + source.quantity > 99:
+                reason = ("CART_SKU_QUANTITY_LIMIT", "同一规格加入购物车后将超过 99 件。")
+            if reason is not None:
+                unavailable.append(
+                    RepurchaseUnavailableItem(
+                        order_item_id=source.order_item_no,
+                        sku_id=source.sku_no,
+                        product_name=source.product_name,
+                        reason_code=reason[0],
+                        reason_message=reason[1],
+                    )
+                )
+                continue
+            if existing is None:
+                existing = CartItem(
+                    cart_item_no=new_prefixed_ulid("ci_"),
+                    cart_id=cart.id,
+                    sku_id=sku.id,
+                    quantity=source.quantity,
+                    is_selected=True,
+                    added_price_amount=sku.sale_price_amount,
+                    currency=sku.currency,
+                    sku_version=sku.version,
+                )
+                self.session.add(existing)
+                cart.item_count += 1
+            else:
+                existing.quantity += source.quantity
+                existing.is_selected = True
+                existing.added_price_amount = sku.sale_price_amount
+                existing.currency = sku.currency
+                existing.sku_version = sku.version
+                existing.invalid_reason = None
+                existing.version += 1
+            added.append(source.order_item_no)
+        if added:
+            cart.last_activity_at = utc_now()
+            cart.version += 1
+        self.session.add(_operation(order, user, "repurchase"))
+        await self.session.flush()
+        cart_view = await CartService(self.session).get(user)
+        result = OrderRepurchaseResult(
+            order_id=order.order_no,
+            added_items=added,
+            unavailable_items=unavailable,
+            requires_reselection=bool(unavailable),
+            cart=cart_view,
+        )
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=cart.cart_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
+
     async def _order_views(
         self, rows: list[tuple[Order, Store, TradeOrder]]
     ) -> list[OrderListItem]:
@@ -648,10 +1062,40 @@ def _route_action(
 
 
 def _order_actions(order: Order, trade: TradeOrder, items: list[OrderItem]) -> list[OrderAction]:
-    # Only advertise actions whose endpoint exists in the current deployable slice.
+    actions: list[OrderAction] = []
     if order.order_status == "pending_payment" and order.expires_at > utc_now():
-        return [_route_action("pay", "payment-cashier", {"tradeOrderId": trade.trade_no})]
-    return []
+        actions.extend(
+            [
+                _route_action("pay", "payment-cashier", {"tradeOrderId": trade.trade_no}),
+                _route_action(
+                    "cancel_order",
+                    "my-order-detail",
+                    {"orderId": order.order_no},
+                    confirmation=True,
+                ),
+            ]
+        )
+    if order.order_status == "shipped" and order.fulfillment_status == "shipped":
+        actions.append(
+            _route_action(
+                "confirm_receipt",
+                "my-order-detail",
+                {"orderId": order.order_no},
+                confirmation=True,
+            )
+        )
+    if _can_hide(order, items):
+        actions.append(
+            _route_action(
+                "delete_order",
+                "my-order-detail",
+                {"orderId": order.order_no},
+                confirmation=True,
+            )
+        )
+    if order.order_status in {"completed", "cancelled", "closed"}:
+        actions.append(_route_action("repurchase", "my-order-detail", {"orderId": order.order_no}))
+    return actions
 
 
 def _trade_actions(trade: TradeOrder) -> list[OrderAction]:
@@ -724,3 +1168,76 @@ def _not_found() -> ApplicationError:
 
 def _conflict(code: str, detail: str) -> ApplicationError:
     return ApplicationError(status=409, code=code, title="Order conflict", detail=detail)
+
+
+def _require_version(order: Order, expected_version: int) -> None:
+    if order.version != expected_version:
+        raise ApplicationError(
+            status=412,
+            code="RESOURCE_VERSION_CONFLICT",
+            title="Version conflict",
+            detail="订单已经变化，请刷新后重试。",
+        )
+
+
+def _state_conflict(order: Order, action: str) -> ApplicationError:
+    return ApplicationError(
+        status=409,
+        code="ORDER_STATE_CONFLICT",
+        title="Order state conflict",
+        detail=f"订单当前状态不允许执行 {action}。",
+    )
+
+
+def _operation(order: Order, user: User, operation_type: str) -> OrderOperationLog:
+    request_id = request_id_context.get() or new_prefixed_ulid("req_")
+    return OrderOperationLog(
+        operation_no=new_prefixed_ulid("oop_"),
+        order_id=order.id,
+        operation_type=operation_type,
+        actor_type="user",
+        actor_id=user.id,
+        result_status="success",
+        request_id=request_id,
+        trace_id=request_id,
+    )
+
+
+def _can_hide(order: Order, items: list[OrderItem]) -> bool:
+    if order.after_sale_status == "in_progress":
+        return False
+    if order.order_status in {"cancelled", "closed"}:
+        return True
+    return order.order_status == "completed" and all(
+        item.review_status in {"reviewed", "closed"} for item in items
+    )
+
+
+def _repurchase_unavailable(
+    source: OrderItem,
+    sku: Any,
+    product: Any,
+    store: Store,
+    inventory: Inventory | None,
+) -> tuple[str, str] | None:
+    if product.product_status != "on_sale" or sku.sku_status != "active":
+        return "SKU_NOT_PURCHASABLE", "原规格已下架，请重新选择商品规格。"
+    if store.store_status != "active":
+        return "STORE_UNAVAILABLE", "店铺当前不可用。"
+    if inventory is None or inventory.inventory_status != "active":
+        return "INVENTORY_UNAVAILABLE", "暂时无法确认该规格库存。"
+    available = (
+        inventory.on_hand_quantity - inventory.reserved_quantity - inventory.safety_stock_quantity
+    )
+    if available < source.quantity:
+        return "INSUFFICIENT_STOCK", "当前库存不足，未加入购物车。"
+    return None
+
+
+def _cart_version_conflict() -> ApplicationError:
+    return ApplicationError(
+        status=412,
+        code="RESOURCE_VERSION_CONFLICT",
+        title="Version conflict",
+        detail="购物车已经变化，请刷新后重试。",
+    )

@@ -3,8 +3,9 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { formatMoney } from '@/api/catalog'
+import { getCart } from '@/api/cart'
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
-import { listMyOrders, type OrderSummary, type OrderView } from '@/api/orders'
+import { cancelOrder, confirmOrderReceipt, hideOrder, listMyOrders, repurchaseOrder, restoreOrder, type OrderAction, type OrderHideResult, type OrderSummary, type OrderView } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
@@ -24,6 +25,9 @@ const auth = useUserAuthStore()
 const items = ref<OrderSummary[]>([])
 const loading = ref(true)
 const error = ref('')
+const message = ref('')
+const busyOrder = ref('')
+const hiddenOrder = ref<OrderHideResult | null>(null)
 const searchText = ref(String(route.query.q ?? ''))
 const previousCursor = ref<string | null>(null)
 const nextCursor = ref<string | null>(null)
@@ -75,6 +79,43 @@ function page(cursor: string | null) {
   if (!cursor) return
   void router.push({ path: '/me/orders', query: { view: view.value, ...(route.query.q ? { q: route.query.q } : {}), cursor } })
 }
+async function runAction(action: OrderAction, order: OrderSummary) {
+  if (!action.enabled || busyOrder.value) return
+  if (action.code === 'pay') {
+    await router.push({ name: action.target.name, params: action.target.params })
+    return
+  }
+  if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !window.confirm(`${actionLabel(action.code)}？此操作将以服务器最终结果为准。`)) return
+  busyOrder.value = order.order_id
+  error.value = ''
+  message.value = ''
+  try {
+    if (action.code === 'cancel_order') await cancelOrder(order.order_id, order.version, token())
+    else if (action.code === 'confirm_receipt') await confirmOrderReceipt(order.order_id, order.version, token())
+    else if (action.code === 'delete_order') {
+      hiddenOrder.value = (await hideOrder(order.order_id, order.version, token())).data
+      message.value = `订单已从列表隐藏，可在 ${dateTime(hiddenOrder.value.undo_until)} 前撤销。`
+    } else if (action.code === 'repurchase') {
+      const cart = await getCart(token())
+      const result = (await repurchaseOrder(order.order_id, cart.data.version, token())).data
+      if (result.requires_reselection) message.value = `${result.added_items.length} 件已加入购物车，${result.unavailable_items.length} 件需要重新选择。`
+      else await router.push('/cart')
+    }
+    await load()
+  } catch (cause) { error.value = errorMessage(cause); await load() }
+  finally { busyOrder.value = '' }
+}
+async function undoHide() {
+  if (!hiddenOrder.value || busyOrder.value) return
+  busyOrder.value = hiddenOrder.value.order_id
+  try {
+    await restoreOrder(hiddenOrder.value, token())
+    hiddenOrder.value = null
+    message.value = '订单已恢复。'
+    await load()
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { busyOrder.value = '' }
+}
 watch(() => route.fullPath, () => {
   searchText.value = String(route.query.q ?? '')
   void load()
@@ -94,6 +135,7 @@ watch(() => route.fullPath, () => {
       <label><span class="sr-only">搜索订单</span><input v-model="searchText" maxlength="64" placeholder="搜索订单号、商品名称或店铺名称" /></label>
       <button type="submit">搜索</button>
     </form>
+    <div v-if="message" class="alert success" role="status">{{ message }} <button v-if="hiddenOrder" type="button" class="link-button" :disabled="busyOrder !== ''" @click="undoHide">撤销隐藏</button></div>
     <div v-if="error" class="alert error" role="alert">{{ error }}</div>
     <PageState :loading="loading" :error="''" :empty="items.length === 0" empty-title="暂时没有相关订单" empty-message="可以切换分类或修改搜索词后重试。" @retry="load">
       <div class="order-list">
@@ -121,7 +163,7 @@ watch(() => route.fullPath, () => {
           <footer>
             <span>共 {{ order.total_quantity }} 件，应付 <strong>{{ formatMoney(order.amounts.payable_amount) }}</strong></span>
             <div class="order-actions">
-              <RouterLink v-for="action in order.available_actions" :key="action.code" :class="['order-action', { disabled: !action.enabled }]" :to="action.enabled ? { name: action.target.name, params: action.target.params } : ''" :aria-disabled="!action.enabled" :title="action.reason_message ?? undefined">{{ actionLabel(action.code) }}</RouterLink>
+              <button v-for="action in order.available_actions" :key="action.code" type="button" :class="['order-action', { disabled: !action.enabled }]" :disabled="!action.enabled || busyOrder !== ''" :title="action.reason_message ?? undefined" @click="runAction(action, order)">{{ busyOrder === order.order_id ? '处理中…' : actionLabel(action.code) }}</button>
             </div>
           </footer>
         </article>

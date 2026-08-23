@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import Field
 
 from app.api.schemas import StrictRequest
+from app.modules.cart.schemas import CartView
 from app.modules.catalog.schemas import Money
 
 OrderView = Literal[
@@ -168,3 +169,42 @@ class TradeOrderView(StrictRequest):
     closed_at: datetime | None = None
     available_actions: list[OrderAction]
     version: int
+
+
+class OrderCancellationRequest(StrictRequest):
+    reason_code: Literal[
+        "no_longer_needed",
+        "wrong_product",
+        "wrong_address",
+        "price_changed",
+        "other",
+    ]
+    description: str | None = Field(default=None, max_length=200)
+
+
+class OrderCommandResult(StrictRequest):
+    order: OrderListItem
+    events: list[OrderEventView]
+
+
+class OrderHideResult(StrictRequest):
+    order_id: str
+    undo_until: datetime
+    restore_url: str
+    version: int
+
+
+class RepurchaseUnavailableItem(StrictRequest):
+    order_item_id: str
+    sku_id: str
+    product_name: str
+    reason_code: str
+    reason_message: str
+
+
+class OrderRepurchaseResult(StrictRequest):
+    order_id: str
+    added_items: list[str]
+    unavailable_items: list[RepurchaseUnavailableItem]
+    requires_reselection: bool
+    cart: CartView

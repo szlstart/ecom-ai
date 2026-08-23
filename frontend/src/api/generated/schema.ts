@@ -896,6 +896,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{order_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel My Order */
+        post: operations["Order_CancelMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/receipt-confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm My Order Receipt */
+        post: operations["Order_ConfirmReceiptMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Hide My Order */
+        delete: operations["Order_HideMine"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/orders/{order_id}/restorations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore My Order */
+        post: operations["Order_RestoreMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/repurchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repurchase My Order */
+        post: operations["Order_RepurchaseMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/favorite-products": {
         parameters: {
             query?: never;
@@ -4490,6 +4575,11 @@ export interface components {
             data: components["schemas"]["MessageResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[OrderCommandResult] */
+        Envelope_OrderCommandResult_: {
+            data: components["schemas"]["OrderCommandResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[OrderCreateResponse] */
         Envelope_OrderCreateResponse_: {
             data: components["schemas"]["OrderCreateResponse"];
@@ -4505,9 +4595,24 @@ export interface components {
             data: components["schemas"]["OrderEventList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[OrderHideResult] */
+        Envelope_OrderHideResult_: {
+            data: components["schemas"]["OrderHideResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderListItem] */
+        Envelope_OrderListItem_: {
+            data: components["schemas"]["OrderListItem"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[OrderList] */
         Envelope_OrderList_: {
             data: components["schemas"]["OrderList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderRepurchaseResult] */
+        Envelope_OrderRepurchaseResult_: {
+            data: components["schemas"]["OrderRepurchaseResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[PasswordResetTicketResult] */
@@ -5057,6 +5162,22 @@ export interface components {
             paid_amount: components["schemas"]["Money"];
             refunded_amount: components["schemas"]["Money"];
         };
+        /** OrderCancellationRequest */
+        OrderCancellationRequest: {
+            /**
+             * Reason Code
+             * @enum {string}
+             */
+            reason_code: "no_longer_needed" | "wrong_product" | "wrong_address" | "price_changed" | "other";
+            /** Description */
+            description?: string | null;
+        };
+        /** OrderCommandResult */
+        OrderCommandResult: {
+            order: components["schemas"]["OrderListItem"];
+            /** Events */
+            events: components["schemas"]["OrderEventView"][];
+        };
         /** OrderCreateRequest */
         OrderCreateRequest: {
             /** Checkout Id */
@@ -5162,6 +5283,20 @@ export interface components {
              */
             occurred_at: string;
         };
+        /** OrderHideResult */
+        OrderHideResult: {
+            /** Order Id */
+            order_id: string;
+            /**
+             * Undo Until
+             * Format: date-time
+             */
+            undo_until: string;
+            /** Restore Url */
+            restore_url: string;
+            /** Version */
+            version: number;
+        };
         /** OrderItemView */
         OrderItemView: {
             /** Order Item Id */
@@ -5241,6 +5376,18 @@ export interface components {
             available_actions: components["schemas"]["OrderAction"][];
             /** Version */
             version: number;
+        };
+        /** OrderRepurchaseResult */
+        OrderRepurchaseResult: {
+            /** Order Id */
+            order_id: string;
+            /** Added Items */
+            added_items: string[];
+            /** Unavailable Items */
+            unavailable_items: components["schemas"]["RepurchaseUnavailableItem"][];
+            /** Requires Reselection */
+            requires_reselection: boolean;
+            cart: components["schemas"]["CartView"];
         };
         /** OrderStoreView */
         OrderStoreView: {
@@ -5618,6 +5765,19 @@ export interface components {
              * @default Asia/Shanghai
              */
             timezone: string;
+        };
+        /** RepurchaseUnavailableItem */
+        RepurchaseUnavailableItem: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason Message */
+            reason_message: string;
         };
         /** ResponseMeta */
         ResponseMeta: {
@@ -8072,6 +8232,179 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_TradeOrderView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Order_CancelMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderCancellationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Order_ConfirmReceiptMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Order_HideMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderHideResult_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Order_RestoreMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderListItem_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Order_RepurchaseMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderRepurchaseResult_"];
                 };
             };
             /** @description Validation Error */

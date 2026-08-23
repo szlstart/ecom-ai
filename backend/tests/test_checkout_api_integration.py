@@ -574,7 +574,8 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         "pending_payment",
     ]
     assert [action["code"] for action in first_body["data"]["items"][0]["available_actions"]] == [
-        "pay"
+        "pay",
+        "cancel_order",
     ]
     second_page = await client.get(
         "/api/v1/users/me/orders",
@@ -622,3 +623,128 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     missing = await client.get("/api/v1/orders/ord_01DOESNOTEXIST", headers=auth)
     assert missing.status_code == 404
     assert missing.json()["code"] == "RESOURCE_NOT_FOUND"
+
+    cancelled = await client.post(
+        f"/api/v1/orders/{selected_order_id}/cancellations",
+        headers={
+            **auth,
+            "If-Match": detail.headers["etag"],
+            "Idempotency-Key": f"order-cancel-{suffix}",
+        },
+        json={"reason_code": "no_longer_needed", "description": "测试取消"},
+    )
+    assert cancelled.status_code == 200, cancelled.text
+    cancelled_data = cancelled.json()["data"]
+    assert cancelled_data["order"]["order_status"] == "cancelled"
+    assert cancelled_data["events"][0]["event_code"] == "order.user_cancelled"
+    assert [action["code"] for action in cancelled_data["order"]["available_actions"]] == [
+        "delete_order",
+        "repurchase",
+    ]
+    cancellation_replay = await client.post(
+        f"/api/v1/orders/{selected_order_id}/cancellations",
+        headers={
+            **auth,
+            "If-Match": detail.headers["etag"],
+            "Idempotency-Key": f"order-cancel-{suffix}",
+        },
+        json={"reason_code": "no_longer_needed", "description": "测试取消"},
+    )
+    assert cancellation_replay.status_code == 200
+    assert cancellation_replay.json()["data"] == cancelled_data
+    async for session in mysql_session():
+        cancelled_orders = list(
+            (
+                await session.scalars(
+                    select(Order).where(Order.order_no.in_(order_data["order_ids"]))
+                )
+            ).all()
+        )
+        assert len(cancelled_orders) == 2
+        assert all(item.order_status == "cancelled" for item in cancelled_orders)
+        released = list(
+            (
+                await session.scalars(
+                    select(InventoryReservation).where(
+                        InventoryReservation.order_id.in_([item.id for item in cancelled_orders])
+                    )
+                )
+            ).all()
+        )
+        assert all(item.reservation_status == "released" for item in released)
+
+    hidden = await client.delete(
+        f"/api/v1/users/me/orders/{selected_order_id}",
+        headers={**auth, "If-Match": cancelled.headers["etag"]},
+    )
+    assert hidden.status_code == 200, hidden.text
+    assert hidden.json()["data"]["restore_url"].endswith(
+        f"/users/me/orders/{selected_order_id}/restorations"
+    )
+    assert (
+        await client.get(f"/api/v1/orders/{selected_order_id}", headers=auth)
+    ).status_code == 404
+    restored = await client.post(
+        f"/api/v1/users/me/orders/{selected_order_id}/restorations",
+        headers={
+            **auth,
+            "If-Match": hidden.headers["etag"],
+            "Idempotency-Key": f"order-restore-{suffix}",
+        },
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["data"]["order_id"] == selected_order_id
+
+    current_cart = await client.get("/api/v1/users/me/cart", headers=auth)
+    repurchased = await client.post(
+        f"/api/v1/orders/{selected_order_id}/repurchases",
+        headers={
+            **auth,
+            "If-Match": current_cart.headers["etag"],
+            "Idempotency-Key": f"order-repurchase-{suffix}",
+        },
+    )
+    assert repurchased.status_code == 200, repurchased.text
+    assert len(repurchased.json()["data"]["added_items"]) == 1
+    assert repurchased.json()["data"]["unavailable_items"] == []
+
+    receipt_checkout = await client.post(
+        "/api/v1/checkout-sessions",
+        headers={**auth, "Idempotency-Key": f"receipt-checkout-{suffix}"},
+        json={"source": {"source_type": "buy_now", "sku_id": sku_no, "quantity": 1}},
+    )
+    assert receipt_checkout.status_code == 201, receipt_checkout.text
+    receipt_checkout_data = receipt_checkout.json()["data"]
+    receipt_created = await client.post(
+        "/api/v1/orders",
+        headers={**auth, "Idempotency-Key": f"receipt-order-{suffix}"},
+        json={
+            "checkout_id": receipt_checkout_data["checkout_id"],
+            "checkout_version": receipt_checkout_data["version"],
+        },
+    )
+    assert receipt_created.status_code == 201, receipt_created.text
+    receipt_order_id = receipt_created.json()["data"]["order_ids"][0]
+    async for session in mysql_session():
+        receipt_order = await session.scalar(
+            select(Order).where(Order.order_no == receipt_order_id)
+        )
+        assert receipt_order is not None
+        receipt_order.order_status = "shipped"
+        receipt_order.payment_status = "paid"
+        receipt_order.fulfillment_status = "shipped"
+        receipt_order.paid_amount = receipt_order.payable_amount
+        receipt_order.shipped_at = utc_now()
+        receipt_order.version += 1
+        await session.commit()
+    confirmed = await client.post(
+        f"/api/v1/orders/{receipt_order_id}/receipt-confirmations",
+        headers={
+            **auth,
+            "If-Match": '"v1"',
+            "Idempotency-Key": f"receipt-confirm-{suffix}",
+        },
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    assert confirmed.json()["data"]["order"]["order_status"] == "completed"
+    assert confirmed.json()["data"]["order"]["fulfillment_status"] == "received"

@@ -1,8 +1,9 @@
 import asyncio
 import hashlib
+import json
 import os
 import secrets
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -20,6 +21,7 @@ from app.modules.identity.models import AuthSession, User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
 from app.modules.orders.models import Order, OrderAddress, OrderItem, TradeOrder
 from app.modules.orders.service import OrderService
+from app.modules.payments.models import PaymentCallback
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
 from app.modules.system.models import OutboxEvent
 
@@ -781,23 +783,110 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert [item["payment_id"] for item in payment_list.json()["data"]["items"]] == [
         payment_data["payment_id"]
     ]
+
+    def webhook_request(event_id: str, *, amount_delta: int = 0) -> tuple[bytes, dict[str, str]]:
+        body = json.dumps(
+            {
+                "provider_event_id": event_id,
+                "payment_id": payment_data["payment_id"],
+                "provider_trade_no": f"fake_{payment_data['payment_id']}",
+                "status": "succeeded",
+                "amount_minor_units": str(
+                    int(payment_data["requested_amount"]["minor_units"]) + amount_delta
+                ),
+                "currency": payment_data["requested_amount"]["currency"],
+                "occurred_at": datetime.now(UTC).isoformat(),
+                "failure_code": None,
+            },
+            separators=(",", ":"),
+        ).encode()
+        timestamp = str(int(datetime.now(UTC).timestamp()))
+        signature = security.keyed_hash(
+            "fake-payment-webhook", timestamp.encode() + b"." + body
+        ).hex()
+        return body, {
+            "Content-Type": "application/json",
+            "X-Payment-Timestamp": timestamp,
+            "X-Payment-Signature": signature,
+        }
+
+    invalid_body, valid_headers = webhook_request(f"fake_invalid_{suffix}")
+    invalid_signature = await client.post(
+        "/api/v1/webhooks/payments/fake",
+        headers={**valid_headers, "X-Payment-Signature": "0" * 64},
+        content=invalid_body,
+    )
+    assert invalid_signature.status_code == 401
+    mismatch_body, mismatch_headers = webhook_request(f"fake_mismatch_{suffix}", amount_delta=1)
+    mismatch_callback = await client.post(
+        "/api/v1/webhooks/payments/fake",
+        headers=mismatch_headers,
+        content=mismatch_body,
+    )
+    assert mismatch_callback.status_code == 200
+    assert (
+        await client.get(f"/api/v1/payments/{payment_data['payment_id']}", headers=auth)
+    ).json()["data"]["payment_status"] == "pending"
+    success_body, success_headers = webhook_request(f"fake_success_{suffix}")
+    succeeded_callback = await client.post(
+        "/api/v1/webhooks/payments/fake",
+        headers=success_headers,
+        content=success_body,
+    )
+    assert succeeded_callback.status_code == 200, succeeded_callback.text
+    assert succeeded_callback.json()["data"]["duplicate"] is False
+    duplicate_callback = await client.post(
+        "/api/v1/webhooks/payments/fake",
+        headers=success_headers,
+        content=success_body,
+    )
+    assert duplicate_callback.status_code == 200
+    assert duplicate_callback.json()["data"]["duplicate"] is True
+    settled_payment = await client.get(
+        f"/api/v1/payments/{payment_data['payment_id']}", headers=auth
+    )
+    assert settled_payment.status_code == 200
+    assert settled_payment.json()["data"]["payment_status"] == "succeeded"
+    assert settled_payment.json()["data"]["paid_amount"] == payment_data["requested_amount"]
     async for session in mysql_session():
         receipt_order = await session.scalar(
             select(Order).where(Order.order_no == receipt_order_id)
         )
         assert receipt_order is not None
+        assert receipt_order.order_status == "pending_shipment"
+        assert receipt_order.payment_status == "paid"
+        reservation = await session.scalar(
+            select(InventoryReservation).where(InventoryReservation.order_id == receipt_order.id)
+        )
+        assert reservation is not None and reservation.reservation_status == "confirmed"
+        callbacks = list(
+            (
+                await session.scalars(
+                    select(PaymentCallback).where(
+                        PaymentCallback.provider == "fake",
+                        PaymentCallback.payload_hash.in_(
+                            [
+                                hashlib.sha256(mismatch_body).digest(),
+                                hashlib.sha256(success_body).digest(),
+                            ]
+                        ),
+                    )
+                )
+            ).all()
+        )
+        assert {item.process_status for item in callbacks} == {"rejected", "processed"}
         receipt_order.order_status = "shipped"
-        receipt_order.payment_status = "paid"
         receipt_order.fulfillment_status = "shipped"
-        receipt_order.paid_amount = receipt_order.payable_amount
         receipt_order.shipped_at = utc_now()
         receipt_order.version += 1
         await session.commit()
+    receipt_detail = await client.get(f"/api/v1/orders/{receipt_order_id}", headers=auth)
+    assert receipt_detail.status_code == 200
     confirmed = await client.post(
         f"/api/v1/orders/{receipt_order_id}/receipt-confirmations",
         headers={
             **auth,
-            "If-Match": '"v2"',
+            "If-Match": receipt_detail.headers["etag"],
             "Idempotency-Key": f"receipt-confirm-{suffix}",
         },
     )

@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+from datetime import UTC, datetime
 from typing import Literal, cast
 
+from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import request_id_context
@@ -12,16 +17,22 @@ from app.core.security import SecurityService, utc_now
 from app.integrations.payments import PaymentProviderRequest, payment_provider
 from app.modules.catalog.schemas import Money
 from app.modules.identity.models import User
-from app.modules.orders.models import OrderStatusLog, TradeOrder
-from app.modules.payments.models import Payment, PaymentEvent
+from app.modules.inventory.models import InventoryLog
+from app.modules.orders.domain import ORDER_TRANSITIONS, require_transition
+from app.modules.orders.models import Order, OrderStatusLog, TradeOrder
+from app.modules.orders.repository import OrderRepository
+from app.modules.payments.domain import require_payment_transition
+from app.modules.payments.models import Payment, PaymentCallback, PaymentEvent
 from app.modules.payments.repository import PaymentRepository
 from app.modules.payments.schemas import (
+    FakePaymentWebhook,
     PaymentAction,
     PaymentCreateRequest,
     PaymentEventView,
     PaymentList,
     PaymentStatus,
     PaymentView,
+    PaymentWebhookAck,
 )
 from app.modules.system.models import OutboxEvent
 
@@ -31,6 +42,7 @@ class PaymentService:
         self.session = session
         self.security = security
         self.repository = PaymentRepository(session)
+        self.order_repository = OrderRepository(session)
         self.idempotency = IdempotencyService(session)
 
     async def create(
@@ -180,6 +192,407 @@ class PaymentService:
         payments = await self.repository.for_trade(user.id, trade_no)
         return PaymentList(items=[await self._view(item, trade) for item in payments])
 
+    async def process_webhook(
+        self,
+        provider: str,
+        raw_body: bytes,
+        signature: str,
+        timestamp: str,
+    ) -> PaymentWebhookAck:
+        if provider != "fake":
+            raise _not_found()
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        now = utc_now()
+        headers_hash = hashlib.sha256(
+            f"timestamp:{timestamp}\nsignature:{signature}".encode()
+        ).digest()
+        payload_hash = hashlib.sha256(raw_body).digest()
+        signature_valid = _valid_fake_signature(self.security, raw_body, signature, timestamp, now)
+        if not signature_valid:
+            callback = PaymentCallback(
+                callback_no=new_prefixed_ulid("pcb_"),
+                provider=provider,
+                provider_event_id=None,
+                payment_id=None,
+                headers_hash=headers_hash,
+                payload_hash=payload_hash,
+                payload_redacted=None,
+                signature_status="invalid",
+                process_status="rejected",
+                attempt_count=1,
+                processed_at=now,
+                error_code="PAYMENT_WEBHOOK_SIGNATURE_INVALID",
+                last_error="signature or timestamp window rejected",
+                request_id=request_id,
+            )
+            self.session.add(callback)
+            await self.session.commit()
+            raise _error(401, "PAYMENT_WEBHOOK_SIGNATURE_INVALID", "支付回调验签失败。")
+        try:
+            payload = FakePaymentWebhook.model_validate_json(raw_body)
+        except ValidationError as exc:
+            callback = PaymentCallback(
+                callback_no=new_prefixed_ulid("pcb_"),
+                provider=provider,
+                provider_event_id=None,
+                payment_id=None,
+                headers_hash=headers_hash,
+                payload_hash=payload_hash,
+                payload_redacted=None,
+                signature_status="valid",
+                process_status="rejected",
+                attempt_count=1,
+                processed_at=now,
+                error_code="PAYMENT_WEBHOOK_SCHEMA_INVALID",
+                last_error="signed payload failed schema validation",
+                request_id=request_id,
+            )
+            self.session.add(callback)
+            await self.session.commit()
+            raise ApplicationError(
+                status=422,
+                code="PAYMENT_WEBHOOK_SCHEMA_INVALID",
+                title="Payment webhook schema invalid",
+                detail="支付回调字段校验失败。",
+            ) from exc
+
+        existing_callback = await self.repository.callback_by_provider_event(
+            provider, payload.provider_event_id
+        )
+        if existing_callback is not None:
+            return PaymentWebhookAck(callback_id=existing_callback.callback_no, duplicate=True)
+        callback = PaymentCallback(
+            callback_no=new_prefixed_ulid("pcb_"),
+            provider=provider,
+            provider_event_id=payload.provider_event_id,
+            payment_id=None,
+            headers_hash=headers_hash,
+            payload_hash=payload_hash,
+            payload_redacted={
+                "payment_id": payload.payment_id,
+                "provider_trade_no": payload.provider_trade_no,
+                "status": payload.status,
+                "amount_minor_units": payload.amount_minor_units,
+                "currency": payload.currency,
+                "occurred_at": payload.occurred_at.isoformat(),
+                "failure_code": payload.failure_code,
+            },
+            signature_status="valid",
+            process_status="received",
+            attempt_count=1,
+            request_id=request_id,
+        )
+        try:
+            async with self.session.begin_nested():
+                self.session.add(callback)
+                await self.session.flush()
+        except IntegrityError:
+            await self.session.rollback()
+            duplicate = await self.repository.callback_by_provider_event(
+                provider, payload.provider_event_id
+            )
+            if duplicate is None:
+                raise
+            return PaymentWebhookAck(callback_id=duplicate.callback_no, duplicate=True)
+
+        untrusted_payment = await self.repository.untrusted_by_no(payload.payment_id)
+        if untrusted_payment is None:
+            _reject_callback(callback, now, "PAYMENT_NOT_FOUND", "unknown payment reference")
+            await self.session.commit()
+            return PaymentWebhookAck(callback_id=callback.callback_no)
+        trade = await self.repository.trade_for_update(untrusted_payment.trade_order_id)
+        payment = await self.repository.payment_for_update(untrusted_payment.id)
+        if trade is None or payment is None:
+            _reject_callback(callback, now, "PAYMENT_NOT_FOUND", "payment aggregate unavailable")
+            await self.session.commit()
+            return PaymentWebhookAck(callback_id=callback.callback_no)
+        callback.payment_id = payment.id
+        mismatch = _webhook_mismatch(payment, payload)
+        if mismatch is not None:
+            _reject_callback(
+                callback, now, mismatch, "provider identity, amount, or currency mismatch"
+            )
+            await self.session.commit()
+            return PaymentWebhookAck(callback_id=callback.callback_no)
+        if payment.payment_status == "succeeded" and payload.status == "succeeded":
+            callback.process_status = "duplicate"
+            callback.processed_at = now
+            await self.session.commit()
+            return PaymentWebhookAck(callback_id=callback.callback_no, duplicate=True)
+        if payment.payment_status not in {"created", "pending"}:
+            _reject_callback(
+                callback,
+                now,
+                "PAYMENT_LATE_TERMINAL_EVENT",
+                f"terminal local status {payment.payment_status}",
+            )
+            await self.session.commit()
+            return PaymentWebhookAck(callback_id=callback.callback_no)
+
+        if payload.status == "failed":
+            await self._record_failed_callback(payment, trade, callback, payload, now, request_id)
+        else:
+            await self._record_succeeded_callback(
+                payment, trade, callback, payload, now, request_id
+            )
+        if callback.process_status == "received":
+            callback.process_status = "processed"
+            callback.processed_at = now
+        callback.version += 1
+        await self.session.commit()
+        return PaymentWebhookAck(callback_id=callback.callback_no)
+
+    async def _record_failed_callback(
+        self,
+        payment: Payment,
+        trade: TradeOrder,
+        callback: PaymentCallback,
+        payload: FakePaymentWebhook,
+        now: datetime,
+        request_id: str,
+    ) -> None:
+        if trade.trade_status != "pending_payment":
+            _reject_callback(
+                callback,
+                now,
+                "TRADE_ORDER_STATE_CONFLICT",
+                f"trade status {trade.trade_status}",
+            )
+            return
+        previous = payment.payment_status
+        payment.payment_status = require_payment_transition(previous, "ConfirmPaymentFailed")
+        payment.failure_code = payload.failure_code or "PROVIDER_DECLINED"
+        payment.failure_message = "支付渠道已明确返回失败。"
+        payment.version += 1
+        provider_time = payload.occurred_at.astimezone(UTC).replace(tzinfo=None)
+        self.session.add(
+            _event(
+                payment,
+                "callback_failed",
+                previous,
+                "failed",
+                "callback",
+                payload.provider_event_id,
+                provider_occurred_at=provider_time,
+            )
+        )
+        orders = await self.repository.trade_orders_for_update(trade.id)
+        for order in orders:
+            payment_from = order.payment_status
+            if payment_from == "processing":
+                order.payment_status = "unpaid"
+                order.version += 1
+                self.session.add(
+                    _order_event(
+                        order,
+                        "payment",
+                        payment_from,
+                        "unpaid",
+                        "payment.failed",
+                        request_id,
+                        now,
+                    )
+                )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="payment.failed.v1",
+                aggregate_type="payment",
+                aggregate_no=payment.payment_no,
+                aggregate_version=payment.version,
+                payload={
+                    "payment_id": payment.payment_no,
+                    "trade_order_id": trade.trade_no,
+                    "failure_code": payment.failure_code,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+
+    async def _record_succeeded_callback(
+        self,
+        payment: Payment,
+        trade: TradeOrder,
+        callback: PaymentCallback,
+        payload: FakePaymentWebhook,
+        now: datetime,
+        request_id: str,
+    ) -> None:
+        if trade.trade_status != "pending_payment":
+            _reject_callback(
+                callback,
+                now,
+                "TRADE_ORDER_STATE_CONFLICT",
+                f"trade status {trade.trade_status}",
+            )
+            return
+        orders = await self.repository.trade_orders_for_update(trade.id)
+        if not orders or any(order.order_status != "pending_payment" for order in orders):
+            _reject_callback(
+                callback,
+                now,
+                "ORDER_STATE_CONFLICT",
+                "one or more child orders are not pending payment",
+            )
+            return
+        reservations = await self.order_repository.active_reservations_for_orders(
+            [order.id for order in orders]
+        )
+        items_by_order = await self.order_repository.order_items([order.id for order in orders])
+        expected_item_ids = {
+            item.id for items in items_by_order.values() for item in items
+        }
+        reservation_item_ids = {
+            reservation.order_item_id for reservation, _ in reservations
+        }
+        if not reservations or reservation_item_ids != expected_item_ids:
+            _reject_callback(
+                callback,
+                now,
+                "INVENTORY_RESERVATION_MISSING",
+                "active reservation set does not cover every order item exactly once",
+            )
+            return
+        order_by_id = {order.id: order for order in orders}
+        for reservation, inventory in reservations:
+            if (
+                inventory.reserved_quantity < reservation.quantity
+                or inventory.on_hand_quantity < reservation.quantity
+            ):
+                _reject_callback(
+                    callback,
+                    now,
+                    "INVENTORY_RESERVATION_INVALID",
+                    "reserved or on-hand quantity cannot be confirmed",
+                )
+                return
+        for reservation, inventory in reservations:
+            on_hand_before = inventory.on_hand_quantity
+            reserved_before = inventory.reserved_quantity
+            inventory.on_hand_quantity -= reservation.quantity
+            inventory.reserved_quantity -= reservation.quantity
+            inventory.sold_quantity += reservation.quantity
+            inventory.version += 1
+            reservation.reservation_status = "confirmed"
+            reservation.confirmed_at = now
+            reservation.version += 1
+            order = order_by_id[reservation.order_id]
+            self.session.add(
+                InventoryLog(
+                    inventory_id=inventory.id,
+                    sku_id=inventory.sku_id,
+                    operation_type="confirm_sale",
+                    on_hand_delta=-reservation.quantity,
+                    reserved_delta=-reservation.quantity,
+                    on_hand_before=on_hand_before,
+                    on_hand_after=inventory.on_hand_quantity,
+                    reserved_before=reserved_before,
+                    reserved_after=inventory.reserved_quantity,
+                    reference_type="payment",
+                    reference_no=payment.payment_no,
+                    idempotency_key=f"payment:{payment.payment_no}:{reservation.reservation_no}",
+                    actor_type="system",
+                    actor_id=None,
+                    reason="payment_succeeded",
+                    inventory_version=inventory.version,
+                )
+            )
+
+        previous_payment = payment.payment_status
+        payment.payment_status = require_payment_transition(
+            previous_payment, "ConfirmPaymentSucceeded"
+        )
+        payment.paid_amount = payment.requested_amount
+        payment.paid_at = now
+        payment.version += 1
+        provider_time = payload.occurred_at.astimezone(UTC).replace(tzinfo=None)
+        self.session.add(
+            _event(
+                payment,
+                "callback_succeeded",
+                previous_payment,
+                "succeeded",
+                "callback",
+                payload.provider_event_id,
+                provider_occurred_at=provider_time,
+            )
+        )
+        trade.trade_status = "paid"
+        trade.paid_amount = trade.payable_amount
+        trade.paid_at = now
+        trade.version += 1
+        for order in orders:
+            payment_from = order.payment_status
+            order.payment_status = "paid"
+            order.paid_amount = order.payable_amount
+            order.paid_at = now
+            order.version += 1
+            self.session.add(
+                _order_event(
+                    order,
+                    "payment",
+                    payment_from,
+                    "paid",
+                    "payment.succeeded",
+                    request_id,
+                    now,
+                )
+            )
+            previous_order = order.order_status
+            order.order_status = require_transition(
+                ORDER_TRANSITIONS, previous_order, "RecordPaymentSucceeded"
+            )
+            order.version += 1
+            self.session.add(
+                _order_event(
+                    order,
+                    "order",
+                    previous_order,
+                    "paid",
+                    "order.payment_succeeded",
+                    request_id,
+                    now,
+                )
+            )
+            order.order_status = require_transition(
+                ORDER_TRANSITIONS, order.order_status, "InitializeFulfillment"
+            )
+            order.version += 1
+            self.session.add(
+                _order_event(
+                    order,
+                    "order",
+                    "paid",
+                    "pending_shipment",
+                    "order.fulfillment_initialized",
+                    request_id,
+                    now,
+                )
+            )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="payment.succeeded.v1",
+                aggregate_type="payment",
+                aggregate_no=payment.payment_no,
+                aggregate_version=payment.version,
+                payload={
+                    "payment_id": payment.payment_no,
+                    "trade_order_id": trade.trade_no,
+                    "order_ids": [order.order_no for order in orders],
+                    "amount_minor_units": str(payment.paid_amount),
+                    "currency": payment.currency,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+
     async def _view(
         self,
         payment: Payment,
@@ -227,6 +640,8 @@ def _event(
     to_status: str,
     source_type: str,
     source_no: str,
+    *,
+    provider_occurred_at: datetime | None = None,
 ) -> PaymentEvent:
     return PaymentEvent(
         event_no=new_prefixed_ulid("pev_"),
@@ -237,9 +652,79 @@ def _event(
         amount=payment.requested_amount,
         currency=payment.currency,
         source_type=source_type,
-        source_no=source_no,
+        source_no=source_no[:64],
+        provider_occurred_at=provider_occurred_at,
         trace_id=request_id_context.get(),
     )
+
+
+def _order_event(
+    order: Order,
+    state_dimension: str,
+    from_status: str,
+    to_status: str,
+    event_code: str,
+    request_id: str,
+    occurred_at: datetime,
+) -> OrderStatusLog:
+    return OrderStatusLog(
+        order_id=order.id,
+        state_dimension=state_dimension,
+        from_status=from_status,
+        to_status=to_status,
+        event_code=event_code,
+        actor_type="system",
+        actor_id=None,
+        reason=None,
+        order_version=order.version,
+        request_id=request_id,
+        trace_id=request_id,
+        created_at=occurred_at,
+    )
+
+
+def _valid_fake_signature(
+    security: SecurityService,
+    raw_body: bytes,
+    signature: str,
+    timestamp: str,
+    now: datetime,
+) -> bool:
+    try:
+        issued_at = datetime.fromtimestamp(int(timestamp), UTC).replace(tzinfo=None)
+    except (OverflowError, ValueError):
+        return False
+    if abs((now - issued_at).total_seconds()) > 300:
+        return False
+    expected = security.keyed_hash(
+        "fake-payment-webhook", timestamp.encode() + b"." + raw_body
+    ).hex()
+    return hmac.compare_digest(expected, signature)
+
+
+def _webhook_mismatch(payment: Payment, payload: FakePaymentWebhook) -> str | None:
+    if payment.provider != "fake":
+        return "PAYMENT_PROVIDER_MISMATCH"
+    if payment.provider_trade_no != payload.provider_trade_no:
+        return "PAYMENT_PROVIDER_TRADE_MISMATCH"
+    if payment.requested_amount != int(payload.amount_minor_units):
+        return "PAYMENT_AMOUNT_MISMATCH"
+    if payment.currency != payload.currency:
+        return "PAYMENT_CURRENCY_MISMATCH"
+    return None
+
+
+def _reject_callback(
+    callback: PaymentCallback,
+    now: datetime,
+    error_code: str,
+    safe_error: str,
+) -> None:
+    callback.process_status = "rejected"
+    callback.processed_at = now
+    callback.error_code = error_code
+    callback.last_error = safe_error[:1000]
+    callback.version += 1
 
 
 def _money(amount: int, currency: str) -> Money:

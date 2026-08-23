@@ -3808,6 +3808,68 @@
         }
       }
     },
+    "/api/v1/webhooks/payments/{provider}": {
+      "post": {
+        "tags": [
+          "payments"
+        ],
+        "summary": "Process Payment Webhook",
+        "operationId": "PaymentWebhook_Process",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "X-Payment-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Payment-Signature"
+            }
+          },
+          {
+            "name": "X-Payment-Timestamp",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Payment-Timestamp"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PaymentWebhookAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/favorite-products": {
       "get": {
         "tags": [
@@ -17959,6 +18021,21 @@
         ],
         "title": "Envelope[PaymentView]"
       },
+      "Envelope_PaymentWebhookAck_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PaymentWebhookAck"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[PaymentWebhookAck]"
+      },
       "Envelope_ProductDetail_": {
         "properties": {
           "data": {
@@ -20736,6 +20813,30 @@
           "version"
         ],
         "title": "PaymentView"
+      },
+      "PaymentWebhookAck": {
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted",
+            "default": true
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate",
+            "default": false
+          },
+          "callback_id": {
+            "type": "string",
+            "title": "Callback Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "callback_id"
+        ],
+        "title": "PaymentWebhookAck"
       },
       "ProductCard": {
         "properties": {

@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    SmallInteger,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.mysql import BIGINT, BINARY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -75,3 +84,39 @@ class PaymentEvent(AppendOnlyMySQLModel, MySQLBase):
     source_no: Mapped[str] = mapped_column(String(64), nullable=False)
     provider_occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     trace_id: Mapped[str | None] = mapped_column(String(64))
+
+
+class PaymentCallback(MutableMySQLModel, MySQLBase):
+    __tablename__ = "payment_callbacks"
+    __table_args__ = (
+        UniqueConstraint("callback_no", name="uk_payment_callbacks_no"),
+        UniqueConstraint(
+            "provider", "provider_event_id", name="uk_payment_callbacks_provider_event"
+        ),
+        CheckConstraint(
+            "signature_status IN ('valid', 'invalid', 'error')",
+            name="payment_callback_signature_status",
+        ),
+        CheckConstraint(
+            "process_status IN ('received', 'processed', 'duplicate', 'rejected', 'failed')",
+            name="payment_callback_process_status",
+        ),
+        Index("idx_payment_callbacks_status", "process_status", "created_at", "id"),
+    )
+
+    callback_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    provider_event_id: Mapped[str | None] = mapped_column(String(128))
+    payment_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("payments.id"))
+    headers_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    payload_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    payload_redacted: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    signature_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    process_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    attempt_count: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0, server_default="0"
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    last_error: Mapped[str | None] = mapped_column(String(1000))
+    request_id: Mapped[str] = mapped_column(String(64), nullable=False)

@@ -37,6 +37,7 @@ resources:
   order_operation: {prefix: oop_, owner: orders}
   payment: {prefix: pay_, storage_length: 32, url_allowed: true, owner: payments}
   payment_event: {prefix: pev_, owner: payments}
+  payment_callback: {prefix: pcb_, owner: payments}
   shipment: {prefix: shp_, url_allowed: true, owner: logistics}
   refund: {prefix: ref_, storage_length: 32, url_allowed: true, owner: after_sale}
   refund_draft: {prefix: rfd_, owner: after_sale}

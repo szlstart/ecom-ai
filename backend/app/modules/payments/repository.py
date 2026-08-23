@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.orders.models import Order, TradeOrder
-from app.modules.payments.models import Payment, PaymentEvent
+from app.modules.payments.models import Payment, PaymentCallback, PaymentEvent
 
 
 class PaymentRepository:
@@ -44,6 +44,28 @@ class PaymentRepository:
             ),
         )
 
+    async def untrusted_by_no(self, payment_no: str) -> Payment | None:
+        return cast(
+            Payment | None,
+            await self.session.scalar(select(Payment).where(Payment.payment_no == payment_no)),
+        )
+
+    async def payment_for_update(self, payment_id: int) -> Payment | None:
+        return cast(
+            Payment | None,
+            await self.session.scalar(
+                select(Payment).where(Payment.id == payment_id).with_for_update()
+            ),
+        )
+
+    async def trade_for_update(self, trade_order_id: int) -> TradeOrder | None:
+        return cast(
+            TradeOrder | None,
+            await self.session.scalar(
+                select(TradeOrder).where(TradeOrder.id == trade_order_id).with_for_update()
+            ),
+        )
+
     async def by_no(self, user_id: int, payment_no: str) -> tuple[Payment, TradeOrder] | None:
         row = (
             await self.session.execute(
@@ -73,6 +95,31 @@ class PaymentRepository:
                     select(PaymentEvent)
                     .where(PaymentEvent.payment_id == payment_id)
                     .order_by(PaymentEvent.created_at, PaymentEvent.id)
+                )
+            ).all()
+        )
+
+    async def callback_by_provider_event(
+        self, provider: str, provider_event_id: str
+    ) -> PaymentCallback | None:
+        return cast(
+            PaymentCallback | None,
+            await self.session.scalar(
+                select(PaymentCallback).where(
+                    PaymentCallback.provider == provider,
+                    PaymentCallback.provider_event_id == provider_event_id,
+                )
+            ),
+        )
+
+    async def trade_orders_for_update(self, trade_order_id: int) -> list[Order]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(Order)
+                    .where(Order.trade_order_id == trade_order_id)
+                    .order_by(Order.id)
+                    .with_for_update()
                 )
             ).all()
         )

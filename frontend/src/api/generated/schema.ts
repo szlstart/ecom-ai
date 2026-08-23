@@ -1032,6 +1032,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/payments/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Process Payment Webhook */
+        post: operations["PaymentWebhook_Process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/favorite-products": {
         parameters: {
             query?: never;
@@ -4681,6 +4698,11 @@ export interface components {
             data: components["schemas"]["PaymentView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[PaymentWebhookAck] */
+        Envelope_PaymentWebhookAck_: {
+            data: components["schemas"]["PaymentWebhookAck"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[ProductDetail] */
         Envelope_ProductDetail_: {
             data: components["schemas"]["ProductDetail"];
@@ -5631,6 +5653,21 @@ export interface components {
             events?: components["schemas"]["PaymentEventView"][];
             /** Version */
             version: number;
+        };
+        /** PaymentWebhookAck */
+        PaymentWebhookAck: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+            /**
+             * Duplicate
+             * @default false
+             */
+            duplicate: boolean;
+            /** Callback Id */
+            callback_id: string;
         };
         /** ProductCard */
         ProductCard: {
@@ -8659,6 +8696,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_PaymentList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    PaymentWebhook_Process: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Payment-Signature"?: string;
+                "X-Payment-Timestamp"?: string;
+            };
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PaymentWebhookAck_"];
                 };
             };
             /** @description Validation Error */

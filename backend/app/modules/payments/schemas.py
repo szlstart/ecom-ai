@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field
+from pydantic import AwareDatetime, Field
 
 from app.api.schemas import StrictRequest
 from app.modules.catalog.schemas import Money
@@ -61,3 +61,24 @@ class PaymentView(StrictRequest):
 
 class PaymentList(StrictRequest):
     items: list[PaymentView]
+
+
+class FakePaymentWebhook(StrictRequest):
+    provider_event_id: str = Field(min_length=5, max_length=128)
+    payment_id: str = Field(min_length=5, max_length=32)
+    provider_trade_no: str = Field(min_length=5, max_length=128)
+    status: Literal["succeeded", "failed"]
+    amount_minor_units: str = Field(pattern=r"^(0|[1-9][0-9]{0,18})$")
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    occurred_at: AwareDatetime
+    failure_code: str | None = Field(default=None, max_length=64)
+
+
+class PaymentWebhookAck(StrictRequest):
+    accepted: bool = True
+    duplicate: bool = False
+    callback_id: str
+
+
+class PaymentClosureResult(StrictRequest):
+    payment: PaymentView

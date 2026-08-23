@@ -19,6 +19,7 @@ from app.modules.catalog.models import Category, Product, ProductFulfillmentProf
 from app.modules.checkout.models import CheckoutSession
 from app.modules.identity.models import AuthSession, User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
+from app.modules.logistics.models import Shipment, ShipmentItem, ShipmentTrack
 from app.modules.orders.models import Order, OrderAddress, OrderItem, TradeOrder
 from app.modules.orders.service import OrderService
 from app.modules.payments.models import Payment, PaymentCallback
@@ -884,11 +885,96 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             ).all()
         )
         assert {item.process_status for item in callbacks} == {"rejected", "processed"}
+        receipt_item = await session.scalar(
+            select(OrderItem).where(OrderItem.order_id == receipt_order.id)
+        )
+        assert receipt_item is not None
+        tracking_no = f"SF{suffix.upper()}1234"
+        shipment = Shipment(
+            shipment_no=new_prefixed_ulid("shp_"),
+            order_id=receipt_order.id,
+            store_id=receipt_order.store_id,
+            carrier_code="fake_express",
+            carrier_name="测试快递",
+            tracking_no_ciphertext=security.encrypt(
+                "shipment-tracking-no", tracking_no
+            ),
+            tracking_no_hash=security.keyed_hash(
+                "shipment-tracking-no", tracking_no
+            ),
+            tracking_no_masked=f"{tracking_no[:2]}******{tracking_no[-4:]}",
+            shipment_status="in_transit",
+            provider_status="TRANSPORTING",
+            shipped_at=utc_now() - timedelta(hours=2),
+            last_track_at=utc_now() - timedelta(minutes=10),
+            key_version=1,
+        )
+        session.add(shipment)
+        await session.flush()
+        session.add_all(
+            [
+                ShipmentItem(
+                    shipment_id=shipment.id,
+                    order_item_id=receipt_item.id,
+                    quantity=receipt_item.quantity,
+                ),
+                ShipmentTrack(
+                    shipment_id=shipment.id,
+                    provider_event_id=f"track-{suffix}",
+                    track_status="in_transit",
+                    provider_status="TRANSPORTING",
+                    description="包裹正在运输途中",
+                    location_text="广州市",
+                    occurred_at=utc_now() - timedelta(minutes=10),
+                    payload_hash=hashlib.sha256(f"track-{suffix}".encode()).digest(),
+                ),
+            ]
+        )
         receipt_order.order_status = "shipped"
         receipt_order.fulfillment_status = "shipped"
         receipt_order.shipped_at = utc_now()
         receipt_order.version += 1
         await session.commit()
+        shipment_no = shipment.shipment_no
+        shipment_masked = shipment.tracking_no_masked
+    shipment_list = await client.get(
+        f"/api/v1/orders/{receipt_order_id}/shipments", headers=auth
+    )
+    assert shipment_list.status_code == 200, shipment_list.text
+    summary = shipment_list.json()["data"]["items"][0]
+    assert summary["shipment_id"] == shipment_no
+    assert summary["tracking_no_masked"] == shipment_masked
+    assert "tracking_no" not in summary
+    assert summary["delivery_estimate"]["status"] == "unavailable"
+    shipment_detail = await client.get(
+        f"/api/v1/shipments/{shipment_no}", headers=auth
+    )
+    assert shipment_detail.status_code == 200, shipment_detail.text
+    assert shipment_detail.json()["data"]["tracking_no"] == tracking_no
+    assert shipment_detail.headers["etag"] == '"v0"'
+    tracks = await client.get(
+        f"/api/v1/shipments/{shipment_no}/tracks?limit=1", headers=auth
+    )
+    assert tracks.status_code == 200
+    assert tracks.json()["data"]["items"][0]["track_status"] == "in_transit"
+    refresh_headers = {
+        **auth,
+        "Idempotency-Key": f"shipment-refresh-{suffix}",
+    }
+    refresh = await client.post(
+        f"/api/v1/shipments/{shipment_no}/refreshes", headers=refresh_headers
+    )
+    assert refresh.status_code == 202, refresh.text
+    refresh_replay = await client.post(
+        f"/api/v1/shipments/{shipment_no}/refreshes", headers=refresh_headers
+    )
+    assert refresh_replay.status_code == 202
+    refresh_limited = await client.post(
+        f"/api/v1/shipments/{shipment_no}/refreshes",
+        headers={**auth, "Idempotency-Key": f"shipment-refresh-new-{suffix}"},
+    )
+    assert refresh_limited.status_code == 429
+    assert refresh_limited.json()["code"] == "SHIPMENT_REFRESH_RATE_LIMITED"
     receipt_detail = await client.get(f"/api/v1/orders/{receipt_order_id}", headers=auth)
     assert receipt_detail.status_code == 200
     confirmed = await client.post(

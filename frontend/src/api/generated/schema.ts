@@ -1066,6 +1066,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/orders/{order_id}/shipments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Order Shipments */
+        get: operations["Shipment_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/{shipment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Shipment */
+        get: operations["Shipment_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/{shipment_id}/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Shipment Tracks */
+        get: operations["ShipmentTrack_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/{shipment_id}/refreshes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh My Shipment */
+        post: operations["ShipmentRefresh_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/favorite-products": {
         parameters: {
             query?: never;
@@ -4433,6 +4501,33 @@ export interface components {
             /** Address Id */
             address_id: string;
         };
+        /** DeliveryEstimate */
+        DeliveryEstimate: {
+            /**
+             * Type
+             * @default delivery
+             * @constant
+             */
+            type: "delivery";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "unavailable";
+            /** Min At */
+            min_at?: string | null;
+            /** Max At */
+            max_at?: string | null;
+            /** Source */
+            source?: ("shipping_template" | "carrier") | null;
+            /** Updated At */
+            updated_at?: string | null;
+            /**
+             * Disclaimer
+             * @default 预计时间仅供参考，以承运商实际配送为准。
+             */
+            disclaimer: string;
+        };
         /** DeliveryOptionView */
         DeliveryOptionView: {
             /** Option Id */
@@ -4790,6 +4885,16 @@ export interface components {
             data: components["schemas"]["SessionBootstrap"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[ShipmentRefreshResult] */
+        Envelope_ShipmentRefreshResult_: {
+            data: components["schemas"]["ShipmentRefreshResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ShipmentTrackList] */
+        Envelope_ShipmentTrackList_: {
+            data: components["schemas"]["ShipmentTrackList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[StoreHomeContent] */
         Envelope_StoreHomeContent_: {
             data: components["schemas"]["StoreHomeContent"];
@@ -4825,9 +4930,19 @@ export interface components {
             data: components["schemas"]["UserDashboard"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[UserOrderShipmentList] */
+        Envelope_UserOrderShipmentList_: {
+            data: components["schemas"]["UserOrderShipmentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[UserProfile] */
         Envelope_UserProfile_: {
             data: components["schemas"]["UserProfile"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[UserShipmentDetail] */
+        Envelope_UserShipmentDetail_: {
+            data: components["schemas"]["UserShipmentDetail"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[VerificationCodeAccepted] */
@@ -6312,6 +6427,59 @@ export interface components {
              */
             is_current: boolean;
         };
+        /** ShipmentItemView */
+        ShipmentItemView: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** ShipmentRefreshResult */
+        ShipmentRefreshResult: {
+            /** Shipment Id */
+            shipment_id: string;
+            /**
+             * Status
+             * @default queued
+             * @constant
+             */
+            status: "queued";
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+        };
+        /** ShipmentTrackList */
+        ShipmentTrackList: {
+            /** Shipment Id */
+            shipment_id: string;
+            /** Items */
+            items: components["schemas"]["ShipmentTrackView"][];
+        };
+        /** ShipmentTrackView */
+        ShipmentTrackView: {
+            /** Track Status */
+            track_status: string;
+            /** Description */
+            description: string;
+            /** Location Text */
+            location_text?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+        };
         /** SignedMoney */
         SignedMoney: {
             /** Minor Units */
@@ -6475,6 +6643,35 @@ export interface components {
             /** Unavailable Sections */
             unavailable_sections: string[];
         };
+        /** UserOrderShipmentList */
+        UserOrderShipmentList: {
+            /** Order Id */
+            order_id: string;
+            /** Items */
+            items: components["schemas"]["UserOrderShipmentSummary"][];
+        };
+        /** UserOrderShipmentSummary */
+        UserOrderShipmentSummary: {
+            /** Shipment Id */
+            shipment_id: string;
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No Masked */
+            tracking_no_masked: string;
+            /**
+             * Shipment Status
+             * @enum {string}
+             */
+            shipment_status: "created" | "picked_up" | "in_transit" | "delivered" | "exception" | "returned" | "closed" | "voided";
+            /** Items */
+            items: components["schemas"]["ShipmentItemView"][];
+            delivery_estimate: components["schemas"]["DeliveryEstimate"];
+            last_track?: components["schemas"]["ShipmentTrackView"] | null;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+        };
         /** UserProfile */
         UserProfile: {
             /** User Id */
@@ -6508,6 +6705,35 @@ export interface components {
             locale?: string | null;
             /** Timezone */
             timezone?: string | null;
+        };
+        /** UserShipmentDetail */
+        UserShipmentDetail: {
+            /** Shipment Id */
+            shipment_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No */
+            tracking_no: string;
+            /** Tracking No Masked */
+            tracking_no_masked: string;
+            /**
+             * Shipment Status
+             * @enum {string}
+             */
+            shipment_status: "created" | "picked_up" | "in_transit" | "delivered" | "exception" | "returned" | "closed" | "voided";
+            /** Items */
+            items: components["schemas"]["ShipmentItemView"][];
+            delivery_estimate: components["schemas"]["DeliveryEstimate"];
+            /** Latest Tracks */
+            latest_tracks: components["schemas"]["ShipmentTrackView"][];
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /** Version */
+            version: number;
         };
         /** UserStatusChangeRequest */
         UserStatusChangeRequest: {
@@ -8781,6 +9007,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_PaymentWebhookAck_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Shipment_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_UserOrderShipmentList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Shipment_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_UserShipmentDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ShipmentTrack_ListMine: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ShipmentTrackList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ShipmentRefresh_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ShipmentRefreshResult_"];
                 };
             };
             /** @description Validation Error */

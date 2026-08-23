@@ -12,6 +12,7 @@ from app.modules.content import models as content_models  # noqa: F401
 from app.modules.files import models as file_models  # noqa: F401
 from app.modules.identity import models as identity_models  # noqa: F401
 from app.modules.inventory import models as inventory_models  # noqa: F401
+from app.modules.logistics import models as logistics_models  # noqa: F401
 from app.modules.messaging import models as messaging_models  # noqa: F401
 from app.modules.orders import models as order_models  # noqa: F401
 from app.modules.payments import models as payment_models  # noqa: F401

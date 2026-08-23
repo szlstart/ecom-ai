@@ -10,6 +10,7 @@ from app.modules.checkout.router import router as checkout_router
 from app.modules.content.router import router as content_router
 from app.modules.files.router import router as files_router
 from app.modules.identity.router import auth_router, user_router
+from app.modules.logistics.router import router as logistics_router
 from app.modules.orders.router import router as orders_router
 from app.modules.payments.router import router as payments_router
 from app.modules.rbac.auth_router import router as admin_auth_router
@@ -31,6 +32,7 @@ api_router.include_router(cart_router)
 api_router.include_router(checkout_router)
 api_router.include_router(orders_router)
 api_router.include_router(payments_router)
+api_router.include_router(logistics_router)
 api_router.include_router(favorite_router)
 api_router.include_router(stores_router)
 api_router.include_router(follow_router)

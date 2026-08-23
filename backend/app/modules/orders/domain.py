@@ -11,6 +11,7 @@ ORDER_TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
     "CancelUnpaidOrder": (frozenset({"pending_payment"}), "cancelled"),
     "CloseBeforeShipment": (frozenset({"paid", "pending_shipment"}), "closed"),
     "RecordAllItemsShipped": (frozenset({"pending_shipment"}), "shipped"),
+    "ReopenForShipmentCorrection": (frozenset({"shipped"}), "pending_shipment"),
     "ConfirmReceipt": (frozenset({"shipped"}), "completed"),
     "AutoConfirmReceipt": (frozenset({"shipped"}), "completed"),
     "CloseAbnormalFulfillment": (frozenset({"shipped"}), "closed"),
@@ -19,6 +20,8 @@ ORDER_TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
 FULFILLMENT_TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
     "RecordPartialShipment": (frozenset({"unfulfilled"}), "partial"),
     "RecordAllItemsShipped": (frozenset({"unfulfilled", "partial"}), "shipped"),
+    "ReopenPartialShipment": (frozenset({"shipped"}), "partial"),
+    "ResetUnfulfilled": (frozenset({"partial", "shipped"}), "unfulfilled"),
     "ConfirmReceipt": (frozenset({"shipped"}), "received"),
     "AutoConfirmReceipt": (frozenset({"shipped"}), "received"),
 }

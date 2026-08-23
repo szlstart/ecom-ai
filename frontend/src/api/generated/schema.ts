@@ -1168,6 +1168,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/shipments/{shipment_id}/tracking-corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct Tracking */
+        post: operations["AdminShipment_CorrectTracking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}/voids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Void Shipment */
+        post: operations["AdminShipment_Void"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/favorite-products": {
         parameters: {
             query?: never;
@@ -3664,6 +3698,13 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AdminShipmentVoidRequest */
+        AdminShipmentVoidRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
         /** AdminShippingRuleInput */
         AdminShippingRuleInput: {
             /** Region Scope */
@@ -4063,6 +4104,15 @@ export interface components {
             closed_at: string | null;
             /** Version */
             version: number;
+        };
+        /** AdminTrackingCorrectionRequest */
+        AdminTrackingCorrectionRequest: {
+            /** Tracking No */
+            tracking_no: string;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
         };
         /** AdminUserList */
         AdminUserList: {
@@ -9288,6 +9338,82 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminShipment_CorrectTracking: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminTrackingCorrectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminShipment_Void: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShipmentVoidRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

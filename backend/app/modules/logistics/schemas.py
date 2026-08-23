@@ -124,3 +124,18 @@ class AdminShipmentDetail(StrictRequest):
     shipped_at: datetime
     last_synced_at: datetime | None = None
     version: int
+
+
+class AdminTrackingCorrectionRequest(StrictRequest):
+    tracking_no: str = Field(
+        min_length=6,
+        max_length=64,
+        json_schema_extra={"writeOnly": True},
+    )
+    reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
+    reason: str = Field(min_length=2, max_length=500)
+
+
+class AdminShipmentVoidRequest(StrictRequest):
+    reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
+    reason: str = Field(min_length=2, max_length=500)

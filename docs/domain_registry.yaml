@@ -106,6 +106,7 @@ aggregates:
       - {command: CancelUnpaidOrder, from: [pending_payment], to: cancelled, event: order.cancelled}
       - {command: CloseBeforeShipment, from: [paid, pending_shipment], to: closed, event: order.closed}
       - {command: RecordAllItemsShipped, from: [pending_shipment], to: shipped, event: order.shipped}
+      - {command: ReopenForShipmentCorrection, from: [shipped], to: pending_shipment, event: order.fulfillment_reopened}
       - {command: ConfirmReceipt, from: [shipped], to: completed, event: order.completed}
       - {command: AutoConfirmReceipt, from: [shipped], to: completed, event: order.auto_completed}
       - {command: CloseAbnormalFulfillment, from: [shipped], to: closed, event: order.closed}
@@ -127,6 +128,8 @@ aggregates:
     transitions:
       - {command: RecordPartialShipment, from: [unfulfilled], to: partial, event: fulfillment.partial}
       - {command: RecordAllItemsShipped, from: [unfulfilled, partial], to: shipped, event: fulfillment.shipped}
+      - {command: ReopenPartialShipment, from: [shipped], to: partial, event: fulfillment.reopened_partial}
+      - {command: ResetUnfulfilled, from: [partial, shipped], to: unfulfilled, event: fulfillment.reset_unfulfilled}
       - {command: ConfirmReceipt, from: [shipped], to: received, event: fulfillment.received}
       - {command: AutoConfirmReceipt, from: [shipped], to: received, event: fulfillment.auto_received}
   shipment:

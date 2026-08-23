@@ -25,6 +25,8 @@ from app.modules.logistics.models import Shipment, ShipmentTrack
 from app.modules.logistics.schemas import (
     AdminShipmentCreateItem,
     AdminShipmentCreateRequest,
+    AdminShipmentVoidRequest,
+    AdminTrackingCorrectionRequest,
 )
 from app.modules.logistics.service import LogisticsService
 from app.modules.orders.models import Order, OrderAddress, OrderItem, TradeOrder
@@ -1014,6 +1016,98 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         assert shipped_order is not None
         assert shipped_order.order_status == "shipped"
         assert shipped_order.fulfillment_status == "shipped"
+        correction_permission = Permission(
+            permission_code="shipments:correct",
+            resource="shipments",
+            action="correct",
+            risk_level="high",
+            allowed_scope_types=["store"],
+            delegation_policy="role_policy",
+            requires_mfa=True,
+            requires_recent_auth=True,
+            approval_policy="none",
+            owner="logistics",
+            description="shipment correct",
+            permission_status="active",
+        )
+        correction_access = AdminAccess(
+            context=access.context,
+            permission=correction_permission,
+            scopes=access.scopes,
+        )
+        corrected = await logistics.correct_tracking(
+            correction_access,
+            shipment_result.shipment_id,
+            AdminTrackingCorrectionRequest(
+                tracking_no=f"SF{suffix.upper()}2222",
+                reason_code="ENTRY_ERROR",
+                reason="录入运单号时发生错误",
+            ),
+            shipment_result.version,
+            f"shipment-correct-{suffix}",
+        )
+        assert corrected.version == 1
+        assert "tracking_no" not in corrected.model_dump()
+        void_permission = Permission(
+            permission_code="shipments:void",
+            resource="shipments",
+            action="void",
+            risk_level="high",
+            allowed_scope_types=["store"],
+            delegation_policy="role_policy",
+            requires_mfa=True,
+            requires_recent_auth=True,
+            approval_policy="none",
+            owner="logistics",
+            description="shipment void",
+            permission_status="active",
+        )
+        void_access = AdminAccess(
+            context=access.context,
+            permission=void_permission,
+            scopes=access.scopes,
+        )
+        voided = await logistics.void_shipment(
+            void_access,
+            shipment_result.shipment_id,
+            AdminShipmentVoidRequest(
+                reason_code="PACKAGE_ERROR",
+                reason="包裹分配错误，撤销后重新发货",
+            ),
+            corrected.version,
+            f"shipment-void-{suffix}",
+        )
+        assert voided.shipment_status == "voided"
+        reopened_order = await session.scalar(
+            select(Order).where(Order.order_no == receipt_order_id)
+        )
+        assert reopened_order is not None
+        assert reopened_order.order_status == "pending_shipment"
+        assert reopened_order.fulfillment_status == "partial"
+        replacement = await logistics.create_shipment(
+            access,
+            receipt_order_id,
+            AdminShipmentCreateRequest(
+                carrier_code="fake_express",
+                carrier_name="测试快递",
+                tracking_no=f"SF{suffix.upper()}9999",
+                items=[
+                    AdminShipmentCreateItem(
+                        order_item_id=receipt_item_no,
+                        quantity=1,
+                    )
+                ],
+            ),
+            reopened_order.version,
+            f"shipment-replacement-{suffix}",
+        )
+        assert replacement.shipment_status == "created"
+        restored_order = await session.scalar(
+            select(Order).where(Order.order_no == receipt_order_id)
+        )
+        assert restored_order is not None
+        assert restored_order.order_status == "shipped"
+        assert restored_order.fulfillment_status == "shipped"
         wrong_scope_access = AdminAccess(
             context=access.context,
             permission=permission,

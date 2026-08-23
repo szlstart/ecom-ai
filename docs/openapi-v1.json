@@ -4318,6 +4318,184 @@
         }
       }
     },
+    "/api/v1/admin/shipments/{shipment_id}/tracking-corrections": {
+      "post": {
+        "tags": [
+          "logistics-administration"
+        ],
+        "summary": "Correct Tracking",
+        "operationId": "AdminShipment_CorrectTracking",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shipment Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminTrackingCorrectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminShipmentDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/shipments/{shipment_id}/voids": {
+      "post": {
+        "tags": [
+          "logistics-administration"
+        ],
+        "summary": "Void Shipment",
+        "operationId": "AdminShipment_Void",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shipment Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminShipmentVoidRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminShipmentDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/favorite-products": {
       "get": {
         "tags": [
@@ -14660,6 +14838,28 @@
         ],
         "title": "AdminShipmentDetail"
       },
+      "AdminShipmentVoidRequest": {
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason_code",
+          "reason"
+        ],
+        "title": "AdminShipmentVoidRequest"
+      },
       "AdminShippingRuleInput": {
         "properties": {
           "region_scope": {
@@ -16160,6 +16360,36 @@
           "version"
         ],
         "title": "AdminStoreView"
+      },
+      "AdminTrackingCorrectionRequest": {
+        "properties": {
+          "tracking_no": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Tracking No",
+            "writeOnly": true
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tracking_no",
+          "reason_code",
+          "reason"
+        ],
+        "title": "AdminTrackingCorrectionRequest"
       },
       "AdminUserList": {
         "properties": {

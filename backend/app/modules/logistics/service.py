@@ -14,7 +14,9 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.pagination import CursorCodec
 from app.core.security import SecurityService, canonical_request_hash, utc_now
+from app.integrations.logistics import LogisticsProvider, logistics_provider
 from app.modules.identity.models import User
+from app.modules.logistics.domain import require_shipment_transition
 from app.modules.logistics.models import (
     LogisticsSyncLog,
     Shipment,
@@ -25,6 +27,8 @@ from app.modules.logistics.repository import LogisticsRepository
 from app.modules.logistics.schemas import (
     AdminShipmentCreateRequest,
     AdminShipmentDetail,
+    AdminShipmentVoidRequest,
+    AdminTrackingCorrectionRequest,
     DeliveryEstimate,
     ShipmentItemView,
     ShipmentRefreshResult,
@@ -176,6 +180,7 @@ class LogisticsService:
                 detail="订单存在阻止发货的售后流程。",
             )
 
+        _provider(payload.carrier_code)
         normalized_tracking = _normalize_tracking_no(payload.tracking_no)
         tracking_hash = self.security.keyed_hash(
             "shipment-tracking-no",
@@ -388,6 +393,317 @@ class LogisticsService:
         await self.session.commit()
         return result
 
+    async def correct_tracking(
+        self,
+        access: AdminAccess,
+        shipment_no: str,
+        payload: AdminTrackingCorrectionRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminShipmentDetail:
+        claim = await self.idempotency.begin(
+            scope_key=(f"admin:shipment-correct:{access.context.user.user_no}:{shipment_no}"),
+            idempotency_key=idempotency_key,
+            payload={"expected_version": expected_version, **payload.model_dump(mode="json")},
+            resource_type="shipment",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return AdminShipmentDetail.model_validate(claim.record.response_body)
+        initial = await self.repository.shipment_by_no(shipment_no)
+        if initial is None:
+            raise _not_found()
+        access.require_scope("store", initial[2].id)
+        order_row = await self.repository.admin_order(initial[1].order_no, for_update=True)
+        locked = await self.repository.shipment_by_no(shipment_no, for_update=True)
+        if order_row is None or locked is None:
+            raise _not_found()
+        order, store = order_row
+        shipment = locked[0]
+        _require_version(shipment.version, expected_version, resource="包裹")
+        if shipment.shipment_status != "created" or shipment.last_track_at is not None:
+            raise ApplicationError(
+                status=409,
+                code="SHIPMENT_TRACKING_CORRECTION_WINDOW_CLOSED",
+                title="Tracking correction window closed",
+                detail="包裹已揽收或已有物流轨迹，不能直接更正运单号。",
+            )
+        _provider(shipment.carrier_code)
+        normalized = _normalize_tracking_no(payload.tracking_no)
+        next_hash = self.security.keyed_hash(
+            "shipment-tracking-no", f"{shipment.carrier_code}:{normalized}"
+        )
+        if next_hash == shipment.tracking_no_hash:
+            raise ApplicationError(
+                status=409,
+                code="SHIPMENT_TRACKING_UNCHANGED",
+                title="Tracking number unchanged",
+                detail="新运单号与当前运单号相同。",
+            )
+        duplicate = await self.repository.shipment_by_tracking_hash(
+            shipment.carrier_code, next_hash
+        )
+        if duplicate is not None and duplicate.id != shipment.id:
+            raise ApplicationError(
+                status=409,
+                code="SHIPMENT_TRACKING_ALREADY_EXISTS",
+                title="Tracking number already exists",
+                detail="该承运商运单已经用于其他包裹。",
+            )
+        now = utc_now()
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        previous_masked = shipment.tracking_no_masked
+        previous_hash = shipment.tracking_no_hash
+        shipment.tracking_no_ciphertext = self.security.encrypt("shipment-tracking-no", normalized)
+        shipment.tracking_no_hash = next_hash
+        shipment.tracking_no_masked = _mask_tracking_no(normalized)
+        shipment.version += 1
+        self.session.add(
+            ShipmentTrack(
+                shipment_id=shipment.id,
+                provider_event_id=f"correction:{request_id}"[:128],
+                track_status="created",
+                provider_status=None,
+                description="发货信息已更正",
+                location_text=None,
+                occurred_at=now,
+                payload_hash=self.security.keyed_hash(
+                    "shipment-correction-event", previous_hash + next_hash
+                ),
+            )
+        )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="shipment.tracking_corrected.v1",
+                aggregate_type="shipment",
+                aggregate_no=shipment.shipment_no,
+                aggregate_version=shipment.version,
+                payload={
+                    "shipment_id": shipment.shipment_no,
+                    "order_id": order.order_no,
+                    "tracking_no_masked": shipment.tracking_no_masked,
+                    "reason_code": payload.reason_code,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        record_admin_operation(
+            self.session,
+            access,
+            action="correct_shipment_tracking",
+            target_type="shipment",
+            target_no=shipment.shipment_no,
+            reason=payload.reason,
+            before={
+                "tracking_no_masked": previous_masked,
+                "version": expected_version,
+            },
+            after={
+                "tracking_no_masked": shipment.tracking_no_masked,
+                "version": shipment.version,
+                "reason_code": payload.reason_code,
+            },
+            scope_type="store",
+            scope_id=store.id,
+        )
+        await self.session.flush()
+        result = await self._admin_view(shipment, order, store)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=shipment.shipment_no,
+            response_body=result.model_dump(mode="json"),
+        )
+        await self.session.commit()
+        return result
+
+    async def void_shipment(
+        self,
+        access: AdminAccess,
+        shipment_no: str,
+        payload: AdminShipmentVoidRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminShipmentDetail:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:shipment-void:{access.context.user.user_no}:{shipment_no}",
+            idempotency_key=idempotency_key,
+            payload={"expected_version": expected_version, **payload.model_dump(mode="json")},
+            resource_type="shipment",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return AdminShipmentDetail.model_validate(claim.record.response_body)
+        initial = await self.repository.shipment_by_no(shipment_no)
+        if initial is None:
+            raise _not_found()
+        access.require_scope("store", initial[2].id)
+        order_row = await self.repository.admin_order(initial[1].order_no, for_update=True)
+        locked = await self.repository.shipment_by_no(shipment_no, for_update=True)
+        if order_row is None or locked is None:
+            raise _not_found()
+        order, store = order_row
+        shipment = locked[0]
+        _require_version(shipment.version, expected_version, resource="包裹")
+        if shipment.shipment_status != "created" or shipment.last_track_at is not None:
+            raise ApplicationError(
+                status=409,
+                code="SHIPMENT_VOID_WINDOW_CLOSED",
+                title="Shipment void window closed",
+                detail="只有尚未揽收且没有物流轨迹的包裹可以作废。",
+            )
+        if order.after_sale_status == "in_progress":
+            raise ApplicationError(
+                status=409,
+                code="SHIPMENT_VOID_BLOCKED_BY_AFTER_SALE",
+                title="Shipment void blocked by after-sale",
+                detail="当前售后流程依赖该包裹，不能作废。",
+            )
+        plaintext_tracking = self.security.decrypt(
+            "shipment-tracking-no", shipment.tracking_no_ciphertext
+        )
+        await _provider(shipment.carrier_code).cancel_shipment(
+            carrier_code=shipment.carrier_code,
+            tracking_no=plaintext_tracking,
+        )
+        now = utc_now()
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        previous_shipment_status = shipment.shipment_status
+        shipment.shipment_status = require_shipment_transition(
+            previous_shipment_status, "VoidShipment"
+        )
+        shipment.voided_at = now
+        shipment.void_reason_code = payload.reason_code
+        shipment.void_reason = payload.reason
+        shipment.version += 1
+        await self.session.flush()
+
+        order_items = await self.repository.order_items_for_update(order.id)
+        allocated = await self.repository.allocated_quantities(order.id)
+        total_required = sum(item.quantity - item.refunded_quantity for item in order_items)
+        total_allocated = sum(allocated.values())
+        previous_fulfillment = order.fulfillment_status
+        previous_order_status = order.order_status
+        if total_allocated == 0:
+            target_fulfillment = "unfulfilled"
+        elif total_allocated < total_required:
+            target_fulfillment = "partial"
+        else:
+            target_fulfillment = "shipped"
+
+        if target_fulfillment != previous_fulfillment:
+            command = (
+                "ResetUnfulfilled"
+                if target_fulfillment == "unfulfilled"
+                else "ReopenPartialShipment"
+            )
+            order.fulfillment_status = require_transition(
+                FULFILLMENT_TRANSITIONS, previous_fulfillment, command
+            )
+            order.version += 1
+            self.session.add(
+                _order_status_log(
+                    order,
+                    "fulfillment",
+                    previous_fulfillment,
+                    target_fulfillment,
+                    "fulfillment.shipment_voided",
+                    access.context.user.id,
+                    request_id,
+                    now,
+                )
+            )
+        else:
+            order.version += 1
+        if previous_order_status == "shipped" and target_fulfillment != "shipped":
+            order.order_status = require_transition(
+                ORDER_TRANSITIONS,
+                previous_order_status,
+                "ReopenForShipmentCorrection",
+            )
+            order.shipped_at = None
+            order.version += 1
+            self.session.add(
+                _order_status_log(
+                    order,
+                    "order",
+                    previous_order_status,
+                    "pending_shipment",
+                    "order.shipment_voided",
+                    access.context.user.id,
+                    request_id,
+                    now,
+                )
+            )
+        self.session.add(
+            OrderOperationLog(
+                operation_no=new_prefixed_ulid("oop_"),
+                order_id=order.id,
+                operation_type="void_shipment",
+                actor_type="admin",
+                actor_id=access.context.user.id,
+                request_payload_hash=self.security.keyed_hash(
+                    "shipment-void-request",
+                    canonical_request_hash(payload.model_dump(mode="json")),
+                ),
+                result_status="success",
+                request_id=request_id,
+                trace_id=request_id,
+            )
+        )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="shipment.voided.v1",
+                aggregate_type="shipment",
+                aggregate_no=shipment.shipment_no,
+                aggregate_version=shipment.version,
+                payload={
+                    "shipment_id": shipment.shipment_no,
+                    "order_id": order.order_no,
+                    "reason_code": payload.reason_code,
+                    "fulfillment_status": order.fulfillment_status,
+                    "order_status": order.order_status,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        record_admin_operation(
+            self.session,
+            access,
+            action="void_shipment",
+            target_type="shipment",
+            target_no=shipment.shipment_no,
+            reason=payload.reason,
+            before={
+                "shipment_status": previous_shipment_status,
+                "order_status": previous_order_status,
+                "fulfillment_status": previous_fulfillment,
+            },
+            after={
+                "shipment_status": shipment.shipment_status,
+                "order_status": order.order_status,
+                "fulfillment_status": order.fulfillment_status,
+                "reason_code": payload.reason_code,
+            },
+            scope_type="store",
+            scope_id=store.id,
+        )
+        result = await self._admin_view(shipment, order, store)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=shipment.shipment_no,
+            response_body=result.model_dump(mode="json"),
+        )
+        await self.session.commit()
+        return result
+
     async def _admin_view(
         self, shipment: Shipment, order: Order, store: Store
     ) -> AdminShipmentDetail:
@@ -576,6 +892,18 @@ def _normalize_tracking_no(value: str) -> str:
     return normalized
 
 
+def _provider(carrier_code: str) -> LogisticsProvider:
+    try:
+        return logistics_provider(carrier_code)
+    except ValueError as exc:
+        raise ApplicationError(
+            status=422,
+            code="SHIPMENT_CARRIER_UNSUPPORTED",
+            title="Unsupported shipment carrier",
+            detail="该物流承运商尚未接入。",
+        ) from exc
+
+
 def _mask_tracking_no(value: str) -> str:
     return f"{'*' * max(4, len(value) - 4)}{value[-4:]}"
 
@@ -629,13 +957,13 @@ def _order_status_log(
     )
 
 
-def _require_version(actual: int, expected: int) -> None:
+def _require_version(actual: int, expected: int, *, resource: str = "订单") -> None:
     if actual != expected:
         raise ApplicationError(
             status=412,
             code="RESOURCE_VERSION_CONFLICT",
             title="Version conflict",
-            detail="订单已发生变化，请刷新后重试。",
+            detail=f"{resource}已发生变化，请刷新后重试。",
         )
 
 

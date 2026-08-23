@@ -2917,6 +2917,70 @@
         }
       }
     },
+    "/api/v1/orders": {
+      "post": {
+        "tags": [
+          "orders"
+        ],
+        "summary": "Create Order",
+        "operationId": "Order_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OrderCreateResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/favorite-products": {
       "get": {
         "tags": [
@@ -15913,6 +15977,13 @@
             ],
             "title": "Buyer Remark"
           },
+          "policy_versions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Policy Versions"
+          },
           "customer_service_context": {
             "additionalProperties": {
               "type": "string"
@@ -15932,6 +16003,7 @@
           "delivery_options",
           "selected_delivery_option",
           "buyer_remark",
+          "policy_versions",
           "customer_service_context"
         ],
         "title": "CheckoutStoreGroupView"
@@ -16008,7 +16080,7 @@
             "title": "Available Actions"
           },
           "pricing_version": {
-            "type": "integer",
+            "type": "string",
             "title": "Pricing Version"
           },
           "version": {
@@ -16894,6 +16966,21 @@
           "data"
         ],
         "title": "Envelope[MessageResult]"
+      },
+      "Envelope_OrderCreateResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/OrderCreateResponse"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[OrderCreateResponse]"
       },
       "Envelope_PasswordResetTicketResult_": {
         "properties": {
@@ -18348,6 +18435,69 @@
           "required_permission"
         ],
         "title": "NavigationItem"
+      },
+      "OrderCreateRequest": {
+        "properties": {
+          "checkout_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^chk_[0-9A-Z]+$",
+            "title": "Checkout Id"
+          },
+          "checkout_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Checkout Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "checkout_id",
+          "checkout_version"
+        ],
+        "title": "OrderCreateRequest"
+      },
+      "OrderCreateResponse": {
+        "properties": {
+          "trade_order_id": {
+            "type": "string",
+            "title": "Trade Order Id"
+          },
+          "order_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Order Ids"
+          },
+          "payment_deadline_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Payment Deadline At"
+          },
+          "available_actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Actions"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "trade_order_id",
+          "order_ids",
+          "payment_deadline_at",
+          "available_actions",
+          "version"
+        ],
+        "title": "OrderCreateResponse"
       },
       "PaginationMeta": {
         "properties": {

@@ -34,6 +34,7 @@ resources:
   trade_order: {prefix: trd_, storage_length: 32, url_allowed: true, owner: orders}
   order: {prefix: ord_, storage_length: 32, url_allowed: true, owner: orders}
   order_item: {prefix: oit_, url_allowed: true, owner: orders}
+  order_operation: {prefix: oop_, owner: orders}
   payment: {prefix: pay_, storage_length: 32, url_allowed: true, owner: payments}
   shipment: {prefix: shp_, url_allowed: true, owner: logistics}
   refund: {prefix: ref_, storage_length: 32, url_allowed: true, owner: after_sale}

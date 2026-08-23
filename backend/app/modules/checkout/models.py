@@ -35,8 +35,8 @@ class CheckoutSession(MutableMySQLModel, MySQLBase):
     freight_amount: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
     payable_amount: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="CNY")
-    pricing_version: Mapped[int] = mapped_column(
-        INTEGER(unsigned=True), nullable=False, default=1, server_default="1"
+    pricing_version: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="pricing_v1", server_default="pricing_v1"
     )
     snapshot_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
@@ -60,7 +60,7 @@ class CheckoutSnapshot(AppendOnlyMySQLModel, MySQLBase):
     schema_version: Mapped[int] = mapped_column(
         INTEGER(unsigned=True), nullable=False, default=1, server_default="1"
     )
-    payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    snapshot_payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     snapshot_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
     invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
-    invalidation_reason: Mapped[str | None] = mapped_column(String(64))
+    invalid_reason: Mapped[str | None] = mapped_column(String(64))

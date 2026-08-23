@@ -61,9 +61,12 @@ class InventoryReservation(MutableMySQLModel, MySQLBase):
     sku_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("product_skus.id"), nullable=False
     )
-    # Order tables are introduced in phase 4; that migration adds the two foreign keys.
-    order_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
-    order_item_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
+    order_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("orders.id"), nullable=False
+    )
+    order_item_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("order_items.id"), nullable=False
+    )
     quantity: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
     reservation_status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)

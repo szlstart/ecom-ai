@@ -76,6 +76,15 @@ aggregates:
       - {command: SubmitCheckout, from: [active], to: submitted, event: checkout.submitted}
       - {command: ExpireCheckout, from: [active], to: expired, event: checkout.expired}
       - {command: CancelCheckout, from: [active], to: cancelled, event: checkout.cancelled}
+  trade_order:
+    field: trade_status
+    states: [pending_payment, paid, closed, partially_refunded, refunded]
+    terminal_states: [closed, refunded]
+    transitions:
+      - {command: RecordTradePaymentSucceeded, from: [pending_payment], to: paid, event: trade_order.paid}
+      - {command: CloseUnpaidTrade, from: [pending_payment], to: closed, event: trade_order.closed}
+      - {command: RecordTradePartialRefund, from: [paid], to: partially_refunded, event: trade_order.partially_refunded}
+      - {command: RecordTradeFullRefund, from: [paid, partially_refunded], to: refunded, event: trade_order.refunded}
   file_upload:
     field: upload_status
     states: [created, uploading, uploaded, completed, expired, aborted, rejected]

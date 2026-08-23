@@ -29,6 +29,7 @@ class ApplicationError(Exception):
         detail: str,
         retryable: bool = False,
         errors: list[dict[str, str]] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self.status = status
         self.code = code
@@ -36,6 +37,7 @@ class ApplicationError(Exception):
         self.detail = detail
         self.retryable = retryable
         self.errors = errors
+        self.headers = headers
         super().__init__(detail)
 
 
@@ -83,6 +85,7 @@ def install_exception_handlers(app: FastAPI) -> None:
             status_code=exc.status,
             content=problem.model_dump(mode="json"),
             media_type="application/problem+json",
+            headers=exc.headers,
         )
 
     @app.exception_handler(Exception)

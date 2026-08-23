@@ -93,6 +93,7 @@ class CheckoutStoreGroupView(StrictRequest):
     delivery_options: list[DeliveryOptionView]
     selected_delivery_option: str | None
     buyer_remark: str | None
+    policy_versions: dict[str, int]
     customer_service_context: dict[str, str]
 
 
@@ -120,5 +121,5 @@ class CheckoutView(StrictRequest):
     warnings: list[CheckoutIssue]
     blocking_issues: list[CheckoutIssue]
     available_actions: list[str]
-    pricing_version: int
+    pricing_version: str
     version: int

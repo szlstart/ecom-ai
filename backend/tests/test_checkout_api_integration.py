@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import os
 import secrets
@@ -12,11 +13,14 @@ from app.core.config import get_settings
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
 from app.database.mysql import mysql_session
+from app.modules.cart.models import CartItem
 from app.modules.catalog.models import Category, Product, ProductFulfillmentProfile, ProductSku
 from app.modules.checkout.models import CheckoutSession
 from app.modules.identity.models import AuthSession, User, UserAddress
-from app.modules.inventory.models import Inventory
+from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
+from app.modules.orders.models import Order, OrderAddress, OrderItem, TradeOrder
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
+from app.modules.system.models import OutboxEvent
 
 pytestmark = [
     pytest.mark.integration,
@@ -120,11 +124,24 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             sales_count=0,
             opened_at=now,
         )
+        second_store = Store(
+            store_no=new_prefixed_ulid("sto_"),
+            owner_user_id=user.id,
+            store_name="第二结算店铺",
+            store_name_normalized=f"checkout-store-second-{suffix}",
+            store_status="active",
+            rating_score=Decimal("0.00"),
+            rating_count=0,
+            follower_count=0,
+            sales_count=0,
+            opened_at=now,
+        )
         session.add_all([auth_session, address, other_address, category, store])
+        session.add(second_store)
         await session.flush()
         template = ShippingTemplate(
-            template_no=new_prefixed_ulid("ship_"),
-            template_family_no=new_prefixed_ulid("shf_"),
+            template_no=new_prefixed_ulid("sht_"),
+            template_family_no=new_prefixed_ulid("sht_"),
             store_id=store.id,
             template_name="标准快递",
             delivery_type="express",
@@ -147,7 +164,32 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             rating_score=Decimal("0.00"),
             published_at=now,
         )
-        session.add_all([template, product])
+        second_template = ShippingTemplate(
+            template_no=new_prefixed_ulid("sht_"),
+            template_family_no=new_prefixed_ulid("sht_"),
+            store_id=second_store.id,
+            template_name="第二店铺快递",
+            delivery_type="express",
+            charge_mode="item",
+            currency="CNY",
+            template_status="effective",
+            dispatch_min_hours=12,
+            dispatch_max_hours=24,
+            policy_version=1,
+        )
+        second_product = Product(
+            product_no=new_prefixed_ulid("prd_"),
+            store_id=second_store.id,
+            category_id=category.id,
+            product_name="第二结算商品",
+            product_status="on_sale",
+            min_price_amount=4000,
+            max_price_amount=4000,
+            currency="CNY",
+            rating_score=Decimal("0.00"),
+            published_at=now,
+        )
+        session.add_all([template, product, second_template, second_product])
         await session.flush()
         session.add(
             ShippingTemplateRule(
@@ -163,9 +205,32 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             )
         )
         session.add(
+            ShippingTemplateRule(
+                shipping_template_id=second_template.id,
+                region_scope={"include": ["CN"]},
+                first_unit=1,
+                additional_unit=1,
+                first_fee_amount=500,
+                additional_fee_amount=100,
+                estimated_min_days=1,
+                estimated_max_days=2,
+                rule_status="active",
+            )
+        )
+        session.add(
             ProductFulfillmentProfile(
                 product_id=product.id,
                 shipping_template_id=template.id,
+                origin_region_code="CN-44",
+                dispatch_min_hours=12,
+                dispatch_max_hours=24,
+                profile_version=1,
+            )
+        )
+        session.add(
+            ProductFulfillmentProfile(
+                product_id=second_product.id,
+                shipping_template_id=second_template.id,
                 origin_region_code="CN-44",
                 dispatch_min_hours=12,
                 dispatch_max_hours=24,
@@ -188,12 +253,34 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         )
         session.add(sku)
         await session.flush()
-        session.add(Inventory(sku_id=sku.id, on_hand_quantity=10, inventory_status="active"))
+        second_sku = ProductSku(
+            sku_no=new_prefixed_ulid("sku_"),
+            product_id=second_product.id,
+            store_id=second_store.id,
+            merchant_sku_code=f"CHECKOUT-SECOND-{suffix}",
+            sku_name="第二标准款",
+            spec_values=[{"name": "规格", "value": "第二标准"}],
+            spec_signature=hashlib.sha256(f"second-{suffix}".encode()).digest(),
+            sale_price_amount=4000,
+            market_price_amount=4500,
+            currency="CNY",
+            weight_grams=500,
+            sku_status="active",
+        )
+        session.add(second_sku)
+        await session.flush()
+        session.add_all(
+            [
+                Inventory(sku_id=sku.id, on_hand_quantity=10, inventory_status="active"),
+                Inventory(sku_id=second_sku.id, on_hand_quantity=10, inventory_status="active"),
+            ]
+        )
         await session.commit()
-        user_no, session_no, sku_no, address_no, other_address_no, store_no = (
+        user_no, session_no, sku_no, second_sku_no, address_no, other_address_no, store_no = (
             user.user_no,
             auth_session.session_no,
             sku.sku_no,
+            second_sku.sku_no,
             address.address_no,
             other_address.address_no,
             store.store_no,
@@ -248,7 +335,8 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         headers={**auth, "Idempotency-Key": f"reprice-{suffix}"},
     )
     assert repriced.status_code == 200, repriced.text
-    assert repriced.json()["data"]["pricing_version"] == 3
+    assert repriced.json()["data"]["pricing_version"] == "pricing_v1"
+    assert repriced.json()["data"]["version"] == 2
 
     expiring = await client.post(
         "/api/v1/checkout-sessions",
@@ -266,3 +354,208 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         await session.commit()
     expired = await client.get(f"/api/v1/checkout-sessions/{expiring_id}", headers=auth)
     assert expired.status_code == 410
+    expired_order_payload = {
+        "checkout_id": expiring_id,
+        "checkout_version": expiring.json()["data"]["version"],
+    }
+    for _ in range(2):
+        expired_order = await client.post(
+            "/api/v1/orders",
+            headers={**auth, "Idempotency-Key": f"order-expired-{suffix}"},
+            json=expired_order_payload,
+        )
+        assert expired_order.status_code == 410
+        assert expired_order.json()["code"] == "CHECKOUT_EXPIRED"
+
+    changing = await client.post(
+        "/api/v1/checkout-sessions",
+        headers={**auth, "Idempotency-Key": f"checkout-price-change-{suffix}"},
+        json={"source": {"source_type": "buy_now", "sku_id": sku_no, "quantity": 1}},
+    )
+    assert changing.status_code == 201
+    changing_data = changing.json()["data"]
+    async for session in mysql_session():
+        changed_sku = await session.scalar(select(ProductSku).where(ProductSku.sku_no == sku_no))
+        assert changed_sku is not None
+        changed_sku.sale_price_amount = 2600
+        changed_sku.version += 1
+        await session.commit()
+    price_changed_order = await client.post(
+        "/api/v1/orders",
+        headers={**auth, "Idempotency-Key": f"order-price-change-{suffix}"},
+        json={
+            "checkout_id": changing_data["checkout_id"],
+            "checkout_version": changing_data["version"],
+        },
+    )
+    assert price_changed_order.status_code == 412
+    assert price_changed_order.json()["code"] == "CHECKOUT_VERSION_MISMATCH"
+    async for session in mysql_session():
+        assert (
+            await session.scalar(
+                select(TradeOrder).where(
+                    TradeOrder.checkout_no_snapshot == changing_data["checkout_id"]
+                )
+            )
+            is None
+        )
+        changed_sku = await session.scalar(select(ProductSku).where(ProductSku.sku_no == sku_no))
+        assert changed_sku is not None
+        changed_sku.sale_price_amount = 2500
+        changed_sku.version += 1
+        await session.commit()
+
+    first_cart = await client.post(
+        "/api/v1/users/me/cart/items",
+        headers={**auth, "Idempotency-Key": f"cart-first-{suffix}"},
+        json={"sku_id": sku_no, "quantity": 1},
+    )
+    assert first_cart.status_code == 200, first_cart.text
+    second_cart = await client.post(
+        "/api/v1/users/me/cart/items",
+        headers={**auth, "Idempotency-Key": f"cart-second-{suffix}"},
+        json={"sku_id": second_sku_no, "quantity": 1},
+    )
+    assert second_cart.status_code == 200, second_cart.text
+    cart_item_ids = [
+        item["cart_item_id"]
+        for group in second_cart.json()["data"]["groups"]
+        for item in group["items"]
+    ]
+    cart_checkout = await client.post(
+        "/api/v1/checkout-sessions",
+        headers={**auth, "Idempotency-Key": f"cart-checkout-{suffix}"},
+        json={"source": {"source_type": "cart", "cart_item_ids": cart_item_ids}},
+    )
+    assert cart_checkout.status_code == 201, cart_checkout.text
+    cart_checkout_data = cart_checkout.json()["data"]
+    order_payload = {
+        "checkout_id": cart_checkout_data["checkout_id"],
+        "checkout_version": cart_checkout_data["version"],
+    }
+    attempts = await asyncio.gather(
+        client.post(
+            "/api/v1/orders",
+            headers={**auth, "Idempotency-Key": f"order-winner-a-{suffix}"},
+            json=order_payload,
+        ),
+        client.post(
+            "/api/v1/orders",
+            headers={**auth, "Idempotency-Key": f"order-winner-b-{suffix}"},
+            json=order_payload,
+        ),
+    )
+    assert sorted(response.status_code for response in attempts) == [201, 409]
+    created_order = next(response for response in attempts if response.status_code == 201)
+    losing_order = next(response for response in attempts if response.status_code == 409)
+    assert losing_order.json()["code"] == "CHECKOUT_ALREADY_CONSUMED"
+    order_data = created_order.json()["data"]
+    assert len(order_data["order_ids"]) == 2
+    winner_key = (
+        f"order-winner-a-{suffix}" if attempts[0].status_code == 201 else f"order-winner-b-{suffix}"
+    )
+    replayed_order = await client.post(
+        "/api/v1/orders",
+        headers={**auth, "Idempotency-Key": winner_key},
+        json=order_payload,
+    )
+    assert replayed_order.status_code == 201
+    assert replayed_order.json()["data"] == order_data
+
+    async for session in mysql_session():
+        trade = await session.scalar(
+            select(TradeOrder).where(TradeOrder.trade_no == order_data["trade_order_id"])
+        )
+        assert trade is not None
+        assert trade.order_count == 2
+        assert (trade.goods_amount, trade.freight_amount, trade.payable_amount) == (
+            6500,
+            1300,
+            7800,
+        )
+        orders = list(
+            (await session.scalars(select(Order).where(Order.trade_order_id == trade.id))).all()
+        )
+        assert len(orders) == 2
+        assert (
+            len(
+                list(
+                    (
+                        await session.scalars(
+                            select(OrderItem).where(
+                                OrderItem.order_id.in_([item.id for item in orders])
+                            )
+                        )
+                    ).all()
+                )
+            )
+            == 2
+        )
+        assert (
+            len(
+                list(
+                    (
+                        await session.scalars(
+                            select(OrderAddress).where(
+                                OrderAddress.order_id.in_([item.id for item in orders])
+                            )
+                        )
+                    ).all()
+                )
+            )
+            == 2
+        )
+        reservations = list(
+            (
+                await session.scalars(
+                    select(InventoryReservation).where(
+                        InventoryReservation.order_id.in_([item.id for item in orders])
+                    )
+                )
+            ).all()
+        )
+        assert len(reservations) == 2
+        assert all(item.reservation_status == "active" for item in reservations)
+        inventory_rows = list(
+            (
+                await session.scalars(
+                    select(Inventory).where(
+                        Inventory.sku_id.in_([item.sku_id for item in reservations])
+                    )
+                )
+            ).all()
+        )
+        assert sorted(item.reserved_quantity for item in inventory_rows) == [1, 1]
+        logs = list(
+            (
+                await session.scalars(
+                    select(InventoryLog).where(
+                        InventoryLog.reference_no.in_(order_data["order_ids"])
+                    )
+                )
+            ).all()
+        )
+        assert len(logs) == 2 and all(item.operation_type == "reserve" for item in logs)
+        consumed_checkout = await session.scalar(
+            select(CheckoutSession).where(
+                CheckoutSession.checkout_no == cart_checkout_data["checkout_id"]
+            )
+        )
+        assert consumed_checkout is not None
+        assert consumed_checkout.checkout_status == "submitted"
+        purchased_cart_items = list(
+            (
+                await session.scalars(
+                    select(CartItem).where(CartItem.cart_item_no.in_(cart_item_ids))
+                )
+            ).all()
+        )
+        assert len(purchased_cart_items) == 2
+        assert all(not item.is_selected for item in purchased_cart_items)
+        outbox = await session.scalar(
+            select(OutboxEvent).where(
+                OutboxEvent.aggregate_type == "trade_order",
+                OutboxEvent.aggregate_no == trade.trade_no,
+            )
+        )
+        assert outbox is not None and outbox.event_type == "order.created.v1"

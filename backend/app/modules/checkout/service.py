@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections import OrderedDict
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, cast
 
@@ -30,6 +31,17 @@ from app.modules.inventory.models import Inventory
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule
 
 CHECKOUT_TTL_MINUTES = 30
+PRICING_POLICY_VERSION = "pricing_v1"
+
+
+@dataclass(frozen=True)
+class CheckoutSubmissionContext:
+    session: CheckoutSession
+    snapshot: CheckoutSnapshot
+    address: UserAddress
+    source: dict[str, Any]
+    contexts: list[tuple[ItemContext, int]]
+    view: CheckoutView
 
 
 class CheckoutService:
@@ -56,7 +68,14 @@ class CheckoutService:
         checkout_no = new_prefixed_ulid("chk_")
         expires_at = utc_now() + timedelta(minutes=CHECKOUT_TTL_MINUTES)
         view = await self._price(
-            checkout_no, payload.source.source_type, contexts, address, {}, expires_at, 1, 0
+            checkout_no,
+            payload.source.source_type,
+            contexts,
+            address,
+            {},
+            expires_at,
+            PRICING_POLICY_VERSION,
+            0,
         )
         view_payload = view.model_dump(mode="json")
         snapshot_payload: dict[str, object] = {"view": view_payload, "source": source_spec}
@@ -71,7 +90,7 @@ class CheckoutService:
             freight_amount=int(view.amounts.freight_amount.minor_units),
             payable_amount=int(view.amounts.payable_amount.minor_units),
             currency="CNY",
-            pricing_version=1,
+            pricing_version=PRICING_POLICY_VERSION,
             snapshot_hash=digest,
             expires_at=expires_at,
         )
@@ -82,7 +101,7 @@ class CheckoutService:
                 checkout_session_id=row.id,
                 snapshot_version=1,
                 schema_version=1,
-                payload=snapshot_payload,
+                snapshot_payload=snapshot_payload,
                 snapshot_hash=digest,
             )
         )
@@ -100,7 +119,7 @@ class CheckoutService:
         snapshot = await self.repository.current_snapshot(row.id)
         if snapshot is None:
             raise _conflict("CHECKOUT_SNAPSHOT_MISSING", "结算快照不可用，请重新结算。")
-        return CheckoutView.model_validate(snapshot.payload["view"])
+        return CheckoutView.model_validate(snapshot.snapshot_payload["view"])
 
     async def patch(
         self,
@@ -112,8 +131,8 @@ class CheckoutService:
         row = await self._checkout(user.id, checkout_no, for_update=True)
         self._require_version(row, expected_version)
         snapshot = await self._snapshot(row)
-        source = cast(dict[str, Any], snapshot.payload["source"])
-        current_view = CheckoutView.model_validate(snapshot.payload["view"])
+        source = cast(dict[str, Any], snapshot.snapshot_payload["source"])
+        current_view = CheckoutView.model_validate(snapshot.snapshot_payload["view"])
         address_no = (
             payload.address_id if payload.address_id is not None else current_view.address_id
         )
@@ -136,8 +155,8 @@ class CheckoutService:
             return CheckoutView.model_validate(claim.record.response_body)
         row = await self._checkout(user.id, checkout_no, for_update=True)
         snapshot = await self._snapshot(row)
-        source = cast(dict[str, Any], snapshot.payload["source"])
-        current_view = CheckoutView.model_validate(snapshot.payload["view"])
+        source = cast(dict[str, Any], snapshot.snapshot_payload["source"])
+        current_view = CheckoutView.model_validate(snapshot.snapshot_payload["view"])
         address = await self._address(user.id, current_view.address_id)
         remarks = {group.store_id: group.buyer_remark or "" for group in current_view.store_groups}
         view = await self._replace(
@@ -152,6 +171,53 @@ class CheckoutService:
         await self.session.commit()
         return view
 
+    async def submission_context(
+        self, user: User, checkout_no: str, expected_version: int
+    ) -> CheckoutSubmissionContext:
+        row = await self._checkout(user.id, checkout_no, for_update=True)
+        if row.version != expected_version:
+            raise ApplicationError(
+                status=412,
+                code="CHECKOUT_VERSION_MISMATCH",
+                title="Checkout version mismatch",
+                detail="结算信息已变化，请刷新并重新确认。",
+            )
+        snapshot = await self._snapshot(row)
+        source = cast(dict[str, Any], snapshot.snapshot_payload["source"])
+        previous = CheckoutView.model_validate(snapshot.snapshot_payload["view"])
+        address = await self._address(user.id, previous.address_id)
+        if address is None:
+            raise _conflict("ADDRESS_REQUIRED", "请选择有效的收货地址。")
+        contexts = await self._contexts(user.id, source)
+        remarks = {group.store_id: group.buyer_remark or "" for group in previous.store_groups}
+        current = await self._price(
+            row.checkout_no,
+            row.source_type,
+            contexts,
+            address,
+            remarks,
+            row.expires_at,
+            row.pricing_version,
+            row.version,
+        )
+        if current.blocking_issues or _commercial_fingerprint(current) != _commercial_fingerprint(
+            previous
+        ):
+            raise ApplicationError(
+                status=412,
+                code="CHECKOUT_VERSION_MISMATCH",
+                title="Checkout requires repricing",
+                detail="价格、库存或配送信息已变化，请刷新结算信息后再次确认。",
+                errors=[
+                    {
+                        "pointer": "/checkout_id",
+                        "code": "REPRICE_REQUIRED",
+                        "message": "请重新计价并确认最新结算信息。",
+                    }
+                ],
+            )
+        return CheckoutSubmissionContext(row, snapshot, address, source, contexts, previous)
+
     async def _replace(
         self,
         row: CheckoutSession,
@@ -164,7 +230,7 @@ class CheckoutService:
         commit: bool = True,
     ) -> CheckoutView:
         contexts = await self._contexts(row.user_id, source)
-        next_pricing = row.pricing_version + 1
+        next_snapshot_version = old.snapshot_version + 1
         next_version = row.version + 1
         view = await self._price(
             row.checkout_no,
@@ -173,7 +239,7 @@ class CheckoutService:
             address,
             remarks,
             row.expires_at,
-            next_pricing,
+            row.pricing_version,
             next_version,
         )
         payload: dict[str, object] = {
@@ -182,20 +248,19 @@ class CheckoutService:
         }
         digest = canonical_request_hash(payload)
         old.invalidated_at = utc_now()
-        old.invalidation_reason = reason
+        old.invalid_reason = reason
         row.selected_address_id = address.id if address else None
         row.goods_amount = int(view.amounts.goods_amount.minor_units)
         row.freight_amount = int(view.amounts.freight_amount.minor_units)
         row.payable_amount = int(view.amounts.payable_amount.minor_units)
-        row.pricing_version = next_pricing
         row.snapshot_hash = digest
         row.version = next_version
         self.session.add(
             CheckoutSnapshot(
                 checkout_session_id=row.id,
-                snapshot_version=next_pricing,
+                snapshot_version=next_snapshot_version,
                 schema_version=1,
-                payload=payload,
+                snapshot_payload=payload,
                 snapshot_hash=digest,
             )
         )
@@ -211,11 +276,14 @@ class CheckoutService:
         address: UserAddress | None,
         remarks: dict[str, str],
         expires_at: Any,
-        pricing_version: int,
+        pricing_version: str,
         version: int,
     ) -> CheckoutView:
         template_ids = {item[0][6].id for item in contexts if item[0][6] is not None}
         rules = await self.repository.rules(template_ids)
+        policy_versions = await self.repository.policy_versions(
+            {item[0][3].id for item in contexts}
+        )
         groups: OrderedDict[str, dict[str, Any]] = OrderedDict()
         blocking: list[CheckoutIssue] = []
         goods_total = freight_total = 0
@@ -299,6 +367,7 @@ class CheckoutService:
                     delivery_options=value["options"],
                     selected_delivery_option=option_id,
                     buyer_remark=remarks.get(store_no) or None,
+                    policy_versions=policy_versions.get(store.id, {}),
                     customer_service_context={"store_id": store_no, "entry": "store_support"},
                 )
             )
@@ -365,7 +434,6 @@ class CheckoutService:
         if row.expires_at <= utc_now():
             row.checkout_status = "expired"
             row.version += 1
-            await self.session.commit()
             raise ApplicationError(
                 status=410,
                 code="CHECKOUT_EXPIRED",
@@ -475,6 +543,36 @@ def _region_matches(scope: dict[str, object], address: UserAddress) -> bool:
     includes = {str(item) for item in cast(list[object], scope.get("include", []))}
     excludes = {str(item) for item in cast(list[object], scope.get("exclude", []))}
     return not (codes & excludes) and (not includes or bool(codes & includes))
+
+
+def _commercial_fingerprint(view: CheckoutView) -> tuple[object, ...]:
+    groups = tuple(
+        (
+            group.store_id,
+            group.goods_amount.minor_units,
+            group.freight_amount.minor_units,
+            tuple(sorted(group.policy_versions.items())),
+            tuple(
+                (
+                    item.product_id,
+                    item.sku_id,
+                    item.quantity,
+                    item.unit_price.minor_units,
+                    item.subtotal.minor_units,
+                )
+                for item in group.items
+            ),
+        )
+        for group in view.store_groups
+    )
+    return (
+        view.address_id,
+        view.pricing_version,
+        view.amounts.goods_amount.minor_units,
+        view.amounts.freight_amount.minor_units,
+        view.amounts.payable_amount.minor_units,
+        groups,
+    )
 
 
 def _not_found(code: str, detail: str) -> ApplicationError:

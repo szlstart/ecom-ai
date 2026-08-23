@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { formatMoney } from '@/api/catalog'
-import { getCheckout, listAddresses, patchCheckout, repriceCheckout, type AddressSummary, type CheckoutData } from '@/api/checkout'
-import { errorMessage } from '@/api/http'
+import { createOrder, getCheckout, listAddresses, patchCheckout, repriceCheckout, type AddressSummary, type CheckoutData } from '@/api/checkout'
+import { createIdempotencyKey, errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
-const route = useRoute(), auth = useUserAuthStore()
+const route = useRoute(), router = useRouter(), auth = useUserAuthStore()
 const checkout = ref<CheckoutData | null>(null), addresses = ref<AddressSummary[]>([])
 const loading = ref(true), busy = ref(false), error = ref('')
+const pendingOrderKey = ref('')
 const remaining = computed(() => checkout.value ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(checkout.value.expires_at)) : '')
 function token() { if (!auth.accessToken) throw new Error('missing token'); return auth.accessToken }
 async function load() {
@@ -22,6 +23,17 @@ async function load() {
 async function mutate(operation: () => Promise<{ data: CheckoutData }>) { busy.value = true; error.value = ''; try { checkout.value = (await operation()).data } catch (cause) { error.value = errorMessage(cause); await load() } finally { busy.value = false } }
 function changeAddress(addressId: string) { if (!checkout.value) return; void mutate(() => patchCheckout(checkout.value!.checkout_id, { address_id: addressId }, checkout.value!.version, token())) }
 function saveRemark(storeId: string, content: string) { if (!checkout.value) return; const remarks = checkout.value.store_groups.map((group) => ({ store_id: group.store_id, content: group.store_id === storeId ? content : group.buyer_remark || '' })); void mutate(() => patchCheckout(checkout.value!.checkout_id, { buyer_remarks: remarks }, checkout.value!.version, token())) }
+async function submitOrder() {
+  if (!checkout.value || !checkout.value.available_actions.includes('create_order')) return
+  busy.value = true; error.value = ''
+  if (!pendingOrderKey.value) pendingOrderKey.value = createIdempotencyKey('order-create')
+  try {
+    const response = await createOrder(checkout.value.checkout_id, checkout.value.version, token(), pendingOrderKey.value)
+    pendingOrderKey.value = ''
+    await router.push(`/pay/${response.data.trade_order_id}`)
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { busy.value = false }
+}
 onMounted(load)
 </script>
 
@@ -41,7 +53,7 @@ onMounted(load)
           <label class="remark-field">给商家留言（最多 200 字）<textarea maxlength="200" :value="group.buyer_remark || ''" :disabled="busy" @change="saveRemark(group.store_id, ($event.target as HTMLTextAreaElement).value)" /></label>
         </article>
         <section v-if="checkout.blocking_issues.length" class="notice error"><strong>暂时无法提交订单</strong><ul><li v-for="issue in checkout.blocking_issues" :key="`${issue.code}-${issue.sku_id}`">{{ issue.message }}</li></ul></section>
-        <footer class="checkout-summary-bar"><button type="button" class="secondary" :disabled="busy" @click="mutate(() => repriceCheckout(checkout!.checkout_id, token()))">{{ busy ? '校验中…' : '刷新价格与库存' }}</button><dl><div><dt>商品金额</dt><dd>{{ formatMoney(checkout.amounts.goods_amount) }}</dd></div><div><dt>运费</dt><dd>{{ formatMoney(checkout.amounts.freight_amount) }}</dd></div><div class="total"><dt>应付</dt><dd>{{ formatMoney(checkout.amounts.payable_amount) }}</dd></div></dl><button type="button" disabled title="订单创建切片接入后开放">提交订单</button></footer>
+        <footer class="checkout-summary-bar"><button type="button" class="secondary" :disabled="busy" @click="mutate(() => repriceCheckout(checkout!.checkout_id, token()))">{{ busy ? '校验中…' : '刷新价格与库存' }}</button><dl><div><dt>商品金额</dt><dd>{{ formatMoney(checkout.amounts.goods_amount) }}</dd></div><div><dt>运费</dt><dd>{{ formatMoney(checkout.amounts.freight_amount) }}</dd></div><div class="total"><dt>应付</dt><dd>{{ formatMoney(checkout.amounts.payable_amount) }}</dd></div></dl><button type="button" :disabled="busy || !checkout.available_actions.includes('create_order')" @click="submitOrder">{{ busy ? '提交中…' : '提交订单' }}</button></footer>
       </template>
     </PageState>
   </section>

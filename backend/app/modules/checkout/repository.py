@@ -2,15 +2,21 @@ from __future__ import annotations
 
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import utc_now
 from app.modules.cart.models import Cart, CartItem
 from app.modules.catalog.models import Product, ProductFulfillmentProfile, ProductSku
 from app.modules.checkout.models import CheckoutSession, CheckoutSnapshot
 from app.modules.identity.models import UserAddress
 from app.modules.inventory.models import Inventory
-from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
+from app.modules.stores.models import (
+    ShippingTemplate,
+    ShippingTemplateRule,
+    Store,
+    StoreServicePolicy,
+)
 
 ItemContext = tuple[
     CartItem | None,
@@ -148,4 +154,34 @@ class CheckoutRepository:
         result: dict[int, list[ShippingTemplateRule]] = {}
         for row in rows:
             result.setdefault(row.shipping_template_id, []).append(row)
+        return result
+
+    async def policy_versions(self, store_ids: set[int]) -> dict[int, dict[str, int]]:
+        if not store_ids:
+            return {}
+        now = utc_now()
+        rows = (
+            await self.session.execute(
+                select(
+                    StoreServicePolicy.store_id,
+                    StoreServicePolicy.policy_type,
+                    StoreServicePolicy.policy_version,
+                ).where(
+                    StoreServicePolicy.store_id.in_(store_ids),
+                    StoreServicePolicy.policy_status == "published",
+                    or_(
+                        StoreServicePolicy.effective_at.is_(None),
+                        StoreServicePolicy.effective_at <= now,
+                    ),
+                    or_(
+                        StoreServicePolicy.expires_at.is_(None),
+                        StoreServicePolicy.expires_at > now,
+                    ),
+                )
+            )
+        ).all()
+        result: dict[int, dict[str, int]] = {}
+        for store_id, policy_type, version in rows:
+            current = result.setdefault(store_id, {})
+            current[policy_type] = max(current.get(policy_type, 0), version)
         return result

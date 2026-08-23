@@ -3,6 +3,7 @@ from sqlalchemy import CheckConstraint, UniqueConstraint
 from app.database.base import MySQLBase
 from app.modules.cart import models as cart_models  # noqa: F401
 from app.modules.checkout import models as checkout_models  # noqa: F401
+from app.modules.orders import models as order_models  # noqa: F401
 
 
 def test_permanent_cart_schema_has_public_ids_and_database_guards() -> None:
@@ -51,3 +52,36 @@ def test_checkout_schema_has_snapshot_and_lifecycle_guards() -> None:
         "ck_checkout_sessions_checkout_source_type",
         "ck_checkout_sessions_checkout_status",
     } <= checks
+
+
+def test_order_schema_has_trade_split_snapshot_and_amount_guards() -> None:
+    expected = {
+        "trade_orders",
+        "orders",
+        "order_items",
+        "order_addresses",
+        "order_status_logs",
+        "order_operation_logs",
+    }
+    assert expected <= set(MySQLBase.metadata.tables)
+    trades = MySQLBase.metadata.tables["trade_orders"]
+    orders = MySQLBase.metadata.tables["orders"]
+    items = MySQLBase.metadata.tables["order_items"]
+    trade_uniques = {item.name for item in trades.constraints if isinstance(item, UniqueConstraint)}
+    order_checks = {item.name for item in orders.constraints if isinstance(item, CheckConstraint)}
+    item_checks = {item.name for item in items.constraints if isinstance(item, CheckConstraint)}
+    assert {
+        "uk_trade_orders_no",
+        "uk_trade_orders_checkout",
+        "uk_trade_orders_checkout_snapshot",
+    } <= trade_uniques
+    assert {
+        "ck_orders_order_status",
+        "ck_orders_order_amounts",
+        "ck_orders_order_paid_refunded",
+    } <= order_checks
+    assert {
+        "ck_order_items_order_item_gross",
+        "ck_order_items_order_item_payable",
+        "ck_order_items_order_item_refunded",
+    } <= item_checks

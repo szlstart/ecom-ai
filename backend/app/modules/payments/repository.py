@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import cast
 
 from sqlalchemy import select
@@ -56,6 +57,21 @@ class PaymentRepository:
             await self.session.scalar(
                 select(Payment).where(Payment.id == payment_id).with_for_update()
             ),
+        )
+
+    async def expired_active(self, now: datetime, limit: int) -> list[Payment]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(Payment)
+                    .where(
+                        Payment.payment_status.in_(("created", "pending")),
+                        Payment.expires_at <= now,
+                    )
+                    .order_by(Payment.expires_at, Payment.id)
+                    .limit(limit)
+                )
+            ).all()
         )
 
     async def trade_for_update(self, trade_order_id: int) -> TradeOrder | None:

@@ -21,7 +21,8 @@ from app.modules.identity.models import AuthSession, User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
 from app.modules.orders.models import Order, OrderAddress, OrderItem, TradeOrder
 from app.modules.orders.service import OrderService
-from app.modules.payments.models import PaymentCallback
+from app.modules.payments.models import Payment, PaymentCallback
+from app.modules.payments.service import PaymentService
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
 from app.modules.system.models import OutboxEvent
 
@@ -936,13 +937,8 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     )
     assert timeout_payment.status_code == 201
     timeout_payment_data = timeout_payment.json()["data"]
-    processing_order = await client.get(
-        f"/api/v1/orders/{timeout_order_id}", headers=auth
-    )
-    assert [
-        action["code"]
-        for action in processing_order.json()["data"]["available_actions"]
-    ] == []
+    processing_order = await client.get(f"/api/v1/orders/{timeout_order_id}", headers=auth)
+    assert [action["code"] for action in processing_order.json()["data"]["available_actions"]] == []
     stale_close = await client.post(
         f"/api/v1/payments/{timeout_payment_data['payment_id']}/closures",
         headers={
@@ -963,9 +959,10 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert closed_payment.status_code == 200, closed_payment.text
     assert closed_payment.json()["data"]["payment_status"] == "closed"
     payable_again = await client.get(f"/api/v1/orders/{timeout_order_id}", headers=auth)
-    assert [
-        action["code"] for action in payable_again.json()["data"]["available_actions"]
-    ] == ["pay", "cancel_order"]
+    assert [action["code"] for action in payable_again.json()["data"]["available_actions"]] == [
+        "pay",
+        "cancel_order",
+    ]
     close_replay = await client.post(
         f"/api/v1/payments/{timeout_payment_data['payment_id']}/closures",
         headers={
@@ -998,6 +995,13 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         f"/api/v1/payments/{retry_payment_data['payment_id']}", headers=auth
     )
     assert failed_payment.json()["data"]["payment_status"] == "failed"
+    reconcile_payment = await client.post(
+        "/api/v1/payments",
+        headers={**auth, "Idempotency-Key": f"timeout-payment-reconcile-{suffix}"},
+        json=timeout_payment_payload,
+    )
+    assert reconcile_payment.status_code == 201
+    reconcile_payment_id = reconcile_payment.json()["data"]["payment_id"]
     async for session in mysql_session():
         timeout_trade = await session.scalar(
             select(TradeOrder).where(TradeOrder.trade_no == timeout_trade_id)
@@ -1011,7 +1015,17 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         )
         for timeout_order in timeout_orders:
             timeout_order.expires_at = timeout_trade.expires_at
+        expiring_payment = await session.scalar(
+            select(Payment).where(Payment.payment_no == reconcile_payment_id)
+        )
+        assert expiring_payment is not None
+        expiring_payment.expires_at = timeout_trade.expires_at
         await session.commit()
+    async for session in mysql_session():
+        reconciled = await PaymentService(session, security).reconcile_expired(limit=1000)
+        assert reconciled >= 1
+    reconciled_payment = await client.get(f"/api/v1/payments/{reconcile_payment_id}", headers=auth)
+    assert reconciled_payment.json()["data"]["payment_status"] == "closed"
     async for session in mysql_session():
         processed = await OrderService(session, get_settings(), security).expire_due(limit=1000)
         assert processed >= 1

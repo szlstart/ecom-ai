@@ -23,12 +23,28 @@ class PaymentProviderAcceptance:
     action_url: str
 
 
+@dataclass(frozen=True)
+class PaymentProviderSnapshot:
+    status: Literal["pending", "succeeded", "failed", "closed"]
+    provider_trade_no: str
+    amount: int
+    currency: str
+
+
 class PaymentProvider(Protocol):
     async def create_payment(
         self, request: PaymentProviderRequest
     ) -> PaymentProviderAcceptance: ...
 
     async def close_payment(self, provider_trade_no: str) -> Literal["closed"]: ...
+
+    async def query_payment(
+        self,
+        provider_trade_no: str,
+        *,
+        amount: int,
+        currency: str,
+    ) -> PaymentProviderSnapshot: ...
 
 
 class FakePaymentProvider:
@@ -47,6 +63,22 @@ class FakePaymentProvider:
         if not provider_trade_no.startswith("fake_pay_"):
             raise ValueError("unknown fake provider trade")
         return "closed"
+
+    async def query_payment(
+        self,
+        provider_trade_no: str,
+        *,
+        amount: int,
+        currency: str,
+    ) -> PaymentProviderSnapshot:
+        if not provider_trade_no.startswith("fake_pay_"):
+            raise ValueError("unknown fake provider trade")
+        return PaymentProviderSnapshot(
+            status="pending",
+            provider_trade_no=provider_trade_no,
+            amount=amount,
+            currency=currency,
+        )
 
 
 def payment_provider(provider: str) -> PaymentProvider:

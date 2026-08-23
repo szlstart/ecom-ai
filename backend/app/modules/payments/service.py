@@ -215,17 +215,98 @@ class PaymentService:
                 title="Version conflict",
                 detail="支付单已经变化，请刷新后重试。",
             )
-        previous = payment.payment_status
-        target = require_payment_transition(previous, "ClosePaymentAttempt")
         if payment.provider_trade_no is None:
             raise _error(409, "PAYMENT_PROVIDER_REFERENCE_MISSING", "支付渠道引用不可用。")
         await payment_provider(payment.provider).close_payment(payment.provider_trade_no)
         now = utc_now()
         request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        await self._close_locked(payment, trade, request_id, now, source_type="api")
+        await self.session.flush()
+        result = await self._view(payment, trade)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=payment.payment_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
+
+    async def list_for_trade(self, user: User, trade_no: str) -> PaymentList:
+        trade = await self.repository.user_trade(user.id, trade_no)
+        if trade is None:
+            raise _not_found()
+        payments = await self.repository.for_trade(user.id, trade_no)
+        return PaymentList(items=[await self._view(item, trade) for item in payments])
+
+    async def reconcile_expired(self, *, limit: int = 100) -> int:
+        now = utc_now()
+        candidates = await self.repository.expired_active(now, limit)
+        processed = 0
+        for candidate in candidates:
+            if candidate.provider_trade_no is None:
+                continue
+            provider = payment_provider(candidate.provider)
+            snapshot = await provider.query_payment(
+                candidate.provider_trade_no,
+                amount=candidate.requested_amount,
+                currency=candidate.currency,
+            )
+            if (
+                snapshot.provider_trade_no != candidate.provider_trade_no
+                or snapshot.amount != candidate.requested_amount
+                or snapshot.currency != candidate.currency
+            ):
+                continue
+            if snapshot.status != "pending":
+                continue
+            await provider.close_payment(candidate.provider_trade_no)
+            trade = await self.repository.trade_for_update(candidate.trade_order_id)
+            payment = await self.repository.payment_for_update(candidate.id)
+            if (
+                trade is None
+                or payment is None
+                or payment.payment_status not in {"created", "pending"}
+                or payment.expires_at > now
+            ):
+                continue
+            request_id = new_prefixed_ulid("req_")
+            self.session.add(
+                _event(
+                    payment,
+                    "provider_queried",
+                    payment.payment_status,
+                    payment.payment_status,
+                    "reconciliation",
+                    request_id,
+                )
+            )
+            await self._close_locked(
+                payment,
+                trade,
+                request_id,
+                now,
+                source_type="reconciliation",
+            )
+            processed += 1
+        await self.session.commit()
+        return processed
+
+    async def _close_locked(
+        self,
+        payment: Payment,
+        trade: TradeOrder,
+        request_id: str,
+        now: datetime,
+        *,
+        source_type: str,
+    ) -> None:
+        previous = payment.payment_status
+        target = require_payment_transition(previous, "ClosePaymentAttempt")
         payment.payment_status = target
         payment.closed_at = now
         payment.version += 1
-        self.session.add(_event(payment, "closed", previous, target, "api", request_id))
+        self.session.add(_event(payment, "closed", previous, target, source_type, request_id))
         orders = await self.repository.trade_orders_for_update(trade.id)
         for order in orders:
             if order.payment_status == "processing":
@@ -252,6 +333,7 @@ class PaymentService:
                 payload={
                     "payment_id": payment.payment_no,
                     "trade_order_id": trade.trade_no,
+                    "source_type": source_type,
                 },
                 event_status="pending",
                 available_at=now,
@@ -259,23 +341,6 @@ class PaymentService:
                 trace_id=request_id,
             )
         )
-        await self.session.flush()
-        result = await self._view(payment, trade)
-        self.idempotency.complete(
-            claim,
-            response_status=200,
-            resource_no=payment.payment_no,
-            response_body=cast(dict[str, object], result.model_dump(mode="json")),
-        )
-        await self.session.commit()
-        return result
-
-    async def list_for_trade(self, user: User, trade_no: str) -> PaymentList:
-        trade = await self.repository.user_trade(user.id, trade_no)
-        if trade is None:
-            raise _not_found()
-        payments = await self.repository.for_trade(user.id, trade_no)
-        return PaymentList(items=[await self._view(item, trade) for item in payments])
 
     async def process_webhook(
         self,

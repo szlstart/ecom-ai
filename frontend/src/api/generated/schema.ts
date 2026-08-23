@@ -673,6 +673,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/review-eligibilities/{order_item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Review Eligibility */
+        get: operations["ReviewEligibility_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Review */
+        post: operations["Review_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/cart": {
         parameters: {
             query?: never;
@@ -4935,6 +4969,11 @@ export interface components {
             data: components["schemas"]["MessageResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[MyReviewView] */
+        Envelope_MyReviewView_: {
+            data: components["schemas"]["MyReviewView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[OrderCommandResult] */
         Envelope_OrderCommandResult_: {
             data: components["schemas"]["OrderCommandResult"];
@@ -5028,6 +5067,11 @@ export interface components {
         /** Envelope[ReauthenticationResult] */
         Envelope_ReauthenticationResult_: {
             data: components["schemas"]["ReauthenticationResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ReviewEligibility] */
+        Envelope_ReviewEligibility_: {
+            data: components["schemas"]["ReviewEligibility"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[RoleGrantView] */
@@ -5497,6 +5541,71 @@ export interface components {
             minor_units: string;
             /** Currency */
             currency: string;
+        };
+        /** MyReviewImageView */
+        MyReviewImageView: {
+            /** File Id */
+            file_id: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        };
+        /** MyReviewView */
+        MyReviewView: {
+            /** Review Id */
+            review_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Order Item Id */
+            order_item_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Rating */
+            rating: number;
+            /** Content */
+            content: string | null;
+            /** Is Anonymous */
+            is_anonymous: boolean;
+            /**
+             * Review Status
+             * @enum {string}
+             */
+            review_status: "pending" | "published" | "hidden" | "rejected";
+            /**
+             * Moderation Status
+             * @enum {string}
+             */
+            moderation_status: "pending" | "passed" | "blocked" | "manual";
+            /** Images */
+            images: components["schemas"]["MyReviewImageView"][];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Published At */
+            published_at: string | null;
+            /**
+             * Edit Deadline At
+             * Format: date-time
+             */
+            edit_deadline_at: string;
+            /**
+             * Append Deadline At
+             * Format: date-time
+             */
+            append_deadline_at: string;
+            /** Available Actions */
+            available_actions: ("create" | "view" | "edit" | "append")[];
+            /** Version */
+            version: number;
         };
         /** NavigationItem */
         NavigationItem: {
@@ -6315,6 +6424,51 @@ export interface components {
              * Format: date-time
              */
             published_at: string;
+        };
+        /** ReviewCreateRequest */
+        ReviewCreateRequest: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Rating */
+            rating: number;
+            /** Content */
+            content?: string | null;
+            /**
+             * Is Anonymous
+             * @default false
+             */
+            is_anonymous: boolean;
+            /** Image File Ids */
+            image_file_ids?: string[];
+        };
+        /** ReviewEligibility */
+        ReviewEligibility: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Order Completed At */
+            order_completed_at: string | null;
+            /** Review Deadline At */
+            review_deadline_at: string | null;
+            /** Eligible */
+            eligible: boolean;
+            /** Reason Code */
+            reason_code?: string | null;
+            /** Reason Message */
+            reason_message?: string | null;
+            /** Existing Review Id */
+            existing_review_id?: string | null;
+            /** Available Actions */
+            available_actions: ("create" | "view" | "edit" | "append")[];
         };
         /** ReviewImageView */
         ReviewImageView: {
@@ -8373,6 +8527,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ProductReviewList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ReviewEligibility_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReviewEligibility_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Review_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MyReviewView_"];
                 };
             };
             /** @description Validation Error */

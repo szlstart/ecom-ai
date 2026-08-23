@@ -28,10 +28,12 @@ class Review(MutableMySQLModel, MySQLBase):
     )
 
     review_no: Mapped[str] = mapped_column(String(40), nullable=False)
-    # The order tables are introduced in phase four. These stable internal
-    # references are intentionally created first and receive FKs in that migration.
-    order_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
-    order_item_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
+    order_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("orders.id"), nullable=False
+    )
+    order_item_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("order_items.id"), nullable=False
+    )
     user_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
     )

@@ -165,7 +165,9 @@ class FileProcessor:
                         provider_checksum=metadata.etag,
                         width=variant.width,
                         height=variant.height,
-                        visibility="public_derivative",
+                        visibility=(
+                            "private" if locked.purpose == "review_image" else "public_derivative"
+                        ),
                         sensitivity_level="L0",
                         scan_status="safe",
                         file_status="active",

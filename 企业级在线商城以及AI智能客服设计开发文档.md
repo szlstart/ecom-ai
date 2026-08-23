@@ -8789,6 +8789,8 @@ DTO 必须使用不同 Pydantic Response Model/OpenAPI Schema 和 `operationId`�
 
 评价创建以 `order_item_id` 为资格依据，服务端校验归属、确认收货/完成状态、评价窗口和唯一约束；商品/SKU/店铺信息从订单快照读取。首版主评价和追评正文均最多 500 个 Unicode 字符，每条评价最多绑定 6 张 Active 图片，单文件规则读取 3.11.16 的 `review_image` 上传策略。匿名评价只隐藏前台昵称，不对后台审计匿名。图片绑定前校验 Purpose、Owner、扫描状态和数量。商家回复只走 3.12.22.7 的 Admin Audience 命令；屏蔽/恢复等治理操作保留规则与原因，不物理抹去交易事实。
 
+首版默认配置为：订单完成后 30 天内可提交首次评价，提交后 24 小时内可修改仍处于 `pending/rejected` 的评价，提交后 180 天内可对已发布评价追评一次；分别由 `ECOM_REVIEW_SUBMISSION_WINDOW_DAYS`、`ECOM_REVIEW_EDIT_WINDOW_HOURS`、`ECOM_REVIEW_APPEND_WINDOW_DAYS` 控制。后续如改为版本化平台政策，订单应保存命中的政策版本，不能让新政策追溯改变既有订单资格。评价图片完成上传与安全处理后，在审核通过前仍保持 Private，仅评价本人和治理端按权限读取；主评价或追评通过审核并发布时才将对应衍生图切换为 `public_derivative`，拒绝、隐藏和合规删除时同步执行引用与可见性生命周期规则。
+
 #### 3.12.14 退款资格检查接口
 
 | 方法 | 路径 | 访问者 | 用途与关键规则 |

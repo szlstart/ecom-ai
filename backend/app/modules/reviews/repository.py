@@ -11,6 +11,7 @@ from app.core.pagination import CursorPosition
 from app.modules.catalog.models import Product, ProductSku
 from app.modules.files.models import FileObject
 from app.modules.identity.models import User
+from app.modules.orders.models import Order, OrderItem
 from app.modules.reviews.models import Review, ReviewAppendRecord, ReviewImage, ReviewReply
 from app.modules.stores.models import Store
 
@@ -32,6 +33,47 @@ class ReviewRepository:
                 )
             ),
         )
+
+    async def user_order_item(
+        self,
+        user_id: int,
+        order_item_no: str,
+        *,
+        for_update: bool = False,
+    ) -> tuple[OrderItem, Order] | None:
+        statement = (
+            select(OrderItem, Order)
+            .join(Order, Order.id == OrderItem.order_id)
+            .where(
+                OrderItem.order_item_no == order_item_no,
+                Order.user_id == user_id,
+            )
+        )
+        if for_update:
+            statement = statement.with_for_update(of=OrderItem)
+        row = (await self.session.execute(statement)).one_or_none()
+        return (row[0], row[1]) if row else None
+
+    async def review_for_order_item(self, order_item_id: int) -> Review | None:
+        return cast(
+            Review | None,
+            await self.session.scalar(select(Review).where(Review.order_item_id == order_item_id)),
+        )
+
+    async def review_files(
+        self,
+        file_nos: list[str],
+        *,
+        for_update: bool = False,
+    ) -> list[FileObject]:
+        if not file_nos:
+            return []
+        statement = (
+            select(FileObject).where(FileObject.file_no.in_(file_nos)).order_by(FileObject.id)
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        return list((await self.session.scalars(statement)).all())
 
     async def rating_distribution(self, product_id: int) -> tuple[dict[int, int], int]:
         rows = (

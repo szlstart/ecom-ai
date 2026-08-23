@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+
+from app.api.schemas import StrictRequest
+
+ReviewAction = Literal["create", "view", "edit", "append"]
 
 
 class ReviewImageView(BaseModel):
@@ -47,3 +52,64 @@ class ProductReviewSummary(BaseModel):
 class ProductReviewList(BaseModel):
     summary: ProductReviewSummary
     items: list[ProductReviewView]
+
+
+class ReviewEligibility(StrictRequest):
+    order_item_id: str
+    order_id: str
+    product_id: str
+    sku_id: str
+    product_name: str
+    sku_name: str
+    order_completed_at: datetime | None
+    review_deadline_at: datetime | None
+    eligible: bool
+    reason_code: str | None = None
+    reason_message: str | None = None
+    existing_review_id: str | None = None
+    available_actions: list[ReviewAction]
+
+
+class ReviewCreateRequest(StrictRequest):
+    order_item_id: str = Field(pattern=r"^oit_[0-9A-Z]+$", max_length=40)
+    rating: int = Field(ge=1, le=5)
+    content: str | None = Field(default=None, max_length=500)
+    is_anonymous: bool = False
+    image_file_ids: list[str] = Field(default_factory=list, max_length=6)
+
+    @field_validator("image_file_ids")
+    @classmethod
+    def reject_duplicate_images(cls, value: list[str]) -> list[str]:
+        if len(value) != len(set(value)):
+            raise ValueError("review image file ids must be unique")
+        if any(not item.startswith("file_") or len(item) > 40 for item in value):
+            raise ValueError("review image file id is invalid")
+        return value
+
+
+class MyReviewImageView(StrictRequest):
+    file_id: str
+    width: int
+    height: int
+
+
+class MyReviewView(StrictRequest):
+    review_id: str
+    order_id: str
+    order_item_id: str
+    product_id: str
+    sku_id: str
+    product_name: str
+    sku_name: str
+    rating: int
+    content: str | None
+    is_anonymous: bool
+    review_status: Literal["pending", "published", "hidden", "rejected"]
+    moderation_status: Literal["pending", "passed", "blocked", "manual"]
+    images: list[MyReviewImageView]
+    submitted_at: datetime
+    published_at: datetime | None
+    edit_deadline_at: datetime
+    append_deadline_at: datetime
+    available_actions: list[ReviewAction]
+    version: int

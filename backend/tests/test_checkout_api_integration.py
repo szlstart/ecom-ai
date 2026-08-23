@@ -19,6 +19,7 @@ from app.database.mysql import mysql_session
 from app.modules.cart.models import CartItem
 from app.modules.catalog.models import Category, Product, ProductFulfillmentProfile, ProductSku
 from app.modules.checkout.models import CheckoutSession
+from app.modules.files.models import FileObject
 from app.modules.identity.models import AuthSession, User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
 from app.modules.logistics.models import LogisticsSyncLog, Shipment
@@ -35,6 +36,7 @@ from app.modules.payments.models import Payment, PaymentCallback
 from app.modules.payments.service import PaymentService
 from app.modules.rbac.dependencies import AdminAccess
 from app.modules.rbac.models import Permission
+from app.modules.reviews.models import Review, ReviewImage
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
 from app.modules.system.models import OutboxEvent
 
@@ -914,6 +916,55 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         receipt_item_no = receipt_item.order_item_no
         receipt_item_quantity = receipt_item.quantity
         receipt_store_id = receipt_order.store_id
+        review_source = FileObject(
+            file_no=new_prefixed_ulid("file_"),
+            bucket="review-assets-private",
+            object_key=f"tests/reviews/{suffix}/source.webp",
+            purpose="review_image",
+            owner_type="user",
+            owner_no=user_no,
+            variant="original",
+            declared_mime_type="image/webp",
+            detected_mime_type="image/webp",
+            size_bytes=1024,
+            sha256=hashlib.sha256(f"review-source-{suffix}".encode()).digest(),
+            width=960,
+            height=960,
+            visibility="private",
+            sensitivity_level="L1",
+            scan_status="safe",
+            file_status="active",
+            reference_count=0,
+            activated_at=utc_now(),
+        )
+        session.add(review_source)
+        await session.flush()
+        review_file = FileObject(
+            file_no=new_prefixed_ulid("file_"),
+            bucket="public-assets",
+            object_key=f"tests/reviews/{suffix}/w960.webp",
+            purpose="review_image",
+            owner_type="user",
+            owner_no=user_no,
+            parent_file_id=review_source.id,
+            variant="w960",
+            processor_version="image-v1",
+            declared_mime_type="image/webp",
+            detected_mime_type="image/webp",
+            size_bytes=768,
+            sha256=hashlib.sha256(f"review-w960-{suffix}".encode()).digest(),
+            width=960,
+            height=960,
+            visibility="private",
+            sensitivity_level="L1",
+            scan_status="safe",
+            file_status="active",
+            reference_count=0,
+            activated_at=utc_now(),
+        )
+        session.add(review_file)
+        await session.commit()
+        review_file_no = review_file.file_no
     first_tracking_no = f"SF{suffix.upper()}1111"
     tracking_no = f"SF{suffix.upper()}1234"
     async for session in mysql_session():
@@ -1296,6 +1347,72 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     dashboard = await client.get("/api/v1/users/me/dashboard", headers=auth)
     assert dashboard.status_code == 200, dashboard.text
     assert dashboard.json()["data"]["order_counts"]["pending_review"] >= 1
+    review_eligibility = await client.get(
+        f"/api/v1/review-eligibilities/{receipt_item_no}", headers=auth
+    )
+    assert review_eligibility.status_code == 200, review_eligibility.text
+    assert review_eligibility.json()["data"]["eligible"] is True
+    assert review_eligibility.json()["data"]["available_actions"] == ["create"]
+    review_payload = {
+        "order_item_id": receipt_item_no,
+        "rating": 5,
+        "content": "  包装很好\r\n商品符合预期  ",
+        "is_anonymous": False,
+        "image_file_ids": [review_file_no],
+    }
+    review_headers = {**auth, "Idempotency-Key": f"review-create-{suffix}"}
+    created_review = await client.post(
+        "/api/v1/reviews",
+        headers=review_headers,
+        json=review_payload,
+    )
+    assert created_review.status_code == 201, created_review.text
+    assert created_review.json()["data"]["content"] == "包装很好\n商品符合预期"
+    assert created_review.json()["data"]["review_status"] == "pending"
+    assert created_review.json()["data"]["moderation_status"] == "pending"
+    assert created_review.json()["data"]["images"][0]["file_id"] == review_file_no
+    assert created_review.headers["etag"] == '"v0"'
+    replayed_review = await client.post(
+        "/api/v1/reviews",
+        headers=review_headers,
+        json=review_payload,
+    )
+    assert replayed_review.status_code == 201
+    assert replayed_review.json()["data"] == created_review.json()["data"]
+    duplicate_review = await client.post(
+        "/api/v1/reviews",
+        headers={**auth, "Idempotency-Key": f"review-create-duplicate-{suffix}"},
+        json=review_payload,
+    )
+    assert duplicate_review.status_code == 409
+    assert duplicate_review.json()["code"] == "REVIEW_ALREADY_EXISTS"
+    existing_eligibility = await client.get(
+        f"/api/v1/review-eligibilities/{receipt_item_no}", headers=auth
+    )
+    assert existing_eligibility.status_code == 200
+    assert existing_eligibility.json()["data"]["eligible"] is False
+    assert (
+        existing_eligibility.json()["data"]["existing_review_id"]
+        == created_review.json()["data"]["review_id"]
+    )
+    assert existing_eligibility.json()["data"]["available_actions"] == ["view", "edit"]
+    async for session in mysql_session():
+        reviewed_item = await session.scalar(
+            select(OrderItem).where(OrderItem.order_item_no == receipt_item_no)
+        )
+        review = await session.scalar(
+            select(Review).where(Review.review_no == created_review.json()["data"]["review_id"])
+        )
+        assert reviewed_item is not None and reviewed_item.review_status == "reviewed"
+        assert review is not None and review.order_item_id == reviewed_item.id
+        bound_image = await session.scalar(
+            select(ReviewImage).where(ReviewImage.review_id == review.id)
+        )
+        bound_file = await session.scalar(
+            select(FileObject).where(FileObject.file_no == review_file_no)
+        )
+        assert bound_file is not None and bound_file.reference_count == 1
+        assert bound_image is not None and bound_image.object_key == bound_file.object_key
 
     timeout_checkout = await client.post(
         "/api/v1/checkout-sessions",

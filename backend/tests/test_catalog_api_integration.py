@@ -18,6 +18,7 @@ from app.modules.catalog.models import Brand, Category, Product, ProductSku
 from app.modules.files.models import FileObject
 from app.modules.identity.models import AuthSession, User
 from app.modules.inventory.models import Inventory, InventoryLog
+from app.modules.orders.models import Order, OrderItem, TradeOrder
 from app.modules.rbac.models import AdminOperationLog
 from app.modules.reviews.models import Review, ReviewAppendRecord, ReviewReply
 from app.modules.stores.models import (
@@ -148,11 +149,82 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
         )
         session.add(sku)
         await session.flush()
-        review_seed = int(suffix, 16)
+        review_trade = TradeOrder(
+            trade_no=new_prefixed_ulid("trd_"),
+            checkout_session_id=None,
+            checkout_no_snapshot=new_prefixed_ulid("chk_"),
+            checkout_snapshot_hash=hashlib.sha256(f"review-checkout-{suffix}".encode()).digest(),
+            user_id=user.id,
+            order_source="buy_now",
+            trade_status="paid",
+            goods_amount=3000,
+            freight_amount=0,
+            payable_amount=3000,
+            adjustment_amount=0,
+            paid_amount=3000,
+            refunded_amount=0,
+            currency="CNY",
+            order_count=1,
+            expires_at=now + timedelta(days=1),
+            paid_at=now - timedelta(days=2),
+        )
+        session.add(review_trade)
+        await session.flush()
+        review_order = Order(
+            order_no=new_prefixed_ulid("ord_"),
+            trade_order_id=review_trade.id,
+            user_id=user.id,
+            store_id=store.id,
+            order_status="completed",
+            payment_status="paid",
+            fulfillment_status="received",
+            after_sale_status="none",
+            goods_amount=3000,
+            freight_amount=0,
+            payable_amount=3000,
+            adjustment_amount=0,
+            paid_amount=3000,
+            refunded_amount=0,
+            currency="CNY",
+            policy_snapshot={},
+            expires_at=now + timedelta(days=1),
+            paid_at=now - timedelta(days=2),
+            shipped_at=now - timedelta(days=1),
+            completed_at=now - timedelta(hours=1),
+        )
+        session.add(review_order)
+        await session.flush()
+        review_items = [
+            OrderItem(
+                order_item_no=new_prefixed_ulid("oit_"),
+                order_id=review_order.id,
+                product_id=products[0].id,
+                sku_id=sku.id,
+                product_no=products[0].product_no,
+                sku_no=sku.sku_no,
+                product_name=products[0].product_name,
+                sku_name=sku.sku_name,
+                spec_snapshot=sku.spec_values,
+                quantity=1,
+                unit_price_amount=1000,
+                market_price_amount=1200,
+                gross_amount=1000,
+                payable_amount=1000,
+                adjustment_amount=0,
+                refunded_quantity=0,
+                refunded_amount=0,
+                currency="CNY",
+                review_status="reviewed",
+                after_sale_status="none",
+            )
+            for _ in range(3)
+        ]
+        session.add_all(review_items)
+        await session.flush()
         newest_review = Review(
             review_no=new_prefixed_ulid("rev_"),
-            order_id=review_seed,
-            order_item_id=review_seed * 10 + 1,
+            order_id=review_order.id,
+            order_item_id=review_items[0].id,
             user_id=user.id,
             store_id=store.id,
             product_id=products[0].id,
@@ -167,8 +239,8 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
         )
         older_review = Review(
             review_no=new_prefixed_ulid("rev_"),
-            order_id=review_seed + 1,
-            order_item_id=review_seed * 10 + 2,
+            order_id=review_order.id,
+            order_item_id=review_items[1].id,
             user_id=user.id,
             store_id=store.id,
             product_id=products[0].id,
@@ -183,8 +255,8 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
         )
         hidden_review = Review(
             review_no=new_prefixed_ulid("rev_"),
-            order_id=review_seed + 2,
-            order_item_id=review_seed * 10 + 3,
+            order_id=review_order.id,
+            order_item_id=review_items[2].id,
             user_id=user.id,
             store_id=store.id,
             product_id=products[0].id,

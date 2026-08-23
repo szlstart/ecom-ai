@@ -68,6 +68,14 @@ aggregates:
       - {command: ConfirmInventoryReservation, from: [active], to: confirmed, event: inventory.reservation_confirmed}
       - {command: ReleaseInventoryReservation, from: [active], to: released, event: inventory.reservation_released}
       - {command: ExpireInventoryReservation, from: [active], to: expired, event: inventory.reservation_expired}
+  checkout:
+    field: checkout_status
+    states: [active, submitted, expired, cancelled]
+    terminal_states: [submitted, expired, cancelled]
+    transitions:
+      - {command: SubmitCheckout, from: [active], to: submitted, event: checkout.submitted}
+      - {command: ExpireCheckout, from: [active], to: expired, event: checkout.expired}
+      - {command: CancelCheckout, from: [active], to: cancelled, event: checkout.cancelled}
   file_upload:
     field: upload_status
     states: [created, uploading, uploaded, completed, expired, aborted, rejected]

@@ -261,6 +261,20 @@ tr.selected td { background: #f0f4ff; }
 .cart-item-row input[type="number"] { width: 5rem; }
 .cart-summary-bar { position: sticky; bottom: 16px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px; border: 1px solid #dfe4ed; border-radius: 16px; background: rgb(255 255 255 / 96%); box-shadow: 0 14px 36px rgb(27 49 101 / 14%); backdrop-filter: blur(10px); }
 .cart-summary-bar > div { display: flex; align-items: center; gap: 12px; }
+.checkout-page { display: grid; gap: 20px; }
+.checkout-card { padding: 22px; border: 1px solid #dfe4ed; border-radius: 16px; background: #fff; display: grid; gap: 16px; }
+.checkout-card > header, .delivery-summary, .checkout-item-row { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
+.checkout-item-row { padding: 14px 0; border-top: 1px solid #eef1f6; }
+.checkout-item-row > div { display: grid; gap: 5px; }
+.address-choice-list { display: grid; gap: 10px; }
+.address-choice-list label { display: flex; gap: 12px; padding: 14px; border: 1px solid #dfe4ed; border-radius: 12px; cursor: pointer; }
+.address-choice-list label.selected { border-color: #3156d3; background: #f5f7ff; }
+.address-choice-list span, .remark-field { display: grid; gap: 6px; }
+.remark-field textarea { min-height: 72px; resize: vertical; }
+.checkout-summary-bar { position: sticky; bottom: 16px; display: grid; grid-template-columns: auto minmax(240px, 1fr) auto; align-items: end; gap: 24px; padding: 18px 22px; border: 1px solid #dfe4ed; border-radius: 16px; background: rgb(255 255 255 / 96%); box-shadow: 0 14px 36px rgb(27 49 101 / 14%); }
+.checkout-summary-bar dl { margin: 0; display: grid; gap: 6px; }
+.checkout-summary-bar dl div { display: flex; justify-content: space-between; gap: 30px; }
+.checkout-summary-bar .total { font-size: 1.15rem; }
 
 @media (max-width: 720px) {
   .nav-links span { display: none; }

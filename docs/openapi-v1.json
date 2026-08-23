@@ -2666,6 +2666,257 @@
         }
       }
     },
+    "/api/v1/checkout-sessions": {
+      "post": {
+        "tags": [
+          "checkout"
+        ],
+        "summary": "Create Checkout",
+        "operationId": "CheckoutSession_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CheckoutView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/checkout-sessions/{checkout_id}": {
+      "get": {
+        "tags": [
+          "checkout"
+        ],
+        "summary": "Get Checkout",
+        "operationId": "CheckoutSession_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkout_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^chk_[0-9A-Z]+$",
+              "title": "Checkout Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CheckoutView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "checkout"
+        ],
+        "summary": "Patch Checkout",
+        "operationId": "CheckoutSession_Patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkout_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^chk_[0-9A-Z]+$",
+              "title": "Checkout Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CheckoutView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/checkout-sessions/{checkout_id}/repricings": {
+      "post": {
+        "tags": [
+          "checkout"
+        ],
+        "summary": "Reprice Checkout",
+        "operationId": "CheckoutRepricing_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "checkout_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^chk_[0-9A-Z]+$",
+              "title": "Checkout Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CheckoutView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/favorite-products": {
       "get": {
         "tags": [
@@ -15000,6 +15251,57 @@
         ],
         "title": "BrandView"
       },
+      "BuyNowSource": {
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "const": "buy_now",
+            "title": "Source Type"
+          },
+          "sku_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^sku_[0-9A-Z]+$",
+            "title": "Sku Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_type",
+          "sku_id",
+          "quantity"
+        ],
+        "title": "BuyNowSource"
+      },
+      "BuyerRemark": {
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^sto_[0-9A-Z]+$",
+            "title": "Store Id"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "store_id",
+          "content"
+        ],
+        "title": "BuyerRemark"
+      },
       "CartAmountSummary": {
         "properties": {
           "selected_goods_amount": {
@@ -15183,6 +15485,33 @@
         ],
         "title": "CartSelectionReplaceRequest"
       },
+      "CartSource": {
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "const": "cart",
+            "title": "Source Type"
+          },
+          "cart_item_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^ci_[0-9A-Z]+$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Cart Item Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_type",
+          "cart_item_ids"
+        ],
+        "title": "CartSource"
+      },
       "CartStoreGroupView": {
         "properties": {
           "store_id": {
@@ -15335,6 +15664,375 @@
           "icon_url"
         ],
         "title": "CategoryView"
+      },
+      "CheckoutAmounts": {
+        "properties": {
+          "goods_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "freight_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "payable_amount": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "goods_amount",
+          "freight_amount",
+          "payable_amount"
+        ],
+        "title": "CheckoutAmounts"
+      },
+      "CheckoutCreateRequest": {
+        "properties": {
+          "source": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/BuyNowSource"
+              },
+              {
+                "$ref": "#/components/schemas/CartSource"
+              }
+            ],
+            "title": "Source",
+            "discriminator": {
+              "propertyName": "source_type",
+              "mapping": {
+                "buy_now": "#/components/schemas/BuyNowSource",
+                "cart": "#/components/schemas/CartSource"
+              }
+            }
+          },
+          "address_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^addr_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "CheckoutCreateRequest"
+      },
+      "CheckoutIssue": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "store_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Id"
+          },
+          "sku_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sku Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "CheckoutIssue"
+      },
+      "CheckoutItemView": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "sku_name": {
+            "type": "string",
+            "title": "Sku Name"
+          },
+          "spec_values": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Spec Values"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "unit_price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "subtotal": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "available_quantity": {
+            "type": "integer",
+            "title": "Available Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "product_id",
+          "sku_id",
+          "product_name",
+          "sku_name",
+          "spec_values",
+          "quantity",
+          "unit_price",
+          "subtotal",
+          "available_quantity"
+        ],
+        "title": "CheckoutItemView"
+      },
+      "CheckoutPatchRequest": {
+        "properties": {
+          "address_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^addr_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Id"
+          },
+          "buyer_remarks": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BuyerRemark"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buyer Remarks"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CheckoutPatchRequest"
+      },
+      "CheckoutStoreGroupView": {
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "title": "Store Id"
+          },
+          "store_name": {
+            "type": "string",
+            "title": "Store Name"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CheckoutItemView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "goods_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "freight_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "delivery_options": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryOptionView"
+            },
+            "type": "array",
+            "title": "Delivery Options"
+          },
+          "selected_delivery_option": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Delivery Option"
+          },
+          "buyer_remark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buyer Remark"
+          },
+          "customer_service_context": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Customer Service Context"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "store_id",
+          "store_name",
+          "items",
+          "goods_amount",
+          "freight_amount",
+          "delivery_options",
+          "selected_delivery_option",
+          "buyer_remark",
+          "customer_service_context"
+        ],
+        "title": "CheckoutStoreGroupView"
+      },
+      "CheckoutView": {
+        "properties": {
+          "checkout_id": {
+            "type": "string",
+            "title": "Checkout Id"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "buy_now",
+              "cart"
+            ],
+            "title": "Source Type"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "submitted",
+              "expired",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "address_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Id"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "store_groups": {
+            "items": {
+              "$ref": "#/components/schemas/CheckoutStoreGroupView"
+            },
+            "type": "array",
+            "title": "Store Groups"
+          },
+          "amounts": {
+            "$ref": "#/components/schemas/CheckoutAmounts"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/CheckoutIssue"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "blocking_issues": {
+            "items": {
+              "$ref": "#/components/schemas/CheckoutIssue"
+            },
+            "type": "array",
+            "title": "Blocking Issues"
+          },
+          "available_actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Actions"
+          },
+          "pricing_version": {
+            "type": "integer",
+            "title": "Pricing Version"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "checkout_id",
+          "source_type",
+          "status",
+          "address_id",
+          "expires_at",
+          "store_groups",
+          "amounts",
+          "warnings",
+          "blocking_issues",
+          "available_actions",
+          "pricing_version",
+          "version"
+        ],
+        "title": "CheckoutView"
       },
       "ClientDescriptor": {
         "properties": {
@@ -15521,6 +16219,33 @@
           "address_id"
         ],
         "title": "DefaultAddressRequest"
+      },
+      "DeliveryOptionView": {
+        "properties": {
+          "option_id": {
+            "type": "string",
+            "title": "Option Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "freight": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "estimate": {
+            "$ref": "#/components/schemas/ServiceEstimate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "option_id",
+          "name",
+          "freight",
+          "estimate"
+        ],
+        "title": "DeliveryOptionView"
       },
       "DependencyStatus": {
         "properties": {
@@ -16034,6 +16759,21 @@
           "data"
         ],
         "title": "Envelope[CartView]"
+      },
+      "Envelope_CheckoutView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CheckoutView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[CheckoutView]"
       },
       "Envelope_ContactChangeTicketResult_": {
         "properties": {

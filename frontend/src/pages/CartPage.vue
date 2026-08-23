@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 
 import { formatMoney } from '@/api/catalog'
 import {
@@ -13,10 +13,12 @@ import {
   type CartItem,
 } from '@/api/cart'
 import { errorMessage } from '@/api/http'
+import { createCartCheckout } from '@/api/checkout'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const auth = useUserAuthStore()
+const router = useRouter()
 const cart = ref<CartData | null>(null)
 const loading = ref(true)
 const busyItem = ref('')
@@ -74,6 +76,13 @@ function clearInvalid() {
   if (!cart.value) return
   void mutate('invalid', () => clearInvalidCartItems(cart.value!.version, token()))
 }
+async function checkoutSelected() {
+  if (!selectedIds.value.length) return
+  busyItem.value = 'checkout'; error.value = ''
+  try { const response = await createCartCheckout(selectedIds.value, token()); await router.push(`/checkout/${response.data.checkout_id}`) }
+  catch (cause) { error.value = errorMessage(cause) }
+  finally { busyItem.value = '' }
+}
 onMounted(load)
 </script>
 
@@ -93,7 +102,7 @@ onMounted(load)
             <button type="button" class="link-button danger" :disabled="busyItem !== ''" @click="remove(item)">删除</button>
           </div>
         </article>
-        <footer class="cart-summary-bar"><div class="actions"><button type="button" class="secondary" :disabled="busyItem !== '' || validItems.length === 0" @click="toggleAll">全选/取消全选</button><button v-if="hasInvalid" type="button" class="secondary" :disabled="busyItem !== ''" @click="clearInvalid">清理失效商品</button></div><div><span>已选 {{ cart.selected_quantity }} 件</span><strong>{{ formatMoney(cart.amount_summary.selected_goods_amount) }}</strong><button type="button" disabled :title="selectedIds.length ? '结算切片接入后开放' : '请先选择有效商品'">去结算</button></div></footer>
+        <footer class="cart-summary-bar"><div class="actions"><button type="button" class="secondary" :disabled="busyItem !== '' || validItems.length === 0" @click="toggleAll">全选/取消全选</button><button v-if="hasInvalid" type="button" class="secondary" :disabled="busyItem !== ''" @click="clearInvalid">清理失效商品</button></div><div><span>已选 {{ cart.selected_quantity }} 件</span><strong>{{ formatMoney(cart.amount_summary.selected_goods_amount) }}</strong><button type="button" :disabled="busyItem !== '' || !selectedIds.length" @click="checkoutSelected">{{ busyItem === 'checkout' ? '创建中…' : '去结算' }}</button></div></footer>
       </template>
     </PageState>
   </section>

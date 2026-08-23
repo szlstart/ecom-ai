@@ -14,6 +14,7 @@ import {
   type PublicImage,
 } from '@/api/catalog'
 import { addCartItem } from '@/api/cart'
+import { createBuyNowCheckout } from '@/api/checkout'
 import { createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
@@ -33,6 +34,7 @@ const favoriteBusy = ref(false)
 const cartBusy = ref(false)
 const cartNotice = ref('')
 const pendingCartRequest = ref<{ signature: string; key: string } | null>(null)
+const buyBusy = ref(false)
 
 const selectedSku = computed(() => skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? null)
 const gallery = computed<PublicImage[]>(() => selectedSku.value?.images.length
@@ -127,6 +129,15 @@ async function addToCart() {
   }
 }
 
+async function buyNow() {
+  if (!selectedSku.value || !canPurchase.value) return
+  if (!auth.accessToken) { await router.push({ path: '/login', query: { redirect: route.fullPath } }); return }
+  buyBusy.value = true; error.value = ''
+  try { const response = await createBuyNowCheckout(selectedSku.value.sku_id, quantity.value, auth.accessToken); await router.push(`/checkout/${response.data.checkout_id}`) }
+  catch (cause) { error.value = errorMessage(cause) }
+  finally { buyBusy.value = false }
+}
+
 function estimateText(): string {
   const estimate = product.value?.dispatch_estimate
   if (!estimate || estimate.status !== 'available' || !estimate.min_at || !estimate.max_at) return '暂时无法提供可靠发货时间范围'
@@ -213,14 +224,14 @@ watch(() => auth.accessToken, () => void load())
           <div class="purchase-actions">
             <button type="button" class="secondary" :disabled="favoriteBusy" @click="toggleFavorite">{{ product.is_favorited ? '取消收藏' : '收藏商品' }}</button>
             <button type="button" :disabled="cartBusy || !canPurchase" :title="canPurchase ? '加入购物车' : '当前规格不可购买'" @click="addToCart">{{ cartBusy ? '加入中…' : '加入购物车' }}</button>
-            <button type="button" disabled :title="canPurchase ? '结算将在第四阶段接入' : '当前规格不可购买'">立即购买</button>
+            <button type="button" :disabled="buyBusy || !canPurchase" @click="buyNow">{{ buyBusy ? '创建结算…' : '立即购买' }}</button>
           </div>
           <p v-if="cartNotice" class="notice success" aria-live="polite">{{ cartNotice }} <RouterLink to="/cart">查看购物车</RouterLink></p>
           <p v-if="product.purchase_notice" class="alert info">{{ product.purchase_notice }}</p>
         </aside>
       </div>
       <div class="mobile-purchase-bar" aria-label="移动端购买操作">
-        <button type="button" class="secondary" disabled>客服</button><button type="button" :disabled="cartBusy || !canPurchase" @click="addToCart">加入购物车</button><button type="button" disabled>立即购买</button>
+        <button type="button" class="secondary" disabled>客服</button><button type="button" :disabled="cartBusy || !canPurchase" @click="addToCart">加入购物车</button><button type="button" :disabled="buyBusy || !canPurchase" @click="buyNow">立即购买</button>
       </div>
     </article>
   </PageState>

@@ -759,6 +759,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/checkout-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Checkout */
+        post: operations["CheckoutSession_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checkout-sessions/{checkout_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Checkout */
+        get: operations["CheckoutSession_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Checkout */
+        patch: operations["CheckoutSession_Patch"];
+        trace?: never;
+    };
+    "/api/v1/checkout-sessions/{checkout_id}/repricings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reprice Checkout */
+        post: operations["CheckoutRepricing_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/favorite-products": {
         parameters: {
             query?: never;
@@ -3808,6 +3860,25 @@ export interface components {
             /** Description */
             description: string | null;
         };
+        /** BuyNowSource */
+        BuyNowSource: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            source_type: "buy_now";
+            /** Sku Id */
+            sku_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** BuyerRemark */
+        BuyerRemark: {
+            /** Store Id */
+            store_id: string;
+            /** Content */
+            content: string;
+        };
         /** CartAmountSummary */
         CartAmountSummary: {
             selected_goods_amount: components["schemas"]["Money"];
@@ -3864,6 +3935,16 @@ export interface components {
             /** Is Selected */
             is_selected: boolean;
         };
+        /** CartSource */
+        CartSource: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            source_type: "cart";
+            /** Cart Item Ids */
+            cart_item_ids: string[];
+        };
         /** CartStoreGroupView */
         CartStoreGroupView: {
             /** Store Id */
@@ -3910,6 +3991,114 @@ export interface components {
             icon_url: string | null;
             /** Children */
             children?: components["schemas"]["CategoryView"][];
+        };
+        /** CheckoutAmounts */
+        CheckoutAmounts: {
+            goods_amount: components["schemas"]["Money"];
+            freight_amount: components["schemas"]["Money"];
+            payable_amount: components["schemas"]["Money"];
+        };
+        /** CheckoutCreateRequest */
+        CheckoutCreateRequest: {
+            /** Source */
+            source: components["schemas"]["BuyNowSource"] | components["schemas"]["CartSource"];
+            /** Address Id */
+            address_id?: string | null;
+        };
+        /** CheckoutIssue */
+        CheckoutIssue: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Store Id */
+            store_id?: string | null;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** CheckoutItemView */
+        CheckoutItemView: {
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Spec Values */
+            spec_values: {
+                [key: string]: string;
+            }[];
+            /** Quantity */
+            quantity: number;
+            unit_price: components["schemas"]["Money"];
+            subtotal: components["schemas"]["Money"];
+            /** Available Quantity */
+            available_quantity: number;
+        };
+        /** CheckoutPatchRequest */
+        CheckoutPatchRequest: {
+            /** Address Id */
+            address_id?: string | null;
+            /** Buyer Remarks */
+            buyer_remarks?: components["schemas"]["BuyerRemark"][] | null;
+        };
+        /** CheckoutStoreGroupView */
+        CheckoutStoreGroupView: {
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Items */
+            items: components["schemas"]["CheckoutItemView"][];
+            goods_amount: components["schemas"]["Money"];
+            freight_amount: components["schemas"]["Money"];
+            /** Delivery Options */
+            delivery_options: components["schemas"]["DeliveryOptionView"][];
+            /** Selected Delivery Option */
+            selected_delivery_option: string | null;
+            /** Buyer Remark */
+            buyer_remark: string | null;
+            /** Customer Service Context */
+            customer_service_context: {
+                [key: string]: string;
+            };
+        };
+        /** CheckoutView */
+        CheckoutView: {
+            /** Checkout Id */
+            checkout_id: string;
+            /**
+             * Source Type
+             * @enum {string}
+             */
+            source_type: "buy_now" | "cart";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "submitted" | "expired" | "cancelled";
+            /** Address Id */
+            address_id: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Store Groups */
+            store_groups: components["schemas"]["CheckoutStoreGroupView"][];
+            amounts: components["schemas"]["CheckoutAmounts"];
+            /** Warnings */
+            warnings: components["schemas"]["CheckoutIssue"][];
+            /** Blocking Issues */
+            blocking_issues: components["schemas"]["CheckoutIssue"][];
+            /** Available Actions */
+            available_actions: string[];
+            /** Pricing Version */
+            pricing_version: number;
+            /** Version */
+            version: number;
         };
         /** ClientDescriptor */
         ClientDescriptor: {
@@ -3984,6 +4173,15 @@ export interface components {
         DefaultAddressRequest: {
             /** Address Id */
             address_id: string;
+        };
+        /** DeliveryOptionView */
+        DeliveryOptionView: {
+            /** Option Id */
+            option_id: string;
+            /** Name */
+            name: string;
+            freight: components["schemas"]["Money"];
+            estimate: components["schemas"]["ServiceEstimate"];
         };
         /** DependencyStatus */
         DependencyStatus: {
@@ -4156,6 +4354,11 @@ export interface components {
         /** Envelope[CartView] */
         Envelope_CartView_: {
             data: components["schemas"]["CartView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[CheckoutView] */
+        Envelope_CheckoutView_: {
+            data: components["schemas"]["CheckoutView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ContactChangeTicketResult] */
@@ -7156,6 +7359,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    CheckoutSession_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CheckoutView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    CheckoutSession_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                checkout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CheckoutView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    CheckoutSession_Patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                checkout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CheckoutView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    CheckoutRepricing_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                checkout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CheckoutView_"];
                 };
             };
             /** @description Validation Error */

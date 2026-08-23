@@ -25,6 +25,15 @@ from app.modules.checkout.service import CheckoutService, CheckoutSubmissionCont
 from app.modules.files.models import FileObject
 from app.modules.identity.models import User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
+from app.modules.orders.domain import (
+    FULFILLMENT_TRANSITIONS,
+    ORDER_TRANSITIONS,
+    OrderPolicySnapshot,
+    available_action_codes,
+    can_hide,
+    matched_views,
+    require_transition,
+)
 from app.modules.orders.models import (
     Order,
     OrderAddress,
@@ -71,6 +80,9 @@ class OrderService:
         self.idempotency = IdempotencyService(session)
         self.cursor = CursorCodec(settings.security_hmac_secret.get_secret_value())
         self.security = security
+
+    async def dashboard_counts(self, user: User) -> dict[str, int]:
+        return await self.repository.dashboard_counts(user.id)
 
     async def create(
         self, user: User, payload: OrderCreateRequest, idempotency_key: str
@@ -428,6 +440,7 @@ class OrderService:
             raise _not_found()
         order, _, trade = row
         _require_version(order, expected_version)
+        require_transition(ORDER_TRANSITIONS, order.order_status, "CancelUnpaidOrder")
         if (
             order.order_status != "pending_payment"
             or order.payment_status != "unpaid"
@@ -487,6 +500,8 @@ class OrderService:
                 for order in orders
             ):
                 continue
+            for order in orders:
+                require_transition(ORDER_TRANSITIONS, order.order_status, "CancelUnpaidOrder")
             reservations = await self.repository.active_reservations_for_orders(
                 [order.id for order in orders]
             )
@@ -635,6 +650,8 @@ class OrderService:
             raise _not_found()
         order, _, _ = row
         _require_version(order, expected_version)
+        require_transition(ORDER_TRANSITIONS, order.order_status, "ConfirmReceipt")
+        require_transition(FULFILLMENT_TRANSITIONS, order.fulfillment_status, "ConfirmReceipt")
         if order.order_status != "shipped" or order.fulfillment_status != "shipped":
             raise _state_conflict(order, "confirm_receipt")
         now = utc_now()
@@ -722,7 +739,7 @@ class OrderService:
         order, _, _ = row
         _require_version(order, expected_version)
         items = (await self.repository.order_items([order.id])).get(order.id, [])
-        if not _can_hide(order, items):
+        if not can_hide(_policy_snapshot(order, items)):
             raise _state_conflict(order, "delete_order")
         now = utc_now()
         order.user_hidden_at = now
@@ -911,7 +928,9 @@ class OrderService:
                     payment_status=order.payment_status,
                     fulfillment_status=order.fulfillment_status,
                     after_sale_status=order.after_sale_status,
-                    matched_views=_matched_views(order, items),
+                    matched_views=cast(
+                        Any, matched_views(_policy_snapshot(order, items), utc_now())
+                    ),
                     items=[
                         _item_view(item, files.get(item.image_object_key or "")) for item in items
                     ],
@@ -1092,23 +1111,18 @@ def _item_view(item: OrderItem, file: FileObject | None) -> OrderItemView:
     )
 
 
-def _matched_views(order: Order, items: list[OrderItem]) -> list[OrderView]:
-    result: list[OrderView] = ["all"]
-    if order.order_status == "pending_payment" and order.expires_at > utc_now():
-        result.append("pending_payment")
-    if order.order_status == "pending_shipment":
-        result.append("pending_shipment")
-    if order.order_status == "shipped" and order.fulfillment_status != "received":
-        result.append("in_transit")
-    if order.order_status == "completed":
-        result.append("completed")
-        if any(item.review_status == "pending" for item in items):
-            result.append("pending_review")
-    if order.after_sale_status != "none":
-        result.append("after_sale")
-    if order.order_status in {"cancelled", "closed"} and order.paid_amount == 0:
-        result.append("cancelled")
-    return result
+def _policy_snapshot(order: Order, items: list[OrderItem]) -> OrderPolicySnapshot:
+    return OrderPolicySnapshot(
+        order_status=order.order_status,
+        payment_status=order.payment_status,
+        fulfillment_status=order.fulfillment_status,
+        after_sale_status=order.after_sale_status,
+        paid_amount=order.paid_amount,
+        expires_at=order.expires_at,
+        all_reviews_terminal=all(item.review_status in {"reviewed", "closed"} for item in items),
+        has_pending_review=any(item.review_status == "pending" for item in items),
+        has_after_sale_history=order.after_sale_status != "none",
+    )
 
 
 def _route_action(
@@ -1127,40 +1141,18 @@ def _route_action(
 
 
 def _order_actions(order: Order, trade: TradeOrder, items: list[OrderItem]) -> list[OrderAction]:
-    actions: list[OrderAction] = []
-    if order.order_status == "pending_payment" and order.expires_at > utc_now():
-        actions.extend(
-            [
-                _route_action("pay", "payment-cashier", {"tradeOrderId": trade.trade_no}),
-                _route_action(
-                    "cancel_order",
-                    "my-order-detail",
-                    {"orderId": order.order_no},
-                    confirmation=True,
-                ),
-            ]
-        )
-    if order.order_status == "shipped" and order.fulfillment_status == "shipped":
-        actions.append(
-            _route_action(
-                "confirm_receipt",
-                "my-order-detail",
-                {"orderId": order.order_no},
-                confirmation=True,
-            )
-        )
-    if _can_hide(order, items):
-        actions.append(
-            _route_action(
-                "delete_order",
-                "my-order-detail",
-                {"orderId": order.order_no},
-                confirmation=True,
-            )
-        )
-    if order.order_status in {"completed", "cancelled", "closed"}:
-        actions.append(_route_action("repurchase", "my-order-detail", {"orderId": order.order_no}))
-    return actions
+    routes = {
+        "pay": ("payment-cashier", {"tradeOrderId": trade.trade_no}, False),
+        "cancel_order": ("my-order-detail", {"orderId": order.order_no}, True),
+        "confirm_receipt": ("my-order-detail", {"orderId": order.order_no}, True),
+        "delete_order": ("my-order-detail", {"orderId": order.order_no}, True),
+        "repurchase": ("my-order-detail", {"orderId": order.order_no}, False),
+    }
+    result: list[OrderAction] = []
+    for code in available_action_codes(_policy_snapshot(order, items), utc_now()):
+        route, params, confirmation = routes[code]
+        result.append(_route_action(code, route, params, confirmation=confirmation))
+    return result
 
 
 def _trade_actions(trade: TradeOrder) -> list[OrderAction]:
@@ -1265,16 +1257,6 @@ def _operation(order: Order, user: User, operation_type: str) -> OrderOperationL
         result_status="success",
         request_id=request_id,
         trace_id=request_id,
-    )
-
-
-def _can_hide(order: Order, items: list[OrderItem]) -> bool:
-    if order.after_sale_status == "in_progress":
-        return False
-    if order.order_status in {"cancelled", "closed"}:
-        return True
-    return order.order_status == "completed" and all(
-        item.review_status in {"reviewed", "closed"} for item in items
     )
 
 

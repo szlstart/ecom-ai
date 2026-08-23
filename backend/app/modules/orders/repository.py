@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import cast
 
-from sqlalchemy import Select, exists, or_, select, tuple_
+from sqlalchemy import Select, case, exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.pagination import CursorPosition
@@ -20,6 +20,68 @@ from app.modules.stores.models import Store
 class OrderRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def dashboard_counts(self, user_id: int) -> dict[str, int]:
+        now = utc_now()
+        pending_review = exists().where(
+            OrderItem.order_id == Order.id,
+            OrderItem.review_status == "pending",
+        )
+        visible = Order.user_hidden_at.is_(None)
+        statement = select(
+            func.sum(
+                case(
+                    (
+                        visible
+                        & (Order.order_status == "pending_payment")
+                        & (Order.expires_at > now),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+            func.sum(
+                case(
+                    (visible & (Order.order_status == "pending_shipment"), 1),
+                    else_=0,
+                )
+            ),
+            func.sum(
+                case(
+                    (
+                        visible
+                        & (Order.order_status == "shipped")
+                        & (Order.fulfillment_status != "received"),
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+            func.sum(
+                case(
+                    (
+                        visible & (Order.order_status == "completed") & pending_review,
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+            func.sum(
+                case(
+                    (visible & (Order.after_sale_status != "none"), 1),
+                    else_=0,
+                )
+            ),
+        ).where(Order.user_id == user_id)
+        row = (await self.session.execute(statement)).one()
+        keys = (
+            "pending_payment",
+            "pending_shipment",
+            "in_transit",
+            "pending_review",
+            "after_sale",
+        )
+        return {key: int(value or 0) for key, value in zip(keys, row, strict=True)}
 
     async def trade_by_checkout_no(
         self, user_id: int, checkout_no: str, *, for_update: bool = False

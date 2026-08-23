@@ -5,20 +5,12 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { formatMoney } from '@/api/catalog'
 import { getCart } from '@/api/cart'
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
-import { cancelOrder, confirmOrderReceipt, hideOrder, listMyOrders, repurchaseOrder, restoreOrder, type OrderAction, type OrderHideResult, type OrderSummary, type OrderView } from '@/api/orders'
+import { cancelOrder, confirmOrderReceipt, hideOrder, listMyOrders, ORDER_VIEWS, repurchaseOrder, restoreOrder, type OrderAction, type OrderHideResult, type OrderSummary, type OrderView } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
-const views: Array<{ value: OrderView; label: string }> = [
-  { value: 'all', label: '全部' },
-  { value: 'pending_payment', label: '待付款' },
-  { value: 'pending_shipment', label: '待发货' },
-  { value: 'in_transit', label: '运输中' },
-  { value: 'completed', label: '已完成' },
-  { value: 'pending_review', label: '待评价' },
-  { value: 'after_sale', label: '售后' },
-  { value: 'cancelled', label: '已取消' },
-]
+const viewLabels: Record<OrderView, string> = { all: '全部', pending_payment: '待付款', pending_shipment: '待发货', in_transit: '运输中', completed: '已完成', pending_review: '待评价', after_sale: '售后', cancelled: '已取消' }
+const views = ORDER_VIEWS.map((value) => ({ value, label: viewLabels[value] }))
 const route = useRoute()
 const router = useRouter()
 const auth = useUserAuthStore()

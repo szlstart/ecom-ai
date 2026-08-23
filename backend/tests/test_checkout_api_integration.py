@@ -578,6 +578,10 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         "pay",
         "cancel_order",
     ]
+    dashboard = await client.get("/api/v1/users/me/dashboard", headers=auth)
+    assert dashboard.status_code == 200, dashboard.text
+    assert dashboard.json()["data"]["order_counts"]["pending_payment"] >= 2
+    assert "orders" not in dashboard.json()["data"]["unavailable_sections"]
     second_page = await client.get(
         "/api/v1/users/me/orders",
         headers=auth,
@@ -749,6 +753,9 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert confirmed.status_code == 200, confirmed.text
     assert confirmed.json()["data"]["order"]["order_status"] == "completed"
     assert confirmed.json()["data"]["order"]["fulfillment_status"] == "received"
+    dashboard = await client.get("/api/v1/users/me/dashboard", headers=auth)
+    assert dashboard.status_code == 200, dashboard.text
+    assert dashboard.json()["data"]["order_counts"]["pending_review"] >= 1
 
     timeout_checkout = await client.post(
         "/api/v1/checkout-sessions",

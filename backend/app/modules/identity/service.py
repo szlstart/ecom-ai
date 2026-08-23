@@ -878,23 +878,29 @@ class IdentityService:
             active_session_count=len(sessions),
         )
 
-    async def dashboard(self, user_id: int) -> UserDashboard:
+    async def dashboard(
+        self, user_id: int, *, order_counts: dict[str, int] | None = None
+    ) -> UserDashboard:
         addresses = await self.repository.addresses(user_id)
         default_address = next((item for item in addresses if item.is_default), None)
-        return UserDashboard(
-            order_counts={
+        unavailable_sections = ["reviews", "favorites", "messages"]
+        if order_counts is None:
+            order_counts = {
                 "pending_payment": 0,
                 "pending_shipment": 0,
                 "in_transit": 0,
                 "pending_review": 0,
                 "after_sale": 0,
-            },
+            }
+            unavailable_sections.insert(0, "orders")
+        return UserDashboard(
+            order_counts=order_counts,
             review_counts={"pending": 0, "published": 0},
             default_address=self._address_view(default_address) if default_address else None,
             unread_message_count=0,
             favorite_product_count=0,
             followed_store_count=0,
-            unavailable_sections=["orders", "reviews", "favorites", "messages"],
+            unavailable_sections=unavailable_sections,
         )
 
     async def create_contact_change_ticket(

@@ -2,7 +2,8 @@ import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
 import type { CartData } from '@/api/cart'
 import type { Money } from '@/api/catalog'
 
-export type OrderView = 'all' | 'pending_payment' | 'pending_shipment' | 'in_transit' | 'completed' | 'pending_review' | 'after_sale' | 'cancelled'
+export const ORDER_VIEWS = ['all', 'pending_payment', 'pending_shipment', 'in_transit', 'completed', 'pending_review', 'after_sale', 'cancelled'] as const
+export type OrderView = typeof ORDER_VIEWS[number]
 
 export interface OrderAction {
   code: 'pay' | 'cancel_order' | 'apply_after_sale' | 'view_after_sale' | 'view_logistics' | 'review' | 'delete_order' | 'confirm_receipt' | 'contact_store' | 'repurchase'

@@ -35,6 +35,7 @@ from app.modules.identity.schemas import (
     VerificationCodeAccepted,
     VerificationCodeRequest,
 )
+from app.modules.orders.dependencies import OrderServiceDependency
 
 auth_router = APIRouter(prefix="/auth", tags=["authentication"])
 user_router = APIRouter(prefix="/users/me", tags=["current-user"])
@@ -254,8 +255,10 @@ async def reset_password(
 async def get_dashboard(
     context: UserContext,
     service: IdentityServiceDependency,
+    order_service: OrderServiceDependency,
 ) -> Envelope[UserDashboard]:
-    return Envelope(data=await service.dashboard(context.user.id))
+    order_counts = await order_service.dashboard_counts(context.user)
+    return Envelope(data=await service.dashboard(context.user.id, order_counts=order_counts))
 
 
 @user_router.get(

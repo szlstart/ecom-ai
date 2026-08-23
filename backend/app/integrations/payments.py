@@ -28,6 +28,8 @@ class PaymentProvider(Protocol):
         self, request: PaymentProviderRequest
     ) -> PaymentProviderAcceptance: ...
 
+    async def close_payment(self, provider_trade_no: str) -> Literal["closed"]: ...
+
 
 class FakePaymentProvider:
     """Deterministic local provider; it never marks a payment successful."""
@@ -40,6 +42,11 @@ class FakePaymentProvider:
             action_type="redirect",
             action_url=f"/payments/{request.payment_no}/result",
         )
+
+    async def close_payment(self, provider_trade_no: str) -> Literal["closed"]:
+        if not provider_trade_no.startswith("fake_pay_"):
+            raise ValueError("unknown fake provider trade")
+        return "closed"
 
 
 def payment_provider(provider: str) -> PaymentProvider:

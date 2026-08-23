@@ -784,19 +784,25 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         payment_data["payment_id"]
     ]
 
-    def webhook_request(event_id: str, *, amount_delta: int = 0) -> tuple[bytes, dict[str, str]]:
+    def webhook_request(
+        payment: dict[str, object],
+        event_id: str,
+        *,
+        amount_delta: int = 0,
+        callback_status: str = "succeeded",
+    ) -> tuple[bytes, dict[str, str]]:
+        amount = payment["requested_amount"]
+        assert isinstance(amount, dict)
         body = json.dumps(
             {
                 "provider_event_id": event_id,
-                "payment_id": payment_data["payment_id"],
-                "provider_trade_no": f"fake_{payment_data['payment_id']}",
-                "status": "succeeded",
-                "amount_minor_units": str(
-                    int(payment_data["requested_amount"]["minor_units"]) + amount_delta
-                ),
-                "currency": payment_data["requested_amount"]["currency"],
+                "payment_id": payment["payment_id"],
+                "provider_trade_no": f"fake_{payment['payment_id']}",
+                "status": callback_status,
+                "amount_minor_units": str(int(str(amount["minor_units"])) + amount_delta),
+                "currency": amount["currency"],
                 "occurred_at": datetime.now(UTC).isoformat(),
-                "failure_code": None,
+                "failure_code": "FAKE_DECLINED" if callback_status == "failed" else None,
             },
             separators=(",", ":"),
         ).encode()
@@ -810,14 +816,16 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             "X-Payment-Signature": signature,
         }
 
-    invalid_body, valid_headers = webhook_request(f"fake_invalid_{suffix}")
+    invalid_body, valid_headers = webhook_request(payment_data, f"fake_invalid_{suffix}")
     invalid_signature = await client.post(
         "/api/v1/webhooks/payments/fake",
         headers={**valid_headers, "X-Payment-Signature": "0" * 64},
         content=invalid_body,
     )
     assert invalid_signature.status_code == 401
-    mismatch_body, mismatch_headers = webhook_request(f"fake_mismatch_{suffix}", amount_delta=1)
+    mismatch_body, mismatch_headers = webhook_request(
+        payment_data, f"fake_mismatch_{suffix}", amount_delta=1
+    )
     mismatch_callback = await client.post(
         "/api/v1/webhooks/payments/fake",
         headers=mismatch_headers,
@@ -827,7 +835,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert (
         await client.get(f"/api/v1/payments/{payment_data['payment_id']}", headers=auth)
     ).json()["data"]["payment_status"] == "pending"
-    success_body, success_headers = webhook_request(f"fake_success_{suffix}")
+    success_body, success_headers = webhook_request(payment_data, f"fake_success_{suffix}")
     succeeded_callback = await client.post(
         "/api/v1/webhooks/payments/fake",
         headers=success_headers,
@@ -914,6 +922,82 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     )
     assert timeout_created.status_code == 201, timeout_created.text
     timeout_trade_id = timeout_created.json()["data"]["trade_order_id"]
+    timeout_order_id = timeout_created.json()["data"]["order_ids"][0]
+    timeout_payment_payload = {
+        "trade_order_id": timeout_trade_id,
+        "provider": "fake",
+        "payment_method": "fake_balance",
+        "return_url_key": "payment_result",
+    }
+    timeout_payment = await client.post(
+        "/api/v1/payments",
+        headers={**auth, "Idempotency-Key": f"timeout-payment-{suffix}"},
+        json=timeout_payment_payload,
+    )
+    assert timeout_payment.status_code == 201
+    timeout_payment_data = timeout_payment.json()["data"]
+    processing_order = await client.get(
+        f"/api/v1/orders/{timeout_order_id}", headers=auth
+    )
+    assert [
+        action["code"]
+        for action in processing_order.json()["data"]["available_actions"]
+    ] == []
+    stale_close = await client.post(
+        f"/api/v1/payments/{timeout_payment_data['payment_id']}/closures",
+        headers={
+            **auth,
+            "If-Match": '"v0"',
+            "Idempotency-Key": f"timeout-payment-close-stale-{suffix}",
+        },
+    )
+    assert stale_close.status_code == 412
+    closed_payment = await client.post(
+        f"/api/v1/payments/{timeout_payment_data['payment_id']}/closures",
+        headers={
+            **auth,
+            "If-Match": timeout_payment.headers["etag"],
+            "Idempotency-Key": f"timeout-payment-close-{suffix}",
+        },
+    )
+    assert closed_payment.status_code == 200, closed_payment.text
+    assert closed_payment.json()["data"]["payment_status"] == "closed"
+    payable_again = await client.get(f"/api/v1/orders/{timeout_order_id}", headers=auth)
+    assert [
+        action["code"] for action in payable_again.json()["data"]["available_actions"]
+    ] == ["pay", "cancel_order"]
+    close_replay = await client.post(
+        f"/api/v1/payments/{timeout_payment_data['payment_id']}/closures",
+        headers={
+            **auth,
+            "If-Match": timeout_payment.headers["etag"],
+            "Idempotency-Key": f"timeout-payment-close-{suffix}",
+        },
+    )
+    assert close_replay.status_code == 200
+    assert close_replay.json()["data"] == closed_payment.json()["data"]
+    retry_payment = await client.post(
+        "/api/v1/payments",
+        headers={**auth, "Idempotency-Key": f"timeout-payment-retry-{suffix}"},
+        json=timeout_payment_payload,
+    )
+    assert retry_payment.status_code == 201
+    retry_payment_data = retry_payment.json()["data"]
+    failure_body, failure_headers = webhook_request(
+        retry_payment_data,
+        f"fake_failure_{suffix}",
+        callback_status="failed",
+    )
+    failed_callback = await client.post(
+        "/api/v1/webhooks/payments/fake",
+        headers=failure_headers,
+        content=failure_body,
+    )
+    assert failed_callback.status_code == 200
+    failed_payment = await client.get(
+        f"/api/v1/payments/{retry_payment_data['payment_id']}", headers=auth
+    )
+    assert failed_payment.json()["data"]["payment_status"] == "failed"
     async for session in mysql_session():
         timeout_trade = await session.scalar(
             select(TradeOrder).where(TradeOrder.trade_no == timeout_trade_id)

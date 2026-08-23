@@ -96,6 +96,8 @@ def test_composite_order_views(snapshot: OrderPolicySnapshot, expected: list[str
 def test_available_actions_share_the_hide_policy() -> None:
     pending = _snapshot()
     assert available_action_codes(pending, utc_now()) == ["pay", "cancel_order"]
+    processing = _snapshot(payment_status="processing")
+    assert available_action_codes(processing, utc_now()) == []
     completed_pending_review = _snapshot(order_status="completed", has_pending_review=True)
     assert can_hide(completed_pending_review) is False
     assert available_action_codes(completed_pending_review, utc_now()) == ["repurchase"]

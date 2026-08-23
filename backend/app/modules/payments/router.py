@@ -5,7 +5,7 @@ from fastapi import APIRouter, Header, Request, Response, status
 from app.api.dependencies import IdempotencyKey, UserContext
 from app.api.schemas import Envelope
 from app.core.exceptions import ApplicationError
-from app.modules.identity.router import _etag, _no_store
+from app.modules.identity.router import _etag, _expected_version, _no_store
 from app.modules.payments.dependencies import PaymentServiceDependency
 from app.modules.payments.schemas import (
     PaymentCreateRequest,
@@ -50,6 +50,30 @@ async def get_payment(
     service: PaymentServiceDependency,
 ) -> Envelope[PaymentView]:
     item = await service.get(context.user, payment_id)
+    response.headers["ETag"] = _etag(item.version)
+    _no_store(response)
+    return Envelope(data=item)
+
+
+@router.post(
+    "/payments/{payment_id}/closures",
+    response_model=Envelope[PaymentView],
+    operation_id="Payment_CloseMine",
+)
+async def close_payment(
+    payment_id: str,
+    response: Response,
+    context: UserContext,
+    service: PaymentServiceDependency,
+    idempotency_key: IdempotencyKey,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[PaymentView]:
+    item = await service.close(
+        context.user,
+        payment_id,
+        _expected_version(if_match),
+        idempotency_key,
+    )
     response.headers["ETag"] = _etag(item.version)
     _no_store(response)
     return Envelope(data=item)

@@ -37,3 +37,10 @@ export function createPayment(tradeOrderId: string, token: string): Promise<ApiR
 export function getPayment(paymentId: string, token: string): Promise<ApiResult<Payment>> {
   return apiRequest(`/payments/${encodeURIComponent(paymentId)}`, {}, token)
 }
+
+export function closePayment(payment: Payment, token: string): Promise<ApiResult<Payment>> {
+  return apiRequest(`/payments/${encodeURIComponent(payment.payment_id)}/closures`, {
+    method: 'POST',
+    headers: { 'If-Match': `"v${payment.version}"`, 'Idempotency-Key': createIdempotencyKey('payment-close') },
+  }, token)
+}

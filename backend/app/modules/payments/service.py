@@ -185,6 +185,91 @@ class PaymentService:
             raise _not_found()
         return await self._view(row[0], row[1])
 
+    async def close(
+        self,
+        user: User,
+        payment_no: str,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> PaymentView:
+        claim = await self.idempotency.begin(
+            scope_key=f"payment:close:{user.user_no}:{payment_no}",
+            idempotency_key=idempotency_key,
+            payload={"version": expected_version},
+            resource_type="payment",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return PaymentView.model_validate(claim.record.response_body)
+        untrusted = await self.repository.by_no(user.id, payment_no)
+        if untrusted is None:
+            raise _not_found()
+        initial, _ = untrusted
+        trade = await self.repository.trade_for_update(initial.trade_order_id)
+        payment = await self.repository.payment_for_update(initial.id)
+        if trade is None or payment is None or payment.user_id != user.id:
+            raise _not_found()
+        if payment.version != expected_version:
+            raise ApplicationError(
+                status=412,
+                code="RESOURCE_VERSION_CONFLICT",
+                title="Version conflict",
+                detail="支付单已经变化，请刷新后重试。",
+            )
+        previous = payment.payment_status
+        target = require_payment_transition(previous, "ClosePaymentAttempt")
+        if payment.provider_trade_no is None:
+            raise _error(409, "PAYMENT_PROVIDER_REFERENCE_MISSING", "支付渠道引用不可用。")
+        await payment_provider(payment.provider).close_payment(payment.provider_trade_no)
+        now = utc_now()
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        payment.payment_status = target
+        payment.closed_at = now
+        payment.version += 1
+        self.session.add(_event(payment, "closed", previous, target, "api", request_id))
+        orders = await self.repository.trade_orders_for_update(trade.id)
+        for order in orders:
+            if order.payment_status == "processing":
+                order.payment_status = "unpaid"
+                order.version += 1
+                self.session.add(
+                    _order_event(
+                        order,
+                        "payment",
+                        "processing",
+                        "unpaid",
+                        "payment.attempt_closed",
+                        request_id,
+                        now,
+                    )
+                )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="payment.closed.v1",
+                aggregate_type="payment",
+                aggregate_no=payment.payment_no,
+                aggregate_version=payment.version,
+                payload={
+                    "payment_id": payment.payment_no,
+                    "trade_order_id": trade.trade_no,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        await self.session.flush()
+        result = await self._view(payment, trade)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=payment.payment_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
+
     async def list_for_trade(self, user: User, trade_no: str) -> PaymentList:
         trade = await self.repository.user_trade(user.id, trade_no)
         if trade is None:
@@ -442,12 +527,8 @@ class PaymentService:
             [order.id for order in orders]
         )
         items_by_order = await self.order_repository.order_items([order.id for order in orders])
-        expected_item_ids = {
-            item.id for items in items_by_order.values() for item in items
-        }
-        reservation_item_ids = {
-            reservation.order_item_id for reservation, _ in reservations
-        }
+        expected_item_ids = {item.id for items in items_by_order.values() for item in items}
+        reservation_item_ids = {reservation.order_item_id for reservation, _ in reservations}
         if not reservations or reservation_item_ids != expected_item_ids:
             _reject_callback(
                 callback,

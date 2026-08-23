@@ -35,3 +35,7 @@ def test_payment_user_operations_are_published() -> None:
         schema["paths"]["/api/v1/webhooks/payments/{provider}"]["post"]["operationId"]
         == "PaymentWebhook_Process"
     )
+    assert (
+        schema["paths"]["/api/v1/payments/{payment_id}/closures"]["post"]["operationId"]
+        == "Payment_CloseMine"
+    )

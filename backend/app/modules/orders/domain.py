@@ -80,7 +80,11 @@ def can_hide(snapshot: OrderPolicySnapshot) -> bool:
 
 def available_action_codes(snapshot: OrderPolicySnapshot, now: datetime) -> list[str]:
     actions: list[str] = []
-    if snapshot.order_status == "pending_payment" and snapshot.expires_at > now:
+    if (
+        snapshot.order_status == "pending_payment"
+        and snapshot.payment_status == "unpaid"
+        and snapshot.expires_at > now
+    ):
         actions.extend(("pay", "cancel_order"))
     if snapshot.order_status == "shipped" and snapshot.fulfillment_status == "shipped":
         actions.append("confirm_receipt")

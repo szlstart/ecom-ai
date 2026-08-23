@@ -9,11 +9,17 @@ const adminMeta = { layout: 'admin', audience: 'admin', requiresAuth: true } as 
 const routes: RouteRecordRaw[] = [
   { path: '/', component: () => import('@/layouts/StorefrontLayout.vue'), meta: { layout: 'storefront', audience: 'public', requiresAuth: false, title: '在线商城', requirementId: 'USR-HOME-01' }, children: [
     { path: '', component: () => import('@/pages/HomePage.vue') },
+    { path: 'search', component: () => import('@/pages/ProductSearchPage.vue'), meta: { layout: 'storefront', audience: 'public', requiresAuth: false, title: '搜索商品', requirementId: 'USR-SEARCH-01' } },
+    { path: 'products/:productId', component: () => import('@/pages/ProductDetailPage.vue'), meta: { layout: 'storefront', audience: 'public', requiresAuth: false, title: '商品详情', requirementId: 'USR-PRODUCT-01' } },
+    { path: 'products/:productId/reviews', component: () => import('@/pages/ProductReviewsPage.vue'), meta: { layout: 'storefront', audience: 'public', requiresAuth: false, title: '商品评价', requirementId: 'USR-PRODUCT-REVIEWS-01' } },
+    { path: 'stores/:storeId', component: () => import('@/pages/StorePage.vue'), meta: { layout: 'storefront', audience: 'public', requiresAuth: false, title: '店铺', requirementId: 'USR-STORE-01' } },
     { path: 'me', component: () => import('@/pages/me/MyDashboardPage.vue'), meta: { ...userMeta, title: '我的', requirementId: 'USR-ME-01' } },
     { path: 'me/profile', component: () => import('@/pages/me/ProfilePage.vue'), meta: { ...userMeta, title: '个人信息', requirementId: 'USR-PROFILE-01' } },
     { path: 'me/settings/security', component: () => import('@/pages/me/SecuritySettingsPage.vue'), meta: { ...userMeta, title: '账号安全', requirementId: 'USR-SECURITY-01' } },
     { path: 'me/settings/account-closure', component: () => import('@/pages/me/AccountClosurePage.vue'), meta: { ...userMeta, title: '账号注销', requirementId: 'USR-CLOSURE-01' } },
     { path: 'me/addresses', component: () => import('@/pages/me/AddressListPage.vue'), meta: { ...userMeta, title: '收货地址', requirementId: 'USR-ADDRESS-01' } },
+    { path: 'me/favorites/products', component: () => import('@/pages/me/FavoriteProductsPage.vue'), meta: { ...userMeta, title: '商品收藏', requirementId: 'USR-FAVORITE-PRODUCT-01' } },
+    { path: 'me/favorites/stores', component: () => import('@/pages/me/FollowedStoresPage.vue'), meta: { ...userMeta, title: '店铺收藏', requirementId: 'USR-FAVORITE-STORE-01' } },
   ] },
   { path: '/login', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '登录', requirementId: 'USR-AUTH-LOGIN-01' }, children: [{ path: '', component: () => import('@/pages/LoginPage.vue') }] },
   { path: '/login/code', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '验证码登录', requirementId: 'USR-AUTH-CODE-01' }, children: [{ path: '', component: () => import('@/pages/CodeLoginPage.vue') }] },
@@ -37,7 +43,15 @@ const routes: RouteRecordRaw[] = [
   { path: '/:pathMatch(.*)*', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '页面不存在', requirementId: 'USR-SYSTEM-404' }, children: [{ path: '', component: () => import('@/pages/NotFoundPage.vue') }] },
 ]
 
-const router = createRouter({ history: createWebHistory(), routes, scrollBehavior: () => ({ top: 0 }) })
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior(to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash, top: 88, behavior: 'smooth' }
+    return { top: 0 }
+  },
+})
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
   if (to.meta.audience === 'user') {

@@ -6,6 +6,7 @@ from app.database.base import MySQLBase
 from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.files import models as file_models  # noqa: F401
 from app.modules.inventory import models as inventory_models  # noqa: F401
+from app.modules.reviews import models as review_models  # noqa: F401
 from app.modules.stores import models as store_models  # noqa: F401
 from app.modules.system import models as system_models  # noqa: F401
 
@@ -39,6 +40,10 @@ def test_phase03_tables_are_registered_in_shared_metadata() -> None:
         "inventories",
         "inventory_reservations",
         "inventory_logs",
+        "reviews",
+        "review_images",
+        "review_replies",
+        "review_append_records",
         "file_upload_sessions",
         "file_objects",
         "admin_batch_jobs",

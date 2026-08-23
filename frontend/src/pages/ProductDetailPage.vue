@@ -1,0 +1,193 @@
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+
+import {
+  formatMoney,
+  getProduct,
+  getProductFaqs,
+  getProductSkus,
+  setProductFavorite,
+  type ProductDetailData,
+  type ProductFaq,
+  type ProductSku,
+  type PublicImage,
+} from '@/api/catalog'
+import { errorMessage, resolveApiAssetUrl } from '@/api/http'
+import PageState from '@/components/PageState.vue'
+import { useUserAuthStore } from '@/stores/user-auth'
+
+const route = useRoute()
+const router = useRouter()
+const auth = useUserAuthStore()
+const product = ref<ProductDetailData | null>(null)
+const skus = ref<ProductSku[]>([])
+const faqs = ref<ProductFaq[]>([])
+const selectedSkuId = ref('')
+const selectedImageId = ref('')
+const quantity = ref(1)
+const loading = ref(true)
+const error = ref('')
+const favoriteBusy = ref(false)
+
+const selectedSku = computed(() => skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? null)
+const gallery = computed<PublicImage[]>(() => selectedSku.value?.images.length
+  ? selectedSku.value.images
+  : product.value?.public_images ?? [])
+const selectedImage = computed(() => gallery.value.find((item) => item.file_id === selectedImageId.value) ?? gallery.value[0] ?? null)
+const maxQuantity = computed(() => Math.max(1, selectedSku.value?.max_purchase_quantity ?? 1))
+const canPurchase = computed(() => selectedSku.value?.stock_status === 'in_stock' || selectedSku.value?.stock_status === 'low_stock')
+const returnTo = computed(() => {
+  const value = typeof route.query.return_to === 'string' ? route.query.return_to : ''
+  return value.startsWith('/search') || value.startsWith('/stores/') || value === '/' ? value : '/'
+})
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    const productId = String(route.params.productId)
+    const [detailResponse, skuResponse, faqResponse] = await Promise.all([
+      getProduct(productId, auth.accessToken), getProductSkus(productId), getProductFaqs(productId),
+    ])
+    product.value = detailResponse.data
+    skus.value = skuResponse.data.items
+    faqs.value = faqResponse.data.items
+    selectedSkuId.value = typeof route.query.sku_id === 'string' && skus.value.some((item) => item.sku_id === route.query.sku_id)
+      ? route.query.sku_id
+      : detailResponse.data.default_sku_id ?? skus.value.find((item) => item.sku_status === 'active')?.sku_id ?? ''
+    selectedImageId.value = gallery.value[0]?.file_id ?? ''
+    document.title = detailResponse.data.product_name
+  } catch (cause) {
+    error.value = errorMessage(cause)
+  } finally {
+    loading.value = false
+  }
+}
+
+function selectSku(sku: ProductSku) {
+  selectedSkuId.value = sku.sku_id
+  selectedImageId.value = sku.images[0]?.file_id ?? product.value?.public_images[0]?.file_id ?? ''
+  quantity.value = 1
+  void router.replace({ query: { ...route.query, sku_id: sku.sku_id } })
+}
+
+function setQuantity(value: number) {
+  quantity.value = Math.min(maxQuantity.value, Math.max(1, Math.trunc(value || 1)))
+}
+
+async function toggleFavorite() {
+  if (!product.value) return
+  if (!auth.accessToken) {
+    await router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  favoriteBusy.value = true
+  try {
+    const next = !product.value.is_favorited
+    await setProductFavorite(product.value.product_id, next, auth.accessToken)
+    product.value.is_favorited = next
+  } catch (cause) {
+    error.value = errorMessage(cause)
+  } finally {
+    favoriteBusy.value = false
+  }
+}
+
+function estimateText(): string {
+  const estimate = product.value?.dispatch_estimate
+  if (!estimate || estimate.status !== 'available' || !estimate.min_at || !estimate.max_at) return '暂时无法提供可靠发货时间范围'
+  const format = (value: string) => new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric' }).format(new Date(value))
+  return `预计 ${format(estimate.min_at)} 至 ${format(estimate.max_at)} 发货（仅供参考）`
+}
+
+onMounted(load)
+watch(() => route.params.productId, load)
+watch(() => auth.accessToken, () => void load())
+</script>
+
+<template>
+  <PageState :loading="loading" :error="error" @retry="load">
+    <article v-if="product" class="product-detail-page">
+      <RouterLink :to="returnTo" class="back-link">← 返回上一页</RouterLink>
+      <div class="product-detail-layout">
+        <div class="product-detail-main">
+          <section class="gallery" aria-label="商品图片">
+            <div class="gallery-stage">
+              <img v-if="selectedImage" :src="resolveApiAssetUrl(selectedImage.url) || undefined" :alt="selectedImage.alt_text || product.product_name" />
+              <span v-else class="image-placeholder">暂无商品图片</span>
+            </div>
+            <div v-if="gallery.length > 1" class="thumbnail-row">
+              <button v-for="image in gallery" :key="image.file_id" type="button" :class="{ selected: image.file_id === selectedImage?.file_id }" @click="selectedImageId = image.file_id">
+                <img :src="resolveApiAssetUrl(image.thumbnail_url) || undefined" :alt="image.alt_text || '商品缩略图'" width="72" height="72" />
+              </button>
+            </div>
+          </section>
+
+          <nav class="detail-tabs" aria-label="商品详情导航">
+            <a href="#reviews">评价</a><a href="#details">商品详情</a><a href="#faqs">常见问题</a>
+          </nav>
+
+          <section id="reviews" class="content-section">
+            <div class="section-heading"><div><p class="eyebrow">真实反馈</p><h2>商品评价</h2></div><RouterLink :to="`/products/${product.product_id}/reviews`">全部评价 →</RouterLink></div>
+            <p v-if="product.review_count">已有 {{ product.review_count }} 条评价，综合评分 {{ product.rating_score }}。</p>
+            <p v-else class="muted">暂无评价，购买并完成订单后可以分享使用感受。</p>
+          </section>
+
+          <section id="details" class="content-section">
+            <p class="eyebrow">已审核内容</p><h2>商品详情</h2>
+            <div v-if="product.detail_content" class="safe-content">{{ product.detail_content.safe_text_fallback }}</div>
+            <p v-else class="muted">商家暂未补充详细说明。</p>
+            <dl v-if="product.attributes.length" class="attribute-list">
+              <template v-for="(attribute, index) in product.attributes" :key="index">
+                <dt>{{ String(attribute.name || attribute.attribute_name || '属性') }}</dt>
+                <dd>{{ String(attribute.value || attribute.attribute_value || '—') }}</dd>
+              </template>
+            </dl>
+          </section>
+
+          <section id="faqs" class="content-section">
+            <p class="eyebrow">购买前须知</p><h2>常见问题</h2>
+            <details v-for="faq in faqs" :key="faq.faq_id"><summary>{{ faq.question }}</summary><p>{{ faq.answer_content.safe_text_fallback }}</p></details>
+            <p v-if="!faqs.length" class="muted">暂无常见问题。</p>
+          </section>
+        </div>
+
+        <aside class="purchase-panel">
+          <RouterLink :to="`/stores/${product.store.store_id}`" class="store-summary">
+            <img v-if="product.store.logo_url" :src="resolveApiAssetUrl(product.store.logo_url) || undefined" alt="" width="44" height="44" />
+            <span><strong>{{ product.store.store_name }}</strong><small>店铺评分 {{ product.store.rating_score }} · 进店逛逛 →</small></span>
+          </RouterLink>
+          <div><p class="eyebrow">商品信息</p><h1>{{ product.product_name }}</h1><p v-if="product.subtitle" class="muted">{{ product.subtitle }}</p></div>
+          <p class="detail-price">{{ formatMoney(selectedSku?.sale_price ?? product.price_range[0]) }}</p>
+          <p class="product-meta"><span>已售 {{ selectedSku?.sales_count ?? product.sales_count }}</span><span>评分 {{ product.rating_score }}</span></p>
+
+          <fieldset v-if="skus.length" class="sku-fieldset">
+            <legend>选择规格</legend>
+            <button v-for="sku in skus" :key="sku.sku_id" type="button" class="sku-option" :class="{ selected: sku.sku_id === selectedSkuId }" :aria-pressed="sku.sku_id === selectedSkuId" :disabled="sku.sku_status !== 'active'" @click="selectSku(sku)">
+              <span>{{ sku.sku_name }}</span><small>{{ formatMoney(sku.sale_price) }} · {{ sku.stock_status === 'out_of_stock' ? '缺货' : '可选' }}</small>
+            </button>
+          </fieldset>
+
+          <p :class="['stock-line', { warning: selectedSku?.stock_status === 'low_stock' }]">
+            {{ selectedSku?.stock_status === 'out_of_stock' ? '当前规格暂时缺货' : selectedSku?.stock_status === 'low_stock' ? `库存紧张，最多可购 ${maxQuantity} 件` : '当前规格有货' }}
+          </p>
+          <p class="muted">{{ estimateText() }}</p>
+          <label class="quantity-control">数量
+            <span><button type="button" class="secondary" :disabled="quantity <= 1" @click="setQuantity(quantity - 1)">−</button><input :value="quantity" inputmode="numeric" aria-label="购买数量" @change="setQuantity(Number(($event.target as HTMLInputElement).value))" /><button type="button" class="secondary" :disabled="quantity >= maxQuantity" @click="setQuantity(quantity + 1)">＋</button></span>
+          </label>
+          <small v-if="quantity >= maxQuantity">已达本次可购买上限，结算时仍会重新校验。</small>
+          <div class="purchase-actions">
+            <button type="button" class="secondary" :disabled="favoriteBusy" @click="toggleFavorite">{{ product.is_favorited ? '取消收藏' : '收藏商品' }}</button>
+            <button type="button" disabled :title="canPurchase ? '购物车将在第四阶段接入' : '当前规格不可购买'">加入购物车</button>
+            <button type="button" disabled :title="canPurchase ? '结算将在第四阶段接入' : '当前规格不可购买'">立即购买</button>
+          </div>
+          <p v-if="product.purchase_notice" class="alert info">{{ product.purchase_notice }}</p>
+        </aside>
+      </div>
+      <div class="mobile-purchase-bar" aria-label="移动端购买操作">
+        <button type="button" class="secondary" disabled>客服</button><button type="button" disabled>加入购物车</button><button type="button" disabled>立即购买</button>
+      </div>
+    </article>
+  </PageState>
+</template>

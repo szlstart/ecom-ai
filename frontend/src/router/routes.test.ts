@@ -25,6 +25,21 @@ describe('phase two route contract', () => {
     }
   })
 
+  it('registers the phase three storefront routes with stable requirements', () => {
+    const expected = new Map([
+      ['/search', 'USR-SEARCH-01'],
+      ['/products/:productId', 'USR-PRODUCT-01'],
+      ['/products/:productId/reviews', 'USR-PRODUCT-REVIEWS-01'],
+      ['/stores/:storeId', 'USR-STORE-01'],
+      ['/me/favorites/products', 'USR-FAVORITE-PRODUCT-01'],
+      ['/me/favorites/stores', 'USR-FAVORITE-STORE-01'],
+    ])
+    const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
+    for (const [path, requirementId] of expected) {
+      expect(routes.get(path)?.meta.requirementId).toBe(requirementId)
+    }
+  })
+
   it('keeps admin routes on the admin audience with permission metadata', () => {
     const protectedRoutes = router
       .getRoutes()

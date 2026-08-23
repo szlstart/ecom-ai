@@ -15,6 +15,7 @@ def test_catalog_and_store_openapi_operations_are_stable() -> None:
         ("/api/v1/products/{product_id}", "get"): "Product_Get",
         ("/api/v1/products/{product_id}/skus", "get"): "ProductSku_List",
         ("/api/v1/products/{product_id}/faqs", "get"): "ProductFaq_List",
+        ("/api/v1/products/{product_id}/reviews", "get"): "ProductReview_List",
         ("/api/v1/search/suggestions", "get"): "SearchSuggestion_List",
         ("/api/v1/stores/{store_id}", "get"): "Store_Get",
         ("/api/v1/stores/{store_id}/products", "get"): "StoreProduct_List",

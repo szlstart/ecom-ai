@@ -1,8 +1,27 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api/v1'
 
+export function resolveApiAssetUrl(url: string | null): string | null {
+  if (!url || !url.startsWith('/api/')) return url
+  if (!API_BASE_URL.startsWith('http://') && !API_BASE_URL.startsWith('https://')) return url
+  return new URL(url, API_BASE_URL).toString()
+}
+
+export interface PaginationMeta {
+  previous_cursor: string | null
+  next_cursor: string | null
+  has_previous: boolean
+  has_next: boolean
+  limit: number
+}
+
+export interface ResponseMeta {
+  request_id: string | null
+  pagination: PaginationMeta | null
+}
+
 interface Envelope<T> {
   data: T
-  meta: { request_id: string | null }
+  meta: ResponseMeta
 }
 
 export interface ApiProblemBody {
@@ -27,6 +46,7 @@ export class ApiProblem extends Error {
 
 export interface ApiResult<T> {
   data: T
+  meta: ResponseMeta
   headers: Headers
   status: number
 }
@@ -57,10 +77,15 @@ export async function apiRequest<T>(
     throw new ApiProblem(body)
   }
   if (response.status === 204) {
-    return { data: undefined as T, headers: response.headers, status: response.status }
+    return {
+      data: undefined as T,
+      meta: { request_id: response.headers.get('x-request-id'), pagination: null },
+      headers: response.headers,
+      status: response.status,
+    }
   }
   const body = (await response.json()) as Envelope<T>
-  return { data: body.data, headers: response.headers, status: response.status }
+  return { data: body.data, meta: body.meta, headers: response.headers, status: response.status }
 }
 
 export function createIdempotencyKey(prefix: string): string {

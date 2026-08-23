@@ -19,6 +19,7 @@ from app.modules.files.models import FileObject
 from app.modules.identity.models import AuthSession, User
 from app.modules.inventory.models import Inventory, InventoryLog
 from app.modules.rbac.models import AdminOperationLog
+from app.modules.reviews.models import Review, ReviewAppendRecord, ReviewReply
 from app.modules.stores.models import (
     Store,
     StoreAnnouncement,
@@ -124,7 +125,7 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
                 max_price_amount=index * 1000,
                 currency="CNY",
                 sales_count=sales,
-                review_count=index,
+                review_count=2 if index == 1 else index,
                 rating_score=Decimal("4.50"),
                 published_at=now - timedelta(minutes=index),
             )
@@ -147,6 +148,78 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
         )
         session.add(sku)
         await session.flush()
+        review_seed = int(suffix, 16)
+        newest_review = Review(
+            review_no=new_prefixed_ulid("rev_"),
+            order_id=review_seed,
+            order_item_id=review_seed * 10 + 1,
+            user_id=user.id,
+            store_id=store.id,
+            product_id=products[0].id,
+            sku_id=sku.id,
+            rating=5,
+            content="公开评价内容",
+            is_anonymous=False,
+            review_status="published",
+            moderation_status="passed",
+            published_at=now - timedelta(seconds=1),
+            helpful_count=2,
+        )
+        older_review = Review(
+            review_no=new_prefixed_ulid("rev_"),
+            order_id=review_seed + 1,
+            order_item_id=review_seed * 10 + 2,
+            user_id=user.id,
+            store_id=store.id,
+            product_id=products[0].id,
+            sku_id=sku.id,
+            rating=4,
+            content="较早的匿名评价",
+            is_anonymous=True,
+            review_status="published",
+            moderation_status="passed",
+            published_at=now - timedelta(days=1),
+            helpful_count=0,
+        )
+        hidden_review = Review(
+            review_no=new_prefixed_ulid("rev_"),
+            order_id=review_seed + 2,
+            order_item_id=review_seed * 10 + 3,
+            user_id=user.id,
+            store_id=store.id,
+            product_id=products[0].id,
+            sku_id=sku.id,
+            rating=1,
+            content="不得出现在公开接口中的评价",
+            is_anonymous=False,
+            review_status="hidden",
+            moderation_status="blocked",
+            published_at=now - timedelta(days=2),
+            hidden_at=now - timedelta(days=1),
+            helpful_count=0,
+        )
+        session.add_all([newest_review, older_review, hidden_review])
+        await session.flush()
+        session.add_all(
+            [
+                ReviewAppendRecord(
+                    review_id=newest_review.id,
+                    user_id=user.id,
+                    content="使用一周后的追评",
+                    append_status="published",
+                    moderation_status="passed",
+                    published_at=now,
+                ),
+                ReviewReply(
+                    review_id=newest_review.id,
+                    store_id=store.id,
+                    replier_user_id=user.id,
+                    content="感谢您的认可。",
+                    reply_status="published",
+                    published_at=now,
+                ),
+            ]
+        )
         session.add(
             Inventory(
                 sku_id=sku.id,
@@ -261,6 +334,35 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
     skus = await client.get(f"/api/v1/products/{product_no}/skus")
     assert skus.status_code == 200, skus.text
     assert skus.json()["data"]["items"][0]["max_purchase_quantity"] == 15
+
+    reviews = await client.get(f"/api/v1/products/{product_no}/reviews", params={"limit": 1})
+    assert reviews.status_code == 200, reviews.text
+    review_payload = reviews.json()
+    assert review_payload["data"]["summary"]["review_count"] == 2
+    assert review_payload["data"]["summary"]["rating_distribution"]["5"] == 1
+    assert review_payload["data"]["items"][0]["user_display_name"] != f"Catalog {suffix}"
+    assert review_payload["data"]["items"][0]["append"]["content"] == "使用一周后的追评"
+    assert review_payload["data"]["items"][0]["merchant_reply"]["content"] == "感谢您的认可。"
+    review_cursor = review_payload["meta"]["pagination"]["next_cursor"]
+    assert review_cursor
+    second_review_page = await client.get(
+        f"/api/v1/products/{product_no}/reviews",
+        params={"limit": 1, "cursor": review_cursor},
+    )
+    assert second_review_page.status_code == 200
+    assert second_review_page.json()["data"]["items"][0]["user_display_name"] == "匿名用户"
+    mismatched_review_cursor = await client.get(
+        f"/api/v1/products/{product_no}/reviews",
+        params={"limit": 1, "rating": 5, "cursor": review_cursor},
+    )
+    assert mismatched_review_cursor.status_code == 400
+    image_reviews = await client.get(
+        f"/api/v1/products/{product_no}/reviews",
+        params={"has_image": "true"},
+    )
+    assert image_reviews.status_code == 200
+    assert image_reviews.json()["data"]["items"] == []
+    assert "不得出现在公开接口中的评价" not in reviews.text
 
     grouped = await client.get(f"/api/v1/stores/{store_no}/products", params={"group_id": group_no})
     assert grouped.status_code == 200, grouped.text

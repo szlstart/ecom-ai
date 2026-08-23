@@ -1,0 +1,113 @@
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER, TINYINT
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.database.base import MutableMySQLModel, MySQLBase
+
+
+class Review(MutableMySQLModel, MySQLBase):
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("review_no", name="uk_reviews_no"),
+        UniqueConstraint("order_item_id", name="uk_reviews_order_item"),
+        CheckConstraint("rating BETWEEN 1 AND 5", name="rating_range"),
+        Index("idx_reviews_product_published", "product_id", "review_status", "published_at", "id"),
+        Index("idx_reviews_user_time", "user_id", "created_at", "id"),
+    )
+
+    review_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    # The order tables are introduced in phase four. These stable internal
+    # references are intentionally created first and receive FKs in that migration.
+    order_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
+    order_item_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    store_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("stores.id"), nullable=False
+    )
+    product_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("products.id"), nullable=False
+    )
+    sku_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("product_skus.id"), nullable=False
+    )
+    rating: Mapped[int] = mapped_column(TINYINT(unsigned=True), nullable=False)
+    content: Mapped[str | None] = mapped_column(String(500))
+    is_anonymous: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    review_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    moderation_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    helpful_count: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+
+
+class ReviewImage(MutableMySQLModel, MySQLBase):
+    __tablename__ = "review_images"
+    __table_args__ = (
+        UniqueConstraint("review_id", "sort_order", name="uk_review_images_order"),
+        UniqueConstraint("object_key", name="uk_review_images_object_key"),
+        Index("idx_review_images_review", "review_id", "sort_order", "id"),
+    )
+
+    review_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("reviews.id"), nullable=False
+    )
+    object_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    sha256: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    width: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
+    height: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
+    sort_order: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
+    scan_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    image_status: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class ReviewReply(MutableMySQLModel, MySQLBase):
+    __tablename__ = "review_replies"
+    __table_args__ = (UniqueConstraint("review_id", name="uk_review_replies_review"),)
+
+    review_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("reviews.id"), nullable=False
+    )
+    store_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("stores.id"), nullable=False
+    )
+    replier_user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    content: Mapped[str] = mapped_column(String(2000), nullable=False)
+    reply_status: Mapped[str] = mapped_column(String(16), nullable=False, default="published")
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+
+
+class ReviewAppendRecord(MutableMySQLModel, MySQLBase):
+    __tablename__ = "review_append_records"
+    __table_args__ = (UniqueConstraint("review_id", name="uk_review_append_review"),)
+
+    review_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("reviews.id"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    content: Mapped[str] = mapped_column(String(500), nullable=False)
+    append_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    moderation_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))

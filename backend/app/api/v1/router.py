@@ -9,6 +9,7 @@ from app.modules.files.router import router as files_router
 from app.modules.identity.router import auth_router, user_router
 from app.modules.rbac.auth_router import router as admin_auth_router
 from app.modules.rbac.router import router as admin_router
+from app.modules.reviews.router import router as reviews_router
 from app.modules.stores.admin_router import router as admin_store_router
 from app.modules.stores.operations_router import router as store_operations_router
 from app.modules.stores.router import follow_router
@@ -20,6 +21,7 @@ api_router.include_router(user_router)
 api_router.include_router(content_router)
 api_router.include_router(files_router)
 api_router.include_router(catalog_router)
+api_router.include_router(reviews_router)
 api_router.include_router(favorite_router)
 api_router.include_router(stores_router)
 api_router.include_router(follow_router)

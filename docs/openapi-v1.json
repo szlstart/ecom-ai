@@ -2183,6 +2183,143 @@
         }
       }
     },
+    "/api/v1/products/{product_id}/reviews": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "List Product Reviews",
+        "operationId": "ProductReview_List",
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Id"
+            }
+          },
+          {
+            "name": "rating",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 5,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rating"
+            }
+          },
+          {
+            "name": "has_image",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Image"
+            }
+          },
+          {
+            "name": "sku_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sku Id"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "newest",
+                "oldest"
+              ],
+              "type": "string",
+              "default": "newest",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ProductReviewList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/favorite-products": {
       "get": {
         "tags": [
@@ -14496,6 +14633,21 @@
         ],
         "title": "Envelope[ProductList]"
       },
+      "Envelope_ProductReviewList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProductReviewList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ProductReviewList]"
+      },
       "Envelope_ProductSkuList_": {
         "properties": {
           "data": {
@@ -16375,6 +16527,143 @@
         ],
         "title": "ProductList"
       },
+      "ProductReviewList": {
+        "properties": {
+          "summary": {
+            "$ref": "#/components/schemas/ProductReviewSummary"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductReviewView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary",
+          "items"
+        ],
+        "title": "ProductReviewList"
+      },
+      "ProductReviewSummary": {
+        "properties": {
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count"
+          },
+          "average_rating": {
+            "type": "string",
+            "title": "Average Rating"
+          },
+          "rating_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Rating Distribution"
+          },
+          "image_review_count": {
+            "type": "integer",
+            "title": "Image Review Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_count",
+          "average_rating",
+          "rating_distribution",
+          "image_review_count"
+        ],
+        "title": "ProductReviewSummary"
+      },
+      "ProductReviewView": {
+        "properties": {
+          "review_id": {
+            "type": "string",
+            "title": "Review Id"
+          },
+          "user_display_name": {
+            "type": "string",
+            "title": "User Display Name"
+          },
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "sku_name": {
+            "type": "string",
+            "title": "Sku Name"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At"
+          },
+          "helpful_count": {
+            "type": "integer",
+            "title": "Helpful Count"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewImageView"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "append": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewAppendView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merchant_reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewReplyView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_id",
+          "user_display_name",
+          "sku_id",
+          "sku_name",
+          "rating",
+          "content",
+          "published_at",
+          "helpful_count",
+          "images",
+          "append",
+          "merchant_reply"
+        ],
+        "title": "ProductReviewView"
+      },
       "ProductSkuList": {
         "properties": {
           "items": {
@@ -16699,6 +16988,77 @@
         },
         "type": "object",
         "title": "ResponseMeta"
+      },
+      "ReviewAppendView": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content",
+          "published_at"
+        ],
+        "title": "ReviewAppendView"
+      },
+      "ReviewImageView": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "thumbnail_url": {
+            "type": "string",
+            "title": "Thumbnail Url"
+          },
+          "width": {
+            "type": "integer",
+            "title": "Width"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "url",
+          "thumbnail_url",
+          "width",
+          "height"
+        ],
+        "title": "ReviewImageView"
+      },
+      "ReviewReplyView": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content",
+          "published_at"
+        ],
+        "title": "ReviewReplyView"
       },
       "RoleCreateRequest": {
         "properties": {

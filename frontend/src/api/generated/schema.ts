@@ -656,6 +656,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/products/{product_id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Reviews */
+        get: operations["ProductReview_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/favorite-products": {
         parameters: {
             query?: never;
@@ -3805,6 +3822,11 @@ export interface components {
             data: components["schemas"]["ProductList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[ProductReviewList] */
+        Envelope_ProductReviewList_: {
+            data: components["schemas"]["ProductReviewList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[ProductSkuList] */
         Envelope_ProductSkuList_: {
             data: components["schemas"]["ProductSkuList"];
@@ -4419,6 +4441,51 @@ export interface components {
             /** Items */
             items: components["schemas"]["ProductCard"][];
         };
+        /** ProductReviewList */
+        ProductReviewList: {
+            summary: components["schemas"]["ProductReviewSummary"];
+            /** Items */
+            items: components["schemas"]["ProductReviewView"][];
+        };
+        /** ProductReviewSummary */
+        ProductReviewSummary: {
+            /** Review Count */
+            review_count: number;
+            /** Average Rating */
+            average_rating: string;
+            /** Rating Distribution */
+            rating_distribution: {
+                [key: string]: number;
+            };
+            /** Image Review Count */
+            image_review_count: number;
+        };
+        /** ProductReviewView */
+        ProductReviewView: {
+            /** Review Id */
+            review_id: string;
+            /** User Display Name */
+            user_display_name: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Rating */
+            rating: number;
+            /** Content */
+            content: string | null;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /** Helpful Count */
+            helpful_count: number;
+            /** Images */
+            images: components["schemas"]["ReviewImageView"][];
+            append: components["schemas"]["ReviewAppendView"] | null;
+            merchant_reply: components["schemas"]["ReviewReplyView"] | null;
+        };
         /** ProductSkuList */
         ProductSkuList: {
             /** Items */
@@ -4538,6 +4605,39 @@ export interface components {
             /** Request Id */
             request_id?: string | null;
             pagination?: components["schemas"]["PaginationMeta"] | null;
+        };
+        /** ReviewAppendView */
+        ReviewAppendView: {
+            /** Content */
+            content: string;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+        };
+        /** ReviewImageView */
+        ReviewImageView: {
+            /** File Id */
+            file_id: string;
+            /** Url */
+            url: string;
+            /** Thumbnail Url */
+            thumbnail_url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        };
+        /** ReviewReplyView */
+        ReviewReplyView: {
+            /** Content */
+            content: string;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
         };
         /** RoleCreateRequest */
         RoleCreateRequest: {
@@ -6382,6 +6482,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_SearchSuggestionList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ProductReview_List: {
+        parameters: {
+            query?: {
+                rating?: number | null;
+                has_image?: boolean | null;
+                sku_id?: string | null;
+                sort?: "newest" | "oldest";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductReviewList_"];
                 };
             };
             /** @description Validation Error */

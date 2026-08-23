@@ -6372,6 +6372,8 @@ AI 可做资料摘要、规则解释和补充材料提示，不能自主改写�
 
 约束：`UNIQUE(order_item_id)`，一个订单项只有一条首次评价；必须由订单用户在评价窗口内创建。索引 `idx_reviews_product_published(product_id, review_status, published_at, id)`、`idx_reviews_user_time(user_id, created_at, id)`。匿名只影响公开展示，不去除后台权限内的用户关联。`rejected` 表示首次公开前未通过审核，`hidden` 表示曾发布内容被平台屏蔽；用户主动隐藏订单/页面不改变评价事实。普通治理不得物理删除正文；确因法律、隐私或安全义务必须清除时，由独立合规流程加密擦除/匿名化正文与媒体，治理记录只保留最小必要 Hash、依据、批准人和时间，不提供常规管理员按钮。
 
+分阶段迁移约束：第三阶段为支持公开评价只读页，可先创建 `order_id`、`order_item_id` 业务引用列，但在订单表尚未落库前不得建立伪外键；第四阶段创建 `orders`、`order_items` 后，须通过后续迁移校验存量引用并补齐真实 FK 与 `UNIQUE(order_item_id)` 约束。生产上线时禁止长期停留在“有引用列、无外键”的过渡状态。
+
 ##### 3.7.11.2 review_images 评价图片表
 
 | 字段 | 类型 | 约束/内容 |

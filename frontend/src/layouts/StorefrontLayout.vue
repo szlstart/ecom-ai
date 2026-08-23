@@ -29,7 +29,7 @@ onMounted(() => {
         <div class="nav-links">
           <RouterLink v-if="!auth.isAuthenticated" to="/login">登录</RouterLink>
           <RouterLink v-else to="/me">{{ auth.user?.nickname || '我的' }}</RouterLink>
-          <span aria-disabled="true">购物车</span>
+          <RouterLink v-if="auth.isAuthenticated" to="/cart">购物车</RouterLink><RouterLink v-else :to="{ path: '/login', query: { redirect: '/cart' } }">购物车</RouterLink>
           <span aria-disabled="true">消息</span>
           <RouterLink v-if="auth.isAuthenticated" to="/me/favorites/products">收藏</RouterLink>
           <RouterLink v-if="auth.isAuthenticated" to="/me/addresses">地址</RouterLink>

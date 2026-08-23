@@ -13,7 +13,8 @@ import {
   type ProductSku,
   type PublicImage,
 } from '@/api/catalog'
-import { errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { addCartItem } from '@/api/cart'
+import { createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
@@ -29,6 +30,9 @@ const quantity = ref(1)
 const loading = ref(true)
 const error = ref('')
 const favoriteBusy = ref(false)
+const cartBusy = ref(false)
+const cartNotice = ref('')
+const pendingCartRequest = ref<{ signature: string; key: string } | null>(null)
 
 const selectedSku = computed(() => skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? null)
 const gallery = computed<PublicImage[]>(() => selectedSku.value?.images.length
@@ -91,6 +95,35 @@ async function toggleFavorite() {
     error.value = errorMessage(cause)
   } finally {
     favoriteBusy.value = false
+  }
+}
+
+async function addToCart() {
+  if (!selectedSku.value || !canPurchase.value) return
+  if (!auth.accessToken) {
+    await router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  cartBusy.value = true
+  cartNotice.value = ''
+  error.value = ''
+  const signature = `${selectedSku.value.sku_id}:${quantity.value}`
+  if (pendingCartRequest.value?.signature !== signature) {
+    pendingCartRequest.value = { signature, key: createIdempotencyKey('cart-add') }
+  }
+  try {
+    const response = await addCartItem(
+      selectedSku.value.sku_id,
+      quantity.value,
+      auth.accessToken,
+      pendingCartRequest.value.key,
+    )
+    pendingCartRequest.value = null
+    cartNotice.value = `已加入购物车，当前共 ${response.data.cart_total_quantity} 件商品。`
+  } catch (cause) {
+    error.value = errorMessage(cause)
+  } finally {
+    cartBusy.value = false
   }
 }
 
@@ -179,14 +212,15 @@ watch(() => auth.accessToken, () => void load())
           <small v-if="quantity >= maxQuantity">已达本次可购买上限，结算时仍会重新校验。</small>
           <div class="purchase-actions">
             <button type="button" class="secondary" :disabled="favoriteBusy" @click="toggleFavorite">{{ product.is_favorited ? '取消收藏' : '收藏商品' }}</button>
-            <button type="button" disabled :title="canPurchase ? '购物车将在第四阶段接入' : '当前规格不可购买'">加入购物车</button>
+            <button type="button" :disabled="cartBusy || !canPurchase" :title="canPurchase ? '加入购物车' : '当前规格不可购买'" @click="addToCart">{{ cartBusy ? '加入中…' : '加入购物车' }}</button>
             <button type="button" disabled :title="canPurchase ? '结算将在第四阶段接入' : '当前规格不可购买'">立即购买</button>
           </div>
+          <p v-if="cartNotice" class="notice success" aria-live="polite">{{ cartNotice }} <RouterLink to="/cart">查看购物车</RouterLink></p>
           <p v-if="product.purchase_notice" class="alert info">{{ product.purchase_notice }}</p>
         </aside>
       </div>
       <div class="mobile-purchase-bar" aria-label="移动端购买操作">
-        <button type="button" class="secondary" disabled>客服</button><button type="button" disabled>加入购物车</button><button type="button" disabled>立即购买</button>
+        <button type="button" class="secondary" disabled>客服</button><button type="button" :disabled="cartBusy || !canPurchase" @click="addToCart">加入购物车</button><button type="button" disabled>立即购买</button>
       </div>
     </article>
   </PageState>

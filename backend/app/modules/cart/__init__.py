@@ -1,0 +1,1 @@
+"""Permanent user cart domain."""

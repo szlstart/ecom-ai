@@ -13,6 +13,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'products/:productId', component: () => import('@/pages/ProductDetailPage.vue'), meta: { layout: 'storefront', audience: 'public', requiresAuth: false, title: '商品详情', requirementId: 'USR-PRODUCT-01' } },
     { path: 'products/:productId/reviews', component: () => import('@/pages/ProductReviewsPage.vue'), meta: { layout: 'storefront', audience: 'public', requiresAuth: false, title: '商品评价', requirementId: 'USR-PRODUCT-REVIEWS-01' } },
     { path: 'stores/:storeId', component: () => import('@/pages/StorePage.vue'), meta: { layout: 'storefront', audience: 'public', requiresAuth: false, title: '店铺', requirementId: 'USR-STORE-01' } },
+    { path: 'cart', component: () => import('@/pages/CartPage.vue'), meta: { ...userMeta, title: '购物车', requirementId: 'USR-CART-01' } },
     { path: 'me', component: () => import('@/pages/me/MyDashboardPage.vue'), meta: { ...userMeta, title: '我的', requirementId: 'USR-ME-01' } },
     { path: 'me/profile', component: () => import('@/pages/me/ProfilePage.vue'), meta: { ...userMeta, title: '个人信息', requirementId: 'USR-PROFILE-01' } },
     { path: 'me/settings/security', component: () => import('@/pages/me/SecuritySettingsPage.vue'), meta: { ...userMeta, title: '账号安全', requirementId: 'USR-SECURITY-01' } },

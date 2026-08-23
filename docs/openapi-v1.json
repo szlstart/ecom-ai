@@ -2320,6 +2320,352 @@
         }
       }
     },
+    "/api/v1/users/me/cart": {
+      "get": {
+        "tags": [
+          "cart"
+        ],
+        "summary": "Get My Cart",
+        "operationId": "Cart_GetMine",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/cart/items": {
+      "post": {
+        "tags": [
+          "cart"
+        ],
+        "summary": "Add Cart Item",
+        "operationId": "CartItem_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartItemCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/cart/items/{cart_item_id}": {
+      "patch": {
+        "tags": [
+          "cart"
+        ],
+        "summary": "Patch Cart Item",
+        "operationId": "CartItem_Patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cart_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^ci_[0-9A-Z]+$",
+              "title": "Cart Item Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartItemPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cart"
+        ],
+        "summary": "Delete Cart Item",
+        "operationId": "CartItem_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cart_item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^ci_[0-9A-Z]+$",
+              "title": "Cart Item Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/cart/selection": {
+      "put": {
+        "tags": [
+          "cart"
+        ],
+        "summary": "Replace Cart Selection",
+        "operationId": "CartSelection_Replace",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartSelectionReplaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/cart/invalid-items": {
+      "delete": {
+        "tags": [
+          "cart"
+        ],
+        "summary": "Clear Invalid Cart Items",
+        "operationId": "CartInvalidItem_Clear",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/favorite-products": {
       "get": {
         "tags": [
@@ -14654,6 +15000,278 @@
         ],
         "title": "BrandView"
       },
+      "CartAmountSummary": {
+        "properties": {
+          "selected_goods_amount": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selected_goods_amount"
+        ],
+        "title": "CartAmountSummary"
+      },
+      "CartItemCreateRequest": {
+        "properties": {
+          "sku_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^sku_[0-9A-Z]+$",
+            "title": "Sku Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sku_id",
+          "quantity"
+        ],
+        "title": "CartItemCreateRequest"
+      },
+      "CartItemPatchRequest": {
+        "properties": {
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 99.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "is_selected": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Selected"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CartItemPatchRequest"
+      },
+      "CartItemView": {
+        "properties": {
+          "cart_item_id": {
+            "type": "string",
+            "title": "Cart Item Id"
+          },
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "sku_name": {
+            "type": "string",
+            "title": "Sku Name"
+          },
+          "spec_values": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Spec Values"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "is_selected": {
+            "type": "boolean",
+            "title": "Is Selected"
+          },
+          "added_price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "current_price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "price_changed": {
+            "type": "boolean",
+            "title": "Price Changed"
+          },
+          "available_quantity": {
+            "type": "integer",
+            "title": "Available Quantity"
+          },
+          "is_valid": {
+            "type": "boolean",
+            "title": "Is Valid"
+          },
+          "invalid_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invalid Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cart_item_id",
+          "product_id",
+          "sku_id",
+          "product_name",
+          "sku_name",
+          "spec_values",
+          "quantity",
+          "is_selected",
+          "added_price",
+          "current_price",
+          "price_changed",
+          "available_quantity",
+          "is_valid",
+          "invalid_reason"
+        ],
+        "title": "CartItemView"
+      },
+      "CartSelectionReplaceRequest": {
+        "properties": {
+          "cart_item_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^ci_[0-9A-Z]+$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Cart Item Ids"
+          },
+          "is_selected": {
+            "type": "boolean",
+            "title": "Is Selected"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cart_item_ids",
+          "is_selected"
+        ],
+        "title": "CartSelectionReplaceRequest"
+      },
+      "CartStoreGroupView": {
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "title": "Store Id"
+          },
+          "store_name": {
+            "type": "string",
+            "title": "Store Name"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CartItemView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "selected_quantity": {
+            "type": "integer",
+            "title": "Selected Quantity"
+          },
+          "selected_amount": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "store_id",
+          "store_name",
+          "items",
+          "selected_quantity",
+          "selected_amount"
+        ],
+        "title": "CartStoreGroupView"
+      },
+      "CartView": {
+        "properties": {
+          "cart_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cart Id"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/CartStoreGroupView"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "cart_total_quantity": {
+            "type": "integer",
+            "title": "Cart Total Quantity"
+          },
+          "selected_quantity": {
+            "type": "integer",
+            "title": "Selected Quantity"
+          },
+          "valid_item_count": {
+            "type": "integer",
+            "title": "Valid Item Count"
+          },
+          "amount_summary": {
+            "$ref": "#/components/schemas/CartAmountSummary"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cart_id",
+          "groups",
+          "cart_total_quantity",
+          "selected_quantity",
+          "valid_item_count",
+          "amount_summary",
+          "version"
+        ],
+        "title": "CartView"
+      },
       "CategoryView": {
         "properties": {
           "category_id": {
@@ -15401,6 +16019,21 @@
           "data"
         ],
         "title": "Envelope[BatchJobView]"
+      },
+      "Envelope_CartView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CartView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[CartView]"
       },
       "Envelope_ContactChangeTicketResult_": {
         "properties": {

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.modules.batch_jobs.router import router as batch_jobs_router
+from app.modules.cart.router import router as cart_router
 from app.modules.catalog.admin_router import router as admin_catalog_router
 from app.modules.catalog.product_admin_router import router as product_admin_router
 from app.modules.catalog.router import favorite_router
@@ -23,6 +24,7 @@ api_router.include_router(content_router)
 api_router.include_router(files_router)
 api_router.include_router(catalog_router)
 api_router.include_router(reviews_router)
+api_router.include_router(cart_router)
 api_router.include_router(favorite_router)
 api_router.include_router(stores_router)
 api_router.include_router(follow_router)

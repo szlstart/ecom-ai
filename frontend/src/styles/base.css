@@ -252,6 +252,15 @@ tr.selected td { background: #f0f4ff; }
 .job-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .job-summary > div { padding: 16px; display: grid; gap: 6px; border-radius: 12px; background: #f5f7fb; }
 .job-summary strong { font-size: 1.25rem; }
+.cart-page { display: grid; gap: 1.25rem; }
+.cart-store-card { overflow: hidden; border: 1px solid #dfe4ed; border-radius: 18px; background: #fff; }
+.cart-store-card > header { padding: 16px 20px; display: flex; justify-content: space-between; gap: 16px; background: #f8faff; }
+.cart-item-row { padding: 16px 20px; display: grid; grid-template-columns: auto minmax(14rem, 1fr) auto 7rem auto; gap: 16px; align-items: center; border-top: 1px solid #e3e7ef; }
+.cart-item-row.invalid { opacity: .72; }
+.cart-item-copy { display: grid; gap: 5px; }
+.cart-item-row input[type="number"] { width: 5rem; }
+.cart-summary-bar { position: sticky; bottom: 16px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 16px; border: 1px solid #dfe4ed; border-radius: 16px; background: rgb(255 255 255 / 96%); box-shadow: 0 14px 36px rgb(27 49 101 / 14%); backdrop-filter: blur(10px); }
+.cart-summary-bar > div { display: flex; align-items: center; gap: 12px; }
 
 @media (max-width: 720px) {
   .nav-links span { display: none; }
@@ -265,6 +274,10 @@ tr.selected td { background: #f0f4ff; }
   .sticky-editor { position: static; }
   .field-grid { grid-template-columns: 1fr; }
   .job-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cart-item-row { grid-template-columns: auto 1fr; }
+  .cart-item-row > strong, .cart-item-row > label, .cart-item-row > button { grid-column: 2; }
+  .cart-summary-bar { align-items: stretch; flex-direction: column; bottom: 8px; }
+  .cart-summary-bar > div { justify-content: space-between; flex-wrap: wrap; }
   .field-row { grid-template-columns: 1fr; }
   .address-card, .page-heading { align-items: flex-start; flex-direction: column; }
   .nav-content { flex-wrap: wrap; padding: 12px 16px; }

@@ -203,6 +203,14 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
     )
     assert fulfillment.status_code == 200, fulfillment.text
 
+    fulfillment_read = await client.get(
+        f"/api/v1/admin/products/{product_id}/fulfillment-profile",
+        headers=auth,
+    )
+    assert fulfillment_read.status_code == 200, fulfillment_read.text
+    assert fulfillment_read.json()["data"]["shipping_template_id"] == template_no
+    assert fulfillment_read.json()["data"]["dispatch_max_hours"] == 48
+
     unsafe = await client.post(
         f"/api/v1/admin/products/{product_id}/detail-content-versions",
         headers={**auth, "Idempotency-Key": f"product-content-unsafe-{suffix}"},

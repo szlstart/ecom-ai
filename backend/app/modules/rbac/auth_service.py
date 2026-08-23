@@ -43,6 +43,12 @@ ADMIN_NAVIGATION = (
     ("dashboard", "仪表盘", "/admin/dashboard", "dashboard:read"),
     ("users", "用户与权限", "/admin/users", "users:read"),
     ("roles", "角色权限", "/admin/roles", "rbac:read"),
+    ("stores", "店铺运营", "/admin/stores", "stores:read"),
+    ("store-certifications", "店铺认证", "/admin/store-certifications", "stores:review"),
+    ("products", "商品管理", "/admin/products", "products:read"),
+    ("inventories", "库存调整", "/admin/inventories", "inventories:read"),
+    ("categories", "平台分类", "/admin/categories", "catalog_taxonomy:manage"),
+    ("brands", "品牌管理", "/admin/brands", "catalog_taxonomy:manage"),
     ("approvals", "审批中心", "/admin/approval-requests", "admin_approvals:read"),
     ("audit", "审计日志", "/admin/audit-logs", "audit:read"),
 )

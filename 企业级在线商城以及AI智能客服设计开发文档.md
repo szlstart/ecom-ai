@@ -9116,7 +9116,8 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `POST` | `/admin/products/{product_id}/skus` | `products:update`；规格组合唯一，Money/店铺 SKU Code 校验 |
 | `PATCH` | `/admin/products/{product_id}/skus/{sku_id}` | `products:update`；If-Match；订单已引用 SKU 不允许物理删除 |
 | `POST` | `/admin/products/{product_id}/skus/{sku_id}/status-changes` | 启用/禁用命令；影响预览、If-Match |
-| `PUT` | `/admin/products/{product_id}/images`、`/attributes`、`/fulfillment-profile` | 分区整体设置；File Owner/Purpose、Schema、Store Scope 和 If-Match |
+| `GET` / `PUT` | `/admin/products/{product_id}/fulfillment-profile` | 读取当前履约资料或以 If-Match 整体设置；配送模板必须属于本店且为生效版本 |
+| `PUT` | `/admin/products/{product_id}/images`、`/attributes` | 分区整体设置；File Owner/Purpose、Schema、Store Scope 和 If-Match |
 | `POST` | `/admin/products/{product_id}/detail-content-versions` | `products:update` + Store Scope；提交不可信 Source，服务端创建不可变候选版本、执行 Sanitization/安全扫描，绝不接受客户端 `safe_html` 为权威 |
 | `GET` | `/admin/products/{product_id}/detail-content-versions/{version_id}` | `products:read` + Store Scope；返回 Source 仅供有权编辑/审核，预览固定使用服务端安全派生内容并加管理水印 |
 | `POST` | `/admin/products/{product_id}/faqs` | `products:update` + Store Scope；创建 FAQ 定义和首个答案候选版本，问题为纯文本 |

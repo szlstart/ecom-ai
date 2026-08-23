@@ -160,6 +160,10 @@ def test_catalog_and_store_openapi_operations_are_stable() -> None:
         ): "AdminProductAttribute_Replace",
         (
             "/api/v1/admin/products/{product_id}/fulfillment-profile",
+            "get",
+        ): "AdminProductFulfillment_Get",
+        (
+            "/api/v1/admin/products/{product_id}/fulfillment-profile",
             "put",
         ): "AdminProductFulfillment_Upsert",
         (

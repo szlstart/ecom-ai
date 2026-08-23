@@ -48,7 +48,27 @@ describe('phase two route contract', () => {
     for (const route of protectedRoutes) {
       expect(route.meta.audience).toBe('admin')
       expect(route.meta.requiresAuth).toBe(true)
-      if (route.path !== '/admin/security') expect(route.meta.requiredPermission).toBeTruthy()
+      if (route.path !== '/admin/security') expect(route.meta.requiredPermission || route.meta.requiredAnyPermission).toBeTruthy()
+    }
+  })
+
+  it('registers every phase three administration route from the traceability matrix', () => {
+    const expected = new Map([
+      ['/admin/store-certifications', 'ADM-CERT-LIST-01'],
+      ['/admin/store-certifications/:certificationId', 'ADM-STORE-01'],
+      ['/admin/stores', 'ADM-STORE-LIST-01'],
+      ['/admin/stores/:storeId', 'ADM-STORE-DETAIL-01'],
+      ['/admin/stores/:storeId/policies', 'ADM-POLICY-01'],
+      ['/admin/products', 'ADM-PRODUCT-LIST-01'],
+      ['/admin/products/new', 'ADM-PRODUCT-NEW-01'],
+      ['/admin/products/:productId', 'ADM-PRODUCT-01'],
+      ['/admin/categories', 'ADM-CATEGORY-01'],
+      ['/admin/brands', 'ADM-BRAND-01'],
+      ['/admin/inventories', 'ADM-INV-01'],
+    ])
+    const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
+    for (const [path, requirementId] of expected) {
+      expect(routes.get(path)?.meta.requirementId).toBe(requirementId)
     }
   })
 })

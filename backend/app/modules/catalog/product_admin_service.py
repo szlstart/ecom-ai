@@ -519,6 +519,26 @@ class ProductAdminService:
         await self.session.commit()
         return result
 
+    async def fulfillment(
+        self,
+        access: AdminAccess,
+        product_no: str,
+    ) -> AdminProductFulfillmentView | None:
+        product, _, _, _ = await self._product(access, product_no)
+        row = await self.repository.fulfillment_with_template(product.id)
+        if row is None:
+            return None
+        profile, template = row
+        return AdminProductFulfillmentView(
+            shipping_template_id=template.template_no,
+            origin_region_code=profile.origin_region_code,
+            dispatch_min_hours=profile.dispatch_min_hours,
+            dispatch_max_hours=profile.dispatch_max_hours,
+            purchase_notice=profile.purchase_notice,
+            profile_version=profile.profile_version,
+            version=profile.version,
+        )
+
     async def create_content_version(
         self,
         access: AdminAccess,

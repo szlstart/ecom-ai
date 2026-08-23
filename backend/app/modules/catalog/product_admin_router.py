@@ -291,6 +291,21 @@ async def list_images(
     return Envelope(data=await service.images(access, product_id))
 
 
+@router.get(
+    "/{product_id}/fulfillment-profile",
+    response_model=Envelope[AdminProductFulfillmentView | None],
+    operation_id="AdminProductFulfillment_Get",
+)
+async def get_fulfillment(
+    product_id: str,
+    response: Response,
+    service: ProductAdminServiceDependency,
+    access: Annotated[AdminAccess, require_admin_permission("products:read")],
+) -> Envelope[AdminProductFulfillmentView | None]:
+    _no_store(response)
+    return Envelope(data=await service.fulfillment(access, product_id))
+
+
 @router.put(
     "/{product_id}/images",
     response_model=Envelope[list[AdminProductImageView]],

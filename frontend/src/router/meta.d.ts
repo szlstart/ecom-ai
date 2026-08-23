@@ -10,5 +10,6 @@ declare module 'vue-router' {
     title: string
     requirementId: string
     requiredPermission?: string
+    requiredAnyPermission?: string[]
   }
 }

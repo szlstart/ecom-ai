@@ -1123,6 +1123,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/products/{product_id}/fulfillment-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Fulfillment */
+        get: operations["AdminProductFulfillment_Get"];
+        /** Set Fulfillment */
+        put: operations["AdminProductFulfillment_Upsert"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/products/{product_id}/attributes": {
         parameters: {
             query?: never;
@@ -1134,23 +1152,6 @@ export interface paths {
         get: operations["AdminProductAttribute_List"];
         /** Replace Attributes */
         put: operations["AdminProductAttribute_Replace"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/products/{product_id}/fulfillment-profile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Set Fulfillment */
-        put: operations["AdminProductFulfillment_Upsert"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3890,6 +3891,11 @@ export interface components {
         /** Envelope[StorePublicView] */
         Envelope_StorePublicView_: {
             data: components["schemas"]["StorePublicView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[Union[AdminProductFulfillmentView, NoneType]] */
+        Envelope_Union_AdminProductFulfillmentView__NoneType__: {
+            data: components["schemas"]["AdminProductFulfillmentView"] | null;
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[UserDashboard] */
@@ -7658,6 +7664,74 @@ export interface operations {
             };
         };
     };
+    AdminProductFulfillment_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_AdminProductFulfillmentView__NoneType__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductFulfillment_Upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductFulfillmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductFulfillmentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     AdminProductAttribute_List: {
         parameters: {
             query?: never;
@@ -7713,43 +7787,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_list_AdminProductAttributeInput__"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    AdminProductFulfillment_Upsert: {
-        parameters: {
-            query?: never;
-            header?: {
-                "If-Match"?: string | null;
-            };
-            path: {
-                product_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminProductFulfillmentRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_AdminProductFulfillmentView_"];
                 };
             };
             /** @description Validation Error */

@@ -39,6 +39,17 @@ const routes: RouteRecordRaw[] = [
     { path: 'approval-requests/:approvalRequestId', component: () => import('@/pages/admin/AdminApprovalDetailPage.vue'), meta: { ...adminMeta, title: '审批详情', requirementId: 'ADM-APPROVAL-01', requiredPermission: 'admin_approvals:read' } },
     { path: 'audit-logs', component: () => import('@/pages/admin/AdminAuditLogPage.vue'), meta: { ...adminMeta, title: '审计日志', requirementId: 'ADM-AUDIT-01', requiredPermission: 'audit:read' } },
     { path: 'security', component: () => import('@/pages/admin/AdminSecurityPage.vue'), meta: { ...adminMeta, title: '管理身份安全', requirementId: 'ADM-AUTH-03' } },
+    { path: 'store-certifications', component: () => import('@/pages/admin/AdminStoreCertificationListPage.vue'), meta: { ...adminMeta, title: '店铺认证审核', requirementId: 'ADM-CERT-LIST-01', requiredAnyPermission: ['stores:read', 'stores:review'] } },
+    { path: 'store-certifications/:certificationId', component: () => import('@/pages/admin/AdminStoreCertificationDetailPage.vue'), meta: { ...adminMeta, title: '店铺认证详情', requirementId: 'ADM-STORE-01', requiredPermission: 'stores:review' } },
+    { path: 'stores', component: () => import('@/pages/admin/AdminStoreListPage.vue'), meta: { ...adminMeta, title: '店铺运营', requirementId: 'ADM-STORE-LIST-01', requiredPermission: 'stores:read' } },
+    { path: 'stores/:storeId', component: () => import('@/pages/admin/AdminStoreDetailPage.vue'), meta: { ...adminMeta, title: '店铺运营详情', requirementId: 'ADM-STORE-DETAIL-01', requiredPermission: 'stores:read' } },
+    { path: 'stores/:storeId/policies', component: () => import('@/pages/admin/AdminStorePolicyPage.vue'), meta: { ...adminMeta, title: '店铺服务政策', requirementId: 'ADM-POLICY-01', requiredPermission: 'store_policies:read' } },
+    { path: 'products', component: () => import('@/pages/admin/AdminProductListPage.vue'), meta: { ...adminMeta, title: '商品管理', requirementId: 'ADM-PRODUCT-LIST-01', requiredPermission: 'products:read' } },
+    { path: 'products/new', component: () => import('@/pages/admin/AdminProductEditPage.vue'), meta: { ...adminMeta, title: '新建商品', requirementId: 'ADM-PRODUCT-NEW-01', requiredPermission: 'products:create' } },
+    { path: 'products/:productId', component: () => import('@/pages/admin/AdminProductEditPage.vue'), meta: { ...adminMeta, title: '商品编辑', requirementId: 'ADM-PRODUCT-01', requiredPermission: 'products:read' } },
+    { path: 'categories', component: () => import('@/pages/admin/AdminCategoryPage.vue'), meta: { ...adminMeta, title: '平台分类', requirementId: 'ADM-CATEGORY-01', requiredPermission: 'catalog_taxonomy:manage' } },
+    { path: 'brands', component: () => import('@/pages/admin/AdminBrandPage.vue'), meta: { ...adminMeta, title: '品牌管理', requirementId: 'ADM-BRAND-01', requiredPermission: 'catalog_taxonomy:manage' } },
+    { path: 'inventories', component: () => import('@/pages/admin/AdminInventoryPage.vue'), meta: { ...adminMeta, title: '库存管理', requirementId: 'ADM-INV-01', requiredPermission: 'inventories:read' } },
   ] },
   { path: '/:pathMatch(.*)*', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '页面不存在', requirementId: 'USR-SYSTEM-404' }, children: [{ path: '', component: () => import('@/pages/NotFoundPage.vue') }] },
 ]
@@ -61,6 +72,7 @@ router.beforeEach(async (to) => {
   if (to.meta.audience === 'admin') {
     const auth = useAdminAuthStore()
     if (!auth.isAuthenticated && !(await auth.refresh())) return { path: '/admin/login' }
+    if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/admin/dashboard', query: { denied: to.meta.requiredAnyPermission.join('|') } }
     if (to.meta.requiredPermission && !auth.has(to.meta.requiredPermission)) return { path: '/admin/dashboard', query: { denied: to.meta.requiredPermission } }
   }
   return true

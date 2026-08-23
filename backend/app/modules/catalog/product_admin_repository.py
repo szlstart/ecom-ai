@@ -148,6 +148,21 @@ class ProductAdminRepository:
             ),
         )
 
+    async def fulfillment_with_template(
+        self, product_id: int
+    ) -> tuple[ProductFulfillmentProfile, ShippingTemplate] | None:
+        row = (
+            await self.session.execute(
+                select(ProductFulfillmentProfile, ShippingTemplate)
+                .join(
+                    ShippingTemplate,
+                    ShippingTemplate.id == ProductFulfillmentProfile.shipping_template_id,
+                )
+                .where(ProductFulfillmentProfile.product_id == product_id)
+            )
+        ).one_or_none()
+        return (row[0], row[1]) if row else None
+
     async def shipping_template(self, store_id: int, template_no: str) -> ShippingTemplate | None:
         return cast(
             ShippingTemplate | None,

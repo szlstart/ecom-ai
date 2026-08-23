@@ -19,6 +19,7 @@ from app.modules.checkout.models import CheckoutSession
 from app.modules.identity.models import AuthSession, User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
 from app.modules.orders.models import Order, OrderAddress, OrderItem, TradeOrder
+from app.modules.orders.service import OrderService
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
 from app.modules.system.models import OutboxEvent
 
@@ -748,3 +749,62 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert confirmed.status_code == 200, confirmed.text
     assert confirmed.json()["data"]["order"]["order_status"] == "completed"
     assert confirmed.json()["data"]["order"]["fulfillment_status"] == "received"
+
+    timeout_checkout = await client.post(
+        "/api/v1/checkout-sessions",
+        headers={**auth, "Idempotency-Key": f"timeout-checkout-{suffix}"},
+        json={"source": {"source_type": "buy_now", "sku_id": second_sku_no, "quantity": 1}},
+    )
+    assert timeout_checkout.status_code == 201, timeout_checkout.text
+    timeout_checkout_data = timeout_checkout.json()["data"]
+    timeout_created = await client.post(
+        "/api/v1/orders",
+        headers={**auth, "Idempotency-Key": f"timeout-order-{suffix}"},
+        json={
+            "checkout_id": timeout_checkout_data["checkout_id"],
+            "checkout_version": timeout_checkout_data["version"],
+        },
+    )
+    assert timeout_created.status_code == 201, timeout_created.text
+    timeout_trade_id = timeout_created.json()["data"]["trade_order_id"]
+    async for session in mysql_session():
+        timeout_trade = await session.scalar(
+            select(TradeOrder).where(TradeOrder.trade_no == timeout_trade_id)
+        )
+        assert timeout_trade is not None
+        timeout_trade.expires_at = utc_now() - timedelta(seconds=1)
+        timeout_orders = list(
+            (
+                await session.scalars(select(Order).where(Order.trade_order_id == timeout_trade.id))
+            ).all()
+        )
+        for timeout_order in timeout_orders:
+            timeout_order.expires_at = timeout_trade.expires_at
+        await session.commit()
+    async for session in mysql_session():
+        processed = await OrderService(session, get_settings(), security).expire_due(limit=1000)
+        assert processed >= 1
+    async for session in mysql_session():
+        timed_out_trade = await session.scalar(
+            select(TradeOrder).where(TradeOrder.trade_no == timeout_trade_id)
+        )
+        assert timed_out_trade is not None and timed_out_trade.trade_status == "closed"
+        timed_out_orders = list(
+            (
+                await session.scalars(
+                    select(Order).where(Order.trade_order_id == timed_out_trade.id)
+                )
+            ).all()
+        )
+        assert all(item.order_status == "cancelled" for item in timed_out_orders)
+        timeout_events = list(
+            (
+                await session.scalars(
+                    select(OutboxEvent).where(
+                        OutboxEvent.aggregate_no == timeout_trade_id,
+                        OutboxEvent.event_type == "trade_order.cancelled.v1",
+                    )
+                )
+            ).all()
+        )
+        assert len(timeout_events) == 1

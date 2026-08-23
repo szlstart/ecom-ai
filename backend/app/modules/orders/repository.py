@@ -110,6 +110,22 @@ class OrderRepository:
             ).all()
         )
 
+    async def expired_pending_trades(self, now: datetime, limit: int) -> list[TradeOrder]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(TradeOrder)
+                    .where(
+                        TradeOrder.trade_status == "pending_payment",
+                        TradeOrder.expires_at <= now,
+                    )
+                    .order_by(TradeOrder.expires_at, TradeOrder.id)
+                    .limit(limit)
+                    .with_for_update(skip_locked=True)
+                )
+            ).all()
+        )
+
     async def active_reservations_for_orders(
         self, order_ids: Sequence[int]
     ) -> list[tuple[InventoryReservation, Inventory]]:

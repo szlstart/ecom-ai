@@ -446,7 +446,86 @@ class OrderService:
         reservations = await self.repository.active_reservations_for_orders(
             [sibling.id for sibling in sibling_orders]
         )
-        order_by_id = {sibling.id: sibling for sibling in sibling_orders}
+        all_events = self._close_unpaid_trade(
+            trade=trade,
+            orders=sibling_orders,
+            reservations=reservations,
+            actor_type="user",
+            actor_id=user.id,
+            reason_code=payload.reason_code,
+            reason=payload.description or payload.reason_code,
+            event_code="order.user_cancelled",
+            operation_type="cancel",
+            request_id=request_id,
+            now=now,
+            request_payload_hash=canonical_request_hash(payload.model_dump(mode="json")),
+        )
+        new_events = [event for event in all_events if event.order_id == order.id]
+        await self.session.flush()
+        refreshed = await self.repository.user_order(user.id, order_no)
+        if refreshed is None:
+            raise RuntimeError("cancelled order disappeared")
+        view = (await self._order_views([refreshed]))[0]
+        result = OrderCommandResult(order=view, events=[_event_view(event) for event in new_events])
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=order.order_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
+
+    async def expire_due(self, *, limit: int = 100) -> int:
+        now = utc_now()
+        trades = await self.repository.expired_pending_trades(now, limit)
+        processed = 0
+        for trade in trades:
+            orders = await self.repository.trade_orders_for_update(trade.id)
+            if not orders or any(
+                order.order_status != "pending_payment" or order.payment_status != "unpaid"
+                for order in orders
+            ):
+                continue
+            reservations = await self.repository.active_reservations_for_orders(
+                [order.id for order in orders]
+            )
+            request_id = new_prefixed_ulid("req_")
+            self._close_unpaid_trade(
+                trade=trade,
+                orders=orders,
+                reservations=reservations,
+                actor_type="system",
+                actor_id=None,
+                reason_code="payment_timeout",
+                reason="支付时限已到，订单自动关闭。",
+                event_code="order.payment_timed_out",
+                operation_type="timeout_close",
+                request_id=request_id,
+                now=now,
+                request_payload_hash=None,
+            )
+            processed += 1
+        await self.session.commit()
+        return processed
+
+    def _close_unpaid_trade(
+        self,
+        *,
+        trade: TradeOrder,
+        orders: list[Order],
+        reservations: list[tuple[InventoryReservation, Inventory]],
+        actor_type: str,
+        actor_id: int | None,
+        reason_code: str,
+        reason: str,
+        event_code: str,
+        operation_type: str,
+        request_id: str,
+        now: datetime,
+        request_payload_hash: bytes | None,
+    ) -> list[OrderStatusLog]:
+        order_by_id = {order.id: order for order in orders}
         for reservation, inventory in reservations:
             before = inventory.reserved_quantity
             if before < reservation.quantity:
@@ -455,9 +534,9 @@ class OrderService:
             inventory.version += 1
             reservation.reservation_status = "released"
             reservation.released_at = now
-            reservation.release_reason = "user_cancelled"
+            reservation.release_reason = reason_code
             reservation.version += 1
-            sibling = order_by_id[reservation.order_id]
+            order = order_by_id[reservation.order_id]
             self.session.add(
                 InventoryLog(
                     inventory_id=inventory.id,
@@ -470,45 +549,44 @@ class OrderService:
                     reserved_before=before,
                     reserved_after=before - reservation.quantity,
                     reference_type="order",
-                    reference_no=sibling.order_no,
-                    idempotency_key=f"cancel:{reservation.reservation_no}",
-                    actor_type="user",
-                    actor_id=user.id,
-                    reason=payload.reason_code,
+                    reference_no=order.order_no,
+                    idempotency_key=f"release:{reservation.reservation_no}",
+                    actor_type=actor_type,
+                    actor_id=actor_id,
+                    reason=reason_code,
                     inventory_version=inventory.version,
                 )
             )
-        new_events: list[OrderStatusLog] = []
-        for sibling in sibling_orders:
-            previous = sibling.order_status
-            sibling.order_status = "cancelled"
-            sibling.closed_at = now
-            sibling.version += 1
+        events: list[OrderStatusLog] = []
+        for order in orders:
+            previous = order.order_status
+            order.order_status = "cancelled"
+            order.closed_at = now
+            order.version += 1
             event = OrderStatusLog(
-                order_id=sibling.id,
+                order_id=order.id,
                 state_dimension="order",
                 from_status=previous,
                 to_status="cancelled",
-                event_code="order.user_cancelled",
-                actor_type="user",
-                actor_id=user.id,
-                reason=payload.description or payload.reason_code,
-                order_version=sibling.version,
+                event_code=event_code,
+                actor_type=actor_type,
+                actor_id=actor_id,
+                reason=reason,
+                order_version=order.version,
                 request_id=request_id,
                 trace_id=request_id,
                 created_at=now,
             )
+            events.append(event)
             self.session.add(event)
-            if sibling.id == order.id:
-                new_events.append(event)
             self.session.add(
                 OrderOperationLog(
                     operation_no=new_prefixed_ulid("oop_"),
-                    order_id=sibling.id,
-                    operation_type="cancel",
-                    actor_type="user",
-                    actor_id=user.id,
-                    request_payload_hash=canonical_request_hash(payload.model_dump(mode="json")),
+                    order_id=order.id,
+                    operation_type=operation_type,
+                    actor_type=actor_type,
+                    actor_id=actor_id,
+                    request_payload_hash=request_payload_hash,
                     result_status="success",
                     request_id=request_id,
                     trace_id=request_id,
@@ -526,8 +604,8 @@ class OrderService:
                 aggregate_version=trade.version,
                 payload={
                     "trade_order_id": trade.trade_no,
-                    "order_ids": [sibling.order_no for sibling in sibling_orders],
-                    "reason_code": payload.reason_code,
+                    "order_ids": [order.order_no for order in orders],
+                    "reason_code": reason_code,
                 },
                 event_status="pending",
                 available_at=now,
@@ -535,20 +613,7 @@ class OrderService:
                 trace_id=request_id,
             )
         )
-        await self.session.flush()
-        refreshed = await self.repository.user_order(user.id, order_no)
-        if refreshed is None:
-            raise RuntimeError("cancelled order disappeared")
-        view = (await self._order_views([refreshed]))[0]
-        result = OrderCommandResult(order=view, events=[_event_view(event) for event in new_events])
-        self.idempotency.complete(
-            claim,
-            response_status=200,
-            resource_no=order.order_no,
-            response_body=cast(dict[str, object], result.model_dump(mode="json")),
-        )
-        await self.session.commit()
-        return result
+        return events
 
     async def confirm_receipt(
         self,

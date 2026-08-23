@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     file_scanner_host: str = "127.0.0.1"
     file_scanner_port: int = Field(default=13310, ge=1, le=65535)
     file_scanner_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    order_timeout_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)
+    order_timeout_batch_size: int = Field(default=100, ge=1, le=1000)
 
     @property
     def cors_origins(self) -> list[str]:

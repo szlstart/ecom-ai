@@ -1134,6 +1134,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders/{order_id}/shipments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Shipment */
+        post: operations["AdminShipment_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Shipment */
+        get: operations["AdminShipment_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/favorite-products": {
         parameters: {
             query?: never;
@@ -3578,6 +3612,58 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** AdminShipmentCreateItem */
+        AdminShipmentCreateItem: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** AdminShipmentCreateRequest */
+        AdminShipmentCreateRequest: {
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No */
+            tracking_no: string;
+            /** Items */
+            items: components["schemas"]["AdminShipmentCreateItem"][];
+        };
+        /** AdminShipmentDetail */
+        AdminShipmentDetail: {
+            /** Shipment Id */
+            shipment_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No Masked */
+            tracking_no_masked: string;
+            /**
+             * Shipment Status
+             * @enum {string}
+             */
+            shipment_status: "created" | "picked_up" | "in_transit" | "delivered" | "exception" | "returned" | "closed" | "voided";
+            /** Items */
+            items: components["schemas"]["ShipmentItemView"][];
+            delivery_estimate: components["schemas"]["DeliveryEstimate"];
+            /** Latest Tracks */
+            latest_tracks: components["schemas"]["ShipmentTrackView"][];
+            /**
+             * Shipped At
+             * Format: date-time
+             */
+            shipped_at: string;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /** Version */
+            version: number;
+        };
         /** AdminShippingRuleInput */
         AdminShippingRuleInput: {
             /** Region Scope */
@@ -4638,6 +4724,11 @@ export interface components {
         /** Envelope[AdminProductList] */
         Envelope_AdminProductList_: {
             data: components["schemas"]["AdminProductList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminShipmentDetail] */
+        Envelope_AdminShipmentDetail_: {
+            data: components["schemas"]["AdminShipmentDetail"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminShippingTemplateView] */
@@ -9136,6 +9227,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ShipmentRefreshResult_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminShipment_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShipmentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminShipment_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
                 };
             };
             /** @description Validation Error */

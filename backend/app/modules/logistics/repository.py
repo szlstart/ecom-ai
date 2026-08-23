@@ -13,6 +13,7 @@ from app.modules.logistics.models import (
     ShipmentTrack,
 )
 from app.modules.orders.models import Order, OrderItem
+from app.modules.stores.models import Store
 
 
 class LogisticsRepository:
@@ -113,9 +114,7 @@ class LogisticsRepository:
                 await self.session.scalars(
                     select(ShipmentTrack)
                     .where(ShipmentTrack.shipment_id == shipment_id)
-                    .order_by(
-                        ShipmentTrack.occurred_at.desc(), ShipmentTrack.id.desc()
-                    )
+                    .order_by(ShipmentTrack.occurred_at.desc(), ShipmentTrack.id.desc())
                     .limit(limit)
                 )
             ).all()
@@ -160,3 +159,69 @@ class LogisticsRepository:
                 .limit(1)
             ),
         )
+
+    async def admin_order(
+        self, order_no: str, *, for_update: bool = False
+    ) -> tuple[Order, Store] | None:
+        statement = (
+            select(Order, Store)
+            .join(Store, Store.id == Order.store_id)
+            .where(Order.order_no == order_no)
+        )
+        if for_update:
+            statement = statement.with_for_update(of=Order)
+        row = (await self.session.execute(statement)).one_or_none()
+        return (row[0], row[1]) if row else None
+
+    async def order_items_for_update(self, order_id: int) -> list[OrderItem]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(OrderItem)
+                    .where(OrderItem.order_id == order_id)
+                    .order_by(OrderItem.id)
+                    .with_for_update()
+                )
+            ).all()
+        )
+
+    async def allocated_quantities(self, order_id: int) -> dict[int, int]:
+        rows = (
+            await self.session.execute(
+                select(ShipmentItem.order_item_id, func.sum(ShipmentItem.quantity))
+                .join(Shipment, Shipment.id == ShipmentItem.shipment_id)
+                .where(
+                    Shipment.order_id == order_id,
+                    Shipment.shipment_status != "voided",
+                )
+                .group_by(ShipmentItem.order_item_id)
+            )
+        ).all()
+        return {int(row[0]): int(row[1]) for row in rows}
+
+    async def shipment_by_tracking_hash(
+        self, carrier_code: str, tracking_hash: bytes
+    ) -> Shipment | None:
+        return cast(
+            Shipment | None,
+            await self.session.scalar(
+                select(Shipment).where(
+                    Shipment.carrier_code == carrier_code,
+                    Shipment.tracking_no_hash == tracking_hash,
+                )
+            ),
+        )
+
+    async def shipment_by_no(
+        self, shipment_no: str, *, for_update: bool = False
+    ) -> tuple[Shipment, Order, Store] | None:
+        statement = (
+            select(Shipment, Order, Store)
+            .join(Order, Order.id == Shipment.order_id)
+            .join(Store, Store.id == Shipment.store_id)
+            .where(Shipment.shipment_no == shipment_no)
+        )
+        if for_update:
+            statement = statement.with_for_update(of=Shipment)
+        row = (await self.session.execute(statement)).one_or_none()
+        return (row[0], row[1], row[2]) if row else None

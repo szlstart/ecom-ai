@@ -4182,6 +4182,142 @@
         }
       }
     },
+    "/api/v1/admin/orders/{order_id}/shipments": {
+      "post": {
+        "tags": [
+          "logistics-administration"
+        ],
+        "summary": "Create Shipment",
+        "operationId": "AdminShipment_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminShipmentCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminShipmentDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/shipments/{shipment_id}": {
+      "get": {
+        "tags": [
+          "logistics-administration"
+        ],
+        "summary": "Get Shipment",
+        "operationId": "AdminShipment_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shipment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminShipmentDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me/favorite-products": {
       "get": {
         "tags": [
@@ -14364,6 +14500,166 @@
         ],
         "title": "AdminReauthenticationRequest"
       },
+      "AdminShipmentCreateItem": {
+        "properties": {
+          "order_item_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^oit_[0-9A-Z]+$",
+            "title": "Order Item Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 1000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_item_id",
+          "quantity"
+        ],
+        "title": "AdminShipmentCreateItem"
+      },
+      "AdminShipmentCreateRequest": {
+        "properties": {
+          "carrier_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}$",
+            "title": "Carrier Code"
+          },
+          "carrier_name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Carrier Name"
+          },
+          "tracking_no": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Tracking No",
+            "writeOnly": true
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminShipmentCreateItem"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "carrier_code",
+          "carrier_name",
+          "tracking_no",
+          "items"
+        ],
+        "title": "AdminShipmentCreateRequest"
+      },
+      "AdminShipmentDetail": {
+        "properties": {
+          "shipment_id": {
+            "type": "string",
+            "title": "Shipment Id"
+          },
+          "order_id": {
+            "type": "string",
+            "title": "Order Id"
+          },
+          "store_id": {
+            "type": "string",
+            "title": "Store Id"
+          },
+          "carrier_code": {
+            "type": "string",
+            "title": "Carrier Code"
+          },
+          "carrier_name": {
+            "type": "string",
+            "title": "Carrier Name"
+          },
+          "tracking_no_masked": {
+            "type": "string",
+            "title": "Tracking No Masked"
+          },
+          "shipment_status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "picked_up",
+              "in_transit",
+              "delivered",
+              "exception",
+              "returned",
+              "closed",
+              "voided"
+            ],
+            "title": "Shipment Status"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShipmentItemView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "delivery_estimate": {
+            "$ref": "#/components/schemas/DeliveryEstimate"
+          },
+          "latest_tracks": {
+            "items": {
+              "$ref": "#/components/schemas/ShipmentTrackView"
+            },
+            "type": "array",
+            "title": "Latest Tracks"
+          },
+          "shipped_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Shipped At"
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shipment_id",
+          "order_id",
+          "store_id",
+          "carrier_code",
+          "carrier_name",
+          "tracking_no_masked",
+          "shipment_status",
+          "items",
+          "delivery_estimate",
+          "latest_tracks",
+          "shipped_at",
+          "version"
+        ],
+        "title": "AdminShipmentDetail"
+      },
       "AdminShippingRuleInput": {
         "properties": {
           "region_scope": {
@@ -17902,6 +18198,21 @@
           "data"
         ],
         "title": "Envelope[AdminProductList]"
+      },
+      "Envelope_AdminShipmentDetail_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminShipmentDetail"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminShipmentDetail]"
       },
       "Envelope_AdminShippingTemplateView_": {
         "properties": {

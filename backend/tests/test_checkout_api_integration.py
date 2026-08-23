@@ -10,20 +10,29 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from app.api.dependencies import AuthContext
 from app.core.config import get_settings
+from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
-from app.core.security import SecurityService, utc_now
+from app.core.security import SecurityService, TokenClaims, utc_now
 from app.database.mysql import mysql_session
 from app.modules.cart.models import CartItem
 from app.modules.catalog.models import Category, Product, ProductFulfillmentProfile, ProductSku
 from app.modules.checkout.models import CheckoutSession
 from app.modules.identity.models import AuthSession, User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
-from app.modules.logistics.models import Shipment, ShipmentItem, ShipmentTrack
+from app.modules.logistics.models import Shipment, ShipmentTrack
+from app.modules.logistics.schemas import (
+    AdminShipmentCreateItem,
+    AdminShipmentCreateRequest,
+)
+from app.modules.logistics.service import LogisticsService
 from app.modules.orders.models import Order, OrderAddress, OrderItem, TradeOrder
 from app.modules.orders.service import OrderService
 from app.modules.payments.models import Payment, PaymentCallback
 from app.modules.payments.service import PaymentService
+from app.modules.rbac.dependencies import AdminAccess
+from app.modules.rbac.models import Permission
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
 from app.modules.system.models import OutboxEvent
 
@@ -281,8 +290,18 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             ]
         )
         await session.commit()
-        user_no, session_no, sku_no, second_sku_no, address_no, other_address_no, store_no = (
+        (
+            user_no,
+            other_user_no,
+            session_no,
+            sku_no,
+            second_sku_no,
+            address_no,
+            other_address_no,
+            store_no,
+        ) = (
             user.user_no,
+            other_user.user_no,
             auth_session.session_no,
             sku.sku_no,
             second_sku.sku_no,
@@ -720,7 +739,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     receipt_checkout = await client.post(
         "/api/v1/checkout-sessions",
         headers={**auth, "Idempotency-Key": f"receipt-checkout-{suffix}"},
-        json={"source": {"source_type": "buy_now", "sku_id": sku_no, "quantity": 1}},
+        json={"source": {"source_type": "buy_now", "sku_id": sku_no, "quantity": 2}},
     )
     assert receipt_checkout.status_code == 201, receipt_checkout.text
     receipt_checkout_data = receipt_checkout.json()["data"]
@@ -889,72 +908,168 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             select(OrderItem).where(OrderItem.order_id == receipt_order.id)
         )
         assert receipt_item is not None
-        tracking_no = f"SF{suffix.upper()}1234"
-        shipment = Shipment(
-            shipment_no=new_prefixed_ulid("shp_"),
-            order_id=receipt_order.id,
-            store_id=receipt_order.store_id,
+        receipt_order_version = receipt_order.version
+        receipt_item_no = receipt_item.order_item_no
+        receipt_item_quantity = receipt_item.quantity
+        receipt_store_id = receipt_order.store_id
+    first_tracking_no = f"SF{suffix.upper()}1111"
+    tracking_no = f"SF{suffix.upper()}1234"
+    async for session in mysql_session():
+        admin_user = await session.scalar(select(User).where(User.user_no == user_no))
+        admin_session = await session.scalar(
+            select(AuthSession).where(AuthSession.session_no == session_no)
+        )
+        assert admin_user is not None and admin_session is not None
+        claims = TokenClaims(
+            subject=admin_user.user_no,
+            session_id=admin_session.session_no,
+            audience="admin",
+            permission_version=admin_user.permission_version,
+            expires_at=admin_session.expires_at,
+        )
+        permission = Permission(
+            permission_code="shipments:create",
+            resource="shipments",
+            action="create",
+            risk_level="high",
+            allowed_scope_types=["store"],
+            delegation_policy="role_policy",
+            requires_mfa=True,
+            requires_recent_auth=True,
+            approval_policy="none",
+            owner="logistics",
+            description="shipment create",
+            permission_status="active",
+        )
+        access = AdminAccess(
+            context=AuthContext(
+                user=admin_user,
+                session=admin_session,
+                claims=claims,
+            ),
+            permission=permission,
+            scopes=(("store", receipt_store_id),),
+        )
+        logistics = LogisticsService(
+            session,
+            security,
+            get_settings().security_hmac_secret.get_secret_value(),
+        )
+        shipment_request = AdminShipmentCreateRequest(
             carrier_code="fake_express",
             carrier_name="测试快递",
-            tracking_no_ciphertext=security.encrypt(
-                "shipment-tracking-no", tracking_no
-            ),
-            tracking_no_hash=security.keyed_hash(
-                "shipment-tracking-no", tracking_no
-            ),
-            tracking_no_masked=f"{tracking_no[:2]}******{tracking_no[-4:]}",
-            shipment_status="in_transit",
-            provider_status="TRANSPORTING",
-            shipped_at=utc_now() - timedelta(hours=2),
-            last_track_at=utc_now() - timedelta(minutes=10),
-            key_version=1,
+            tracking_no=first_tracking_no,
+            items=[
+                AdminShipmentCreateItem(
+                    order_item_id=receipt_item_no,
+                    quantity=1,
+                )
+            ],
         )
-        session.add(shipment)
-        await session.flush()
-        session.add_all(
-            [
-                ShipmentItem(
-                    shipment_id=shipment.id,
-                    order_item_id=receipt_item.id,
-                    quantity=receipt_item.quantity,
-                ),
-                ShipmentTrack(
-                    shipment_id=shipment.id,
-                    provider_event_id=f"track-{suffix}",
-                    track_status="in_transit",
-                    provider_status="TRANSPORTING",
-                    description="包裹正在运输途中",
-                    location_text="广州市",
-                    occurred_at=utc_now() - timedelta(minutes=10),
-                    payload_hash=hashlib.sha256(f"track-{suffix}".encode()).digest(),
-                ),
-            ]
+        shipment_result = await logistics.create_shipment(
+            access,
+            receipt_order_id,
+            shipment_request,
+            receipt_order_version,
+            f"shipment-create-{suffix}",
         )
-        receipt_order.order_status = "shipped"
-        receipt_order.fulfillment_status = "shipped"
-        receipt_order.shipped_at = utc_now()
-        receipt_order.version += 1
+        assert "tracking_no" not in shipment_result.model_dump()
+        replayed_shipment = await logistics.create_shipment(
+            access,
+            receipt_order_id,
+            shipment_request,
+            receipt_order_version,
+            f"shipment-create-{suffix}",
+        )
+        assert replayed_shipment.shipment_id == shipment_result.shipment_id
+        partial_order = await session.scalar(
+            select(Order).where(Order.order_no == receipt_order_id)
+        )
+        assert partial_order is not None
+        assert partial_order.order_status == "pending_shipment"
+        assert partial_order.fulfillment_status == "partial"
+        second_request = AdminShipmentCreateRequest(
+            carrier_code="fake_express",
+            carrier_name="测试快递",
+            tracking_no=tracking_no,
+            items=[
+                AdminShipmentCreateItem(
+                    order_item_id=receipt_item_no,
+                    quantity=receipt_item_quantity - 1,
+                )
+            ],
+        )
+        second_result = await logistics.create_shipment(
+            access,
+            receipt_order_id,
+            second_request,
+            partial_order.version,
+            f"shipment-create-second-{suffix}",
+        )
+        shipment_no = second_result.shipment_id
+        shipment_masked = second_result.tracking_no_masked
+        shipped_order = await session.scalar(
+            select(Order).where(Order.order_no == receipt_order_id)
+        )
+        assert shipped_order is not None
+        assert shipped_order.order_status == "shipped"
+        assert shipped_order.fulfillment_status == "shipped"
+        wrong_scope_access = AdminAccess(
+            context=access.context,
+            permission=permission,
+            scopes=(("store", receipt_store_id + 99_999),),
+        )
+        with pytest.raises(ApplicationError) as scope_error:
+            await logistics.admin_detail(wrong_scope_access, shipment_no)
+        assert scope_error.value.status == 404
+    async for session in mysql_session():
+        shipment = await session.scalar(select(Shipment).where(Shipment.shipment_no == shipment_no))
+        assert shipment is not None
+        shipment.shipment_status = "in_transit"
+        shipment.provider_status = "TRANSPORTING"
+        shipment.last_track_at = utc_now() - timedelta(minutes=10)
+        session.add(
+            ShipmentTrack(
+                shipment_id=shipment.id,
+                provider_event_id=f"track-{suffix}",
+                track_status="in_transit",
+                provider_status="TRANSPORTING",
+                description="包裹正在运输途中",
+                location_text="广州市",
+                occurred_at=utc_now() - timedelta(minutes=10),
+                payload_hash=hashlib.sha256(f"track-{suffix}".encode()).digest(),
+            )
+        )
         await session.commit()
-        shipment_no = shipment.shipment_no
-        shipment_masked = shipment.tracking_no_masked
-    shipment_list = await client.get(
-        f"/api/v1/orders/{receipt_order_id}/shipments", headers=auth
-    )
+    async for session in mysql_session():
+        shipment_other_user = await session.scalar(
+            select(User).where(User.user_no == other_user_no)
+        )
+        assert shipment_other_user is not None
+        logistics = LogisticsService(
+            session,
+            security,
+            get_settings().security_hmac_secret.get_secret_value(),
+        )
+        with pytest.raises(ApplicationError) as ownership_error:
+            await logistics.detail(shipment_other_user, shipment_no)
+        assert ownership_error.value.status == 404
+    shipment_list = await client.get(f"/api/v1/orders/{receipt_order_id}/shipments", headers=auth)
     assert shipment_list.status_code == 200, shipment_list.text
-    summary = shipment_list.json()["data"]["items"][0]
+    assert len(shipment_list.json()["data"]["items"]) == 2
+    summary = next(
+        item for item in shipment_list.json()["data"]["items"] if item["shipment_id"] == shipment_no
+    )
     assert summary["shipment_id"] == shipment_no
     assert summary["tracking_no_masked"] == shipment_masked
     assert "tracking_no" not in summary
-    assert summary["delivery_estimate"]["status"] == "unavailable"
-    shipment_detail = await client.get(
-        f"/api/v1/shipments/{shipment_no}", headers=auth
-    )
+    assert summary["delivery_estimate"]["status"] == "available"
+    assert summary["delivery_estimate"]["source"] == "shipping_template"
+    shipment_detail = await client.get(f"/api/v1/shipments/{shipment_no}", headers=auth)
     assert shipment_detail.status_code == 200, shipment_detail.text
     assert shipment_detail.json()["data"]["tracking_no"] == tracking_no
     assert shipment_detail.headers["etag"] == '"v0"'
-    tracks = await client.get(
-        f"/api/v1/shipments/{shipment_no}/tracks?limit=1", headers=auth
-    )
+    tracks = await client.get(f"/api/v1/shipments/{shipment_no}/tracks?limit=1", headers=auth)
     assert tracks.status_code == 200
     assert tracks.json()["data"]["items"][0]["track_status"] == "in_transit"
     refresh_headers = {

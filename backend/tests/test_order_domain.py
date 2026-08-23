@@ -106,8 +106,13 @@ def test_available_actions_share_the_hide_policy() -> None:
         "delete_order",
         "repurchase",
     ]
+    partially_shipped = _snapshot(order_status="pending_shipment", fulfillment_status="partial")
+    assert available_action_codes(partially_shipped, utc_now()) == ["view_logistics"]
     in_transit = _snapshot(order_status="shipped", fulfillment_status="shipped")
-    assert available_action_codes(in_transit, utc_now()) == ["confirm_receipt"]
+    assert available_action_codes(in_transit, utc_now()) == [
+        "view_logistics",
+        "confirm_receipt",
+    ]
 
 
 def test_adjustment_allocator_preserves_minor_units_and_is_deterministic() -> None:

@@ -168,6 +168,14 @@ class OrderService:
         for group in checkout.view.store_groups:
             contexts = contexts_by_store[group.store_id]
             store = contexts[0][0][3]
+            selected_delivery = next(
+                (
+                    option
+                    for option in group.delivery_options
+                    if option.option_id == group.selected_delivery_option
+                ),
+                None,
+            )
             order = Order(
                 order_no=new_prefixed_ulid("ord_"),
                 trade_order_id=trade.id,
@@ -190,7 +198,9 @@ class OrderService:
                     "schema_version": 1,
                     "pricing_version": checkout.session.pricing_version,
                     "policy_versions": group.policy_versions,
-                    "delivery_option": group.selected_delivery_option,
+                    "delivery_option": selected_delivery.model_dump(mode="json")
+                    if selected_delivery
+                    else None,
                     "checkout_snapshot_hash": checkout.snapshot.snapshot_hash.hex(),
                 },
                 expires_at=checkout.session.expires_at,
@@ -1144,6 +1154,7 @@ def _order_actions(order: Order, trade: TradeOrder, items: list[OrderItem]) -> l
     routes = {
         "pay": ("payment-cashier", {"tradeOrderId": trade.trade_no}, False),
         "cancel_order": ("my-order-detail", {"orderId": order.order_no}, True),
+        "view_logistics": ("my-order-logistics", {"orderId": order.order_no}, False),
         "confirm_receipt": ("my-order-detail", {"orderId": order.order_no}, True),
         "delete_order": ("my-order-detail", {"orderId": order.order_no}, True),
         "repurchase": ("my-order-detail", {"orderId": order.order_no}, False),

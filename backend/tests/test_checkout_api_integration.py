@@ -730,6 +730,57 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     )
     assert receipt_created.status_code == 201, receipt_created.text
     receipt_order_id = receipt_created.json()["data"]["order_ids"][0]
+    receipt_trade_id = receipt_created.json()["data"]["trade_order_id"]
+    payment_payload = {
+        "trade_order_id": receipt_trade_id,
+        "provider": "fake",
+        "payment_method": "fake_balance",
+        "return_url_key": "payment_result",
+    }
+    payment_created = await client.post(
+        "/api/v1/payments",
+        headers={**auth, "Idempotency-Key": f"payment-create-{suffix}"},
+        json=payment_payload,
+    )
+    assert payment_created.status_code == 201, payment_created.text
+    payment_data = payment_created.json()["data"]
+    assert payment_data["payment_status"] == "pending"
+    assert payment_data["display_status"] == "confirming"
+    receipt_trade = await client.get(f"/api/v1/trade-orders/{receipt_trade_id}", headers=auth)
+    assert receipt_trade.status_code == 200
+    assert (
+        payment_data["requested_amount"]
+        == receipt_trade.json()["data"]["amounts"]["payable_amount"]
+    )
+    assert [event["to_status"] for event in payment_data["events"]] == [
+        "created",
+        "pending",
+    ]
+    payment_replay = await client.post(
+        "/api/v1/payments",
+        headers={**auth, "Idempotency-Key": f"payment-create-{suffix}"},
+        json=payment_payload,
+    )
+    assert payment_replay.status_code == 201
+    assert payment_replay.json()["data"]["payment_id"] == payment_data["payment_id"]
+    active_conflict = await client.post(
+        "/api/v1/payments",
+        headers={**auth, "Idempotency-Key": f"payment-create-new-{suffix}"},
+        json=payment_payload,
+    )
+    assert active_conflict.status_code == 409
+    assert active_conflict.json()["code"] == "PAYMENT_ATTEMPT_IN_PROGRESS"
+    assert active_conflict.headers["location"].endswith(payment_data["payment_id"])
+    payment_get = await client.get(f"/api/v1/payments/{payment_data['payment_id']}", headers=auth)
+    assert payment_get.status_code == 200
+    assert payment_get.json()["data"]["action"] is None
+    payment_list = await client.get(
+        f"/api/v1/trade-orders/{receipt_trade_id}/payments", headers=auth
+    )
+    assert payment_list.status_code == 200
+    assert [item["payment_id"] for item in payment_list.json()["data"]["items"]] == [
+        payment_data["payment_id"]
+    ]
     async for session in mysql_session():
         receipt_order = await session.scalar(
             select(Order).where(Order.order_no == receipt_order_id)
@@ -746,7 +797,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         f"/api/v1/orders/{receipt_order_id}/receipt-confirmations",
         headers={
             **auth,
-            "If-Match": '"v1"',
+            "If-Match": '"v2"',
             "Idempotency-Key": f"receipt-confirm-{suffix}",
         },
     )

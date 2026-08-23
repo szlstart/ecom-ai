@@ -97,6 +97,15 @@ export interface OrderFilters {
 }
 
 export interface OrderCommandResult { order: OrderSummary; events: OrderEvent[] }
+export interface TradeOrder {
+  trade_order_id: string
+  trade_status: string
+  amounts: OrderSummary['amounts']
+  order_count: number
+  expires_at: string
+  available_actions: OrderAction[]
+  version: number
+}
 export interface OrderHideResult { order_id: string; undo_until: string; restore_url: string; version: number }
 export interface OrderRepurchaseResult {
   order_id: string
@@ -117,6 +126,10 @@ export function listMyOrders(filters: OrderFilters, token: string): Promise<ApiR
 
 export function getMyOrder(orderId: string, token: string): Promise<ApiResult<OrderDetail>> {
   return apiRequest(`/orders/${encodeURIComponent(orderId)}`, {}, token)
+}
+
+export function getMyTradeOrder(tradeOrderId: string, token: string): Promise<ApiResult<TradeOrder>> {
+  return apiRequest(`/trade-orders/${encodeURIComponent(tradeOrderId)}`, {}, token)
 }
 
 export function cancelOrder(orderId: string, version: number, token: string, reasonCode = 'no_longer_needed', description?: string): Promise<ApiResult<OrderCommandResult>> {

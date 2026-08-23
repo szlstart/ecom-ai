@@ -16,6 +16,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'cart', component: () => import('@/pages/CartPage.vue'), meta: { ...userMeta, title: '购物车', requirementId: 'USR-CART-01' } },
     { path: 'checkout/:checkoutId', component: () => import('@/pages/CheckoutPage.vue'), meta: { ...userMeta, title: '结算', requirementId: 'USR-CHECKOUT-01' } },
     { path: 'pay/:tradeOrderId', name: 'payment-cashier', component: () => import('@/pages/PaymentCashierPage.vue'), meta: { ...userMeta, title: '支付订单', requirementId: 'USR-PAY-01' } },
+    { path: 'payments/:paymentId/result', name: 'payment-result', component: () => import('@/pages/PaymentResultPage.vue'), meta: { ...userMeta, title: '支付结果', requirementId: 'USR-PAY-02' } },
     { path: 'me', component: () => import('@/pages/me/MyDashboardPage.vue'), meta: { ...userMeta, title: '我的', requirementId: 'USR-ME-01' } },
     { path: 'me/profile', component: () => import('@/pages/me/ProfilePage.vue'), meta: { ...userMeta, title: '个人信息', requirementId: 'USR-PROFILE-01' } },
     { path: 'me/settings/security', component: () => import('@/pages/me/SecuritySettingsPage.vue'), meta: { ...userMeta, title: '账号安全', requirementId: 'USR-SECURITY-01' } },

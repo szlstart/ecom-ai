@@ -981,6 +981,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Payment */
+        post: operations["Payment_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{payment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Payment */
+        get: operations["Payment_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-orders/{trade_order_id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Trade Payments */
+        get: operations["Payment_ListForTradeOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/favorite-products": {
         parameters: {
             query?: never;
@@ -4620,6 +4671,16 @@ export interface components {
             data: components["schemas"]["PasswordResetTicketResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[PaymentList] */
+        Envelope_PaymentList_: {
+            data: components["schemas"]["PaymentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[PaymentView] */
+        Envelope_PaymentView_: {
+            data: components["schemas"]["PaymentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[ProductDetail] */
         Envelope_ProductDetail_: {
             data: components["schemas"]["ProductDetail"];
@@ -5474,6 +5535,102 @@ export interface components {
              * Format: date-time
              */
             expires_at: string;
+        };
+        /** PaymentAction */
+        PaymentAction: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "redirect";
+            /** Url */
+            url: string;
+        };
+        /** PaymentCreateRequest */
+        PaymentCreateRequest: {
+            /** Trade Order Id */
+            trade_order_id: string;
+            /**
+             * Provider
+             * @constant
+             */
+            provider: "fake";
+            /**
+             * Payment Method
+             * @constant
+             */
+            payment_method: "fake_balance";
+            /**
+             * Return Url Key
+             * @constant
+             */
+            return_url_key: "payment_result";
+        };
+        /** PaymentEventView */
+        PaymentEventView: {
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** From Status */
+            from_status: string | null;
+            /** To Status */
+            to_status: string;
+            amount: components["schemas"]["Money"];
+            /** Source Type */
+            source_type: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** PaymentList */
+        PaymentList: {
+            /** Items */
+            items: components["schemas"]["PaymentView"][];
+        };
+        /** PaymentView */
+        PaymentView: {
+            /** Payment Id */
+            payment_id: string;
+            /** Trade Order Id */
+            trade_order_id: string;
+            /** Provider */
+            provider: string;
+            /** Payment Method */
+            payment_method: string;
+            /**
+             * Payment Status
+             * @enum {string}
+             */
+            payment_status: "created" | "pending" | "succeeded" | "failed" | "closed" | "partially_refunded" | "refunded";
+            /**
+             * Display Status
+             * @enum {string}
+             */
+            display_status: "confirming" | "succeeded" | "failed" | "closed" | "refunded";
+            requested_amount: components["schemas"]["Money"];
+            paid_amount: components["schemas"]["Money"];
+            refunded_amount: components["schemas"]["Money"];
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Paid At */
+            paid_at: string | null;
+            /** Closed At */
+            closed_at: string | null;
+            /** Failure Code */
+            failure_code: string | null;
+            /** Failure Message */
+            failure_message: string | null;
+            action?: components["schemas"]["PaymentAction"] | null;
+            /** Events */
+            events?: components["schemas"]["PaymentEventView"][];
+            /** Version */
+            version: number;
         };
         /** ProductCard */
         ProductCard: {
@@ -8405,6 +8562,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_OrderRepurchaseResult_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Payment_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PaymentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Payment_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PaymentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Payment_ListForTradeOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trade_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PaymentList_"];
                 };
             };
             /** @description Validation Error */

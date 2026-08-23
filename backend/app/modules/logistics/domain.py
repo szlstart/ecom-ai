@@ -3,12 +3,12 @@ from app.core.exceptions import ApplicationError
 SHIPMENT_TRANSITIONS: dict[str, tuple[frozenset[str], str]] = {
     "VoidShipment": (frozenset({"created"}), "voided"),
     "RecordPickup": (frozenset({"created"}), "picked_up"),
-    "RecordInTransit": (frozenset({"picked_up", "exception"}), "in_transit"),
+    "RecordInTransit": (frozenset({"created", "picked_up", "exception"}), "in_transit"),
     "RecordDelivery": (
-        frozenset({"picked_up", "in_transit", "exception"}),
+        frozenset({"created", "picked_up", "in_transit", "exception"}),
         "delivered",
     ),
-    "RecordException": (frozenset({"picked_up", "in_transit"}), "exception"),
+    "RecordException": (frozenset({"created", "picked_up", "in_transit"}), "exception"),
     "RecordReturn": (
         frozenset({"picked_up", "in_transit", "exception"}),
         "returned",

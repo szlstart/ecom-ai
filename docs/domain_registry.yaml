@@ -139,9 +139,9 @@ aggregates:
     transitions:
       - {command: VoidShipment, from: [created], to: voided, event: shipment.voided}
       - {command: RecordPickup, from: [created], to: picked_up, event: shipment.picked_up}
-      - {command: RecordInTransit, from: [picked_up, exception], to: in_transit, event: shipment.in_transit}
-      - {command: RecordDelivery, from: [picked_up, in_transit, exception], to: delivered, event: shipment.delivered}
-      - {command: RecordException, from: [picked_up, in_transit], to: exception, event: shipment.exception}
+      - {command: RecordInTransit, from: [created, picked_up, exception], to: in_transit, event: shipment.in_transit}
+      - {command: RecordDelivery, from: [created, picked_up, in_transit, exception], to: delivered, event: shipment.delivered}
+      - {command: RecordException, from: [created, picked_up, in_transit], to: exception, event: shipment.exception}
       - {command: RecordReturn, from: [picked_up, in_transit, exception], to: returned, event: shipment.returned}
       - {command: CloseShipment, from: [created, picked_up, in_transit, exception], to: closed, event: shipment.closed}
   refund_application:

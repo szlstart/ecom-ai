@@ -10083,6 +10083,8 @@ unfulfilled → partial → shipped → received
 
 包裹 `shipment_status` 独立为：`created → picked_up → in_transit → delivered`，异常可进入 `exception`，退回进入 `returned`，无需继续跟踪可 `closed`；只有未揽收 `created` 可经受控作废进入终态 `voided`。`voided` 包裹不计入履约数量，但仍在审计和管理时间线中可见；普通用户只看到“发货信息已更正”的安全事件和后续有效包裹。物流 Provider 的乱序轨迹以事件发生时间和允许转换合并；“轨迹更晚到达”不等于“业务状态一定更后”。Exception 解决后可回 In Transit，但必须追加轨迹，不覆盖异常证据。
 
+承运商可能省略中间节点，因此经签名 Webhook 或主动查询得到的可信新鲜事件允许 `created → in_transit/delivered/exception`，但不得据此合成不存在的揽收轨迹。迟到事件仍按 `provider_event_id` 追加保存并参与时间线展示，却不能回退当前包裹投影；同一事件 ID 的相同规范化内容按幂等成功处理，不同内容必须以安全冲突拒绝并告警。
+
 未揽收包裹作废后必须重新计算有效发货数量：若已发数量从全部降为部分或零，履约状态仅允许由 `VoidShipment` 补偿命令执行 `shipped → partial/unfulfilled` 或 `partial → unfulfilled`；订单主状态同时由 `shipped → pending_shipment`，并清空原发货完成时间。上述逆向转换不向通用更新接口开放，且必须记录状态流水、管理员审计、幂等记录与 Outbox 事件。
 
 #### 3.14.22 售后状态机

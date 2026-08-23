@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import AwareDatetime, Field, model_validator
 
 from app.api.schemas import StrictRequest
 
@@ -139,3 +139,37 @@ class AdminTrackingCorrectionRequest(StrictRequest):
 class AdminShipmentVoidRequest(StrictRequest):
     reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
     reason: str = Field(min_length=2, max_length=500)
+
+
+class FakeLogisticsWebhook(StrictRequest):
+    provider_event_id: str = Field(min_length=5, max_length=128)
+    shipment_id: str = Field(pattern=r"^shp_[0-9A-Z]+$", max_length=40)
+    carrier_code: Literal["fake_express"]
+    tracking_no: str = Field(
+        min_length=6,
+        max_length=64,
+        json_schema_extra={"writeOnly": True},
+    )
+    status: Literal["picked_up", "in_transit", "delivered", "exception", "returned"]
+    provider_status: str = Field(min_length=1, max_length=64)
+    description: str = Field(min_length=1, max_length=1000)
+    location_text: str | None = Field(default=None, max_length=255)
+    occurred_at: AwareDatetime
+    estimated_delivery_min_at: AwareDatetime | None = None
+    estimated_delivery_max_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def validate_estimate_range(self) -> FakeLogisticsWebhook:
+        minimum = self.estimated_delivery_min_at
+        maximum = self.estimated_delivery_max_at
+        if (minimum is None) != (maximum is None):
+            raise ValueError("delivery estimate endpoints must be provided together")
+        if minimum is not None and maximum is not None and minimum > maximum:
+            raise ValueError("delivery estimate minimum must not exceed maximum")
+        return self
+
+
+class LogisticsWebhookAck(StrictRequest):
+    accepted: bool = True
+    duplicate: bool = False
+    shipment_id: str

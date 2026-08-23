@@ -1134,6 +1134,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/logistics/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Process Logistics Webhook */
+        post: operations["LogisticsWebhook_Process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/orders/{order_id}/shipments": {
         parameters: {
             query?: never;
@@ -1196,6 +1213,23 @@ export interface paths {
         put?: never;
         /** Void Shipment */
         post: operations["AdminShipment_Void"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}/refreshes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Shipment */
+        post: operations["AdminShipment_Refresh"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4891,6 +4925,11 @@ export interface components {
             data: components["schemas"]["LegalDocument"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[LogisticsWebhookAck] */
+        Envelope_LogisticsWebhookAck_: {
+            data: components["schemas"]["LogisticsWebhookAck"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[MessageResult] */
         Envelope_MessageResult_: {
             data: components["schemas"]["MessageResult"];
@@ -5431,6 +5470,21 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /** LogisticsWebhookAck */
+        LogisticsWebhookAck: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+            /**
+             * Duplicate
+             * @default false
+             */
+            duplicate: boolean;
+            /** Shipment Id */
+            shipment_id: string;
         };
         /** MessageResult */
         MessageResult: {
@@ -9290,6 +9344,76 @@ export interface operations {
             };
         };
     };
+    LogisticsWebhook_Process: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Logistics-Signature"?: string;
+                "X-Logistics-Timestamp"?: string;
+            };
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Provider Event Id */
+                    provider_event_id: string;
+                    /** Shipment Id */
+                    shipment_id: string;
+                    /**
+                     * Carrier Code
+                     * @constant
+                     */
+                    carrier_code: "fake_express";
+                    /** Tracking No */
+                    tracking_no: string;
+                    /**
+                     * Status
+                     * @enum {string}
+                     */
+                    status: "picked_up" | "in_transit" | "delivered" | "exception" | "returned";
+                    /** Provider Status */
+                    provider_status: string;
+                    /** Description */
+                    description: string;
+                    /** Location Text */
+                    location_text?: string | null;
+                    /**
+                     * Occurred At
+                     * Format: date-time
+                     */
+                    occurred_at: string;
+                    /** Estimated Delivery Min At */
+                    estimated_delivery_min_at?: string | null;
+                    /** Estimated Delivery Max At */
+                    estimated_delivery_max_at?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LogisticsWebhookAck_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     AdminShipment_Create: {
         parameters: {
             query?: never;
@@ -9422,6 +9546,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminShipment_Refresh: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ShipmentRefreshResult_"];
                 };
             };
             /** @description Validation Error */

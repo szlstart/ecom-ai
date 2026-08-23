@@ -11,6 +11,7 @@ from app.modules.logistics.schemas import (
     AdminShipmentDetail,
     AdminShipmentVoidRequest,
     AdminTrackingCorrectionRequest,
+    ShipmentRefreshResult,
 )
 from app.modules.rbac.dependencies import AdminAccess, require_admin_permission
 
@@ -109,5 +110,27 @@ async def void_shipment(
         idempotency_key,
     )
     response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/shipments/{shipment_id}/refreshes",
+    response_model=Envelope[ShipmentRefreshResult],
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="AdminShipment_Refresh",
+)
+async def refresh_shipment(
+    shipment_id: str,
+    response: Response,
+    service: LogisticsServiceDependency,
+    idempotency_key: IdempotencyKey,
+    access: Annotated[AdminAccess, require_admin_permission("shipments:refresh")],
+) -> Envelope[ShipmentRefreshResult]:
+    result = await service.request_admin_refresh(
+        access,
+        shipment_id,
+        idempotency_key,
+    )
     _no_store(response)
     return Envelope(data=result)

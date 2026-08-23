@@ -5,6 +5,7 @@ from typing import cast
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.modules.logistics.models import (
     LogisticsSyncLog,
@@ -149,15 +150,82 @@ class LogisticsRepository:
         )
         return rows[:limit], len(rows) > limit
 
-    async def latest_sync(self, shipment_id: int) -> LogisticsSyncLog | None:
+    async def latest_sync(
+        self,
+        shipment_id: int,
+        *,
+        sync_type: str | None = None,
+        sync_statuses: tuple[str, ...] | None = None,
+    ) -> LogisticsSyncLog | None:
+        statement = select(LogisticsSyncLog).where(LogisticsSyncLog.shipment_id == shipment_id)
+        if sync_type is not None:
+            statement = statement.where(LogisticsSyncLog.sync_type == sync_type)
+        if sync_statuses is not None:
+            statement = statement.where(LogisticsSyncLog.sync_status.in_(sync_statuses))
         return cast(
             LogisticsSyncLog | None,
             await self.session.scalar(
-                select(LogisticsSyncLog)
-                .where(LogisticsSyncLog.shipment_id == shipment_id)
-                .order_by(LogisticsSyncLog.created_at.desc(), LogisticsSyncLog.id.desc())
-                .limit(1)
+                statement.order_by(
+                    LogisticsSyncLog.created_at.desc(), LogisticsSyncLog.id.desc()
+                ).limit(1)
             ),
+        )
+
+    async def track_by_provider_event(
+        self, shipment_id: int, provider_event_id: str
+    ) -> ShipmentTrack | None:
+        return cast(
+            ShipmentTrack | None,
+            await self.session.scalar(
+                select(ShipmentTrack).where(
+                    ShipmentTrack.shipment_id == shipment_id,
+                    ShipmentTrack.provider_event_id == provider_event_id,
+                )
+            ),
+        )
+
+    async def sync_candidates(
+        self,
+        *,
+        now: datetime,
+        stale_before: datetime,
+        limit: int,
+    ) -> list[Shipment]:
+        latest_log = aliased(LogisticsSyncLog)
+        latest_log_id = (
+            select(func.max(LogisticsSyncLog.id))
+            .where(LogisticsSyncLog.shipment_id == Shipment.id)
+            .correlate(Shipment)
+            .scalar_subquery()
+        )
+        return list(
+            (
+                await self.session.scalars(
+                    select(Shipment)
+                    .outerjoin(latest_log, latest_log.id == latest_log_id)
+                    .where(
+                        Shipment.shipment_status.in_(
+                            {"created", "picked_up", "in_transit", "exception"}
+                        ),
+                        or_(
+                            latest_log.id.is_(None),
+                            latest_log.created_at < stale_before,
+                            and_(
+                                latest_log.sync_status == "retry",
+                                latest_log.next_retry_at.is_not(None),
+                                latest_log.next_retry_at <= now,
+                            ),
+                        ),
+                    )
+                    .order_by(
+                        latest_log.next_retry_at.is_(None),
+                        latest_log.next_retry_at,
+                        Shipment.last_track_at,
+                        Shipment.id,
+                    )
+                    .limit(limit)
+                )
+            ).all()
         )
 
     async def admin_order(

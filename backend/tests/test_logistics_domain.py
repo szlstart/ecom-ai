@@ -9,6 +9,9 @@ from app.modules.logistics.service import _provider
     ("current", "command", "target"),
     [
         ("created", "RecordPickup", "picked_up"),
+        ("created", "RecordInTransit", "in_transit"),
+        ("created", "RecordDelivery", "delivered"),
+        ("created", "RecordException", "exception"),
         ("picked_up", "RecordInTransit", "in_transit"),
         ("exception", "RecordInTransit", "in_transit"),
         ("in_transit", "RecordDelivery", "delivered"),
@@ -25,7 +28,7 @@ def test_registered_shipment_transitions(current: str, command: str, target: str
         ("picked_up", "VoidShipment"),
         ("delivered", "RecordInTransit"),
         ("voided", "RecordPickup"),
-        ("created", "RecordDelivery"),
+        ("created", "RecordReturn"),
     ],
 )
 def test_illegal_shipment_transitions_are_rejected(current: str, command: str) -> None:

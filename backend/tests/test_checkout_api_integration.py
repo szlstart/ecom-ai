@@ -21,7 +21,7 @@ from app.modules.catalog.models import Category, Product, ProductFulfillmentProf
 from app.modules.checkout.models import CheckoutSession
 from app.modules.identity.models import AuthSession, User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
-from app.modules.logistics.models import Shipment, ShipmentTrack
+from app.modules.logistics.models import LogisticsSyncLog, Shipment
 from app.modules.logistics.schemas import (
     AdminShipmentCreateItem,
     AdminShipmentCreateRequest,
@@ -1116,25 +1116,96 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         with pytest.raises(ApplicationError) as scope_error:
             await logistics.admin_detail(wrong_scope_access, shipment_no)
         assert scope_error.value.status == 404
-    async for session in mysql_session():
-        shipment = await session.scalar(select(Shipment).where(Shipment.shipment_no == shipment_no))
-        assert shipment is not None
-        shipment.shipment_status = "in_transit"
-        shipment.provider_status = "TRANSPORTING"
-        shipment.last_track_at = utc_now() - timedelta(minutes=10)
-        session.add(
-            ShipmentTrack(
-                shipment_id=shipment.id,
-                provider_event_id=f"track-{suffix}",
-                track_status="in_transit",
-                provider_status="TRANSPORTING",
-                description="包裹正在运输途中",
-                location_text="广州市",
-                occurred_at=utc_now() - timedelta(minutes=10),
-                payload_hash=hashlib.sha256(f"track-{suffix}".encode()).digest(),
-            )
-        )
-        await session.commit()
+
+    def logistics_webhook_request(
+        event_id: str,
+        *,
+        event_status: str,
+        description: str,
+        occurred_at: datetime,
+        include_estimate: bool = False,
+    ) -> tuple[bytes, dict[str, str]]:
+        payload = {
+            "provider_event_id": event_id,
+            "shipment_id": shipment_no,
+            "carrier_code": "fake_express",
+            "tracking_no": tracking_no,
+            "status": event_status,
+            "provider_status": event_status.upper(),
+            "description": description,
+            "location_text": "广州市",
+            "occurred_at": occurred_at.isoformat(),
+        }
+        if include_estimate:
+            payload["estimated_delivery_min_at"] = (
+                datetime.now(UTC) + timedelta(days=1)
+            ).isoformat()
+            payload["estimated_delivery_max_at"] = (
+                datetime.now(UTC) + timedelta(days=2)
+            ).isoformat()
+        body = json.dumps(payload, separators=(",", ":")).encode()
+        timestamp = str(int(datetime.now(UTC).timestamp()))
+        signature = security.keyed_hash(
+            "fake-logistics-webhook", timestamp.encode() + b"." + body
+        ).hex()
+        return body, {
+            "Content-Type": "application/json",
+            "X-Logistics-Timestamp": timestamp,
+            "X-Logistics-Signature": signature,
+        }
+
+    in_transit_body, in_transit_headers = logistics_webhook_request(
+        f"track-{suffix}",
+        event_status="in_transit",
+        description="包裹正在运输途中",
+        occurred_at=datetime.now(UTC) - timedelta(minutes=10),
+        include_estimate=True,
+    )
+    invalid_logistics_webhook = await client.post(
+        "/api/v1/webhooks/logistics/fake_express",
+        headers={**in_transit_headers, "X-Logistics-Signature": "invalid"},
+        content=in_transit_body,
+    )
+    assert invalid_logistics_webhook.status_code == 401
+    in_transit_webhook = await client.post(
+        "/api/v1/webhooks/logistics/fake_express",
+        headers=in_transit_headers,
+        content=in_transit_body,
+    )
+    assert in_transit_webhook.status_code == 200, in_transit_webhook.text
+    assert in_transit_webhook.json()["data"]["duplicate"] is False
+    duplicate_logistics_webhook = await client.post(
+        "/api/v1/webhooks/logistics/fake_express",
+        headers=in_transit_headers,
+        content=in_transit_body,
+    )
+    assert duplicate_logistics_webhook.status_code == 200
+    assert duplicate_logistics_webhook.json()["data"]["duplicate"] is True
+    older_body, older_headers = logistics_webhook_request(
+        f"track-older-{suffix}",
+        event_status="picked_up",
+        description="承运商补发较早的揽收轨迹",
+        occurred_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    older_webhook = await client.post(
+        "/api/v1/webhooks/logistics/fake_express",
+        headers=older_headers,
+        content=older_body,
+    )
+    assert older_webhook.status_code == 200, older_webhook.text
+    conflict_body, conflict_headers = logistics_webhook_request(
+        f"track-{suffix}",
+        event_status="in_transit",
+        description="同一事件编号但内容被篡改",
+        occurred_at=datetime.now(UTC) - timedelta(minutes=10),
+    )
+    conflict_webhook = await client.post(
+        "/api/v1/webhooks/logistics/fake_express",
+        headers=conflict_headers,
+        content=conflict_body,
+    )
+    assert conflict_webhook.status_code == 409
+    assert conflict_webhook.json()["code"] == "LOGISTICS_PROVIDER_EVENT_CONFLICT"
     async for session in mysql_session():
         shipment_other_user = await session.scalar(
             select(User).where(User.user_no == other_user_no)
@@ -1158,14 +1229,18 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert summary["tracking_no_masked"] == shipment_masked
     assert "tracking_no" not in summary
     assert summary["delivery_estimate"]["status"] == "available"
-    assert summary["delivery_estimate"]["source"] == "shipping_template"
+    assert summary["delivery_estimate"]["source"] == "carrier"
     shipment_detail = await client.get(f"/api/v1/shipments/{shipment_no}", headers=auth)
     assert shipment_detail.status_code == 200, shipment_detail.text
     assert shipment_detail.json()["data"]["tracking_no"] == tracking_no
-    assert shipment_detail.headers["etag"] == '"v0"'
-    tracks = await client.get(f"/api/v1/shipments/{shipment_no}/tracks?limit=1", headers=auth)
+    assert shipment_detail.headers["etag"] == '"v2"'
+    assert shipment_detail.json()["data"]["shipment_status"] == "in_transit"
+    tracks = await client.get(f"/api/v1/shipments/{shipment_no}/tracks?limit=10", headers=auth)
     assert tracks.status_code == 200
-    assert tracks.json()["data"]["items"][0]["track_status"] == "in_transit"
+    assert [item["track_status"] for item in tracks.json()["data"]["items"]] == [
+        "picked_up",
+        "in_transit",
+    ]
     refresh_headers = {
         **auth,
         "Idempotency-Key": f"shipment-refresh-{suffix}",
@@ -1184,6 +1259,27 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     )
     assert refresh_limited.status_code == 429
     assert refresh_limited.json()["code"] == "SHIPMENT_REFRESH_RATE_LIMITED"
+    async for session in mysql_session():
+        logistics = LogisticsService(
+            session,
+            security,
+            get_settings().security_hmac_secret.get_secret_value(),
+        )
+        assert await logistics.sync_shipment(shipment_no)
+        shipment = await session.scalar(select(Shipment).where(Shipment.shipment_no == shipment_no))
+        assert shipment is not None
+        latest_poll = await session.scalar(
+            select(LogisticsSyncLog)
+            .where(
+                LogisticsSyncLog.shipment_id == shipment.id,
+                LogisticsSyncLog.sync_type == "poll",
+            )
+            .order_by(LogisticsSyncLog.id.desc())
+            .limit(1)
+        )
+        assert latest_poll is not None
+        assert latest_poll.sync_status == "no_change"
+        assert latest_poll.track_count == 0
     receipt_detail = await client.get(f"/api/v1/orders/{receipt_order_id}", headers=auth)
     assert receipt_detail.status_code == 200
     confirmed = await client.post(

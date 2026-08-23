@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import re
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from time import perf_counter
 from typing import Literal, cast
 
+from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import PaginationMeta
@@ -14,9 +19,14 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.pagination import CursorCodec
 from app.core.security import SecurityService, canonical_request_hash, utc_now
-from app.integrations.logistics import LogisticsProvider, logistics_provider
+from app.integrations.logistics import (
+    LogisticsProvider,
+    LogisticsProviderSnapshot,
+    LogisticsProviderTrack,
+    logistics_provider,
+)
 from app.modules.identity.models import User
-from app.modules.logistics.domain import require_shipment_transition
+from app.modules.logistics.domain import SHIPMENT_TRANSITIONS, require_shipment_transition
 from app.modules.logistics.models import (
     LogisticsSyncLog,
     Shipment,
@@ -30,6 +40,8 @@ from app.modules.logistics.schemas import (
     AdminShipmentVoidRequest,
     AdminTrackingCorrectionRequest,
     DeliveryEstimate,
+    FakeLogisticsWebhook,
+    LogisticsWebhookAck,
     ShipmentItemView,
     ShipmentRefreshResult,
     ShipmentStatus,
@@ -73,7 +85,9 @@ class LogisticsService:
         latest_tracks = await self.repository.latest_tracks([item.id for item in shipments])
         summaries: list[UserOrderShipmentSummary] = []
         for shipment in shipments:
-            latest_sync = await self.repository.latest_sync(shipment.id)
+            latest_sync = await self.repository.latest_sync(
+                shipment.id, sync_statuses=("success", "no_change")
+            )
             summaries.append(
                 UserOrderShipmentSummary(
                     shipment_id=shipment.shipment_no,
@@ -98,7 +112,9 @@ class LogisticsService:
         shipment, order = row
         item_map = await self.repository.shipment_items([shipment.id])
         tracks = await self.repository.recent_tracks(shipment.id, limit=5)
-        latest_sync = await self.repository.latest_sync(shipment.id)
+        latest_sync = await self.repository.latest_sync(
+            shipment.id, sync_statuses=("success", "no_change")
+        )
         return UserShipmentDetail(
             shipment_id=shipment.shipment_no,
             order_id=order.order_no,
@@ -709,7 +725,9 @@ class LogisticsService:
     ) -> AdminShipmentDetail:
         item_map = await self.repository.shipment_items([shipment.id])
         tracks = await self.repository.recent_tracks(shipment.id, limit=20)
-        latest_sync = await self.repository.latest_sync(shipment.id)
+        latest_sync = await self.repository.latest_sync(
+            shipment.id, sync_statuses=("success", "no_change")
+        )
         if shipment.shipped_at is None:
             raise RuntimeError(f"shipment {shipment.shipment_no} has no shipped_at")
         return AdminShipmentDetail(
@@ -770,6 +788,327 @@ class LogisticsService:
             ),
         )
 
+    async def process_webhook(
+        self,
+        provider: str,
+        raw_body: bytes,
+        signature: str,
+        timestamp: str,
+    ) -> LogisticsWebhookAck:
+        if provider != "fake_express":
+            raise _not_found()
+        now = utc_now()
+        if not _valid_fake_signature(self.security, raw_body, signature, timestamp, now):
+            raise ApplicationError(
+                status=401,
+                code="LOGISTICS_WEBHOOK_SIGNATURE_INVALID",
+                title="Logistics webhook signature invalid",
+                detail="物流回调验签失败。",
+            )
+        try:
+            payload = FakeLogisticsWebhook.model_validate_json(raw_body)
+        except ValidationError as exc:
+            raise ApplicationError(
+                status=422,
+                code="LOGISTICS_WEBHOOK_SCHEMA_INVALID",
+                title="Logistics webhook schema invalid",
+                detail="物流回调字段校验失败。",
+            ) from exc
+        if payload.carrier_code != provider:
+            raise ApplicationError(
+                status=422,
+                code="LOGISTICS_PROVIDER_MISMATCH",
+                title="Logistics provider mismatch",
+                detail="物流回调渠道不匹配。",
+            )
+        row = await self.repository.shipment_by_no(payload.shipment_id, for_update=True)
+        if row is None:
+            raise _not_found()
+        shipment = row[0]
+        normalized_tracking = _normalize_tracking_no(payload.tracking_no)
+        tracking_hash = self.security.keyed_hash(
+            "shipment-tracking-no",
+            f"{payload.carrier_code}:{normalized_tracking}",
+        )
+        if shipment.carrier_code != payload.carrier_code or not hmac.compare_digest(
+            shipment.tracking_no_hash, tracking_hash
+        ):
+            raise ApplicationError(
+                status=422,
+                code="LOGISTICS_SHIPMENT_IDENTITY_MISMATCH",
+                title="Logistics shipment identity mismatch",
+                detail="物流回调运单身份校验失败。",
+            )
+        track = LogisticsProviderTrack(
+            provider_event_id=payload.provider_event_id,
+            status=payload.status,
+            provider_status=payload.provider_status,
+            description=payload.description,
+            location_text=payload.location_text,
+            occurred_at=_naive_utc(payload.occurred_at),
+        )
+        snapshot = LogisticsProviderSnapshot(
+            provider_request_id=payload.provider_event_id,
+            tracks=(track,),
+            estimated_delivery_min_at=(
+                _naive_utc(payload.estimated_delivery_min_at)
+                if payload.estimated_delivery_min_at is not None
+                else None
+            ),
+            estimated_delivery_max_at=(
+                _naive_utc(payload.estimated_delivery_max_at)
+                if payload.estimated_delivery_max_at is not None
+                else None
+            ),
+        )
+        created, duplicates = await self._apply_provider_snapshot(
+            shipment,
+            snapshot,
+            sync_type="webhook",
+            response_hash=hashlib.sha256(raw_body).digest(),
+            now=now,
+        )
+        await self.session.commit()
+        return LogisticsWebhookAck(
+            shipment_id=shipment.shipment_no,
+            duplicate=created == 0 and duplicates > 0,
+        )
+
+    async def sync_due(
+        self,
+        *,
+        limit: int = 100,
+        stale_after_seconds: int = 300,
+    ) -> int:
+        now = utc_now()
+        candidates = await self.repository.sync_candidates(
+            now=now,
+            stale_before=now - timedelta(seconds=stale_after_seconds),
+            limit=limit,
+        )
+        processed = 0
+        for candidate in candidates:
+            if await self.sync_shipment(candidate.shipment_no, now=now):
+                processed += 1
+        return processed
+
+    async def sync_shipment(
+        self,
+        shipment_no: str,
+        *,
+        now: datetime | None = None,
+    ) -> bool:
+        effective_now = now or utc_now()
+        row = await self.repository.shipment_by_no(shipment_no)
+        if row is None or row[0].shipment_status not in {
+            "created",
+            "picked_up",
+            "in_transit",
+            "exception",
+        }:
+            return False
+        candidate = row[0]
+        started = perf_counter()
+        try:
+            queried_hash = candidate.tracking_no_hash
+            tracking_no = self.security.decrypt(
+                "shipment-tracking-no", candidate.tracking_no_ciphertext
+            )
+            snapshot = await _provider(candidate.carrier_code).query_tracking(
+                carrier_code=candidate.carrier_code,
+                tracking_no=tracking_no,
+            )
+            locked = await self.repository.shipment_by_no(shipment_no, for_update=True)
+            if locked is None:
+                return False
+            shipment = locked[0]
+            if not hmac.compare_digest(shipment.tracking_no_hash, queried_hash):
+                self.session.add(
+                    _sync_log(
+                        shipment,
+                        sync_type="reconcile",
+                        sync_status="retry",
+                        provider_request_id=snapshot.provider_request_id,
+                        track_count=0,
+                        attempt_count=1,
+                        duration_ms=_duration_ms(started),
+                        now=effective_now,
+                        next_retry_at=effective_now + timedelta(seconds=30),
+                        error_code="LOGISTICS_TRACKING_CHANGED_DURING_QUERY",
+                        last_error="tracking identity changed while provider query was active",
+                    )
+                )
+            else:
+                await self._apply_provider_snapshot(
+                    shipment,
+                    snapshot,
+                    sync_type="poll",
+                    response_hash=_snapshot_hash(snapshot),
+                    now=effective_now,
+                    duration_ms=_duration_ms(started),
+                )
+        except Exception as exc:
+            latest = await self.repository.latest_sync(candidate.id)
+            attempts = min((latest.attempt_count if latest else 0) + 1, 32_767)
+            terminal = attempts >= 5
+            self.session.add(
+                _sync_log(
+                    candidate,
+                    sync_type="poll",
+                    sync_status="failed" if terminal else "retry",
+                    provider_request_id=None,
+                    track_count=0,
+                    attempt_count=attempts,
+                    duration_ms=_duration_ms(started),
+                    now=effective_now,
+                    next_retry_at=(
+                        None
+                        if terminal
+                        else effective_now + timedelta(seconds=min(30 * (2 ** (attempts - 1)), 900))
+                    ),
+                    error_code="LOGISTICS_PROVIDER_QUERY_FAILED",
+                    last_error=f"provider query failed: {type(exc).__name__}",
+                )
+            )
+        await self.session.commit()
+        return True
+
+    async def _apply_provider_snapshot(
+        self,
+        shipment: Shipment,
+        snapshot: LogisticsProviderSnapshot,
+        *,
+        sync_type: Literal["poll", "webhook", "reconcile"],
+        response_hash: bytes,
+        now: datetime,
+        duration_ms: int = 0,
+    ) -> tuple[int, int]:
+        created = 0
+        duplicates = 0
+        for track in sorted(snapshot.tracks, key=lambda item: item.occurred_at):
+            event_hash = _provider_track_hash(track)
+            if track.provider_event_id is not None:
+                existing = await self.repository.track_by_provider_event(
+                    shipment.id, track.provider_event_id
+                )
+                if existing is not None:
+                    if not hmac.compare_digest(existing.payload_hash, event_hash):
+                        raise ApplicationError(
+                            status=409,
+                            code="LOGISTICS_PROVIDER_EVENT_CONFLICT",
+                            title="Logistics provider event conflict",
+                            detail="物流渠道事件标识与既有内容冲突。",
+                        )
+                    duplicates += 1
+                    continue
+            description = _safe_provider_text(track.description, maximum=1000, required=True)
+            if description is None:
+                raise RuntimeError("required provider description was removed during sanitization")
+            location = _safe_provider_text(track.location_text, maximum=255, required=False)
+            record = ShipmentTrack(
+                shipment_id=shipment.id,
+                provider_event_id=track.provider_event_id,
+                track_status=track.status,
+                provider_status=track.provider_status,
+                description=description,
+                location_text=location,
+                occurred_at=track.occurred_at,
+                payload_hash=event_hash,
+            )
+            try:
+                async with self.session.begin_nested():
+                    self.session.add(record)
+                    await self.session.flush()
+            except IntegrityError as exc:
+                if track.provider_event_id is None:
+                    duplicates += 1
+                    continue
+                existing = await self.repository.track_by_provider_event(
+                    shipment.id, track.provider_event_id
+                )
+                if existing is None or not hmac.compare_digest(existing.payload_hash, event_hash):
+                    raise ApplicationError(
+                        status=409,
+                        code="LOGISTICS_PROVIDER_EVENT_CONFLICT",
+                        title="Logistics provider event conflict",
+                        detail="物流渠道事件标识与既有内容冲突。",
+                    ) from exc
+                duplicates += 1
+                continue
+            previous_status = shipment.shipment_status
+            is_latest = (
+                shipment.last_track_at is None or track.occurred_at >= shipment.last_track_at
+            )
+            projected = False
+            if is_latest:
+                command = _shipment_command(track.status)
+                transition = SHIPMENT_TRANSITIONS[command]
+                if previous_status == track.status:
+                    projected = True
+                elif previous_status in transition[0]:
+                    shipment.shipment_status = require_shipment_transition(previous_status, command)
+                    projected = True
+                shipment.last_track_at = track.occurred_at
+                if projected:
+                    shipment.provider_status = track.provider_status
+                    if shipment.shipment_status == "delivered":
+                        shipment.delivered_at = track.occurred_at
+            shipment.version += 1
+            created += 1
+            request_id = request_id_context.get() or new_prefixed_ulid("req_")
+            self.session.add(
+                OutboxEvent(
+                    event_no=new_prefixed_ulid("evt_"),
+                    event_type="shipment.track_recorded.v1",
+                    aggregate_type="shipment",
+                    aggregate_no=shipment.shipment_no,
+                    aggregate_version=shipment.version,
+                    payload={
+                        "shipment_id": shipment.shipment_no,
+                        "track_status": track.status,
+                        "shipment_status": shipment.shipment_status,
+                        "provider_event_id": track.provider_event_id,
+                        "state_projection_applied": projected,
+                    },
+                    event_status="pending",
+                    available_at=now,
+                    attempt_count=0,
+                    trace_id=request_id,
+                )
+            )
+        estimate_changed = _apply_carrier_estimate(shipment, snapshot, now)
+        if estimate_changed and created == 0:
+            shipment.version += 1
+            request_id = request_id_context.get() or new_prefixed_ulid("req_")
+            self.session.add(
+                OutboxEvent(
+                    event_no=new_prefixed_ulid("evt_"),
+                    event_type="shipment.estimate_updated.v1",
+                    aggregate_type="shipment",
+                    aggregate_no=shipment.shipment_no,
+                    aggregate_version=shipment.version,
+                    payload={"shipment_id": shipment.shipment_no},
+                    event_status="pending",
+                    available_at=now,
+                    attempt_count=0,
+                    trace_id=request_id,
+                )
+            )
+        self.session.add(
+            _sync_log(
+                shipment,
+                sync_type=sync_type,
+                sync_status="success" if created or estimate_changed else "no_change",
+                provider_request_id=snapshot.provider_request_id,
+                response_hash=response_hash,
+                track_count=created,
+                attempt_count=1,
+                duration_ms=duration_ms,
+                now=now,
+            )
+        )
+        return created, duplicates
+
     async def request_refresh(
         self,
         user: User,
@@ -790,7 +1129,7 @@ class LogisticsService:
             raise _not_found()
         shipment, _ = row
         now = utc_now()
-        latest = await self.repository.latest_sync(shipment.id)
+        latest = await self.repository.latest_sync(shipment.id, sync_type="poll")
         if latest is not None and latest.created_at > now - timedelta(seconds=60):
             raise ApplicationError(
                 status=429,
@@ -821,6 +1160,74 @@ class LogisticsService:
                 aggregate_no=shipment.shipment_no,
                 aggregate_version=shipment.version,
                 payload={"shipment_id": shipment.shipment_no},
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        result = ShipmentRefreshResult(shipment_id=shipment.shipment_no, requested_at=now)
+        self.idempotency.complete(
+            claim,
+            response_status=202,
+            resource_no=shipment.shipment_no,
+            response_body=result.model_dump(mode="json"),
+        )
+        await self.session.commit()
+        return result
+
+    async def request_admin_refresh(
+        self,
+        access: AdminAccess,
+        shipment_no: str,
+        idempotency_key: str,
+    ) -> ShipmentRefreshResult:
+        claim = await self.idempotency.begin(
+            scope_key=(f"admin:shipment-refresh:{access.context.user.user_no}:{shipment_no}"),
+            idempotency_key=idempotency_key,
+            payload={"shipment_id": shipment_no},
+            resource_type="shipment_refresh",
+            ttl_days=1,
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return ShipmentRefreshResult.model_validate(claim.record.response_body)
+        row = await self.repository.shipment_by_no(shipment_no)
+        if row is None or row[0].shipment_status in {"voided", "closed"}:
+            raise _not_found()
+        shipment, _, store = row
+        access.require_scope("store", store.id)
+        now = utc_now()
+        latest = await self.repository.latest_sync(shipment.id, sync_type="poll")
+        if latest is not None and latest.created_at > now - timedelta(seconds=60):
+            raise ApplicationError(
+                status=429,
+                code="SHIPMENT_REFRESH_RATE_LIMITED",
+                title="Shipment refresh rate limited",
+                detail="物流刷新过于频繁，请稍后再试。",
+                headers={"Retry-After": "60"},
+                retryable=True,
+            )
+        request_id = request_id_context.get()
+        self.session.add(
+            LogisticsSyncLog(
+                shipment_id=shipment.id,
+                sync_type="poll",
+                sync_status="retry",
+                track_count=0,
+                attempt_count=0,
+                duration_ms=0,
+                next_retry_at=now,
+                trace_id=request_id,
+            )
+        )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="shipment.refresh_requested.v1",
+                aggregate_type="shipment",
+                aggregate_no=shipment.shipment_no,
+                aggregate_version=shipment.version,
+                payload={"shipment_id": shipment.shipment_no, "actor_type": "admin"},
                 event_status="pending",
                 available_at=now,
                 attempt_count=0,
@@ -890,6 +1297,181 @@ def _normalize_tracking_no(value: str) -> str:
             detail="运单号格式不正确。",
         )
     return normalized
+
+
+def _shipment_command(status: str) -> str:
+    return {
+        "picked_up": "RecordPickup",
+        "in_transit": "RecordInTransit",
+        "delivered": "RecordDelivery",
+        "exception": "RecordException",
+        "returned": "RecordReturn",
+    }[status]
+
+
+def _provider_track_hash(track: LogisticsProviderTrack) -> bytes:
+    return canonical_request_hash(
+        {
+            "provider_event_id": track.provider_event_id,
+            "status": track.status,
+            "provider_status": track.provider_status,
+            "description": unicodedata.normalize("NFKC", track.description),
+            "location_text": (
+                unicodedata.normalize("NFKC", track.location_text)
+                if track.location_text is not None
+                else None
+            ),
+            "occurred_at": track.occurred_at.isoformat(),
+        }
+    )
+
+
+def _snapshot_hash(snapshot: LogisticsProviderSnapshot) -> bytes:
+    return canonical_request_hash(
+        {
+            "provider_request_id": snapshot.provider_request_id,
+            "track_hashes": [_provider_track_hash(item).hex() for item in snapshot.tracks],
+            "estimated_delivery_min_at": (
+                snapshot.estimated_delivery_min_at.isoformat()
+                if snapshot.estimated_delivery_min_at is not None
+                else None
+            ),
+            "estimated_delivery_max_at": (
+                snapshot.estimated_delivery_max_at.isoformat()
+                if snapshot.estimated_delivery_max_at is not None
+                else None
+            ),
+        }
+    )
+
+
+def _apply_carrier_estimate(
+    shipment: Shipment,
+    snapshot: LogisticsProviderSnapshot,
+    now: datetime,
+) -> bool:
+    minimum = snapshot.estimated_delivery_min_at
+    maximum = snapshot.estimated_delivery_max_at
+    if minimum is None and maximum is None:
+        return False
+    if minimum is None or maximum is None or minimum > maximum:
+        return False
+    # Current MySQL schema stores these estimates at second precision. Normalize
+    # before comparison so an identical webhook replay cannot create a version bump.
+    minimum = minimum.replace(microsecond=0)
+    maximum = maximum.replace(microsecond=0)
+    if maximum <= now:
+        next_values: tuple[datetime | None, datetime | None, str | None] = (None, None, None)
+    else:
+        next_values = (minimum, maximum, "carrier")
+    current = (
+        shipment.estimated_delivery_min_at,
+        shipment.estimated_delivery_max_at,
+        shipment.estimate_source,
+    )
+    if current == next_values:
+        return False
+    (
+        shipment.estimated_delivery_min_at,
+        shipment.estimated_delivery_max_at,
+        shipment.estimate_source,
+    ) = next_values
+    shipment.estimate_updated_at = now
+    return True
+
+
+def _safe_provider_text(
+    value: str | None,
+    *,
+    maximum: int,
+    required: bool,
+) -> str | None:
+    if value is None:
+        if required:
+            raise ApplicationError(
+                status=422,
+                code="LOGISTICS_TRACK_CONTENT_INVALID",
+                title="Logistics track content invalid",
+                detail="物流轨迹内容无效。",
+            )
+        return None
+    normalized = unicodedata.normalize("NFKC", value)
+    sanitized = "".join(
+        " " if unicodedata.category(character).startswith("C") else character
+        for character in normalized
+    ).strip()
+    sanitized = re.sub(r"\s+", " ", sanitized)[:maximum]
+    if not sanitized:
+        if required:
+            raise ApplicationError(
+                status=422,
+                code="LOGISTICS_TRACK_CONTENT_INVALID",
+                title="Logistics track content invalid",
+                detail="物流轨迹内容无效。",
+            )
+        return None
+    return sanitized
+
+
+def _sync_log(
+    shipment: Shipment,
+    *,
+    sync_type: Literal["poll", "webhook", "reconcile"],
+    sync_status: Literal["success", "no_change", "retry", "failed"],
+    provider_request_id: str | None,
+    track_count: int,
+    attempt_count: int,
+    duration_ms: int,
+    now: datetime,
+    response_hash: bytes | None = None,
+    next_retry_at: datetime | None = None,
+    error_code: str | None = None,
+    last_error: str | None = None,
+) -> LogisticsSyncLog:
+    return LogisticsSyncLog(
+        shipment_id=shipment.id,
+        sync_type=sync_type,
+        sync_status=sync_status,
+        provider_request_id=(provider_request_id[:128] if provider_request_id else None),
+        response_hash=response_hash,
+        track_count=track_count,
+        attempt_count=attempt_count,
+        duration_ms=duration_ms,
+        next_retry_at=next_retry_at,
+        error_code=error_code,
+        last_error=last_error[:1000] if last_error else None,
+        trace_id=request_id_context.get(),
+        created_at=now,
+    )
+
+
+def _duration_ms(started: float) -> int:
+    return min(max(int((perf_counter() - started) * 1000), 0), 4_294_967_295)
+
+
+def _naive_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(UTC).replace(tzinfo=None)
+
+
+def _valid_fake_signature(
+    security: SecurityService,
+    raw_body: bytes,
+    signature: str,
+    timestamp: str,
+    now: datetime,
+) -> bool:
+    try:
+        issued_at = datetime.fromtimestamp(int(timestamp), UTC).replace(tzinfo=None)
+    except (OverflowError, ValueError):
+        return False
+    if abs((now - issued_at).total_seconds()) > 300:
+        return False
+    expected = security.keyed_hash(
+        "fake-logistics-webhook", timestamp.encode() + b"." + raw_body
+    ).hex()
+    return hmac.compare_digest(expected, signature)
 
 
 def _provider(carrier_code: str) -> LogisticsProvider:

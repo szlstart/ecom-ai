@@ -4182,6 +4182,180 @@
         }
       }
     },
+    "/api/v1/webhooks/logistics/{provider}": {
+      "post": {
+        "tags": [
+          "logistics"
+        ],
+        "summary": "Process Logistics Webhook",
+        "operationId": "LogisticsWebhook_Process",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "X-Logistics-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Logistics-Signature"
+            }
+          },
+          {
+            "name": "X-Logistics-Timestamp",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Logistics-Timestamp"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_LogisticsWebhookAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "provider_event_id": {
+                    "maxLength": 128,
+                    "minLength": 5,
+                    "title": "Provider Event Id",
+                    "type": "string"
+                  },
+                  "shipment_id": {
+                    "maxLength": 40,
+                    "pattern": "^shp_[0-9A-Z]+$",
+                    "title": "Shipment Id",
+                    "type": "string"
+                  },
+                  "carrier_code": {
+                    "const": "fake_express",
+                    "title": "Carrier Code",
+                    "type": "string"
+                  },
+                  "tracking_no": {
+                    "maxLength": 64,
+                    "minLength": 6,
+                    "title": "Tracking No",
+                    "type": "string",
+                    "writeOnly": true
+                  },
+                  "status": {
+                    "enum": [
+                      "picked_up",
+                      "in_transit",
+                      "delivered",
+                      "exception",
+                      "returned"
+                    ],
+                    "title": "Status",
+                    "type": "string"
+                  },
+                  "provider_status": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "title": "Provider Status",
+                    "type": "string"
+                  },
+                  "description": {
+                    "maxLength": 1000,
+                    "minLength": 1,
+                    "title": "Description",
+                    "type": "string"
+                  },
+                  "location_text": {
+                    "anyOf": [
+                      {
+                        "maxLength": 255,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Location Text"
+                  },
+                  "occurred_at": {
+                    "format": "date-time",
+                    "title": "Occurred At",
+                    "type": "string"
+                  },
+                  "estimated_delivery_min_at": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Estimated Delivery Min At"
+                  },
+                  "estimated_delivery_max_at": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Estimated Delivery Max At"
+                  }
+                },
+                "required": [
+                  "provider_event_id",
+                  "shipment_id",
+                  "carrier_code",
+                  "tracking_no",
+                  "status",
+                  "provider_status",
+                  "description",
+                  "occurred_at"
+                ],
+                "title": "FakeLogisticsWebhook",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/orders/{order_id}/shipments": {
       "post": {
         "tags": [
@@ -4479,6 +4653,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_AdminShipmentDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/shipments/{shipment_id}/refreshes": {
+      "post": {
+        "tags": [
+          "logistics-administration"
+        ],
+        "summary": "Refresh Shipment",
+        "operationId": "AdminShipment_Refresh",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shipment Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ShipmentRefreshResult_"
                 }
               }
             }
@@ -18774,6 +19011,21 @@
         ],
         "title": "Envelope[LegalDocument]"
       },
+      "Envelope_LogisticsWebhookAck_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LogisticsWebhookAck"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[LogisticsWebhookAck]"
+      },
       "Envelope_MessageResult_": {
         "properties": {
           "data": {
@@ -20419,6 +20671,30 @@
         },
         "type": "object",
         "title": "LivenessResponse"
+      },
+      "LogisticsWebhookAck": {
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted",
+            "default": true
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate",
+            "default": false
+          },
+          "shipment_id": {
+            "type": "string",
+            "title": "Shipment Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "shipment_id"
+        ],
+        "title": "LogisticsWebhookAck"
       },
       "MessageResult": {
         "properties": {

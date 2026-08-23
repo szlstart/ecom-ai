@@ -32,6 +32,10 @@ describe('phase two route contract', () => {
       ['/products/:productId/reviews', 'USR-PRODUCT-REVIEWS-01'],
       ['/stores/:storeId', 'USR-STORE-01'],
       ['/cart', 'USR-CART-01'],
+      ['/checkout/:checkoutId', 'USR-CHECKOUT-01'],
+      ['/pay/:tradeOrderId', 'USR-PAY-01'],
+      ['/me/orders', 'USR-ORDER-01'],
+      ['/me/orders/:orderId', 'USR-ORDER-02'],
       ['/me/favorites/products', 'USR-FAVORITE-PRODUCT-01'],
       ['/me/favorites/stores', 'USR-FAVORITE-STORE-01'],
     ])

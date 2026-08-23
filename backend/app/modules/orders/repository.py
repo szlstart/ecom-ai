@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from datetime import datetime
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import Select, exists, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.pagination import CursorPosition
+from app.core.security import utc_now
 from app.modules.cart.models import Cart, CartItem
 from app.modules.catalog.models import ProductImage
+from app.modules.files.models import FileObject
 from app.modules.inventory.models import Inventory
-from app.modules.orders.models import TradeOrder
+from app.modules.orders.models import Order, OrderAddress, OrderItem, OrderStatusLog, TradeOrder
+from app.modules.stores.models import Store
 
 
 class OrderRepository:
@@ -27,6 +33,144 @@ class OrderRepository:
         return cast(
             TradeOrder | None,
             await self.session.scalar(statement),
+        )
+
+    async def user_orders(
+        self,
+        *,
+        user_id: int,
+        view: str,
+        query: str | None,
+        created_from: datetime | None,
+        created_to: datetime | None,
+        position: CursorPosition | None,
+        limit: int,
+    ) -> tuple[list[tuple[Order, Store, TradeOrder]], bool]:
+        statement = (
+            select(Order, Store, TradeOrder)
+            .join(Store, Store.id == Order.store_id)
+            .join(TradeOrder, TradeOrder.id == Order.trade_order_id)
+            .where(Order.user_id == user_id, Order.user_hidden_at.is_(None))
+        )
+        statement = _order_view(statement, view)
+        if query:
+            pattern = f"%{query}%"
+            statement = statement.where(
+                or_(
+                    Order.order_no.like(pattern),
+                    Store.store_name.like(pattern),
+                    exists().where(
+                        OrderItem.order_id == Order.id,
+                        OrderItem.product_name.like(pattern),
+                    ),
+                )
+            )
+        if created_from is not None:
+            statement = statement.where(Order.created_at >= created_from)
+        if created_to is not None:
+            statement = statement.where(Order.created_at < created_to)
+        statement, reverse = _order_cursor(statement, position)
+        rows = list((await self.session.execute(statement.limit(limit + 1))).all())
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        if reverse:
+            rows.reverse()
+        return [(row[0], row[1], row[2]) for row in rows], has_more
+
+    async def user_order(
+        self, user_id: int, order_no: str, *, include_hidden: bool = False
+    ) -> tuple[Order, Store, TradeOrder] | None:
+        statement = (
+            select(Order, Store, TradeOrder)
+            .join(Store, Store.id == Order.store_id)
+            .join(TradeOrder, TradeOrder.id == Order.trade_order_id)
+            .where(Order.user_id == user_id, Order.order_no == order_no)
+        )
+        if not include_hidden:
+            statement = statement.where(Order.user_hidden_at.is_(None))
+        row = (await self.session.execute(statement)).one_or_none()
+        return (row[0], row[1], row[2]) if row else None
+
+    async def user_trade(
+        self, user_id: int, trade_no: str
+    ) -> tuple[TradeOrder, list[tuple[Order, Store]]] | None:
+        trade = cast(
+            TradeOrder | None,
+            await self.session.scalar(
+                select(TradeOrder).where(
+                    TradeOrder.user_id == user_id, TradeOrder.trade_no == trade_no
+                )
+            ),
+        )
+        if trade is None:
+            return None
+        rows = list(
+            (
+                await self.session.execute(
+                    select(Order, Store)
+                    .join(Store, Store.id == Order.store_id)
+                    .where(
+                        Order.trade_order_id == trade.id,
+                        Order.user_id == user_id,
+                        Order.user_hidden_at.is_(None),
+                    )
+                    .order_by(Order.id)
+                )
+            ).all()
+        )
+        return trade, [(row[0], row[1]) for row in rows]
+
+    async def order_items(self, order_ids: Sequence[int]) -> dict[int, list[OrderItem]]:
+        if not order_ids:
+            return {}
+        rows = list(
+            (
+                await self.session.scalars(
+                    select(OrderItem)
+                    .where(OrderItem.order_id.in_(order_ids))
+                    .order_by(OrderItem.order_id, OrderItem.id)
+                )
+            ).all()
+        )
+        result: dict[int, list[OrderItem]] = {}
+        for item in rows:
+            result.setdefault(item.order_id, []).append(item)
+        return result
+
+    async def public_files(self, object_keys: set[str]) -> dict[str, FileObject]:
+        if not object_keys:
+            return {}
+        rows = list(
+            (
+                await self.session.scalars(
+                    select(FileObject).where(
+                        FileObject.object_key.in_(object_keys),
+                        FileObject.file_status == "active",
+                        FileObject.scan_status == "safe",
+                        FileObject.visibility.in_(("public", "public_derivative")),
+                    )
+                )
+            ).all()
+        )
+        return {item.object_key: item for item in rows}
+
+    async def order_address(self, order_id: int) -> OrderAddress | None:
+        return cast(
+            OrderAddress | None,
+            await self.session.scalar(
+                select(OrderAddress).where(OrderAddress.order_id == order_id)
+            ),
+        )
+
+    async def order_events(self, order_id: int) -> list[OrderStatusLog]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(OrderStatusLog)
+                    .where(OrderStatusLog.order_id == order_id)
+                    .order_by(OrderStatusLog.created_at, OrderStatusLog.id)
+                )
+            ).all()
         )
 
     async def lock_inventories(self, sku_ids: list[int]) -> dict[int, Inventory]:
@@ -84,3 +228,54 @@ class OrderRepository:
                 select(Cart).where(Cart.user_id == user_id).with_for_update()
             ),
         )
+
+
+def _order_view(
+    statement: Select[tuple[Order, Store, TradeOrder]], view: str
+) -> Select[tuple[Order, Store, TradeOrder]]:
+    if view == "all":
+        return statement
+    if view == "pending_payment":
+        return statement.where(
+            Order.order_status == "pending_payment", Order.expires_at > utc_now()
+        )
+    if view == "pending_shipment":
+        return statement.where(Order.order_status == "pending_shipment")
+    if view == "in_transit":
+        return statement.where(
+            Order.order_status == "shipped", Order.fulfillment_status != "received"
+        )
+    if view == "completed":
+        return statement.where(Order.order_status == "completed")
+    if view == "pending_review":
+        return statement.where(
+            Order.order_status == "completed",
+            exists().where(OrderItem.order_id == Order.id, OrderItem.review_status == "pending"),
+        )
+    if view == "after_sale":
+        return statement.where(Order.after_sale_status != "none")
+    if view == "cancelled":
+        return statement.where(
+            Order.order_status.in_(("cancelled", "closed")), Order.paid_amount == 0
+        )
+    raise ValueError(f"unsupported order view: {view}")
+
+
+def _order_cursor(
+    statement: Select[tuple[Order, Store, TradeOrder]], position: CursorPosition | None
+) -> tuple[Select[tuple[Order, Store, TradeOrder]], bool]:
+    reverse = position is not None and position.direction == "previous"
+    descending = not reverse
+    if position is not None:
+        if len(position.values) != 2:
+            raise ValueError("order cursor must contain two values")
+        timestamp = datetime.fromisoformat(position.values[0])
+        order_id = int(position.values[1])
+        key = tuple_(Order.created_at, Order.id)
+        statement = statement.where(
+            key < (timestamp, order_id) if descending else key > (timestamp, order_id)
+        )
+    return statement.order_by(
+        Order.created_at.desc() if descending else Order.created_at.asc(),
+        Order.id.desc() if descending else Order.id.asc(),
+    ), reverse

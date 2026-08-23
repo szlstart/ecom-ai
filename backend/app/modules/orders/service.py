@@ -1,18 +1,25 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections import OrderedDict
+from datetime import datetime
 from typing import Any, cast
 
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.schemas import PaginationMeta
+from app.core.config import Settings
 from app.core.context import request_id_context
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
-from app.core.security import canonical_request_hash, utc_now
+from app.core.pagination import CursorCodec, CursorPosition
+from app.core.security import SecurityService, canonical_request_hash, utc_now
+from app.modules.catalog.schemas import Money
 from app.modules.checkout.service import CheckoutService, CheckoutSubmissionContext
+from app.modules.files.models import FileObject
 from app.modules.identity.models import User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
 from app.modules.orders.models import (
@@ -24,16 +31,38 @@ from app.modules.orders.models import (
     TradeOrder,
 )
 from app.modules.orders.repository import OrderRepository
-from app.modules.orders.schemas import OrderCreateRequest, OrderCreateResponse
+from app.modules.orders.schemas import (
+    OrderAction,
+    OrderActionTarget,
+    OrderAddressView,
+    OrderAmountsView,
+    OrderCreateRequest,
+    OrderCreateResponse,
+    OrderDetail,
+    OrderEventList,
+    OrderEventView,
+    OrderItemView,
+    OrderList,
+    OrderListItem,
+    OrderStoreView,
+    OrderView,
+    SignedMoney,
+    TradeOrderView,
+)
+from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
 
 
 class OrderService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self, session: AsyncSession, settings: Settings, security: SecurityService
+    ) -> None:
         self.session = session
         self.repository = OrderRepository(session)
         self.checkout_service = CheckoutService(session)
         self.idempotency = IdempotencyService(session)
+        self.cursor = CursorCodec(settings.security_hmac_secret.get_secret_value())
+        self.security = security
 
     async def create(
         self, user: User, payload: OrderCreateRequest, idempotency_key: str
@@ -256,6 +285,168 @@ class OrderService:
         await self.session.commit()
         return response
 
+    async def list_mine(
+        self,
+        user: User,
+        *,
+        view: OrderView,
+        query: str | None,
+        created_from: datetime | None,
+        created_to: datetime | None,
+        cursor: str | None,
+        limit: int,
+    ) -> tuple[OrderList, PaginationMeta]:
+        normalized_query = query.strip() if query else None
+        if normalized_query == "":
+            normalized_query = None
+        filter_key = json.dumps(
+            {
+                "user": user.user_no,
+                "view": view,
+                "q": normalized_query,
+                "created_from": created_from.isoformat() if created_from else None,
+                "created_to": created_to.isoformat() if created_to else None,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        position = self.cursor.decode(cursor, filter_key=filter_key)
+        try:
+            rows, has_more = await self.repository.user_orders(
+                user_id=user.id,
+                view=view,
+                query=normalized_query,
+                created_from=created_from,
+                created_to=created_to,
+                position=position,
+                limit=limit,
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ApplicationError(
+                status=400,
+                code="PAGINATION_CURSOR_INVALID",
+                title="Invalid pagination cursor",
+                detail="分页位置无效，请重新加载订单列表。",
+            ) from exc
+        items = await self._order_views(rows)
+        return OrderList(items=items), _order_pagination(
+            rows=[row[0] for row in rows],
+            position=position,
+            has_more=has_more,
+            filter_key=filter_key,
+            limit=limit,
+            codec=self.cursor,
+        )
+
+    async def detail_mine(self, user: User, order_no: str) -> OrderDetail:
+        row = await self.repository.user_order(user.id, order_no)
+        if row is None:
+            raise _not_found()
+        order, _, _ = row
+        views = await self._order_views([row])
+        address = await self.repository.order_address(order.id)
+        if address is None:
+            raise RuntimeError(f"order {order.order_no} has no address snapshot")
+        events = await self.repository.order_events(order.id)
+        base = views[0].model_dump()
+        return OrderDetail(
+            **base,
+            buyer_remark=order.buyer_remark,
+            address=OrderAddressView(
+                recipient_name=self.security.decrypt(
+                    "address-recipient", address.recipient_name_ciphertext
+                ),
+                phone_masked=f"*** **** {address.phone_last4}",
+                country_code=address.country_code,
+                province_code=address.province_code,
+                city_code=address.city_code,
+                district_code=address.district_code,
+                address=self.security.decrypt("address-detail", address.address_ciphertext),
+                postal_code=address.postal_code,
+            ),
+            policy_snapshot=order.policy_snapshot,
+            events=[_event_view(event) for event in events],
+        )
+
+    async def events_mine(self, user: User, order_no: str) -> OrderEventList:
+        row = await self.repository.user_order(user.id, order_no)
+        if row is None:
+            raise _not_found()
+        return OrderEventList(
+            items=[_event_view(event) for event in await self.repository.order_events(row[0].id)]
+        )
+
+    async def trade_mine(self, user: User, trade_no: str) -> TradeOrderView:
+        result = await self.repository.user_trade(user.id, trade_no)
+        if result is None:
+            raise _not_found()
+        trade, order_rows = result
+        rows = [(order, store, trade) for order, store in order_rows]
+        orders = await self._order_views(rows)
+        return TradeOrderView(
+            trade_order_id=trade.trade_no,
+            order_source=cast(Any, trade.order_source),
+            trade_status=trade.trade_status,
+            amounts=_amounts(trade),
+            order_count=trade.order_count,
+            orders=orders,
+            created_at=trade.created_at,
+            expires_at=trade.expires_at,
+            paid_at=trade.paid_at,
+            closed_at=trade.closed_at,
+            available_actions=_trade_actions(trade),
+            version=trade.version,
+        )
+
+    async def _order_views(
+        self, rows: list[tuple[Order, Store, TradeOrder]]
+    ) -> list[OrderListItem]:
+        order_ids = [order.id for order, _, _ in rows]
+        items_by_order = await self.repository.order_items(order_ids)
+        object_keys = {
+            key for order, store, _ in rows for key in [store.logo_object_key] if key is not None
+        }
+        object_keys.update(
+            item.image_object_key
+            for items in items_by_order.values()
+            for item in items
+            if item.image_object_key is not None
+        )
+        files = await self.repository.public_files(object_keys)
+        result: list[OrderListItem] = []
+        for order, store, trade in rows:
+            items = items_by_order.get(order.id, [])
+            logo = files.get(store.logo_object_key or "")
+            result.append(
+                OrderListItem(
+                    order_id=order.order_no,
+                    trade_order_id=trade.trade_no,
+                    order_source=cast(Any, trade.order_source),
+                    store=OrderStoreView(
+                        store_id=store.store_no,
+                        store_name=store.store_name,
+                        logo_url=f"/api/v1/files/{logo.file_no}" if logo else None,
+                    ),
+                    order_status=order.order_status,
+                    payment_status=order.payment_status,
+                    fulfillment_status=order.fulfillment_status,
+                    after_sale_status=order.after_sale_status,
+                    matched_views=_matched_views(order, items),
+                    items=[
+                        _item_view(item, files.get(item.image_object_key or "")) for item in items
+                    ],
+                    item_count=len(items),
+                    total_quantity=sum(item.quantity for item in items),
+                    amounts=_amounts(order),
+                    created_at=order.created_at,
+                    expires_at=order.expires_at,
+                    available_actions=_order_actions(order, trade, items),
+                    version=order.version,
+                )
+            )
+        return result
+
     async def _reserve(
         self,
         user: User,
@@ -382,6 +573,152 @@ def _address_snapshot(order_id: int, address: UserAddress) -> OrderAddress:
         postal_code=address.postal_code,
         address_hash=digest.digest(),
         key_version=address.key_version,
+    )
+
+
+def _money(amount: int, currency: str) -> Money:
+    return Money(minor_units=str(amount), currency=currency)
+
+
+def _amounts(value: Order | TradeOrder) -> OrderAmountsView:
+    return OrderAmountsView(
+        goods_amount=_money(value.goods_amount, value.currency),
+        freight_amount=_money(value.freight_amount, value.currency),
+        adjustment_amount=SignedMoney(
+            minor_units=str(value.adjustment_amount), currency=value.currency
+        ),
+        payable_amount=_money(value.payable_amount, value.currency),
+        paid_amount=_money(value.paid_amount, value.currency),
+        refunded_amount=_money(value.refunded_amount, value.currency),
+    )
+
+
+def _item_view(item: OrderItem, file: FileObject | None) -> OrderItemView:
+    return OrderItemView(
+        order_item_id=item.order_item_no,
+        product_id=item.product_no,
+        sku_id=item.sku_no,
+        product_name=item.product_name,
+        sku_name=item.sku_name,
+        spec_snapshot=item.spec_snapshot,
+        image_url=f"/api/v1/files/{file.file_no}?variant=thumbnail" if file else None,
+        quantity=item.quantity,
+        unit_price=_money(item.unit_price_amount, item.currency),
+        gross_amount=_money(item.gross_amount, item.currency),
+        payable_amount=_money(item.payable_amount, item.currency),
+        refunded_amount=_money(item.refunded_amount, item.currency),
+        refunded_quantity=item.refunded_quantity,
+        review_status=item.review_status,
+        after_sale_status=item.after_sale_status,
+    )
+
+
+def _matched_views(order: Order, items: list[OrderItem]) -> list[OrderView]:
+    result: list[OrderView] = ["all"]
+    if order.order_status == "pending_payment" and order.expires_at > utc_now():
+        result.append("pending_payment")
+    if order.order_status == "pending_shipment":
+        result.append("pending_shipment")
+    if order.order_status == "shipped" and order.fulfillment_status != "received":
+        result.append("in_transit")
+    if order.order_status == "completed":
+        result.append("completed")
+        if any(item.review_status == "pending" for item in items):
+            result.append("pending_review")
+    if order.after_sale_status != "none":
+        result.append("after_sale")
+    if order.order_status in {"cancelled", "closed"} and order.paid_amount == 0:
+        result.append("cancelled")
+    return result
+
+
+def _route_action(
+    code: Any,
+    name: str,
+    params: dict[str, str],
+    *,
+    confirmation: bool = False,
+) -> OrderAction:
+    return OrderAction(
+        code=code,
+        enabled=True,
+        requires_confirmation=confirmation,
+        target=OrderActionTarget(name=name, params=params),
+    )
+
+
+def _order_actions(order: Order, trade: TradeOrder, items: list[OrderItem]) -> list[OrderAction]:
+    # Only advertise actions whose endpoint exists in the current deployable slice.
+    if order.order_status == "pending_payment" and order.expires_at > utc_now():
+        return [_route_action("pay", "payment-cashier", {"tradeOrderId": trade.trade_no})]
+    return []
+
+
+def _trade_actions(trade: TradeOrder) -> list[OrderAction]:
+    if trade.trade_status == "pending_payment" and trade.expires_at > utc_now():
+        return [_route_action("pay", "payment-cashier", {"tradeOrderId": trade.trade_no})]
+    return []
+
+
+def _event_view(event: OrderStatusLog) -> OrderEventView:
+    return OrderEventView(
+        event_id=event.id,
+        state_dimension=event.state_dimension,
+        from_status=event.from_status,
+        to_status=event.to_status,
+        event_code=event.event_code,
+        actor_type=event.actor_type,
+        reason=event.reason,
+        order_version=event.order_version,
+        occurred_at=event.created_at,
+    )
+
+
+def _order_pagination(
+    *,
+    rows: list[Order],
+    position: CursorPosition | None,
+    has_more: bool,
+    filter_key: str,
+    limit: int,
+    codec: CursorCodec,
+) -> PaginationMeta:
+    backward = position is not None and position.direction == "previous"
+    has_previous = has_more if backward else position is not None
+    has_next = position is not None if backward else has_more
+    previous = (
+        codec.encode(
+            filter_key=filter_key,
+            values=(rows[0].created_at.isoformat(), str(rows[0].id)),
+            direction="previous",
+        )
+        if rows and has_previous
+        else None
+    )
+    following = (
+        codec.encode(
+            filter_key=filter_key,
+            values=(rows[-1].created_at.isoformat(), str(rows[-1].id)),
+            direction="next",
+        )
+        if rows and has_next
+        else None
+    )
+    return PaginationMeta(
+        previous_cursor=previous,
+        next_cursor=following,
+        has_previous=has_previous,
+        has_next=has_next,
+        limit=limit,
+    )
+
+
+def _not_found() -> ApplicationError:
+    return ApplicationError(
+        status=404,
+        code="RESOURCE_NOT_FOUND",
+        title="Resource not found",
+        detail="未找到该订单。",
     )
 
 

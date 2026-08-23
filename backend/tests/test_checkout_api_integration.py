@@ -559,3 +559,66 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             )
         )
         assert outbox is not None and outbox.event_type == "order.created.v1"
+
+    first_page = await client.get(
+        "/api/v1/users/me/orders",
+        headers=auth,
+        params={"view": "pending_payment", "limit": 1},
+    )
+    assert first_page.status_code == 200, first_page.text
+    first_body = first_page.json()
+    assert len(first_body["data"]["items"]) == 1
+    assert first_body["meta"]["pagination"]["has_next"] is True
+    assert first_body["data"]["items"][0]["matched_views"] == [
+        "all",
+        "pending_payment",
+    ]
+    assert [action["code"] for action in first_body["data"]["items"][0]["available_actions"]] == [
+        "pay"
+    ]
+    second_page = await client.get(
+        "/api/v1/users/me/orders",
+        headers=auth,
+        params={
+            "view": "pending_payment",
+            "limit": 1,
+            "cursor": first_body["meta"]["pagination"]["next_cursor"],
+        },
+    )
+    assert second_page.status_code == 200, second_page.text
+    assert second_page.json()["meta"]["pagination"]["has_previous"] is True
+
+    search = await client.get(
+        "/api/v1/users/me/orders",
+        headers=auth,
+        params={"q": "第二结算商品"},
+    )
+    assert search.status_code == 200, search.text
+    assert len(search.json()["data"]["items"]) == 1
+    selected_order_id = search.json()["data"]["items"][0]["order_id"]
+    detail = await client.get(f"/api/v1/orders/{selected_order_id}", headers=auth)
+    assert detail.status_code == 200, detail.text
+    detail_data = detail.json()["data"]
+    assert detail_data["address"]["recipient_name"] == "测试用户"
+    assert detail_data["address"]["phone_masked"] == "*** **** 5678"
+    assert detail_data["address"]["address"] == "测试路 1 号"
+    assert len(detail_data["events"]) == 4
+    assert detail.headers["etag"] == '"v0"'
+
+    events = await client.get(f"/api/v1/orders/{selected_order_id}/events", headers=auth)
+    assert events.status_code == 200
+    assert {item["state_dimension"] for item in events.json()["data"]["items"]} == {
+        "order",
+        "payment",
+        "fulfillment",
+        "after_sale",
+    }
+    trade_view = await client.get(
+        f"/api/v1/trade-orders/{order_data['trade_order_id']}", headers=auth
+    )
+    assert trade_view.status_code == 200, trade_view.text
+    assert trade_view.json()["data"]["order_count"] == 2
+    assert len(trade_view.json()["data"]["orders"]) == 2
+    missing = await client.get("/api/v1/orders/ord_01DOESNOTEXIST", headers=auth)
+    assert missing.status_code == 404
+    assert missing.json()["code"] == "RESOURCE_NOT_FOUND"

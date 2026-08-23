@@ -828,6 +828,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Orders */
+        get: operations["Order_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Order */
+        get: operations["Order_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Order Events */
+        get: operations["OrderEvent_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-orders/{trade_order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Trade Order */
+        get: operations["TradeOrder_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/favorite-products": {
         parameters: {
             query?: never;
@@ -4427,6 +4495,21 @@ export interface components {
             data: components["schemas"]["OrderCreateResponse"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[OrderDetail] */
+        Envelope_OrderDetail_: {
+            data: components["schemas"]["OrderDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderEventList] */
+        Envelope_OrderEventList_: {
+            data: components["schemas"]["OrderEventList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderList] */
+        Envelope_OrderList_: {
+            data: components["schemas"]["OrderList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[PasswordResetTicketResult] */
         Envelope_PasswordResetTicketResult_: {
             data: components["schemas"]["PasswordResetTicketResult"];
@@ -4520,6 +4603,11 @@ export interface components {
         /** Envelope[StorePublicView] */
         Envelope_StorePublicView_: {
             data: components["schemas"]["StorePublicView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[TradeOrderView] */
+        Envelope_TradeOrderView_: {
+            data: components["schemas"]["TradeOrderView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[Union[AdminProductFulfillmentView, NoneType]] */
@@ -4906,6 +4994,69 @@ export interface components {
             /** Required Permission */
             required_permission: string;
         };
+        /** OrderAction */
+        OrderAction: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "pay" | "cancel_order" | "apply_after_sale" | "view_after_sale" | "view_logistics" | "review" | "delete_order" | "confirm_receipt" | "contact_store" | "repurchase";
+            /** Enabled */
+            enabled: boolean;
+            /** Reason Code */
+            reason_code?: string | null;
+            /** Reason Message */
+            reason_message?: string | null;
+            /**
+             * Requires Confirmation
+             * @default false
+             */
+            requires_confirmation: boolean;
+            target: components["schemas"]["OrderActionTarget"];
+        };
+        /** OrderActionTarget */
+        OrderActionTarget: {
+            /**
+             * Type
+             * @default route
+             * @constant
+             */
+            type: "route";
+            /** Name */
+            name: string;
+            /** Params */
+            params?: {
+                [key: string]: string;
+            };
+        };
+        /** OrderAddressView */
+        OrderAddressView: {
+            /** Recipient Name */
+            recipient_name: string;
+            /** Phone Masked */
+            phone_masked: string;
+            /** Country Code */
+            country_code: string;
+            /** Province Code */
+            province_code: string;
+            /** City Code */
+            city_code: string;
+            /** District Code */
+            district_code: string;
+            /** Address */
+            address: string;
+            /** Postal Code */
+            postal_code?: string | null;
+        };
+        /** OrderAmountsView */
+        OrderAmountsView: {
+            goods_amount: components["schemas"]["Money"];
+            freight_amount: components["schemas"]["Money"];
+            adjustment_amount: components["schemas"]["SignedMoney"];
+            payable_amount: components["schemas"]["Money"];
+            paid_amount: components["schemas"]["Money"];
+            refunded_amount: components["schemas"]["Money"];
+        };
         /** OrderCreateRequest */
         OrderCreateRequest: {
             /** Checkout Id */
@@ -4928,6 +5079,177 @@ export interface components {
             available_actions: string[];
             /** Version */
             version: number;
+        };
+        /** OrderDetail */
+        OrderDetail: {
+            /** Order Id */
+            order_id: string;
+            /** Trade Order Id */
+            trade_order_id: string;
+            /**
+             * Order Source
+             * @enum {string}
+             */
+            order_source: "buy_now" | "cart";
+            store: components["schemas"]["OrderStoreView"];
+            /** Order Status */
+            order_status: string;
+            /** Payment Status */
+            payment_status: string;
+            /** Fulfillment Status */
+            fulfillment_status: string;
+            /** After Sale Status */
+            after_sale_status: string;
+            /** Matched Views */
+            matched_views: ("all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "pending_review" | "after_sale" | "cancelled")[];
+            /** Items */
+            items: components["schemas"]["OrderItemView"][];
+            /** Item Count */
+            item_count: number;
+            /** Total Quantity */
+            total_quantity: number;
+            amounts: components["schemas"]["OrderAmountsView"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Available Actions */
+            available_actions: components["schemas"]["OrderAction"][];
+            /** Version */
+            version: number;
+            /** Buyer Remark */
+            buyer_remark?: string | null;
+            address: components["schemas"]["OrderAddressView"];
+            /** Policy Snapshot */
+            policy_snapshot: {
+                [key: string]: unknown;
+            };
+            /** Events */
+            events: components["schemas"]["OrderEventView"][];
+        };
+        /** OrderEventList */
+        OrderEventList: {
+            /** Items */
+            items: components["schemas"]["OrderEventView"][];
+        };
+        /** OrderEventView */
+        OrderEventView: {
+            /** Event Id */
+            event_id: number;
+            /** State Dimension */
+            state_dimension: string;
+            /** From Status */
+            from_status?: string | null;
+            /** To Status */
+            to_status: string;
+            /** Event Code */
+            event_code: string;
+            /** Actor Type */
+            actor_type: string;
+            /** Reason */
+            reason?: string | null;
+            /** Order Version */
+            order_version: number;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** OrderItemView */
+        OrderItemView: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Spec Snapshot */
+            spec_snapshot: {
+                [key: string]: string;
+            }[];
+            /** Image Url */
+            image_url?: string | null;
+            /** Quantity */
+            quantity: number;
+            unit_price: components["schemas"]["Money"];
+            gross_amount: components["schemas"]["Money"];
+            payable_amount: components["schemas"]["Money"];
+            refunded_amount: components["schemas"]["Money"];
+            /** Refunded Quantity */
+            refunded_quantity: number;
+            /** Review Status */
+            review_status: string;
+            /** After Sale Status */
+            after_sale_status: string;
+        };
+        /** OrderList */
+        OrderList: {
+            /** Items */
+            items: components["schemas"]["OrderListItem"][];
+        };
+        /** OrderListItem */
+        OrderListItem: {
+            /** Order Id */
+            order_id: string;
+            /** Trade Order Id */
+            trade_order_id: string;
+            /**
+             * Order Source
+             * @enum {string}
+             */
+            order_source: "buy_now" | "cart";
+            store: components["schemas"]["OrderStoreView"];
+            /** Order Status */
+            order_status: string;
+            /** Payment Status */
+            payment_status: string;
+            /** Fulfillment Status */
+            fulfillment_status: string;
+            /** After Sale Status */
+            after_sale_status: string;
+            /** Matched Views */
+            matched_views: ("all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "pending_review" | "after_sale" | "cancelled")[];
+            /** Items */
+            items: components["schemas"]["OrderItemView"][];
+            /** Item Count */
+            item_count: number;
+            /** Total Quantity */
+            total_quantity: number;
+            amounts: components["schemas"]["OrderAmountsView"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Available Actions */
+            available_actions: components["schemas"]["OrderAction"][];
+            /** Version */
+            version: number;
+        };
+        /** OrderStoreView */
+        OrderStoreView: {
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Logo Url */
+            logo_url?: string | null;
         };
         /** PaginationMeta */
         PaginationMeta: {
@@ -5619,6 +5941,13 @@ export interface components {
              */
             is_current: boolean;
         };
+        /** SignedMoney */
+        SignedMoney: {
+            /** Minor Units */
+            minor_units: string;
+            /** Currency */
+            currency: string;
+        };
         /** StoreHomeContent */
         StoreHomeContent: {
             /** Announcements */
@@ -5719,6 +6048,41 @@ export interface components {
             store_status: string;
             /** Rating Score */
             rating_score: string;
+        };
+        /** TradeOrderView */
+        TradeOrderView: {
+            /** Trade Order Id */
+            trade_order_id: string;
+            /**
+             * Order Source
+             * @enum {string}
+             */
+            order_source: "buy_now" | "cart";
+            /** Trade Status */
+            trade_status: string;
+            amounts: components["schemas"]["OrderAmountsView"];
+            /** Order Count */
+            order_count: number;
+            /** Orders */
+            orders: components["schemas"]["OrderListItem"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Paid At */
+            paid_at?: string | null;
+            /** Closed At */
+            closed_at?: string | null;
+            /** Available Actions */
+            available_actions: components["schemas"]["OrderAction"][];
+            /** Version */
+            version: number;
         };
         /** UserDashboard */
         UserDashboard: {
@@ -7579,6 +7943,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_OrderCreateResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Order_ListMine: {
+        parameters: {
+            query?: {
+                view?: "all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "pending_review" | "after_sale" | "cancelled";
+                q?: string | null;
+                created_from?: string | null;
+                created_to?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Order_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    OrderEvent_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderEventList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    TradeOrder_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trade_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TradeOrderView_"];
                 };
             };
             /** @description Validation Error */

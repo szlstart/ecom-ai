@@ -1,0 +1,84 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
+
+import { formatMoney } from '@/api/catalog'
+import { errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { getMyOrder, type OrderDetail } from '@/api/orders'
+import PageState from '@/components/PageState.vue'
+import { useUserAuthStore } from '@/stores/user-auth'
+
+const route = useRoute()
+const auth = useUserAuthStore()
+const order = ref<OrderDetail | null>(null)
+const loading = ref(true)
+const error = ref('')
+
+function token(): string {
+  if (!auth.accessToken) throw new Error('missing user token')
+  return auth.accessToken
+}
+function statusLabel(status: string): string {
+  return ({ pending_payment: '等待付款', paid: '已支付', pending_shipment: '商家正在备货', shipped: '商品运输中', completed: '订单已完成', cancelled: '订单已取消', closed: '订单已关闭', unpaid: '未付款', unfulfilled: '未履约', none: '无售后' } as Record<string, string>)[status] ?? status
+}
+function eventLabel(code: string, target: string): string {
+  if (code === 'order.created') return `订单已创建：${statusLabel(target)}`
+  return `${code}：${statusLabel(target)}`
+}
+function actionLabel(code: string): string {
+  return ({ pay: '去支付', cancel_order: '取消订单', apply_after_sale: '申请售后', view_after_sale: '查看售后', view_logistics: '查看物流', review: '评价', delete_order: '删除订单', confirm_receipt: '确认收货', contact_store: '联系商家', repurchase: '再次购买' } as Record<string, string>)[code] ?? code
+}
+function dateTime(value: string): string {
+  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value))
+}
+async function load() {
+  loading.value = true
+  error.value = ''
+  try { order.value = (await getMyOrder(String(route.params.orderId), token())).data }
+  catch (cause) { error.value = errorMessage(cause) }
+  finally { loading.value = false }
+}
+onMounted(load)
+</script>
+
+<template>
+  <section class="order-detail-page">
+    <RouterLink class="back-link" to="/me/orders">← 返回我的订单</RouterLink>
+    <div v-if="error" class="alert error" role="alert">{{ error }}</div>
+    <PageState :loading="loading" :error="''" :empty="!order" empty-title="未找到订单" empty-message="该订单不存在或已不可见。" @retry="load">
+      <template v-if="order">
+        <header class="order-detail-hero">
+          <div><p class="eyebrow">订单状态</p><h1>{{ statusLabel(order.order_status) }}</h1><p>订单号 {{ order.order_id }} · {{ dateTime(order.created_at) }}</p></div>
+          <div class="order-actions">
+            <RouterLink v-for="action in order.available_actions" :key="action.code" class="button-link" :to="{ name: action.target.name, params: action.target.params }">{{ actionLabel(action.code) }}</RouterLink>
+          </div>
+        </header>
+        <div class="order-detail-grid">
+          <main class="order-detail-main">
+            <article class="card order-section">
+              <header class="card-heading"><div><p class="eyebrow">商品清单</p><h2>{{ order.store.store_name }}</h2></div><RouterLink :to="`/stores/${order.store.store_id}`">进入店铺 →</RouterLink></header>
+              <RouterLink v-for="item in order.items" :key="item.order_item_id" class="order-detail-item" :to="`/products/${item.product_id}?sku_id=${item.sku_id}`">
+                <img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) ?? ''" width="88" height="88" :alt="item.product_name" />
+                <div v-else class="order-image-placeholder">商品</div>
+                <span><strong>{{ item.product_name }}</strong><small>{{ item.sku_name }}</small><small>{{ item.spec_snapshot.map((spec) => `${spec.name}:${spec.value}`).join(' / ') }}</small></span>
+                <span class="item-price">{{ formatMoney(item.unit_price) }}<small>× {{ item.quantity }}</small></span>
+              </RouterLink>
+            </article>
+            <article class="card order-section">
+              <p class="eyebrow">订单进度</p><h2>状态时间线</h2>
+              <ol class="timeline">
+                <li v-for="event in order.events" :key="event.event_id"><strong>{{ eventLabel(event.event_code, event.to_status) }}</strong><time :datetime="event.occurred_at">{{ dateTime(event.occurred_at) }}</time><p v-if="event.reason">{{ event.reason }}</p></li>
+              </ol>
+            </article>
+          </main>
+          <aside class="order-detail-side">
+            <article class="card order-section"><p class="eyebrow">收货信息</p><h2>{{ order.address.recipient_name }}</h2><p>{{ order.address.phone_masked }}</p><p>{{ order.address.province_code }} {{ order.address.city_code }} {{ order.address.district_code }} {{ order.address.address }}</p><small>此处展示下单时的地址快照，修改地址簿不会影响本订单。</small></article>
+            <article class="card order-section"><p class="eyebrow">金额明细</p><dl class="amount-list"><dt>商品金额</dt><dd>{{ formatMoney(order.amounts.goods_amount) }}</dd><dt>运费</dt><dd>{{ formatMoney(order.amounts.freight_amount) }}</dd><dt>调整金额</dt><dd>{{ formatMoney(order.amounts.adjustment_amount) }}</dd><dt>实付金额</dt><dd>{{ formatMoney(order.amounts.paid_amount) }}</dd><dt class="total">应付金额</dt><dd class="total">{{ formatMoney(order.amounts.payable_amount) }}</dd></dl></article>
+            <article v-if="order.buyer_remark" class="card order-section"><p class="eyebrow">买家留言</p><p>{{ order.buyer_remark }}</p></article>
+            <article v-if="order.fulfillment_status === 'unfulfilled'" class="alert info"><strong>物流信息</strong><p>商家正在备货，暂无物流信息。</p></article>
+          </aside>
+        </div>
+      </template>
+    </PageState>
+  </section>
+</template>

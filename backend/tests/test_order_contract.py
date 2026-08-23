@@ -21,6 +21,17 @@ def test_order_create_accepts_only_checkout_identity_and_version() -> None:
 
 
 def test_order_create_operation_is_present_in_openapi() -> None:
-    operation = create_app().openapi()["paths"]["/api/v1/orders"]["post"]
+    schema = create_app().openapi()
+    operation = schema["paths"]["/api/v1/orders"]["post"]
     assert operation["operationId"] == "Order_Create"
     assert operation["responses"]["201"]
+    assert schema["paths"]["/api/v1/users/me/orders"]["get"]["operationId"] == "Order_ListMine"
+    assert schema["paths"]["/api/v1/orders/{order_id}"]["get"]["operationId"] == "Order_GetMine"
+    assert (
+        schema["paths"]["/api/v1/orders/{order_id}/events"]["get"]["operationId"]
+        == "OrderEvent_ListMine"
+    )
+    assert (
+        schema["paths"]["/api/v1/trade-orders/{trade_order_id}"]["get"]["operationId"]
+        == "TradeOrder_GetMine"
+    )

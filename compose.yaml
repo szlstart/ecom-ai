@@ -161,6 +161,27 @@ services:
       clamav: {condition: service_healthy}
     networks: [backend]
 
+  batch-worker:
+    profiles: [app]
+    restart: unless-stopped
+    build:
+      context: ./backend
+      target: runtime
+    env_file: .env
+    environment:
+      ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
+      ECOM_OBJECT_STORAGE_ENABLED: "true"
+      ECOM_OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:${MINIO_HOST_PORT:-19000}
+      ECOM_OBJECT_STORAGE_ACCESS_KEY: ${ECOM_OBJECT_STORAGE_ACCESS_KEY:-local-minio-admin}
+      ECOM_OBJECT_STORAGE_SECRET_KEY: ${ECOM_OBJECT_STORAGE_SECRET_KEY:-local-minio-change-me}
+    command: ["python", "-m", "app.workers.batch_job_processor"]
+    depends_on:
+      mysql: {condition: service_healthy}
+      minio: {condition: service_healthy}
+      file-worker: {condition: service_started}
+    networks: [backend]
+
   frontend:
     profiles: [app]
     build:

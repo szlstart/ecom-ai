@@ -46,10 +46,13 @@ const routes: RouteRecordRaw[] = [
     { path: 'stores/:storeId/policies', component: () => import('@/pages/admin/AdminStorePolicyPage.vue'), meta: { ...adminMeta, title: '店铺服务政策', requirementId: 'ADM-POLICY-01', requiredPermission: 'store_policies:read' } },
     { path: 'products', component: () => import('@/pages/admin/AdminProductListPage.vue'), meta: { ...adminMeta, title: '商品管理', requirementId: 'ADM-PRODUCT-LIST-01', requiredPermission: 'products:read' } },
     { path: 'products/new', component: () => import('@/pages/admin/AdminProductEditPage.vue'), meta: { ...adminMeta, title: '新建商品', requirementId: 'ADM-PRODUCT-NEW-01', requiredPermission: 'products:create' } },
+    { path: 'products/import', component: () => import('@/pages/admin/AdminProductImportPage.vue'), meta: { ...adminMeta, title: '商品批量导入', requirementId: 'ADM-PRODUCT-IMPORT-01', requiredPermission: 'products:create' } },
     { path: 'products/:productId', component: () => import('@/pages/admin/AdminProductEditPage.vue'), meta: { ...adminMeta, title: '商品编辑', requirementId: 'ADM-PRODUCT-01', requiredPermission: 'products:read' } },
     { path: 'categories', component: () => import('@/pages/admin/AdminCategoryPage.vue'), meta: { ...adminMeta, title: '平台分类', requirementId: 'ADM-CATEGORY-01', requiredPermission: 'catalog_taxonomy:manage' } },
     { path: 'brands', component: () => import('@/pages/admin/AdminBrandPage.vue'), meta: { ...adminMeta, title: '品牌管理', requirementId: 'ADM-BRAND-01', requiredPermission: 'catalog_taxonomy:manage' } },
     { path: 'inventories', component: () => import('@/pages/admin/AdminInventoryPage.vue'), meta: { ...adminMeta, title: '库存管理', requirementId: 'ADM-INV-01', requiredPermission: 'inventories:read' } },
+    { path: 'system/jobs', component: () => import('@/pages/admin/AdminJobListPage.vue'), meta: { ...adminMeta, title: '批处理任务', requirementId: 'ADM-JOB-LIST-01', requiredPermission: 'jobs:read' } },
+    { path: 'system/jobs/:jobId', component: () => import('@/pages/admin/AdminJobDetailPage.vue'), meta: { ...adminMeta, title: '批处理任务详情', requirementId: 'ADM-BATCH-01', requiredAnyPermission: ['jobs:read', 'products:create'] } },
   ] },
   { path: '/:pathMatch(.*)*', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '页面不存在', requirementId: 'USR-SYSTEM-404' }, children: [{ path: '', component: () => import('@/pages/NotFoundPage.vue') }] },
 ]

@@ -249,6 +249,9 @@ tr.selected td { background: #f0f4ff; }
 .file-upload-control small { grid-column: 1 / -1; }
 .success-text { color: #17633b; }
 .error-text { color: #8d2634; }
+.job-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.job-summary > div { padding: 16px; display: grid; gap: 6px; border-radius: 12px; background: #f5f7fb; }
+.job-summary strong { font-size: 1.25rem; }
 
 @media (max-width: 720px) {
   .nav-links span { display: none; }
@@ -261,6 +264,7 @@ tr.selected td { background: #f0f4ff; }
   .admin-split, .admin-detail-grid { grid-template-columns: 1fr; }
   .sticky-editor { position: static; }
   .field-grid { grid-template-columns: 1fr; }
+  .job-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .field-row { grid-template-columns: 1fr; }
   .address-card, .page-heading { align-items: flex-start; flex-direction: column; }
   .nav-content { flex-wrap: wrap; padding: 12px 16px; }

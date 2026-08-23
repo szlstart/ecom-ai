@@ -54,6 +54,10 @@ def test_phase03_tables_are_registered_in_shared_metadata() -> None:
     visibility_type = MySQLBase.metadata.tables["file_objects"].c.visibility.type
     assert isinstance(visibility_type, String)
     assert visibility_type.length == 24
+    job_status_type = MySQLBase.metadata.tables["admin_batch_jobs"].c.job_status.type
+    assert isinstance(job_status_type, String)
+    assert job_status_type.length is not None
+    assert job_status_type.length >= len("awaiting_confirmation")
 
 
 def test_product_cycle_foreign_keys_have_mysql_safe_explicit_names() -> None:

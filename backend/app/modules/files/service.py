@@ -346,6 +346,15 @@ class FileService:
         source = await self.repository.source_file(item.id)
         variants = await self.repository.variants(source.id) if source else []
         preferred = next((entry for entry in variants if entry.variant in {"w960", "w512"}), None)
+        bindable = preferred
+        if (
+            bindable is None
+            and source is not None
+            and source.purpose in {"admin_import", "store_certification"}
+            and source.file_status == "active"
+            and source.scan_status == "safe"
+        ):
+            bindable = source
         instruction = None
         now = utc_now()
         if include_upload and item.upload_status == "created" and item.expires_at > now:
@@ -369,7 +378,7 @@ class FileService:
             expires_at=item.expires_at,
             upload=instruction,
             source_file=_variant_view(source) if source else None,
-            bindable_file=_variant_view(preferred) if preferred else None,
+            bindable_file=_variant_view(bindable) if bindable else None,
             variants=[_variant_view(entry) for entry in variants],
         )
 

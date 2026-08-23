@@ -47,6 +47,7 @@ ADMIN_NAVIGATION = (
     ("store-certifications", "店铺认证", "/admin/store-certifications", "stores:review"),
     ("products", "商品管理", "/admin/products", "products:read"),
     ("inventories", "库存调整", "/admin/inventories", "inventories:read"),
+    ("batch-jobs", "批处理任务", "/admin/system/jobs", "jobs:read"),
     ("categories", "平台分类", "/admin/categories", "catalog_taxonomy:manage"),
     ("brands", "品牌管理", "/admin/brands", "catalog_taxonomy:manage"),
     ("approvals", "审批中心", "/admin/approval-requests", "admin_approvals:read"),

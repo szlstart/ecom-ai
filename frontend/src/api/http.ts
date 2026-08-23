@@ -95,3 +95,35 @@ export function createIdempotencyKey(prefix: string): string {
 export function errorMessage(error: unknown): string {
   return error instanceof ApiProblem ? error.body.detail : '网络异常，请检查连接后重试。'
 }
+
+export async function downloadApiResource(
+  path: string,
+  accessToken: string,
+  filename: string,
+): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    credentials: 'include',
+  })
+  if (!response.ok) {
+    const fallback: ApiProblemBody = {
+      title: 'Download failed',
+      status: response.status,
+      detail: '文件下载失败，请稍后重试。',
+      code: 'FILE_DOWNLOAD_FAILED',
+      request_id: response.headers.get('x-request-id'),
+      retryable: response.status >= 500,
+    }
+    throw new ApiProblem((await response.json().catch(() => fallback)) as ApiProblemBody)
+  }
+  const objectUrl = URL.createObjectURL(await response.blob())
+  try {
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = filename
+    anchor.rel = 'noopener'
+    anchor.click()
+  } finally {
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
+  }
+}

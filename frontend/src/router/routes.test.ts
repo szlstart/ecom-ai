@@ -61,10 +61,13 @@ describe('phase two route contract', () => {
       ['/admin/stores/:storeId/policies', 'ADM-POLICY-01'],
       ['/admin/products', 'ADM-PRODUCT-LIST-01'],
       ['/admin/products/new', 'ADM-PRODUCT-NEW-01'],
+      ['/admin/products/import', 'ADM-PRODUCT-IMPORT-01'],
       ['/admin/products/:productId', 'ADM-PRODUCT-01'],
       ['/admin/categories', 'ADM-CATEGORY-01'],
       ['/admin/brands', 'ADM-BRAND-01'],
       ['/admin/inventories', 'ADM-INV-01'],
+      ['/admin/system/jobs', 'ADM-JOB-LIST-01'],
+      ['/admin/system/jobs/:jobId', 'ADM-BATCH-01'],
     ])
     const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
     for (const [path, requirementId] of expected) {

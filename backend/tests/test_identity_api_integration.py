@@ -437,6 +437,9 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     assert navigation_response.status_code == 200
     assert any(item["code"] == "users" for item in navigation_response.json()["data"]["items"])
     assert any(item["code"] == "products" for item in navigation_response.json()["data"]["items"])
+    assert any(
+        item["code"] == "batch-jobs" for item in navigation_response.json()["data"]["items"]
+    )
 
     audience_violation = await client.get("/api/v1/users/me", headers=admin_headers)
     assert audience_violation.status_code == 403

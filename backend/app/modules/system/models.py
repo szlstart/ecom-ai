@@ -77,7 +77,7 @@ class AdminBatchJob(MutableMySQLModel, MySQLBase):
     )
     request_config: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     request_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
-    job_status: Mapped[str] = mapped_column(String(16), nullable=False, default="created")
+    job_status: Mapped[str] = mapped_column(String(32), nullable=False, default="created")
     execution_backend: Mapped[str | None] = mapped_column(String(32))
     execution_job_no: Mapped[str | None] = mapped_column(String(40))
     execution_status_version: Mapped[int] = mapped_column(

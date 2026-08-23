@@ -1609,6 +1609,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/product-import-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Product Import Template */
+        get: operations["AdminProductImportTemplate_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-import-template.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Product Import Template */
+        get: operations["AdminProductImportTemplate_Download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Batch Jobs */
+        get: operations["AdminBatchJob_List"];
+        put?: never;
+        /** Create Batch Job */
+        post: operations["AdminBatchJob_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Batch Job */
+        get: operations["AdminBatchJob_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs/{job_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Batch Job Items */
+        get: operations["AdminBatchJobItem_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs/{job_id}/confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Batch Job */
+        post: operations["AdminBatchJob_Confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs/{job_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Batch Job */
+        post: operations["AdminBatchJob_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/auth/login": {
         parameters: {
             query?: never;
@@ -3506,6 +3626,91 @@ export interface components {
              */
             created_at: string;
         };
+        /** BatchJobCancellationRequest */
+        BatchJobCancellationRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** BatchJobConfirmationRequest */
+        BatchJobConfirmationRequest: {
+            /** Preview Hash */
+            preview_hash: string;
+        };
+        /** BatchJobItemList */
+        BatchJobItemList: {
+            /** Items */
+            items: components["schemas"]["BatchJobItemView"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** BatchJobItemView */
+        BatchJobItemView: {
+            /** Item Key */
+            item_key: string;
+            /** Item Status */
+            item_status: string;
+            /** Resource Type */
+            resource_type: string | null;
+            /** Resource Id */
+            resource_id: string | null;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Message */
+            error_message: string | null;
+        };
+        /** BatchJobList */
+        BatchJobList: {
+            /** Items */
+            items: components["schemas"]["BatchJobView"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** BatchJobView */
+        BatchJobView: {
+            /** Job Id */
+            job_id: string;
+            /** Job Type */
+            job_type: string;
+            /** Store Id */
+            store_id: string;
+            /** Schema Version */
+            schema_version: string;
+            /** Status */
+            status: string;
+            /** Total Count */
+            total_count: number;
+            /** Success Count */
+            success_count: number;
+            /** Failure Count */
+            failure_count: number;
+            /** Preview Hash */
+            preview_hash: string | null;
+            /** Input File Id */
+            input_file_id: string | null;
+            /** Result File Id */
+            result_file_id: string | null;
+            /** Error File Id */
+            error_file_id: string | null;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Summary */
+            error_summary: string | null;
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** Available Actions */
+            available_actions: string[];
+            /** Version */
+            version: number;
+        };
         /** BrandView */
         BrandView: {
             /** Brand Id */
@@ -3763,6 +3968,21 @@ export interface components {
             data: components["schemas"]["ApprovalView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[BatchJobItemList] */
+        Envelope_BatchJobItemList_: {
+            data: components["schemas"]["BatchJobItemList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[BatchJobList] */
+        Envelope_BatchJobList_: {
+            data: components["schemas"]["BatchJobList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[BatchJobView] */
+        Envelope_BatchJobView_: {
+            data: components["schemas"]["BatchJobView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[ContactChangeTicketResult] */
         Envelope_ContactChangeTicketResult_: {
             data: components["schemas"]["ContactChangeTicketResult"];
@@ -3816,6 +4036,11 @@ export interface components {
         /** Envelope[ProductFaqList] */
         Envelope_ProductFaqList_: {
             data: components["schemas"]["ProductFaqList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ProductImportTemplateView] */
+        Envelope_ProductImportTemplateView_: {
+            data: components["schemas"]["ProductImportTemplateView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ProductList] */
@@ -4441,6 +4666,45 @@ export interface components {
             /** Question */
             question: string;
             answer_content: components["schemas"]["SafeContent"];
+        };
+        /** ProductImportJobCreateRequest */
+        ProductImportJobCreateRequest: {
+            /**
+             * Job Type
+             * @constant
+             */
+            job_type: "product_import";
+            /** Store Id */
+            store_id: string;
+            /** Input File Id */
+            input_file_id: string;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: "product-import-v1";
+        };
+        /** ProductImportTemplateColumn */
+        ProductImportTemplateColumn: {
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Description */
+            description: string;
+            /** Example */
+            example: string;
+        };
+        /** ProductImportTemplateView */
+        ProductImportTemplateView: {
+            /** Schema Version */
+            schema_version: string;
+            /** Supported File Types */
+            supported_file_types: string[];
+            /** Maximum Rows */
+            maximum_rows: number;
+            /** Columns */
+            columns: components["schemas"]["ProductImportTemplateColumn"][];
         };
         /** ProductList */
         ProductList: {
@@ -8992,6 +9256,255 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_list_AdminFeaturedProductView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminProductImportTemplate_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductImportTemplateView_"];
+                };
+            };
+        };
+    };
+    AdminProductImportTemplate_Download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminBatchJob_List: {
+        parameters: {
+            query?: {
+                job_type?: string | null;
+                status?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminBatchJob_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductImportJobCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminBatchJob_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminBatchJobItem_List: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobItemList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminBatchJob_Confirm: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchJobConfirmationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminBatchJob_Cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchJobCancellationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobView_"];
                 };
             };
             /** @description Validation Error */

@@ -194,3 +194,48 @@ async def test_presigned_upload_scan_derivation_and_store_logo_binding(
     )
     assert wrong_purpose.status_code == 422
     assert wrong_purpose.json()["code"] == "FILE_NOT_BINDABLE"
+
+    import_payload = b"product_key,product_name\nP001,Import test\n"
+    import_digest = hashlib.sha256(import_payload).hexdigest()
+    import_created = await client.post(
+        "/api/v1/file-upload-sessions",
+        headers={**auth, "Idempotency-Key": f"import-file-create-{suffix}-01"},
+        json={
+            "purpose": "admin_import",
+            "filename": "products.csv",
+            "size_bytes": len(import_payload),
+            "content_type": "text/csv",
+            "sha256": import_digest,
+            "business_context_id": store_no,
+        },
+    )
+    assert import_created.status_code == 201, import_created.text
+    import_upload = import_created.json()["data"]
+    async with httpx.AsyncClient(trust_env=False) as network:
+        put_import = await network.put(
+            import_upload["upload"]["url"],
+            content=import_payload,
+            headers=import_upload["upload"]["headers"],
+        )
+    assert put_import.status_code == 200, put_import.text
+    import_completed = await client.post(
+        f"/api/v1/file-upload-sessions/{import_upload['upload_id']}/complete",
+        headers={**auth, "Idempotency-Key": f"import-file-complete-{suffix}-01"},
+        json={"sha256": import_digest, "provider_checksum": None},
+    )
+    assert import_completed.status_code == 200, import_completed.text
+    assert import_completed.json()["data"]["bindable_file"] is None
+
+    async for session in mysql_session():
+        processed_import = await FileProcessor(session, storage, AcceptAllScanner()).process_batch()
+    assert processed_import == 1
+    import_ready = await client.get(
+        f"/api/v1/file-upload-sessions/{import_upload['upload_id']}", headers=auth
+    )
+    assert import_ready.status_code == 200, import_ready.text
+    import_bindable = import_ready.json()["data"]["bindable_file"]
+    assert import_bindable["file_id"] == import_ready.json()["data"]["source_file"]["file_id"]
+    assert import_bindable["variant"] == "original"
+    assert import_bindable["status"] == "active"
+    assert import_bindable["scan_status"] == "safe"
+    assert import_bindable["url"] is None

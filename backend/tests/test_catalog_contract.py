@@ -131,6 +131,26 @@ def test_catalog_and_store_openapi_operations_are_stable() -> None:
         ): "AdminStoreFeaturedProduct_Replace",
         ("/api/v1/admin/products", "get"): "AdminProduct_List",
         ("/api/v1/admin/products", "post"): "AdminProduct_Create",
+        ("/api/v1/admin/product-import-template", "get"): "AdminProductImportTemplate_Get",
+        (
+            "/api/v1/admin/product-import-template.csv",
+            "get",
+        ): "AdminProductImportTemplate_Download",
+        ("/api/v1/admin/batch-jobs", "post"): "AdminBatchJob_Create",
+        ("/api/v1/admin/batch-jobs", "get"): "AdminBatchJob_List",
+        ("/api/v1/admin/batch-jobs/{job_id}", "get"): "AdminBatchJob_Get",
+        (
+            "/api/v1/admin/batch-jobs/{job_id}/items",
+            "get",
+        ): "AdminBatchJobItem_List",
+        (
+            "/api/v1/admin/batch-jobs/{job_id}/confirmations",
+            "post",
+        ): "AdminBatchJob_Confirm",
+        (
+            "/api/v1/admin/batch-jobs/{job_id}/cancellations",
+            "post",
+        ): "AdminBatchJob_Cancel",
         ("/api/v1/admin/products/{product_id}", "get"): "AdminProduct_Get",
         ("/api/v1/admin/products/{product_id}", "patch"): "AdminProduct_Update",
         (

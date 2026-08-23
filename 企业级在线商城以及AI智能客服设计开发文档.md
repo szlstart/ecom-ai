@@ -2506,7 +2506,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 #### 2.13.7 商品、SKU、分类、品牌与库存
 
-路由：`/admin/products`、`/admin/products/new`、`/admin/products/:productId`、`/admin/inventories`、`/admin/categories`、`/admin/brands`。
+路由：`/admin/products`、`/admin/products/new`、`/admin/products/import`、`/admin/products/:productId`、`/admin/inventories`、`/admin/categories`、`/admin/brands`；导入预检与执行进度统一进入 `/admin/system/jobs`、`/admin/system/jobs/:jobId`。
 
 商品编辑使用分区表单：基础信息、分类品牌、规格与 SKU、图片、属性、履约资料、FAQ、富文本详情和发布检查。自动保存只保存草稿；上架必须点击明确发布命令并通过完整校验。
 
@@ -7003,7 +7003,7 @@ Tool Version 是运行、绑定、权限、审计和回滚的不可变单位。�
 | `input_file_id` | `BIGINT UNSIGNED` | NULL，FK `file_objects.id`，仅 Active 私有文件 |
 | `request_config` | `JSON` | NOT NULL，版本化白名单参数和筛选摘要，不保存 Token/Secret |
 | `request_hash` | `BINARY(32)` | NOT NULL，幂等和影响预览一致性 |
-| `job_status` | `VARCHAR(16)` | `created/validating/awaiting_confirmation/queued/running/succeeded/partial/failed/cancelled/expired` |
+| `job_status` | `VARCHAR(32)` | `created/validating/awaiting_confirmation/queued/running/succeeded/partial/failed/cancelled/expired`；长度必须覆盖最长状态值，禁止因状态机扩展发生截断 |
 | `execution_backend` / `execution_job_no` | `VARCHAR(32)` / `VARCHAR(40)` | NULL，知识索引为 `postgres_indexing/kjob_...`，只保存跨库公开 ID |
 | `execution_status_version` | `BIGINT UNSIGNED` | NOT NULL DEFAULT 0，消费执行进度事件的单调版本 |
 | `total_count` / `success_count` / `failure_count` | `BIGINT UNSIGNED` | NOT NULL DEFAULT 0 |

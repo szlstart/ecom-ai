@@ -253,6 +253,44 @@ export interface AdminContentVersion {
   created_at: string
 }
 
+export interface AdminBatchJob extends AdminVersioned {
+  job_id: string
+  job_type: string
+  store_id: string
+  schema_version: string
+  status: string
+  total_count: number
+  success_count: number
+  failure_count: number
+  preview_hash: string | null
+  input_file_id: string | null
+  result_file_id: string | null
+  error_file_id: string | null
+  error_code: string | null
+  error_summary: string | null
+  requested_at: string
+  started_at: string | null
+  finished_at: string | null
+  expires_at: string | null
+  available_actions: string[]
+}
+
+export interface AdminBatchJobItem {
+  item_key: string
+  item_status: string
+  resource_type: string | null
+  resource_id: string | null
+  error_code: string | null
+  error_message: string | null
+}
+
+export interface ProductImportTemplate {
+  schema_version: string
+  supported_file_types: string[]
+  maximum_rows: number
+  columns: Array<{ name: string; required: boolean; description: string; example: string }>
+}
+
 export function adminQuery(values: Record<string, string | number | null | undefined>): string {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(values)) {

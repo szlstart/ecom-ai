@@ -169,3 +169,34 @@ class ReviewRevisionRecord(AppendOnlyMySQLModel, MySQLBase):
     after_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     request_id: Mapped[str] = mapped_column(String(64), nullable=False)
     trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class ReviewGovernanceRecord(AppendOnlyMySQLModel, MySQLBase):
+    __tablename__ = "review_governance_records"
+    __table_args__ = (
+        UniqueConstraint("governance_no", name="uk_review_governance_records_no"),
+        Index(
+            "idx_review_governance_records_review",
+            "review_id",
+            "created_at",
+            "id",
+        ),
+    )
+
+    governance_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    review_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("reviews.id"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    from_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    to_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    rule_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    reason: Mapped[str] = mapped_column(String(1000), nullable=False)
+    actor_user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    scope_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
+    review_version: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
+    request_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    trace_id: Mapped[str] = mapped_column(String(64), nullable=False)

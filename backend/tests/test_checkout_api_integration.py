@@ -43,9 +43,12 @@ from app.modules.reviews.models import (
     Review,
     ReviewAppendImage,
     ReviewAppendRecord,
+    ReviewGovernanceRecord,
     ReviewImage,
     ReviewRevisionRecord,
 )
+from app.modules.reviews.schemas import AdminReviewModerationRequest, AdminReviewReplyRequest
+from app.modules.reviews.service import ReviewService
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
 from app.modules.system.models import OutboxEvent
 
@@ -1630,6 +1633,98 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         )
         assert append_image is not None
         assert append_bound_file is not None and append_bound_file.reference_count == 1
+
+    async for session in mysql_session():
+        review = await session.scalar(select(Review).where(Review.review_no == review_id))
+        assert review is not None
+        review_service = ReviewService(session, get_settings())
+        reply_access = AdminAccess(
+            context=access.context,
+            permission=Permission(
+                permission_code="reviews:reply",
+                resource="reviews",
+                action="reply",
+                risk_level="medium",
+                allowed_scope_types=["store"],
+                delegation_policy="role_policy",
+                requires_mfa=False,
+                requires_recent_auth=False,
+                approval_policy="none",
+                owner="reviews",
+                description="review reply",
+                permission_status="active",
+            ),
+            scopes=(("store", receipt_store_id),),
+        )
+        replied_review = await review_service.admin_reply(
+            reply_access,
+            review_id,
+            AdminReviewReplyRequest(content="感谢您的真实评价。"),
+            review.version,
+            f"review-reply-{suffix}",
+        )
+        assert replied_review.merchant_reply is not None
+        moderation_access = AdminAccess(
+            context=access.context,
+            permission=Permission(
+                permission_code="reviews:moderate",
+                resource="reviews",
+                action="moderate",
+                risk_level="high",
+                allowed_scope_types=["store"],
+                delegation_policy="role_policy",
+                requires_mfa=False,
+                requires_recent_auth=True,
+                approval_policy="none",
+                owner="reviews",
+                description="review moderation",
+                permission_status="active",
+            ),
+            scopes=(("store", receipt_store_id),),
+        )
+        hidden_review = await review_service.admin_moderate(
+            moderation_access,
+            review_id,
+            AdminReviewModerationRequest(
+                action="hide",
+                rule_code="CONTENT_POLICY",
+                reason="测试屏蔽评价并保留治理历史",
+            ),
+            replied_review.version,
+            f"review-hide-{suffix}",
+        )
+        assert hidden_review.review_status == "hidden"
+    assert (await client.get(f"/api/v1/reviews/{review_id}")).status_code == 404
+    async for session in mysql_session():
+        review_service = ReviewService(session, get_settings())
+        restored_review = await review_service.admin_moderate(
+            moderation_access,
+            review_id,
+            AdminReviewModerationRequest(
+                action="restore",
+                rule_code="APPEAL_PASSED",
+                reason="复核通过，恢复公开展示",
+            ),
+            hidden_review.version,
+            f"review-restore-{suffix}",
+        )
+        assert restored_review.review_status == "published"
+        assert [record.action for record in restored_review.governance_history] == [
+            "hide",
+            "restore",
+        ]
+        records = list(
+            (
+                await session.scalars(
+                    select(ReviewGovernanceRecord).where(
+                        ReviewGovernanceRecord.review_id
+                        == select(Review.id).where(Review.review_no == review_id).scalar_subquery()
+                    )
+                )
+            ).all()
+        )
+        assert len(records) == 2
+    assert (await client.get(f"/api/v1/reviews/{review_id}")).status_code == 200
 
     duplicate_eligibility_item = await client.post(
         "/api/v1/refund-eligibility-checks",

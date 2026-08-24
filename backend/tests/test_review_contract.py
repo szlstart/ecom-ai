@@ -32,6 +32,20 @@ def test_review_eligibility_and_create_contract_is_published() -> None:
     assert append_request["properties"]["content"]["maxLength"] == 500
     assert append_request["properties"]["image_file_ids"]["maxItems"] == 6
 
+    admin_path = schema["paths"]["/api/v1/admin/reviews/{review_id}"]
+    assert schema["paths"]["/api/v1/admin/reviews"]["get"]["operationId"] == "AdminReview_List"
+    assert admin_path["get"]["operationId"] == "AdminReview_Get"
+    assert (
+        schema["paths"]["/api/v1/admin/reviews/{review_id}/replies"]["post"]["operationId"]
+        == "AdminReview_Reply"
+    )
+    assert (
+        schema["paths"]["/api/v1/admin/reviews/{review_id}/moderations"]["post"][
+            "operationId"
+        ]
+        == "AdminReview_Moderate"
+    )
+
 
 def test_review_image_upload_policy_is_user_owned_and_bounded() -> None:
     policy = upload_policy("review_image")

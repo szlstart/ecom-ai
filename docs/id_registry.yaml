@@ -48,6 +48,7 @@ resources:
   review: {prefix: rev_, url_allowed: true, owner: reviews}
   review_append: {prefix: rpa_, url_allowed: true, owner: reviews}
   review_revision: {prefix: rrv_, owner: reviews}
+  review_governance: {prefix: rgo_, owner: reviews}
   product_faq: {prefix: faq_, url_allowed: true, owner: catalog}
   contact_ref: {prefix: ctk_, owner: support}
   conversation: {prefix: conv_, url_allowed: true, owner: conversations}

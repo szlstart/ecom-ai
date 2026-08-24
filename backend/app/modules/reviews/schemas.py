@@ -165,3 +165,51 @@ class MyReviewListItem(StrictRequest):
 
 class MyReviewList(StrictRequest):
     items: list[MyReviewListItem]
+
+
+class AdminReviewReplyRequest(StrictRequest):
+    content: str = Field(min_length=2, max_length=500)
+
+
+class AdminReviewModerationRequest(StrictRequest):
+    action: Literal["hide", "restore"]
+    rule_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
+    reason: str = Field(min_length=2, max_length=1000)
+
+
+class AdminReviewGovernanceView(StrictRequest):
+    governance_id: str
+    action: Literal["hide", "restore"]
+    from_status: str
+    to_status: str
+    rule_code: str
+    reason: str
+    occurred_at: datetime
+
+
+class AdminReviewView(StrictRequest):
+    review_id: str
+    order_id: str
+    order_item_id: str
+    user_id: str
+    user_name: str
+    store_id: str
+    store_name: str
+    product_id: str
+    product_name: str
+    sku_id: str
+    sku_name: str
+    rating: int
+    content: str | None
+    is_anonymous: bool
+    review_status: Literal["pending", "published", "hidden", "rejected"]
+    moderation_status: Literal["pending", "passed", "blocked", "manual"]
+    merchant_reply: ReviewReplyView | None
+    governance_history: list[AdminReviewGovernanceView]
+    submitted_at: datetime
+    published_at: datetime | None
+    version: int
+
+
+class AdminReviewList(StrictRequest):
+    items: list[AdminReviewView]

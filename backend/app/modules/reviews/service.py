@@ -5,7 +5,7 @@ import re
 import unicodedata
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,20 +17,28 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.pagination import CursorCodec, CursorPosition
 from app.core.security import utc_now
-from app.modules.catalog.models import ProductSku
+from app.modules.catalog.models import Product, ProductSku
 from app.modules.files.models import FileObject
 from app.modules.identity.models import User
 from app.modules.orders.models import Order, OrderItem
+from app.modules.rbac.audit import record_admin_operation
+from app.modules.rbac.dependencies import AdminAccess
 from app.modules.reviews.models import (
     Review,
     ReviewAppendImage,
     ReviewAppendRecord,
+    ReviewGovernanceRecord,
     ReviewImage,
     ReviewReply,
     ReviewRevisionRecord,
 )
 from app.modules.reviews.repository import ReviewRepository
 from app.modules.reviews.schemas import (
+    AdminReviewGovernanceView,
+    AdminReviewList,
+    AdminReviewModerationRequest,
+    AdminReviewReplyRequest,
+    AdminReviewView,
     MyReviewAppendView,
     MyReviewImageView,
     MyReviewList,
@@ -48,6 +56,7 @@ from app.modules.reviews.schemas import (
     ReviewReplyView,
     ReviewUpdateRequest,
 )
+from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
 
 
@@ -74,6 +83,194 @@ class ReviewService:
             edit_window_hours=self.settings.review_edit_window_hours,
             append_window_days=self.settings.review_append_window_days,
         )
+
+    async def admin_list(
+        self,
+        access: AdminAccess,
+        *,
+        review_status: str | None,
+        limit: int,
+    ) -> AdminReviewList:
+        rows = await self.repository.admin_reviews(
+            scopes=access.scopes,
+            review_status=review_status,
+            limit=limit,
+        )
+        return AdminReviewList(items=[await self._admin_view(row) for row in rows])
+
+    async def admin_detail(self, access: AdminAccess, review_no: str) -> AdminReviewView:
+        row = await self.repository.admin_review_detail(review_no)
+        if row is None:
+            raise _review_not_found()
+        access.require_scope("store", row[0].store_id)
+        return await self._admin_view(row)
+
+    async def admin_reply(
+        self,
+        access: AdminAccess,
+        review_no: str,
+        payload: AdminReviewReplyRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminReviewView:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:review-reply:{review_no}",
+            idempotency_key=idempotency_key,
+            payload=payload.model_dump(mode="json"),
+            resource_type="review_reply",
+        )
+        row = await self.repository.admin_review_detail(review_no, for_update=True)
+        if row is None:
+            raise _review_not_found()
+        review = row[0]
+        access.require_scope("store", review.store_id)
+        if claim.replayed:
+            return await self._admin_view(row)
+        if review.version != expected_version:
+            raise _review_version_precondition(review.version)
+        if review.review_status not in {"published", "hidden"}:
+            raise ApplicationError(
+                status=409,
+                code="REVIEW_REPLY_NOT_ALLOWED",
+                title="Review reply not allowed",
+                detail="评价尚未发布，当前不能回复。",
+            )
+        if await self.repository.reply_for_review(review.id) is not None:
+            raise ApplicationError(
+                status=409,
+                code="REVIEW_REPLY_ALREADY_EXISTS",
+                title="Review reply already exists",
+                detail="该评价已经回复过。",
+            )
+        now = utc_now()
+        self.session.add(
+            ReviewReply(
+                review_id=review.id,
+                store_id=review.store_id,
+                replier_user_id=access.context.user.id,
+                content=payload.content.strip(),
+                reply_status="published",
+                published_at=now,
+            )
+        )
+        review.version += 1
+        record_admin_operation(
+            self.session,
+            access,
+            action="review.reply",
+            target_type="review",
+            target_no=review.review_no,
+            after={"reply_status": "published"},
+            scope_type="store",
+            scope_id=review.store_id,
+        )
+        self.session.add(
+            _review_outbox(
+                review,
+                "review.replied.v1",
+                {"review_id": review.review_no},
+                now,
+                request_id_context.get() or new_prefixed_ulid("req_"),
+            )
+        )
+        await self.session.flush()
+        result = await self._admin_view(row)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=review.review_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
+
+    async def admin_moderate(
+        self,
+        access: AdminAccess,
+        review_no: str,
+        payload: AdminReviewModerationRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminReviewView:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:review-moderate:{review_no}",
+            idempotency_key=idempotency_key,
+            payload=payload.model_dump(mode="json"),
+            resource_type="review_governance",
+        )
+        row = await self.repository.admin_review_detail(review_no, for_update=True)
+        if row is None:
+            raise _review_not_found()
+        review = row[0]
+        access.require_scope("store", review.store_id)
+        if claim.replayed:
+            return await self._admin_view(row)
+        if review.version != expected_version:
+            raise _review_version_precondition(review.version)
+        expected_status = "published" if payload.action == "hide" else "hidden"
+        target_status = "hidden" if payload.action == "hide" else "published"
+        if review.review_status != expected_status:
+            raise ApplicationError(
+                status=409,
+                code="REVIEW_MODERATION_NOT_ALLOWED",
+                title="Review moderation not allowed",
+                detail="评价当前状态不允许执行该治理动作。",
+            )
+        now = utc_now()
+        previous = review.review_status
+        review.review_status = target_status
+        review.moderation_status = "blocked" if payload.action == "hide" else "passed"
+        review.hidden_at = now if payload.action == "hide" else None
+        review.version += 1
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        self.session.add(
+            ReviewGovernanceRecord(
+                governance_no=new_prefixed_ulid("rgo_"),
+                review_id=review.id,
+                action=payload.action,
+                from_status=previous,
+                to_status=target_status,
+                rule_code=payload.rule_code,
+                reason=payload.reason,
+                actor_user_id=access.context.user.id,
+                scope_type="store",
+                scope_id=review.store_id,
+                review_version=review.version,
+                request_id=request_id,
+                trace_id=request_id,
+            )
+        )
+        record_admin_operation(
+            self.session,
+            access,
+            action=f"review.{payload.action}",
+            target_type="review",
+            target_no=review.review_no,
+            reason=payload.reason,
+            before={"review_status": previous},
+            after={"review_status": target_status, "rule_code": payload.rule_code},
+            scope_type="store",
+            scope_id=review.store_id,
+        )
+        self.session.add(
+            _review_outbox(
+                review,
+                "review.hidden.v1" if payload.action == "hide" else "review.restored.v1",
+                {"review_id": review.review_no, "rule_code": payload.rule_code},
+                now,
+                request_id,
+            )
+        )
+        await self.session.flush()
+        result = await self._admin_view(row)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=review.review_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
 
     async def create(
         self,
@@ -557,6 +754,55 @@ class ReviewService:
         )
         await self.session.commit()
         return result
+
+    async def _admin_view(
+        self,
+        row: tuple[Review, Order, OrderItem, User, Product, ProductSku, Store],
+    ) -> AdminReviewView:
+        review, order, item, user, product, sku, store = row
+        reply = await self.repository.reply_for_review(review.id)
+        history = await self.repository.governance_history(review.id)
+        return AdminReviewView(
+            review_id=review.review_no,
+            order_id=order.order_no,
+            order_item_id=item.order_item_no,
+            user_id=user.user_no,
+            user_name=user.nickname,
+            store_id=store.store_no,
+            store_name=store.store_name,
+            product_id=product.product_no,
+            product_name=product.product_name,
+            sku_id=sku.sku_no,
+            sku_name=sku.sku_name,
+            rating=review.rating,
+            content=review.content,
+            is_anonymous=review.is_anonymous,
+            review_status=cast(Any, review.review_status),
+            moderation_status=cast(Any, review.moderation_status),
+            merchant_reply=(
+                ReviewReplyView(
+                    content=reply.content,
+                    published_at=_required_datetime(reply.published_at),
+                )
+                if reply is not None and reply.published_at is not None
+                else None
+            ),
+            governance_history=[
+                AdminReviewGovernanceView(
+                    governance_id=record.governance_no,
+                    action=cast(Any, record.action),
+                    from_status=record.from_status,
+                    to_status=record.to_status,
+                    rule_code=record.rule_code,
+                    reason=record.reason,
+                    occurred_at=record.created_at,
+                )
+                for record in history
+            ],
+            submitted_at=review.created_at,
+            published_at=review.published_at,
+            version=review.version,
+        )
 
     async def _public_detail(
         self,
@@ -1107,6 +1353,16 @@ def _review_version_conflict(current_version: int) -> ApplicationError:
     return ApplicationError(
         status=409,
         code="VERSION_CONFLICT",
+        title="Version conflict",
+        detail="评价已发生变化，请刷新后重试。",
+        headers={"ETag": f'"v{current_version}"'},
+    )
+
+
+def _review_version_precondition(current_version: int) -> ApplicationError:
+    return ApplicationError(
+        status=412,
+        code="RESOURCE_VERSION_CONFLICT",
         title="Version conflict",
         detail="评价已发生变化，请刷新后重试。",
         headers={"ETag": f'"v{current_version}"'},

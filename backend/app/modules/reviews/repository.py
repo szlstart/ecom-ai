@@ -16,6 +16,7 @@ from app.modules.reviews.models import (
     Review,
     ReviewAppendImage,
     ReviewAppendRecord,
+    ReviewGovernanceRecord,
     ReviewImage,
     ReviewReply,
 )
@@ -84,6 +85,68 @@ class ReviewRepository:
             statement = statement.with_for_update(of=Review)
         row = (await self.session.execute(statement)).one_or_none()
         return (row[0], row[1], row[2], row[3], row[4]) if row else None
+
+    async def admin_review_detail(
+        self,
+        review_no: str,
+        *,
+        for_update: bool = False,
+    ) -> tuple[Review, Order, OrderItem, User, Product, ProductSku, Store] | None:
+        statement = (
+            select(Review, Order, OrderItem, User, Product, ProductSku, Store)
+            .join(Order, Order.id == Review.order_id)
+            .join(OrderItem, OrderItem.id == Review.order_item_id)
+            .join(User, User.id == Review.user_id)
+            .join(Product, Product.id == Review.product_id)
+            .join(ProductSku, ProductSku.id == Review.sku_id)
+            .join(Store, Store.id == Review.store_id)
+            .where(Review.review_no == review_no)
+        )
+        if for_update:
+            statement = statement.with_for_update(of=Review)
+        row = (await self.session.execute(statement)).one_or_none()
+        return tuple(row) if row is not None else None
+
+    async def admin_reviews(
+        self,
+        *,
+        scopes: Sequence[tuple[str, int]],
+        review_status: str | None,
+        limit: int,
+    ) -> list[tuple[Review, Order, OrderItem, User, Product, ProductSku, Store]]:
+        statement = (
+            select(Review, Order, OrderItem, User, Product, ProductSku, Store)
+            .join(Order, Order.id == Review.order_id)
+            .join(OrderItem, OrderItem.id == Review.order_item_id)
+            .join(User, User.id == Review.user_id)
+            .join(Product, Product.id == Review.product_id)
+            .join(ProductSku, ProductSku.id == Review.sku_id)
+            .join(Store, Store.id == Review.store_id)
+        )
+        if ("platform", 0) not in scopes:
+            store_ids = [scope_id for scope_type, scope_id in scopes if scope_type == "store"]
+            if not store_ids:
+                return []
+            statement = statement.where(Review.store_id.in_(store_ids))
+        if review_status is not None:
+            statement = statement.where(Review.review_status == review_status)
+        rows = (
+            await self.session.execute(
+                statement.order_by(Review.created_at.desc(), Review.id.desc()).limit(limit)
+            )
+        ).all()
+        return [tuple(row) for row in rows]
+
+    async def governance_history(self, review_id: int) -> list[ReviewGovernanceRecord]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(ReviewGovernanceRecord)
+                    .where(ReviewGovernanceRecord.review_id == review_id)
+                    .order_by(ReviewGovernanceRecord.created_at, ReviewGovernanceRecord.id)
+                )
+            ).all()
+        )
 
     async def user_pending_items(
         self,

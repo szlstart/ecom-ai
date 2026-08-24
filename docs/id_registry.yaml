@@ -43,7 +43,11 @@ resources:
   refund_draft: {prefix: rfd_, owner: after_sale}
   refund_policy_snapshot: {prefix: rsp_, owner: after_sale}
   refund_appeal: {prefix: rap_, url_allowed: true, owner: after_sale}
+  refund_appeal_event: {prefix: rae_, owner: after_sale}
+  refund_payment: {prefix: rfp_, owner: after_sale}
   review: {prefix: rev_, url_allowed: true, owner: reviews}
+  review_append: {prefix: rpa_, url_allowed: true, owner: reviews}
+  review_revision: {prefix: rrv_, owner: reviews}
   product_faq: {prefix: faq_, url_allowed: true, owner: catalog}
   contact_ref: {prefix: ctk_, owner: support}
   conversation: {prefix: conv_, url_allowed: true, owner: conversations}

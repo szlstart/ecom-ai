@@ -275,6 +275,7 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
         session.add_all(
             [
                 ReviewAppendRecord(
+                    append_no=new_prefixed_ulid("rpa_"),
                     review_id=newest_review.id,
                     user_id=user.id,
                     content="使用一周后的追评",

@@ -21,6 +21,7 @@ class ReviewImageView(BaseModel):
 class ReviewAppendView(BaseModel):
     content: str
     published_at: datetime
+    images: list[ReviewImageView] = Field(default_factory=list)
 
 
 class ReviewReplyView(BaseModel):
@@ -87,10 +88,42 @@ class ReviewCreateRequest(StrictRequest):
         return value
 
 
+class ReviewUpdateRequest(StrictRequest):
+    rating: int = Field(ge=1, le=5)
+    content: str | None = Field(default=None, max_length=500)
+    is_anonymous: bool = False
+    image_file_ids: list[str] = Field(default_factory=list, max_length=6)
+
+    @field_validator("image_file_ids")
+    @classmethod
+    def reject_duplicate_images(cls, value: list[str]) -> list[str]:
+        return ReviewCreateRequest.reject_duplicate_images(value)
+
+
+class ReviewAppendCreateRequest(StrictRequest):
+    content: str = Field(min_length=1, max_length=500)
+    image_file_ids: list[str] = Field(default_factory=list, max_length=6)
+
+    @field_validator("image_file_ids")
+    @classmethod
+    def reject_duplicate_images(cls, value: list[str]) -> list[str]:
+        return ReviewCreateRequest.reject_duplicate_images(value)
+
+
 class MyReviewImageView(StrictRequest):
     file_id: str
     width: int
     height: int
+
+
+class MyReviewAppendView(StrictRequest):
+    append_id: str
+    content: str
+    append_status: Literal["pending", "published", "hidden", "rejected"]
+    moderation_status: Literal["pending", "passed", "blocked", "manual"]
+    images: list[MyReviewImageView]
+    submitted_at: datetime
+    published_at: datetime | None
 
 
 class MyReviewView(StrictRequest):
@@ -107,9 +140,28 @@ class MyReviewView(StrictRequest):
     review_status: Literal["pending", "published", "hidden", "rejected"]
     moderation_status: Literal["pending", "passed", "blocked", "manual"]
     images: list[MyReviewImageView]
+    append: MyReviewAppendView | None = None
+    merchant_reply: ReviewReplyView | None = None
     submitted_at: datetime
     published_at: datetime | None
     edit_deadline_at: datetime
     append_deadline_at: datetime
     available_actions: list[ReviewAction]
     version: int
+
+
+class MyReviewListItem(StrictRequest):
+    item_type: Literal["pending", "review"]
+    order_id: str
+    order_item_id: str
+    product_id: str
+    sku_id: str
+    product_name: str
+    sku_name: str
+    order_completed_at: datetime | None
+    eligibility: ReviewEligibility
+    review: MyReviewView | None = None
+
+
+class MyReviewList(StrictRequest):
+    items: list[MyReviewListItem]

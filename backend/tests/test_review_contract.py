@@ -16,6 +16,22 @@ def test_review_eligibility_and_create_contract_is_published() -> None:
     assert request["properties"]["content"]["anyOf"][0]["maxLength"] == 500
     assert request["properties"]["image_file_ids"]["maxItems"] == 6
 
+    assert schema["paths"]["/api/v1/users/me/reviews"]["get"]["operationId"] == "Review_ListMine"
+    detail_path = schema["paths"]["/api/v1/reviews/{review_id}"]
+    assert detail_path["get"]["operationId"] == "Review_GetMine"
+    assert detail_path["patch"]["operationId"] == "Review_Update"
+    assert (
+        schema["paths"]["/api/v1/reviews/{review_id}/append-records"]["post"]["operationId"]
+        == "Review_Append"
+    )
+    update_request = schema["components"]["schemas"]["ReviewUpdateRequest"]
+    append_request = schema["components"]["schemas"]["ReviewAppendCreateRequest"]
+    assert update_request["additionalProperties"] is False
+    assert update_request["properties"]["image_file_ids"]["maxItems"] == 6
+    assert append_request["additionalProperties"] is False
+    assert append_request["properties"]["content"]["maxLength"] == 500
+    assert append_request["properties"]["image_file_ids"]["maxItems"] == 6
+
 
 def test_review_image_upload_policy_is_user_owned_and_bounded() -> None:
     policy = upload_policy("review_image")

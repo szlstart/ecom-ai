@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -14,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER, TINYINT
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.database.base import MutableMySQLModel, MySQLBase
+from app.database.base import AppendOnlyMySQLModel, MutableMySQLModel, MySQLBase
 
 
 class Review(MutableMySQLModel, MySQLBase):
@@ -101,8 +102,12 @@ class ReviewReply(MutableMySQLModel, MySQLBase):
 
 class ReviewAppendRecord(MutableMySQLModel, MySQLBase):
     __tablename__ = "review_append_records"
-    __table_args__ = (UniqueConstraint("review_id", name="uk_review_append_review"),)
+    __table_args__ = (
+        UniqueConstraint("append_no", name="uk_review_append_records_no"),
+        UniqueConstraint("review_id", name="uk_review_append_review"),
+    )
 
+    append_no: Mapped[str] = mapped_column(String(40), nullable=False)
     review_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("reviews.id"), nullable=False
     )
@@ -113,3 +118,54 @@ class ReviewAppendRecord(MutableMySQLModel, MySQLBase):
     append_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
     moderation_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+
+
+class ReviewAppendImage(MutableMySQLModel, MySQLBase):
+    __tablename__ = "review_append_images"
+    __table_args__ = (
+        UniqueConstraint("append_record_id", "sort_order", name="uk_review_append_images_order"),
+        UniqueConstraint("object_key", name="uk_review_append_images_object_key"),
+        Index(
+            "idx_review_append_images_append",
+            "append_record_id",
+            "sort_order",
+            "id",
+        ),
+    )
+
+    append_record_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("review_append_records.id"), nullable=False
+    )
+    object_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    sha256: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    width: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
+    height: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
+    sort_order: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
+    scan_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    image_status: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class ReviewRevisionRecord(AppendOnlyMySQLModel, MySQLBase):
+    __tablename__ = "review_revision_records"
+    __table_args__ = (
+        UniqueConstraint("revision_no", name="uk_review_revision_records_no"),
+        Index(
+            "idx_review_revision_records_review",
+            "review_id",
+            "created_at",
+            "id",
+        ),
+    )
+
+    revision_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    review_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("reviews.id"), nullable=False
+    )
+    actor_user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    before_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    after_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    request_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    trace_id: Mapped[str] = mapped_column(String(64), nullable=False)

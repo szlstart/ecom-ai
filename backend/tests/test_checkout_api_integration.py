@@ -36,7 +36,13 @@ from app.modules.payments.models import Payment, PaymentCallback
 from app.modules.payments.service import PaymentService
 from app.modules.rbac.dependencies import AdminAccess
 from app.modules.rbac.models import Permission
-from app.modules.reviews.models import Review, ReviewImage
+from app.modules.reviews.models import (
+    Review,
+    ReviewAppendImage,
+    ReviewAppendRecord,
+    ReviewImage,
+    ReviewRevisionRecord,
+)
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
 from app.modules.system.models import OutboxEvent
 
@@ -94,6 +100,24 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             expires_at=now + timedelta(hours=1),
             last_seen_at=now,
         )
+        other_auth_session = AuthSession(
+            session_no=new_prefixed_ulid("ses_"),
+            user_id=other_user.id,
+            refresh_token_hash=security.keyed_hash("refresh-token", secrets.token_urlsafe()),
+            token_family_no=new_prefixed_ulid("tfa_"),
+            device_no=new_prefixed_ulid("dev_"),
+            device_name="Other checkout integration",
+            client_type="web",
+            audience="user",
+            csrf_token_hash=security.keyed_hash("csrf-token", secrets.token_urlsafe()),
+            authenticated_at=now,
+            authentication_methods=["password"],
+            assurance_level="aal1",
+            issued_at=now,
+            expires_at=now + timedelta(hours=1),
+            last_seen_at=now,
+        )
+        session.add(other_auth_session)
         address = UserAddress(
             address_no=new_prefixed_ulid("addr_"),
             user_id=user.id,
@@ -298,6 +322,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             user_no,
             other_user_no,
             session_no,
+            other_session_no,
             sku_no,
             second_sku_no,
             address_no,
@@ -307,6 +332,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             user.user_no,
             other_user.user_no,
             auth_session.session_no,
+            other_auth_session.session_no,
             sku.sku_no,
             second_sku.sku_no,
             address.address_no,
@@ -317,6 +343,13 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         user_no=user_no, session_no=session_no, audience="user", permission_version=1
     )
     auth = {"Authorization": f"Bearer {token}"}
+    other_token, _ = security.create_access_token(
+        user_no=other_user_no,
+        session_no=other_session_no,
+        audience="user",
+        permission_version=1,
+    )
+    other_auth = {"Authorization": f"Bearer {other_token}"}
     body = {"source": {"source_type": "buy_now", "sku_id": sku_no, "quantity": 2}}
     created = await client.post(
         "/api/v1/checkout-sessions",
@@ -1347,6 +1380,17 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     dashboard = await client.get("/api/v1/users/me/dashboard", headers=auth)
     assert dashboard.status_code == 200, dashboard.text
     assert dashboard.json()["data"]["order_counts"]["pending_review"] >= 1
+    pending_reviews = await client.get(
+        "/api/v1/users/me/reviews?view=pending&limit=20",
+        headers=auth,
+    )
+    assert pending_reviews.status_code == 200, pending_reviews.text
+    assert any(
+        item["order_item_id"] == receipt_item_no
+        and item["item_type"] == "pending"
+        and item["review"] is None
+        for item in pending_reviews.json()["data"]["items"]
+    )
     review_eligibility = await client.get(
         f"/api/v1/review-eligibilities/{receipt_item_no}", headers=auth
     )
@@ -1396,6 +1440,68 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         == created_review.json()["data"]["review_id"]
     )
     assert existing_eligibility.json()["data"]["available_actions"] == ["view", "edit"]
+    review_id = created_review.json()["data"]["review_id"]
+    private_detail = await client.get(f"/api/v1/reviews/{review_id}", headers=auth)
+    assert private_detail.status_code == 200, private_detail.text
+    assert private_detail.headers["etag"] == '"v0"'
+    hidden_from_public = await client.get(f"/api/v1/reviews/{review_id}")
+    assert hidden_from_public.status_code == 404
+    hidden_from_other_user = await client.get(f"/api/v1/reviews/{review_id}", headers=other_auth)
+    assert hidden_from_other_user.status_code == 404
+    cross_user_update = await client.patch(
+        f"/api/v1/reviews/{review_id}",
+        headers={**other_auth, "If-Match": created_review.headers["etag"]},
+        json={
+            "rating": 1,
+            "content": "不应允许修改他人评价",
+            "is_anonymous": False,
+            "image_file_ids": [],
+        },
+    )
+    assert cross_user_update.status_code == 404
+    submitted_reviews = await client.get(
+        f"/api/v1/users/me/reviews?view=published&order_id={receipt_order_id}",
+        headers=auth,
+    )
+    assert submitted_reviews.status_code == 200, submitted_reviews.text
+    assert submitted_reviews.json()["data"]["items"][0]["review"]["review_id"] == review_id
+    missing_precondition = await client.patch(
+        f"/api/v1/reviews/{review_id}",
+        headers=auth,
+        json={
+            "rating": 4,
+            "content": "修改后的评价",
+            "is_anonymous": True,
+            "image_file_ids": [review_file_no],
+        },
+    )
+    assert missing_precondition.status_code == 428
+    updated_review = await client.patch(
+        f"/api/v1/reviews/{review_id}",
+        headers={**auth, "If-Match": created_review.headers["etag"]},
+        json={
+            "rating": 4,
+            "content": "  修改后的评价  ",
+            "is_anonymous": True,
+            "image_file_ids": [review_file_no],
+        },
+    )
+    assert updated_review.status_code == 200, updated_review.text
+    assert updated_review.headers["etag"] == '"v1"'
+    assert updated_review.json()["data"]["content"] == "修改后的评价"
+    assert updated_review.json()["data"]["is_anonymous"] is True
+    stale_update = await client.patch(
+        f"/api/v1/reviews/{review_id}",
+        headers={**auth, "If-Match": created_review.headers["etag"]},
+        json={
+            "rating": 3,
+            "content": "过期版本不应覆盖",
+            "is_anonymous": False,
+            "image_file_ids": [],
+        },
+    )
+    assert stale_update.status_code == 409
+    assert stale_update.json()["code"] == "VERSION_CONFLICT"
     async for session in mysql_session():
         reviewed_item = await session.scalar(
             select(OrderItem).where(OrderItem.order_item_no == receipt_item_no)
@@ -1413,6 +1519,114 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         )
         assert bound_file is not None and bound_file.reference_count == 1
         assert bound_image is not None and bound_image.object_key == bound_file.object_key
+        revision = await session.scalar(
+            select(ReviewRevisionRecord).where(ReviewRevisionRecord.review_id == review.id)
+        )
+        assert revision is not None
+        assert revision.before_snapshot["rating"] == 5
+        assert revision.after_snapshot["rating"] == 4
+        review.review_status = "published"
+        review.moderation_status = "passed"
+        review.published_at = utc_now()
+        review.version += 1
+        bound_file.visibility = "public_derivative"
+        append_source = FileObject(
+            file_no=new_prefixed_ulid("file_"),
+            bucket="review-assets-private",
+            object_key=f"tests/reviews/{suffix}/append-source.webp",
+            purpose="review_image",
+            owner_type="user",
+            owner_no=user_no,
+            variant="original",
+            declared_mime_type="image/webp",
+            detected_mime_type="image/webp",
+            size_bytes=1024,
+            sha256=hashlib.sha256(f"append-source-{suffix}".encode()).digest(),
+            width=800,
+            height=800,
+            visibility="private",
+            sensitivity_level="L1",
+            scan_status="safe",
+            file_status="active",
+            reference_count=0,
+            activated_at=utc_now(),
+        )
+        session.add(append_source)
+        await session.flush()
+        append_file = FileObject(
+            file_no=new_prefixed_ulid("file_"),
+            bucket="public-assets",
+            object_key=f"tests/reviews/{suffix}/append-w960.webp",
+            purpose="review_image",
+            owner_type="user",
+            owner_no=user_no,
+            parent_file_id=append_source.id,
+            variant="w960",
+            processor_version="image-v1",
+            declared_mime_type="image/webp",
+            detected_mime_type="image/webp",
+            size_bytes=700,
+            sha256=hashlib.sha256(f"append-w960-{suffix}".encode()).digest(),
+            width=800,
+            height=800,
+            visibility="private",
+            sensitivity_level="L1",
+            scan_status="safe",
+            file_status="active",
+            reference_count=0,
+            activated_at=utc_now(),
+        )
+        session.add(append_file)
+        await session.commit()
+        append_file_no = append_file.file_no
+
+    public_detail = await client.get(f"/api/v1/reviews/{review_id}")
+    assert public_detail.status_code == 200, public_detail.text
+    assert public_detail.json()["data"]["user_display_name"] == "匿名用户"
+    assert "order_id" not in public_detail.json()["data"]
+    append_payload = {
+        "content": "  使用一段时间后的追评  ",
+        "image_file_ids": [append_file_no],
+    }
+    append_headers = {**auth, "Idempotency-Key": f"review-append-{suffix}"}
+    appended = await client.post(
+        f"/api/v1/reviews/{review_id}/append-records",
+        headers=append_headers,
+        json=append_payload,
+    )
+    assert appended.status_code == 201, appended.text
+    assert appended.json()["data"]["append"]["content"] == "使用一段时间后的追评"
+    assert appended.json()["data"]["append"]["images"][0]["file_id"] == append_file_no
+    assert "append" not in appended.json()["data"]["available_actions"]
+    append_replay = await client.post(
+        f"/api/v1/reviews/{review_id}/append-records",
+        headers=append_headers,
+        json=append_payload,
+    )
+    assert append_replay.status_code == 201
+    assert append_replay.json()["data"] == appended.json()["data"]
+    duplicate_append = await client.post(
+        f"/api/v1/reviews/{review_id}/append-records",
+        headers={**auth, "Idempotency-Key": f"review-append-duplicate-{suffix}"},
+        json=append_payload,
+    )
+    assert duplicate_append.status_code == 409
+    assert duplicate_append.json()["code"] == "REVIEW_APPEND_ALREADY_EXISTS"
+    async for session in mysql_session():
+        review = await session.scalar(select(Review).where(Review.review_no == review_id))
+        assert review is not None
+        append_record = await session.scalar(
+            select(ReviewAppendRecord).where(ReviewAppendRecord.review_id == review.id)
+        )
+        assert append_record is not None and append_record.append_status == "pending"
+        append_image = await session.scalar(
+            select(ReviewAppendImage).where(ReviewAppendImage.append_record_id == append_record.id)
+        )
+        append_bound_file = await session.scalar(
+            select(FileObject).where(FileObject.file_no == append_file_no)
+        )
+        assert append_image is not None
+        assert append_bound_file is not None and append_bound_file.reference_count == 1
 
     timeout_checkout = await client.post(
         "/api/v1/checkout-sessions",

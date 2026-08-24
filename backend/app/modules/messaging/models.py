@@ -36,7 +36,14 @@ class Conversation(SoftDeleteMySQLModel, MySQLBase):
             "(conversation_type = 'store' AND store_id IS NOT NULL)",
             name="conversation_store_scope",
         ),
-        Index("idx_conversations_user_updated", "user_id", "user_hidden_at", "updated_at", "id"),
+        Index("idx_conversations_user_updated", "user_id", "updated_at", "id"),
+        Index(
+            "idx_conversations_user_visibility_updated",
+            "user_id",
+            "user_hidden_at",
+            "updated_at",
+            "id",
+        ),
         Index(
             "idx_conversations_store_status", "store_id", "conversation_status", "last_message_at"
         ),
@@ -46,7 +53,7 @@ class Conversation(SoftDeleteMySQLModel, MySQLBase):
     user_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
     )
-    store_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True))
+    store_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("stores.id"))
     conversation_type: Mapped[str] = mapped_column(String(16), nullable=False)
     is_fixed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     exclusive_user_key: Mapped[int | None] = mapped_column(
@@ -68,9 +75,13 @@ class Conversation(SoftDeleteMySQLModel, MySQLBase):
         BIGINT(unsigned=True), nullable=False, default=0, server_default="0"
     )
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
-    last_message_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True))
+    last_message_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("messages.id")
+    )
     user_hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
-    human_ticket_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True))
+    human_ticket_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("human_service_tickets.id")
+    )
 
 
 class ConversationStatusLog(MutableMySQLModel, MySQLBase):
@@ -159,6 +170,7 @@ class HumanServiceTicket(MutableMySQLModel, MySQLBase):
             "idx_human_service_tickets_queue",
             "queue_code",
             "ticket_status",
+            "priority",
             "created_at",
             "id",
         ),
@@ -171,7 +183,7 @@ class HumanServiceTicket(MutableMySQLModel, MySQLBase):
     user_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
     )
-    store_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True))
+    store_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("stores.id"))
     queue_type: Mapped[str] = mapped_column(String(16), nullable=False)
     queue_code: Mapped[str] = mapped_column(String(64), nullable=False)
     ticket_type: Mapped[str] = mapped_column(String(32), nullable=False, default="general")
@@ -231,6 +243,7 @@ class HumanServiceInternalNote(MutableMySQLModel, MySQLBase):
     __tablename__ = "human_service_internal_notes"
     __table_args__ = (
         Index("idx_human_service_notes_ticket_time", "ticket_id", "created_at", "id"),
+        Index("idx_human_service_notes_store_time", "store_id", "created_at", "id"),
     )
 
     ticket_id: Mapped[int] = mapped_column(
@@ -240,7 +253,7 @@ class HumanServiceInternalNote(MutableMySQLModel, MySQLBase):
         BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
     )
     note_no: Mapped[str] = mapped_column(String(40), nullable=False, unique=True)
-    store_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True))
+    store_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("stores.id"))
     note_type: Mapped[str] = mapped_column(String(16), nullable=False)
     content_ciphertext: Mapped[bytes] = mapped_column(VARBINARY(4096), nullable=False)
     content_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)

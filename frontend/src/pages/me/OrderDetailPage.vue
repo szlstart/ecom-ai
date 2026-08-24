@@ -5,6 +5,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { formatMoney } from '@/api/catalog'
 import { getCart } from '@/api/cart'
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import { cancelOrder, confirmOrderReceipt, getMyOrder, hideOrder, repurchaseOrder, restoreOrder, type OrderAction, type OrderDetail, type OrderHideResult } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
@@ -47,6 +48,16 @@ async function runAction(action: OrderAction) {
   if (!order.value || busy.value || !action.enabled) return
   if (['pay', 'apply_after_sale', 'view_after_sale', 'view_logistics', 'review'].includes(action.code)) {
     await router.push({ name: action.target.name, params: action.target.params })
+    return
+  }
+  if (action.code === 'contact_store') {
+    busy.value = true
+    try {
+      const conversation = (await ensureStoreConversation(order.value.store.store_id, token())).data
+      await setConversationContext(conversation.conversation_id, conversation.version, 'order', order.value.order_id, order.value.version, token())
+      await router.push(`/messages/${conversation.conversation_id}`)
+    } catch (cause) { error.value = errorMessage(cause) }
+    finally { busy.value = false }
     return
   }
   if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !window.confirm(`${actionLabel(action.code)}？服务端会再次校验订单状态。`)) return

@@ -17,8 +17,19 @@ def load_registry(name: str) -> dict[str, Any]:
 def test_all_registries_are_normative_and_versioned() -> None:
     for registry_path in sorted(REGISTRY_DIRECTORY.glob("*.yaml")):
         registry = load_registry(registry_path.name)
+        if "asyncapi" in registry:
+            continue
         assert registry["status"] == "normative"
         assert isinstance(registry["version"], int)
+
+
+def test_realtime_asyncapi_contract_is_versioned() -> None:
+    contract = load_registry("asyncapi-realtime-v1.yaml")
+
+    assert contract["asyncapi"] == "3.0.0"
+    assert contract["info"]["version"] == "1.0.0"
+    assert contract["channels"]["realtime"]["address"] == "/ws/v1"
+    assert set(contract["operations"]) == {"receiveServerEvent", "sendClientControl"}
 
 
 def test_id_prefixes_are_unique() -> None:

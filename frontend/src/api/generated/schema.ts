@@ -1133,6 +1133,435 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Conversations */
+        get: operations["Conversation_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/exclusive-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Exclusive */
+        put: operations["ExclusiveConversation_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stores/{store_id}/customer-service-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Store Conversation */
+        put: operations["StoreConversation_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Conversation */
+        get: operations["Conversation_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Messages */
+        get: operations["Message_ListMine"];
+        put?: never;
+        /** Send Message */
+        post: operations["Message_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/contexts/{context_type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Context */
+        put: operations["ConversationContext_PutMine"];
+        post?: never;
+        /** Delete Context */
+        delete: operations["ConversationContext_DeleteMine"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/archivals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Conversation */
+        post: operations["ConversationArchive_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/human-service-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Human Service Ticket */
+        get: operations["HumanServiceTicket_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/human-service-tickets/{ticket_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Human Service Ticket */
+        post: operations["HumanServiceTicketCancellation_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/read-cursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Read Cursor */
+        put: operations["MessageReadCursor_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/human-service-tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Human Service */
+        post: operations["HumanServiceRequest_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tickets */
+        get: operations["SupportTicket_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ticket */
+        get: operations["SupportTicket_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Workspace */
+        get: operations["SupportWorkspace_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Support Messages */
+        get: operations["SupportMessage_List"];
+        put?: never;
+        /** Send Support Conversation Message */
+        post: operations["SupportConversationMessage_Send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/conversations/{conversation_id}/read-cursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Support Read Cursor */
+        put: operations["SupportReadCursor_Put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Ticket */
+        post: operations["SupportTicket_Claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/waits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Wait Ticket */
+        post: operations["SupportTicket_Wait"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/resumptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Ticket */
+        post: operations["SupportTicket_Resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer Ticket */
+        post: operations["SupportTicket_Transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/resolutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Ticket */
+        post: operations["SupportTicket_Resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Support Message */
+        post: operations["SupportMessage_Send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/internal-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Internal Notes */
+        get: operations["SupportInternalNote_List"];
+        put?: never;
+        /** Create Internal Note */
+        post: operations["SupportInternalNote_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/realtime/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create User Ticket */
+        post: operations["RealtimeTicket_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/realtime/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Support Ticket */
+        post: operations["SupportRealtimeTicket_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/cart": {
         parameters: {
             query?: never;
@@ -5276,6 +5705,101 @@ export interface components {
              */
             expires_at: string;
         };
+        /** ConversationArchiveView */
+        ConversationArchiveView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Archived At
+             * Format: date-time
+             */
+            archived_at: string;
+            /** Version */
+            version: number;
+        };
+        /** ConversationContextClearView */
+        ConversationContextClearView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Context Type */
+            context_type: string;
+            /** Cleared */
+            cleared: boolean;
+            /** Version */
+            version: number;
+        };
+        /** ConversationContextRequest */
+        ConversationContextRequest: {
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Version */
+            resource_version?: number | null;
+        };
+        /** ConversationContextView */
+        ConversationContextView: {
+            /** Context Id */
+            context_id: string;
+            /**
+             * Context Type
+             * @enum {string}
+             */
+            context_type: "product" | "order" | "shipment" | "refund" | "store" | "checkout_store_group";
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Version */
+            resource_version: number | null;
+            /** Context Version */
+            context_version: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "inactive" | "expired";
+            /** Display Snapshot */
+            display_snapshot: {
+                [key: string]: unknown;
+            };
+            /** Expires At */
+            expires_at: string | null;
+        };
+        /** ConversationList */
+        ConversationList: {
+            /** Items */
+            items: components["schemas"]["ConversationView"][];
+        };
+        /** ConversationView */
+        ConversationView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Conversation Type
+             * @enum {string}
+             */
+            conversation_type: "exclusive" | "store";
+            /**
+             * Conversation Status
+             * @enum {string}
+             */
+            conversation_status: "active" | "human_pending" | "human_active" | "closed";
+            /** Store Id */
+            store_id: string | null;
+            /** Title */
+            title: string;
+            /** Is Fixed */
+            is_fixed: boolean;
+            /** Fixed Rank */
+            fixed_rank: number | null;
+            /** Last Message Preview */
+            last_message_preview: string | null;
+            /** Last Message At */
+            last_message_at: string | null;
+            /** Last Sequence No */
+            last_sequence_no: number;
+            /** Unread Count */
+            unread_count: number;
+            /** Version */
+            version: number;
+        };
         /** DefaultAddressRequest */
         DefaultAddressRequest: {
             /** Address Id */
@@ -5530,6 +6054,31 @@ export interface components {
             data: components["schemas"]["ContactChangeTicketResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[ConversationArchiveView] */
+        Envelope_ConversationArchiveView_: {
+            data: components["schemas"]["ConversationArchiveView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationContextClearView] */
+        Envelope_ConversationContextClearView_: {
+            data: components["schemas"]["ConversationContextClearView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationContextView] */
+        Envelope_ConversationContextView_: {
+            data: components["schemas"]["ConversationContextView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationList] */
+        Envelope_ConversationList_: {
+            data: components["schemas"]["ConversationList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationView] */
+        Envelope_ConversationView_: {
+            data: components["schemas"]["ConversationView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[FileMetadataView] */
         Envelope_FileMetadataView_: {
             data: components["schemas"]["FileMetadataView"];
@@ -5555,6 +6104,11 @@ export interface components {
             data: components["schemas"]["HomepageView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[HumanTicketView] */
+        Envelope_HumanTicketView_: {
+            data: components["schemas"]["HumanTicketView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[LegalDocument] */
         Envelope_LegalDocument_: {
             data: components["schemas"]["LegalDocument"];
@@ -5565,9 +6119,19 @@ export interface components {
             data: components["schemas"]["LogisticsWebhookAck"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[MessageList] */
+        Envelope_MessageList_: {
+            data: components["schemas"]["MessageList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[MessageResult] */
         Envelope_MessageResult_: {
             data: components["schemas"]["MessageResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[MessageView] */
+        Envelope_MessageView_: {
+            data: components["schemas"]["MessageView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[MyReviewList] */
@@ -5668,6 +6232,16 @@ export interface components {
         /** Envelope[ProductSkuList] */
         Envelope_ProductSkuList_: {
             data: components["schemas"]["ProductSkuList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ReadCursorView] */
+        Envelope_ReadCursorView_: {
+            data: components["schemas"]["ReadCursorView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RealtimeTicketView] */
+        Envelope_RealtimeTicketView_: {
+            data: components["schemas"]["RealtimeTicketView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ReauthenticationResult] */
@@ -5778,6 +6352,31 @@ export interface components {
         /** Envelope[StorePublicView] */
         Envelope_StorePublicView_: {
             data: components["schemas"]["StorePublicView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportInternalNoteList] */
+        Envelope_SupportInternalNoteList_: {
+            data: components["schemas"]["SupportInternalNoteList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportReadCursorView] */
+        Envelope_SupportReadCursorView_: {
+            data: components["schemas"]["SupportReadCursorView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportTicketList] */
+        Envelope_SupportTicketList_: {
+            data: components["schemas"]["SupportTicketList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportTicketView] */
+        Envelope_SupportTicketView_: {
+            data: components["schemas"]["SupportTicketView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportWorkspaceView] */
+        Envelope_SupportWorkspaceView_: {
+            data: components["schemas"]["SupportWorkspaceView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[TradeOrderView] */
@@ -6143,6 +6742,49 @@ export interface components {
             /** Sections */
             sections: components["schemas"]["HomepageSection"][];
         };
+        /** HumanHandoffRequest */
+        HumanHandoffRequest: {
+            /**
+             * Ticket Type
+             * @default general
+             * @enum {string}
+             */
+            ticket_type: "general" | "order" | "logistics" | "refund" | "complaint";
+            /** Summary */
+            summary: string;
+            /** Message Refs */
+            message_refs?: string[];
+        };
+        /** HumanTicketView */
+        HumanTicketView: {
+            /** Ticket Id */
+            ticket_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Queue Type
+             * @enum {string}
+             */
+            queue_type: "store" | "platform";
+            /**
+             * Ticket Status
+             * @enum {string}
+             */
+            ticket_status: "queued" | "assigned" | "active" | "waiting_user" | "resolved" | "closed";
+            /** Assigned User Id */
+            assigned_user_id: string | null;
+            /** Resolution Summary */
+            resolution_summary?: string | null;
+            /** Queue Position */
+            queue_position?: number | null;
+            /** Estimated Response At */
+            estimated_response_at?: string | null;
+            /**
+             * Can Cancel
+             * @default false
+             */
+            can_cancel: boolean;
+        };
         /** LegalDocument */
         LegalDocument: {
             /**
@@ -6189,10 +6831,51 @@ export interface components {
             /** Shipment Id */
             shipment_id: string;
         };
+        /** MessageCreateRequest */
+        MessageCreateRequest: {
+            /** Client Message Id */
+            client_message_id: string;
+            /** Content */
+            content: components["schemas"]["TextMessageContent"] | components["schemas"]["ProductCardMessageContent"] | components["schemas"]["OrderCardMessageContent"];
+        };
+        /** MessageList */
+        MessageList: {
+            /** Items */
+            items: components["schemas"]["MessageView"][];
+        };
         /** MessageResult */
         MessageResult: {
             /** Message */
             message: string;
+        };
+        /** MessageView */
+        MessageView: {
+            /** Message Id */
+            message_id: string;
+            /** Sequence No */
+            sequence_no: number;
+            /**
+             * Sender Type
+             * @enum {string}
+             */
+            sender_type: "user" | "agent" | "human" | "system" | "tool";
+            /** Message Type */
+            message_type: string;
+            /** Text */
+            text: string | null;
+            /** Message Status */
+            message_status: string;
+            /** Moderation Status */
+            moderation_status: string;
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
         };
         /** Money */
         Money: {
@@ -6406,6 +7089,16 @@ export interface components {
             reason_code: "no_longer_needed" | "wrong_product" | "wrong_address" | "price_changed" | "other";
             /** Description */
             description?: string | null;
+        };
+        /** OrderCardMessageContent */
+        OrderCardMessageContent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "order_card";
+            /** Order Id */
+            order_id: string;
         };
         /** OrderCommandResult */
         OrderCommandResult: {
@@ -6846,6 +7539,18 @@ export interface components {
              */
             is_favorited: boolean;
         };
+        /** ProductCardMessageContent */
+        ProductCardMessageContent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "product_card";
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
         /** ProductDetail */
         ProductDetail: {
             /** Product Id */
@@ -7053,6 +7758,28 @@ export interface components {
             /** Sort Order */
             sort_order: number;
         };
+        /** ReadCursorRequest */
+        ReadCursorRequest: {
+            /** Last Read Message Id */
+            last_read_message_id: string;
+            /** Last Read Sequence No */
+            last_read_sequence_no: number;
+        };
+        /** ReadCursorView */
+        ReadCursorView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Last Read Message Id */
+            last_read_message_id: string;
+            /** Last Read Sequence No */
+            last_read_sequence_no: number;
+            /** Unread Count */
+            unread_count: number;
+            /** Total Unread Count */
+            total_unread_count: number;
+            /** Cursor Version */
+            cursor_version: number;
+        };
         /** ReadinessResponse */
         ReadinessResponse: {
             /**
@@ -7064,6 +7791,24 @@ export interface components {
             dependencies: {
                 [key: string]: components["schemas"]["DependencyStatus"];
             };
+        };
+        /** RealtimeTicketView */
+        RealtimeTicketView: {
+            /** Ticket */
+            ticket: string;
+            /** Expires In */
+            expires_in: number;
+            /**
+             * Websocket Path
+             * @default /ws/v1
+             */
+            websocket_path: string;
+            /**
+             * Subprotocol
+             * @default ecom.realtime.v1
+             * @constant
+             */
+            subprotocol: "ecom.realtime.v1";
         };
         /** ReasonRequest */
         ReasonRequest: {
@@ -7917,6 +8662,244 @@ export interface components {
             store_status: string;
             /** Rating Score */
             rating_score: string;
+        };
+        /** SupportInternalNoteList */
+        SupportInternalNoteList: {
+            /** Items */
+            items: components["schemas"]["SupportInternalNoteView"][];
+        };
+        /** SupportInternalNoteRequest */
+        SupportInternalNoteRequest: {
+            /** Text */
+            text: string;
+            /**
+             * Note Type
+             * @default handling
+             * @enum {string}
+             */
+            note_type: "handling" | "transfer" | "risk" | "resolution";
+            /**
+             * Visibility Scope
+             * @default current_queue
+             * @enum {string}
+             */
+            visibility_scope: "current_queue" | "supervisors" | "platform_escalation";
+        };
+        /** SupportInternalNoteView */
+        SupportInternalNoteView: {
+            /** Note Id */
+            note_id: string;
+            /** Author User Id */
+            author_user_id: string;
+            /** Note Type */
+            note_type: string;
+            /** Text */
+            text: string;
+            /** Visibility Scope */
+            visibility_scope: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** SupportMessageRequest */
+        SupportMessageRequest: {
+            /** Client Message Id */
+            client_message_id: string;
+            /** Text */
+            text: string;
+        };
+        /** SupportReadCursorView */
+        SupportReadCursorView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Last Read Message Id */
+            last_read_message_id: string;
+            /** Last Read Sequence No */
+            last_read_sequence_no: number;
+            /** Unread Count */
+            unread_count: number;
+            /** Cursor Version */
+            cursor_version: number;
+        };
+        /** SupportResolveRequest */
+        SupportResolveRequest: {
+            /** Resolution Code */
+            resolution_code: string;
+            /** Summary */
+            summary: string;
+            /** Internal Note */
+            internal_note?: string | null;
+        };
+        /** SupportTicketEventView */
+        SupportTicketEventView: {
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** From Status */
+            from_status: string | null;
+            /** To Status */
+            to_status: string;
+            /** Reason Code */
+            reason_code: string | null;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** SupportTicketItem */
+        SupportTicketItem: {
+            /** Ticket Id */
+            ticket_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Queue Type
+             * @enum {string}
+             */
+            queue_type: "store" | "platform";
+            /** Queue Code */
+            queue_code: string;
+            /** Ticket Type */
+            ticket_type: string;
+            /**
+             * Priority
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /**
+             * Ticket Status
+             * @enum {string}
+             */
+            ticket_status: "queued" | "assigned" | "active" | "waiting_user" | "resolved" | "closed";
+            /** Assigned User Id */
+            assigned_user_id: string | null;
+            /** Handoff Summary */
+            handoff_summary: string;
+            /** Sla Due At */
+            sla_due_at: string | null;
+            /** Waiting Reason Code */
+            waiting_reason_code: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** SupportTicketList */
+        SupportTicketList: {
+            /** Items */
+            items: components["schemas"]["SupportTicketItem"][];
+        };
+        /** SupportTicketView */
+        SupportTicketView: {
+            /** Ticket Id */
+            ticket_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Queue Type
+             * @enum {string}
+             */
+            queue_type: "store" | "platform";
+            /** Queue Code */
+            queue_code: string;
+            /** Ticket Type */
+            ticket_type: string;
+            /**
+             * Priority
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /**
+             * Ticket Status
+             * @enum {string}
+             */
+            ticket_status: "queued" | "assigned" | "active" | "waiting_user" | "resolved" | "closed";
+            /** Assigned User Id */
+            assigned_user_id: string | null;
+            /** Handoff Summary */
+            handoff_summary: string;
+            /** Sla Due At */
+            sla_due_at: string | null;
+            /** Waiting Reason Code */
+            waiting_reason_code: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Handoff Message Refs */
+            handoff_message_refs: {
+                [key: string]: unknown;
+            }[];
+            /** Handoff Policy Version */
+            handoff_policy_version: string;
+            /** Resolution Summary */
+            resolution_summary: string | null;
+        };
+        /** SupportTransferRequest */
+        SupportTransferRequest: {
+            /** Assigned User Id */
+            assigned_user_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /** SupportUserSummary */
+        SupportUserSummary: {
+            /** User Id */
+            user_id: string;
+            /** Nickname */
+            nickname: string;
+            /** Account Status */
+            account_status: string;
+        };
+        /** SupportWaitRequest */
+        SupportWaitRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** SupportWorkspaceView */
+        SupportWorkspaceView: {
+            ticket: components["schemas"]["SupportTicketView"];
+            user: components["schemas"]["SupportUserSummary"];
+            /** Referenced Messages */
+            referenced_messages: components["schemas"]["MessageView"][];
+            /** Business Contexts */
+            business_contexts: components["schemas"]["ConversationContextView"][];
+            /** Events */
+            events: components["schemas"]["SupportTicketEventView"][];
+        };
+        /** TextMessageContent */
+        TextMessageContent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "text";
+            /** Text */
+            text: string;
         };
         /** TradeOrderView */
         TradeOrderView: {
@@ -10484,6 +11467,943 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Conversation_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationList_"];
+                };
+            };
+        };
+    };
+    ExclusiveConversation_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+        };
+    };
+    StoreConversation_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Conversation_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Message_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+                after_sequence?: number;
+            };
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Message_CreateMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ConversationContext_PutMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                conversation_id: string;
+                context_type: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationContextRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationContextView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ConversationContext_DeleteMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                conversation_id: string;
+                context_type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationContextClearView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ConversationArchive_CreateMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationArchiveView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    HumanServiceTicket_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    HumanServiceTicketCancellation_CreateMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    MessageReadCursor_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCursorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReadCursorView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    HumanServiceRequest_CreateMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HumanHandoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportTicket_List: {
+        parameters: {
+            query?: {
+                queue_type?: ("store" | "platform") | null;
+                ticket_status?: ("queued" | "assigned" | "active" | "waiting_user" | "resolved" | "closed") | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportTicket_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportWorkspace_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportWorkspaceView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportMessage_List: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportConversationMessage_Send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportReadCursor_Put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCursorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportReadCursorView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportTicket_Claim: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportTicket_Wait: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportWaitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportTicket_Resume: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportTicket_Transfer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportTicket_Resolve: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportMessage_Send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportInternalNote_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportInternalNoteList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    SupportInternalNote_Create: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportInternalNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RealtimeTicket_CreateMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RealtimeTicketView_"];
+                };
+            };
+        };
+    };
+    SupportRealtimeTicket_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RealtimeTicketView_"];
                 };
             };
         };

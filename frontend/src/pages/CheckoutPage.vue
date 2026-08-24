@@ -5,6 +5,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { formatMoney } from '@/api/catalog'
 import { createOrder, getCheckout, listAddresses, patchCheckout, repriceCheckout, type AddressSummary, type CheckoutData } from '@/api/checkout'
 import { createIdempotencyKey, errorMessage } from '@/api/http'
+import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
@@ -34,6 +35,16 @@ async function submitOrder() {
   } catch (cause) { error.value = errorMessage(cause) }
   finally { busy.value = false }
 }
+async function contactStore(storeId: string) {
+  if (!checkout.value || busy.value) return
+  busy.value = true; error.value = ''
+  try {
+    const conversation = (await ensureStoreConversation(storeId, token())).data
+    await setConversationContext(conversation.conversation_id, conversation.version, 'checkout_store_group', checkout.value.checkout_id, checkout.value.version, token())
+    await router.push(`/messages/${conversation.conversation_id}`)
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { busy.value = false }
+}
 onMounted(load)
 </script>
 
@@ -47,7 +58,7 @@ onMounted(load)
           <div v-if="addresses.length" class="address-choice-list"><label v-for="address in addresses" :key="address.address_id" :class="{ selected: checkout.address_id === address.address_id }"><input type="radio" name="address" :checked="checkout.address_id === address.address_id" :disabled="busy" @change="changeAddress(address.address_id)" /><span><strong>{{ address.recipient_name }} · {{ address.phone_masked }}</strong><small>{{ address.province_code }} {{ address.city_code }} {{ address.district_code }} {{ address.address }}</small></span></label></div>
           <p v-else class="notice warning">还没有收货地址。<RouterLink to="/me/addresses">新增地址</RouterLink></p>
         </section>
-        <article v-for="group in checkout.store_groups" :key="group.store_id" class="checkout-card"><header><RouterLink :to="`/stores/${group.store_id}`"><strong>{{ group.store_name }}</strong> →</RouterLink></header>
+        <article v-for="group in checkout.store_groups" :key="group.store_id" class="checkout-card"><header><RouterLink :to="`/stores/${group.store_id}`"><strong>{{ group.store_name }}</strong> →</RouterLink><button type="button" class="secondary small" :disabled="busy" @click="contactStore(group.store_id)">联系商家</button></header>
           <div v-for="item in group.items" :key="item.sku_id" class="checkout-item-row"><div><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>{{ item.sku_name }} · × {{ item.quantity }}</small></div><strong>{{ formatMoney(item.subtotal) }}</strong></div>
           <div class="delivery-summary"><span>配送方式：{{ group.delivery_options[0]?.name || '暂无可用配送' }}</span><strong>{{ formatMoney(group.freight_amount) }}</strong></div>
           <label class="remark-field">给商家留言（最多 200 字）<textarea maxlength="200" :value="group.buyer_remark || ''" :disabled="busy" @change="saveRemark(group.store_id, ($event.target as HTMLTextAreaElement).value)" /></label>

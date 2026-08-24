@@ -5,6 +5,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { formatMoney } from '@/api/catalog'
 import { getCart } from '@/api/cart'
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import { cancelOrder, confirmOrderReceipt, hideOrder, listMyOrders, ORDER_VIEWS, repurchaseOrder, restoreOrder, type OrderAction, type OrderHideResult, type OrderSummary, type OrderView } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
@@ -75,6 +76,20 @@ async function runAction(action: OrderAction, order: OrderSummary) {
   if (!action.enabled || busyOrder.value) return
   if (action.code === 'pay') {
     await router.push({ name: action.target.name, params: action.target.params })
+    return
+  }
+  if (action.code === 'contact_store') {
+    busyOrder.value = order.order_id
+    error.value = ''
+    try {
+      const conversation = (await ensureStoreConversation(order.store.store_id, token())).data
+      await setConversationContext(conversation.conversation_id, conversation.version, 'order', order.order_id, order.version, token())
+      await router.push(`/messages/${conversation.conversation_id}`)
+    } catch (cause) {
+      error.value = errorMessage(cause)
+    } finally {
+      busyOrder.value = ''
+    }
     return
   }
   if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !window.confirm(`${actionLabel(action.code)}？此操作将以服务器最终结果为准。`)) return

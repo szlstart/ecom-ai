@@ -4129,6 +4129,1667 @@
         }
       }
     },
+    "/api/v1/conversations": {
+      "get": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "List Conversations",
+        "operationId": "Conversation_ListMine",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationList_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/exclusive-conversation": {
+      "put": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Put Exclusive",
+        "operationId": "ExclusiveConversation_PutMine",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationView_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stores/{store_id}/customer-service-conversation": {
+      "put": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Put Store Conversation",
+        "operationId": "StoreConversation_PutMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}": {
+      "get": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Get Conversation",
+        "operationId": "Conversation_GetMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages": {
+      "get": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "List Messages",
+        "operationId": "Message_ListMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "after_sequence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "After Sequence"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Send Message",
+        "operationId": "Message_CreateMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/contexts/{context_type}": {
+      "put": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Put Context",
+        "operationId": "ConversationContext_PutMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "context_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Context Type"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationContextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationContextView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Delete Context",
+        "operationId": "ConversationContext_DeleteMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "context_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Context Type"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationContextClearView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/archivals": {
+      "post": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Archive Conversation",
+        "operationId": "ConversationArchive_CreateMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationArchiveView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/human-service-ticket": {
+      "get": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Get Human Service Ticket",
+        "operationId": "HumanServiceTicket_GetMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_HumanTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/human-service-tickets/{ticket_id}/cancellations": {
+      "post": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Cancel Human Service Ticket",
+        "operationId": "HumanServiceTicketCancellation_CreateMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_HumanTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/read-cursor": {
+      "put": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Put Read Cursor",
+        "operationId": "MessageReadCursor_PutMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadCursorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ReadCursorView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/human-service-tickets": {
+      "post": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Request Human Service",
+        "operationId": "HumanServiceRequest_CreateMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanHandoffRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_HumanTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets": {
+      "get": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "List Tickets",
+        "operationId": "SupportTicket_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "queue_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "store",
+                    "platform"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Queue Type"
+            }
+          },
+          {
+            "name": "ticket_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "queued",
+                    "assigned",
+                    "active",
+                    "waiting_user",
+                    "resolved",
+                    "closed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportTicketList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets/{ticket_id}": {
+      "get": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Get Ticket",
+        "operationId": "SupportTicket_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets/{ticket_id}/workspace": {
+      "get": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Get Workspace",
+        "operationId": "SupportWorkspace_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportWorkspaceView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/conversations/{conversation_id}/messages": {
+      "get": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "List Support Messages",
+        "operationId": "SupportMessage_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Send Support Conversation Message",
+        "operationId": "SupportConversationMessage_Send",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/conversations/{conversation_id}/read-cursor": {
+      "put": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Put Support Read Cursor",
+        "operationId": "SupportReadCursor_Put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadCursorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportReadCursorView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets/{ticket_id}/claims": {
+      "post": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Claim Ticket",
+        "operationId": "SupportTicket_Claim",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets/{ticket_id}/waits": {
+      "post": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Wait Ticket",
+        "operationId": "SupportTicket_Wait",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportWaitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets/{ticket_id}/resumptions": {
+      "post": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Resume Ticket",
+        "operationId": "SupportTicket_Resume",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets/{ticket_id}/transfers": {
+      "post": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Transfer Ticket",
+        "operationId": "SupportTicket_Transfer",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportTransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets/{ticket_id}/resolutions": {
+      "post": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Resolve Ticket",
+        "operationId": "SupportTicket_Resolve",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportResolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets/{ticket_id}/messages": {
+      "post": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Send Support Message",
+        "operationId": "SupportMessage_Send",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/support/human-service-tickets/{ticket_id}/internal-notes": {
+      "post": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Create Internal Note",
+        "operationId": "SupportInternalNote_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportInternalNoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "List Internal Notes",
+        "operationId": "SupportInternalNote_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportInternalNoteList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/realtime/tickets": {
+      "post": {
+        "tags": [
+          "realtime"
+        ],
+        "summary": "Create User Ticket",
+        "operationId": "RealtimeTicket_CreateMine",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RealtimeTicketView_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/support/realtime/tickets": {
+      "post": {
+        "tags": [
+          "support-realtime"
+        ],
+        "summary": "Create Support Ticket",
+        "operationId": "SupportRealtimeTicket_Create",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RealtimeTicketView_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me/cart": {
       "get": {
         "tags": [
@@ -20451,6 +22112,291 @@
         ],
         "title": "ContactChangeTicketResult"
       },
+      "ConversationArchiveView": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "archived_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Archived At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "archived_at",
+          "version"
+        ],
+        "title": "ConversationArchiveView"
+      },
+      "ConversationContextClearView": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "context_type": {
+            "type": "string",
+            "title": "Context Type"
+          },
+          "cleared": {
+            "type": "boolean",
+            "title": "Cleared"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "context_type",
+          "cleared",
+          "version"
+        ],
+        "title": "ConversationContextClearView"
+      },
+      "ConversationContextRequest": {
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 4,
+            "title": "Resource Id"
+          },
+          "resource_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "resource_id"
+        ],
+        "title": "ConversationContextRequest"
+      },
+      "ConversationContextView": {
+        "properties": {
+          "context_id": {
+            "type": "string",
+            "title": "Context Id"
+          },
+          "context_type": {
+            "type": "string",
+            "enum": [
+              "product",
+              "order",
+              "shipment",
+              "refund",
+              "store",
+              "checkout_store_group"
+            ],
+            "title": "Context Type"
+          },
+          "resource_id": {
+            "type": "string",
+            "title": "Resource Id"
+          },
+          "resource_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Version"
+          },
+          "context_version": {
+            "type": "integer",
+            "title": "Context Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "inactive",
+              "expired"
+            ],
+            "title": "Status"
+          },
+          "display_snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Display Snapshot"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "context_id",
+          "context_type",
+          "resource_id",
+          "resource_version",
+          "context_version",
+          "status",
+          "display_snapshot",
+          "expires_at"
+        ],
+        "title": "ConversationContextView"
+      },
+      "ConversationList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ConversationList"
+      },
+      "ConversationView": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "conversation_type": {
+            "type": "string",
+            "enum": [
+              "exclusive",
+              "store"
+            ],
+            "title": "Conversation Type"
+          },
+          "conversation_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "human_pending",
+              "human_active",
+              "closed"
+            ],
+            "title": "Conversation Status"
+          },
+          "store_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "is_fixed": {
+            "type": "boolean",
+            "title": "Is Fixed"
+          },
+          "fixed_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixed Rank"
+          },
+          "last_message_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message Preview"
+          },
+          "last_message_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message At"
+          },
+          "last_sequence_no": {
+            "type": "integer",
+            "title": "Last Sequence No"
+          },
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "conversation_type",
+          "conversation_status",
+          "store_id",
+          "title",
+          "is_fixed",
+          "fixed_rank",
+          "last_message_preview",
+          "last_message_at",
+          "last_sequence_no",
+          "unread_count",
+          "version"
+        ],
+        "title": "ConversationView"
+      },
       "DefaultAddressRequest": {
         "properties": {
           "address_id": {
@@ -21205,6 +23151,81 @@
         ],
         "title": "Envelope[ContactChangeTicketResult]"
       },
+      "Envelope_ConversationArchiveView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConversationArchiveView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ConversationArchiveView]"
+      },
+      "Envelope_ConversationContextClearView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConversationContextClearView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ConversationContextClearView]"
+      },
+      "Envelope_ConversationContextView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConversationContextView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ConversationContextView]"
+      },
+      "Envelope_ConversationList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConversationList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ConversationList]"
+      },
+      "Envelope_ConversationView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConversationView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ConversationView]"
+      },
       "Envelope_FileMetadataView_": {
         "properties": {
           "data": {
@@ -21280,6 +23301,21 @@
         ],
         "title": "Envelope[HomepageView]"
       },
+      "Envelope_HumanTicketView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HumanTicketView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[HumanTicketView]"
+      },
       "Envelope_LegalDocument_": {
         "properties": {
           "data": {
@@ -21310,6 +23346,21 @@
         ],
         "title": "Envelope[LogisticsWebhookAck]"
       },
+      "Envelope_MessageList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MessageList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[MessageList]"
+      },
       "Envelope_MessageResult_": {
         "properties": {
           "data": {
@@ -21324,6 +23375,21 @@
           "data"
         ],
         "title": "Envelope[MessageResult]"
+      },
+      "Envelope_MessageView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MessageView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[MessageView]"
       },
       "Envelope_MyReviewList_": {
         "properties": {
@@ -21624,6 +23690,36 @@
           "data"
         ],
         "title": "Envelope[ProductSkuList]"
+      },
+      "Envelope_ReadCursorView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReadCursorView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ReadCursorView]"
+      },
+      "Envelope_RealtimeTicketView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RealtimeTicketView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[RealtimeTicketView]"
       },
       "Envelope_ReauthenticationResult_": {
         "properties": {
@@ -21954,6 +24050,81 @@
           "data"
         ],
         "title": "Envelope[StorePublicView]"
+      },
+      "Envelope_SupportInternalNoteList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SupportInternalNoteList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SupportInternalNoteList]"
+      },
+      "Envelope_SupportReadCursorView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SupportReadCursorView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SupportReadCursorView]"
+      },
+      "Envelope_SupportTicketList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SupportTicketList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SupportTicketList]"
+      },
+      "Envelope_SupportTicketView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SupportTicketView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SupportTicketView]"
+      },
+      "Envelope_SupportWorkspaceView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SupportWorkspaceView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SupportWorkspaceView]"
       },
       "Envelope_TradeOrderView_": {
         "properties": {
@@ -23110,6 +25281,134 @@
         ],
         "title": "HomepageView"
       },
+      "HumanHandoffRequest": {
+        "properties": {
+          "ticket_type": {
+            "type": "string",
+            "enum": [
+              "general",
+              "order",
+              "logistics",
+              "refund",
+              "complaint"
+            ],
+            "title": "Ticket Type",
+            "default": "general"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Summary"
+          },
+          "message_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Message Refs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "title": "HumanHandoffRequest"
+      },
+      "HumanTicketView": {
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "title": "Ticket Id"
+          },
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "queue_type": {
+            "type": "string",
+            "enum": [
+              "store",
+              "platform"
+            ],
+            "title": "Queue Type"
+          },
+          "ticket_status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "assigned",
+              "active",
+              "waiting_user",
+              "resolved",
+              "closed"
+            ],
+            "title": "Ticket Status"
+          },
+          "assigned_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned User Id"
+          },
+          "resolution_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Summary"
+          },
+          "queue_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Position"
+          },
+          "estimated_response_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Response At"
+          },
+          "can_cancel": {
+            "type": "boolean",
+            "title": "Can Cancel",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticket_id",
+          "conversation_id",
+          "queue_type",
+          "ticket_status",
+          "assigned_user_id"
+        ],
+        "title": "HumanTicketView"
+      },
       "LegalDocument": {
         "properties": {
           "document_type": {
@@ -23199,6 +25498,62 @@
         ],
         "title": "LogisticsWebhookAck"
       },
+      "MessageCreateRequest": {
+        "properties": {
+          "client_message_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^cmsg_[0-9A-Z]+$",
+            "title": "Client Message Id"
+          },
+          "content": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TextMessageContent"
+              },
+              {
+                "$ref": "#/components/schemas/ProductCardMessageContent"
+              },
+              {
+                "$ref": "#/components/schemas/OrderCardMessageContent"
+              }
+            ],
+            "title": "Content",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "order_card": "#/components/schemas/OrderCardMessageContent",
+                "product_card": "#/components/schemas/ProductCardMessageContent",
+                "text": "#/components/schemas/TextMessageContent"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "client_message_id",
+          "content"
+        ],
+        "title": "MessageCreateRequest"
+      },
+      "MessageList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MessageView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "MessageList"
+      },
       "MessageResult": {
         "properties": {
           "message": {
@@ -23212,6 +25567,83 @@
           "message"
         ],
         "title": "MessageResult"
+      },
+      "MessageView": {
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "title": "Message Id"
+          },
+          "sequence_no": {
+            "type": "integer",
+            "title": "Sequence No"
+          },
+          "sender_type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "agent",
+              "human",
+              "system",
+              "tool"
+            ],
+            "title": "Sender Type"
+          },
+          "message_type": {
+            "type": "string",
+            "title": "Message Type"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "message_status": {
+            "type": "string",
+            "title": "Message Status"
+          },
+          "moderation_status": {
+            "type": "string",
+            "title": "Moderation Status"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "sent_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Sent At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message_id",
+          "sequence_no",
+          "sender_type",
+          "message_type",
+          "text",
+          "message_status",
+          "moderation_status",
+          "content",
+          "sent_at"
+        ],
+        "title": "MessageView"
       },
       "Money": {
         "properties": {
@@ -23821,6 +26253,28 @@
           "reason_code"
         ],
         "title": "OrderCancellationRequest"
+      },
+      "OrderCardMessageContent": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "order_card",
+            "title": "Type",
+            "default": "order_card"
+          },
+          "order_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^ord_[0-9A-Z]+$",
+            "title": "Order Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_id"
+        ],
+        "title": "OrderCardMessageContent"
       },
       "OrderCommandResult": {
         "properties": {
@@ -25040,6 +27494,41 @@
         ],
         "title": "ProductCard"
       },
+      "ProductCardMessageContent": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "product_card",
+            "title": "Type",
+            "default": "product_card"
+          },
+          "product_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^prd_[0-9A-Z]+$",
+            "title": "Product Id"
+          },
+          "sku_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^sku_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sku Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "product_id"
+        ],
+        "title": "ProductCardMessageContent"
+      },
       "ProductDetail": {
         "properties": {
           "product_id": {
@@ -25682,6 +28171,67 @@
         ],
         "title": "PublicImage"
       },
+      "ReadCursorRequest": {
+        "properties": {
+          "last_read_message_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^msg_[0-9A-Z]+$",
+            "title": "Last Read Message Id"
+          },
+          "last_read_sequence_no": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Last Read Sequence No"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "last_read_message_id",
+          "last_read_sequence_no"
+        ],
+        "title": "ReadCursorRequest"
+      },
+      "ReadCursorView": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "last_read_message_id": {
+            "type": "string",
+            "title": "Last Read Message Id"
+          },
+          "last_read_sequence_no": {
+            "type": "integer",
+            "title": "Last Read Sequence No"
+          },
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count"
+          },
+          "total_unread_count": {
+            "type": "integer",
+            "title": "Total Unread Count"
+          },
+          "cursor_version": {
+            "type": "integer",
+            "title": "Cursor Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "last_read_message_id",
+          "last_read_sequence_no",
+          "unread_count",
+          "total_unread_count",
+          "cursor_version"
+        ],
+        "title": "ReadCursorView"
+      },
       "ReadinessResponse": {
         "properties": {
           "status": {
@@ -25706,6 +28256,36 @@
           "dependencies"
         ],
         "title": "ReadinessResponse"
+      },
+      "RealtimeTicketView": {
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "title": "Ticket"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          },
+          "websocket_path": {
+            "type": "string",
+            "title": "Websocket Path",
+            "default": "/ws/v1"
+          },
+          "subprotocol": {
+            "type": "string",
+            "const": "ecom.realtime.v1",
+            "title": "Subprotocol",
+            "default": "ecom.realtime.v1"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticket",
+          "expires_in"
+        ],
+        "title": "RealtimeTicketView"
       },
       "ReasonRequest": {
         "properties": {
@@ -28126,6 +30706,674 @@
           "rating_score"
         ],
         "title": "StoreSummary"
+      },
+      "SupportInternalNoteList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SupportInternalNoteView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "SupportInternalNoteList"
+      },
+      "SupportInternalNoteRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "note_type": {
+            "type": "string",
+            "enum": [
+              "handling",
+              "transfer",
+              "risk",
+              "resolution"
+            ],
+            "title": "Note Type",
+            "default": "handling"
+          },
+          "visibility_scope": {
+            "type": "string",
+            "enum": [
+              "current_queue",
+              "supervisors",
+              "platform_escalation"
+            ],
+            "title": "Visibility Scope",
+            "default": "current_queue"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SupportInternalNoteRequest"
+      },
+      "SupportInternalNoteView": {
+        "properties": {
+          "note_id": {
+            "type": "string",
+            "title": "Note Id"
+          },
+          "author_user_id": {
+            "type": "string",
+            "title": "Author User Id"
+          },
+          "note_type": {
+            "type": "string",
+            "title": "Note Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "visibility_scope": {
+            "type": "string",
+            "title": "Visibility Scope"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "note_id",
+          "author_user_id",
+          "note_type",
+          "text",
+          "visibility_scope",
+          "created_at"
+        ],
+        "title": "SupportInternalNoteView"
+      },
+      "SupportMessageRequest": {
+        "properties": {
+          "client_message_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^cmsg_[0-9A-Z]+$",
+            "title": "Client Message Id"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "client_message_id",
+          "text"
+        ],
+        "title": "SupportMessageRequest"
+      },
+      "SupportReadCursorView": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "last_read_message_id": {
+            "type": "string",
+            "title": "Last Read Message Id"
+          },
+          "last_read_sequence_no": {
+            "type": "integer",
+            "title": "Last Read Sequence No"
+          },
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count"
+          },
+          "cursor_version": {
+            "type": "integer",
+            "title": "Cursor Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "last_read_message_id",
+          "last_read_sequence_no",
+          "unread_count",
+          "cursor_version"
+        ],
+        "title": "SupportReadCursorView"
+      },
+      "SupportResolveRequest": {
+        "properties": {
+          "resolution_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Resolution Code"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Summary"
+          },
+          "internal_note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Internal Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "resolution_code",
+          "summary"
+        ],
+        "title": "SupportResolveRequest"
+      },
+      "SupportTicketEventView": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Status"
+          },
+          "to_status": {
+            "type": "string",
+            "title": "To Status"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "from_status",
+          "to_status",
+          "reason_code",
+          "reason",
+          "occurred_at"
+        ],
+        "title": "SupportTicketEventView"
+      },
+      "SupportTicketItem": {
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "title": "Ticket Id"
+          },
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "queue_type": {
+            "type": "string",
+            "enum": [
+              "store",
+              "platform"
+            ],
+            "title": "Queue Type"
+          },
+          "queue_code": {
+            "type": "string",
+            "title": "Queue Code"
+          },
+          "ticket_type": {
+            "type": "string",
+            "title": "Ticket Type"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "title": "Priority"
+          },
+          "ticket_status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "assigned",
+              "active",
+              "waiting_user",
+              "resolved",
+              "closed"
+            ],
+            "title": "Ticket Status"
+          },
+          "assigned_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned User Id"
+          },
+          "handoff_summary": {
+            "type": "string",
+            "title": "Handoff Summary"
+          },
+          "sla_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sla Due At"
+          },
+          "waiting_reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting Reason Code"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticket_id",
+          "conversation_id",
+          "queue_type",
+          "queue_code",
+          "ticket_type",
+          "priority",
+          "ticket_status",
+          "assigned_user_id",
+          "handoff_summary",
+          "sla_due_at",
+          "waiting_reason_code",
+          "created_at",
+          "updated_at",
+          "version"
+        ],
+        "title": "SupportTicketItem"
+      },
+      "SupportTicketList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SupportTicketItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "SupportTicketList"
+      },
+      "SupportTicketView": {
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "title": "Ticket Id"
+          },
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "queue_type": {
+            "type": "string",
+            "enum": [
+              "store",
+              "platform"
+            ],
+            "title": "Queue Type"
+          },
+          "queue_code": {
+            "type": "string",
+            "title": "Queue Code"
+          },
+          "ticket_type": {
+            "type": "string",
+            "title": "Ticket Type"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "title": "Priority"
+          },
+          "ticket_status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "assigned",
+              "active",
+              "waiting_user",
+              "resolved",
+              "closed"
+            ],
+            "title": "Ticket Status"
+          },
+          "assigned_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned User Id"
+          },
+          "handoff_summary": {
+            "type": "string",
+            "title": "Handoff Summary"
+          },
+          "sla_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sla Due At"
+          },
+          "waiting_reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Waiting Reason Code"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "handoff_message_refs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Handoff Message Refs"
+          },
+          "handoff_policy_version": {
+            "type": "string",
+            "title": "Handoff Policy Version"
+          },
+          "resolution_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution Summary"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticket_id",
+          "conversation_id",
+          "queue_type",
+          "queue_code",
+          "ticket_type",
+          "priority",
+          "ticket_status",
+          "assigned_user_id",
+          "handoff_summary",
+          "sla_due_at",
+          "waiting_reason_code",
+          "created_at",
+          "updated_at",
+          "version",
+          "handoff_message_refs",
+          "handoff_policy_version",
+          "resolution_summary"
+        ],
+        "title": "SupportTicketView"
+      },
+      "SupportTransferRequest": {
+        "properties": {
+          "assigned_user_id": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 3,
+            "title": "Assigned User Id"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "assigned_user_id",
+          "reason"
+        ],
+        "title": "SupportTransferRequest"
+      },
+      "SupportUserSummary": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "nickname": {
+            "type": "string",
+            "title": "Nickname"
+          },
+          "account_status": {
+            "type": "string",
+            "title": "Account Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id",
+          "nickname",
+          "account_status"
+        ],
+        "title": "SupportUserSummary"
+      },
+      "SupportWaitRequest": {
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason_code",
+          "reason"
+        ],
+        "title": "SupportWaitRequest"
+      },
+      "SupportWorkspaceView": {
+        "properties": {
+          "ticket": {
+            "$ref": "#/components/schemas/SupportTicketView"
+          },
+          "user": {
+            "$ref": "#/components/schemas/SupportUserSummary"
+          },
+          "referenced_messages": {
+            "items": {
+              "$ref": "#/components/schemas/MessageView"
+            },
+            "type": "array",
+            "title": "Referenced Messages"
+          },
+          "business_contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationContextView"
+            },
+            "type": "array",
+            "title": "Business Contexts"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/SupportTicketEventView"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ticket",
+          "user",
+          "referenced_messages",
+          "business_contexts",
+          "events"
+        ],
+        "title": "SupportWorkspaceView"
+      },
+      "TextMessageContent": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type",
+            "default": "text"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TextMessageContent"
       },
       "TradeOrderView": {
         "properties": {

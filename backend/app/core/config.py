@@ -30,6 +30,13 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://ecom_ai:local-postgres-change-me@127.0.0.1:15432/ecom_ai_ai"
     )
     redis_url: str = "redis://:local-redis-change-me@127.0.0.1:16379/0"
+    realtime_ticket_ttl_seconds: int = Field(default=30, ge=10, le=120)
+    realtime_connection_lease_seconds: int = Field(default=75, ge=30, le=180)
+    realtime_heartbeat_seconds: int = Field(default=25, ge=10, le=60)
+    realtime_connection_queue_size: int = Field(default=100, ge=10, le=1000)
+    realtime_max_client_frame_bytes: int = Field(default=4096, ge=256, le=65536)
+    realtime_outbox_poll_seconds: float = Field(default=0.5, ge=0.1, le=10)
+    realtime_outbox_batch_size: int = Field(default=100, ge=1, le=1000)
 
     access_token_secret: SecretStr = SecretStr("development-access-token-secret-change-me")
     security_hmac_secret: SecretStr = SecretStr("development-hmac-secret-change-me")

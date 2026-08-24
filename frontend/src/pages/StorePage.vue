@@ -16,6 +16,7 @@ import {
   type StorePolicy,
 } from '@/api/catalog'
 import { errorMessage, resolveApiAssetUrl, type PaginationMeta } from '@/api/http'
+import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
@@ -37,6 +38,7 @@ const productLoading = ref(false)
 const error = ref('')
 const partialWarning = ref('')
 const followBusy = ref(false)
+const contactBusy = ref(false)
 
 function one(value: unknown): string { return typeof value === 'string' ? value : '' }
 function storeId(): string { return String(route.params.storeId) }
@@ -83,6 +85,22 @@ async function loadProducts() {
   } finally {
     productLoading.value = false
   }
+}
+
+async function contactStore() {
+  if (!store.value) return
+  if (!auth.accessToken) {
+    await router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  contactBusy.value = true
+  partialWarning.value = ''
+  try {
+    const conversation = (await ensureStoreConversation(store.value.store_id, auth.accessToken)).data
+    await setConversationContext(conversation.conversation_id, conversation.version, 'store', store.value.store_id, null, auth.accessToken)
+    await router.push(`/messages/${conversation.conversation_id}`)
+  } catch (cause) { partialWarning.value = errorMessage(cause) }
+  finally { contactBusy.value = false }
 }
 
 function syncFilters() {
@@ -139,7 +157,7 @@ watch(() => auth.accessToken, () => void Promise.all([loadStore(), loadProducts(
         </div>
         <div class="store-actions">
           <button type="button" class="secondary" :disabled="followBusy || store.visibility_mode !== 'public'" @click="toggleFollow">{{ store.is_followed ? '已收藏' : '收藏店铺' }}</button>
-          <button type="button" disabled title="店铺客服将在第六阶段接入">联系客服</button>
+          <button type="button" :disabled="contactBusy" @click="contactStore">{{ contactBusy ? '进入客服…' : '联系客服' }}</button>
         </div>
         <dl class="store-metrics"><div><dt>店铺评分</dt><dd>{{ store.rating_score }}</dd></div><div><dt>在售商品</dt><dd>{{ store.active_product_count }}</dd></div><div><dt>已售</dt><dd>{{ store.sales_count }}</dd></div><div><dt>收藏</dt><dd>{{ store.follower_count }}</dd></div></dl>
       </header>

@@ -16,6 +16,7 @@ import {
 import { addCartItem } from '@/api/cart'
 import { createBuyNowCheckout } from '@/api/checkout'
 import { createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
@@ -35,6 +36,7 @@ const cartBusy = ref(false)
 const cartNotice = ref('')
 const pendingCartRequest = ref<{ signature: string; key: string } | null>(null)
 const buyBusy = ref(false)
+const contactBusy = ref(false)
 
 const selectedSku = computed(() => skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? null)
 const gallery = computed<PublicImage[]>(() => selectedSku.value?.images.length
@@ -80,6 +82,22 @@ function selectSku(sku: ProductSku) {
 
 function setQuantity(value: number) {
   quantity.value = Math.min(maxQuantity.value, Math.max(1, Math.trunc(value || 1)))
+}
+
+async function contactStore() {
+  if (!product.value) return
+  if (!auth.accessToken) {
+    await router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  contactBusy.value = true
+  error.value = ''
+  try {
+    const conversation = (await ensureStoreConversation(product.value.store.store_id, auth.accessToken)).data
+    await setConversationContext(conversation.conversation_id, conversation.version, 'product', product.value.product_id, null, auth.accessToken)
+    await router.push(`/messages/${conversation.conversation_id}`)
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { contactBusy.value = false }
 }
 
 async function toggleFavorite() {
@@ -222,6 +240,7 @@ watch(() => auth.accessToken, () => void load())
           </label>
           <small v-if="quantity >= maxQuantity">已达本次可购买上限，结算时仍会重新校验。</small>
           <div class="purchase-actions">
+            <button type="button" class="secondary" :disabled="contactBusy" @click="contactStore">{{ contactBusy ? '进入客服…' : '联系客服' }}</button>
             <button type="button" class="secondary" :disabled="favoriteBusy" @click="toggleFavorite">{{ product.is_favorited ? '取消收藏' : '收藏商品' }}</button>
             <button type="button" :disabled="cartBusy || !canPurchase" :title="canPurchase ? '加入购物车' : '当前规格不可购买'" @click="addToCart">{{ cartBusy ? '加入中…' : '加入购物车' }}</button>
             <button type="button" :disabled="buyBusy || !canPurchase" @click="buyNow">{{ buyBusy ? '创建结算…' : '立即购买' }}</button>
@@ -231,7 +250,7 @@ watch(() => auth.accessToken, () => void load())
         </aside>
       </div>
       <div class="mobile-purchase-bar" aria-label="移动端购买操作">
-        <button type="button" class="secondary" disabled>客服</button><button type="button" :disabled="cartBusy || !canPurchase" @click="addToCart">加入购物车</button><button type="button" :disabled="buyBusy || !canPurchase" @click="buyNow">立即购买</button>
+        <button type="button" class="secondary" :disabled="contactBusy" @click="contactStore">客服</button><button type="button" :disabled="cartBusy || !canPurchase" @click="addToCart">加入购物车</button><button type="button" :disabled="buyBusy || !canPurchase" @click="buyNow">立即购买</button>
       </div>
     </article>
   </PageState>

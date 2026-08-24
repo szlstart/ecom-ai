@@ -27,6 +27,7 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
   const challenge = ref<AdminMfaChallenge | null>(null)
   const permissions = ref<string[]>([])
   const scopes = ref<Array<{ scope_type: string; scope_id: number }>>([])
+  const userId = ref<string | null>(null)
   const refreshAttempted = ref(false)
   const reauthExpiresAt = ref<string | null>(null)
   const isAuthenticated = computed(() => accessToken.value !== null)
@@ -51,6 +52,7 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
       body: JSON.stringify({ challenge_id: challenge.value.challenge_id, method, code }),
     })
     accept(response.data)
+    await loadAuthorization()
     challenge.value = null
   }
 
@@ -82,9 +84,11 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
   async function loadAuthorization() {
     if (!accessToken.value) return
     const response = await apiRequest<{
+      user_id: string
       permission_codes: string[]
       scopes: Array<{ scope_type: string; scope_id: number }>
     }>('/admin/me', {}, accessToken.value)
+    userId.value = response.data.user_id
     permissions.value = response.data.permission_codes
     scopes.value = response.data.scopes
   }
@@ -126,6 +130,7 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     csrfToken.value = null
     permissions.value = []
     scopes.value = []
+    userId.value = null
     reauthExpiresAt.value = null
   }
 
@@ -135,6 +140,7 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     challenge,
     permissions,
     scopes,
+    userId,
     reauthExpiresAt,
     isAuthenticated,
     passwordLogin,

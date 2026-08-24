@@ -79,4 +79,17 @@ describe('phase two route contract', () => {
       expect(routes.get(path)?.meta.requirementId).toBe(requirementId)
     }
   })
+
+  it('registers the phase six user messaging and support workspace routes', () => {
+    const expected = new Map([
+      ['/messages', 'USR-MESSAGE-LIST-01'],
+      ['/messages/:conversationId', 'USR-MESSAGE-01'],
+      ['/admin/support/tickets', 'ADM-SUPPORT-LIST-01'],
+      ['/admin/support/tickets/:ticketId', 'ADM-SUPPORT-01'],
+    ])
+    const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
+    for (const [path, requirementId] of expected) {
+      expect(routes.get(path)?.meta.requirementId).toBe(requirementId)
+    }
+  })
 })

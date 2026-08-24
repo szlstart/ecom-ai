@@ -57,6 +57,8 @@ resources:
   client_message: {prefix: cmsg_, client_generated: true, owner: conversations}
   human_ticket: {prefix: tkt_, storage_length: 32, url_allowed: true, owner: support}
   human_assignment: {prefix: asg_, owner: support}
+  human_ticket_event: {prefix: hte_, owner: support}
+  human_internal_note: {prefix: note_, owner: support}
   agent_run: {prefix: run_, url_allowed: true, owner: agent_runtime}
   agent: {prefix: agt_, url_allowed: true, owner: ai_governance}
   skill: {prefix: skl_, url_allowed: true, owner: ai_governance}

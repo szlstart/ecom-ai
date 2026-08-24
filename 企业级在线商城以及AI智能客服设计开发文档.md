@@ -6402,15 +6402,30 @@ AI 可做资料摘要、规则解释和补充材料提示，不能自主改写�
 
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
+| `append_no` | `VARCHAR(40)` | UK，公开追评 ID（`rpa_` 前缀） |
 | `review_id` / `user_id` | `BIGINT UNSIGNED` | FK |
 | `content` | `VARCHAR(500)` | NOT NULL |
 | `append_status` | `VARCHAR(16)` | `pending/published/hidden/rejected` |
 | `moderation_status` | `VARCHAR(16)` | NOT NULL |
 | `published_at` | `DATETIME(6)` | NULL |
 
-约束：`UNIQUE(review_id)`，默认只允许一次追评；追评窗口与评价展示规则由 Domain 校验。如追评支持图片，`review_images` 需增加 `owner_type/owner_id` 或建立独立 `review_append_images`，不将图片无引用塞入 JSON。
+约束：`UNIQUE(review_id)`，默认只允许一次追评；追评窗口与评价展示规则由 Domain 校验。追评图片使用独立的 `review_append_images` 表，字段与 `review_images` 的文件快照字段一致，以 `append_record_id` 外键、`UNIQUE(append_record_id, sort_order)` 和 `UNIQUE(object_key)` 保证归属、顺序及文件单次绑定；不将图片无引用塞入 JSON。审核通过前关联衍生文件保持 Private，追评发布时才切换为公开衍生图。
 
-##### 3.7.11.5 review_moderation_records 评价治理记录表
+##### 3.7.11.5 review_revision_records 评价修改记录表
+
+追加型，保存用户在可编辑窗口内修改主评价时的前后快照，不能因当前评价内容被覆盖而丢失历史证据。
+
+| 字段 | 类型 | 约束/内容 |
+| :--- | :--- | :--- |
+| `revision_no` | `VARCHAR(40)` | UK，`rrv_` 前缀 |
+| `review_id` / `actor_user_id` | `BIGINT UNSIGNED` | FK，评价与修改用户 |
+| `action` | `VARCHAR(16)` | 首版固定为 `update` |
+| `before_snapshot` / `after_snapshot` | `JSON` | 评分、正文、匿名标记、审核状态、图片公开 ID 和资源版本的受控快照 |
+| `request_id` / `trace_id` | `VARCHAR(64)` | NOT NULL |
+
+索引：`idx_review_revision_records_review(review_id, created_at, id)`。记录与评价更新、图片引用计数和 Outbox 必须在同一事务写入；仅审计/合规角色可读，不返回公开评价接口。
+
+##### 3.7.11.6 review_moderation_records 评价治理记录表
 
 追加型，保存平台/店铺对主评价、追评和商家回复的受控治理决定，不能用覆盖正文或物理删除代替。
 
@@ -8781,9 +8796,9 @@ DTO 必须使用不同 Pydantic Response Model/OpenAPI Schema 和 `operationId`�
 | 方法 | 路径 | 访问者 | 用途与关键规则 |
 | --- | --- | --- | --- |
 | `GET` | `/review-eligibilities/{order_item_id}` | 订单项所属用户 | 获取商品/SKU/订单快照、评价窗口、已存在评价和 `available_actions`；不创建评价，不泄露其他订单项 |
-| `GET` | `/users/me/reviews` | 用户 | 查询待评价、已评价记录；支持订单/状态筛选 |
+| `GET` | `/users/me/reviews` | 用户 | 查询待评价、已提交记录；`view=pending` 表示仍可首次评价的订单项，`view=published` 表示已经提交的评价（响应内保留实际审核/发布状态），支持订单筛选与 Cursor |
 | `POST` | `/reviews` | 用户 | 对有资格的订单商品提交评价；幂等；支持评分、文本和已激活图片 `file_id` |
-| `GET` | `/reviews/{review_id}` | 公开/评价本人 | 获取已发布评价；审核中内容仅评价本人可见，管理员使用 `/admin/reviews/{review_id}` 的脱敏治理投影 |
+| `GET` | `/reviews/{review_id}` | 公开/评价本人 | 获取已发布评价；评价本人携带 User Token 时获得带 ETag、订单快照和可用动作的本人投影，匿名访问只获得公开投影；审核中内容对非本人统一返回 404，管理员使用 `/admin/reviews/{review_id}` 的脱敏治理投影 |
 | `PATCH` | `/reviews/{review_id}` | 评价本人 | 在允许窗口修改可编辑内容；If-Match，保留审核/修改记录 |
 | `POST` | `/reviews/{review_id}/append-records` | 评价本人 | 在规则窗口内追评；幂等；一条主评价的追评次数受限 |
 

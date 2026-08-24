@@ -247,6 +247,12 @@ tr.selected td { background: #f0f4ff; }
 .safe-preview { max-height: 360px; white-space: pre-wrap; }
 .file-upload-control { padding: 14px; display: grid; grid-template-columns: minmax(240px, 1fr) auto; align-items: end; gap: 10px; border: 1px dashed #aebbdc; border-radius: 12px; background: #f8faff; }
 .file-upload-control small { grid-column: 1 / -1; }
+.review-image-upload { min-width: 0; padding: 0; display: grid; gap: 12px; border: 0; }
+.review-image-upload legend { margin-bottom: 8px; font-weight: 700; }
+.review-image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.review-image-grid article { min-width: 0; display: grid; gap: 8px; }
+.review-image-grid img, .review-image-placeholder { width: 100%; aspect-ratio: 1; border-radius: 10px; object-fit: cover; background: #f1f3f7; }
+.review-image-placeholder { display: grid; place-items: center; color: #687287; }
 .success-text { color: #17633b; }
 .error-text { color: #8d2634; }
 .job-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }

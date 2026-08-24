@@ -537,6 +537,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/content/banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Banners */
+        get: operations["HomeBanner_ListPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Announcements */
+        get: operations["PlatformAnnouncement_ListPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/help-articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Help */
+        get: operations["HelpArticle_ListPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/help-articles/{content_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Help */
+        get: operations["HelpArticle_GetPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/footer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Footer */
+        get: operations["FooterContent_GetPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/about": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get About */
+        get: operations["AboutContent_GetPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/content/legal-documents/{document_type}": {
         parameters: {
             query?: never;
@@ -546,6 +648,111 @@ export interface paths {
         };
         /** Get Legal Document */
         get: operations["LegalDocument_GetPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Content */
+        get: operations["AdminContent_List"];
+        put?: never;
+        /** Create Content */
+        post: operations["AdminContent_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/content/{content_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Content */
+        get: operations["AdminContent_Get"];
+        /** Update Content */
+        put: operations["AdminContent_Update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/content/{content_id}/versions/{version}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Content */
+        post: operations["AdminContent_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/content/{content_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw Content */
+        post: operations["AdminContent_Withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Evaluations */
+        get: operations["AdminAiEvaluation_List"];
+        put?: never;
+        /** Create Evaluation */
+        post: operations["AdminAiEvaluation_Run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/observability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Observability Summary */
+        get: operations["AdminObservability_Query"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6384,6 +6591,109 @@ export interface components {
              */
             expires_at: string;
         };
+        /** ContentCreate */
+        ContentCreate: {
+            /** Content Key */
+            content_key: string;
+            /**
+             * Content Type
+             * @enum {string}
+             */
+            content_type: "banner" | "announcement" | "help_article" | "footer" | "about";
+            /** Title */
+            title: string;
+            /**
+             * Locale
+             * @default zh-CN
+             */
+            locale: string;
+            /**
+             * Region Code
+             * @default CN
+             */
+            region_code: string;
+            /**
+             * Source Format
+             * @enum {string}
+             */
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+        };
+        /** ContentList */
+        ContentList: {
+            /** Items */
+            items: components["schemas"]["ContentView"][];
+        };
+        /** ContentUpdate */
+        ContentUpdate: {
+            /** Title */
+            title: string;
+            /**
+             * Locale
+             * @default zh-CN
+             */
+            locale: string;
+            /**
+             * Region Code
+             * @default CN
+             */
+            region_code: string;
+            /**
+             * Source Format
+             * @enum {string}
+             */
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+        };
+        /** ContentVersionView */
+        ContentVersionView: {
+            /** Content Version Id */
+            content_version_id: string;
+            /** Version */
+            version: string;
+            /** Locale */
+            locale: string;
+            /** Region Code */
+            region_code: string;
+            /** Format */
+            format: string;
+            /** Blocks */
+            blocks: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Html */
+            html: string | null;
+            /** Text */
+            text: string;
+            /** Status */
+            status: string;
+            /**
+             * Effective At
+             * Format: date-time
+             */
+            effective_at: string;
+            /** Expires At */
+            expires_at: string | null;
+        };
+        /** ContentView */
+        ContentView: {
+            /** Content Id */
+            content_id: string;
+            /** Content Key */
+            content_key: string;
+            /** Content Type */
+            content_type: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+            /** Versions */
+            versions: components["schemas"]["ContentVersionView"][];
+        };
         /** ConversationArchiveView */
         ConversationArchiveView: {
             /** Conversation Id */
@@ -6763,6 +7073,16 @@ export interface components {
             data: components["schemas"]["ContactChangeTicketResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[ContentList] */
+        Envelope_ContentList_: {
+            data: components["schemas"]["ContentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ContentView] */
+        Envelope_ContentView_: {
+            data: components["schemas"]["ContentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[ConversationArchiveView] */
         Envelope_ConversationArchiveView_: {
             data: components["schemas"]["ConversationArchiveView"];
@@ -6786,6 +7106,16 @@ export interface components {
         /** Envelope[ConversationView] */
         Envelope_ConversationView_: {
             data: components["schemas"]["ConversationView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[EvaluationRunList] */
+        Envelope_EvaluationRunList_: {
+            data: components["schemas"]["EvaluationRunList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[EvaluationRunView] */
+        Envelope_EvaluationRunView_: {
+            data: components["schemas"]["EvaluationRunView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[FileMetadataView] */
@@ -6888,6 +7218,11 @@ export interface components {
             data: components["schemas"]["MyReviewView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[ObservabilitySummary] */
+        Envelope_ObservabilitySummary_: {
+            data: components["schemas"]["ObservabilitySummary"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[OrderCommandResult] */
         Envelope_OrderCommandResult_: {
             data: components["schemas"]["OrderCommandResult"];
@@ -6976,6 +7311,16 @@ export interface components {
         /** Envelope[ProductSkuList] */
         Envelope_ProductSkuList_: {
             data: components["schemas"]["ProductSkuList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[PublishedContentList] */
+        Envelope_PublishedContentList_: {
+            data: components["schemas"]["PublishedContentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[PublishedContent] */
+        Envelope_PublishedContent_: {
+            data: components["schemas"]["PublishedContent"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ReadCursorView] */
@@ -7334,6 +7679,85 @@ export interface components {
             /** Data */
             data: components["schemas"]["UserStatusEventView"][];
             meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** EvaluationRunCreate */
+        EvaluationRunCreate: {
+            /**
+             * Dataset Id
+             * @constant
+             */
+            dataset_id: "ecom-ai-release-holdout";
+            /**
+             * Dataset Version
+             * @constant
+             */
+            dataset_version: "2026.08.25-v1";
+            /**
+             * Baseline Type
+             * @enum {string}
+             */
+            baseline_type: "agent" | "skill" | "model" | "prompt" | "tool" | "multi_agent";
+            /** Baseline Version */
+            baseline_version: string;
+            /**
+             * Candidate Type
+             * @enum {string}
+             */
+            candidate_type: "agent" | "skill" | "model" | "prompt" | "tool" | "multi_agent";
+            /** Candidate Version */
+            candidate_version: string;
+            /**
+             * Require Significant Gain
+             * @default false
+             */
+            require_significant_gain: boolean;
+        };
+        /** EvaluationRunList */
+        EvaluationRunList: {
+            /** Items */
+            items: components["schemas"]["EvaluationRunView"][];
+        };
+        /** EvaluationRunView */
+        EvaluationRunView: {
+            /** Evaluation Id */
+            evaluation_id: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Dataset Version */
+            dataset_version: string;
+            /** Dataset Sha256 */
+            dataset_sha256: string;
+            /** Baseline Type */
+            baseline_type: string;
+            /** Baseline Version */
+            baseline_version: string;
+            /** Candidate Type */
+            candidate_type: string;
+            /** Candidate Version */
+            candidate_version: string;
+            /** Require Significant Gain */
+            require_significant_gain: boolean;
+            /** Status */
+            status: string;
+            /** Release Gate */
+            release_gate: string | null;
+            /** Report */
+            report: {
+                [key: string]: unknown;
+            } | null;
+            /** Trace Id */
+            trace_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Error Code */
+            error_code: string | null;
         };
         /** FileMetadataView */
         FileMetadataView: {
@@ -7909,6 +8333,29 @@ export interface components {
             route: string;
             /** Required Permission */
             required_permission: string;
+        };
+        /** ObservabilitySummary */
+        ObservabilitySummary: {
+            /**
+             * Window
+             * @default process_lifetime
+             * @constant
+             */
+            window: "process_lifetime";
+            /** Metrics */
+            metrics: {
+                [key: string]: unknown;
+            };
+            /** Trace Backend */
+            trace_backend: string;
+            /** Log Backend */
+            log_backend: string;
+            /**
+             * Sensitive Content Included
+             * @default false
+             * @constant
+             */
+            sensitive_content_included: false;
         };
         /** OrderAction */
         OrderAction: {
@@ -8650,6 +9097,23 @@ export interface components {
             height: number;
             /** Sort Order */
             sort_order: number;
+        };
+        /** PublishedContent */
+        PublishedContent: {
+            /** Content Id */
+            content_id: string;
+            /** Content Key */
+            content_key: string;
+            /** Content Type */
+            content_type: string;
+            /** Title */
+            title: string;
+            version: components["schemas"]["ContentVersionView"];
+        };
+        /** PublishedContentList */
+        PublishedContentList: {
+            /** Items */
+            items: components["schemas"]["PublishedContent"][];
         };
         /** ReadCursorRequest */
         ReadCursorRequest: {
@@ -11268,6 +11732,137 @@ export interface operations {
             };
         };
     };
+    HomeBanner_ListPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
+                };
+            };
+        };
+    };
+    PlatformAnnouncement_ListPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
+                };
+            };
+        };
+    };
+    HelpArticle_ListPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
+                };
+            };
+        };
+    };
+    HelpArticle_GetPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                content_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContent_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    FooterContent_GetPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
+                };
+            };
+        };
+    };
+    AboutContent_GetPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
+                };
+            };
+        };
+    };
     LegalDocument_GetPublished: {
         parameters: {
             query: {
@@ -11299,6 +11894,263 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminContent_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentList_"];
+                };
+            };
+        };
+    };
+    AdminContent_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminContent_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminContent_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminContent_Publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                content_id: string;
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminContent_Withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminAiEvaluation_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EvaluationRunList_"];
+                };
+            };
+        };
+    };
+    AdminAiEvaluation_Run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationRunCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EvaluationRunView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminObservability_Query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ObservabilitySummary_"];
                 };
             };
         };

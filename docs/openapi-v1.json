@@ -1725,6 +1725,153 @@
         }
       }
     },
+    "/api/v1/content/banners": {
+      "get": {
+        "tags": [
+          "content"
+        ],
+        "summary": "List Banners",
+        "operationId": "HomeBanner_ListPublished",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PublishedContentList_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/content/announcements": {
+      "get": {
+        "tags": [
+          "content"
+        ],
+        "summary": "List Announcements",
+        "operationId": "PlatformAnnouncement_ListPublished",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PublishedContentList_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/content/help-articles": {
+      "get": {
+        "tags": [
+          "content"
+        ],
+        "summary": "List Help",
+        "operationId": "HelpArticle_ListPublished",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PublishedContentList_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/content/help-articles/{content_key}": {
+      "get": {
+        "tags": [
+          "content"
+        ],
+        "summary": "Get Help",
+        "operationId": "HelpArticle_GetPublished",
+        "parameters": [
+          {
+            "name": "content_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Content Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PublishedContent_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/content/footer": {
+      "get": {
+        "tags": [
+          "content"
+        ],
+        "summary": "Get Footer",
+        "operationId": "FooterContent_GetPublished",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PublishedContentList_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/content/about": {
+      "get": {
+        "tags": [
+          "content"
+        ],
+        "summary": "Get About",
+        "operationId": "AboutContent_GetPublished",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PublishedContentList_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/content/legal-documents/{document_type}": {
       "get": {
         "tags": [
@@ -1802,6 +1949,393 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/admin/content": {
+      "get": {
+        "tags": [
+          "admin-content"
+        ],
+        "summary": "List Content",
+        "operationId": "AdminContent_List",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ContentList_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin-content"
+        ],
+        "summary": "Create Content",
+        "operationId": "AdminContent_Create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ContentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/content/{content_id}": {
+      "get": {
+        "tags": [
+          "admin-content"
+        ],
+        "summary": "Get Content",
+        "operationId": "AdminContent_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Content Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ContentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin-content"
+        ],
+        "summary": "Update Content",
+        "operationId": "AdminContent_Update",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Content Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ContentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/content/{content_id}/versions/{version}/publish": {
+      "post": {
+        "tags": [
+          "admin-content"
+        ],
+        "summary": "Publish Content",
+        "operationId": "AdminContent_Publish",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Content Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ContentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/content/{content_id}/withdraw": {
+      "post": {
+        "tags": [
+          "admin-content"
+        ],
+        "summary": "Withdraw Content",
+        "operationId": "AdminContent_Withdraw",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Content Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ContentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/evaluations": {
+      "get": {
+        "tags": [
+          "admin-ai-evaluations"
+        ],
+        "summary": "List Evaluations",
+        "operationId": "AdminAiEvaluation_List",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_EvaluationRunList_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin-ai-evaluations"
+        ],
+        "summary": "Create Evaluation",
+        "operationId": "AdminAiEvaluation_Run",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationRunCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_EvaluationRunView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/observability": {
+      "get": {
+        "tags": [
+          "admin-observability"
+        ],
+        "summary": "Observability Summary",
+        "operationId": "AdminObservability_Query",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ObservabilitySummary_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/file-upload-policies/{purpose}": {
@@ -24258,6 +24792,269 @@
         ],
         "title": "ContactChangeTicketResult"
       },
+      "ContentCreate": {
+        "properties": {
+          "content_key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{2,127}$",
+            "title": "Content Key"
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "banner",
+              "announcement",
+              "help_article",
+              "footer",
+              "about"
+            ],
+            "title": "Content Type"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "locale": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Locale",
+            "default": "zh-CN"
+          },
+          "region_code": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Region Code",
+            "default": "CN"
+          },
+          "source_format": {
+            "type": "string",
+            "enum": [
+              "plain_text",
+              "structured",
+              "html"
+            ],
+            "title": "Source Format"
+          },
+          "source_content": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Source Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "content_key",
+          "content_type",
+          "title",
+          "source_format",
+          "source_content"
+        ],
+        "title": "ContentCreate"
+      },
+      "ContentList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContentView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ContentList"
+      },
+      "ContentUpdate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "locale": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Locale",
+            "default": "zh-CN"
+          },
+          "region_code": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Region Code",
+            "default": "CN"
+          },
+          "source_format": {
+            "type": "string",
+            "enum": [
+              "plain_text",
+              "structured",
+              "html"
+            ],
+            "title": "Source Format"
+          },
+          "source_content": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Source Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "source_format",
+          "source_content"
+        ],
+        "title": "ContentUpdate"
+      },
+      "ContentVersionView": {
+        "properties": {
+          "content_version_id": {
+            "type": "string",
+            "title": "Content Version Id"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "locale": {
+            "type": "string",
+            "title": "Locale"
+          },
+          "region_code": {
+            "type": "string",
+            "title": "Region Code"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
+          "blocks": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocks"
+          },
+          "html": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Html"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "effective_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Effective At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "content_version_id",
+          "version",
+          "locale",
+          "region_code",
+          "format",
+          "blocks",
+          "html",
+          "text",
+          "status",
+          "effective_at",
+          "expires_at"
+        ],
+        "title": "ContentVersionView"
+      },
+      "ContentView": {
+        "properties": {
+          "content_id": {
+            "type": "string",
+            "title": "Content Id"
+          },
+          "content_key": {
+            "type": "string",
+            "title": "Content Key"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ContentVersionView"
+            },
+            "type": "array",
+            "title": "Versions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "content_id",
+          "content_key",
+          "content_type",
+          "title",
+          "status",
+          "version",
+          "versions"
+        ],
+        "title": "ContentView"
+      },
       "ConversationArchiveView": {
         "properties": {
           "conversation_id": {
@@ -25387,6 +26184,36 @@
         ],
         "title": "Envelope[ContactChangeTicketResult]"
       },
+      "Envelope_ContentList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ContentList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ContentList]"
+      },
+      "Envelope_ContentView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ContentView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ContentView]"
+      },
       "Envelope_ConversationArchiveView_": {
         "properties": {
           "data": {
@@ -25461,6 +26288,36 @@
           "data"
         ],
         "title": "Envelope[ConversationView]"
+      },
+      "Envelope_EvaluationRunList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EvaluationRunList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[EvaluationRunList]"
+      },
+      "Envelope_EvaluationRunView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EvaluationRunView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[EvaluationRunView]"
       },
       "Envelope_FileMetadataView_": {
         "properties": {
@@ -25762,6 +26619,21 @@
         ],
         "title": "Envelope[MyReviewView]"
       },
+      "Envelope_ObservabilitySummary_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ObservabilitySummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ObservabilitySummary]"
+      },
       "Envelope_OrderCommandResult_": {
         "properties": {
           "data": {
@@ -26031,6 +26903,36 @@
           "data"
         ],
         "title": "Envelope[ProductSkuList]"
+      },
+      "Envelope_PublishedContentList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PublishedContentList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[PublishedContentList]"
+      },
+      "Envelope_PublishedContent_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PublishedContent"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[PublishedContent]"
       },
       "Envelope_ReadCursorView_": {
         "properties": {
@@ -27138,6 +28040,224 @@
           "data"
         ],
         "title": "Envelope[list[UserStatusEventView]]"
+      },
+      "EvaluationRunCreate": {
+        "properties": {
+          "dataset_id": {
+            "type": "string",
+            "const": "ecom-ai-release-holdout",
+            "title": "Dataset Id"
+          },
+          "dataset_version": {
+            "type": "string",
+            "const": "2026.08.25-v1",
+            "title": "Dataset Version"
+          },
+          "baseline_type": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "skill",
+              "model",
+              "prompt",
+              "tool",
+              "multi_agent"
+            ],
+            "title": "Baseline Type"
+          },
+          "baseline_version": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:-]+$",
+            "title": "Baseline Version"
+          },
+          "candidate_type": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "skill",
+              "model",
+              "prompt",
+              "tool",
+              "multi_agent"
+            ],
+            "title": "Candidate Type"
+          },
+          "candidate_version": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:-]+$",
+            "title": "Candidate Version"
+          },
+          "require_significant_gain": {
+            "type": "boolean",
+            "title": "Require Significant Gain",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dataset_id",
+          "dataset_version",
+          "baseline_type",
+          "baseline_version",
+          "candidate_type",
+          "candidate_version"
+        ],
+        "title": "EvaluationRunCreate"
+      },
+      "EvaluationRunList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationRunView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "EvaluationRunList"
+      },
+      "EvaluationRunView": {
+        "properties": {
+          "evaluation_id": {
+            "type": "string",
+            "title": "Evaluation Id"
+          },
+          "dataset_id": {
+            "type": "string",
+            "title": "Dataset Id"
+          },
+          "dataset_version": {
+            "type": "string",
+            "title": "Dataset Version"
+          },
+          "dataset_sha256": {
+            "type": "string",
+            "title": "Dataset Sha256"
+          },
+          "baseline_type": {
+            "type": "string",
+            "title": "Baseline Type"
+          },
+          "baseline_version": {
+            "type": "string",
+            "title": "Baseline Version"
+          },
+          "candidate_type": {
+            "type": "string",
+            "title": "Candidate Type"
+          },
+          "candidate_version": {
+            "type": "string",
+            "title": "Candidate Version"
+          },
+          "require_significant_gain": {
+            "type": "boolean",
+            "title": "Require Significant Gain"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "release_gate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Gate"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report"
+          },
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evaluation_id",
+          "dataset_id",
+          "dataset_version",
+          "dataset_sha256",
+          "baseline_type",
+          "baseline_version",
+          "candidate_type",
+          "candidate_version",
+          "require_significant_gain",
+          "status",
+          "release_gate",
+          "report",
+          "trace_id",
+          "created_at",
+          "started_at",
+          "finished_at",
+          "error_code"
+        ],
+        "title": "EvaluationRunView"
       },
       "FileMetadataView": {
         "properties": {
@@ -28828,6 +29948,43 @@
           "required_permission"
         ],
         "title": "NavigationItem"
+      },
+      "ObservabilitySummary": {
+        "properties": {
+          "window": {
+            "type": "string",
+            "const": "process_lifetime",
+            "title": "Window",
+            "default": "process_lifetime"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "trace_backend": {
+            "type": "string",
+            "title": "Trace Backend"
+          },
+          "log_backend": {
+            "type": "string",
+            "title": "Log Backend"
+          },
+          "sensitive_content_included": {
+            "type": "boolean",
+            "const": false,
+            "title": "Sensitive Content Included",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "metrics",
+          "trace_backend",
+          "log_backend"
+        ],
+        "title": "ObservabilitySummary"
       },
       "OrderAction": {
         "properties": {
@@ -30955,6 +32112,56 @@
           "sort_order"
         ],
         "title": "PublicImage"
+      },
+      "PublishedContent": {
+        "properties": {
+          "content_id": {
+            "type": "string",
+            "title": "Content Id"
+          },
+          "content_key": {
+            "type": "string",
+            "title": "Content Key"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "version": {
+            "$ref": "#/components/schemas/ContentVersionView"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "content_id",
+          "content_key",
+          "content_type",
+          "title",
+          "version"
+        ],
+        "title": "PublishedContent"
+      },
+      "PublishedContentList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublishedContent"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "PublishedContentList"
       },
       "ReadCursorRequest": {
         "properties": {

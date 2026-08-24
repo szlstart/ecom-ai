@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import signal
+import time
 from datetime import datetime, timedelta
 
 import structlog
@@ -10,7 +11,9 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
 from app.core.logging import configure_logging
+from app.core.observability import AiMetric, metrics
 from app.core.security import SecurityService, utc_now
+from app.core.telemetry import configure_telemetry, shutdown_telemetry, traced_operation
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.database.postgres import close_postgres, initialize_postgres, postgres_session
 from app.modules.agent_runtime.approval_service import AgentApprovalService
@@ -114,25 +117,43 @@ async def process_batch(limit: int = 20) -> int:
             checkpoint_store = AgentCheckpointStore(checkpoint_session)
             for run in runs:
                 conversation = await session.get(Conversation, run.conversation_id)
-                if conversation is None:
-                    run.run_status = "failed"
-                    run.current_phase = "failed"
-                    run.error_code = "AGENT_CONVERSATION_NOT_FOUND"
-                    run.version += 1
-                elif conversation.conversation_type == "exclusive":
-                    await process_exclusive_run(
-                        session,
-                        run,
-                        settings=settings,
-                        security=security,
-                        checkpoint_store=checkpoint_store,
+                agent_code = (
+                    "exclusive_support"
+                    if conversation and conversation.conversation_type == "exclusive"
+                    else "store_support"
+                )
+                started = time.perf_counter()
+                with traced_operation(
+                    "agent.run",
+                    {"ecom.agent.code": agent_code, "ecom.agent.run_id": run.run_no},
+                ):
+                    if conversation is None:
+                        run.run_status = "failed"
+                        run.current_phase = "failed"
+                        run.error_code = "AGENT_CONVERSATION_NOT_FOUND"
+                        run.version += 1
+                    elif conversation.conversation_type == "exclusive":
+                        await process_exclusive_run(
+                            session,
+                            run,
+                            settings=settings,
+                            security=security,
+                            checkpoint_store=checkpoint_store,
+                        )
+                    else:
+                        await process_store_run(
+                            session,
+                            run,
+                            checkpoint_store=checkpoint_store,
+                        )
+                metrics.observe_ai(
+                    AiMetric(
+                        component="agent",
+                        operation=agent_code,
+                        outcome=_metric_outcome(run.run_status),
+                        duration_seconds=time.perf_counter() - started,
                     )
-                else:
-                    await process_store_run(
-                        session,
-                        run,
-                        checkpoint_store=checkpoint_store,
-                    )
+                )
                 processed += 1
         await session.commit()
     return processed
@@ -145,9 +166,20 @@ def _reject_event(event: OutboxEvent, code: str, now: datetime) -> None:
     event.published_at = now
 
 
+def _metric_outcome(status: str) -> str:
+    return {
+        "completed": "completed",
+        "failed": "failed",
+        "cancelled": "cancelled",
+        "waiting_confirmation": "user_input_required",
+        "waiting_human": "user_input_required",
+    }.get(status, "partial")
+
+
 async def run() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
+    configure_telemetry(settings)
     initialize_mysql(settings.mysql_dsn)
     initialize_postgres(settings.postgres_dsn)
     stopping = asyncio.Event()
@@ -168,6 +200,7 @@ async def run() -> None:
     finally:
         await close_postgres()
         await close_mysql()
+        shutdown_telemetry()
         logger.info("agent_runtime_worker_stopped")
 
 

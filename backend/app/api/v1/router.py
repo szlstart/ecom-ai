@@ -10,7 +10,10 @@ from app.modules.catalog.product_admin_router import router as product_admin_rou
 from app.modules.catalog.router import favorite_router
 from app.modules.catalog.router import router as catalog_router
 from app.modules.checkout.router import router as checkout_router
+from app.modules.content.admin_router import router as admin_content_router
 from app.modules.content.router import router as content_router
+from app.modules.evaluation.router import observability_router
+from app.modules.evaluation.router import router as evaluation_router
 from app.modules.files.router import router as files_router
 from app.modules.identity.router import auth_router, user_router
 from app.modules.knowledge.router import ai_router
@@ -37,6 +40,9 @@ api_router.include_router(agent_runtime_router)
 api_router.include_router(auth_router)
 api_router.include_router(user_router)
 api_router.include_router(content_router)
+api_router.include_router(admin_content_router)
+api_router.include_router(evaluation_router)
+api_router.include_router(observability_router)
 api_router.include_router(files_router)
 api_router.include_router(catalog_router)
 api_router.include_router(reviews_router)

@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = False
     log_level: str = "INFO"
+    otel_enabled: bool = False
+    otel_service_name: str = "ecom-ai-api"
+    otel_exporter_otlp_endpoint: str = "http://127.0.0.1:4317"
     api_v1_prefix: str = "/api/v1"
     api_host: str = "127.0.0.1"
     api_port: int = 8000

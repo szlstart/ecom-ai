@@ -11,6 +11,7 @@ from app.modules.cart import models as cart_models  # noqa: F401
 from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.checkout import models as checkout_models  # noqa: F401
 from app.modules.content import models as content_models  # noqa: F401
+from app.modules.evaluation import models as evaluation_models  # noqa: F401
 from app.modules.files import models as file_models  # noqa: F401
 from app.modules.identity import models as identity_models  # noqa: F401
 from app.modules.inventory import models as inventory_models  # noqa: F401

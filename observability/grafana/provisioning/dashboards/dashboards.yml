@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: ecom-ai
+    folder: Ecom AI
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

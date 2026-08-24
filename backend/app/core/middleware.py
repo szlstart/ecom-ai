@@ -3,6 +3,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.context import bind_request_id, reset_request_id
 from app.core.id_generator import new_request_id
+from app.core.telemetry import current_trace_fields
 
 
 class RequestContextMiddleware:
@@ -34,6 +35,9 @@ class RequestContextMiddleware:
             await send(message)
 
         try:
+            import structlog.contextvars
+
+            structlog.contextvars.bind_contextvars(**current_trace_fields())
             await self.app(scope, receive, send_with_request_id)
         finally:
             reset_request_id(token)

@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import AsyncIterator
 
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -23,6 +24,7 @@ def initialize_postgres(dsn: str) -> None:
         pool_size=5,
         max_overflow=5,
     )
+    SQLAlchemyInstrumentor().instrument(engine=_engine.sync_engine, enable_commenter=False)
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
 

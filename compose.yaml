@@ -123,6 +123,8 @@ services:
       ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:${MINIO_HOST_PORT:-19000}
       ECOM_OBJECT_STORAGE_ACCESS_KEY: ${ECOM_OBJECT_STORAGE_ACCESS_KEY:-local-minio-admin}
       ECOM_OBJECT_STORAGE_SECRET_KEY: ${ECOM_OBJECT_STORAGE_SECRET_KEY:-local-minio-change-me}
+      ECOM_OTEL_ENABLED: ${ECOM_OTEL_ENABLED:-false}
+      ECOM_OTEL_EXPORTER_OTLP_ENDPOINT: ${ECOM_OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -154,6 +156,8 @@ services:
       ECOM_FILE_SCANNER_ENABLED: "true"
       ECOM_FILE_SCANNER_HOST: clamav
       ECOM_FILE_SCANNER_PORT: "3310"
+      ECOM_OTEL_ENABLED: ${ECOM_OTEL_ENABLED:-false}
+      ECOM_OTEL_EXPORTER_OTLP_ENDPOINT: ${ECOM_OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
     command: ["python", "-m", "app.workers.file_processor"]
     depends_on:
       mysql: {condition: service_healthy}
@@ -264,6 +268,9 @@ services:
     environment:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
       ECOM_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-ecom_ai}:${POSTGRES_PASSWORD:-local-postgres-change-me}@postgres:5432/${POSTGRES_DB:-ecom_ai_ai}
+      ECOM_OTEL_ENABLED: ${ECOM_OTEL_ENABLED:-false}
+      ECOM_OTEL_SERVICE_NAME: ecom-ai-agent-worker
+      ECOM_OTEL_EXPORTER_OTLP_ENDPOINT: ${ECOM_OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
     command: ["python", "-m", "app.workers.agent_runtime_worker"]
     depends_on:
       mysql: {condition: service_healthy}
@@ -303,12 +310,76 @@ services:
       retries: 10
     networks: [backend]
 
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_HOST_PORT:-19090}:9090"
+    networks: [backend]
+    depends_on: [otel-collector]
+
+  grafana:
+    profiles: [observability]
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-local-grafana-change-me}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:${GRAFANA_HOST_PORT:-13000}:3000"
+    networks: [backend]
+    depends_on: [prometheus, tempo, loki]
+
+  otel-collector:
+    profiles: [observability]
+    image: otel/opentelemetry-collector-contrib:0.133.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on: [tempo, loki]
+    networks: [backend]
+
+  loki:
+    profiles: [observability]
+    image: grafana/loki:3.5.2
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./observability/loki-config.yaml:/etc/loki/config.yaml:ro
+      - loki_data:/loki
+    networks: [backend]
+
+  tempo:
+    profiles: [observability]
+    image: grafana/tempo:2.8.2
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    networks: [backend]
+
 volumes:
   mysql_data:
   postgres_data:
   redis_data:
   minio_data:
   clamav_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
 
 networks:
   backend:

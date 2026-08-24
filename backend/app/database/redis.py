@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Awaitable
 from typing import cast
 
+from opentelemetry.instrumentation.redis import RedisInstrumentor
 from redis.asyncio import Redis
 
 _client: Redis | None = None
@@ -10,6 +11,7 @@ _client: Redis | None = None
 def initialize_redis(url: str) -> None:
     global _client
     if _client is None:
+        RedisInstrumentor().instrument()
         _client = Redis.from_url(url, decode_responses=True)
 
 

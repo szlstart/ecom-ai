@@ -109,4 +109,25 @@ describe('phase two route contract', () => {
       expect(routes.get(path)?.meta.requirementId).toBe(requirementId)
     }
   })
+
+  it('registers phase eleven evaluation and observability routes', () => {
+    const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
+    expect(routes.get('/admin/ai/evaluations')?.meta.requirementId).toBe('ADM-EVAL-01')
+    expect(routes.get('/admin/observability')?.meta.requirementId).toBe('ADM-OBS-01')
+    expect(routes.get('/admin/ai/evaluations')?.meta.requiredPermission).toBe(
+      'ai_evaluations:read',
+    )
+    expect(routes.get('/admin/observability')?.meta.requiredPermission).toBe(
+      'observability:read',
+    )
+    expect(routes.get('/admin/content')?.meta.requirementId).toBe('ADM-CONTENT-LIST-01')
+    expect(routes.get('/admin/content/:contentId')?.meta.requirementId).toBe('ADM-CONTENT-01')
+  })
+
+  it('registers versioned public content routes', () => {
+    const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
+    expect(routes.get('/help')?.meta.requirementId).toBe('USR-CONTENT-01')
+    expect(routes.get('/help/:contentKey')?.meta.requirementId).toBe('USR-CONTENT-02')
+    expect(routes.get('/about')?.meta.requirementId).toBe('USR-CONTENT-03')
+  })
 })

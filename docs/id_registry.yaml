@@ -7,6 +7,7 @@ defaults:
   client_generated: false
   status: active
 resources:
+  ai_evaluation_run: {prefix: evr_, owner: ai_evaluation}
   user: {prefix: usr_, url_allowed: true, owner: identity}
   store: {prefix: sto_, url_allowed: true, owner: stores}
   store_certification: {prefix: cert_, url_allowed: true, owner: stores}

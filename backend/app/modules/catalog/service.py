@@ -40,6 +40,7 @@ from app.modules.catalog.schemas import (
     ServiceEstimate,
     StoreSummary,
 )
+from app.modules.content.service import ContentService
 from app.modules.files.models import FileObject
 from app.modules.inventory.models import Inventory
 from app.modules.stores.models import Store
@@ -308,6 +309,9 @@ class CatalogService:
         return SearchSuggestionList(items=await self.repository.suggestions(normalized, limit))
 
     async def homepage(self, user_id: int | None) -> HomepageView:
+        content = ContentService(self.session)
+        announcements = await content.published("announcement")
+        banners = await content.published("banner")
         sections: list[HomepageSection] = []
         source: tuple[tuple[str, str, ProductSort], ...] = (
             ("recommended", "为你推荐", "relevance"),
@@ -339,8 +343,8 @@ class CatalogService:
             )
         return HomepageView(
             feed_version="catalog-v1",
-            announcements=[],
-            banners=[],
+            announcements=[item.model_dump(mode="json") for item in announcements.items],
+            banners=[item.model_dump(mode="json") for item in banners.items],
             categories=await self.categories(),
             sections=sections,
         )

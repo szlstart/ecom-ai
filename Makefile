@@ -3,7 +3,7 @@ CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
 PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
 
-.PHONY: bootstrap install lock lint format test build registry-check openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down api frontend check
+.PHONY: bootstrap install lock lint format test build registry-check openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down observability-up observability-down evaluate-agent api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -64,6 +64,15 @@ app-up:
 
 app-down:
 	docker compose --profile app down
+
+observability-up:
+	docker compose --profile app --profile observability up -d tempo loki otel-collector prometheus grafana
+
+observability-down:
+	docker compose --profile observability stop grafana prometheus otel-collector loki tempo
+
+evaluate-agent:
+	./scripts/evaluate-agent.py eval/golden.json
 
 api:
 	cd backend && $(PYTHON) -m uvicorn app.main:create_app --factory --reload --host 127.0.0.1 --port 8000

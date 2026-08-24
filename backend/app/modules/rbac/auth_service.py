@@ -57,6 +57,9 @@ ADMIN_NAVIGATION = (
     ("ai-tools", "MCP Tool 管理", "/admin/ai/tools", "ai_tools:read"),
     ("ai-policies", "AI 权限策略", "/admin/ai/policies", "ai_policies:read"),
     ("knowledge", "知识库", "/admin/knowledge/documents", "knowledge:read"),
+    ("ai-evaluations", "AI 评估", "/admin/ai/evaluations", "ai_evaluations:read"),
+    ("observability", "可观测性", "/admin/observability", "observability:read"),
+    ("content", "平台内容", "/admin/content", "content:read"),
     ("audit", "审计日志", "/admin/audit-logs", "audit:read"),
 )
 

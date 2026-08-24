@@ -99,9 +99,17 @@ def test_available_actions_share_the_hide_policy() -> None:
     assert available_action_codes(pending, utc_now()) == ["pay", "cancel_order"]
     processing = _snapshot(payment_status="processing")
     assert available_action_codes(processing, utc_now()) == []
-    completed_pending_review = _snapshot(order_status="completed", has_pending_review=True)
+    completed_pending_review = _snapshot(
+        order_status="completed",
+        fulfillment_status="received",
+        has_pending_review=True,
+    )
     assert can_hide(completed_pending_review) is False
-    assert available_action_codes(completed_pending_review, utc_now()) == ["review", "repurchase"]
+    assert available_action_codes(completed_pending_review, utc_now()) == [
+        "view_logistics",
+        "review",
+        "repurchase",
+    ]
     completed_reviewed = _snapshot(order_status="completed", all_reviews_terminal=True)
     assert available_action_codes(completed_reviewed, utc_now()) == [
         "delete_order",

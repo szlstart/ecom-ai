@@ -102,7 +102,11 @@ def available_action_codes(snapshot: OrderPolicySnapshot, now: datetime) -> list
         and snapshot.has_refundable_items
     ):
         actions.append("apply_after_sale")
-    if snapshot.has_pending_review:
+    if (
+        snapshot.order_status == "completed"
+        and snapshot.fulfillment_status == "received"
+        and snapshot.has_pending_review
+    ):
         actions.append("review")
     if can_hide(snapshot):
         actions.append("delete_order")

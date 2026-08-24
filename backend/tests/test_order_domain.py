@@ -38,6 +38,7 @@ def _snapshot(**overrides: object) -> OrderPolicySnapshot:
         "all_reviews_terminal": False,
         "has_pending_review": False,
         "has_after_sale_history": False,
+        "has_refundable_items": False,
     }
     values.update(overrides)
     return OrderPolicySnapshot(**values)  # type: ignore[arg-type]

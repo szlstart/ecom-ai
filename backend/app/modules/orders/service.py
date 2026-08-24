@@ -1132,6 +1132,10 @@ def _policy_snapshot(order: Order, items: list[OrderItem]) -> OrderPolicySnapsho
         all_reviews_terminal=all(item.review_status in {"reviewed", "closed"} for item in items),
         has_pending_review=any(item.review_status == "pending" for item in items),
         has_after_sale_history=order.after_sale_status != "none",
+        has_refundable_items=any(
+            item.refunded_quantity < item.quantity and item.refunded_amount < item.payable_amount
+            for item in items
+        ),
     )
 
 
@@ -1150,11 +1154,17 @@ def _route_action(
     )
 
 
-def _order_actions(order: Order, trade: TradeOrder, items: list[OrderItem]) -> list[OrderAction]:
+def _order_actions(
+    order: Order,
+    trade: TradeOrder,
+    items: list[OrderItem],
+) -> list[OrderAction]:
     routes = {
         "pay": ("payment-cashier", {"tradeOrderId": trade.trade_no}, False),
         "cancel_order": ("my-order-detail", {"orderId": order.order_no}, True),
         "view_logistics": ("my-order-logistics", {"orderId": order.order_no}, False),
+        "view_after_sale": ("my-after-sales", {}, False),
+        "apply_after_sale": ("refund-application", {"orderId": order.order_no}, False),
         "confirm_receipt": ("my-order-detail", {"orderId": order.order_no}, True),
         "delete_order": ("my-order-detail", {"orderId": order.order_no}, True),
         "repurchase": ("my-order-detail", {"orderId": order.order_no}, False),

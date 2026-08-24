@@ -45,7 +45,7 @@ async function load() {
 }
 async function runAction(action: OrderAction) {
   if (!order.value || busy.value || !action.enabled) return
-  if (action.code === 'pay') {
+  if (['pay', 'apply_after_sale', 'view_after_sale'].includes(action.code)) {
     await router.push({ name: action.target.name, params: action.target.params })
     return
   }

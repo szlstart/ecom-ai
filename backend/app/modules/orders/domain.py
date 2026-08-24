@@ -38,6 +38,7 @@ class OrderPolicySnapshot:
     all_reviews_terminal: bool
     has_pending_review: bool
     has_after_sale_history: bool
+    has_refundable_items: bool
 
 
 def require_transition(
@@ -93,6 +94,14 @@ def available_action_codes(snapshot: OrderPolicySnapshot, now: datetime) -> list
         actions.append("view_logistics")
     if snapshot.order_status == "shipped" and snapshot.fulfillment_status == "shipped":
         actions.append("confirm_receipt")
+    if snapshot.has_after_sale_history:
+        actions.append("view_after_sale")
+    if (
+        snapshot.payment_status in {"paid", "partially_refunded"}
+        and snapshot.order_status not in {"cancelled", "closed"}
+        and snapshot.has_refundable_items
+    ):
+        actions.append("apply_after_sale")
     if can_hide(snapshot):
         actions.append("delete_order")
     if snapshot.order_status in {"completed", "cancelled", "closed"}:

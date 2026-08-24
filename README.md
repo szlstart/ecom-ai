@@ -33,6 +33,8 @@ make app-up
 
 基础设施只使用 Docker 容器，不启动宿主机 MySQL。默认调试端口为 MySQL `13306`、PostgreSQL `15432`、Redis `16379`。
 
+知识检索默认以 PostgreSQL 全文检索安全降级运行。需要启用向量混合检索时，在 `.env` 配置 OpenAI-compatible Embeddings Endpoint、Key、Model 与固定 `1536` 维度；未配置或 Provider 故障时不会伪造语义结果。容器模式下 `knowledge-indexer` 会处理 MySQL 权威索引命令，并以 PostgreSQL 影子代次原子切换索引。
+
 首次使用管理端前，在本机交互式创建首位平台超级管理员：
 
 ```bash

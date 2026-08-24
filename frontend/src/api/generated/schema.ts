@@ -2177,6 +2177,366 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/knowledge/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Documents */
+        get: operations["AdminKnowledgeDocument_List"];
+        put?: never;
+        /** Create Document */
+        post: operations["AdminKnowledgeDocument_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/documents/{document_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Document */
+        post: operations["AdminKnowledgeIndex_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Withdraw Document */
+        delete: operations["AdminKnowledgeDocument_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/index-jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Index Job */
+        get: operations["AdminKnowledgeIndex_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/index-jobs/{job_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Job */
+        post: operations["AdminKnowledgeIndex_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search Knowledge */
+        post: operations["AdminKnowledge_Search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Agents */
+        get: operations["AdminAgent_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/agents/{agent_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Agent Version */
+        post: operations["AdminAgentVersion_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/agents/{agent_id}/versions/{version_no}/skill-bindings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bind Agent Skill */
+        post: operations["AdminAgentSkillBinding_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/agents/{agent_id}/versions/{version_no}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Agent Version */
+        post: operations["AdminAgentVersion_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/mcp-servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Mcp Servers */
+        get: operations["AdminMcpServer_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/kill-switches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Kill Switches */
+        get: operations["AdminAiKillSwitch_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/kill-switches/{target_type}/{target_code}/activations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Kill Switch */
+        post: operations["AdminAiKillSwitch_Activate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/kill-switches/{target_type}/{target_code}/deactivations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate Kill Switch */
+        post: operations["AdminAiKillSwitch_Deactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Skills */
+        get: operations["AdminSkill_List"];
+        put?: never;
+        /** Create Skill */
+        post: operations["AdminSkill_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/skills/{skill_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Skill Version */
+        post: operations["AdminSkill_VersionCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/skills/{skill_id}/versions/{version_no}/tool-bindings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bind Skill Tool */
+        post: operations["AdminSkillToolBinding_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/skills/{skill_id}/versions/{version_no}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Skill */
+        post: operations["AdminSkill_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tools */
+        get: operations["AdminTool_List"];
+        put?: never;
+        /** Create Tool */
+        post: operations["AdminTool_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/tools/{tool_code}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Tool Version */
+        post: operations["AdminTool_VersionCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/tools/{tool_code}/versions/{version_no}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Tool */
+        post: operations["AdminTool_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/orders/{order_id}/shipments": {
         parameters: {
             query?: never;
@@ -5429,6 +5789,11 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AgentList */
+        AgentList: {
+            /** Items */
+            items: components["schemas"]["AgentView"][];
+        };
         /** AgentRunView */
         AgentRunView: {
             /** Run Id */
@@ -5458,6 +5823,58 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** AgentSkillBindingCreate */
+        AgentSkillBindingCreate: {
+            /** Skill Id */
+            skill_id: string;
+            /** Skill Version No */
+            skill_version_no: number;
+        };
+        /** AgentVersionCreate */
+        AgentVersionCreate: {
+            /** System Prompt */
+            system_prompt: string;
+            /** Model Profile */
+            model_profile: string;
+            /** Tool Allowlist */
+            tool_allowlist: string[];
+            /** Policy Config */
+            policy_config: {
+                [key: string]: unknown;
+            };
+        };
+        /** AgentVersionSummary */
+        AgentVersionSummary: {
+            /** Version No */
+            version_no: number;
+            /** Status */
+            status: string;
+            /** Model Profile */
+            model_profile: string;
+            /** Tool Allowlist */
+            tool_allowlist: string[];
+            /** System Prompt */
+            system_prompt: string;
+            /** Policy Config */
+            policy_config: {
+                [key: string]: unknown;
+            };
+        };
+        /** AgentView */
+        AgentView: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Code */
+            agent_code: string;
+            /** Display Name */
+            display_name: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Status */
+            status: string;
+            /** Versions */
+            versions: components["schemas"]["AgentVersionSummary"][];
         };
         /** AgreementReference */
         AgreementReference: {
@@ -6291,9 +6708,19 @@ export interface components {
             data: components["schemas"]["AgentConsentView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AgentList] */
+        Envelope_AgentList_: {
+            data: components["schemas"]["AgentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AgentRunView] */
         Envelope_AgentRunView_: {
             data: components["schemas"]["AgentRunView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentView] */
+        Envelope_AgentView_: {
+            data: components["schemas"]["AgentView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ApprovalRequiredView] */
@@ -6391,6 +6818,36 @@ export interface components {
             data: components["schemas"]["HumanTicketView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[KillSwitchList] */
+        Envelope_KillSwitchList_: {
+            data: components["schemas"]["KillSwitchList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KillSwitchView] */
+        Envelope_KillSwitchView_: {
+            data: components["schemas"]["KillSwitchView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KnowledgeDocumentList] */
+        Envelope_KnowledgeDocumentList_: {
+            data: components["schemas"]["KnowledgeDocumentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KnowledgeDocumentView] */
+        Envelope_KnowledgeDocumentView_: {
+            data: components["schemas"]["KnowledgeDocumentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KnowledgeIndexJobView] */
+        Envelope_KnowledgeIndexJobView_: {
+            data: components["schemas"]["KnowledgeIndexJobView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KnowledgeSearchResult] */
+        Envelope_KnowledgeSearchResult_: {
+            data: components["schemas"]["KnowledgeSearchResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[LegalDocument] */
         Envelope_LegalDocument_: {
             data: components["schemas"]["LegalDocument"];
@@ -6399,6 +6856,11 @@ export interface components {
         /** Envelope[LogisticsWebhookAck] */
         Envelope_LogisticsWebhookAck_: {
             data: components["schemas"]["LogisticsWebhookAck"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[McpServerList] */
+        Envelope_McpServerList_: {
+            data: components["schemas"]["McpServerList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[MessageList] */
@@ -6616,6 +7078,16 @@ export interface components {
             data: components["schemas"]["ShipmentTrackList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[SkillList] */
+        Envelope_SkillList_: {
+            data: components["schemas"]["SkillList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SkillView] */
+        Envelope_SkillView_: {
+            data: components["schemas"]["SkillView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[StoreHomeContent] */
         Envelope_StoreHomeContent_: {
             data: components["schemas"]["StoreHomeContent"];
@@ -6659,6 +7131,16 @@ export interface components {
         /** Envelope[SupportWorkspaceView] */
         Envelope_SupportWorkspaceView_: {
             data: components["schemas"]["SupportWorkspaceView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ToolList] */
+        Envelope_ToolList_: {
+            data: components["schemas"]["ToolList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ToolView] */
+        Envelope_ToolView_: {
+            data: components["schemas"]["ToolView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[TradeOrderView] */
@@ -6712,6 +7194,11 @@ export interface components {
         /** Envelope[VerificationCodeAccepted] */
         Envelope_VerificationCodeAccepted_: {
             data: components["schemas"]["VerificationCodeAccepted"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[VersionBindingView] */
+        Envelope_VersionBindingView_: {
+            data: components["schemas"]["VersionBindingView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[dict[str, object]] */
@@ -7067,6 +7554,116 @@ export interface components {
              */
             can_cancel: boolean;
         };
+        /** KillSwitchChange */
+        KillSwitchChange: {
+            /** Reason */
+            reason: string;
+        };
+        /** KillSwitchList */
+        KillSwitchList: {
+            /** Items */
+            items: components["schemas"]["KillSwitchView"][];
+        };
+        /** KillSwitchView */
+        KillSwitchView: {
+            /** Switch Id */
+            switch_id: string;
+            /** Target Type */
+            target_type: string;
+            /** Target Code */
+            target_code: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Reason */
+            reason: string | null;
+            /** Version */
+            version: number;
+        };
+        /** KnowledgeCitation */
+        KnowledgeCitation: {
+            /** Document Id */
+            document_id: string;
+            /** Content Version */
+            content_version: string;
+            /** Title */
+            title: string;
+            /** Excerpt */
+            excerpt: string;
+            /** Score */
+            score: number;
+        };
+        /** KnowledgeDocumentCreate */
+        KnowledgeDocumentCreate: {
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string;
+            /** Title */
+            title: string;
+            /** Safe Text */
+            safe_text: string;
+        };
+        /** KnowledgeDocumentList */
+        KnowledgeDocumentList: {
+            /** Items */
+            items: components["schemas"]["KnowledgeDocumentView"][];
+        };
+        /** KnowledgeDocumentView */
+        KnowledgeDocumentView: {
+            /** Document Id */
+            document_id: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string;
+            /** Title */
+            title: string;
+            /** Content Version */
+            content_version: string;
+            /** Status */
+            status: string;
+            /** Index Job No */
+            index_job_no?: string | null;
+            /** Index Status */
+            index_status?: string | null;
+        };
+        /** KnowledgeIndexJobView */
+        KnowledgeIndexJobView: {
+            /** Job Id */
+            job_id: string;
+            /** Command Job Id */
+            command_job_id: string;
+            /** Status */
+            status: string;
+            /** Progress */
+            progress: number;
+            /** Error Code */
+            error_code?: string | null;
+        };
+        /** KnowledgeSearchRequest */
+        KnowledgeSearchRequest: {
+            /** Query */
+            query: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string;
+            /**
+             * Limit
+             * @default 5
+             */
+            limit: number;
+        };
+        /** KnowledgeSearchResult */
+        KnowledgeSearchResult: {
+            /** Items */
+            items: components["schemas"]["KnowledgeCitation"][];
+            /**
+             * Degraded
+             * @default false
+             */
+            degraded: boolean;
+        };
         /** LegalDocument */
         LegalDocument: {
             /**
@@ -7112,6 +7709,20 @@ export interface components {
             duplicate: boolean;
             /** Shipment Id */
             shipment_id: string;
+        };
+        /** McpServerList */
+        McpServerList: {
+            /** Items */
+            items: components["schemas"]["McpServerView"][];
+        };
+        /** McpServerView */
+        McpServerView: {
+            /** Server Code */
+            server_code: string;
+            /** Tools */
+            tools: string[];
+            /** Timeout Seconds */
+            timeout_seconds: number;
         };
         /** MessageCreateRequest */
         MessageCreateRequest: {
@@ -8844,6 +9455,65 @@ export interface components {
             /** Currency */
             currency: string;
         };
+        /** SkillDefinitionCreate */
+        SkillDefinitionCreate: {
+            /** Skill Code */
+            skill_code: string;
+            /** Display Name */
+            display_name: string;
+        };
+        /** SkillList */
+        SkillList: {
+            /** Items */
+            items: components["schemas"]["SkillView"][];
+        };
+        /** SkillToolBindingCreate */
+        SkillToolBindingCreate: {
+            /** Tool Code */
+            tool_code: string;
+            /** Tool Version No */
+            tool_version_no: number;
+            /** Permission Effect */
+            permission_effect: string;
+            /** Confirmation Policy */
+            confirmation_policy: string;
+            /** Call Budget */
+            call_budget: number;
+            /** Timeout Ms */
+            timeout_ms: number;
+        };
+        /** SkillVersionCreate */
+        SkillVersionCreate: {
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Output Schema */
+            output_schema: {
+                [key: string]: unknown;
+            };
+            /** Instructions */
+            instructions: string;
+            /** Evaluation Report */
+            evaluation_report?: {
+                [key: string]: unknown;
+            };
+        };
+        /** SkillView */
+        SkillView: {
+            /** Skill Id */
+            skill_id: string;
+            /** Skill Code */
+            skill_code: string;
+            /** Display Name */
+            display_name: string;
+            /** Status */
+            status: string;
+            /** Latest Version */
+            latest_version: number | null;
+            /** Published Version */
+            published_version: number | null;
+        };
         /** StoreHomeContent */
         StoreHomeContent: {
             /** Announcements */
@@ -9183,6 +9853,58 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** ToolCreate */
+        ToolCreate: {
+            /** Tool Code */
+            tool_code: string;
+            /** Server Code */
+            server_code: string;
+            /** Risk Level */
+            risk_level: string;
+        };
+        /** ToolList */
+        ToolList: {
+            /** Items */
+            items: components["schemas"]["ToolView"][];
+        };
+        /** ToolVersionCreate */
+        ToolVersionCreate: {
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Output Schema */
+            output_schema: {
+                [key: string]: unknown;
+            };
+            /** Evaluation Report */
+            evaluation_report: {
+                [key: string]: unknown;
+            };
+        };
+        /** ToolView */
+        ToolView: {
+            /** Tool Code */
+            tool_code: string;
+            /** Server Code */
+            server_code: string;
+            /** Risk Level */
+            risk_level: string;
+            /** Input Schema */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
+            /** Output Schema */
+            output_schema?: {
+                [key: string]: unknown;
+            } | null;
+            /** Status */
+            status: string;
+            /** Latest Version */
+            latest_version?: number | null;
+            /** Published Version */
+            published_version?: number | null;
+        };
         /** TradeOrderView */
         TradeOrderView: {
             /** Trade Order Id */
@@ -9435,6 +10157,19 @@ export interface components {
             challenge_token?: string | null;
             /** Change Ticket Id */
             change_ticket_id?: string | null;
+        };
+        /** VersionBindingView */
+        VersionBindingView: {
+            /** Binding Id */
+            binding_id: number;
+            /** Source Version No */
+            source_version_no: number;
+            /** Target Code */
+            target_code: string;
+            /** Target Version No */
+            target_version_no: number;
+            /** Effect */
+            effect: string;
         };
     };
     responses: never;
@@ -13984,6 +14719,735 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_LogisticsWebhookAck_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminKnowledgeDocument_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentList_"];
+                };
+            };
+        };
+    };
+    AdminKnowledgeDocument_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnowledgeDocumentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminKnowledgeIndex_Create: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminKnowledgeDocument_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminKnowledgeIndex_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeIndexJobView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminKnowledgeIndex_Cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeIndexJobView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminKnowledge_Search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnowledgeSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeSearchResult_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminAgent_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentList_"];
+                };
+            };
+        };
+    };
+    AdminAgentVersion_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminAgentSkillBinding_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSkillBindingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_VersionBindingView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminAgentVersion_Publish: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                agent_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminMcpServer_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_McpServerList_"];
+                };
+            };
+        };
+    };
+    AdminAiKillSwitch_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KillSwitchList_"];
+                };
+            };
+        };
+    };
+    AdminAiKillSwitch_Activate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_type: string;
+                target_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KillSwitchChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KillSwitchView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminAiKillSwitch_Deactivate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_type: string;
+                target_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KillSwitchChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KillSwitchView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminSkill_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SkillList_"];
+                };
+            };
+        };
+    };
+    AdminSkill_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillDefinitionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SkillView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminSkill_VersionCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                skill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SkillView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminSkillToolBinding_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                skill_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillToolBindingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_VersionBindingView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminSkill_Publish: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                skill_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminTool_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ToolList_"];
+                };
+            };
+        };
+    };
+    AdminTool_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ToolView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminTool_VersionCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ToolView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminTool_Publish: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                tool_code: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
                 };
             };
             /** @description Validation Error */

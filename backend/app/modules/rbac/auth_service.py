@@ -52,6 +52,11 @@ ADMIN_NAVIGATION = (
     ("brands", "品牌管理", "/admin/brands", "catalog_taxonomy:manage"),
     ("approvals", "审批中心", "/admin/approval-requests", "admin_approvals:read"),
     ("support", "人工客服", "/admin/support/tickets", "support:queue_read"),
+    ("ai-agents", "Agent 管理", "/admin/ai/agents", "ai_agents:read"),
+    ("ai-skills", "Skill 管理", "/admin/ai/skills", "ai_skills:read"),
+    ("ai-tools", "MCP Tool 管理", "/admin/ai/tools", "ai_tools:read"),
+    ("ai-policies", "AI 权限策略", "/admin/ai/policies", "ai_policies:read"),
+    ("knowledge", "知识库", "/admin/knowledge/documents", "knowledge:read"),
     ("audit", "审计日志", "/admin/audit-logs", "audit:read"),
 )
 

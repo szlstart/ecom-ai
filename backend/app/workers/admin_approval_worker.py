@@ -21,9 +21,12 @@ from app.modules.after_sale.schemas import (
     AdminRefundDecisionRequest,
 )
 from app.modules.after_sale.service import AfterSaleService
+from app.modules.agent_runtime.models import AgentDefinition, AgentVersion
 from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.checkout import models as checkout_models  # noqa: F401
 from app.modules.identity.models import AuthSession, User
+from app.modules.knowledge.admin_service import KnowledgeAdminService
+from app.modules.knowledge.models import SkillDefinition, SkillVersion, ToolDefinition, ToolVersion
 from app.modules.rbac.dependencies import AdminAccess
 from app.modules.rbac.models import AdminApprovalRequest, Permission
 from app.modules.stores import models as store_models  # noqa: F401
@@ -53,6 +56,9 @@ class AdminApprovalWorker:
             {
                 "after_sale.refund.decide.v1": self._execute_refund_decision,
                 "after_sale.refund_appeal.decide.v1": self._execute_appeal_decision,
+                "ai.skill.publish.v1": self._execute_skill_publication,
+                "ai.tool.publish.v1": self._execute_tool_publication,
+                "ai.agent.publish.v1": self._execute_agent_publication,
             },
         )
 
@@ -152,6 +158,101 @@ class AdminApprovalWorker:
             resource_type="refund_appeal",
             resource_no=result.appeal_id,
         )
+
+    async def _execute_skill_publication(
+        self,
+        raw_payload: dict[str, object],
+        approval: AdminApprovalRequest,
+    ) -> ApprovalExecutionResult:
+        skill_no = raw_payload.get("skill_id")
+        version_no = raw_payload.get("version_no")
+        if not isinstance(skill_no, str) or not isinstance(version_no, int):
+            raise _invalid_command()
+        row = (
+            await self.session.execute(
+                select(SkillDefinition, SkillVersion)
+                .join(SkillVersion, SkillVersion.skill_id == SkillDefinition.id)
+                .where(
+                    SkillDefinition.skill_no == skill_no,
+                    SkillVersion.version_no == version_no,
+                )
+                .with_for_update()
+            )
+        ).one_or_none()
+        if row is None or approval.resource_versions != {
+            "definition": row[0].version,
+            "skill_version": row[1].version,
+        }:
+            raise _invalid_command()
+        access = await self._initiator_access(approval)
+        result = await KnowledgeAdminService(self.session).publish(access, skill_no, version_no)
+        return ApprovalExecutionResult(
+            resource_type="ai_skill_version", resource_no=result.skill_id
+        )
+
+    async def _execute_agent_publication(
+        self,
+        raw_payload: dict[str, object],
+        approval: AdminApprovalRequest,
+    ) -> ApprovalExecutionResult:
+        agent_no = raw_payload.get("agent_id")
+        version_no = raw_payload.get("version_no")
+        if not isinstance(agent_no, str) or not isinstance(version_no, int):
+            raise _invalid_command()
+        row = (
+            await self.session.execute(
+                select(AgentDefinition, AgentVersion)
+                .join(AgentVersion, AgentVersion.agent_id == AgentDefinition.id)
+                .where(
+                    AgentDefinition.agent_no == agent_no,
+                    AgentVersion.version_no == version_no,
+                )
+                .with_for_update()
+            )
+        ).one_or_none()
+        if row is None or approval.resource_versions != {
+            "definition": row[0].version,
+            "agent_version": row[1].version,
+        }:
+            raise _invalid_command()
+        access = await self._initiator_access(approval)
+        result = await KnowledgeAdminService(self.session).publish_agent(
+            access, agent_no, version_no
+        )
+        return ApprovalExecutionResult(
+            resource_type="ai_agent_version", resource_no=result.agent_id
+        )
+
+    async def _execute_tool_publication(
+        self,
+        raw_payload: dict[str, object],
+        approval: AdminApprovalRequest,
+    ) -> ApprovalExecutionResult:
+        tool_code = raw_payload.get("tool_code")
+        version_no = raw_payload.get("version_no")
+        if not isinstance(tool_code, str) or not isinstance(version_no, int):
+            raise _invalid_command()
+        row = (
+            await self.session.execute(
+                select(ToolDefinition, ToolVersion)
+                .join(ToolVersion, ToolVersion.tool_id == ToolDefinition.id)
+                .where(
+                    ToolDefinition.tool_code == tool_code,
+                    ToolVersion.version_no == version_no,
+                )
+                .with_for_update()
+            )
+        ).one_or_none()
+        if row is None or approval.resource_versions != {
+            "definition": row[0].version,
+            "tool_version": row[1].version,
+        }:
+            raise _invalid_command()
+        access = await self._initiator_access(approval)
+        await KnowledgeAdminService(self.session).publish_tool(
+            access, tool_code, version_no
+        )
+        return ApprovalExecutionResult(resource_type="ai_tool_version", resource_no=tool_code)
 
     async def _initiator_access(self, approval: AdminApprovalRequest) -> AdminAccess:
         now = utc_now()

@@ -13,6 +13,8 @@ from app.modules.checkout.router import router as checkout_router
 from app.modules.content.router import router as content_router
 from app.modules.files.router import router as files_router
 from app.modules.identity.router import auth_router, user_router
+from app.modules.knowledge.router import ai_router
+from app.modules.knowledge.router import router as knowledge_router
 from app.modules.logistics.admin_router import router as admin_logistics_router
 from app.modules.logistics.router import router as logistics_router
 from app.modules.messaging.router import router as messaging_router
@@ -50,6 +52,8 @@ api_router.include_router(checkout_router)
 api_router.include_router(orders_router)
 api_router.include_router(payments_router)
 api_router.include_router(logistics_router)
+api_router.include_router(knowledge_router)
+api_router.include_router(ai_router)
 api_router.include_router(admin_logistics_router)
 api_router.include_router(favorite_router)
 api_router.include_router(stores_router)

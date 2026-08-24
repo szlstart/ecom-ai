@@ -15,6 +15,7 @@ from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
 from app.core.security import SecurityService, TokenClaims, utc_now
 from app.database.mysql import mysql_session
+from app.database.postgres import postgres_session
 from app.modules.identity.models import AuthSession, User
 
 bearer = HTTPBearer(auto_error=False)
@@ -33,6 +34,7 @@ def get_security_service() -> SecurityService:
 
 
 DatabaseSession = Annotated[AsyncSession, Depends(mysql_session)]
+PostgresSession = Annotated[AsyncSession, Depends(postgres_session)]
 
 
 async def _authenticate(

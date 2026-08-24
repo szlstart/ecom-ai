@@ -8285,6 +8285,1175 @@
         }
       }
     },
+    "/api/v1/admin/knowledge/documents": {
+      "get": {
+        "tags": [
+          "knowledge-administration"
+        ],
+        "summary": "List Documents",
+        "operationId": "AdminKnowledgeDocument_List",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KnowledgeDocumentList_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "knowledge-administration"
+        ],
+        "summary": "Create Document",
+        "operationId": "AdminKnowledgeDocument_Create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeDocumentCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KnowledgeDocumentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/knowledge/documents/{document_id}/publications": {
+      "post": {
+        "tags": [
+          "knowledge-administration"
+        ],
+        "summary": "Publish Document",
+        "operationId": "AdminKnowledgeIndex_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KnowledgeDocumentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/knowledge/documents/{document_id}": {
+      "delete": {
+        "tags": [
+          "knowledge-administration"
+        ],
+        "summary": "Withdraw Document",
+        "operationId": "AdminKnowledgeDocument_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KnowledgeDocumentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/knowledge/index-jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "knowledge-administration"
+        ],
+        "summary": "Get Index Job",
+        "operationId": "AdminKnowledgeIndex_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KnowledgeIndexJobView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/knowledge/index-jobs/{job_id}/cancellations": {
+      "post": {
+        "tags": [
+          "knowledge-administration"
+        ],
+        "summary": "Cancel Job",
+        "operationId": "AdminKnowledgeIndex_Cancel",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KnowledgeIndexJobView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/knowledge/searches": {
+      "post": {
+        "tags": [
+          "knowledge-administration"
+        ],
+        "summary": "Search Knowledge",
+        "operationId": "AdminKnowledge_Search",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KnowledgeSearchResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ai/agents": {
+      "get": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "List Agents",
+        "operationId": "AdminAgent_List",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AgentList_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ai/agents/{agent_id}/versions": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Create Agent Version",
+        "operationId": "AdminAgentVersion_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentVersionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AgentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/agents/{agent_id}/versions/{version_no}/skill-bindings": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Bind Agent Skill",
+        "operationId": "AdminAgentSkillBinding_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "version_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version No"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentSkillBindingCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_VersionBindingView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/agents/{agent_id}/versions/{version_no}/publications": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Publish Agent Version",
+        "operationId": "AdminAgentVersion_Publish",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "version_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version No"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ApprovalRequiredView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/mcp-servers": {
+      "get": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "List Mcp Servers",
+        "operationId": "AdminMcpServer_List",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_McpServerList_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ai/kill-switches": {
+      "get": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "List Kill Switches",
+        "operationId": "AdminAiKillSwitch_List",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KillSwitchList_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ai/kill-switches/{target_type}/{target_code}/activations": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Activate Kill Switch",
+        "operationId": "AdminAiKillSwitch_Activate",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "target_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Type"
+            }
+          },
+          {
+            "name": "target_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KillSwitchChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KillSwitchView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/kill-switches/{target_type}/{target_code}/deactivations": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Deactivate Kill Switch",
+        "operationId": "AdminAiKillSwitch_Deactivate",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "target_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Type"
+            }
+          },
+          {
+            "name": "target_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KillSwitchChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KillSwitchView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/skills": {
+      "get": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "List Skills",
+        "operationId": "AdminSkill_List",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SkillList_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Create Skill",
+        "operationId": "AdminSkill_Create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillDefinitionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SkillView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ai/skills/{skill_id}/versions": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Create Skill Version",
+        "operationId": "AdminSkill_VersionCreate",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillVersionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SkillView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/skills/{skill_id}/versions/{version_no}/tool-bindings": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Bind Skill Tool",
+        "operationId": "AdminSkillToolBinding_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          },
+          {
+            "name": "version_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version No"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillToolBindingCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_VersionBindingView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/skills/{skill_id}/versions/{version_no}/publications": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Publish Skill",
+        "operationId": "AdminSkill_Publish",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skill_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Skill Id"
+            }
+          },
+          {
+            "name": "version_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version No"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ApprovalRequiredView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/tools": {
+      "get": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "List Tools",
+        "operationId": "AdminTool_List",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ToolList_"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Create Tool",
+        "operationId": "AdminTool_Create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ToolView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/ai/tools/{tool_code}/versions": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Create Tool Version",
+        "operationId": "AdminTool_VersionCreate",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tool_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolVersionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ToolView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/ai/tools/{tool_code}/versions/{version_no}/publications": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Publish Tool",
+        "operationId": "AdminTool_Publish",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tool_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool Code"
+            }
+          },
+          {
+            "name": "version_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version No"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ApprovalRequiredView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/orders/{order_id}/shipments": {
       "post": {
         "tags": [
@@ -21279,6 +22448,23 @@
         ],
         "title": "AgentConsentView"
       },
+      "AgentList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AgentView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AgentList"
+      },
       "AgentRunView": {
         "properties": {
           "run_id": {
@@ -21363,6 +22549,151 @@
           "updated_at"
         ],
         "title": "AgentRunView"
+      },
+      "AgentSkillBindingCreate": {
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Skill Id"
+          },
+          "skill_version_no": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Skill Version No"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "skill_id",
+          "skill_version_no"
+        ],
+        "title": "AgentSkillBindingCreate"
+      },
+      "AgentVersionCreate": {
+        "properties": {
+          "system_prompt": {
+            "type": "string",
+            "maxLength": 50000,
+            "minLength": 1,
+            "title": "System Prompt"
+          },
+          "model_profile": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Model Profile"
+          },
+          "tool_allowlist": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Tool Allowlist"
+          },
+          "policy_config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Policy Config"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "system_prompt",
+          "model_profile",
+          "tool_allowlist",
+          "policy_config"
+        ],
+        "title": "AgentVersionCreate"
+      },
+      "AgentVersionSummary": {
+        "properties": {
+          "version_no": {
+            "type": "integer",
+            "title": "Version No"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "model_profile": {
+            "type": "string",
+            "title": "Model Profile"
+          },
+          "tool_allowlist": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tool Allowlist"
+          },
+          "system_prompt": {
+            "type": "string",
+            "title": "System Prompt"
+          },
+          "policy_config": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Policy Config"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version_no",
+          "status",
+          "model_profile",
+          "tool_allowlist",
+          "system_prompt",
+          "policy_config"
+        ],
+        "title": "AgentVersionSummary"
+      },
+      "AgentView": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "agent_code": {
+            "type": "string",
+            "title": "Agent Code"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "scope_type": {
+            "type": "string",
+            "title": "Scope Type"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/AgentVersionSummary"
+            },
+            "type": "array",
+            "title": "Versions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "agent_id",
+          "agent_code",
+          "display_name",
+          "scope_type",
+          "status",
+          "versions"
+        ],
+        "title": "AgentView"
       },
       "AgreementReference": {
         "properties": {
@@ -23891,6 +25222,21 @@
         ],
         "title": "Envelope[AgentConsentView]"
       },
+      "Envelope_AgentList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AgentList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AgentList]"
+      },
       "Envelope_AgentRunView_": {
         "properties": {
           "data": {
@@ -23905,6 +25251,21 @@
           "data"
         ],
         "title": "Envelope[AgentRunView]"
+      },
+      "Envelope_AgentView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AgentView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AgentView]"
       },
       "Envelope_ApprovalRequiredView_": {
         "properties": {
@@ -24191,6 +25552,96 @@
         ],
         "title": "Envelope[HumanTicketView]"
       },
+      "Envelope_KillSwitchList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/KillSwitchList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[KillSwitchList]"
+      },
+      "Envelope_KillSwitchView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/KillSwitchView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[KillSwitchView]"
+      },
+      "Envelope_KnowledgeDocumentList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/KnowledgeDocumentList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[KnowledgeDocumentList]"
+      },
+      "Envelope_KnowledgeDocumentView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/KnowledgeDocumentView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[KnowledgeDocumentView]"
+      },
+      "Envelope_KnowledgeIndexJobView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/KnowledgeIndexJobView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[KnowledgeIndexJobView]"
+      },
+      "Envelope_KnowledgeSearchResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/KnowledgeSearchResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[KnowledgeSearchResult]"
+      },
       "Envelope_LegalDocument_": {
         "properties": {
           "data": {
@@ -24220,6 +25671,21 @@
           "data"
         ],
         "title": "Envelope[LogisticsWebhookAck]"
+      },
+      "Envelope_McpServerList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/McpServerList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[McpServerList]"
       },
       "Envelope_MessageList_": {
         "properties": {
@@ -24866,6 +26332,36 @@
         ],
         "title": "Envelope[ShipmentTrackList]"
       },
+      "Envelope_SkillList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SkillList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SkillList]"
+      },
+      "Envelope_SkillView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SkillView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SkillView]"
+      },
       "Envelope_StoreHomeContent_": {
         "properties": {
           "data": {
@@ -25000,6 +26496,36 @@
           "data"
         ],
         "title": "Envelope[SupportWorkspaceView]"
+      },
+      "Envelope_ToolList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ToolList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ToolList]"
+      },
+      "Envelope_ToolView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ToolView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ToolView]"
       },
       "Envelope_TradeOrderView_": {
         "properties": {
@@ -25181,6 +26707,21 @@
           "data"
         ],
         "title": "Envelope[VerificationCodeAccepted]"
+      },
+      "Envelope_VersionBindingView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/VersionBindingView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[VersionBindingView]"
       },
       "Envelope_dict_str__object__": {
         "properties": {
@@ -26284,6 +27825,331 @@
         ],
         "title": "HumanTicketView"
       },
+      "KillSwitchChange": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "KillSwitchChange"
+      },
+      "KillSwitchList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KillSwitchView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "KillSwitchList"
+      },
+      "KillSwitchView": {
+        "properties": {
+          "switch_id": {
+            "type": "string",
+            "title": "Switch Id"
+          },
+          "target_type": {
+            "type": "string",
+            "title": "Target Type"
+          },
+          "target_code": {
+            "type": "string",
+            "title": "Target Code"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "switch_id",
+          "target_type",
+          "target_code",
+          "is_active",
+          "reason",
+          "version"
+        ],
+        "title": "KillSwitchView"
+      },
+      "KnowledgeCitation": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "content_version": {
+            "type": "string",
+            "title": "Content Version"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document_id",
+          "content_version",
+          "title",
+          "excerpt",
+          "score"
+        ],
+        "title": "KnowledgeCitation"
+      },
+      "KnowledgeDocumentCreate": {
+        "properties": {
+          "scope_type": {
+            "type": "string",
+            "pattern": "^(platform|store)$",
+            "title": "Scope Type"
+          },
+          "scope_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scope Id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "safe_text": {
+            "type": "string",
+            "maxLength": 200000,
+            "minLength": 1,
+            "title": "Safe Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope_type",
+          "scope_id",
+          "title",
+          "safe_text"
+        ],
+        "title": "KnowledgeDocumentCreate"
+      },
+      "KnowledgeDocumentList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeDocumentView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "KnowledgeDocumentList"
+      },
+      "KnowledgeDocumentView": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "scope_type": {
+            "type": "string",
+            "title": "Scope Type"
+          },
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "content_version": {
+            "type": "string",
+            "title": "Content Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "index_job_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index Job No"
+          },
+          "index_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document_id",
+          "scope_type",
+          "scope_id",
+          "title",
+          "content_version",
+          "status"
+        ],
+        "title": "KnowledgeDocumentView"
+      },
+      "KnowledgeIndexJobView": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "command_job_id": {
+            "type": "string",
+            "title": "Command Job Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "job_id",
+          "command_job_id",
+          "status",
+          "progress"
+        ],
+        "title": "KnowledgeIndexJobView"
+      },
+      "KnowledgeSearchRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "scope_type": {
+            "type": "string",
+            "pattern": "^(platform|store)$",
+            "title": "Scope Type"
+          },
+          "scope_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scope Id"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 5
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "query",
+          "scope_type",
+          "scope_id"
+        ],
+        "title": "KnowledgeSearchRequest"
+      },
+      "KnowledgeSearchResult": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeCitation"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "degraded": {
+            "type": "boolean",
+            "title": "Degraded",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "KnowledgeSearchResult"
+      },
       "LegalDocument": {
         "properties": {
           "document_type": {
@@ -26372,6 +28238,50 @@
           "shipment_id"
         ],
         "title": "LogisticsWebhookAck"
+      },
+      "McpServerList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/McpServerView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "McpServerList"
+      },
+      "McpServerView": {
+        "properties": {
+          "server_code": {
+            "type": "string",
+            "title": "Server Code"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "timeout_seconds": {
+            "type": "number",
+            "title": "Timeout Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "server_code",
+          "tools",
+          "timeout_seconds"
+        ],
+        "title": "McpServerView"
       },
       "MessageCreateRequest": {
         "properties": {
@@ -31288,6 +33198,179 @@
         ],
         "title": "SignedMoney"
       },
+      "SkillDefinitionCreate": {
+        "properties": {
+          "skill_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{2,127}$",
+            "title": "Skill Code"
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Display Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "skill_code",
+          "display_name"
+        ],
+        "title": "SkillDefinitionCreate"
+      },
+      "SkillList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SkillView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "SkillList"
+      },
+      "SkillToolBindingCreate": {
+        "properties": {
+          "tool_code": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 3,
+            "title": "Tool Code"
+          },
+          "tool_version_no": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Tool Version No"
+          },
+          "permission_effect": {
+            "type": "string",
+            "pattern": "^(allow|deny)$",
+            "title": "Permission Effect"
+          },
+          "confirmation_policy": {
+            "type": "string",
+            "pattern": "^(none|user_confirmation|required_approval)$",
+            "title": "Confirmation Policy"
+          },
+          "call_budget": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Call Budget"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "maximum": 60000.0,
+            "minimum": 100.0,
+            "title": "Timeout Ms"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool_code",
+          "tool_version_no",
+          "permission_effect",
+          "confirmation_policy",
+          "call_budget",
+          "timeout_ms"
+        ],
+        "title": "SkillToolBindingCreate"
+      },
+      "SkillVersionCreate": {
+        "properties": {
+          "input_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Schema"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Output Schema"
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Instructions"
+          },
+          "evaluation_report": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evaluation Report"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "input_schema",
+          "output_schema",
+          "instructions"
+        ],
+        "title": "SkillVersionCreate"
+      },
+      "SkillView": {
+        "properties": {
+          "skill_id": {
+            "type": "string",
+            "title": "Skill Id"
+          },
+          "skill_code": {
+            "type": "string",
+            "title": "Skill Code"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "latest_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Version"
+          },
+          "published_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "skill_id",
+          "skill_code",
+          "display_name",
+          "status",
+          "latest_version",
+          "published_version"
+        ],
+        "title": "SkillView"
+      },
       "StoreHomeContent": {
         "properties": {
           "announcements": {
@@ -32250,6 +34333,155 @@
         ],
         "title": "TextMessageContent"
       },
+      "ToolCreate": {
+        "properties": {
+          "tool_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{2,127}$",
+            "title": "Tool Code"
+          },
+          "server_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{1,63}$",
+            "title": "Server Code"
+          },
+          "risk_level": {
+            "type": "string",
+            "pattern": "^(read|low|medium|high)$",
+            "title": "Risk Level"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool_code",
+          "server_code",
+          "risk_level"
+        ],
+        "title": "ToolCreate"
+      },
+      "ToolList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ToolView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "ToolList"
+      },
+      "ToolVersionCreate": {
+        "properties": {
+          "input_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Schema"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Output Schema"
+          },
+          "evaluation_report": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evaluation Report"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "input_schema",
+          "output_schema",
+          "evaluation_report"
+        ],
+        "title": "ToolVersionCreate"
+      },
+      "ToolView": {
+        "properties": {
+          "tool_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{2,127}$",
+            "title": "Tool Code"
+          },
+          "server_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{1,63}$",
+            "title": "Server Code"
+          },
+          "risk_level": {
+            "type": "string",
+            "pattern": "^(read|low|medium|high)$",
+            "title": "Risk Level"
+          },
+          "input_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Schema"
+          },
+          "output_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Schema"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "latest_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Version"
+          },
+          "published_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool_code",
+          "server_code",
+          "risk_level",
+          "status"
+        ],
+        "title": "ToolView"
+      },
       "TradeOrderView": {
         "properties": {
           "trade_order_id": {
@@ -33009,6 +35241,40 @@
           "target"
         ],
         "title": "VerificationCodeRequest"
+      },
+      "VersionBindingView": {
+        "properties": {
+          "binding_id": {
+            "type": "integer",
+            "title": "Binding Id"
+          },
+          "source_version_no": {
+            "type": "integer",
+            "title": "Source Version No"
+          },
+          "target_code": {
+            "type": "string",
+            "title": "Target Code"
+          },
+          "target_version_no": {
+            "type": "integer",
+            "title": "Target Version No"
+          },
+          "effect": {
+            "type": "string",
+            "title": "Effect"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "binding_id",
+          "source_version_no",
+          "target_code",
+          "target_version_no",
+          "effect"
+        ],
+        "title": "VersionBindingView"
       }
     },
     "securitySchemes": {

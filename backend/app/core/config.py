@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     postgres_dsn: str = (
         "postgresql+asyncpg://ecom_ai:local-postgres-change-me@127.0.0.1:15432/ecom_ai_ai"
     )
+    embedding_api_url: str | None = None
+    embedding_api_key: SecretStr | None = None
+    embedding_model: str = "ecom-multilingual-v1"
+    embedding_dimension: int = Field(default=1536, ge=1, le=4096)
+    embedding_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
     redis_url: str = "redis://:local-redis-change-me@127.0.0.1:16379/0"
     realtime_ticket_ttl_seconds: int = Field(default=30, ge=10, le=120)
     realtime_connection_lease_seconds: int = Field(default=75, ge=30, le=180)
@@ -94,6 +99,8 @@ class Settings(BaseSettings):
             raise ValueError("debug verification code is forbidden in production")
         if not self.refresh_cookie_secure:
             raise ValueError("Secure refresh cookies are required in production")
+        if self.embedding_api_url and self.embedding_api_key is None:
+            raise ValueError("embedding API key is required when an embedding API URL is set")
         return self
 
 

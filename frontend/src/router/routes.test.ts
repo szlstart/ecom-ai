@@ -92,4 +92,21 @@ describe('phase two route contract', () => {
       expect(routes.get(path)?.meta.requirementId).toBe(requirementId)
     }
   })
+
+  it('registers phase nine AI governance and knowledge routes', () => {
+    const expected = new Map([
+      ['/admin/ai/agents', 'ADM-AI-AGENT-01'],
+      ['/admin/ai/skills', 'ADM-AI-SKILL-01'],
+      ['/admin/ai/tools', 'ADM-AI-01'],
+      ['/admin/ai/policies', 'ADM-AI-POLICY-01'],
+      ['/admin/knowledge/documents', 'ADM-KNOW-01'],
+      ['/admin/knowledge/documents/:documentId', 'ADM-KNOW-01'],
+      ['/admin/knowledge/indexing-jobs', 'ADM-KNOW-JOB-01'],
+      ['/admin/knowledge/indexing-jobs/:jobId', 'ADM-KNOW-JOB-01'],
+    ])
+    const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
+    for (const [path, requirementId] of expected) {
+      expect(routes.get(path)?.meta.requirementId).toBe(requirementId)
+    }
+  })
 })

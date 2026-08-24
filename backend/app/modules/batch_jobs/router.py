@@ -85,7 +85,10 @@ async def create_batch_job(
 async def list_batch_jobs(
     response: Response,
     service: BatchJobServiceDependency,
-    access: Annotated[AdminAccess, require_admin_permission("jobs:read")],
+    access: Annotated[
+        AdminAccess,
+        require_any_admin_permission("jobs:read", "knowledge:read"),
+    ],
     job_type: Annotated[str | None, Query(max_length=32)] = None,
     job_status: Annotated[str | None, Query(alias="status", max_length=32)] = None,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
@@ -109,7 +112,8 @@ async def get_batch_job(
     response: Response,
     service: BatchJobServiceDependency,
     access: Annotated[
-        AdminAccess, require_any_admin_permission("jobs:read", "products:create")
+        AdminAccess,
+        require_any_admin_permission("jobs:read", "products:create", "knowledge:read"),
     ],
 ) -> Envelope[BatchJobView]:
     item = await service.get_job(access, job_id)
@@ -128,7 +132,8 @@ async def list_batch_job_items(
     response: Response,
     service: BatchJobServiceDependency,
     access: Annotated[
-        AdminAccess, require_any_admin_permission("jobs:read", "products:create")
+        AdminAccess,
+        require_any_admin_permission("jobs:read", "products:create", "knowledge:read"),
     ],
     item_status: Annotated[str | None, Query(alias="status", max_length=16)] = None,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
@@ -176,7 +181,8 @@ async def cancel_batch_job(
     service: BatchJobServiceDependency,
     idempotency_key: IdempotencyKey,
     access: Annotated[
-        AdminAccess, require_any_admin_permission("jobs:read", "products:create")
+        AdminAccess,
+        require_any_admin_permission("jobs:read", "products:create", "knowledge:manage"),
     ],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> Envelope[BatchJobView]:

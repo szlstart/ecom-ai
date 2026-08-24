@@ -103,8 +103,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_checkout_snapshot_session", table_name="checkout_snapshots")
-    op.drop_table("checkout_snapshots")
-    op.drop_index("idx_checkout_expiry", table_name="checkout_sessions")
-    op.drop_index("idx_checkout_user_status", table_name="checkout_sessions")
-    op.drop_table("checkout_sessions")
+    op.execute(sa.text("DROP TABLE IF EXISTS `checkout_snapshots`"))
+    op.execute(sa.text("DROP TABLE IF EXISTS `checkout_sessions`"))

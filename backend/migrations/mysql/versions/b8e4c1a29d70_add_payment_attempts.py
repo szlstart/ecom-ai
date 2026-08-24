@@ -104,8 +104,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_payment_events_payment", table_name="payment_events")
-    op.drop_table("payment_events")
-    op.drop_index("idx_payments_status_expiry", table_name="payments")
-    op.drop_index("idx_payments_trade_status", table_name="payments")
-    op.drop_table("payments")
+    op.execute(sa.text("DROP TABLE IF EXISTS `payment_events`"))
+    op.execute(sa.text("DROP TABLE IF EXISTS `payments`"))

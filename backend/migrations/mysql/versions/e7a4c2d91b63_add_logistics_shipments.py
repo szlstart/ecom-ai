@@ -70,9 +70,7 @@ def upgrade() -> None:
         sa.Column("void_reason_code", sa.String(64)),
         sa.Column("void_reason", sa.String(1000)),
         sa.Column("key_version", sa.SmallInteger(), server_default="1", nullable=False),
-        sa.Column(
-            "id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False
-        ),
+        sa.Column("id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False),
         *_timestamps(mutable=True),
         sa.CheckConstraint(
             "shipment_status IN ('created', 'picked_up', 'in_transit', 'delivered', "
@@ -90,31 +88,21 @@ def upgrade() -> None:
             "estimate_source IS NULL OR estimate_source IN ('shipping_template', 'carrier')",
             name="shipment_estimate_source",
         ),
-        sa.ForeignKeyConstraint(
-            ["order_id"], ["orders.id"], name="fk_shipments_order_id_orders"
-        ),
-        sa.ForeignKeyConstraint(
-            ["store_id"], ["stores.id"], name="fk_shipments_store_id_stores"
-        ),
+        sa.ForeignKeyConstraint(["order_id"], ["orders.id"], name="fk_shipments_order_id_orders"),
+        sa.ForeignKeyConstraint(["store_id"], ["stores.id"], name="fk_shipments_store_id_stores"),
         sa.PrimaryKeyConstraint("id", name="pk_shipments"),
         sa.UniqueConstraint("shipment_no", name="uk_shipments_no"),
-        sa.UniqueConstraint(
-            "carrier_code", "tracking_no_hash", name="uk_shipments_tracking"
-        ),
+        sa.UniqueConstraint("carrier_code", "tracking_no_hash", name="uk_shipments_tracking"),
     )
     op.create_index("idx_shipments_order", "shipments", ["order_id", "created_at"])
-    op.create_index(
-        "idx_shipments_status_sync", "shipments", ["shipment_status", "last_track_at"]
-    )
+    op.create_index("idx_shipments_status_sync", "shipments", ["shipment_status", "last_track_at"])
 
     op.create_table(
         "shipment_items",
         sa.Column("shipment_id", mysql.BIGINT(unsigned=True), nullable=False),
         sa.Column("order_item_id", mysql.BIGINT(unsigned=True), nullable=False),
         sa.Column("quantity", mysql.INTEGER(unsigned=True), nullable=False),
-        sa.Column(
-            "id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False
-        ),
+        sa.Column("id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False),
         *_timestamps(mutable=False),
         sa.CheckConstraint("quantity > 0", name="shipment_item_quantity"),
         sa.ForeignKeyConstraint(
@@ -126,9 +114,7 @@ def upgrade() -> None:
             name="fk_shipment_items_order_item_id_order_items",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_shipment_items"),
-        sa.UniqueConstraint(
-            "shipment_id", "order_item_id", name="uk_shipment_items_item"
-        ),
+        sa.UniqueConstraint("shipment_id", "order_item_id", name="uk_shipment_items_item"),
     )
     op.create_index(
         "idx_shipment_items_order_item",
@@ -146,17 +132,13 @@ def upgrade() -> None:
         sa.Column("location_text", sa.String(255)),
         sa.Column("occurred_at", sa.DateTime(), nullable=False),
         sa.Column("payload_hash", mysql.BINARY(32), nullable=False),
-        sa.Column(
-            "id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False
-        ),
+        sa.Column("id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False),
         *_timestamps(mutable=False),
         sa.ForeignKeyConstraint(
             ["shipment_id"], ["shipments.id"], name="fk_shipment_tracks_shipment_id_shipments"
         ),
         sa.PrimaryKeyConstraint("id", name="pk_shipment_tracks"),
-        sa.UniqueConstraint(
-            "shipment_id", "provider_event_id", name="uk_shipment_tracks_event"
-        ),
+        sa.UniqueConstraint("shipment_id", "provider_event_id", name="uk_shipment_tracks_event"),
         sa.UniqueConstraint(
             "shipment_id",
             "occurred_at",
@@ -179,16 +161,12 @@ def upgrade() -> None:
         sa.Column("response_hash", mysql.BINARY(32)),
         sa.Column("track_count", sa.SmallInteger(), server_default="0", nullable=False),
         sa.Column("attempt_count", sa.SmallInteger(), server_default="0", nullable=False),
-        sa.Column(
-            "duration_ms", mysql.INTEGER(unsigned=True), server_default="0", nullable=False
-        ),
+        sa.Column("duration_ms", mysql.INTEGER(unsigned=True), server_default="0", nullable=False),
         sa.Column("next_retry_at", sa.DateTime()),
         sa.Column("error_code", sa.String(64)),
         sa.Column("last_error", sa.String(1000)),
         sa.Column("trace_id", sa.String(64)),
-        sa.Column(
-            "id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False
-        ),
+        sa.Column("id", mysql.BIGINT(unsigned=True), autoincrement=True, nullable=False),
         *_timestamps(mutable=False),
         sa.CheckConstraint(
             "sync_type IN ('poll', 'webhook', 'reconcile')", name="logistics_sync_type"
@@ -217,13 +195,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_logistics_sync_shipment", table_name="logistics_sync_logs")
-    op.drop_index("idx_logistics_sync_retry", table_name="logistics_sync_logs")
-    op.drop_table("logistics_sync_logs")
-    op.drop_index("idx_shipment_tracks_timeline", table_name="shipment_tracks")
-    op.drop_table("shipment_tracks")
-    op.drop_index("idx_shipment_items_order_item", table_name="shipment_items")
-    op.drop_table("shipment_items")
-    op.drop_index("idx_shipments_status_sync", table_name="shipments")
-    op.drop_index("idx_shipments_order", table_name="shipments")
-    op.drop_table("shipments")
+    # MySQL automatically retains FK-supporting indexes; drop tables directly
+    # so downgrade remains safe after a partially-completed non-transactional DDL.
+    for table in ("logistics_sync_logs", "shipment_tracks", "shipment_items", "shipments"):
+        op.execute(sa.text(f"DROP TABLE IF EXISTS `{table}`"))

@@ -12,6 +12,7 @@ __pycache__/
 htmlcov/
 *.egg-info/
 .venv/
+backend/uv.lock
 
 # Environment and secrets
 .env
@@ -28,4 +29,3 @@ frontend/.vite/
 artifacts/
 coverage/
 *.log
-

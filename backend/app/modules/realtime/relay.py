@@ -28,6 +28,9 @@ from app.modules.realtime.channels import (
 from app.modules.system.models import OutboxEvent
 
 REALTIME_EVENT_TYPES = (
+    "agent.response.started.v1",
+    "agent.response.delta.v1",
+    "agent.response.completed.v1",
     "message.sent.v1",
     "message.read_cursor.updated.v1",
     "support.ticket.status_changed.v1",
@@ -86,7 +89,9 @@ class RealtimeOutboxRelay:
         if event is None or event.event_status != "pending":
             return
         dispatches: list[tuple[str, dict[str, object]]]
-        if event.event_type == "message.sent.v1":
+        if event.event_type.startswith("agent.response."):
+            dispatches = await self._agent_response_dispatches(event)
+        elif event.event_type == "message.sent.v1":
             dispatches = await self._message_dispatches(event)
         elif event.event_type == "message.read_cursor.updated.v1":
             dispatches = await self._read_dispatches(event)
@@ -99,9 +104,52 @@ class RealtimeOutboxRelay:
             pipeline.publish(channel, json.dumps(frame, separators=(",", ":"), ensure_ascii=False))
         await pipeline.execute()
 
-    async def _message_dispatches(
+    async def _agent_response_dispatches(
         self, event: OutboxEvent
     ) -> list[tuple[str, dict[str, object]]]:
+        row = (
+            await self.session.execute(
+                select(Conversation, User)
+                .join(User, User.id == Conversation.user_id)
+                .where(Conversation.conversation_no == event.aggregate_no)
+            )
+        ).one_or_none()
+        if row is None or event.payload.get("conversation_id") != event.aggregate_no:
+            raise ValueError("agent response event aggregate is missing or mismatched")
+        conversation, user = row
+        run_id = event.payload.get("run_id")
+        if not isinstance(run_id, str) or not run_id.startswith("run_"):
+            raise ValueError("agent response event has no valid run_id")
+        suffix = event.event_type.removeprefix("agent.response.").removesuffix(".v1")
+        data: dict[str, object] = {
+            "conversation_id": conversation.conversation_no,
+            "run_id": run_id,
+        }
+        if suffix == "delta":
+            chunk_index = event.payload.get("chunk_index")
+            text_so_far = event.payload.get("text_so_far")
+            if (
+                not isinstance(chunk_index, int)
+                or isinstance(chunk_index, bool)
+                or chunk_index < 1
+                or not isinstance(text_so_far, str)
+                or len(text_so_far) > 4000
+            ):
+                raise ValueError("agent delta event is invalid")
+            data.update({"chunk_index": chunk_index, "text_so_far": text_so_far})
+        elif suffix == "completed":
+            message_id = event.payload.get("message_id")
+            if not isinstance(message_id, str) or not message_id.startswith("msg_"):
+                raise ValueError("agent completed event has no valid message_id")
+            data["message_id"] = message_id
+        return [
+            (
+                user_channel(self.settings.environment, user.user_no),
+                _frame(event, f"agent.response.{suffix}", data),
+            )
+        ]
+
+    async def _message_dispatches(self, event: OutboxEvent) -> list[tuple[str, dict[str, object]]]:
         message_no = event.payload.get("message_id")
         if not isinstance(message_no, str):
             raise ValueError("message event has no message_id")
@@ -163,9 +211,7 @@ class RealtimeOutboxRelay:
                     )
         return result
 
-    async def _read_dispatches(
-        self, event: OutboxEvent
-    ) -> list[tuple[str, dict[str, object]]]:
+    async def _read_dispatches(self, event: OutboxEvent) -> list[tuple[str, dict[str, object]]]:
         conversation = await self.session.scalar(
             select(Conversation).where(Conversation.conversation_no == event.aggregate_no)
         )
@@ -192,9 +238,7 @@ class RealtimeOutboxRelay:
             )
         ]
 
-    async def _support_dispatches(
-        self, event: OutboxEvent
-    ) -> list[tuple[str, dict[str, object]]]:
+    async def _support_dispatches(self, event: OutboxEvent) -> list[tuple[str, dict[str, object]]]:
         row = (
             await self.session.execute(
                 select(HumanServiceTicket, Conversation, User)

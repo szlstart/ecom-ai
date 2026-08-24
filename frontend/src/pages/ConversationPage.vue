@@ -40,6 +40,7 @@ const humanNotice = ref('')
 const humanTicket = ref<HumanServiceTicket | null>(null)
 const messageList = ref<HTMLElement | null>(null)
 const newBelowCount = ref(0)
+const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
 const conversationId = computed(() => String(route.params.conversationId))
 let pollTimer: number | undefined
 let realtime: RealtimeConnection | undefined
@@ -134,6 +135,25 @@ async function poll() {
 }
 async function handleRealtime(event: RealtimeEvent) {
   if (event.data.conversation_id !== conversationId.value) return
+  if (event.type === 'agent.response.started') {
+    const runId = event.data.run_id
+    if (typeof runId === 'string') streamingReply.value = { runId, text: '', chunkIndex: 0 }
+    return
+  }
+  if (event.type === 'agent.response.delta') {
+    const runId = event.data.run_id
+    const text = event.data.text_so_far
+    const chunkIndex = Number(event.data.chunk_index)
+    if (typeof runId !== 'string' || typeof text !== 'string' || !Number.isInteger(chunkIndex)) return
+    if (!streamingReply.value || streamingReply.value.runId !== runId) streamingReply.value = { runId, text: '', chunkIndex: 0 }
+    if (chunkIndex > streamingReply.value.chunkIndex) streamingReply.value = { runId, text, chunkIndex }
+    void nextTick(() => { if (nearBottom()) scrollToBottom() })
+    return
+  }
+  if (event.type === 'agent.response.completed') {
+    if (streamingReply.value?.runId === event.data.run_id) streamingReply.value = null
+    return
+  }
   if (event.type === 'message.created') {
     const message = event.data.message as ChatMessage | undefined
     if (!message || typeof message.message_id !== 'string' || typeof message.sequence_no !== 'number') return
@@ -141,6 +161,8 @@ async function handleRealtime(event: RealtimeEvent) {
     const shouldScroll = nearBottom()
     if (message.sequence_no > lastSequence + 1) await poll()
     mergeMessages([message], shouldScroll)
+    const runId = message.content?.run_id
+    if (typeof runId === 'string' && streamingReply.value?.runId === runId) streamingReply.value = null
     return
   }
   if (event.type === 'support.status.updated' && conversation.value) {
@@ -304,7 +326,7 @@ function onlineChanged() {
 }
 
 watch(draft, persistDraft)
-watch(conversationId, async () => { pending.value = []; newBelowCount.value = 0; await load() })
+watch(conversationId, async () => { pending.value = []; streamingReply.value = null; newBelowCount.value = 0; await load() })
 onMounted(async () => {
   await load()
   realtime = new RealtimeConnection({
@@ -360,6 +382,9 @@ onBeforeUnmount(() => {
         </article>
         <article v-for="item in pending" :key="item.clientMessageId" class="message-bubble mine pending-message">
           <strong>我</strong><p>{{ item.text }}</p><small v-if="item.status === 'sending'">正在发送…</small><small v-else-if="item.status === 'blocked'" class="error-text">内容未通过安全检查，请修改后重新发送。</small><button v-else type="button" class="small danger" @click="retry(item)">发送失败，重试</button>
+        </article>
+        <article v-if="streamingReply" class="message-bubble theirs agent-stream" aria-live="polite">
+          <strong>智能客服</strong><p>{{ streamingReply.text || '正在思考…' }}</p><small>正在生成回复…</small>
         </article>
       </div>
       <button v-if="newBelowCount" type="button" class="new-message-button" @click="scrollToBottom">有 {{ newBelowCount }} 条新消息</button>

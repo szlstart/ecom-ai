@@ -60,6 +60,9 @@ resources:
   human_ticket_event: {prefix: hte_, owner: support}
   human_internal_note: {prefix: note_, owner: support}
   agent_run: {prefix: run_, url_allowed: true, owner: agent_runtime}
+  agent_tool_audit: {prefix: taud_, owner: agent_runtime}
+  agent_checkpoint: {prefix: acp_, owner: agent_runtime}
+  agent_checkpoint_write: {prefix: cpw_, owner: agent_runtime}
   agent: {prefix: agt_, url_allowed: true, owner: ai_governance}
   skill: {prefix: skl_, url_allowed: true, owner: ai_governance}
   tool: {prefix: tol_, url_allowed: true, owner: ai_governance}

@@ -38,6 +38,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/agent-consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Consents */
+        get: operations["AiConsent_ListMine"];
+        put?: never;
+        /** Grant Consent */
+        post: operations["AiConsent_Grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/agent-consents/{consent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Consent */
+        get: operations["AiConsent_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/agent-consents/{consent_id}/pauses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aiconsent Pause */
+        post: operations["AiConsent_Pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/agent-consents/{consent_id}/resumes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aiconsent Resume */
+        post: operations["AiConsent_Resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/agent-consents/{consent_id}/revocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aiconsent Revoke */
+        post: operations["AiConsent_Revoke"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Run */
+        get: operations["AgentRun_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/registration-config": {
         parameters: {
             query?: never;
@@ -5197,6 +5300,89 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AgentConsentGrantRequest */
+        AgentConsentGrantRequest: {
+            /**
+             * Consent Type
+             * @enum {string}
+             */
+            consent_type: "personalization" | "order_read" | "after_sale_write";
+            /**
+             * Scope Type
+             * @enum {string}
+             */
+            scope_type: "user" | "conversation" | "store";
+            /** Scope Id */
+            scope_id?: string | null;
+            /** Policy Version */
+            policy_version: string;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** AgentConsentList */
+        AgentConsentList: {
+            /** Items */
+            items: components["schemas"]["AgentConsentView"][];
+        };
+        /** AgentConsentView */
+        AgentConsentView: {
+            /** Consent Id */
+            consent_id: string;
+            /** Consent Type */
+            consent_type: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string | null;
+            /** Policy Version */
+            policy_version: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "paused" | "revoked";
+            /** Expires At */
+            expires_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Version */
+            version: number;
+        };
+        /** AgentRunView */
+        AgentRunView: {
+            /** Run Id */
+            run_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled";
+            /** Current Phase */
+            current_phase: string;
+            /** Output */
+            output: string | null;
+            /** Error Code */
+            error_code: string | null;
+            /** Degraded Reason */
+            degraded_reason: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** AgreementReference */
         AgreementReference: {
             /**
@@ -6012,6 +6198,21 @@ export interface components {
         /** Envelope[AdminUserSummary] */
         Envelope_AdminUserSummary_: {
             data: components["schemas"]["AdminUserSummary"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentConsentList] */
+        Envelope_AgentConsentList_: {
+            data: components["schemas"]["AgentConsentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentConsentView] */
+        Envelope_AgentConsentView_: {
+            data: components["schemas"]["AgentConsentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentRunView] */
+        Envelope_AgentRunView_: {
+            data: components["schemas"]["AgentRunView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ApprovalRequiredView] */
@@ -9199,6 +9400,216 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+        };
+    };
+    AiConsent_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentList_"];
+                };
+            };
+        };
+    };
+    AiConsent_Grant: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConsentGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiConsent_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiConsent_Pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiConsent_Resume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiConsent_Revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AgentRun_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentRunView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

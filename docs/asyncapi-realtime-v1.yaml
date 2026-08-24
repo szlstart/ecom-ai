@@ -64,6 +64,9 @@ components:
             - connection.ready
             - server.ping
             - message.created
+            - agent.response.started
+            - agent.response.delta
+            - agent.response.completed
             - unread.updated
             - support.status.updated
             - support.ticket.updated

@@ -121,6 +121,38 @@ class MessagingService:
         payload: HumanHandoffRequest,
         idempotency_key: str,
     ) -> HumanTicketView:
+        return await self._request_human(
+            user,
+            conversation_no,
+            payload,
+            idempotency_key,
+            source="user",
+        )
+
+    async def request_human_from_agent(
+        self,
+        user: User,
+        conversation_no: str,
+        payload: HumanHandoffRequest,
+        run_no: str,
+    ) -> HumanTicketView:
+        return await self._request_human(
+            user,
+            conversation_no,
+            payload,
+            f"agent-handoff-{run_no}",
+            source="agent",
+        )
+
+    async def _request_human(
+        self,
+        user: User,
+        conversation_no: str,
+        payload: HumanHandoffRequest,
+        idempotency_key: str,
+        *,
+        source: str,
+    ) -> HumanTicketView:
         claim = await self.idempotency.begin(
             scope_key=f"user:{user.user_no}:conversation:{conversation_no}:human-service",
             idempotency_key=idempotency_key,
@@ -177,7 +209,7 @@ class MessagingService:
             handoff_summary=payload.summary,
             handoff_message_refs=refs,
             handoff_policy_version="handoff-v1",
-            source="user",
+            source=source,
             sla_due_at=now + timedelta(minutes=15),
         )
         self.session.add(ticket)
@@ -194,9 +226,9 @@ class MessagingService:
                 event_type="created",
                 from_status=None,
                 to_status="queued",
-                actor_type="user",
-                actor_user_id=user.id,
-                reason_code="USER_REQUESTED",
+                actor_type=source,
+                actor_user_id=user.id if source == "user" else None,
+                reason_code="USER_REQUESTED" if source == "user" else "AGENT_HANDOFF",
                 reason=None,
                 sla_due_at_before=None,
                 sla_due_at_after=ticket.sla_due_at,
@@ -220,15 +252,19 @@ class MessagingService:
             )
         )
         self._conversation_event(
-            conversation, "active", "human_requested", "user", user.id, ticket.id, None
+            conversation,
+            "active",
+            "human_requested",
+            source,
+            user.id if source == "user" else None,
+            ticket.id,
+            None,
         )
         self.idempotency.complete(claim, response_status=201, resource_no=ticket.ticket_no)
         await self.session.commit()
         return _ticket_view(ticket, conversation)
 
-    async def current_human_ticket(
-        self, user: User, conversation_no: str
-    ) -> HumanTicketView:
+    async def current_human_ticket(self, user: User, conversation_no: str) -> HumanTicketView:
         conversation = await self.repository.by_no(user.id, conversation_no)
         if conversation is None:
             raise _not_found()
@@ -247,9 +283,7 @@ class MessagingService:
                 )
                 or 0
             )
-        return _ticket_view(ticket, conversation).model_copy(
-            update={"queue_position": position}
-        )
+        return _ticket_view(ticket, conversation).model_copy(update={"queue_position": position})
 
     async def cancel_human_ticket(
         self, user: User, ticket_no: str, idempotency_key: str
@@ -762,6 +796,17 @@ class MessagingService:
             )
         )
         if active_ticket is None and conversation.conversation_status == "active":
+            context_refs = [
+                {
+                    "context_id": item.context_no,
+                    "context_type": item.context_type,
+                    "context_version": item.context_version,
+                    "resource_id": item.resource_no,
+                    "resource_version": item.resource_version,
+                    "expires_at": item.expires_at.isoformat() if item.expires_at else None,
+                }
+                for item in await self.repository.active_contexts(conversation.id)
+            ]
             self.session.add(
                 OutboxEvent(
                     event_no=new_prefixed_ulid("evt_"),
@@ -772,6 +817,7 @@ class MessagingService:
                     payload={
                         "conversation_id": conversation.conversation_no,
                         "message_id": message.message_no,
+                        "context_refs": context_refs,
                     },
                     event_status="pending",
                     available_at=now,

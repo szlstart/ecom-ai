@@ -5,6 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.database.base import MySQLBase
+from app.modules.after_sale import models as after_sale_models  # noqa: F401
 from app.modules.cart import models as cart_models  # noqa: F401
 from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.checkout import models as checkout_models  # noqa: F401

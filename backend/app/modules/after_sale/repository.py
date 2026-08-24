@@ -1,0 +1,182 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import cast
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.after_sale.models import (
+    RefundAppeal,
+    RefundApplication,
+    RefundEvent,
+    RefundItem,
+    RefundPaymentRecord,
+    RefundShipment,
+)
+from app.modules.orders.models import Order, OrderItem
+
+
+class AfterSaleRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def order_for_update(self, user_id: int, order_no: str) -> Order | None:
+        stmt = (
+            select(Order)
+            .where(Order.user_id == user_id, Order.order_no == order_no)
+            .with_for_update()
+        )
+        return cast(Order | None, await self.session.scalar(stmt))
+
+    async def order_items_for_update(
+        self, order_id: int, item_nos: Sequence[str] | None = None
+    ) -> list[OrderItem]:
+        stmt = (
+            select(OrderItem)
+            .where(OrderItem.order_id == order_id)
+            .order_by(OrderItem.id)
+            .with_for_update()
+        )
+        if item_nos:
+            stmt = stmt.where(OrderItem.order_item_no.in_(item_nos))
+        return list((await self.session.scalars(stmt)).all())
+
+    async def active_items(self, item_ids: Sequence[int]) -> list[RefundItem]:
+        if not item_ids:
+            return []
+        return list(
+            (
+                await self.session.scalars(
+                    select(RefundItem).where(
+                        RefundItem.order_item_id.in_(item_ids), RefundItem.refund_status == "active"
+                    )
+                )
+            ).all()
+        )
+
+    async def application(
+        self, user_id: int, refund_no: str, *, for_update: bool = False
+    ) -> RefundApplication | None:
+        stmt = select(RefundApplication).where(
+            RefundApplication.user_id == user_id, RefundApplication.refund_no == refund_no
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        return cast(RefundApplication | None, await self.session.scalar(stmt))
+
+    async def applications(self, user_id: int, limit: int) -> list[RefundApplication]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(RefundApplication)
+                    .where(RefundApplication.user_id == user_id)
+                    .order_by(RefundApplication.created_at.desc(), RefundApplication.id.desc())
+                    .limit(limit)
+                )
+            ).all()
+        )
+
+    async def items_for_refund(self, refund_id: int) -> list[tuple[RefundItem, OrderItem]]:
+        rows = (
+            await self.session.execute(
+                select(RefundItem, OrderItem)
+                .join(OrderItem, OrderItem.id == RefundItem.order_item_id)
+                .where(RefundItem.refund_id == refund_id)
+                .order_by(RefundItem.id)
+            )
+        ).all()
+        return [(row[0], row[1]) for row in rows]
+
+    async def events(self, refund_id: int) -> list[RefundEvent]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(RefundEvent)
+                    .where(RefundEvent.refund_id == refund_id)
+                    .order_by(RefundEvent.created_at, RefundEvent.id)
+                )
+            ).all()
+        )
+
+    async def admin_application(
+        self, refund_no: str, *, for_update: bool = False
+    ) -> RefundApplication | None:
+        statement = select(RefundApplication).where(RefundApplication.refund_no == refund_no)
+        if for_update:
+            statement = statement.with_for_update()
+        return cast(RefundApplication | None, await self.session.scalar(statement))
+
+    async def admin_applications(
+        self,
+        limit: int,
+        scopes: Sequence[tuple[str, int]],
+    ) -> list[RefundApplication]:
+        statement = select(RefundApplication)
+        if ("platform", 0) not in scopes:
+            store_ids = [scope_id for scope_type, scope_id in scopes if scope_type == "store"]
+            if not store_ids:
+                return []
+            statement = statement.where(RefundApplication.store_id.in_(store_ids))
+        return list(
+            (
+                await self.session.scalars(
+                    statement.order_by(
+                        RefundApplication.created_at.desc(), RefundApplication.id.desc()
+                    ).limit(limit)
+                )
+            ).all()
+        )
+
+    async def admin_appeals(self, limit: int) -> list[tuple[RefundAppeal, RefundApplication]]:
+        rows = (
+            await self.session.execute(
+                select(RefundAppeal, RefundApplication)
+                .join(RefundApplication, RefundApplication.id == RefundAppeal.refund_id)
+                .order_by(RefundAppeal.created_at.desc(), RefundAppeal.id.desc())
+                .limit(limit)
+            )
+        ).all()
+        return [(row[0], row[1]) for row in rows]
+
+    async def admin_appeal(
+        self, appeal_no: str, *, for_update: bool = False
+    ) -> tuple[RefundAppeal, RefundApplication] | None:
+        statement = (
+            select(RefundAppeal, RefundApplication)
+            .join(RefundApplication, RefundApplication.id == RefundAppeal.refund_id)
+            .where(RefundAppeal.appeal_no == appeal_no)
+        )
+        if for_update:
+            statement = statement.with_for_update(of=(RefundAppeal, RefundApplication))
+        row = (await self.session.execute(statement)).one_or_none()
+        return (row[0], row[1]) if row is not None else None
+
+    async def appeal(self, user_id: int, appeal_no: str) -> RefundAppeal | None:
+        return cast(
+            RefundAppeal | None,
+            await self.session.scalar(
+                select(RefundAppeal).where(
+                    RefundAppeal.user_id == user_id,
+                    RefundAppeal.appeal_no == appeal_no,
+                )
+            ),
+        )
+
+    async def refund_payment_by_no(
+        self, payment_no: str, *, for_update: bool = False
+    ) -> RefundPaymentRecord | None:
+        statement = select(RefundPaymentRecord).where(
+            RefundPaymentRecord.refund_payment_no == payment_no
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        return cast(RefundPaymentRecord | None, await self.session.scalar(statement))
+
+    async def return_shipment(
+        self, refund_id: int, *, for_update: bool = False
+    ) -> RefundShipment | None:
+        statement = select(RefundShipment).where(RefundShipment.refund_id == refund_id)
+        if for_update:
+            statement = statement.with_for_update()
+        return cast(RefundShipment | None, await self.session.scalar(statement))

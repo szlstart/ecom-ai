@@ -16,6 +16,9 @@ from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, TokenClaims, utc_now
 from app.database.mysql import mysql_session
+from app.modules.after_sale.models import RefundApplication, RefundPaymentRecord
+from app.modules.after_sale.schemas import AdminRefundDecisionRequest
+from app.modules.after_sale.service import AfterSaleService
 from app.modules.cart.models import CartItem
 from app.modules.catalog.models import Category, Product, ProductFulfillmentProfile, ProductSku
 from app.modules.checkout.models import CheckoutSession
@@ -1627,6 +1630,248 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         )
         assert append_image is not None
         assert append_bound_file is not None and append_bound_file.reference_count == 1
+
+    duplicate_eligibility_item = await client.post(
+        "/api/v1/refund-eligibility-checks",
+        headers=auth,
+        json={
+            "order_id": receipt_order_id,
+            "items": [
+                {"order_item_id": receipt_item_no, "quantity": 1},
+                {"order_item_id": receipt_item_no, "quantity": 1},
+            ],
+            "requested_type": "refund_only",
+            "reason_code": "NO_LONGER_NEEDED",
+        },
+    )
+    assert duplicate_eligibility_item.status_code == 422
+    eligibility_payload = {
+        "order_id": receipt_order_id,
+        "items": [{"order_item_id": receipt_item_no, "quantity": 1}],
+        "requested_type": "refund_only",
+        "reason_code": "NO_LONGER_NEEDED",
+    }
+    first_eligibility = await client.post(
+        "/api/v1/refund-eligibility-checks", headers=auth, json=eligibility_payload
+    )
+    assert first_eligibility.status_code == 200, first_eligibility.text
+    first_eligibility_data = first_eligibility.json()["data"]
+    assert first_eligibility_data["eligible"] is True
+    first_refund_amount = first_eligibility_data["suggested_refund_amount"]
+    first_refund = await client.post(
+        "/api/v1/refund-applications",
+        headers={**auth, "Idempotency-Key": f"refund-first-{suffix}"},
+        json={
+            "eligibility_token": first_eligibility_data["eligibility_token"],
+            "items": eligibility_payload["items"],
+            "refund_type": "refund_only",
+            "reason_code": "NO_LONGER_NEEDED",
+            "reason_detail": "测试部分数量售后占用",
+            "requested_amount": first_refund_amount,
+            "policy_accepted": True,
+        },
+    )
+    assert first_refund.status_code == 201, first_refund.text
+    first_refund_id = first_refund.json()["data"]["refund_id"]
+    assert (
+        await client.get(f"/api/v1/refund-applications/{first_refund_id}", headers=other_auth)
+    ).status_code == 404
+    remaining_eligibility = await client.post(
+        "/api/v1/refund-eligibility-checks", headers=auth, json=eligibility_payload
+    )
+    assert remaining_eligibility.status_code == 200, remaining_eligibility.text
+    remaining_data = remaining_eligibility.json()["data"]
+    assert remaining_data["eligible"] is True
+    assert remaining_data["items"][0]["available_quantity"] == 1
+    assert remaining_data["items"][0]["available_actions"] == [
+        "view_active_after_sale",
+        "apply_after_sale",
+    ]
+    async for session in mysql_session():
+        receipt_item = await session.scalar(
+            select(OrderItem).where(OrderItem.order_item_no == receipt_item_no)
+        )
+        assert receipt_item is not None
+        assert (
+            int(first_refund_amount["minor_units"])
+            + int(remaining_data["suggested_refund_amount"]["minor_units"])
+            == receipt_item.payable_amount
+        )
+    cancelled_refund = await client.post(
+        f"/api/v1/refund-applications/{first_refund_id}/cancellations",
+        headers={**auth, "Idempotency-Key": f"refund-cancel-{suffix}"},
+        json={"reason": "改为整单申请"},
+    )
+    assert cancelled_refund.status_code == 200, cancelled_refund.text
+    assert cancelled_refund.json()["data"]["refund_status"] == "cancelled"
+
+    rejected_eligibility = await client.post(
+        "/api/v1/refund-eligibility-checks", headers=auth, json=eligibility_payload
+    )
+    rejected_eligibility_data = rejected_eligibility.json()["data"]
+    rejected_refund = await client.post(
+        "/api/v1/refund-applications",
+        headers={**auth, "Idempotency-Key": f"refund-rejected-{suffix}"},
+        json={
+            "eligibility_token": rejected_eligibility_data["eligibility_token"],
+            "items": eligibility_payload["items"],
+            "refund_type": "refund_only",
+            "reason_code": "NO_LONGER_NEEDED",
+            "reason_detail": "用于验证拒绝后重新申请和申诉",
+            "requested_amount": rejected_eligibility_data["suggested_refund_amount"],
+            "policy_accepted": True,
+        },
+    )
+    assert rejected_refund.status_code == 201, rejected_refund.text
+    rejected_refund_id = rejected_refund.json()["data"]["refund_id"]
+    async for session in mysql_session():
+        permission = Permission(
+            permission_code="refunds:review",
+            resource="refunds",
+            action="review",
+            risk_level="critical",
+            allowed_scope_types=["store"],
+            delegation_policy="role_policy",
+            requires_mfa=True,
+            requires_recent_auth=True,
+            approval_policy="amount_based",
+            owner="after_sale",
+            description="refund review",
+            permission_status="active",
+        )
+        refund_access = AdminAccess(
+            context=access.context,
+            permission=permission,
+            scopes=(("store", receipt_store_id),),
+        )
+        after_sale = AfterSaleService(session, get_settings(), security)
+        rejected_row = await session.scalar(
+            select(RefundApplication).where(RefundApplication.refund_no == rejected_refund_id)
+        )
+        assert rejected_row is not None
+        with pytest.raises(ApplicationError) as unclaimed_decision:
+            await after_sale.decide(
+                refund_access,
+                rejected_refund_id,
+                AdminRefundDecisionRequest(
+                    decision="reject",
+                    reason_code="POLICY_NOT_MET",
+                    reason="测试未领取时禁止审核",
+                ),
+                rejected_row.version,
+            )
+        assert unclaimed_decision.value.code == "REFUND_CLAIM_REQUIRED"
+        claimed_refund = await after_sale.claim_refund(
+            refund_access, rejected_refund_id, rejected_row.version
+        )
+        rejected_result = await after_sale.decide(
+            refund_access,
+            rejected_refund_id,
+            AdminRefundDecisionRequest(
+                decision="reject",
+                reason_code="POLICY_NOT_MET",
+                reason="测试拒绝后释放订单项占用",
+            ),
+            claimed_refund.version,
+        )
+        assert rejected_result.refund_status == "rejected"
+    appeal = await client.post(
+        f"/api/v1/refund-applications/{rejected_refund_id}/appeals",
+        headers={**auth, "Idempotency-Key": f"refund-appeal-{suffix}"},
+        json={"reason": "请求平台复核本次退款拒绝决定"},
+    )
+    assert appeal.status_code == 201, appeal.text
+    assert appeal.json()["data"]["appeal_status"] == "submitted"
+
+    full_eligibility_payload = {
+        **eligibility_payload,
+        "items": [{"order_item_id": receipt_item_no, "quantity": 2}],
+    }
+    full_eligibility = await client.post(
+        "/api/v1/refund-eligibility-checks", headers=auth, json=full_eligibility_payload
+    )
+    full_eligibility_data = full_eligibility.json()["data"]
+    assert full_eligibility_data["eligible"] is True
+    successful_refund = await client.post(
+        "/api/v1/refund-applications",
+        headers={**auth, "Idempotency-Key": f"refund-success-{suffix}"},
+        json={
+            "eligibility_token": full_eligibility_data["eligibility_token"],
+            "items": full_eligibility_payload["items"],
+            "refund_type": "refund_only",
+            "reason_code": "NO_LONGER_NEEDED",
+            "reason_detail": "验证退款资金回调闭环",
+            "requested_amount": full_eligibility_data["suggested_refund_amount"],
+            "policy_accepted": True,
+        },
+    )
+    assert successful_refund.status_code == 201, successful_refund.text
+    successful_refund_id = successful_refund.json()["data"]["refund_id"]
+    async for session in mysql_session():
+        after_sale = AfterSaleService(session, get_settings(), security)
+        successful_row = await session.scalar(
+            select(RefundApplication).where(RefundApplication.refund_no == successful_refund_id)
+        )
+        assert successful_row is not None
+        claimed_refund = await after_sale.claim_refund(
+            refund_access, successful_refund_id, successful_row.version
+        )
+        approved_refund = await after_sale.decide(
+            refund_access,
+            successful_refund_id,
+            AdminRefundDecisionRequest(
+                decision="approve",
+                reason_code="POLICY_PASSED",
+                reason="符合首版原路退款规则",
+                approved_amount=full_eligibility_data["suggested_refund_amount"],
+            ),
+            claimed_refund.version,
+        )
+        assert approved_refund.refund_status == "refunding"
+        refund_payment = await session.scalar(
+            select(RefundPaymentRecord).where(
+                RefundPaymentRecord.refund_id == successful_row.id
+            )
+        )
+        assert refund_payment is not None
+        refund_payment_no = refund_payment.refund_payment_no
+    refund_webhook_payload = {
+        "provider_event_id": f"refund-event-{suffix}",
+        "refund_payment_no": refund_payment_no,
+        "status": "succeeded",
+        "amount_minor_units": full_eligibility_data["suggested_refund_amount"]["minor_units"],
+        "currency": "CNY",
+    }
+    refund_webhook_body = json.dumps(refund_webhook_payload, separators=(",", ":")).encode()
+    refund_webhook_timestamp = str(int(datetime.now(UTC).timestamp()))
+    refund_webhook_signature = security.keyed_hash(
+        "fake-refund-webhook",
+        refund_webhook_timestamp.encode() + b"." + refund_webhook_body,
+    ).hex()
+    refund_webhook_headers = {
+        "Content-Type": "application/json",
+        "X-Refund-Timestamp": refund_webhook_timestamp,
+        "X-Refund-Signature": refund_webhook_signature,
+    }
+    refund_webhook = await client.post(
+        "/api/v1/webhooks/refunds/fake",
+        headers=refund_webhook_headers,
+        content=refund_webhook_body,
+    )
+    assert refund_webhook.status_code == 200, refund_webhook.text
+    assert refund_webhook.json()["data"]["status"] == "succeeded"
+    refund_webhook_replay = await client.post(
+        "/api/v1/webhooks/refunds/fake",
+        headers=refund_webhook_headers,
+        content=refund_webhook_body,
+    )
+    assert refund_webhook_replay.status_code == 200
+    assert refund_webhook_replay.json()["data"]["duplicate"] is True
+    completed_refund = await client.get(
+        f"/api/v1/refund-applications/{successful_refund_id}", headers=auth
+    )
+    assert completed_refund.status_code == 200
+    assert completed_refund.json()["data"]["refund_status"] == "succeeded"
 
     timeout_checkout = await client.post(
         "/api/v1/checkout-sessions",

@@ -44,3 +44,20 @@ class AgentConsentView(StrictRequest):
 
 class AgentConsentList(StrictRequest):
     items: list[AgentConsentView]
+
+
+class AgentApprovalDecisionRequest(StrictRequest):
+    decision: Literal["approve", "reject"]
+
+
+class AgentApprovalView(StrictRequest):
+    approval_id: str
+    run_id: str
+    conversation_id: str
+    action_type: Literal["refund_submit"]
+    approval_status: Literal["pending", "approved", "rejected", "expired", "consumed"]
+    decision: Literal["approve", "reject"] | None
+    draft: dict[str, object]
+    expires_at: datetime
+    decided_at: datetime | None
+    version: int

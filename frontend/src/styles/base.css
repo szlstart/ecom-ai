@@ -340,6 +340,9 @@ tr.selected td { background: #f0f4ff; }
 .connection-dot.connected, .connection-dot.polling { background: #22915a; }
 .connection-dot.offline { background: #bc3344; }
 .human-request { display: grid; gap: 14px; }
+.agent-consent-card { padding: 15px 18px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid #c9d4f0; border-radius: 14px; background: #f7f9ff; }
+.agent-consent-card > div { display: grid; gap: 6px; }
+.agent-consent-card p { margin: 0; color: #59657b; line-height: 1.55; }
 .message-timeline { height: min(64vh, 720px); min-height: 360px; padding: 22px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; border: 1px solid #dfe4ed; border-radius: 18px; background: #f5f7fb; overscroll-behavior: contain; }
 .message-bubble { width: fit-content; max-width: min(72%, 680px); padding: 12px 14px; display: grid; gap: 7px; border: 1px solid #dfe4ed; border-radius: 5px 16px 16px; background: #fff; box-shadow: 0 5px 16px rgb(27 49 101 / 5%); }
 .message-bubble.mine { align-self: flex-end; color: #fff; border-color: #3158d8; border-radius: 16px 5px 16px 16px; background: #3158d8; }
@@ -349,6 +352,13 @@ tr.selected td { background: #f0f4ff; }
 .message-card { min-width: min(340px, 60vw); padding: 12px; display: grid; gap: 5px; color: #172033; border-radius: 10px; background: #fff; }
 .message-card:hover { text-decoration: none; }
 .message-card span, .message-card small { color: #687287; }
+.refund-approval-card { min-width: min(430px, 66vw); padding: 15px; display: grid; gap: 12px; color: #172033; border: 1px solid #cbd5ef; border-radius: 12px; background: #fff; }
+.refund-approval-card header, .refund-approval-card dl div { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.refund-approval-card dl { margin: 0; display: grid; gap: 8px; }
+.refund-approval-card dt { color: #687287; }
+.refund-approval-card dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.refund-approval-card .approval-warning { padding: 9px 11px; color: #7b5212; border-radius: 8px; background: #fff7e6; font-size: .86rem; }
+.refund-approval-card .actions { justify-content: flex-end; }
 .pending-message { opacity: .86; }
 .pending-message button { justify-self: end; }
 .new-message-button { position: sticky; z-index: 3; bottom: 92px; width: fit-content; margin: -66px auto 18px; box-shadow: 0 8px 24px rgb(49 88 216 / 24%); }
@@ -423,6 +433,8 @@ tr.selected td { background: #f0f4ff; }
   .conversation-header { align-items: flex-start; flex-direction: column; }
   .message-timeline { height: 58vh; min-height: 320px; margin-inline: -8px; padding: 14px; }
   .message-bubble { max-width: 88%; }
+  .agent-consent-card { align-items: stretch; flex-direction: column; }
+  .refund-approval-card { min-width: min(72vw, 430px); }
   .message-composer { grid-template-columns: 1fr; }
   .support-workspace-grid { grid-template-columns: 1fr; }
 }

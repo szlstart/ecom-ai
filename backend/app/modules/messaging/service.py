@@ -418,25 +418,25 @@ class MessagingService:
         if context_type == "order":
             from app.modules.orders.models import Order
 
-            resource = await self.session.scalar(
-                select(Order).where(
-                    Order.order_no == payload.resource_id,
-                    Order.user_id == user.id,
-                    Order.store_id == conversation.store_id,
-                )
-            )
+            order_filters = [
+                Order.order_no == payload.resource_id,
+                Order.user_id == user.id,
+            ]
+            if conversation.store_id is not None:
+                order_filters.append(Order.store_id == conversation.store_id)
+            resource = await self.session.scalar(select(Order).where(*order_filters))
             if resource is None:
                 raise _not_found()
             snapshot = {"order_id": resource.order_no, "status": resource.order_status}
         elif context_type == "product":
             from app.modules.catalog.models import Product
 
-            resource = await self.session.scalar(
-                select(Product).where(
-                    Product.product_no == payload.resource_id,
-                    Product.store_id == conversation.store_id,
-                )
-            )
+            product_filters = [Product.product_no == payload.resource_id]
+            if conversation.store_id is None:
+                product_filters.append(Product.product_status == "on_sale")
+            else:
+                product_filters.append(Product.store_id == conversation.store_id)
+            resource = await self.session.scalar(select(Product).where(*product_filters))
             if resource is None:
                 raise _not_found()
             snapshot = {"product_id": resource.product_no, "name": resource.product_name}
@@ -489,12 +489,10 @@ class MessagingService:
         elif context_type == "shipment":
             from app.modules.logistics.models import Shipment
 
-            resource = await self.session.scalar(
-                select(Shipment).where(
-                    Shipment.shipment_no == payload.resource_id,
-                    Shipment.store_id == conversation.store_id,
-                )
-            )
+            shipment_filters = [Shipment.shipment_no == payload.resource_id]
+            if conversation.store_id is not None:
+                shipment_filters.append(Shipment.store_id == conversation.store_id)
+            resource = await self.session.scalar(select(Shipment).where(*shipment_filters))
             if resource is None:
                 raise _not_found()
             from app.modules.orders.models import Order
@@ -512,13 +510,13 @@ class MessagingService:
         elif context_type == "refund":
             from app.modules.after_sale.models import RefundApplication
 
-            resource = await self.session.scalar(
-                select(RefundApplication).where(
-                    RefundApplication.refund_no == payload.resource_id,
-                    RefundApplication.user_id == user.id,
-                    RefundApplication.store_id == conversation.store_id,
-                )
-            )
+            refund_filters = [
+                RefundApplication.refund_no == payload.resource_id,
+                RefundApplication.user_id == user.id,
+            ]
+            if conversation.store_id is not None:
+                refund_filters.append(RefundApplication.store_id == conversation.store_id)
+            resource = await self.session.scalar(select(RefundApplication).where(*refund_filters))
             if resource is None:
                 raise _not_found()
             snapshot = {
@@ -528,13 +526,13 @@ class MessagingService:
                 "currency": resource.currency,
             }
         elif context_type == "store":
-            store = await self.session.scalar(
-                select(Store).where(
-                    Store.store_no == payload.resource_id,
-                    Store.id == conversation.store_id,
-                    Store.store_status == "active",
-                )
-            )
+            store_filters = [
+                Store.store_no == payload.resource_id,
+                Store.store_status == "active",
+            ]
+            if conversation.store_id is not None:
+                store_filters.append(Store.id == conversation.store_id)
+            store = await self.session.scalar(select(Store).where(*store_filters))
             if store is None:
                 raise _not_found()
             snapshot = {"store_id": store.store_no, "store_name": store.store_name}

@@ -1,15 +1,22 @@
-from fastapi import APIRouter, Response, status
+from typing import Annotated
+
+from fastapi import APIRouter, Header, Response, status
 
 from app.api.dependencies import IdempotencyKey, UserContext
 from app.api.schemas import Envelope
-from app.modules.agent_runtime.dependencies import AgentRuntimeServiceDependency
+from app.modules.agent_runtime.dependencies import (
+    AgentApprovalServiceDependency,
+    AgentRuntimeServiceDependency,
+)
 from app.modules.agent_runtime.schemas import (
+    AgentApprovalDecisionRequest,
+    AgentApprovalView,
     AgentConsentGrantRequest,
     AgentConsentList,
     AgentConsentView,
     AgentRunView,
 )
-from app.modules.identity.router import _no_store
+from app.modules.identity.router import _etag, _expected_version, _no_store
 
 router = APIRouter(tags=["agent-runtime"])
 
@@ -112,5 +119,48 @@ async def get_agent_run(
     service: AgentRuntimeServiceDependency,
 ) -> Envelope[AgentRunView]:
     result = await service.get(context.user, run_id)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.get(
+    "/agent-tool-approvals/{approval_id}",
+    response_model=Envelope[AgentApprovalView],
+    operation_id="AgentToolApproval_GetMine",
+)
+async def get_agent_tool_approval(
+    approval_id: str,
+    response: Response,
+    context: UserContext,
+    service: AgentApprovalServiceDependency,
+) -> Envelope[AgentApprovalView]:
+    result = await service.get(context.user, approval_id)
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/agent-tool-approvals/{approval_id}/decisions",
+    response_model=Envelope[AgentApprovalView],
+    operation_id="AgentToolApproval_DecideMine",
+)
+async def decide_agent_tool_approval(
+    approval_id: str,
+    payload: AgentApprovalDecisionRequest,
+    response: Response,
+    context: UserContext,
+    service: AgentApprovalServiceDependency,
+    idempotency_key: IdempotencyKey,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AgentApprovalView]:
+    result = await service.decide(
+        context.user,
+        approval_id,
+        payload,
+        _expected_version(if_match),
+        idempotency_key,
+    )
+    response.headers["ETag"] = _etag(result.version)
     _no_store(response)
     return Envelope(data=result)

@@ -141,6 +141,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agent-tool-approvals/{approval_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Tool Approval */
+        get: operations["AgentToolApproval_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-tool-approvals/{approval_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Agent Tool Approval */
+        post: operations["AgentToolApproval_DecideMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/registration-config": {
         parameters: {
             query?: never;
@@ -5300,6 +5334,48 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AgentApprovalDecisionRequest */
+        AgentApprovalDecisionRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject";
+        };
+        /** AgentApprovalView */
+        AgentApprovalView: {
+            /** Approval Id */
+            approval_id: string;
+            /** Run Id */
+            run_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Action Type
+             * @constant
+             */
+            action_type: "refund_submit";
+            /**
+             * Approval Status
+             * @enum {string}
+             */
+            approval_status: "pending" | "approved" | "rejected" | "expired" | "consumed";
+            /** Decision */
+            decision: ("approve" | "reject") | null;
+            /** Draft */
+            draft: {
+                [key: string]: unknown;
+            };
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Version */
+            version: number;
+        };
         /** AgentConsentGrantRequest */
         AgentConsentGrantRequest: {
             /**
@@ -6198,6 +6274,11 @@ export interface components {
         /** Envelope[AdminUserSummary] */
         Envelope_AdminUserSummary_: {
             data: components["schemas"]["AdminUserSummary"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentApprovalView] */
+        Envelope_AgentApprovalView_: {
+            data: components["schemas"]["AgentApprovalView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AgentConsentList] */
@@ -9601,6 +9682,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_AgentRunView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AgentToolApproval_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentApprovalView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AgentToolApproval_DecideMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentApprovalView_"];
                 };
             };
             /** @description Validation Error */

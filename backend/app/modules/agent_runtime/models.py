@@ -13,7 +13,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER
+from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER, VARBINARY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import AppendOnlyMySQLModel, MutableMySQLModel, MySQLBase
@@ -33,7 +33,7 @@ class AgentDefinition(MutableMySQLModel, MySQLBase):
 
     agent_no: Mapped[str] = mapped_column(String(40), nullable=False)
     agent_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-    agent_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    agent_type: Mapped[str] = mapped_column(String(32), nullable=False)
     scope_type: Mapped[str] = mapped_column(String(16), nullable=False, default="platform")
     store_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("stores.id"))
     strategy_reuse_approved: Mapped[bool] = mapped_column(
@@ -132,3 +132,85 @@ class UserAgentConsent(MutableMySQLModel, MySQLBase):
     consent_status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+
+
+class AgentRefundDraft(MutableMySQLModel, MySQLBase):
+    __tablename__ = "ai_refund_drafts"
+    __table_args__ = (
+        UniqueConstraint("draft_no", name="uk_ai_refund_drafts_no"),
+        UniqueConstraint("run_id", name="uk_ai_refund_drafts_run"),
+        Index("idx_ai_refund_drafts_expiry", "draft_status", "expires_at", "id"),
+    )
+
+    draft_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    run_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("ai_agent_runs.id"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    order_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("orders.id"), nullable=False
+    )
+    draft_payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    eligibility_token_ciphertext: Mapped[bytes] = mapped_column(VARBINARY(4096), nullable=False)
+    arguments_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    draft_status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+
+
+class AgentToolApproval(MutableMySQLModel, MySQLBase):
+    __tablename__ = "ai_tool_approvals"
+    __table_args__ = (
+        UniqueConstraint("approval_no", name="uk_ai_tool_approvals_no"),
+        UniqueConstraint("run_id", "action_type", name="uk_ai_tool_approvals_run_action"),
+        Index("idx_ai_tool_approvals_user", "user_id", "approval_status", "expires_at", "id"),
+    )
+
+    approval_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    run_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("ai_agent_runs.id"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    conversation_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("conversations.id"), nullable=False
+    )
+    draft_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("ai_refund_drafts.id"), nullable=False
+    )
+    action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    arguments_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    resource_versions: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    approval_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    decision: Mapped[str | None] = mapped_column(String(16))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+
+
+class AgentToolAction(MutableMySQLModel, MySQLBase):
+    __tablename__ = "ai_tool_actions"
+    __table_args__ = (
+        UniqueConstraint("action_no", name="uk_ai_tool_actions_no"),
+        UniqueConstraint("approval_id", name="uk_ai_tool_actions_approval"),
+        Index("idx_ai_tool_actions_status", "action_status", "updated_at", "id"),
+    )
+
+    action_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    approval_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("ai_tool_approvals.id"), nullable=False
+    )
+    run_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("ai_agent_runs.id"), nullable=False
+    )
+    action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    arguments_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    action_status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
+    resource_no: Mapped[str | None] = mapped_column(String(64))
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))

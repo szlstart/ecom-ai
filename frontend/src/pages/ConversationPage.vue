@@ -3,6 +3,15 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { ApiProblem, errorMessage } from '@/api/http'
+import {
+  decideAgentToolApproval,
+  getAgentToolApproval,
+  grantAfterSaleAgentConsent,
+  listAgentConsents,
+  revokeAgentConsent,
+  type AgentConsent,
+  type AgentToolApproval,
+} from '@/api/agent-runtime'
 import { RealtimeConnection, type RealtimeEvent } from '@/api/realtime'
 import {
   createClientMessageId,
@@ -38,10 +47,21 @@ const humanSummary = ref('')
 const humanBusy = ref(false)
 const humanNotice = ref('')
 const humanTicket = ref<HumanServiceTicket | null>(null)
+const agentConsents = ref<AgentConsent[]>([])
+const consentBusy = ref(false)
+const consentNotice = ref('')
+const approvalStates = ref<Record<string, AgentToolApproval>>({})
+const approvalBusy = ref<string | null>(null)
 const messageList = ref<HTMLElement | null>(null)
 const newBelowCount = ref(0)
 const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
 const conversationId = computed(() => String(route.params.conversationId))
+const activeAfterSaleConsent = computed(() => agentConsents.value.find((item) => (
+  item.consent_type === 'after_sale_write'
+  && item.scope_type === 'user'
+  && item.status === 'active'
+  && (!item.expires_at || apiDate(item.expires_at).getTime() > Date.now())
+)) ?? null)
 let pollTimer: number | undefined
 let realtime: RealtimeConnection | undefined
 let observer: IntersectionObserver | undefined
@@ -63,7 +83,46 @@ function senderLabel(value: ChatMessage['sender_type']): string {
   return ({ user: '我', agent: '智能客服', human: '人工客服', system: '系统', tool: '服务结果' } as Record<string, string>)[value] ?? value
 }
 function timeLabel(value: string): string {
-  return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+  return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(apiDate(value))
+}
+function dateTimeLabel(value: string): string {
+  const parsed = apiDate(value)
+  return Number.isNaN(parsed.getTime())
+    ? '—'
+    : new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed)
+}
+function apiDate(value: string): Date {
+  return new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`)
+}
+function contentString(message: ChatMessage, key: string): string {
+  const value = message.content?.[key]
+  return typeof value === 'string' ? value : ''
+}
+function contentNumber(message: ChatMessage, key: string): number | null {
+  const value = message.content?.[key]
+  return typeof value === 'number' && Number.isSafeInteger(value) ? value : null
+}
+function evidenceLabel(message: ChatMessage): string {
+  const value = message.content?.evidence_file_ids
+  return Array.isArray(value) && value.length ? `${value.length} 个凭证文件` : '未提供'
+}
+function approvalId(message: ChatMessage): string { return contentString(message, 'approval_id') }
+function approvalFor(message: ChatMessage): AgentToolApproval | null {
+  return approvalStates.value[approvalId(message)] ?? null
+}
+function approvalStatus(message: ChatMessage): AgentToolApproval['approval_status'] {
+  return approvalFor(message)?.approval_status ?? 'pending'
+}
+function approvalStatusLabel(message: ChatMessage): string {
+  return ({ pending: '等待确认', approved: '已确认，正在提交', rejected: '已拒绝', expired: '已过期', consumed: '已处理' })[approvalStatus(message)]
+}
+function requestedAmountLabel(message: ChatMessage): string {
+  const value = message.content?.requested_amount
+  if (!value || typeof value !== 'object') return '—'
+  const amount = Number((value as Record<string, unknown>).amount)
+  const currency = String((value as Record<string, unknown>).currency ?? 'CNY')
+  if (!Number.isSafeInteger(amount)) return '—'
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency }).format(amount / 100)
 }
 function draftKey(): string { return `ecom-ai:draft:${conversationId.value}` }
 function restoreDraft() {
@@ -91,8 +150,69 @@ function mergeMessages(incoming: ChatMessage[], shouldScroll: boolean) {
   const additions = incoming.filter((item) => !known.has(item.message_id))
   if (!additions.length) return
   messages.value = [...messages.value, ...additions].sort((left, right) => left.sequence_no - right.sequence_no)
+  void refreshApprovals(additions)
   if (!shouldScroll) newBelowCount.value += additions.filter((item) => item.sender_type !== 'user').length
   void nextTick(() => { observeRenderedMessages(); if (shouldScroll) scrollToBottom() })
+}
+async function refreshAgentConsents() {
+  agentConsents.value = (await listAgentConsents(token())).data.items
+}
+async function refreshApprovals(candidates: ChatMessage[] = messages.value) {
+  const ids = [...new Set(candidates.filter((item) => item.message_type === 'refund_approval').map(approvalId).filter(Boolean))]
+  await Promise.all(ids.map(async (id) => {
+    try {
+      const state = (await getAgentToolApproval(id, token())).data
+      approvalStates.value = { ...approvalStates.value, [id]: state }
+    } catch (cause) {
+      if (!(cause instanceof ApiProblem) || cause.body.status !== 404) throw cause
+    }
+  }))
+}
+async function grantAfterSaleConsent() {
+  if (consentBusy.value || !window.confirm('授权专属客服在未来 30 天内协助准备售后申请草稿？实际提交仍必须由你逐次点击确认。')) return
+  consentBusy.value = true
+  error.value = ''
+  try {
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const granted = (await grantAfterSaleAgentConsent(token(), expiresAt)).data
+    agentConsents.value = [granted, ...agentConsents.value]
+    consentNotice.value = '售后协助授权已生效；退款提交仍需逐次核对并点击确认。'
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { consentBusy.value = false }
+}
+async function revokeAfterSaleConsent() {
+  const consent = activeAfterSaleConsent.value
+  if (!consent || consentBusy.value || !window.confirm('确认撤销专属客服的售后协助授权吗？未提交的审批将无法继续执行。')) return
+  consentBusy.value = true
+  error.value = ''
+  try {
+    const revoked = (await revokeAgentConsent(consent.consent_id, token())).data
+    agentConsents.value = agentConsents.value.map((item) => item.consent_id === revoked.consent_id ? revoked : item)
+    consentNotice.value = '售后协助授权已撤销。'
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { consentBusy.value = false }
+}
+async function decideApproval(message: ChatMessage, decision: 'approve' | 'reject') {
+  const id = approvalId(message)
+  const state = approvalFor(message)
+  const cardVersion = Number(message.content?.approval_version)
+  const version = state?.version ?? cardVersion
+  if (!id || !Number.isSafeInteger(version) || approvalBusy.value) return
+  const prompt = decision === 'approve'
+    ? `确认提交订单 ${contentString(message, 'order_id')} 的退款申请，申请金额 ${requestedAmountLabel(message)}？`
+    : '确认拒绝并关闭这份退款申请草稿吗？'
+  if (!window.confirm(prompt)) return
+  approvalBusy.value = id
+  error.value = ''
+  try {
+    const result = (await decideAgentToolApproval(id, decision, version, token())).data
+    approvalStates.value = { ...approvalStates.value, [id]: result }
+    consentNotice.value = decision === 'approve' ? '已确认提交，专属客服正在处理，请勿重复操作。' : '已拒绝该退款申请草稿。'
+    window.setTimeout(() => void poll(), 600)
+  } catch (cause) {
+    error.value = errorMessage(cause)
+    await refreshApprovals([message])
+  } finally { approvalBusy.value = null }
 }
 async function refreshHumanTicket() {
   try { humanTicket.value = (await getHumanServiceTicket(conversationId.value, token())).data }
@@ -112,7 +232,11 @@ async function load() {
     ])
     conversation.value = detail.data
     messages.value = history.data.items
-    await refreshHumanTicket()
+    await Promise.all([
+      refreshHumanTicket(),
+      detail.data.conversation_type === 'exclusive' ? refreshAgentConsents() : Promise.resolve(),
+      refreshApprovals(history.data.items),
+    ])
     restoreDraft()
     await nextTick()
     scrollToBottom()
@@ -326,7 +450,7 @@ function onlineChanged() {
 }
 
 watch(draft, persistDraft)
-watch(conversationId, async () => { pending.value = []; streamingReply.value = null; newBelowCount.value = 0; await load() })
+watch(conversationId, async () => { pending.value = []; streamingReply.value = null; newBelowCount.value = 0; agentConsents.value = []; approvalStates.value = {}; await load() })
 onMounted(async () => {
   await load()
   realtime = new RealtimeConnection({
@@ -360,6 +484,16 @@ onBeforeUnmount(() => {
     </header>
     <p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <p v-if="humanNotice" class="alert success" role="status">{{ humanNotice }}</p>
+    <p v-if="consentNotice" class="alert success" role="status">{{ consentNotice }}</p>
+    <section v-if="conversation?.conversation_type === 'exclusive'" class="agent-consent-card" aria-labelledby="after-sale-consent-heading">
+      <div>
+        <strong id="after-sale-consent-heading">专属客服售后协助授权</strong>
+        <p v-if="activeAfterSaleConsent">已授权专属客服准备售后草稿<span v-if="activeAfterSaleConsent.expires_at">，有效期至 {{ dateTimeLabel(activeAfterSaleConsent.expires_at) }}</span>。每次退款提交仍需你核对卡片并点击确认。</p>
+        <p v-else>授权后，专属客服可以根据你的当前订单准备售后草稿；授权本身不会创建退款，聊天中的“确认”也不会触发提交。</p>
+      </div>
+      <button v-if="activeAfterSaleConsent" type="button" class="small secondary" :disabled="consentBusy" @click="revokeAfterSaleConsent">{{ consentBusy ? '处理中…' : '撤销授权' }}</button>
+      <button v-else type="button" class="small" :disabled="consentBusy" @click="grantAfterSaleConsent">{{ consentBusy ? '授权中…' : '授权售后协助 30 天' }}</button>
+    </section>
     <section v-if="humanTicket && !['resolved','closed'].includes(humanTicket.ticket_status)" class="alert info human-ticket-status" aria-live="polite">
       <span v-if="humanTicket.ticket_status === 'queued'">人工客服排队中<span v-if="humanTicket.queue_position">，当前第 {{ humanTicket.queue_position }} 位</span>。</span>
       <span v-else-if="humanTicket.ticket_status === 'waiting_user'">人工客服正在等待你的补充信息。</span>
@@ -376,8 +510,27 @@ onBeforeUnmount(() => {
         <article v-for="message in messages" :key="message.message_id" :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'user' ? 'mine' : 'theirs']">
           <strong>{{ senderLabel(message.sender_type) }}</strong>
           <p v-if="message.text">{{ message.text }}</p>
-          <RouterLink v-else-if="message.message_type === 'product_card' && message.content" class="message-card" :to="`/products/${message.content.product_id}`"><span>商品卡片</span><strong>{{ message.content.product_name }}</strong><small>{{ message.content.sku_name || '查看商品详情' }}</small></RouterLink>
-          <RouterLink v-else-if="message.message_type === 'order_card' && message.content" class="message-card" :to="`/me/orders/${message.content.order_id}`"><span>订单卡片</span><strong>{{ message.content.order_id }}</strong><small>状态：{{ message.content.order_status }}</small></RouterLink>
+          <RouterLink v-if="message.message_type === 'product_card' && message.content" class="message-card" :to="`/products/${message.content.product_id}`"><span>商品卡片</span><strong>{{ message.content.product_name }}</strong><small>{{ message.content.sku_name || '查看商品详情' }}</small></RouterLink>
+          <RouterLink v-if="message.message_type === 'order_card' && message.content" class="message-card" :to="`/me/orders/${message.content.order_id}`"><span>订单卡片</span><strong>{{ message.content.order_id }}</strong><small>状态：{{ message.content.order_status }}</small></RouterLink>
+          <section v-if="message.message_type === 'refund_approval' && message.content" class="refund-approval-card" :aria-label="`退款申请确认：${approvalStatusLabel(message)}`">
+            <header><strong>退款申请确认</strong><span class="badge">{{ approvalStatusLabel(message) }}</span></header>
+            <dl>
+              <div><dt>订单</dt><dd>{{ contentString(message, 'order_id') }}</dd></div>
+              <div><dt>商品</dt><dd>{{ contentString(message, 'product_name') }} · {{ contentString(message, 'sku_name') }}</dd></div>
+              <div><dt>数量</dt><dd>{{ contentNumber(message, 'quantity') ?? '—' }} 件</dd></div>
+              <div><dt>退款方式</dt><dd>{{ contentString(message, 'refund_type') === 'return_and_refund' ? '退货退款' : '仅退款' }}</dd></div>
+              <div><dt>申请金额</dt><dd><strong>{{ requestedAmountLabel(message) }}</strong></dd></div>
+              <div><dt>原因</dt><dd>{{ contentString(message, 'reason_detail') }}</dd></div>
+              <div><dt>凭证</dt><dd>{{ evidenceLabel(message) }}</dd></div>
+              <div><dt>规则版本</dt><dd>{{ contentString(message, 'policy_version') }}</dd></div>
+              <div><dt>有效期</dt><dd>{{ dateTimeLabel(contentString(message, 'expires_at')) }}</dd></div>
+            </dl>
+            <p class="approval-warning">点击确认后才会提交；在聊天框输入“确认”不会产生退款申请。</p>
+            <div v-if="approvalStatus(message) === 'pending'" class="actions">
+              <button type="button" class="secondary" :disabled="approvalBusy === approvalId(message)" @click="decideApproval(message, 'reject')">拒绝</button>
+              <button type="button" :disabled="approvalBusy === approvalId(message)" @click="decideApproval(message, 'approve')">{{ approvalBusy === approvalId(message) ? '处理中…' : '核对无误，确认提交' }}</button>
+            </div>
+          </section>
           <small><time :datetime="message.sent_at">{{ timeLabel(message.sent_at) }}</time></small>
         </article>
         <article v-for="item in pending" :key="item.clientMessageId" class="message-bubble mine pending-message">

@@ -10,10 +10,12 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
 from app.core.logging import configure_logging
-from app.core.security import utc_now
+from app.core.security import SecurityService, utc_now
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.database.postgres import close_postgres, initialize_postgres, postgres_session
+from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
+from app.modules.agent_runtime.exclusive_agent import process_exclusive_run
 from app.modules.agent_runtime.models import AgentRun
 from app.modules.agent_runtime.service import AgentRuntimeService
 from app.modules.agent_runtime.store_agent import process_store_run
@@ -65,11 +67,6 @@ async def dispatch_response_requests(limit: int = 50) -> int:
                 _reject_event(event, "AGENT_TRIGGER_NOT_FOUND", now)
                 continue
             conversation, message = row
-            if conversation.conversation_type != "store":
-                event.available_at = now + timedelta(minutes=1)
-                event.last_error_code = "AGENT_TYPE_NOT_RELEASED"
-                event.attempt_count += 1
-                continue
             refs = event.payload.get("context_refs", [])
             if not isinstance(refs, list) or any(not isinstance(item, dict) for item in refs):
                 _reject_event(event, "AGENT_CONTEXT_SNAPSHOT_INVALID", now)
@@ -98,7 +95,10 @@ async def dispatch_response_requests(limit: int = 50) -> int:
 
 async def process_batch(limit: int = 20) -> int:
     processed = 0
+    settings = get_settings()
+    security = SecurityService(settings)
     async for session in mysql_session():
+        await AgentApprovalService(session, settings, security).reconcile_unknown(limit=limit)
         runs = list(
             (
                 await session.scalars(
@@ -113,11 +113,26 @@ async def process_batch(limit: int = 20) -> int:
         async for checkpoint_session in postgres_session():
             checkpoint_store = AgentCheckpointStore(checkpoint_session)
             for run in runs:
-                await process_store_run(
-                    session,
-                    run,
-                    checkpoint_store=checkpoint_store,
-                )
+                conversation = await session.get(Conversation, run.conversation_id)
+                if conversation is None:
+                    run.run_status = "failed"
+                    run.current_phase = "failed"
+                    run.error_code = "AGENT_CONVERSATION_NOT_FOUND"
+                    run.version += 1
+                elif conversation.conversation_type == "exclusive":
+                    await process_exclusive_run(
+                        session,
+                        run,
+                        settings=settings,
+                        security=security,
+                        checkpoint_store=checkpoint_store,
+                    )
+                else:
+                    await process_store_run(
+                        session,
+                        run,
+                        checkpoint_store=checkpoint_store,
+                    )
                 processed += 1
         await session.commit()
     return processed

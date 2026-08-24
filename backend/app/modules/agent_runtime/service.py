@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from datetime import UTC
 from typing import Any, cast
 
 from sqlalchemy import and_, or_, select
@@ -152,7 +153,10 @@ class AgentRuntimeService:
             )
             if existing is not None:
                 return _consent_view(existing)
-        if payload.expires_at is not None and payload.expires_at <= utc_now():
+        expires_at = payload.expires_at
+        if expires_at is not None and expires_at.tzinfo is not None:
+            expires_at = expires_at.astimezone(UTC).replace(tzinfo=None)
+        if expires_at is not None and expires_at <= utc_now():
             raise ApplicationError(
                 status=422,
                 code="AI_CONSENT_EXPIRY_INVALID",
@@ -167,13 +171,16 @@ class AgentRuntimeService:
             scope_no=payload.scope_id,
             policy_version=payload.policy_version,
             consent_status="active",
-            expires_at=payload.expires_at,
+            expires_at=expires_at,
         )
         self.session.add(consent)
         await self.session.flush()
         self.idempotency.complete(claim, response_status=201, resource_no=consent.consent_no)
+        await self.session.flush()
+        await self.session.refresh(consent)
+        result = _consent_view(consent)
         await self.session.commit()
-        return _consent_view(consent)
+        return result
 
     async def consent_command(self, user: User, consent_no: str, command: str) -> AgentConsentView:
         consent = await self.session.scalar(
@@ -199,8 +206,9 @@ class AgentRuntimeService:
         consent.consent_status = target
         consent.revoked_at = utc_now() if target == "revoked" else None
         consent.version += 1
+        result = _consent_view(consent)
         await self.session.commit()
-        return _consent_view(consent)
+        return result
 
 
 _CONTEXT_TYPES = frozenset(

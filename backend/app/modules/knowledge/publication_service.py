@@ -6,6 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.core.exceptions import ApplicationError
 from app.core.security import SecurityService
+from app.modules.agent_runtime.delegation import (
+    MultiAgentEvaluationReport,
+    MultiAgentReleaseGate,
+    MultiAgentRoutingPolicy,
+)
 from app.modules.agent_runtime.models import AgentDefinition, AgentVersion
 from app.modules.knowledge.models import (
     AgentSkillBinding,
@@ -54,6 +59,8 @@ class AiPublicationService:
         agent, version = row
         evaluation = version.policy_config.get("evaluation_report")
         if not isinstance(evaluation, dict) or not bool(evaluation.get("passed")):
+            raise _evaluation_required()
+        if not multi_agent_policy_is_publishable(version.policy_config):
             raise _evaluation_required()
         skill_versions = list(
             (
@@ -289,3 +296,59 @@ def _schemas_are_safe(
         and input_schema.get("additionalProperties") is False
         and output_schema.get("type") == "object"
     )
+
+
+def multi_agent_policy_is_publishable(policy_config: dict[str, object]) -> bool:
+    raw_policy = policy_config.get("multi_agent")
+    if not isinstance(raw_policy, dict) or raw_policy.get("enabled") is not True:
+        return True
+    routing = MultiAgentRoutingPolicy.from_agent_version_policy(policy_config)
+    evaluation = policy_config.get("evaluation_report")
+    raw_report = evaluation.get("multi_agent") if isinstance(evaluation, dict) else None
+    if not routing.enabled or not isinstance(evaluation, dict) or not isinstance(raw_report, dict):
+        return False
+    if evaluation.get("report_id") != raw_policy.get("evaluation_report_id"):
+        return False
+    approved_intents = raw_report.get("approved_intents")
+    if (
+        not isinstance(approved_intents, list)
+        or frozenset(item for item in approved_intents if isinstance(item, str))
+        != routing.approved_intents
+    ):
+        return False
+    integer_fields = (
+        "sample_size",
+        "baseline_successes",
+        "candidate_successes",
+        "candidate_safety_violations",
+        "candidate_p95_latency_ms",
+        "approved_p95_latency_ms",
+    )
+    if any(not _is_integer(raw_report.get(name)) for name in integer_fields):
+        return False
+    cost_fields = ("candidate_average_cost", "approved_average_cost")
+    if any(not _is_number(raw_report.get(name)) for name in cost_fields):
+        return False
+    golden_set_version = raw_report.get("golden_set_version")
+    if not isinstance(golden_set_version, str):
+        return False
+    report = MultiAgentEvaluationReport(
+        golden_set_version=golden_set_version,
+        sample_size=int(raw_report["sample_size"]),
+        baseline_successes=int(raw_report["baseline_successes"]),
+        candidate_successes=int(raw_report["candidate_successes"]),
+        candidate_safety_violations=int(raw_report["candidate_safety_violations"]),
+        candidate_p95_latency_ms=int(raw_report["candidate_p95_latency_ms"]),
+        approved_p95_latency_ms=int(raw_report["approved_p95_latency_ms"]),
+        candidate_average_cost=float(raw_report["candidate_average_cost"]),
+        approved_average_cost=float(raw_report["approved_average_cost"]),
+    )
+    return MultiAgentReleaseGate().evaluate(report).approved
+
+
+def _is_integer(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool)

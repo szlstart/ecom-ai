@@ -17,6 +17,7 @@ from app.modules.knowledge.models import (
     ToolDefinition,
     ToolVersion,
 )
+from app.modules.knowledge.publication_service import multi_agent_policy_is_publishable
 from app.modules.knowledge.schemas import (
     AgentList,
     AgentSkillBindingCreate,
@@ -156,6 +157,7 @@ class KnowledgeAdminService:
             or version.version_status != "draft"
             or not isinstance(evaluation, dict)
             or not bool(evaluation.get("passed"))
+            or not multi_agent_policy_is_publishable(version.policy_config)
         ):
             raise _conflict("AGENT_VERSION_NOT_PUBLISHABLE")
         old = list(

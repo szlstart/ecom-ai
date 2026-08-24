@@ -3,6 +3,7 @@ import pytest
 from app.modules.knowledge.cleaning import clean_document_text
 from app.modules.knowledge.contracts import ToolCall, ToolScope, authorize_tool
 from app.modules.knowledge.mcp_registry import MCP_SERVERS, server_for_tool
+from app.modules.knowledge.publication_service import multi_agent_policy_is_publishable
 from app.modules.knowledge.retrieval import (
     RetrievedChunk,
     lexical_search,
@@ -74,3 +75,36 @@ def test_skill_hard_deny_wins_over_allow_and_keeps_budgets() -> None:
         ),
     )
     assert plan.allowed_tools == {"support.get_ticket_status"}
+
+
+def test_multi_agent_agent_version_requires_matching_release_evidence() -> None:
+    report = {
+        "passed": True,
+        "report_id": "eval_release_1",
+        "multi_agent": {
+            "approved_intents": ["order_and_logistics_compare"],
+            "golden_set_version": "multi-agent-golden-v1",
+            "sample_size": 200,
+            "baseline_successes": 130,
+            "candidate_successes": 160,
+            "candidate_safety_violations": 0,
+            "candidate_p95_latency_ms": 1800,
+            "approved_p95_latency_ms": 2000,
+            "candidate_average_cost": 0.03,
+            "approved_average_cost": 0.04,
+        },
+    }
+    policy = {
+        "multi_agent": {
+            "enabled": True,
+            "approved_intents": ["order_and_logistics_compare"],
+            "evaluation_report_id": "eval_release_1",
+        },
+        "evaluation_report": report,
+    }
+    assert multi_agent_policy_is_publishable(policy)
+    report["report_id"] = "eval_other"
+    assert not multi_agent_policy_is_publishable(policy)
+    report["report_id"] = "eval_release_1"
+    report["multi_agent"]["candidate_safety_violations"] = 1
+    assert not multi_agent_policy_is_publishable(policy)

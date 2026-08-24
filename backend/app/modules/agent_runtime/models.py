@@ -96,6 +96,59 @@ class AgentRun(MutableMySQLModel, MySQLBase):
     degraded_reason: Mapped[str | None] = mapped_column(String(64))
 
 
+class AgentDelegation(MutableMySQLModel, MySQLBase):
+    __tablename__ = "ai_agent_delegations"
+    __table_args__ = (
+        UniqueConstraint("delegation_no", name="uk_ai_agent_delegations_no"),
+        UniqueConstraint("fingerprint", name="uk_ai_agent_delegations_fingerprint"),
+        UniqueConstraint(
+            "run_id",
+            "subtask_key",
+            "specialist_version",
+            name="uk_ai_agent_delegations_run_subtask_version",
+        ),
+        CheckConstraint("depth = 1", name="agent_delegation_depth"),
+        CheckConstraint(
+            "delegation_status IN "
+            "('queued','running','succeeded','partial','failed','denied','unknown','cancelled')",
+            name="agent_delegation_status",
+        ),
+        Index("idx_ai_agent_delegations_run_status", "run_id", "delegation_status", "id"),
+    )
+
+    delegation_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    run_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("ai_agent_runs.id"), nullable=False
+    )
+    subtask_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    specialist_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    specialist_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    fingerprint: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    depth: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
+    delegation_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    objective_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    scope_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    resource_refs: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False)
+    dependency_nos: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    allowed_tools_snapshot: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    budget_snapshot: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    result_snapshot: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    tokens_used: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+    tool_calls: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+    model_calls: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    span_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+
+
 class AgentToolAudit(AppendOnlyMySQLModel, MySQLBase):
     __tablename__ = "ai_agent_tool_audits"
     __table_args__ = (UniqueConstraint("audit_no", name="uk_ai_agent_tool_audits_no"),)

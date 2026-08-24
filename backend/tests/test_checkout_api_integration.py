@@ -1854,11 +1854,30 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
                     reason="测试未领取时禁止审核",
                 ),
                 rejected_row.version,
+                f"refund-unclaimed-{suffix}",
             )
         assert unclaimed_decision.value.code == "REFUND_CLAIM_REQUIRED"
-        claimed_refund = await after_sale.claim_refund(
-            refund_access, rejected_refund_id, rejected_row.version
+        await session.rollback()
+        rejected_row = await session.scalar(
+            select(RefundApplication).where(RefundApplication.refund_no == rejected_refund_id)
         )
+        assert rejected_row is not None
+        rejected_claim_key = f"refund-claim-rejected-{suffix}"
+        rejected_claim_version = rejected_row.version
+        claimed_refund = await after_sale.claim_refund(
+            refund_access,
+            rejected_refund_id,
+            rejected_claim_version,
+            rejected_claim_key,
+        )
+        replayed_claim = await after_sale.claim_refund(
+            refund_access,
+            rejected_refund_id,
+            rejected_claim_version,
+            rejected_claim_key,
+        )
+        assert replayed_claim.version == claimed_refund.version
+        rejected_decision_key = f"refund-reject-{suffix}"
         rejected_result = await after_sale.decide(
             refund_access,
             rejected_refund_id,
@@ -1868,8 +1887,21 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
                 reason="测试拒绝后释放订单项占用",
             ),
             claimed_refund.version,
+            rejected_decision_key,
         )
         assert rejected_result.refund_status == "rejected"
+        replayed_rejection = await after_sale.decide(
+            refund_access,
+            rejected_refund_id,
+            AdminRefundDecisionRequest(
+                decision="reject",
+                reason_code="POLICY_NOT_MET",
+                reason="测试拒绝后释放订单项占用",
+            ),
+            claimed_refund.version,
+            rejected_decision_key,
+        )
+        assert replayed_rejection.version == rejected_result.version
     appeal = await client.post(
         f"/api/v1/refund-applications/{rejected_refund_id}/appeals",
         headers={**auth, "Idempotency-Key": f"refund-appeal-{suffix}"},
@@ -1908,9 +1940,22 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             select(RefundApplication).where(RefundApplication.refund_no == successful_refund_id)
         )
         assert successful_row is not None
+        successful_claim_key = f"refund-claim-success-{suffix}"
+        successful_claim_version = successful_row.version
         claimed_refund = await after_sale.claim_refund(
-            refund_access, successful_refund_id, successful_row.version
+            refund_access,
+            successful_refund_id,
+            successful_claim_version,
+            successful_claim_key,
         )
+        replayed_claim = await after_sale.claim_refund(
+            refund_access,
+            successful_refund_id,
+            successful_claim_version,
+            successful_claim_key,
+        )
+        assert replayed_claim.version == claimed_refund.version
+        approve_key = f"refund-approve-{suffix}"
         approved_refund = await after_sale.decide(
             refund_access,
             successful_refund_id,
@@ -1921,12 +1966,24 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
                 approved_amount=full_eligibility_data["suggested_refund_amount"],
             ),
             claimed_refund.version,
+            approve_key,
         )
         assert approved_refund.refund_status == "refunding"
+        replayed_approval = await after_sale.decide(
+            refund_access,
+            successful_refund_id,
+            AdminRefundDecisionRequest(
+                decision="approve",
+                reason_code="POLICY_PASSED",
+                reason="符合首版原路退款规则",
+                approved_amount=full_eligibility_data["suggested_refund_amount"],
+            ),
+            claimed_refund.version,
+            approve_key,
+        )
+        assert replayed_approval.version == approved_refund.version
         refund_payment = await session.scalar(
-            select(RefundPaymentRecord).where(
-                RefundPaymentRecord.refund_id == successful_row.id
-            )
+            select(RefundPaymentRecord).where(RefundPaymentRecord.refund_id == successful_row.id)
         )
         assert refund_payment is not None
         refund_payment_no = refund_payment.refund_payment_no

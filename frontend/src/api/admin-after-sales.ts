@@ -10,13 +10,13 @@ export function getAdminRefund(refundId: string, token: string): Promise<ApiResu
 }
 
 export function claimAdminRefund(refundId: string, etag: string, token: string): Promise<ApiResult<RefundApplication>> {
-  return apiRequest(`/admin/refund-applications/${encodeURIComponent(refundId)}/claims`, { method: 'POST', headers: { 'If-Match': etag } }, token)
+  return apiRequest(`/admin/refund-applications/${encodeURIComponent(refundId)}/claims`, { method: 'POST', headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey('refund-claim') } }, token)
 }
 
 export function decideAdminRefund(refundId: string, etag: string, decision: 'approve' | 'reject', reasonCode: string, reason: string, token: string): Promise<ApiResult<RefundApplication>> {
   return apiRequest(`/admin/refund-applications/${encodeURIComponent(refundId)}/decisions`, {
     method: 'POST',
-    headers: { 'If-Match': etag },
+    headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey('refund-decision') },
     body: JSON.stringify({ decision, reason_code: reasonCode, reason }),
   }, token)
 }
@@ -30,7 +30,7 @@ export function getAdminAppeal(appealId: string, token: string): Promise<ApiResu
 }
 
 export function claimAdminAppeal(appealId: string, etag: string, token: string): Promise<ApiResult<RefundAppeal>> {
-  return apiRequest(`/admin/refund-appeals/${encodeURIComponent(appealId)}/claims`, { method: 'POST', headers: { 'If-Match': etag } }, token)
+  return apiRequest(`/admin/refund-appeals/${encodeURIComponent(appealId)}/claims`, { method: 'POST', headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey('appeal-claim') } }, token)
 }
 
 export function decideAdminAppeal(appealId: string, etag: string, decision: 'approve' | 'reject', reason: string, token: string): Promise<ApiResult<RefundAppeal>> {

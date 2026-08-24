@@ -77,9 +77,15 @@ async def claim_appeal(
     response: Response,
     service: AfterSaleServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("refund_appeals:review")],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> Envelope[RefundAppealView]:
-    result = await service.claim_appeal(access, appeal_id, _expected_version(if_match))
+    result = await service.claim_appeal(
+        access,
+        appeal_id,
+        _expected_version(if_match),
+        idempotency_key,
+    )
     response.headers["ETag"] = _etag(result.version)
     _no_store(response)
     return Envelope(data=result)
@@ -96,10 +102,15 @@ async def decide_appeal(
     response: Response,
     service: AfterSaleServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("refund_appeals:review")],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> Envelope[RefundAppealView]:
     result = await service.admin_decide_appeal(
-        access, appeal_id, payload, _expected_version(if_match)
+        access,
+        appeal_id,
+        payload,
+        _expected_version(if_match),
+        idempotency_key,
     )
     response.headers["ETag"] = _etag(result.version)
     _no_store(response)
@@ -133,9 +144,15 @@ async def claim_refund(
     response: Response,
     service: AfterSaleServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("refunds:review")],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> Envelope[RefundApplicationView]:
-    result = await service.claim_refund(access, refund_id, _expected_version(if_match))
+    result = await service.claim_refund(
+        access,
+        refund_id,
+        _expected_version(if_match),
+        idempotency_key,
+    )
     response.headers["ETag"] = _etag(result.version)
     _no_store(response)
     return Envelope(data=result)
@@ -152,6 +169,7 @@ async def decide_refund(
     response: Response,
     service: AfterSaleServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("refunds:review")],
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> Envelope[RefundApplicationView]:
     result = await service.decide(
@@ -159,6 +177,7 @@ async def decide_refund(
         refund_id,
         payload,
         _expected_version(if_match),
+        idempotency_key,
     )
     response.headers["ETag"] = _etag(result.version)
     _no_store(response)

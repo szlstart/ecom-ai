@@ -80,9 +80,7 @@ class AfterSaleService:
         active = await self.repository.active_items([item.id for item in items])
         active_by_item: dict[int, tuple[int, int]] = {}
         for refund_item in active:
-            active_quantity, active_amount = active_by_item.get(
-                refund_item.order_item_id, (0, 0)
-            )
+            active_quantity, active_amount = active_by_item.get(refund_item.order_item_id, (0, 0))
             active_by_item[refund_item.order_item_id] = (
                 active_quantity + refund_item.quantity,
                 active_amount + refund_item.requested_amount,
@@ -92,9 +90,7 @@ class AfterSaleService:
         total = 0
         for item in items:
             active_quantity, active_amount = active_by_item.get(item.id, (0, 0))
-            available_qty = max(
-                0, item.quantity - item.refunded_quantity - active_quantity
-            )
+            available_qty = max(0, item.quantity - item.refunded_quantity - active_quantity)
             requested_qty = selected[item.order_item_no]
             if requested_qty <= 0 or requested_qty > available_qty:
                 blocking.append("REFUND_ITEM_CAPACITY_CHANGED")
@@ -208,9 +204,7 @@ class AfterSaleService:
         active = await self.repository.active_items([item.id for item in items])
         active_by_item: dict[int, tuple[int, int]] = {}
         for refund_item in active:
-            active_quantity, active_amount = active_by_item.get(
-                refund_item.order_item_id, (0, 0)
-            )
+            active_quantity, active_amount = active_by_item.get(refund_item.order_item_id, (0, 0))
             active_by_item[refund_item.order_item_id] = (
                 active_quantity + refund_item.quantity,
                 active_amount + refund_item.requested_amount,
@@ -391,12 +385,24 @@ class AfterSaleService:
         return await self._view(refund)
 
     async def claim_refund(
-        self, access: AdminAccess, refund_no: str, expected_version: int
+        self,
+        access: AdminAccess,
+        refund_no: str,
+        expected_version: int,
+        idempotency_key: str,
     ) -> RefundApplicationView:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:refund-claim:{refund_no}:{access.context.user.user_no}",
+            idempotency_key=idempotency_key,
+            payload={"expected_version": expected_version},
+            resource_type="refund_application",
+        )
         refund = await self.repository.admin_application(refund_no, for_update=True)
         if refund is None:
             raise _not_found()
         access.require_scope("store", refund.store_id)
+        if claim.replayed:
+            return await self._view(refund)
         if refund.version != expected_version:
             raise ApplicationError(
                 status=412,
@@ -424,8 +430,15 @@ class AfterSaleService:
             scope_type="store",
             scope_id=refund.store_id,
         )
+        result = await self._view(refund)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=refund.refund_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
         await self.session.commit()
-        return await self._view(refund)
+        return result
 
     async def admin_list(self, access: AdminAccess, limit: int) -> AdminRefundList:
         rows = await self.repository.admin_applications(limit, access.scopes)
@@ -450,14 +463,26 @@ class AfterSaleService:
         return _appeal_view(row[0], row[1].refund_no)
 
     async def claim_appeal(
-        self, access: AdminAccess, appeal_no: str, expected_version: int
+        self,
+        access: AdminAccess,
+        appeal_no: str,
+        expected_version: int,
+        idempotency_key: str,
     ) -> RefundAppealView:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:appeal-claim:{appeal_no}:{access.context.user.user_no}",
+            idempotency_key=idempotency_key,
+            payload={"expected_version": expected_version},
+            resource_type="refund_appeal",
+        )
         if ("platform", 0) not in access.scopes:
             raise _not_found()
         row = await self.repository.admin_appeal(appeal_no, for_update=True)
         if row is None:
             raise _not_found()
         appeal, refund = row
+        if claim.replayed:
+            return _appeal_view(appeal, refund.refund_no)
         if appeal.version != expected_version:
             raise ApplicationError(
                 status=412,
@@ -501,8 +526,15 @@ class AfterSaleService:
             scope_type="platform",
             scope_id=0,
         )
+        result = _appeal_view(appeal, refund.refund_no)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=appeal.appeal_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
         await self.session.commit()
-        return _appeal_view(appeal, refund.refund_no)
+        return result
 
     async def admin_decide_appeal(
         self,
@@ -510,13 +542,25 @@ class AfterSaleService:
         appeal_no: str,
         payload: AdminRefundAppealDecisionRequest,
         expected_version: int,
+        idempotency_key: str,
     ) -> RefundAppealView:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:appeal-decision:{appeal_no}:{access.context.user.user_no}",
+            idempotency_key=idempotency_key,
+            payload={
+                "expected_version": expected_version,
+                "command": payload.model_dump(mode="json"),
+            },
+            resource_type="refund_appeal",
+        )
         if ("platform", 0) not in access.scopes:
             raise _not_found()
         row = await self.repository.admin_appeal(appeal_no, for_update=True)
         if row is None:
             raise _not_found()
         appeal, refund = row
+        if claim.replayed:
+            return _appeal_view(appeal, refund.refund_no)
         if appeal.version != expected_version:
             raise ApplicationError(
                 status=412,
@@ -572,8 +616,15 @@ class AfterSaleService:
             scope_type="platform",
             scope_id=0,
         )
+        result = _appeal_view(appeal, refund.refund_no)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=appeal.appeal_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
         await self.session.commit()
-        return _appeal_view(appeal, refund.refund_no)
+        return result
 
     async def decide(
         self,
@@ -581,11 +632,23 @@ class AfterSaleService:
         refund_no: str,
         payload: AdminRefundDecisionRequest,
         expected_version: int,
+        idempotency_key: str,
     ) -> RefundApplicationView:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:refund-decision:{refund_no}:{access.context.user.user_no}",
+            idempotency_key=idempotency_key,
+            payload={
+                "expected_version": expected_version,
+                "command": payload.model_dump(mode="json"),
+            },
+            resource_type="refund_application",
+        )
         refund = await self.repository.admin_application(refund_no, for_update=True)
         if refund is None:
             raise _not_found()
         access.require_scope("store", refund.store_id)
+        if claim.replayed:
+            return await self._view(refund)
         if refund.version != expected_version:
             raise ApplicationError(
                 status=412,
@@ -689,6 +752,12 @@ class AfterSaleService:
         )
         await self.session.flush()
         result = await self._view(refund)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=refund.refund_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
         await self.session.commit()
         return result
 

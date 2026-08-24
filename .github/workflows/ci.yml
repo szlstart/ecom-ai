@@ -53,16 +53,16 @@ jobs:
       ECOM_DEBUG_VERIFICATION_CODE: "000000"
       ECOM_RUN_INTEGRATION_TESTS: "1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13.14"
           cache: pip
           cache-dependency-path: backend/requirements/dev.txt
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.21.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "24.18.0"
           cache: pnpm

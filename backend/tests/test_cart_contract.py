@@ -13,6 +13,4 @@ def test_cart_selection_only_accepts_unique_public_item_ids() -> None:
     with pytest.raises(ValidationError):
         CartSelectionReplaceRequest(cart_item_ids=["1"], is_selected=True)
     with pytest.raises(ValidationError):
-        CartSelectionReplaceRequest(
-            cart_item_ids=["ci_01TEST", "ci_01TEST"], is_selected=False
-        )
+        CartSelectionReplaceRequest(cart_item_ids=["ci_01TEST", "ci_01TEST"], is_selected=False)

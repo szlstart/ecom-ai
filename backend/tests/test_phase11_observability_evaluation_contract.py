@@ -1,5 +1,9 @@
 from pathlib import Path
 
+from fastapi.routing import APIRoute
+from sqlalchemy import String
+from sqlalchemy.dialects.mysql import BINARY
+
 from app.main import create_app
 from app.modules.evaluation.models import AiEvaluationRun
 from app.modules.evaluation.service import DATASET_SHA256
@@ -9,7 +13,7 @@ def test_phase11_admin_operations_are_registered() -> None:
     operations = {
         route.operation_id
         for route in create_app().routes
-        if getattr(route, "operation_id", None)
+        if isinstance(route, APIRoute) and route.operation_id
     }
     assert {
         "AdminAiEvaluation_List",
@@ -20,8 +24,12 @@ def test_phase11_admin_operations_are_registered() -> None:
 
 def test_evaluation_model_keeps_only_versioned_evidence() -> None:
     columns = AiEvaluationRun.__table__.columns
-    assert columns["evaluation_run_no"].type.length == 40
-    assert columns["dataset_hash"].type.length == 32
+    run_no_type = columns["evaluation_run_no"].type
+    dataset_hash_type = columns["dataset_hash"].type
+    assert isinstance(run_no_type, String)
+    assert isinstance(dataset_hash_type, BINARY)
+    assert run_no_type.length == 40
+    assert dataset_hash_type.length == 32
     assert "prompt" not in columns
     assert "response" not in columns
     assert len(bytes.fromhex(DATASET_SHA256)) == 32

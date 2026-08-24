@@ -192,6 +192,10 @@ class AgentRefundDraft(MutableMySQLModel, MySQLBase):
     __table_args__ = (
         UniqueConstraint("draft_no", name="uk_ai_refund_drafts_no"),
         UniqueConstraint("run_id", name="uk_ai_refund_drafts_run"),
+        CheckConstraint(
+            "draft_status IN ('active','consumed','expired','invalidated')",
+            name="ai_refund_draft_status",
+        ),
         Index("idx_ai_refund_drafts_expiry", "draft_status", "expires_at", "id"),
     )
 
@@ -218,6 +222,14 @@ class AgentToolApproval(MutableMySQLModel, MySQLBase):
     __table_args__ = (
         UniqueConstraint("approval_no", name="uk_ai_tool_approvals_no"),
         UniqueConstraint("run_id", "action_type", name="uk_ai_tool_approvals_run_action"),
+        CheckConstraint(
+            "approval_status IN ('pending','approved','rejected','expired','consumed')",
+            name="ai_tool_approval_status",
+        ),
+        CheckConstraint(
+            "decision IS NULL OR decision IN ('approve','reject')",
+            name="ai_tool_approval_decision",
+        ),
         Index("idx_ai_tool_approvals_user", "user_id", "approval_status", "expires_at", "id"),
     )
 
@@ -249,6 +261,10 @@ class AgentToolAction(MutableMySQLModel, MySQLBase):
     __table_args__ = (
         UniqueConstraint("action_no", name="uk_ai_tool_actions_no"),
         UniqueConstraint("approval_id", name="uk_ai_tool_actions_approval"),
+        CheckConstraint(
+            "action_status IN ('pending','running','succeeded','failed','outcome_unknown')",
+            name="ai_tool_action_status",
+        ),
         Index("idx_ai_tool_actions_status", "action_status", "updated_at", "id"),
     )
 

@@ -183,21 +183,21 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     in_progress = [response for response in concurrent_responses if response.status_code == 409]
     assert successful
     assert len(successful) + len(in_progress) == 2
-    assert all(
-        response.json()["code"] == "IDEMPOTENCY_IN_PROGRESS" for response in in_progress
-    ), [response.json() for response in in_progress]
+    assert all(response.json()["code"] == "IDEMPOTENCY_IN_PROGRESS" for response in in_progress), [
+        response.json() for response in in_progress
+    ]
     recovered_response = await client.post(
         "/api/v1/users/me/addresses",
         headers=concurrent_headers,
         json=concurrent_payload,
     )
     assert recovered_response.status_code == 201
-    assert recovered_response.json()["data"]["address_id"] == successful[0].json()["data"][
-        "address_id"
-    ]
+    assert (
+        recovered_response.json()["data"]["address_id"]
+        == successful[0].json()["data"]["address_id"]
+    )
     assert all(
-        response.json()["data"]["address_id"]
-        == recovered_response.json()["data"]["address_id"]
+        response.json()["data"]["address_id"] == recovered_response.json()["data"]["address_id"]
         for response in successful
     )
 
@@ -426,9 +426,7 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     assert me_response.status_code == 200
     assert me_response.json()["data"]["assurance_level"] == "aal2"
 
-    admin_sessions_response = await client.get(
-        "/api/v1/admin/auth/sessions", headers=admin_headers
-    )
+    admin_sessions_response = await client.get("/api/v1/admin/auth/sessions", headers=admin_headers)
     assert admin_sessions_response.status_code == 200
     assert len(admin_sessions_response.json()["data"]) == 1
     assert admin_sessions_response.json()["data"][0]["is_current"] is True
@@ -437,9 +435,7 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     assert navigation_response.status_code == 200
     assert any(item["code"] == "users" for item in navigation_response.json()["data"]["items"])
     assert any(item["code"] == "products" for item in navigation_response.json()["data"]["items"])
-    assert any(
-        item["code"] == "batch-jobs" for item in navigation_response.json()["data"]["items"]
-    )
+    assert any(item["code"] == "batch-jobs" for item in navigation_response.json()["data"]["items"])
 
     audience_violation = await client.get("/api/v1/users/me", headers=admin_headers)
     assert audience_violation.status_code == 403

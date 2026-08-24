@@ -1,0 +1,129 @@
+# Production overlay. It intentionally disables bundled data services and local
+# builds. An operator must provide immutable, digest-pinned application images
+# and external managed-service endpoints through .env.production.
+x-api-runtime: &api-runtime
+  build: !reset null
+  image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
+  env_file: !override [.env.production]
+  restart: unless-stopped
+  depends_on: !reset {}
+
+x-api-environment: &api-environment
+  ECOM_ENVIRONMENT: production
+  ECOM_DEBUG: "false"
+  ECOM_REFRESH_COOKIE_SECURE: "true"
+  ECOM_MYSQL_DSN: ${ECOM_MYSQL_DSN:?external production MySQL DSN required}
+  ECOM_POSTGRES_DSN: ${ECOM_POSTGRES_DSN:?external production PostgreSQL DSN required}
+  ECOM_REDIS_URL: ${ECOM_REDIS_URL:?external production Redis URL required}
+  ECOM_OBJECT_STORAGE_ENABLED: "true"
+  ECOM_OBJECT_STORAGE_ENDPOINT: ${ECOM_OBJECT_STORAGE_ENDPOINT:?external object storage endpoint required}
+  ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT: ${ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT:?public object storage endpoint required}
+  ECOM_OBJECT_STORAGE_ACCESS_KEY: ${ECOM_OBJECT_STORAGE_ACCESS_KEY:?object storage access key required}
+  ECOM_OBJECT_STORAGE_SECRET_KEY: ${ECOM_OBJECT_STORAGE_SECRET_KEY:?object storage secret key required}
+  ECOM_OTEL_ENABLED: "true"
+  ECOM_OTEL_EXPORTER_OTLP_ENDPOINT: ${ECOM_OTEL_EXPORTER_OTLP_ENDPOINT:?OTLP endpoint required}
+
+services:
+  mysql:
+    profiles: [local-data]
+    ports: !reset []
+    environment: !reset []
+
+  postgres:
+    profiles: [local-data]
+    ports: !reset []
+    environment: !reset []
+
+  redis:
+    profiles: [local-data]
+    ports: !reset []
+    environment: !reset []
+    command: !reset []
+
+  minio:
+    profiles: [local-data]
+    ports: !reset []
+    environment: !reset []
+
+  clamav:
+    profiles: [local-data]
+    ports: !reset []
+
+  api:
+    <<: *api-runtime
+    ports: !reset []
+    environment:
+      <<: *api-environment
+      ECOM_API_HOST: 0.0.0.0
+
+  file-worker:
+    <<: *api-runtime
+    environment:
+      <<: *api-environment
+      ECOM_FILE_SCANNER_ENABLED: "true"
+      ECOM_FILE_SCANNER_HOST: ${ECOM_FILE_SCANNER_HOST:?external malware scanner host required}
+      ECOM_FILE_SCANNER_PORT: ${ECOM_FILE_SCANNER_PORT:-3310}
+
+  batch-worker:
+    <<: *api-runtime
+    environment: *api-environment
+
+  order-timeout-worker:
+    <<: *api-runtime
+    environment: *api-environment
+
+  payment-reconcile-worker:
+    <<: *api-runtime
+    environment: *api-environment
+
+  logistics-sync-worker:
+    <<: *api-runtime
+    environment: *api-environment
+
+  admin-approval-worker:
+    <<: *api-runtime
+    environment: *api-environment
+
+  realtime-outbox-worker:
+    <<: *api-runtime
+    environment: *api-environment
+
+  agent-runtime-worker:
+    <<: *api-runtime
+    environment:
+      <<: *api-environment
+      ECOM_OTEL_SERVICE_NAME: ecom-ai-agent-worker
+
+  knowledge-indexer:
+    <<: *api-runtime
+    environment: *api-environment
+
+  frontend:
+    build: !reset null
+    image: ${ECOM_FRONTEND_IMAGE:?ECOM_FRONTEND_IMAGE must be pinned by sha256 digest}
+    restart: unless-stopped
+    depends_on: !reset {}
+    ports: !override
+      - "127.0.0.1:${ECOM_FRONTEND_HOST_PORT:-18080}:8080"
+
+  mysql-migration-job:
+    profiles: [release]
+    image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
+    env_file: !override [.env.production]
+    environment:
+      ECOM_ENVIRONMENT: production
+      ECOM_MYSQL_DSN: ${ECOM_MYSQL_DSN:?external production MySQL DSN required}
+    command: ["python", "-m", "alembic", "-c", "alembic.mysql.ini", "upgrade", "head"]
+    restart: "no"
+    networks: [backend]
+
+  postgres-migration-job:
+    profiles: [release]
+    image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
+    env_file: !override [.env.production]
+    environment:
+      ECOM_ENVIRONMENT: production
+      ECOM_POSTGRES_DSN: ${ECOM_POSTGRES_DSN:?external production PostgreSQL DSN required}
+    command: ["python", "-m", "alembic", "-c", "alembic.postgres.ini", "upgrade", "head"]
+    restart: "no"
+    networks: [backend]

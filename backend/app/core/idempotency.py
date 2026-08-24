@@ -37,8 +37,7 @@ class IdempotencyService:
         existing = cast(
             IdempotencyRecord | None,
             await self.session.scalar(
-                select(IdempotencyRecord)
-                .where(
+                select(IdempotencyRecord).where(
                     IdempotencyRecord.scope_key == scope_key,
                     IdempotencyRecord.idempotency_key == idempotency_key,
                 )
@@ -84,9 +83,7 @@ class IdempotencyService:
         return IdempotencyClaim(record=record, replayed=False)
 
     @staticmethod
-    def _existing_claim(
-        existing: IdempotencyRecord, request_hash: bytes
-    ) -> IdempotencyClaim:
+    def _existing_claim(existing: IdempotencyRecord, request_hash: bytes) -> IdempotencyClaim:
         if not hmac.compare_digest(existing.request_hash, request_hash):
             raise ApplicationError(
                 status=409,

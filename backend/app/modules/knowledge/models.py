@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.mysql import BIGINT, INTEGER
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,10 +21,13 @@ from app.database.base import MutableMySQLModel, MySQLBase
 
 class SkillDefinition(MutableMySQLModel, MySQLBase):
     __tablename__ = "ai_skill_definitions"
-    __table_args__ = (UniqueConstraint("skill_no", name="uk_ai_skill_definitions_no"),)
+    __table_args__ = (
+        UniqueConstraint("skill_no", name="uk_ai_skill_definitions_no"),
+        UniqueConstraint("skill_code", name="uq_ai_skill_definitions_code"),
+    )
 
     skill_no: Mapped[str] = mapped_column(String(40), nullable=False)
-    skill_code: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    skill_code: Mapped[str] = mapped_column(String(128), nullable=False)
     display_name: Mapped[str] = mapped_column(String(128), nullable=False)
     skill_status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
 
@@ -100,6 +113,7 @@ class SkillToolBinding(MutableMySQLModel, MySQLBase):
     __tablename__ = "ai_skill_tool_bindings"
     __table_args__ = (
         UniqueConstraint("skill_version_id", "tool_version_id", name="uk_ai_skill_tool_binding"),
+        CheckConstraint("permission_effect IN ('allow','deny')", name="skill_tool_effect"),
     )
 
     skill_version_id: Mapped[int] = mapped_column(
@@ -119,6 +133,10 @@ class RuntimeKillSwitch(MutableMySQLModel, MySQLBase):
     __table_args__ = (
         UniqueConstraint("switch_no", name="uk_ai_runtime_kill_switch_no"),
         UniqueConstraint("target_type", "target_code", name="uk_ai_runtime_kill_target"),
+        CheckConstraint(
+            "target_type IN ('agent','skill','tool','mcp_server')",
+            name="ai_kill_target_type",
+        ),
     )
 
     switch_no: Mapped[str] = mapped_column(String(40), nullable=False)

@@ -1,4 +1,5 @@
 import pytest
+from fastapi.routing import APIRoute
 
 from app.core.exceptions import ApplicationError
 from app.main import create_app
@@ -9,7 +10,7 @@ def test_platform_content_operations_are_registered() -> None:
     operations = {
         route.operation_id
         for route in create_app().routes
-        if getattr(route, "operation_id", None)
+        if isinstance(route, APIRoute) and route.operation_id
     }
     assert {
         "AdminContent_List",

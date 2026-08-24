@@ -25,15 +25,13 @@ def upgrade() -> None:
         existing_nullable=False,
     )
     op.execute(
-        "UPDATE file_objects SET visibility = 'public_derivative' "
-        "WHERE visibility = 'public'"
+        "UPDATE file_objects SET visibility = 'public_derivative' WHERE visibility = 'public'"
     )
 
 
 def downgrade() -> None:
     op.execute(
-        "UPDATE file_objects SET visibility = 'public' "
-        "WHERE visibility = 'public_derivative'"
+        "UPDATE file_objects SET visibility = 'public' WHERE visibility = 'public_derivative'"
     )
     op.alter_column(
         "file_objects",

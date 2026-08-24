@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.core.config import get_settings
+
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
@@ -18,11 +20,13 @@ def initialize_mysql(dsn: str) -> None:
     global _engine, _session_factory
     if _engine is not None:
         return
+    settings = get_settings()
     _engine = create_async_engine(
         dsn,
         pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=10,
+        pool_size=settings.mysql_pool_size,
+        max_overflow=settings.mysql_max_overflow,
+        pool_timeout=settings.mysql_pool_timeout_seconds,
         pool_recycle=1800,
     )
     SQLAlchemyInstrumentor().instrument(engine=_engine.sync_engine, enable_commenter=False)

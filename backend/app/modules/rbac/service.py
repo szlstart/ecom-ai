@@ -484,9 +484,7 @@ class RbacService:
         await self.session.commit()
         return self._role_view(role)
 
-    async def list_role_grants(
-        self, access: AdminAccess, user_no: str
-    ) -> list[RoleGrantView]:
+    async def list_role_grants(self, access: AdminAccess, user_no: str) -> list[RoleGrantView]:
         target = await self._require_user(user_no)
         statement = (
             select(UserRole, Role)
@@ -514,10 +512,10 @@ class RbacService:
         target = await self._require_user(user_no)
         statement = (
             select(UserRoleEvent, UserRole)
-                .join(UserRole, UserRole.id == UserRoleEvent.grant_id)
-                .where(UserRole.user_id == target.id)
-                .order_by(UserRoleEvent.created_at.desc(), UserRoleEvent.id.desc())
-                .limit(limit)
+            .join(UserRole, UserRole.id == UserRoleEvent.grant_id)
+            .where(UserRole.user_id == target.id)
+            .order_by(UserRoleEvent.created_at.desc(), UserRoleEvent.id.desc())
+            .limit(limit)
         )
         if ("platform", 0) not in access.scopes:
             statement = statement.where(
@@ -615,9 +613,10 @@ class RbacService:
             if (grant.scope_type, grant.scope_id) == ("platform", 0)
             or (grant.scope_type, grant.scope_id) == (request.scope_type, request.scope_id)
         }
-        if any(item.delegation_policy == "non_delegable" for item in role_permissions) or not {
-            item.permission_code for item in role_permissions
-        } <= operator_codes:
+        if (
+            any(item.delegation_policy == "non_delegable" for item in role_permissions)
+            or not {item.permission_code for item in role_permissions} <= operator_codes
+        ):
             raise ApplicationError(
                 status=403,
                 code="RBAC_ROLE_NOT_DELEGABLE",
@@ -834,9 +833,7 @@ class RbacService:
         self._check_version(grant.version, expected_version)
         access.require_scope("platform", 0)
         if grant.admin_user_id != access.context.user.id:
-            rows = await self.repository.permissions_for_user(
-                access.context.user.id, utc_now()
-            )
+            rows = await self.repository.permissions_for_user(access.context.user.id, utc_now())
             if "users:manage" not in {permission.permission_code for permission, _, _ in rows}:
                 raise ApplicationError(
                     status=404,
@@ -937,8 +934,7 @@ class RbacService:
                     statement.order_by(
                         AdminApprovalRequest.created_at.desc(),
                         AdminApprovalRequest.id.desc(),
-                    )
-                    .limit(limit)
+                    ).limit(limit)
                 )
             ).all()
         )
@@ -1096,9 +1092,7 @@ class RbacService:
             ) from exc
         return self._approval_view(item)
 
-    async def list_audit_logs(
-        self, access: AdminAccess, limit: int = 50
-    ) -> list[AuditLogView]:
+    async def list_audit_logs(self, access: AdminAccess, limit: int = 50) -> list[AuditLogView]:
         logs = await self.repository.admin_logs(access.scopes, limit)
         user_ids = {item.operator_user_id for item in logs}
         users = {

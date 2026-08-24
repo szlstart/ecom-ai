@@ -76,7 +76,9 @@ jobs:
         run: |
           cd backend
           python -m alembic -c alembic.mysql.ini upgrade head
-          python -m alembic -c alembic.mysql.ini downgrade base
+          # k05 is the reviewed rollback floor: crossing it would recreate
+          # retired plaintext internal-note storage and is intentionally blocked.
+          python -m alembic -c alembic.mysql.ini downgrade k05f6a8b9c0d
           python -m alembic -c alembic.mysql.ini upgrade head
           python -m alembic -c alembic.postgres.ini upgrade head
           python -m alembic -c alembic.postgres.ini downgrade base

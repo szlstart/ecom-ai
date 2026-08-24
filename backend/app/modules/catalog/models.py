@@ -329,9 +329,7 @@ class ProductContentVersion(MutableMySQLModel, MySQLBase):
     source_content: Mapped[str] = mapped_column(MEDIUMTEXT, nullable=False)
     source_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
     public_content_format: Mapped[str] = mapped_column(String(24), nullable=False)
-    safe_blocks: Mapped[list[dict[str, object]] | None] = mapped_column(
-        JSON(none_as_null=True)
-    )
+    safe_blocks: Mapped[list[dict[str, object]] | None] = mapped_column(JSON(none_as_null=True))
     safe_html: Mapped[str | None] = mapped_column(MEDIUMTEXT)
     safe_text: Mapped[str] = mapped_column(MEDIUMTEXT, nullable=False)
     content_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
@@ -371,9 +369,7 @@ class ProductFaqVersion(MutableMySQLModel, MySQLBase):
     source_content: Mapped[str] = mapped_column(Text, nullable=False)
     source_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
     public_content_format: Mapped[str] = mapped_column(String(24), nullable=False)
-    safe_blocks: Mapped[list[dict[str, object]] | None] = mapped_column(
-        JSON(none_as_null=True)
-    )
+    safe_blocks: Mapped[list[dict[str, object]] | None] = mapped_column(JSON(none_as_null=True))
     safe_html: Mapped[str | None] = mapped_column(Text)
     safe_text: Mapped[str] = mapped_column(Text, nullable=False)
     content_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)

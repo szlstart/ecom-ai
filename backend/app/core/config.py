@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import parse_qs, urlparse
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,6 +26,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     readiness_checks_enabled: bool = True
     dependency_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
+    public_origin: str = "http://127.0.0.1:8080"
 
     mysql_dsn: str = (
         "mysql+asyncmy://ecom_app:local-app-change-me@127.0.0.1:13306/ecom_ai?charset=utf8mb4"
@@ -32,12 +34,19 @@ class Settings(BaseSettings):
     postgres_dsn: str = (
         "postgresql+asyncpg://ecom_ai:local-postgres-change-me@127.0.0.1:15432/ecom_ai_ai"
     )
+    mysql_pool_size: int = Field(default=10, ge=1, le=100)
+    mysql_max_overflow: int = Field(default=10, ge=0, le=100)
+    mysql_pool_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    postgres_pool_size: int = Field(default=5, ge=1, le=100)
+    postgres_max_overflow: int = Field(default=5, ge=0, le=100)
+    postgres_pool_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
     embedding_api_url: str | None = None
     embedding_api_key: SecretStr | None = None
     embedding_model: str = "ecom-multilingual-v1"
     embedding_dimension: int = Field(default=1536, ge=1, le=4096)
     embedding_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
     redis_url: str = "redis://:local-redis-change-me@127.0.0.1:16379/0"
+    redis_max_connections: int = Field(default=50, ge=5, le=1000)
     realtime_ticket_ttl_seconds: int = Field(default=30, ge=10, le=120)
     realtime_connection_lease_seconds: int = Field(default=75, ge=30, le=180)
     realtime_heartbeat_seconds: int = Field(default=25, ge=10, le=60)
@@ -98,13 +107,62 @@ class Settings(BaseSettings):
         )
         if any("development" in secret or "change-me" in secret for secret in secrets):
             raise ValueError("production authentication secrets must be provided")
+        if any(len(secret) < 32 for secret in secrets):
+            raise ValueError(
+                "production authentication secrets must contain at least 32 characters"
+            )
+        if self.debug:
+            raise ValueError("debug mode is forbidden in production")
         if self.debug_verification_code is not None:
             raise ValueError("debug verification code is forbidden in production")
         if not self.refresh_cookie_secure:
             raise ValueError("Secure refresh cookies are required in production")
         if self.embedding_api_url and self.embedding_api_key is None:
             raise ValueError("embedding API key is required when an embedding API URL is set")
+        if not self.public_origin.startswith("https://"):
+            raise ValueError("production public origin must use HTTPS")
+        if not self.cors_origins or any(
+            not origin.startswith("https://") for origin in self.cors_origins
+        ):
+            raise ValueError("production CORS origins must be explicit HTTPS origins")
+        self._validate_production_dependency_urls()
         return self
+
+    def _validate_production_dependency_urls(self) -> None:
+        local_hosts = {"127.0.0.1", "localhost", "mysql", "postgres", "redis", "minio"}
+        dependency_urls = {
+            "MySQL": self.mysql_dsn,
+            "PostgreSQL": self.postgres_dsn,
+            "Redis": self.redis_url,
+        }
+        for label, value in dependency_urls.items():
+            parsed = urlparse(value)
+            if parsed.hostname in local_hosts or "change-me" in value or "<" in value:
+                raise ValueError(
+                    f"production {label} must use an external non-placeholder endpoint"
+                )
+
+        mysql_query = parse_qs(urlparse(self.mysql_dsn).query)
+        mysql_ssl = {item.lower() for item in mysql_query.get("ssl", [])}
+        if not mysql_ssl.intersection({"1", "true", "required", "verify_ca", "verify_identity"}):
+            raise ValueError("production MySQL DSN must enable TLS")
+
+        postgres_query = parse_qs(urlparse(self.postgres_dsn).query)
+        postgres_ssl = {item.lower() for item in postgres_query.get("ssl", [])}
+        if not postgres_ssl.intersection({"require", "verify-ca", "verify-full", "true"}):
+            raise ValueError("production PostgreSQL DSN must enable TLS")
+        if not self.redis_url.startswith("rediss://"):
+            raise ValueError("production Redis URL must use TLS (rediss://)")
+
+        if not self.object_storage_enabled:
+            raise ValueError("object storage is required in production")
+        for endpoint in (self.object_storage_endpoint, self.object_storage_public_endpoint):
+            if not endpoint.startswith("https://") or "<" in endpoint:
+                raise ValueError("production object storage endpoints must use HTTPS")
+        if not self.object_storage_access_key or not self.object_storage_secret_key:
+            raise ValueError("production object storage credentials are required")
+        if not self.otel_enabled or not self.otel_exporter_otlp_endpoint.startswith("https://"):
+            raise ValueError("production OpenTelemetry export over HTTPS is required")
 
 
 @lru_cache

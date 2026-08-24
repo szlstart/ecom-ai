@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    SmallInteger,
     String,
     UniqueConstraint,
 )
@@ -211,4 +212,4 @@ class RefundShipment(MutableMySQLModel, MySQLBase):
     shipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
-    key_version: Mapped[int] = mapped_column(nullable=False, default=1)
+    key_version: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)

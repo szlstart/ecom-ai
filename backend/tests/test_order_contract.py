@@ -48,9 +48,7 @@ def test_order_create_operation_is_present_in_openapi() -> None:
 
 def test_order_list_exposes_the_eight_normative_views() -> None:
     operation = create_app().openapi()["paths"]["/api/v1/users/me/orders"]["get"]
-    view_parameter = next(
-        item for item in operation["parameters"] if item["name"] == "view"
-    )
+    view_parameter = next(item for item in operation["parameters"] if item["name"] == "view")
     assert view_parameter["schema"]["enum"] == [
         "all",
         "pending_payment",

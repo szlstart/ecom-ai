@@ -76,11 +76,21 @@ class Conversation(SoftDeleteMySQLModel, MySQLBase):
     )
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     last_message_id: Mapped[int | None] = mapped_column(
-        BIGINT(unsigned=True), ForeignKey("messages.id")
+        BIGINT(unsigned=True),
+        ForeignKey(
+            "messages.id",
+            name="fk_conversations_last_message_id_messages",
+            use_alter=True,
+        ),
     )
     user_hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     human_ticket_id: Mapped[int | None] = mapped_column(
-        BIGINT(unsigned=True), ForeignKey("human_service_tickets.id")
+        BIGINT(unsigned=True),
+        ForeignKey(
+            "human_service_tickets.id",
+            name="fk_conversations_human_ticket_id_human_service_tickets",
+            use_alter=True,
+        ),
     )
 
 
@@ -117,6 +127,7 @@ class Message(MutableMySQLModel, MySQLBase):
         UniqueConstraint("conversation_id", "sequence_no", name="uk_messages_sequence"),
         UniqueConstraint("conversation_id", "client_message_no", name="uk_messages_client_no"),
         Index("idx_messages_conversation_timeline", "conversation_id", "sequence_no"),
+        Index("idx_messages_ai_run", "ai_run_no"),
     )
 
     message_no: Mapped[str] = mapped_column(String(40), nullable=False)
@@ -173,6 +184,12 @@ class HumanServiceTicket(MutableMySQLModel, MySQLBase):
             "priority",
             "created_at",
             "id",
+        ),
+        Index(
+            "idx_human_service_tickets_assignee",
+            "current_assignee_user_id",
+            "ticket_status",
+            "updated_at",
         ),
     )
 
@@ -242,6 +259,7 @@ class HumanServiceAssignment(MutableMySQLModel, MySQLBase):
 class HumanServiceInternalNote(MutableMySQLModel, MySQLBase):
     __tablename__ = "human_service_internal_notes"
     __table_args__ = (
+        Index("uk_human_service_internal_notes_note_no", "note_no", unique=True),
         Index("idx_human_service_notes_ticket_time", "ticket_id", "created_at", "id"),
         Index("idx_human_service_notes_store_time", "store_id", "created_at", "id"),
     )
@@ -252,7 +270,7 @@ class HumanServiceInternalNote(MutableMySQLModel, MySQLBase):
     author_user_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
     )
-    note_no: Mapped[str] = mapped_column(String(40), nullable=False, unique=True)
+    note_no: Mapped[str] = mapped_column(String(40), nullable=False)
     store_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("stores.id"))
     note_type: Mapped[str] = mapped_column(String(16), nullable=False)
     content_ciphertext: Mapped[bytes] = mapped_column(VARBINARY(4096), nullable=False)

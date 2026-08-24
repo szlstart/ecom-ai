@@ -78,23 +78,24 @@ def test_skill_hard_deny_wins_over_allow_and_keeps_budgets() -> None:
 
 
 def test_multi_agent_agent_version_requires_matching_release_evidence() -> None:
-    report = {
+    multi_agent_report: dict[str, object] = {
+        "approved_intents": ["order_and_logistics_compare"],
+        "golden_set_version": "multi-agent-golden-v1",
+        "sample_size": 200,
+        "baseline_successes": 130,
+        "candidate_successes": 160,
+        "candidate_safety_violations": 0,
+        "candidate_p95_latency_ms": 1800,
+        "approved_p95_latency_ms": 2000,
+        "candidate_average_cost": 0.03,
+        "approved_average_cost": 0.04,
+    }
+    report: dict[str, object] = {
         "passed": True,
         "report_id": "eval_release_1",
-        "multi_agent": {
-            "approved_intents": ["order_and_logistics_compare"],
-            "golden_set_version": "multi-agent-golden-v1",
-            "sample_size": 200,
-            "baseline_successes": 130,
-            "candidate_successes": 160,
-            "candidate_safety_violations": 0,
-            "candidate_p95_latency_ms": 1800,
-            "approved_p95_latency_ms": 2000,
-            "candidate_average_cost": 0.03,
-            "approved_average_cost": 0.04,
-        },
+        "multi_agent": multi_agent_report,
     }
-    policy = {
+    policy: dict[str, object] = {
         "multi_agent": {
             "enabled": True,
             "approved_intents": ["order_and_logistics_compare"],
@@ -106,5 +107,5 @@ def test_multi_agent_agent_version_requires_matching_release_evidence() -> None:
     report["report_id"] = "eval_other"
     assert not multi_agent_policy_is_publishable(policy)
     report["report_id"] = "eval_release_1"
-    report["multi_agent"]["candidate_safety_violations"] = 1
+    multi_agent_report["candidate_safety_violations"] = 1
     assert not multi_agent_policy_is_publishable(policy)

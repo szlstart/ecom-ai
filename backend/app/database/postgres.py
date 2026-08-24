@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.core.config import get_settings
+
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
@@ -18,11 +20,13 @@ def initialize_postgres(dsn: str) -> None:
     global _engine, _session_factory
     if _engine is not None:
         return
+    settings = get_settings()
     _engine = create_async_engine(
         dsn,
         pool_pre_ping=True,
-        pool_size=5,
-        max_overflow=5,
+        pool_size=settings.postgres_pool_size,
+        max_overflow=settings.postgres_max_overflow,
+        pool_timeout=settings.postgres_pool_timeout_seconds,
     )
     SQLAlchemyInstrumentor().instrument(engine=_engine.sync_engine, enable_commenter=False)
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False)

@@ -3,7 +3,7 @@ CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
 PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
 
-.PHONY: bootstrap install lock lint format test build registry-check openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down observability-up observability-down evaluate-agent api frontend check
+.PHONY: bootstrap install lock lint format test build registry-check openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -70,6 +70,33 @@ observability-up:
 
 observability-down:
 	docker compose --profile observability stop grafana prometheus otel-collector loki tempo
+
+backup-preflight:
+	./scripts/backup-preflight.sh
+
+backup-create:
+	./scripts/backup-create.sh
+
+backup-restore-drill:
+	./scripts/backup-restore-drill.sh
+
+object-replication-check:
+	./scripts/object-replication-check.sh
+
+load-smoke:
+	./scripts/load-smoke.sh
+
+performance-report:
+	./scripts/performance-report.sh
+
+sbom-scan:
+	./scripts/sbom-scan.sh
+
+canary-rollback:
+	./scripts/canary-rollback.sh
+
+release-preflight:
+	$(PYTHON) scripts/release-preflight.py
 
 evaluate-agent:
 	./scripts/evaluate-agent.py eval/golden.json

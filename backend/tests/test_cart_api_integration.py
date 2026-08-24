@@ -219,11 +219,7 @@ async def test_permanent_cart_idempotency_etag_and_invalid_cleanup(
     async for session in mysql_session():
         carts = list((await session.scalars(select(Cart).where(Cart.user_id == user_id))).all())
         items = list(
-            (
-                await session.scalars(
-                    select(CartItem).where(CartItem.cart_id == carts[0].id)
-                )
-            ).all()
+            (await session.scalars(select(CartItem).where(CartItem.cart_id == carts[0].id))).all()
         )
         assert len(carts) == 1
         assert carts[0].item_count == 0

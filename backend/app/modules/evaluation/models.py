@@ -1,6 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.mysql import BIGINT, BINARY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,6 +20,14 @@ class AiEvaluationRun(MutableMySQLModel, MySQLBase):
     __tablename__ = "ai_evaluation_runs"
     __table_args__ = (
         UniqueConstraint("evaluation_run_no", name="uk_ai_evaluation_runs_no"),
+        CheckConstraint(
+            "run_status IN ('queued','running','completed','failed','cancelled')",
+            name="ai_evaluation_run_status",
+        ),
+        CheckConstraint(
+            "release_gate IS NULL OR release_gate IN ('pass','fail','insufficient_evidence')",
+            name="ai_evaluation_release_gate",
+        ),
         Index("idx_ai_evaluation_runs_status", "run_status", "created_at", "id"),
         Index("idx_ai_evaluation_runs_candidate", "candidate_type", "candidate_version", "id"),
     )

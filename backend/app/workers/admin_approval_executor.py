@@ -4,9 +4,11 @@ import hmac
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, canonical_request_hash, utc_now
 from app.modules.identity.models import User
@@ -95,6 +97,15 @@ class AdminApprovalExecutor:
 
         try:
             result = await handler(payload, item)
+        except ApplicationError as exc:
+            await self.session.rollback()
+            current = await self.repository.approval_by_no(
+                approval_request_no,
+                for_update=True,
+            )
+            if current is not None and current.request_status == "executing":
+                await self._fail(current, exc.code)
+            return
         except Exception:
             await self.session.rollback()
             current = await self.repository.approval_by_no(
@@ -133,12 +144,15 @@ class AdminApprovalExecutor:
     ) -> bool:
         participant_ids = approver_ids | {item.initiator_user_id}
         now = utc_now()
+        decisions = await self.repository.approval_decisions(item.id)
+        decision_by_user = {decision.approver_user_id: decision for decision in decisions}
+        recent_cutoff = timedelta(seconds=self.security.settings.admin_recent_auth_seconds)
         for user_id in participant_ids:
             user = await self.session.get(User, user_id)
             if user is None or user.user_status != "active":
                 return False
             rows = await self.repository.permissions_for_user(user_id, now)
-            authorized = any(
+            domain_authorized = any(
                 permission.permission_code == item.required_permission_code
                 and (
                     (grant.scope_type, grant.scope_id) == ("platform", 0)
@@ -146,8 +160,37 @@ class AdminApprovalExecutor:
                 )
                 for permission, grant, _ in rows
             )
-            if not authorized:
+            if not domain_authorized:
                 return False
+            if user_id in approver_ids:
+                approval_authorized = any(
+                    permission.permission_code == "admin_approvals:decide"
+                    and (
+                        (grant.scope_type, grant.scope_id) == ("platform", 0)
+                        or (grant.scope_type, grant.scope_id) == (item.scope_type, item.scope_id)
+                    )
+                    for permission, grant, _ in rows
+                )
+                decision = decision_by_user.get(user_id)
+                if (
+                    not approval_authorized
+                    or decision is None
+                    or decision.assurance_level not in {"aal2", "aal3"}
+                    or decision.authenticated_at < decision.decided_at - recent_cutoff
+                ):
+                    return False
+        policy = item.approval_policy_snapshot
+        authenticated_at_raw = policy.get("initiator_authenticated_at")
+        if policy.get("initiator_assurance_level") not in {"aal2", "aal3"} or not isinstance(
+            authenticated_at_raw, str
+        ):
+            return False
+        try:
+            initiator_authenticated_at = datetime.fromisoformat(authenticated_at_raw)
+        except ValueError:
+            return False
+        if initiator_authenticated_at < item.created_at - recent_cutoff:
+            return False
         return True
 
     async def _fail(self, item: AdminApprovalRequest, error_code: str) -> None:

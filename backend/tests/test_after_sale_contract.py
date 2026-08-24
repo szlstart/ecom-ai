@@ -71,6 +71,23 @@ def test_after_sale_user_contract_is_published() -> None:
     for path, (method, operation_id) in operations.items():
         assert schema["paths"][path][method]["operationId"] == operation_id
 
+    for path in (
+        "/api/v1/admin/refund-applications/{refund_id}/claims",
+        "/api/v1/admin/refund-applications/{refund_id}/decisions",
+        "/api/v1/admin/refund-appeals/{appeal_id}/claims",
+        "/api/v1/admin/refund-appeals/{appeal_id}/decisions",
+    ):
+        parameters = schema["paths"][path]["post"]["parameters"]
+        assert any(
+            parameter["name"] == "Idempotency-Key" and parameter["required"] is True
+            for parameter in parameters
+        )
+    for path in (
+        "/api/v1/admin/refund-applications/{refund_id}/decisions",
+        "/api/v1/admin/refund-appeals/{appeal_id}/decisions",
+    ):
+        assert "202" in schema["paths"][path]["post"]["responses"]
+
     request = schema["components"]["schemas"]["RefundApplicationCreateRequest"]
     assert request["additionalProperties"] is False
     assert request["properties"]["items"]["maxItems"] == 50

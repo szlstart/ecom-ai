@@ -7,6 +7,7 @@ from pydantic import Field, model_validator
 
 from app.api.schemas import StrictRequest
 from app.modules.catalog.schemas import Money
+from app.modules.rbac.schemas import ApprovalRequiredView
 
 RefundType = Literal["refund_only", "return_and_refund"]
 
@@ -211,3 +212,7 @@ class AdminRefundAppealDecisionRequest(StrictRequest):
 
 class AdminRefundAppealList(StrictRequest):
     items: list[RefundAppealView]
+
+
+AdminRefundDecisionResult = RefundApplicationView | ApprovalRequiredView
+AdminRefundAppealDecisionResult = RefundAppealView | ApprovalRequiredView

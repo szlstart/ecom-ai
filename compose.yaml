@@ -224,6 +224,21 @@ services:
       mysql: {condition: service_healthy}
     networks: [backend]
 
+  admin-approval-worker:
+    profiles: [app]
+    restart: unless-stopped
+    build:
+      context: ./backend
+      target: runtime
+    image: ${ECOM_API_IMAGE:-ecom-ai-api:local}
+    env_file: .env
+    environment:
+      ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
+    command: ["python", "-m", "app.workers.admin_approval_worker"]
+    depends_on:
+      mysql: {condition: service_healthy}
+    networks: [backend]
+
   frontend:
     profiles: [app]
     build:

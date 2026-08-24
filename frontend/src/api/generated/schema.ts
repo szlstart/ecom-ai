@@ -690,6 +690,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Reviews */
+        get: operations["Review_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reviews": {
         parameters: {
             query?: never;
@@ -701,6 +718,415 @@ export interface paths {
         put?: never;
         /** Create Review */
         post: operations["Review_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/{review_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Review */
+        get: operations["Review_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Review */
+        patch: operations["Review_Update"];
+        trace?: never;
+    };
+    "/api/v1/reviews/{review_id}/append-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Append Review */
+        post: operations["Review_Append"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reviews */
+        get: operations["AdminReview_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reviews/{review_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Review */
+        get: operations["AdminReview_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reviews/{review_id}/replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reply Review */
+        post: operations["AdminReview_Reply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reviews/{review_id}/moderations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Moderate Review */
+        post: operations["AdminReview_Moderate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}/return-shipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upsert Return Shipment */
+        put: operations["RefundReturnShipment_Upsert"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/refunds/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Process Refund Webhook */
+        post: operations["RefundPaymentWebhook_Process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-eligibility-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Refund Eligibility */
+        post: operations["RefundEligibility_Check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Refund */
+        post: operations["RefundApplication_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/refund-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Refunds */
+        get: operations["RefundApplication_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Refund */
+        get: operations["RefundApplication_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Refund Events */
+        get: operations["RefundEvent_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Refund */
+        post: operations["RefundApplication_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}/appeals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Refund Appeal */
+        post: operations["RefundAppeal_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-appeals/{appeal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Refund Appeal */
+        get: operations["RefundAppeal_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Refunds */
+        get: operations["AdminRefund_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-appeals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Appeals */
+        get: operations["AdminRefundAppeal_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-appeals/{appeal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Appeal */
+        get: operations["AdminRefundAppeal_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-appeals/{appeal_id}/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Appeal */
+        post: operations["AdminRefundAppeal_Claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-appeals/{appeal_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Appeal */
+        post: operations["AdminRefundAppeal_Decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-applications/{refund_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Refund */
+        get: operations["AdminRefund_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-applications/{refund_id}/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Refund */
+        post: operations["AdminRefund_Claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-applications/{refund_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Refund */
+        post: operations["AdminRefund_Decide"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3714,6 +4140,137 @@ export interface components {
             /** Code */
             code: string;
         };
+        /** AdminRefundAppealDecisionRequest */
+        AdminRefundAppealDecisionRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject";
+            /** Reason */
+            reason: string;
+        };
+        /** AdminRefundAppealList */
+        AdminRefundAppealList: {
+            /** Items */
+            items: components["schemas"]["RefundAppealView"][];
+        };
+        /** AdminRefundDecisionRequest */
+        AdminRefundDecisionRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject";
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            approved_amount?: components["schemas"]["Money"] | null;
+        };
+        /** AdminRefundList */
+        AdminRefundList: {
+            /** Items */
+            items: components["schemas"]["RefundApplicationView"][];
+        };
+        /** AdminReviewGovernanceView */
+        AdminReviewGovernanceView: {
+            /** Governance Id */
+            governance_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "hide" | "restore";
+            /** From Status */
+            from_status: string;
+            /** To Status */
+            to_status: string;
+            /** Rule Code */
+            rule_code: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** AdminReviewList */
+        AdminReviewList: {
+            /** Items */
+            items: components["schemas"]["AdminReviewView"][];
+        };
+        /** AdminReviewModerationRequest */
+        AdminReviewModerationRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "hide" | "restore";
+            /** Rule Code */
+            rule_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminReviewReplyRequest */
+        AdminReviewReplyRequest: {
+            /** Content */
+            content: string;
+        };
+        /** AdminReviewView */
+        AdminReviewView: {
+            /** Review Id */
+            review_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Order Item Id */
+            order_item_id: string;
+            /** User Id */
+            user_id: string;
+            /** User Name */
+            user_name: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Rating */
+            rating: number;
+            /** Content */
+            content: string | null;
+            /** Is Anonymous */
+            is_anonymous: boolean;
+            /**
+             * Review Status
+             * @enum {string}
+             */
+            review_status: "pending" | "published" | "hidden" | "rejected";
+            /**
+             * Moderation Status
+             * @enum {string}
+             */
+            moderation_status: "pending" | "passed" | "blocked" | "manual";
+            merchant_reply: components["schemas"]["ReviewReplyView"] | null;
+            /** Governance History */
+            governance_history: components["schemas"]["AdminReviewGovernanceView"][];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Published At */
+            published_at: string | null;
+            /** Version */
+            version: number;
+        };
         /** AdminShipmentCreateItem */
         AdminShipmentCreateItem: {
             /** Order Item Id */
@@ -4232,6 +4789,25 @@ export interface components {
             reason_code: string;
             /** Reason */
             reason: string;
+        };
+        /** ApprovalRequiredView */
+        ApprovalRequiredView: {
+            /**
+             * Command Status
+             * @constant
+             */
+            command_status: "approval_required";
+            /** Approval Request Id */
+            approval_request_id: string;
+            /** Required Approval Count */
+            required_approval_count: number;
+            /** Approved Count */
+            approved_count: number;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
         };
         /** ApprovalView */
         ApprovalView: {
@@ -4844,6 +5420,26 @@ export interface components {
             data: components["schemas"]["AdminProductList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AdminRefundAppealList] */
+        Envelope_AdminRefundAppealList_: {
+            data: components["schemas"]["AdminRefundAppealList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminRefundList] */
+        Envelope_AdminRefundList_: {
+            data: components["schemas"]["AdminRefundList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminReviewList] */
+        Envelope_AdminReviewList_: {
+            data: components["schemas"]["AdminReviewList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminReviewView] */
+        Envelope_AdminReviewView_: {
+            data: components["schemas"]["AdminReviewView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AdminShipmentDetail] */
         Envelope_AdminShipmentDetail_: {
             data: components["schemas"]["AdminShipmentDetail"];
@@ -4892,6 +5488,11 @@ export interface components {
         /** Envelope[AdminUserSummary] */
         Envelope_AdminUserSummary_: {
             data: components["schemas"]["AdminUserSummary"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ApprovalRequiredView] */
+        Envelope_ApprovalRequiredView_: {
+            data: components["schemas"]["ApprovalRequiredView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ApprovalView] */
@@ -4967,6 +5568,11 @@ export interface components {
         /** Envelope[MessageResult] */
         Envelope_MessageResult_: {
             data: components["schemas"]["MessageResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[MyReviewList] */
+        Envelope_MyReviewList_: {
+            data: components["schemas"]["MyReviewList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[MyReviewView] */
@@ -5069,6 +5675,41 @@ export interface components {
             data: components["schemas"]["ReauthenticationResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[RefundAppealView] */
+        Envelope_RefundAppealView_: {
+            data: components["schemas"]["RefundAppealView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundApplicationList] */
+        Envelope_RefundApplicationList_: {
+            data: components["schemas"]["RefundApplicationList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundApplicationView] */
+        Envelope_RefundApplicationView_: {
+            data: components["schemas"]["RefundApplicationView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundEligibilityCheck] */
+        Envelope_RefundEligibilityCheck_: {
+            data: components["schemas"]["RefundEligibilityCheck"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundEventList] */
+        Envelope_RefundEventList_: {
+            data: components["schemas"]["RefundEventList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundPaymentCallbackAck] */
+        Envelope_RefundPaymentCallbackAck_: {
+            data: components["schemas"]["RefundPaymentCallbackAck"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundReturnShipmentView] */
+        Envelope_RefundReturnShipmentView_: {
+            data: components["schemas"]["RefundReturnShipmentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[ReviewEligibility] */
         Envelope_ReviewEligibility_: {
             data: components["schemas"]["ReviewEligibility"];
@@ -5147,6 +5788,24 @@ export interface components {
         /** Envelope[Union[AdminProductFulfillmentView, NoneType]] */
         Envelope_Union_AdminProductFulfillmentView__NoneType__: {
             data: components["schemas"]["AdminProductFulfillmentView"] | null;
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[Union[MyReviewView, ProductReviewView]] */
+        Envelope_Union_MyReviewView__ProductReviewView__: {
+            /** Data */
+            data: components["schemas"]["MyReviewView"] | components["schemas"]["ProductReviewView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[Union[RefundAppealView, ApprovalRequiredView]] */
+        Envelope_Union_RefundAppealView__ApprovalRequiredView__: {
+            /** Data */
+            data: components["schemas"]["RefundAppealView"] | components["schemas"]["ApprovalRequiredView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[Union[RefundApplicationView, ApprovalRequiredView]] */
+        Envelope_Union_RefundApplicationView__ApprovalRequiredView__: {
+            /** Data */
+            data: components["schemas"]["RefundApplicationView"] | components["schemas"]["ApprovalRequiredView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[UserDashboard] */
@@ -5542,6 +6201,32 @@ export interface components {
             /** Currency */
             currency: string;
         };
+        /** MyReviewAppendView */
+        MyReviewAppendView: {
+            /** Append Id */
+            append_id: string;
+            /** Content */
+            content: string;
+            /**
+             * Append Status
+             * @enum {string}
+             */
+            append_status: "pending" | "published" | "hidden" | "rejected";
+            /**
+             * Moderation Status
+             * @enum {string}
+             */
+            moderation_status: "pending" | "passed" | "blocked" | "manual";
+            /** Images */
+            images: components["schemas"]["MyReviewImageView"][];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Published At */
+            published_at: string | null;
+        };
         /** MyReviewImageView */
         MyReviewImageView: {
             /** File Id */
@@ -5550,6 +6235,35 @@ export interface components {
             width: number;
             /** Height */
             height: number;
+        };
+        /** MyReviewList */
+        MyReviewList: {
+            /** Items */
+            items: components["schemas"]["MyReviewListItem"][];
+        };
+        /** MyReviewListItem */
+        MyReviewListItem: {
+            /**
+             * Item Type
+             * @enum {string}
+             */
+            item_type: "pending" | "review";
+            /** Order Id */
+            order_id: string;
+            /** Order Item Id */
+            order_item_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Order Completed At */
+            order_completed_at: string | null;
+            eligibility: components["schemas"]["ReviewEligibility"];
+            review?: components["schemas"]["MyReviewView"] | null;
         };
         /** MyReviewView */
         MyReviewView: {
@@ -5585,6 +6299,8 @@ export interface components {
             moderation_status: "pending" | "passed" | "blocked" | "manual";
             /** Images */
             images: components["schemas"]["MyReviewImageView"][];
+            append?: components["schemas"]["MyReviewAppendView"] | null;
+            merchant_reply?: components["schemas"]["ReviewReplyView"] | null;
             /**
              * Submitted At
              * Format: date-time
@@ -6364,6 +7080,248 @@ export interface components {
             /** Assurance Level */
             assurance_level: string;
         };
+        /** RefundAppealCreateRequest */
+        RefundAppealCreateRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** RefundAppealView */
+        RefundAppealView: {
+            /** Appeal Id */
+            appeal_id: string;
+            /** Refund Id */
+            refund_id: string;
+            /**
+             * Appeal Status
+             * @enum {string}
+             */
+            appeal_status: "submitted" | "reviewing" | "upheld" | "rejected" | "cancelled" | "closed";
+            /** Reason */
+            reason: string;
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Version */
+            version: number;
+            /**
+             * Claimed
+             * @default false
+             */
+            claimed: boolean;
+        };
+        /** RefundApplicationCreateRequest */
+        RefundApplicationCreateRequest: {
+            /** Eligibility Token */
+            eligibility_token: string;
+            /** Items */
+            items: components["schemas"]["RefundApplicationItemRequest"][];
+            /**
+             * Refund Type
+             * @enum {string}
+             */
+            refund_type: "refund_only" | "return_and_refund";
+            /** Reason Code */
+            reason_code: string;
+            /** Reason Detail */
+            reason_detail?: string | null;
+            requested_amount: components["schemas"]["Money"];
+            /** Policy Accepted */
+            policy_accepted: boolean;
+        };
+        /** RefundApplicationItemRequest */
+        RefundApplicationItemRequest: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** RefundApplicationItemView */
+        RefundApplicationItemView: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Quantity */
+            quantity: number;
+            requested_amount: components["schemas"]["Money"];
+        };
+        /** RefundApplicationList */
+        RefundApplicationList: {
+            /** Items */
+            items: components["schemas"]["RefundApplicationView"][];
+        };
+        /** RefundApplicationView */
+        RefundApplicationView: {
+            /** Refund Id */
+            refund_id: string;
+            /** Order Id */
+            order_id: string;
+            /**
+             * Refund Type
+             * @enum {string}
+             */
+            refund_type: "refund_only" | "return_and_refund";
+            /**
+             * Refund Status
+             * @enum {string}
+             */
+            refund_status: "submitted" | "merchant_review" | "approved" | "waiting_return" | "returning" | "received" | "refunding" | "succeeded" | "rejected" | "cancelled" | "closed";
+            /** Reason Code */
+            reason_code: string;
+            /** Reason Detail */
+            reason_detail: string | null;
+            requested_amount: components["schemas"]["Money"];
+            approved_amount: components["schemas"]["Money"];
+            /** Items */
+            items: components["schemas"]["RefundApplicationItemView"][];
+            /** Available Actions */
+            available_actions: ("cancel" | "view_events" | "create_refund_appeal" | "create_new_refund_application")[];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Version */
+            version: number;
+            /**
+             * Claimed
+             * @default false
+             */
+            claimed: boolean;
+        };
+        /** RefundCancelRequest */
+        RefundCancelRequest: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /** RefundEligibilityCheck */
+        RefundEligibilityCheck: {
+            /** Eligible */
+            eligible: boolean;
+            /** Eligibility Token */
+            eligibility_token?: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Allowed Types */
+            allowed_types: ("refund_only" | "return_and_refund")[];
+            /** Items */
+            items: components["schemas"]["RefundEligibilityItem"][];
+            /**
+             * Amount Editable
+             * @default false
+             */
+            amount_editable: boolean;
+            min_refundable_amount: components["schemas"]["Money"];
+            max_refundable_amount: components["schemas"]["Money"];
+            suggested_refund_amount: components["schemas"]["Money"];
+            /** Blocking Reasons */
+            blocking_reasons?: string[];
+        };
+        /** RefundEligibilityItem */
+        RefundEligibilityItem: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Purchased Quantity */
+            purchased_quantity: number;
+            /** Succeeded Refund Quantity */
+            succeeded_refund_quantity: number;
+            /** Active Reserved Quantity */
+            active_reserved_quantity: number;
+            /** Available Quantity */
+            available_quantity: number;
+            available_refundable_amount: components["schemas"]["Money"];
+            /** Available Actions */
+            available_actions: ("apply_after_sale" | "view_active_after_sale")[];
+        };
+        /** RefundEligibilityItemRequest */
+        RefundEligibilityItemRequest: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** RefundEligibilityRequest */
+        RefundEligibilityRequest: {
+            /** Order Id */
+            order_id: string;
+            /** Items */
+            items: components["schemas"]["RefundEligibilityItemRequest"][];
+            /**
+             * Requested Type
+             * @enum {string}
+             */
+            requested_type: "refund_only" | "return_and_refund";
+            /** Reason Code */
+            reason_code: string;
+        };
+        /** RefundEventList */
+        RefundEventList: {
+            /** Items */
+            items: components["schemas"]["RefundEventView"][];
+        };
+        /** RefundEventView */
+        RefundEventView: {
+            /** Event Id */
+            event_id: string;
+            /** From Status */
+            from_status: string | null;
+            /** To Status */
+            to_status: string;
+            /** Event Code */
+            event_code: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** RefundPaymentCallbackAck */
+        RefundPaymentCallbackAck: {
+            /** Accepted */
+            accepted: boolean;
+            /**
+             * Duplicate
+             * @default false
+             */
+            duplicate: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "succeeded" | "failed" | "unknown";
+        };
+        /** RefundReturnShipmentRequest */
+        RefundReturnShipmentRequest: {
+            /** Carrier Code */
+            carrier_code: string;
+            /** Tracking No */
+            tracking_no: string;
+        };
+        /** RefundReturnShipmentView */
+        RefundReturnShipmentView: {
+            /** Refund Id */
+            refund_id: string;
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No Masked */
+            tracking_no_masked: string;
+            /**
+             * Shipment Status
+             * @enum {string}
+             */
+            shipment_status: "submitted" | "in_transit" | "delivered" | "received" | "exception";
+            /** Version */
+            version: number;
+        };
         /** RegistrationRequest */
         RegistrationRequest: {
             /** Username */
@@ -6415,6 +7373,13 @@ export interface components {
             request_id?: string | null;
             pagination?: components["schemas"]["PaginationMeta"] | null;
         };
+        /** ReviewAppendCreateRequest */
+        ReviewAppendCreateRequest: {
+            /** Content */
+            content: string;
+            /** Image File Ids */
+            image_file_ids?: string[];
+        };
         /** ReviewAppendView */
         ReviewAppendView: {
             /** Content */
@@ -6424,6 +7389,8 @@ export interface components {
              * Format: date-time
              */
             published_at: string;
+            /** Images */
+            images?: components["schemas"]["ReviewImageView"][];
         };
         /** ReviewCreateRequest */
         ReviewCreateRequest: {
@@ -6492,6 +7459,20 @@ export interface components {
              * Format: date-time
              */
             published_at: string;
+        };
+        /** ReviewUpdateRequest */
+        ReviewUpdateRequest: {
+            /** Rating */
+            rating: number;
+            /** Content */
+            content?: string | null;
+            /**
+             * Is Anonymous
+             * @default false
+             */
+            is_anonymous: boolean;
+            /** Image File Ids */
+            image_file_ids?: string[];
         };
         /** RoleCreateRequest */
         RoleCreateRequest: {
@@ -8571,6 +9552,40 @@ export interface operations {
             };
         };
     };
+    Review_ListMine: {
+        parameters: {
+            query?: {
+                view?: "pending" | "published";
+                order_id?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MyReviewList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     Review_Create: {
         parameters: {
             query?: never;
@@ -8593,6 +9608,873 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_MyReviewView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Review_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_MyReviewView__ProductReviewView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Review_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MyReviewView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    Review_Append: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewAppendCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MyReviewView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminReview_List: {
+        parameters: {
+            query?: {
+                review_status?: ("pending" | "published" | "hidden" | "rejected") | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminReviewList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminReview_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminReviewView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminReview_Reply: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReviewReplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminReviewView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminReview_Moderate: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReviewModerationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminReviewView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundReturnShipment_Upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundReturnShipmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundReturnShipmentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundPaymentWebhook_Process: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Refund-Signature"?: string;
+                "X-Refund-Timestamp"?: string;
+            };
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundPaymentCallbackAck_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundEligibility_Check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundEligibilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundEligibilityCheck_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundApplication_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundApplicationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundApplication_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundApplication_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundEvent_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundEventList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundApplication_Cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundAppeal_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundAppealCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundAppeal_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminRefund_List: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminRefundList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminRefundAppeal_List: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminRefundAppealList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminRefundAppeal_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminRefundAppeal_Claim: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminRefundAppeal_Decide: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRefundAppealDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_RefundAppealView__ApprovalRequiredView__"];
+                };
+            };
+            /** @description Dual-control approval required */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminRefund_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminRefund_Claim: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminRefund_Decide: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRefundDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_RefundApplicationView__ApprovalRequiredView__"];
+                };
+            };
+            /** @description Amount-based approval required */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
                 };
             };
             /** @description Validation Error */

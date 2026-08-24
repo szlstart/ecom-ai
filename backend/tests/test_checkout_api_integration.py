@@ -9,15 +9,20 @@ from decimal import Decimal
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import AuthContext
+from app.bootstrap.admin import provision_platform_super_admin
 from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, TokenClaims, utc_now
 from app.database.mysql import mysql_session
-from app.modules.after_sale.models import RefundApplication, RefundPaymentRecord
-from app.modules.after_sale.schemas import AdminRefundDecisionRequest
+from app.modules.after_sale.models import RefundAppeal, RefundApplication, RefundPaymentRecord
+from app.modules.after_sale.schemas import (
+    AdminRefundAppealDecisionRequest,
+    AdminRefundDecisionRequest,
+)
 from app.modules.after_sale.service import AfterSaleService
 from app.modules.cart.models import CartItem
 from app.modules.catalog.models import Category, Product, ProductFulfillmentProfile, ProductSku
@@ -38,7 +43,9 @@ from app.modules.orders.service import OrderService
 from app.modules.payments.models import Payment, PaymentCallback
 from app.modules.payments.service import PaymentService
 from app.modules.rbac.dependencies import AdminAccess
-from app.modules.rbac.models import Permission
+from app.modules.rbac.models import AdminApprovalRequest, Permission
+from app.modules.rbac.schemas import ApprovalDecisionRequest, ApprovalRequiredView
+from app.modules.rbac.service import RbacService
 from app.modules.reviews.models import (
     Review,
     ReviewAppendImage,
@@ -51,6 +58,7 @@ from app.modules.reviews.schemas import AdminReviewModerationRequest, AdminRevie
 from app.modules.reviews.service import ReviewService
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
 from app.modules.system.models import OutboxEvent
+from app.workers.admin_approval_worker import AdminApprovalWorker
 
 pytestmark = [
     pytest.mark.integration,
@@ -59,6 +67,38 @@ pytestmark = [
         reason="set ECOM_RUN_INTEGRATION_TESTS=1 with an isolated database",
     ),
 ]
+
+
+async def _admin_access(
+    session: AsyncSession,
+    user_no: str,
+    session_no: str,
+    *,
+    permission_code: str,
+) -> AdminAccess:
+    user = await session.scalar(select(User).where(User.user_no == user_no))
+    auth_session = await session.scalar(
+        select(AuthSession).where(AuthSession.session_no == session_no)
+    )
+    permission = await session.scalar(
+        select(Permission).where(Permission.permission_code == permission_code)
+    )
+    assert user is not None and auth_session is not None and permission is not None
+    return AdminAccess(
+        context=AuthContext(
+            user=user,
+            session=auth_session,
+            claims=TokenClaims(
+                subject=user.user_no,
+                session_id=auth_session.session_no,
+                audience="admin",
+                permission_version=user.permission_version,
+                expires_at=auth_session.expires_at,
+            ),
+        ),
+        permission=permission,
+        scopes=(("platform", 0),),
+    )
 
 
 async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncClient) -> None:
@@ -1909,6 +1949,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     )
     assert appeal.status_code == 201, appeal.text
     assert appeal.json()["data"]["appeal_status"] == "submitted"
+    appeal_id = appeal.json()["data"]["appeal_id"]
 
     full_eligibility_payload = {
         **eligibility_payload,
@@ -1934,8 +1975,52 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     )
     assert successful_refund.status_code == 201, successful_refund.text
     successful_refund_id = successful_refund.json()["data"]["refund_id"]
+    approval_settings = get_settings().model_copy(
+        update={"refund_dual_approval_threshold_minor": 1}
+    )
+    admin_identities: list[tuple[str, str]] = []
     async for session in mysql_session():
-        after_sale = AfterSaleService(session, get_settings(), security)
+        for label in ("refund_initiator", "refund_approver_a", "refund_approver_b"):
+            username = f"{label}_{suffix}"
+            provisioned = await provision_platform_super_admin(
+                session,
+                security,
+                username=username,
+                password=f"Admin-{label}-{suffix}-Correct-Horse!",
+            )
+            admin_user = await session.scalar(
+                select(User).where(User.user_no == provisioned.user_no)
+            )
+            assert admin_user is not None
+            admin_session = AuthSession(
+                session_no=new_prefixed_ulid("ses_"),
+                user_id=admin_user.id,
+                refresh_token_hash=security.keyed_hash(
+                    "refresh-token", f"approval-{label}-{suffix}"
+                ),
+                token_family_no=new_prefixed_ulid("tfa_"),
+                device_no=new_prefixed_ulid("dev_"),
+                device_name="Approval integration",
+                client_type="web",
+                audience="admin",
+                csrf_token_hash=security.keyed_hash("csrf-token", f"approval-{label}-{suffix}"),
+                authenticated_at=utc_now(),
+                authentication_methods=["password", "totp"],
+                assurance_level="aal2",
+                issued_at=utc_now(),
+                expires_at=utc_now() + timedelta(hours=1),
+                last_seen_at=utc_now(),
+            )
+            session.add(admin_session)
+            await session.commit()
+            admin_identities.append((admin_user.user_no, admin_session.session_no))
+
+        initiator_access = await _admin_access(
+            session,
+            *admin_identities[0],
+            permission_code="refunds:review",
+        )
+        after_sale = AfterSaleService(session, approval_settings, security)
         successful_row = await session.scalar(
             select(RefundApplication).where(RefundApplication.refund_no == successful_refund_id)
         )
@@ -1943,47 +2028,185 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         successful_claim_key = f"refund-claim-success-{suffix}"
         successful_claim_version = successful_row.version
         claimed_refund = await after_sale.claim_refund(
-            refund_access,
+            initiator_access,
             successful_refund_id,
             successful_claim_version,
             successful_claim_key,
         )
         replayed_claim = await after_sale.claim_refund(
-            refund_access,
+            initiator_access,
             successful_refund_id,
             successful_claim_version,
             successful_claim_key,
         )
         assert replayed_claim.version == claimed_refund.version
         approve_key = f"refund-approve-{suffix}"
-        approved_refund = await after_sale.decide(
-            refund_access,
+        decision = AdminRefundDecisionRequest(
+            decision="approve",
+            reason_code="POLICY_PASSED",
+            reason="符合首版原路退款规则",
+            approved_amount=full_eligibility_data["suggested_refund_amount"],
+        )
+        approval_required = await after_sale.request_refund_decision(
+            initiator_access,
             successful_refund_id,
-            AdminRefundDecisionRequest(
-                decision="approve",
-                reason_code="POLICY_PASSED",
-                reason="符合首版原路退款规则",
-                approved_amount=full_eligibility_data["suggested_refund_amount"],
-            ),
+            decision,
             claimed_refund.version,
             approve_key,
         )
-        assert approved_refund.refund_status == "refunding"
-        replayed_approval = await after_sale.decide(
-            refund_access,
+        assert isinstance(approval_required, ApprovalRequiredView)
+        replayed_approval = await after_sale.request_refund_decision(
+            initiator_access,
             successful_refund_id,
-            AdminRefundDecisionRequest(
-                decision="approve",
-                reason_code="POLICY_PASSED",
-                reason="符合首版原路退款规则",
-                approved_amount=full_eligibility_data["suggested_refund_amount"],
-            ),
+            decision,
             claimed_refund.version,
             approve_key,
         )
-        assert replayed_approval.version == approved_refund.version
+        assert isinstance(replayed_approval, ApprovalRequiredView)
+        assert replayed_approval.approval_request_id == approval_required.approval_request_id
+        approval_no = approval_required.approval_request_id
+
+    for index, identity in enumerate(admin_identities[1:], start=1):
+        async for session in mysql_session():
+            approver_access = await _admin_access(
+                session,
+                *identity,
+                permission_code="admin_approvals:decide",
+            )
+            approval_row = await session.scalar(
+                select(AdminApprovalRequest).where(
+                    AdminApprovalRequest.approval_request_no == approval_no
+                )
+            )
+            assert approval_row is not None
+            approval_view = await RbacService(session, security).decide_approval(
+                approver_access,
+                approval_no,
+                ApprovalDecisionRequest(
+                    decision="approve",
+                    reason_code="VERIFIED",
+                    reason=f"第 {index} 位复核员确认参数和影响",
+                ),
+                approval_row.version,
+                f"refund-approval-{index}-{suffix}",
+            )
+            assert approval_view.approved_count == index
+
+    approval_succeeded = False
+    async for session in mysql_session():
+        approval_event = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.aggregate_no == approval_no)
+        )
+        assert approval_event is not None
+        approval_event.available_at = utc_now() - timedelta(seconds=1)
+        await session.commit()
+    for _ in range(20):
+        async for session in mysql_session():
+            await AdminApprovalWorker(session, approval_settings, security).process_one()
+            approval_row = await session.scalar(
+                select(AdminApprovalRequest).where(
+                    AdminApprovalRequest.approval_request_no == approval_no
+                )
+            )
+            assert approval_row is not None
+            if approval_row.request_status == "succeeded":
+                approval_succeeded = True
+                break
+        if approval_succeeded:
+            break
+    assert approval_succeeded
+
+    async for session in mysql_session():
+        appeal_access = await _admin_access(
+            session,
+            *admin_identities[0],
+            permission_code="refund_appeals:review",
+        )
+        appeal_row = await session.scalar(
+            select(RefundAppeal).where(RefundAppeal.appeal_no == appeal_id)
+        )
+        assert appeal_row is not None
+        appeal_service = AfterSaleService(session, approval_settings, security)
+        claimed_appeal = await appeal_service.claim_appeal(
+            appeal_access,
+            appeal_id,
+            appeal_row.version,
+            f"appeal-claim-{suffix}",
+        )
+        appeal_approval = await appeal_service.request_appeal_decision(
+            appeal_access,
+            appeal_id,
+            AdminRefundAppealDecisionRequest(
+                decision="approve",
+                reason="平台复核确认原退款拒绝结论应当撤销",
+            ),
+            claimed_appeal.version,
+            f"appeal-decision-{suffix}",
+        )
+        assert isinstance(appeal_approval, ApprovalRequiredView)
+        appeal_approval_no = appeal_approval.approval_request_id
+
+    for index, identity in enumerate(admin_identities[1:], start=1):
+        async for session in mysql_session():
+            approver_access = await _admin_access(
+                session,
+                *identity,
+                permission_code="admin_approvals:decide",
+            )
+            approval_row = await session.scalar(
+                select(AdminApprovalRequest).where(
+                    AdminApprovalRequest.approval_request_no == appeal_approval_no
+                )
+            )
+            assert approval_row is not None
+            await RbacService(session, security).decide_approval(
+                approver_access,
+                appeal_approval_no,
+                ApprovalDecisionRequest(
+                    decision="approve",
+                    reason_code="VERIFIED",
+                    reason=f"第 {index} 位复核员确认申诉结论",
+                ),
+                approval_row.version,
+                f"appeal-approval-{index}-{suffix}",
+            )
+
+    appeal_approval_succeeded = False
+    async for session in mysql_session():
+        appeal_approval_event = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.aggregate_no == appeal_approval_no)
+        )
+        assert appeal_approval_event is not None
+        appeal_approval_event.available_at = utc_now() - timedelta(seconds=1)
+        await session.commit()
+    for _ in range(20):
+        async for session in mysql_session():
+            await AdminApprovalWorker(session, approval_settings, security).process_one()
+            appeal_approval_row = await session.scalar(
+                select(AdminApprovalRequest).where(
+                    AdminApprovalRequest.approval_request_no == appeal_approval_no
+                )
+            )
+            assert appeal_approval_row is not None
+            if appeal_approval_row.request_status == "succeeded":
+                appeal_approval_succeeded = True
+                break
+        if appeal_approval_succeeded:
+            break
+    assert appeal_approval_succeeded
+    async for session in mysql_session():
+        decided_appeal = await session.scalar(
+            select(RefundAppeal).where(RefundAppeal.appeal_no == appeal_id)
+        )
+        assert decided_appeal is not None and decided_appeal.appeal_status == "upheld"
+
+    async for session in mysql_session():
+        approved_refund = await session.scalar(
+            select(RefundApplication).where(RefundApplication.refund_no == successful_refund_id)
+        )
+        assert approved_refund is not None and approved_refund.refund_status == "refunding"
         refund_payment = await session.scalar(
-            select(RefundPaymentRecord).where(RefundPaymentRecord.refund_id == successful_row.id)
+            select(RefundPaymentRecord).where(RefundPaymentRecord.refund_id == approved_refund.id)
         )
         assert refund_payment is not None
         refund_payment_no = refund_payment.refund_payment_no

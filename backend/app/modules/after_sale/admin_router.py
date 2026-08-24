@@ -6,14 +6,17 @@ from app.api.schemas import Envelope
 from app.modules.after_sale.dependencies import AfterSaleServiceDependency
 from app.modules.after_sale.schemas import (
     AdminRefundAppealDecisionRequest,
+    AdminRefundAppealDecisionResult,
     AdminRefundAppealList,
     AdminRefundDecisionRequest,
+    AdminRefundDecisionResult,
     AdminRefundList,
     RefundAppealView,
     RefundApplicationView,
 )
 from app.modules.identity.router import _etag, _expected_version, _no_store
 from app.modules.rbac.dependencies import AdminAccess, require_admin_permission
+from app.modules.rbac.schemas import ApprovalRequiredView
 
 router = APIRouter(prefix="/admin", tags=["after-sale-administration"])
 
@@ -77,7 +80,9 @@ async def claim_appeal(
     response: Response,
     service: AfterSaleServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("refund_appeals:review")],
-    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+    idempotency_key: Annotated[
+        str, Header(alias="Idempotency-Key", min_length=16, max_length=128)
+    ],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> Envelope[RefundAppealView]:
     result = await service.claim_appeal(
@@ -93,7 +98,13 @@ async def claim_appeal(
 
 @router.post(
     "/refund-appeals/{appeal_id}/decisions",
-    response_model=Envelope[RefundAppealView],
+    response_model=Envelope[AdminRefundAppealDecisionResult],
+    responses={
+        202: {
+            "model": Envelope[ApprovalRequiredView],
+            "description": "Dual-control approval required",
+        }
+    },
     operation_id="AdminRefundAppeal_Decide",
 )
 async def decide_appeal(
@@ -102,17 +113,22 @@ async def decide_appeal(
     response: Response,
     service: AfterSaleServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("refund_appeals:review")],
-    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+    idempotency_key: Annotated[
+        str, Header(alias="Idempotency-Key", min_length=16, max_length=128)
+    ],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
-) -> Envelope[RefundAppealView]:
-    result = await service.admin_decide_appeal(
+) -> Envelope[AdminRefundAppealDecisionResult]:
+    result = await service.request_appeal_decision(
         access,
         appeal_id,
         payload,
         _expected_version(if_match),
         idempotency_key,
     )
-    response.headers["ETag"] = _etag(result.version)
+    if isinstance(result, ApprovalRequiredView):
+        response.status_code = 202
+    else:
+        response.headers["ETag"] = _etag(result.version)
     _no_store(response)
     return Envelope(data=result)
 
@@ -144,7 +160,9 @@ async def claim_refund(
     response: Response,
     service: AfterSaleServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("refunds:review")],
-    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+    idempotency_key: Annotated[
+        str, Header(alias="Idempotency-Key", min_length=16, max_length=128)
+    ],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> Envelope[RefundApplicationView]:
     result = await service.claim_refund(
@@ -160,7 +178,13 @@ async def claim_refund(
 
 @router.post(
     "/refund-applications/{refund_id}/decisions",
-    response_model=Envelope[RefundApplicationView],
+    response_model=Envelope[AdminRefundDecisionResult],
+    responses={
+        202: {
+            "model": Envelope[ApprovalRequiredView],
+            "description": "Amount-based approval required",
+        }
+    },
     operation_id="AdminRefund_Decide",
 )
 async def decide_refund(
@@ -169,16 +193,21 @@ async def decide_refund(
     response: Response,
     service: AfterSaleServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("refunds:review")],
-    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=8, max_length=128)],
+    idempotency_key: Annotated[
+        str, Header(alias="Idempotency-Key", min_length=16, max_length=128)
+    ],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
-) -> Envelope[RefundApplicationView]:
-    result = await service.decide(
+) -> Envelope[AdminRefundDecisionResult]:
+    result = await service.request_refund_decision(
         access,
         refund_id,
         payload,
         _expected_version(if_match),
         idempotency_key,
     )
-    response.headers["ETag"] = _etag(result.version)
+    if isinstance(result, ApprovalRequiredView):
+        response.status_code = 202
+    else:
+        response.headers["ETag"] = _etag(result.version)
     _no_store(response)
     return Envelope(data=result)

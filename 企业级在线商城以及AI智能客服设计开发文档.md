@@ -9167,6 +9167,8 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 
 退款审核不是客服工单；普通 `merchant_review` 直接由退款聚合投影成队列。高金额、平台申诉、超规则补偿或同人发起并审批命中职责冲突时，接口返回 `approval_required`/复核资源，不执行资金副作用。Agent 身份永远不能调用审核决定接口。
 
+首版通过 `ECOM_REFUND_DUAL_APPROVAL_THRESHOLD_MINOR` 配置高金额门槛，默认 `50000`（CNY 即 500.00 元）。未配置独立币种策略的非 CNY 退款批准一律进入审批，禁止直接套用 CNY 门槛或绕过复核。退款批准金额达到或超过门槛时创建两席审批申请；退款拒绝仍由已领取审核员直接处理。平台申诉结论无论金额均进入两席审批。审批发起人不计入席位且不得自批；达到门槛后由 `admin-approval-worker` 重验权限、Scope、MFA/近期认证快照、参数 Hash、资源 Version 与当前领域状态，再执行白名单命令。
+
 ##### 3.12.22.8 人工客服工作台
 
 管理前端使用 3.12.19 的 `/support/human-service-tickets` Claim/Transfer/Resolution 接口，并补充：

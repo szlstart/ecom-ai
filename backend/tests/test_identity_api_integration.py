@@ -721,7 +721,11 @@ async def test_admin_approval_separation_of_duties_and_executor(
             command_arguments_hash=canonical_request_hash(command_payload),
             display_snapshot={"action": "Suspend integration target"},
             resource_versions={"user": 1},
-            approval_policy_snapshot={"policy": "two_person_v1"},
+            approval_policy_snapshot={
+                "policy": "two_person_v1",
+                "initiator_assurance_level": "aal2",
+                "initiator_authenticated_at": now.isoformat(),
+            },
             required_approval_count=1,
             approved_count=0,
             request_status="pending",

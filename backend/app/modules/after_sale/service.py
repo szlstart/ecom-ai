@@ -29,8 +29,10 @@ from app.modules.after_sale.models import (
 from app.modules.after_sale.repository import AfterSaleRepository
 from app.modules.after_sale.schemas import (
     AdminRefundAppealDecisionRequest,
+    AdminRefundAppealDecisionResult,
     AdminRefundAppealList,
     AdminRefundDecisionRequest,
+    AdminRefundDecisionResult,
     AdminRefundList,
     FakeRefundWebhook,
     RefundAppealCreateRequest,
@@ -52,8 +54,10 @@ from app.modules.catalog.schemas import Money
 from app.modules.identity.models import User
 from app.modules.orders.models import Order, OrderItem, TradeOrder
 from app.modules.payments.models import Payment
+from app.modules.rbac.approval_service import AdminApprovalRequestService, ApprovalRequestSpec
 from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
+from app.modules.rbac.schemas import ApprovalRequiredView
 from app.modules.system.models import OutboxEvent
 
 
@@ -536,6 +540,64 @@ class AfterSaleService:
         await self.session.commit()
         return result
 
+    async def request_appeal_decision(
+        self,
+        access: AdminAccess,
+        appeal_no: str,
+        payload: AdminRefundAppealDecisionRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminRefundAppealDecisionResult:
+        if ("platform", 0) not in access.scopes:
+            raise _not_found()
+        row = await self.repository.admin_appeal(appeal_no, for_update=True)
+        if row is None:
+            raise _not_found()
+        appeal, refund = row
+        self._validate_appeal_decision(
+            access,
+            appeal,
+            expected_version=expected_version,
+        )
+        approval = AdminApprovalRequestService(self.session, self.security)
+        return await approval.create(
+            access,
+            ApprovalRequestSpec(
+                approval_type="refund_exception",
+                action_code="after_sale.refund_appeal.decide.v1",
+                target_type="refund_appeal",
+                target_no=appeal.appeal_no,
+                scope_type="platform",
+                scope_id=0,
+                command_payload={
+                    "appeal_id": appeal.appeal_no,
+                    "expected_version": expected_version,
+                    "decision": payload.model_dump(mode="json"),
+                },
+                display_snapshot={
+                    "appeal_id": appeal.appeal_no,
+                    "refund_id": refund.refund_no,
+                    "decision": payload.decision,
+                    "reason": payload.reason,
+                    "impact": "平台申诉结论将在双人复核通过后执行",
+                },
+                resource_versions={"refund_appeal": expected_version},
+                policy_snapshot={
+                    "policy": "refund_appeal_dual_control_v1",
+                    "required_approval_count": 2,
+                    "initiator_cannot_approve": True,
+                    "initiator_assurance_level": access.context.session.assurance_level,
+                    "initiator_authenticated_at": (
+                        access.context.session.authenticated_at.isoformat()
+                    ),
+                },
+                required_approval_count=2,
+                reason=payload.reason,
+            ),
+            idempotency_key=idempotency_key,
+            ttl_minutes=self.settings.admin_approval_ttl_minutes,
+        )
+
     async def admin_decide_appeal(
         self,
         access: AdminAccess,
@@ -561,27 +623,7 @@ class AfterSaleService:
         appeal, refund = row
         if claim.replayed:
             return _appeal_view(appeal, refund.refund_no)
-        if appeal.version != expected_version:
-            raise ApplicationError(
-                status=412,
-                code="RESOURCE_VERSION_CONFLICT",
-                title="Version conflict",
-                detail="申诉已经变化，请刷新后重试。",
-            )
-        if appeal.appeal_status not in {"submitted", "reviewing"}:
-            raise ApplicationError(
-                status=409,
-                code="REFUND_APPEAL_DECISION_NOT_ALLOWED",
-                title="Appeal conflict",
-                detail="当前申诉状态不能审核。",
-            )
-        if appeal.claimed_by != access.context.user.id:
-            raise ApplicationError(
-                status=409,
-                code="APPEAL_CLAIM_REQUIRED",
-                title="Appeal claim required",
-                detail="申诉必须由当前复核员先领取后才能作出决定。",
-            )
+        self._validate_appeal_decision(access, appeal, expected_version=expected_version)
         previous = appeal.appeal_status
         appeal.appeal_status = "upheld" if payload.decision == "approve" else "rejected"
         appeal.reviewed_by = access.context.user.id
@@ -626,6 +668,83 @@ class AfterSaleService:
         await self.session.commit()
         return result
 
+    async def request_refund_decision(
+        self,
+        access: AdminAccess,
+        refund_no: str,
+        payload: AdminRefundDecisionRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminRefundDecisionResult:
+        refund = await self.repository.admin_application(refund_no, for_update=True)
+        if refund is None:
+            raise _not_found()
+        access.require_scope("store", refund.store_id)
+        self._validate_refund_decision(access, refund, expected_version=expected_version)
+        amount = (
+            int(payload.approved_amount.minor_units)
+            if payload.approved_amount is not None
+            else refund.requested_amount
+        )
+        requires_approval = (
+            payload.decision == "approve"
+            and (
+                refund.currency != "CNY"
+                or amount >= self.settings.refund_dual_approval_threshold_minor
+            )
+        )
+        if not requires_approval:
+            return await self.decide(
+                access,
+                refund_no,
+                payload,
+                expected_version,
+                idempotency_key,
+            )
+        approval = AdminApprovalRequestService(self.session, self.security)
+        result: ApprovalRequiredView = await approval.create(
+            access,
+            ApprovalRequestSpec(
+                approval_type="refund_exception",
+                action_code="after_sale.refund.decide.v1",
+                target_type="refund_application",
+                target_no=refund.refund_no,
+                scope_type="store",
+                scope_id=refund.store_id,
+                command_payload={
+                    "refund_id": refund.refund_no,
+                    "expected_version": expected_version,
+                    "decision": payload.model_dump(mode="json"),
+                },
+                display_snapshot={
+                    "refund_id": refund.refund_no,
+                    "decision": payload.decision,
+                    "amount": {"minor_units": str(amount), "currency": refund.currency},
+                    "reason_code": payload.reason_code,
+                    "reason": payload.reason,
+                    "impact": "审批通过后执行原路退款或进入退货流程",
+                },
+                resource_versions={"refund_application": expected_version},
+                policy_snapshot={
+                    "policy": "refund_amount_dual_control_v1",
+                    "threshold_minor": self.settings.refund_dual_approval_threshold_minor,
+                    "threshold_currency": "CNY",
+                    "non_configured_currency_fallback": "always_require_approval",
+                    "required_approval_count": 2,
+                    "initiator_cannot_approve": True,
+                    "initiator_assurance_level": access.context.session.assurance_level,
+                    "initiator_authenticated_at": (
+                        access.context.session.authenticated_at.isoformat()
+                    ),
+                },
+                required_approval_count=2,
+                reason=payload.reason,
+            ),
+            idempotency_key=idempotency_key,
+            ttl_minutes=self.settings.admin_approval_ttl_minutes,
+        )
+        return result
+
     async def decide(
         self,
         access: AdminAccess,
@@ -649,27 +768,7 @@ class AfterSaleService:
         access.require_scope("store", refund.store_id)
         if claim.replayed:
             return await self._view(refund)
-        if refund.version != expected_version:
-            raise ApplicationError(
-                status=412,
-                code="RESOURCE_VERSION_CONFLICT",
-                title="Version conflict",
-                detail="售后申请已经变化，请刷新后重试。",
-            )
-        if refund.refund_status not in {"submitted", "merchant_review"}:
-            raise ApplicationError(
-                status=409,
-                code="REFUND_DECISION_NOT_ALLOWED",
-                title="Refund decision not allowed",
-                detail="当前售后状态不允许审核。",
-            )
-        if refund.claimed_by != access.context.user.id:
-            raise ApplicationError(
-                status=409,
-                code="REFUND_CLAIM_REQUIRED",
-                title="Refund claim required",
-                detail="退款申请必须由当前审核员先领取后才能作出决定。",
-            )
+        self._validate_refund_decision(access, refund, expected_version=expected_version)
         previous = refund.refund_status
         refund.refund_status = "approved" if payload.decision == "approve" else "rejected"
         if payload.approved_amount is not None:
@@ -760,6 +859,64 @@ class AfterSaleService:
         )
         await self.session.commit()
         return result
+
+    @staticmethod
+    def _validate_refund_decision(
+        access: AdminAccess,
+        refund: RefundApplication,
+        *,
+        expected_version: int,
+    ) -> None:
+        if refund.version != expected_version:
+            raise ApplicationError(
+                status=412,
+                code="RESOURCE_VERSION_CONFLICT",
+                title="Version conflict",
+                detail="售后申请已经变化，请刷新后重试。",
+            )
+        if refund.refund_status not in {"submitted", "merchant_review"}:
+            raise ApplicationError(
+                status=409,
+                code="REFUND_DECISION_NOT_ALLOWED",
+                title="Refund decision not allowed",
+                detail="当前售后状态不允许审核。",
+            )
+        if refund.claimed_by != access.context.user.id:
+            raise ApplicationError(
+                status=409,
+                code="REFUND_CLAIM_REQUIRED",
+                title="Refund claim required",
+                detail="退款申请必须由当前审核员先领取后才能作出决定。",
+            )
+
+    @staticmethod
+    def _validate_appeal_decision(
+        access: AdminAccess,
+        appeal: RefundAppeal,
+        *,
+        expected_version: int,
+    ) -> None:
+        if appeal.version != expected_version:
+            raise ApplicationError(
+                status=412,
+                code="RESOURCE_VERSION_CONFLICT",
+                title="Version conflict",
+                detail="申诉已经变化，请刷新后重试。",
+            )
+        if appeal.appeal_status not in {"submitted", "reviewing"}:
+            raise ApplicationError(
+                status=409,
+                code="REFUND_APPEAL_DECISION_NOT_ALLOWED",
+                title="Appeal conflict",
+                detail="当前申诉状态不能审核。",
+            )
+        if appeal.claimed_by != access.context.user.id:
+            raise ApplicationError(
+                status=409,
+                code="APPEAL_CLAIM_REQUIRED",
+                title="Appeal claim required",
+                detail="申诉必须由当前复核员先领取后才能作出决定。",
+            )
 
     async def create_appeal(
         self,

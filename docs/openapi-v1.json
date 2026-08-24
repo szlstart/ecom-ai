@@ -2367,6 +2367,104 @@
         }
       }
     },
+    "/api/v1/users/me/reviews": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "List My Reviews",
+        "operationId": "Review_ListMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "pending",
+                "published"
+              ],
+              "type": "string",
+              "default": "pending",
+              "title": "View"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MyReviewList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reviews": {
       "post": {
         "tags": [
@@ -2414,6 +2512,1606 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Envelope_MyReviewView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/{review_id}": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get Review",
+        "operationId": "Review_GetMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Union_MyReviewView__ProductReviewView__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Update Review",
+        "operationId": "Review_Update",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MyReviewView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/{review_id}/append-records": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Append Review",
+        "operationId": "Review_Append",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewAppendCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MyReviewView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reviews": {
+      "get": {
+        "tags": [
+          "review-administration"
+        ],
+        "summary": "List Reviews",
+        "operationId": "AdminReview_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "pending",
+                    "published",
+                    "hidden",
+                    "rejected"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Review Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminReviewList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reviews/{review_id}": {
+      "get": {
+        "tags": [
+          "review-administration"
+        ],
+        "summary": "Get Review",
+        "operationId": "AdminReview_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminReviewView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reviews/{review_id}/replies": {
+      "post": {
+        "tags": [
+          "review-administration"
+        ],
+        "summary": "Reply Review",
+        "operationId": "AdminReview_Reply",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminReviewReplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminReviewView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reviews/{review_id}/moderations": {
+      "post": {
+        "tags": [
+          "review-administration"
+        ],
+        "summary": "Moderate Review",
+        "operationId": "AdminReview_Moderate",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminReviewModerationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminReviewView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refund-applications/{refund_id}/return-shipment": {
+      "put": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "Upsert Return Shipment",
+        "operationId": "RefundReturnShipment_Upsert",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Refund Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundReturnShipmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundReturnShipmentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/refunds/{provider}": {
+      "post": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "Process Refund Webhook",
+        "operationId": "RefundPaymentWebhook_Process",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "X-Refund-Signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Refund-Signature"
+            }
+          },
+          {
+            "name": "X-Refund-Timestamp",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "X-Refund-Timestamp"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundPaymentCallbackAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refund-eligibility-checks": {
+      "post": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "Check Refund Eligibility",
+        "operationId": "RefundEligibility_Check",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundEligibilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundEligibilityCheck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/refund-applications": {
+      "post": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "Create Refund",
+        "operationId": "RefundApplication_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundApplicationCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundApplicationView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/refund-applications": {
+      "get": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "List Refunds",
+        "operationId": "RefundApplication_ListMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundApplicationList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refund-applications/{refund_id}": {
+      "get": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "Get Refund",
+        "operationId": "RefundApplication_GetMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Refund Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundApplicationView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refund-applications/{refund_id}/events": {
+      "get": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "List Refund Events",
+        "operationId": "RefundEvent_ListMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Refund Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundEventList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refund-applications/{refund_id}/cancellations": {
+      "post": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "Cancel Refund",
+        "operationId": "RefundApplication_Cancel",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Refund Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundCancelRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundApplicationView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refund-applications/{refund_id}/appeals": {
+      "post": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "Create Refund Appeal",
+        "operationId": "RefundAppeal_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Refund Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundAppealCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundAppealView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/refund-appeals/{appeal_id}": {
+      "get": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "Get Refund Appeal",
+        "operationId": "RefundAppeal_GetMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundAppealView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/refund-applications": {
+      "get": {
+        "tags": [
+          "after-sale-administration"
+        ],
+        "summary": "List Refunds",
+        "operationId": "AdminRefund_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminRefundList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/refund-appeals": {
+      "get": {
+        "tags": [
+          "after-sale-administration"
+        ],
+        "summary": "List Appeals",
+        "operationId": "AdminRefundAppeal_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminRefundAppealList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/refund-appeals/{appeal_id}": {
+      "get": {
+        "tags": [
+          "after-sale-administration"
+        ],
+        "summary": "Get Appeal",
+        "operationId": "AdminRefundAppeal_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundAppealView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/refund-appeals/{appeal_id}/claims": {
+      "post": {
+        "tags": [
+          "after-sale-administration"
+        ],
+        "summary": "Claim Appeal",
+        "operationId": "AdminRefundAppeal_Claim",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundAppealView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/refund-appeals/{appeal_id}/decisions": {
+      "post": {
+        "tags": [
+          "after-sale-administration"
+        ],
+        "summary": "Decide Appeal",
+        "operationId": "AdminRefundAppeal_Decide",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminRefundAppealDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Union_RefundAppealView__ApprovalRequiredView__"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Dual-control approval required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ApprovalRequiredView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/refund-applications/{refund_id}": {
+      "get": {
+        "tags": [
+          "after-sale-administration"
+        ],
+        "summary": "Get Refund",
+        "operationId": "AdminRefund_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Refund Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundApplicationView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/refund-applications/{refund_id}/claims": {
+      "post": {
+        "tags": [
+          "after-sale-administration"
+        ],
+        "summary": "Claim Refund",
+        "operationId": "AdminRefund_Claim",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Refund Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundApplicationView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/refund-applications/{refund_id}/decisions": {
+      "post": {
+        "tags": [
+          "after-sale-administration"
+        ],
+        "summary": "Decide Refund",
+        "operationId": "AdminRefund_Decide",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Refund Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminRefundDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_Union_RefundApplicationView__ApprovalRequiredView__"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Amount-based approval required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ApprovalRequiredView_"
                 }
               }
             }
@@ -15026,6 +16724,370 @@
         ],
         "title": "AdminReauthenticationRequest"
       },
+      "AdminRefundAppealDecisionRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ],
+            "title": "Decision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision",
+          "reason"
+        ],
+        "title": "AdminRefundAppealDecisionRequest"
+      },
+      "AdminRefundAppealList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundAppealView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AdminRefundAppealList"
+      },
+      "AdminRefundDecisionRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject"
+            ],
+            "title": "Decision"
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason"
+          },
+          "approved_amount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision",
+          "reason_code",
+          "reason"
+        ],
+        "title": "AdminRefundDecisionRequest"
+      },
+      "AdminRefundList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundApplicationView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AdminRefundList"
+      },
+      "AdminReviewGovernanceView": {
+        "properties": {
+          "governance_id": {
+            "type": "string",
+            "title": "Governance Id"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "hide",
+              "restore"
+            ],
+            "title": "Action"
+          },
+          "from_status": {
+            "type": "string",
+            "title": "From Status"
+          },
+          "to_status": {
+            "type": "string",
+            "title": "To Status"
+          },
+          "rule_code": {
+            "type": "string",
+            "title": "Rule Code"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "governance_id",
+          "action",
+          "from_status",
+          "to_status",
+          "rule_code",
+          "reason",
+          "occurred_at"
+        ],
+        "title": "AdminReviewGovernanceView"
+      },
+      "AdminReviewList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminReviewView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AdminReviewList"
+      },
+      "AdminReviewModerationRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "hide",
+              "restore"
+            ],
+            "title": "Action"
+          },
+          "rule_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Rule Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 2,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action",
+          "rule_code",
+          "reason"
+        ],
+        "title": "AdminReviewModerationRequest"
+      },
+      "AdminReviewReplyRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "AdminReviewReplyRequest"
+      },
+      "AdminReviewView": {
+        "properties": {
+          "review_id": {
+            "type": "string",
+            "title": "Review Id"
+          },
+          "order_id": {
+            "type": "string",
+            "title": "Order Id"
+          },
+          "order_item_id": {
+            "type": "string",
+            "title": "Order Item Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "user_name": {
+            "type": "string",
+            "title": "User Name"
+          },
+          "store_id": {
+            "type": "string",
+            "title": "Store Id"
+          },
+          "store_name": {
+            "type": "string",
+            "title": "Store Name"
+          },
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "sku_name": {
+            "type": "string",
+            "title": "Sku Name"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "is_anonymous": {
+            "type": "boolean",
+            "title": "Is Anonymous"
+          },
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "published",
+              "hidden",
+              "rejected"
+            ],
+            "title": "Review Status"
+          },
+          "moderation_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "passed",
+              "blocked",
+              "manual"
+            ],
+            "title": "Moderation Status"
+          },
+          "merchant_reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewReplyView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "governance_history": {
+            "items": {
+              "$ref": "#/components/schemas/AdminReviewGovernanceView"
+            },
+            "type": "array",
+            "title": "Governance History"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "review_id",
+          "order_id",
+          "order_item_id",
+          "user_id",
+          "user_name",
+          "store_id",
+          "store_name",
+          "product_id",
+          "product_name",
+          "sku_id",
+          "sku_name",
+          "rating",
+          "content",
+          "is_anonymous",
+          "review_status",
+          "moderation_status",
+          "merchant_reply",
+          "governance_history",
+          "submitted_at",
+          "published_at",
+          "version"
+        ],
+        "title": "AdminReviewView"
+      },
       "AdminShipmentCreateItem": {
         "properties": {
           "order_item_id": {
@@ -16880,6 +18942,42 @@
           "reason"
         ],
         "title": "ApprovalDecisionRequest"
+      },
+      "ApprovalRequiredView": {
+        "properties": {
+          "command_status": {
+            "type": "string",
+            "const": "approval_required",
+            "title": "Command Status"
+          },
+          "approval_request_id": {
+            "type": "string",
+            "title": "Approval Request Id"
+          },
+          "required_approval_count": {
+            "type": "integer",
+            "title": "Required Approval Count"
+          },
+          "approved_count": {
+            "type": "integer",
+            "title": "Approved Count"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_status",
+          "approval_request_id",
+          "required_approval_count",
+          "approved_count",
+          "expires_at"
+        ],
+        "title": "ApprovalRequiredView"
       },
       "ApprovalView": {
         "properties": {
@@ -18777,6 +20875,66 @@
         ],
         "title": "Envelope[AdminProductList]"
       },
+      "Envelope_AdminRefundAppealList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminRefundAppealList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminRefundAppealList]"
+      },
+      "Envelope_AdminRefundList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminRefundList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminRefundList]"
+      },
+      "Envelope_AdminReviewList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminReviewList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminReviewList]"
+      },
+      "Envelope_AdminReviewView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminReviewView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminReviewView]"
+      },
       "Envelope_AdminShipmentDetail_": {
         "properties": {
           "data": {
@@ -18926,6 +21084,21 @@
           "data"
         ],
         "title": "Envelope[AdminUserSummary]"
+      },
+      "Envelope_ApprovalRequiredView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ApprovalRequiredView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ApprovalRequiredView]"
       },
       "Envelope_ApprovalView_": {
         "properties": {
@@ -19151,6 +21324,21 @@
           "data"
         ],
         "title": "Envelope[MessageResult]"
+      },
+      "Envelope_MyReviewList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MyReviewList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[MyReviewList]"
       },
       "Envelope_MyReviewView_": {
         "properties": {
@@ -19452,6 +21640,111 @@
         ],
         "title": "Envelope[ReauthenticationResult]"
       },
+      "Envelope_RefundAppealView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RefundAppealView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[RefundAppealView]"
+      },
+      "Envelope_RefundApplicationList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RefundApplicationList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[RefundApplicationList]"
+      },
+      "Envelope_RefundApplicationView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RefundApplicationView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[RefundApplicationView]"
+      },
+      "Envelope_RefundEligibilityCheck_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RefundEligibilityCheck"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[RefundEligibilityCheck]"
+      },
+      "Envelope_RefundEventList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RefundEventList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[RefundEventList]"
+      },
+      "Envelope_RefundPaymentCallbackAck_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RefundPaymentCallbackAck"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[RefundPaymentCallbackAck]"
+      },
+      "Envelope_RefundReturnShipmentView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RefundReturnShipmentView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[RefundReturnShipmentView]"
+      },
       "Envelope_ReviewEligibility_": {
         "properties": {
           "data": {
@@ -19698,6 +21991,75 @@
           "data"
         ],
         "title": "Envelope[Union[AdminProductFulfillmentView, NoneType]]"
+      },
+      "Envelope_Union_MyReviewView__ProductReviewView__": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MyReviewView"
+              },
+              {
+                "$ref": "#/components/schemas/ProductReviewView"
+              }
+            ],
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[Union[MyReviewView, ProductReviewView]]"
+      },
+      "Envelope_Union_RefundAppealView__ApprovalRequiredView__": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefundAppealView"
+              },
+              {
+                "$ref": "#/components/schemas/ApprovalRequiredView"
+              }
+            ],
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[Union[RefundAppealView, ApprovalRequiredView]]"
+      },
+      "Envelope_Union_RefundApplicationView__ApprovalRequiredView__": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RefundApplicationView"
+              },
+              {
+                "$ref": "#/components/schemas/ApprovalRequiredView"
+              }
+            ],
+            "title": "Data"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[Union[RefundApplicationView, ApprovalRequiredView]]"
       },
       "Envelope_UserDashboard_": {
         "properties": {
@@ -20871,6 +23233,74 @@
         ],
         "title": "Money"
       },
+      "MyReviewAppendView": {
+        "properties": {
+          "append_id": {
+            "type": "string",
+            "title": "Append Id"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "append_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "published",
+              "hidden",
+              "rejected"
+            ],
+            "title": "Append Status"
+          },
+          "moderation_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "passed",
+              "blocked",
+              "manual"
+            ],
+            "title": "Moderation Status"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/MyReviewImageView"
+            },
+            "type": "array",
+            "title": "Images"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "append_id",
+          "content",
+          "append_status",
+          "moderation_status",
+          "images",
+          "submitted_at",
+          "published_at"
+        ],
+        "title": "MyReviewAppendView"
+      },
       "MyReviewImageView": {
         "properties": {
           "file_id": {
@@ -20894,6 +23324,98 @@
           "height"
         ],
         "title": "MyReviewImageView"
+      },
+      "MyReviewList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MyReviewListItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "MyReviewList"
+      },
+      "MyReviewListItem": {
+        "properties": {
+          "item_type": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "review"
+            ],
+            "title": "Item Type"
+          },
+          "order_id": {
+            "type": "string",
+            "title": "Order Id"
+          },
+          "order_item_id": {
+            "type": "string",
+            "title": "Order Item Id"
+          },
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "sku_id": {
+            "type": "string",
+            "title": "Sku Id"
+          },
+          "product_name": {
+            "type": "string",
+            "title": "Product Name"
+          },
+          "sku_name": {
+            "type": "string",
+            "title": "Sku Name"
+          },
+          "order_completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Completed At"
+          },
+          "eligibility": {
+            "$ref": "#/components/schemas/ReviewEligibility"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MyReviewView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "item_type",
+          "order_id",
+          "order_item_id",
+          "product_id",
+          "sku_id",
+          "product_name",
+          "sku_name",
+          "order_completed_at",
+          "eligibility"
+        ],
+        "title": "MyReviewListItem"
       },
       "MyReviewView": {
         "properties": {
@@ -20970,6 +23492,26 @@
             },
             "type": "array",
             "title": "Images"
+          },
+          "append": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MyReviewAppendView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merchant_reply": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewReplyView"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "submitted_at": {
             "type": "string",
@@ -23201,6 +25743,699 @@
         ],
         "title": "ReauthenticationResult"
       },
+      "RefundAppealCreateRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 2,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "RefundAppealCreateRequest"
+      },
+      "RefundAppealView": {
+        "properties": {
+          "appeal_id": {
+            "type": "string",
+            "title": "Appeal Id"
+          },
+          "refund_id": {
+            "type": "string",
+            "title": "Refund Id"
+          },
+          "appeal_status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "reviewing",
+              "upheld",
+              "rejected",
+              "cancelled",
+              "closed"
+            ],
+            "title": "Appeal Status"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "claimed": {
+            "type": "boolean",
+            "title": "Claimed",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "appeal_id",
+          "refund_id",
+          "appeal_status",
+          "reason",
+          "submitted_at",
+          "decided_at",
+          "version"
+        ],
+        "title": "RefundAppealView"
+      },
+      "RefundApplicationCreateRequest": {
+        "properties": {
+          "eligibility_token": {
+            "type": "string",
+            "maxLength": 2048,
+            "minLength": 16,
+            "title": "Eligibility Token"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundApplicationItemRequest"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "refund_type": {
+            "type": "string",
+            "enum": [
+              "refund_only",
+              "return_and_refund"
+            ],
+            "title": "Refund Type"
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason_detail": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Detail"
+          },
+          "requested_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "policy_accepted": {
+            "type": "boolean",
+            "title": "Policy Accepted"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "eligibility_token",
+          "items",
+          "refund_type",
+          "reason_code",
+          "requested_amount",
+          "policy_accepted"
+        ],
+        "title": "RefundApplicationCreateRequest"
+      },
+      "RefundApplicationItemRequest": {
+        "properties": {
+          "order_item_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^oit_[0-9A-Z]+$",
+            "title": "Order Item Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_item_id",
+          "quantity"
+        ],
+        "title": "RefundApplicationItemRequest"
+      },
+      "RefundApplicationItemView": {
+        "properties": {
+          "order_item_id": {
+            "type": "string",
+            "title": "Order Item Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "requested_amount": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_item_id",
+          "quantity",
+          "requested_amount"
+        ],
+        "title": "RefundApplicationItemView"
+      },
+      "RefundApplicationList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundApplicationView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "RefundApplicationList"
+      },
+      "RefundApplicationView": {
+        "properties": {
+          "refund_id": {
+            "type": "string",
+            "title": "Refund Id"
+          },
+          "order_id": {
+            "type": "string",
+            "title": "Order Id"
+          },
+          "refund_type": {
+            "type": "string",
+            "enum": [
+              "refund_only",
+              "return_and_refund"
+            ],
+            "title": "Refund Type"
+          },
+          "refund_status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "merchant_review",
+              "approved",
+              "waiting_return",
+              "returning",
+              "received",
+              "refunding",
+              "succeeded",
+              "rejected",
+              "cancelled",
+              "closed"
+            ],
+            "title": "Refund Status"
+          },
+          "reason_code": {
+            "type": "string",
+            "title": "Reason Code"
+          },
+          "reason_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Detail"
+          },
+          "requested_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "approved_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundApplicationItemView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "available_actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "cancel",
+                "view_events",
+                "create_refund_appeal",
+                "create_new_refund_application"
+              ]
+            },
+            "type": "array",
+            "title": "Available Actions"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "claimed": {
+            "type": "boolean",
+            "title": "Claimed",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "refund_id",
+          "order_id",
+          "refund_type",
+          "refund_status",
+          "reason_code",
+          "reason_detail",
+          "requested_amount",
+          "approved_amount",
+          "items",
+          "available_actions",
+          "submitted_at",
+          "decided_at",
+          "version"
+        ],
+        "title": "RefundApplicationView"
+      },
+      "RefundCancelRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RefundCancelRequest"
+      },
+      "RefundEligibilityCheck": {
+        "properties": {
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "eligibility_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Eligibility Token"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "allowed_types": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "refund_only",
+                "return_and_refund"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Types"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundEligibilityItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "amount_editable": {
+            "type": "boolean",
+            "title": "Amount Editable",
+            "default": false
+          },
+          "min_refundable_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "max_refundable_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "suggested_refund_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "blocking_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocking Reasons"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "eligible",
+          "expires_at",
+          "allowed_types",
+          "items",
+          "min_refundable_amount",
+          "max_refundable_amount",
+          "suggested_refund_amount"
+        ],
+        "title": "RefundEligibilityCheck"
+      },
+      "RefundEligibilityItem": {
+        "properties": {
+          "order_item_id": {
+            "type": "string",
+            "title": "Order Item Id"
+          },
+          "purchased_quantity": {
+            "type": "integer",
+            "title": "Purchased Quantity"
+          },
+          "succeeded_refund_quantity": {
+            "type": "integer",
+            "title": "Succeeded Refund Quantity"
+          },
+          "active_reserved_quantity": {
+            "type": "integer",
+            "title": "Active Reserved Quantity"
+          },
+          "available_quantity": {
+            "type": "integer",
+            "title": "Available Quantity"
+          },
+          "available_refundable_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "available_actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "apply_after_sale",
+                "view_active_after_sale"
+              ]
+            },
+            "type": "array",
+            "title": "Available Actions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_item_id",
+          "purchased_quantity",
+          "succeeded_refund_quantity",
+          "active_reserved_quantity",
+          "available_quantity",
+          "available_refundable_amount",
+          "available_actions"
+        ],
+        "title": "RefundEligibilityItem"
+      },
+      "RefundEligibilityItemRequest": {
+        "properties": {
+          "order_item_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^oit_[0-9A-Z]+$",
+            "title": "Order Item Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_item_id",
+          "quantity"
+        ],
+        "title": "RefundEligibilityItemRequest"
+      },
+      "RefundEligibilityRequest": {
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 5,
+            "title": "Order Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundEligibilityItemRequest"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "requested_type": {
+            "type": "string",
+            "enum": [
+              "refund_only",
+              "return_and_refund"
+            ],
+            "title": "Requested Type"
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_id",
+          "items",
+          "requested_type",
+          "reason_code"
+        ],
+        "title": "RefundEligibilityRequest"
+      },
+      "RefundEventList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundEventView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "RefundEventList"
+      },
+      "RefundEventView": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Status"
+          },
+          "to_status": {
+            "type": "string",
+            "title": "To Status"
+          },
+          "event_code": {
+            "type": "string",
+            "title": "Event Code"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "from_status",
+          "to_status",
+          "event_code",
+          "occurred_at"
+        ],
+        "title": "RefundEventView"
+      },
+      "RefundPaymentCallbackAck": {
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate",
+            "default": false
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "succeeded",
+              "failed",
+              "unknown"
+            ],
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "accepted",
+          "status"
+        ],
+        "title": "RefundPaymentCallbackAck"
+      },
+      "RefundReturnShipmentRequest": {
+        "properties": {
+          "carrier_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{1,31}$",
+            "title": "Carrier Code"
+          },
+          "tracking_no": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Tracking No",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "carrier_code",
+          "tracking_no"
+        ],
+        "title": "RefundReturnShipmentRequest"
+      },
+      "RefundReturnShipmentView": {
+        "properties": {
+          "refund_id": {
+            "type": "string",
+            "title": "Refund Id"
+          },
+          "carrier_code": {
+            "type": "string",
+            "title": "Carrier Code"
+          },
+          "carrier_name": {
+            "type": "string",
+            "title": "Carrier Name"
+          },
+          "tracking_no_masked": {
+            "type": "string",
+            "title": "Tracking No Masked"
+          },
+          "shipment_status": {
+            "type": "string",
+            "enum": [
+              "submitted",
+              "in_transit",
+              "delivered",
+              "received",
+              "exception"
+            ],
+            "title": "Shipment Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "refund_id",
+          "carrier_code",
+          "carrier_name",
+          "tracking_no_masked",
+          "shipment_status",
+          "version"
+        ],
+        "title": "RefundReturnShipmentView"
+      },
       "RegistrationRequest": {
         "properties": {
           "username": {
@@ -23342,6 +26577,30 @@
         "type": "object",
         "title": "ResponseMeta"
       },
+      "ReviewAppendCreateRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Content"
+          },
+          "image_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Image File Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "ReviewAppendCreateRequest"
+      },
       "ReviewAppendView": {
         "properties": {
           "content": {
@@ -23352,6 +26611,13 @@
             "type": "string",
             "format": "date-time",
             "title": "Published At"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewImageView"
+            },
+            "type": "array",
+            "title": "Images"
           }
         },
         "type": "object",
@@ -23577,6 +26843,47 @@
           "published_at"
         ],
         "title": "ReviewReplyView"
+      },
+      "ReviewUpdateRequest": {
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "is_anonymous": {
+            "type": "boolean",
+            "title": "Is Anonymous",
+            "default": false
+          },
+          "image_file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "title": "Image File Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rating"
+        ],
+        "title": "ReviewUpdateRequest"
       },
       "RoleCreateRequest": {
         "properties": {

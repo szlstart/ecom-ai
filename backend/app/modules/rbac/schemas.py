@@ -224,6 +224,14 @@ class ApprovalView(StrictRequest):
     version: int
 
 
+class ApprovalRequiredView(StrictRequest):
+    command_status: Literal["approval_required"]
+    approval_request_id: str
+    required_approval_count: int
+    approved_count: int
+    expires_at: datetime
+
+
 class AuditLogView(StrictRequest):
     operation_id: str
     operator_user_id: str

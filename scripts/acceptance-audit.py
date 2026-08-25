@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 from collections import Counter
@@ -77,9 +78,35 @@ def component_exists(component: str) -> bool:
     return any(any(directory.rglob(component)) for directory in search_roots)
 
 
+def collected_test_selectors() -> set[str]:
+    selectors: set[str] = set()
+    for path in sorted((ROOT / "backend/tests").glob("test_*.py")):
+        relative = path.relative_to(ROOT).as_posix()
+        module = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in module.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith(
+                "test_"
+            ):
+                selectors.add(f"{relative}::{node.name}")
+    pattern = re.compile(r"\b(?:it|test)\(\s*(['\"])(.*?)\1", re.DOTALL)
+    for path in sorted((ROOT / "frontend/src").rglob("*.test.ts")):
+        relative = path.relative_to(ROOT).as_posix()
+        source = path.read_text(encoding="utf-8")
+        selectors.update(f"{relative}::{match.group(2)}" for match in pattern.finditer(source))
+    return selectors
+
+
+def test_family_id(value: str) -> str | None:
+    if value.endswith("-*") and len(value) > 2:
+        return value[:-2]
+    return None
+
+
 def audit() -> dict[str, Any]:
     traceability = load_yaml("traceability.yaml")
     permissions = load_yaml("permission_registry.yaml")
+    domains = load_yaml("domain_registry.yaml")
+    test_registry = load_yaml("test_evidence_registry.yaml")
     registered_permissions = {item["code"] for item in permissions["permissions"]}
     required_route_fields = set(traceability["required_fields"])
     required_extensions = set(
@@ -90,6 +117,57 @@ def audit() -> dict[str, Any]:
     global_components = traceability.get("global_components", [])
     operations = openapi_operations()
     findings: list[Finding] = []
+    referenced_test_families: set[str] = set()
+    collected_selectors = collected_test_selectors()
+    allowed_test_layers = set(test_registry.get("allowed_layers", []))
+    registered_test_families = test_registry.get("families", {})
+    if not isinstance(registered_test_families, dict):
+        registered_test_families = {}
+        findings.append(
+            Finding(
+                "TEST_REGISTRY_INVALID",
+                "error",
+                "test_evidence_registry.yaml",
+                "families must be a mapping",
+            )
+        )
+    for family_id, registration in registered_test_families.items():
+        if not isinstance(registration, dict):
+            findings.append(
+                Finding("TEST_FAMILY_INVALID", "error", str(family_id), "must be a mapping")
+            )
+            continue
+        layers = registration.get("layers")
+        selectors = registration.get("selectors")
+        if (
+            not isinstance(layers, list)
+            or not layers
+            or any(not isinstance(layer, str) for layer in layers)
+            or not set(layers) <= allowed_test_layers
+        ):
+            findings.append(
+                Finding("TEST_FAMILY_LAYERS_INVALID", "error", str(family_id), str(layers))
+            )
+        if not isinstance(selectors, list) or not selectors:
+            findings.append(
+                Finding(
+                    "TEST_FAMILY_SELECTORS_MISSING",
+                    "error",
+                    str(family_id),
+                    "at least one exact selector is required",
+                )
+            )
+            continue
+        for selector in selectors:
+            if not isinstance(selector, str) or selector not in collected_selectors:
+                findings.append(
+                    Finding(
+                        "TEST_SELECTOR_NOT_COLLECTED",
+                        "error",
+                        str(family_id),
+                        str(selector),
+                    )
+                )
 
     requirement_counts = Counter(item.get("requirement_id") for item in routes)
     path_counts = Counter(item.get("route") for item in routes)
@@ -126,6 +204,19 @@ def audit() -> dict[str, Any]:
                 findings.append(
                     Finding("TRACE_PERMISSION_UNKNOWN", "error", requirement_id, value)
                 )
+        for test_id in route.get("tests", []):
+            family_id = test_family_id(test_id) if isinstance(test_id, str) else None
+            if family_id is None or family_id not in registered_test_families:
+                findings.append(
+                    Finding(
+                        "TRACE_TEST_FAMILY_UNKNOWN",
+                        "error",
+                        requirement_id,
+                        str(test_id),
+                    )
+                )
+            else:
+                referenced_test_families.add(family_id)
 
     router_entries = frontend_routes()
     router_requirement_counts = Counter(requirement_id for _, requirement_id in router_entries)
@@ -160,6 +251,20 @@ def audit() -> dict[str, Any]:
             )
 
     owner_rows = [*routes, *global_components]
+    for component in global_components:
+        for test_id in component.get("tests", []):
+            family_id = test_family_id(test_id) if isinstance(test_id, str) else None
+            if family_id is None or family_id not in registered_test_families:
+                findings.append(
+                    Finding(
+                        "TRACE_TEST_FAMILY_UNKNOWN",
+                        "error",
+                        component["requirement_id"],
+                        str(test_id),
+                    )
+                )
+            else:
+                referenced_test_families.add(family_id)
     owners_by_operation: dict[str, list[str]] = {}
     for owner in owner_rows:
         for operation_id in owner.get("operations", []):
@@ -168,6 +273,19 @@ def audit() -> dict[str, Any]:
             owners_by_operation.setdefault(operation_id, []).append(owner["requirement_id"])
     for owner in traceability.get("operation_owners", []):
         owners_by_operation.setdefault(owner["operation_id"], []).append(owner["requirement_id"])
+        for test_id in owner.get("tests", []):
+            family_id = test_family_id(test_id) if isinstance(test_id, str) else None
+            if family_id is None or family_id not in registered_test_families:
+                findings.append(
+                    Finding(
+                        "TRACE_TEST_FAMILY_UNKNOWN",
+                        "error",
+                        owner["requirement_id"],
+                        str(test_id),
+                    )
+                )
+            else:
+                referenced_test_families.add(family_id)
 
     for operation_id, owner_ids in sorted(owners_by_operation.items()):
         if operation_id not in operations:
@@ -220,6 +338,20 @@ def audit() -> dict[str, Any]:
                         f"{extension} must be a list of non-empty strings",
                     )
                 )
+        if isinstance(test_case_ids, list):
+            for test_id in test_case_ids:
+                family_id = test_family_id(test_id) if isinstance(test_id, str) else None
+                if family_id is None or family_id not in registered_test_families:
+                    findings.append(
+                        Finding(
+                            "OPENAPI_TEST_FAMILY_UNKNOWN",
+                            "error",
+                            operation_id,
+                            str(test_id),
+                        )
+                    )
+                else:
+                    referenced_test_families.add(family_id)
         if isinstance(requirement_ids, list) and not set(requirement_ids) <= set(owner_ids):
             findings.append(
                 Finding(
@@ -259,6 +391,56 @@ def audit() -> dict[str, Any]:
                     )
                 )
 
+    aggregate_evidence = test_registry.get("domain_aggregates", {})
+    if not isinstance(aggregate_evidence, dict):
+        aggregate_evidence = {}
+    registered_aggregates = set(domains.get("aggregates", {}))
+    for aggregate in sorted(registered_aggregates):
+        families = aggregate_evidence.get(aggregate)
+        if not isinstance(families, list) or not families:
+            findings.append(
+                Finding(
+                    "DOMAIN_TEST_EVIDENCE_MISSING",
+                    "error",
+                    aggregate,
+                    "no registered test family",
+                )
+            )
+            continue
+        unknown_families = sorted(
+            family for family in families if family not in registered_test_families
+        )
+        referenced_test_families.update(
+            family for family in families if family in registered_test_families
+        )
+        if unknown_families:
+            findings.append(
+                Finding(
+                    "DOMAIN_TEST_FAMILY_UNKNOWN",
+                    "error",
+                    aggregate,
+                    ", ".join(unknown_families),
+                )
+            )
+    for aggregate in sorted(set(aggregate_evidence) - registered_aggregates):
+        findings.append(
+            Finding(
+                "DOMAIN_TEST_AGGREGATE_UNKNOWN",
+                "error",
+                aggregate,
+                "not present in domain_registry.yaml",
+            )
+        )
+    for family_id in sorted(set(registered_test_families) - referenced_test_families):
+        findings.append(
+            Finding(
+                "TEST_FAMILY_ORPHAN",
+                "error",
+                family_id,
+                "not referenced by traceability, OpenAPI or a domain aggregate",
+            )
+        )
+
     counts = Counter(finding.code for finding in findings)
     return {
         "schema_version": 1,
@@ -269,6 +451,9 @@ def audit() -> dict[str, Any]:
             "openapi_operations": len(operations),
             "owned_operations": len(set(operations) & set(owners_by_operation)),
             "finding_count": len(findings),
+            "registered_test_families": len(registered_test_families),
+            "collected_test_selectors": len(collected_selectors),
+            "domain_aggregates_with_evidence": len(aggregate_evidence),
             "finding_counts": dict(sorted(counts.items())),
         },
         "findings": [asdict(finding) for finding in findings],

@@ -13771,5 +13771,6 @@ CI 必须解析 Vue Route Meta、生成后 OpenAPI、Permission Registry、领�
 6. 验收证据固定保存到 `artifacts/acceptance/<release>/<requirement-id>/`，至少含测试报告、OpenAPI/Permission 快照、必要的页面截图/无障碍报告和 Trace/Audit Ref；生产数据必须脱敏。
 7. `docs/domain_registry.yaml` 中每个状态、合法迁移、Guard 和事件均能生成代码/DDL/OpenAPI/测试；任何未登记迁移必须断言业务表、状态流水和 Outbox 零写入。
 8. 每个 OpenAPI Operation 必须携带 `docs/traceability.yaml.operation_contract` 规定的 `x-requirement-id、x-owner-kind、x-permission-codes、x-scope-policy、x-domain-command、x-audit-event、x-idempotency-policy、x-test-case-ids`；同一路由行列出多个 Permission 时不得整行继承，必须在 Operation 级绑定实际所需权限。`x-owner-kind` 只能为 `vue_route/global_ui/internal_only/webhook/worker`，未能唯一解析 Owner 的 Operation 使 CI 失败。
+9. `x-test-case-ids` 和路由 `tests` 中的测试族必须在 `docs/test_evidence_registry.yaml` 注册，并至少绑定一个可由源代码收集的精确 Pytest/Vitest Selector；Selector 删除或改名、测试族未知/孤立、领域聚合无测试族归属时 CI 失败。JUnit 报告作为执行证据，注册表存在本身不能代替测试执行成功。
 
 ---

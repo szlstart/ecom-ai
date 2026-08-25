@@ -43,6 +43,7 @@ def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     assert "ECOM_RUN_INTEGRATION_TESTS=1" in makefile
     assert "--cov-fail-under=60" in makefile
     assert "backend-junit.xml" in makefile
+    assert "frontend-junit.xml" in makefile
 
 
 def test_release_images_are_scanned_attested_and_keyless_signed() -> None:

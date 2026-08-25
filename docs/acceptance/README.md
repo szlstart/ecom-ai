@@ -10,6 +10,8 @@
 
 `make acceptance-test` 会强制启用真实 MySQL/PostgreSQL/Redis 集成套件，并把后端覆盖率 XML 写入 `artifacts/acceptance/current/quality/`。当前仓库门禁为后端行覆盖率不低于 60%；它只用于阻止证据退化，不能替代逐流程、并发、安全、浏览器和环境验收。
 
+`docs/test_evidence_registry.yaml` 把追踪矩阵中的测试族绑定到精确的 Pytest/Vitest 选择器，并声明证据层级。`make acceptance-gate` 会解析测试源文件，拒绝不存在或已改名的选择器、未知/孤立测试族，以及没有测试归属的领域聚合；仅在 OpenAPI 中填写 `*-*` 标签不再被视为测试证据。CI 的验收工件同时保存后端和前端 JUnit 报告。
+
 ## 证据最小结构
 
 每个发布版本的证据目录至少包含：

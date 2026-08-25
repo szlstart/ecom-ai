@@ -38,6 +38,7 @@ def validate() -> None:
     permissions = load("permission_registry.yaml")
     traceability = load("traceability.yaml")
     domains = load("domain_registry.yaml")
+    test_evidence = load("test_evidence_registry.yaml")
 
     prefixes = [item["prefix"] for item in ids["resources"].values()]
     ensure_unique(prefixes, "ID prefixes")
@@ -78,6 +79,7 @@ def validate() -> None:
         "Registry validation passed: "
         f"{len(prefixes)} ID prefixes, {len(permission_codes)} permissions, "
         f"{len(routes)} routes, {len(domains['aggregates'])} aggregates."
+        f" {len(test_evidence['families'])} test families are registered."
     )
 
 

@@ -69,8 +69,21 @@ async def test_shadow_index_and_acl_filtered_keyword_retrieval() -> None:
                 trace_id="phase09-integration",
             )
             assert [item.document_no for item in allowed.chunks] == [document_no]
+            assert all(item.chunk_no.startswith("kch_") for item in allowed.chunks)
             assert allowed.degraded is True
             assert denied.chunks == []
+            retrieval_nos = list(
+                (
+                    await session.scalars(
+                        text(
+                            "SELECT retrieval_no FROM knowledge.retrieval_logs "
+                            "WHERE trace_id='phase09-integration'"
+                        )
+                    )
+                ).all()
+            )
+            assert retrieval_nos
+            assert all(item.startswith("rtv_") for item in retrieval_nos)
             await session.execute(
                 text("DELETE FROM knowledge.retrieval_logs WHERE trace_id='phase09-integration'")
             )

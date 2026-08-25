@@ -173,7 +173,7 @@ async def hybrid_search(
                        :model_code,:candidate_count,:returned_count,:degraded,:latency_ms)"""
         ),
         {
-            "retrieval_no": new_prefixed_ulid("ret_"),
+            "retrieval_no": new_prefixed_ulid("rtv_"),
             "trace_id": trace_id,
             "query_hash": hashlib.sha256(query.encode()).digest(),
             "scope_type": scope_type,

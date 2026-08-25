@@ -7157,13 +7157,12 @@ Tool Version 是运行、绑定、权限、审计和回滚的不可变单位。�
 
 PostgreSQL 是 AI 子系统的持久化与检索库，不是第二个交易主库。商品价格、库存、订单、支付、物流和退款的当前状态一律调用 MySQL 业务 API/Tool 获取，不得从向量副本回答为实时事实。
 
-本节使用三类 ID：PostgreSQL 内部主键使用应用层生成的 UUIDv7 `UUID`；需要进入 API、引用、日志或 Agent 上下文的 PostgreSQL 资源公开 ID 使用 3.6.2 前缀注册表的 `VARCHAR(40)`；跨库引用使用 MySQL 原始公开 ID/业务号 `VARCHAR(64)`，不改变值，也不复制 MySQL 自增主键。所有时间列使用 `TIMESTAMPTZ`并以 UTC 语义写入，动态元数据使用有 Schema 版本的 `JSONB`。
+本节使用三类 ID：用户记忆等需要形成版本关系的 PostgreSQL 实体使用应用层生成或数据库生成的 `UUID`；索引任务、索引代次、切片、检索日志和 Agent Runtime 记录可使用 `BIGSERIAL` 内部主键，但所有进入 API、引用、日志或 Agent 上下文的资源必须另有带前缀的 `VARCHAR(40)` 公开 ID；跨库引用只保存 MySQL 公开 ID/业务号 `VARCHAR(64)`，不复制 MySQL 自增主键。所有时间列使用 `TIMESTAMPTZ` 并以 UTC 语义写入，动态元数据使用有 Schema 版本的 `JSONB`。
 
 #### 3.8.1 PostgreSQL Schema 划分
 
 | Schema | 职责 | 主要写入者 | 禁止内容 |
 | :--- | :--- | :--- | :--- |
-| `extensions` | `vector` 等受控扩展对象 | 迁移管理角色 | 业务表、用户自定义对象 |
 | `knowledge` | 知识文档、切片、Embedding、索引任务与检索记录 | Indexing/Retrieval Worker | 交易当前状态 |
 | `memory` | 长期记忆、Embedding、变更事件与对话摘要 | Memory/Summary Worker | L3 数据、无授权记忆 |
 | `agent_runtime` | Agent Checkpoint 和中间 Channel Write | Agent Runtime | 订单/支付事务日志 |
@@ -7172,18 +7171,17 @@ PostgreSQL 是 AI 子系统的持久化与检索库，不是第二个交易主�
 
 - 撤销 `PUBLIC` 对 `public` Schema 的 `CREATE`，不把可由非受信角色写入的 Schema 放入 `search_path`。
 - DDL Owner、Migration Role、Runtime Read/Write Role、Read-only/Evaluation Role 分离；运行帐号不拥有 Schema/Extension。
-- 代码中显式使用 `knowledge.documents` 等限定名；扩展类型/操作符所在 Schema 只由受信角色管理。
+- 代码中显式使用 `knowledge.document_chunks` 等限定名；扩展对象只由受信迁移角色管理。当前固定镜像把 `vector` 安装到 `public`，运行角色不得拥有 Extension，也不得拥有向 `public` 创建对象的权限。
 - 本项目不依赖 RLS 代替 Service 授权；若开启 RLS，必须有带店铺/用户上下文的连接约定、Policy 测试和备份/管理角色设计。
 - 每个 Schema 使用独立 Alembic Version Table 或同一 Revision Graph 中明确分组，不手工修改生产表。
 
 #### 3.8.2 pgvector 扩展初始化
 
-迁移管理角色执行：
+首个 PostgreSQL 迁移由迁移管理角色执行：
 
 ```sql
-CREATE SCHEMA IF NOT EXISTS extensions;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
-CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS vector;
 
 SELECT extname, extversion, extnamespace::regnamespace
 FROM pg_extension
@@ -7195,6 +7193,8 @@ WHERE extname = 'vector';
 #### 3.8.3 embedding 模型与维度管理
 
 新增支撑表 `knowledge.embedding_models`：
+
+首发物理表以 `model_code VARCHAR(64)` 为主键，仅保存 `provider、dimension、model_status、created_at`，当前固定维度为 `1536`、状态为 `active/retired`。下表其余列是多模型演进目标；使用前必须先通过 PostgreSQL Migration 落库并更新索引 Worker，不能把尚未迁移的列当成现有契约。
 
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
@@ -7219,90 +7219,64 @@ WHERE extname = 'vector';
 - 向量不直接写应用日志/Trace；记录 Model No、维度、Token、耗时和向量输入哈希。
 - pgvector HNSW 对 `vector` 索引支持的维度上限为 2,000，如模型超出上限，不得截断向量；应评估 `halfvec`、降维或更换模型，并通过离线评估验证精度。
 
-#### 3.8.4 knowledge.documents 知识文档表
+#### 3.8.4 knowledge.documents 知识文档逻辑资源
+
+知识文档的权威目录实际为 MySQL `knowledge_documents`，不是 PostgreSQL 表。本节标题保留逻辑资源名以表达领域概念；代码、Migration 和 SQL 不得引用不存在的 `knowledge.documents`。PostgreSQL 只保存由该父记录派生、可以删除重建的索引代次和切片。
 
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
-| `id` | `UUID` | PK，UUIDv7 |
-| `document_no` | `VARCHAR(40)` | UK，知识文档公开 ID，`doc_` 前缀 |
-| `source_type` / `source_no` | `VARCHAR(32)` / `VARCHAR(64)` | `product/product_faq/store_policy/platform_policy/upload` 及 MySQL/文件 ID |
-| `source_version` | `BIGINT` | NOT NULL，单调业务版本 |
-| `scope_type` / `scope_no` | `VARCHAR(16)` / `VARCHAR(64)` | `platform/store/product`，店铺知识必须带 Store No |
-| `title` | `TEXT` | NOT NULL |
-| `source_object_key` | `TEXT` | NULL，原始文件对象引用 |
-| `mime_type` / `language` | `VARCHAR(128)` / `VARCHAR(16)` | NOT NULL |
-| `content_hash` | `BYTEA` | NOT NULL，SHA-256 |
-| `parser_name` / `parser_version` | `VARCHAR(64)` / `VARCHAR(32)` | NOT NULL |
-| `visibility` | `VARCHAR(16)` | `public/store_private/platform_internal` |
-| `sensitivity_level` | `VARCHAR(4)` | `L0/L1/L2`，禁止 L3 进知识库 |
-| `metadata` | `JSONB` | NOT NULL DEFAULT `{}`，Schema 版本化 |
-| `document_status` | `VARCHAR(16)` | `pending/indexing/active/failed/superseded/deleted` |
-| `effective_at` / `deleted_at` | `TIMESTAMPTZ` | NULL |
-| `created_at` / `updated_at` | `DATETIME(6)` | NOT NULL，UTC；本表属于 MySQL，不使用 PostgreSQL `TIMESTAMPTZ` |
+| `id` | `BIGINT UNSIGNED` | MySQL 内部 PK，不跨库复制 |
+| `document_no` | `VARCHAR(40)` | UK，知识文档公开 ID，`doc_` 前缀；跨库关联键 |
+| `scope_type` / `scope_no` | `VARCHAR(16)` / `VARCHAR(64)` | `platform/store`；店铺知识必须带 Store No |
+| `title` | `VARCHAR(255)` | NOT NULL |
+| `safe_text` | `TEXT` | NOT NULL，已完成安全处理、允许进入索引的正文 |
+| `document_status` | `VARCHAR(16)` | `draft/active/retired/deleted` 等受控状态 |
+| `content_version` | `VARCHAR(40)` | NOT NULL，内容版本；与 `document_no` 共同确定索引输入 |
+| `created_at` / `updated_at` / `version` | `DATETIME(6)` / `DATETIME(6)` / `BIGINT UNSIGNED` | UTC 审计时间与乐观锁版本 |
 
-约束：`UNIQUE(source_type, source_no, source_version)`；索引 `(source_type, source_no, source_version DESC)`、`(scope_type, scope_no, document_status)`。同一来源只有一个当前 Active Version，通过部分唯一索引保证。原始内容不必全部存本表：大文件放对象存储，本表保存来源、哈希、版本和索引状态。
+约束：`UNIQUE(document_no)`，索引 `(scope_type, scope_no, document_status)`。原始文件由 3.10 的对象存储和文件资产表管理；只有扫描通过并转换为安全文本的内容可以进入本表。未来增加来源、哈希、语言、可见性等字段时，必须先补 MySQL Migration、ORM、OpenAPI 和回归测试，再将其作为正式契约。
 
-#### 3.8.5 knowledge.chunks 知识切片表
+#### 3.8.5 knowledge.document_chunks 知识切片表
+
+首发物理表为 `knowledge.document_chunks`，通过 MySQL `document_no + content_version` 关联父文档，不复制 MySQL 内部主键，也不存在 `knowledge.chunks` 或 `knowledge.documents` 外键。字段契约如下：
 
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
-| `id` / `chunk_no` | `UUID` / `VARCHAR(40)` | PK / UK，`chunk_no` 使用 `kch_` 前缀 |
-| `document_id` | `UUID` | FK `knowledge.documents.id` |
-| `chunk_index` | `INTEGER` | NOT NULL，文档内顺序 |
-| `content` | `TEXT` | NOT NULL，清洗后切片正文 |
-| `content_hash` | `BYTEA` | NOT NULL |
-| `token_count` | `INTEGER` | NOT NULL，按指定 Tokenizer |
-| `char_start` / `char_end` | `INTEGER` | NULL，原文偏移 |
-| `heading_path` | `JSONB` | NOT NULL DEFAULT `[]`，标题层级 |
-| `language` | `VARCHAR(16)` | NOT NULL |
-| `search_lexemes` | `TEXT` | NOT NULL，受控分词结果 |
-| `search_vector` | `TSVECTOR` | NOT NULL，由受控转换生成 |
-| `metadata` | `JSONB` | NOT NULL DEFAULT `{}` |
-| `chunk_status` | `VARCHAR(16)` | `active/superseded/deleted` |
-| `created_at` / `updated_at` | `TIMESTAMPTZ` | NOT NULL |
+| `id` / `chunk_no` | `BIGSERIAL` / `VARCHAR(40)` | PK / UK；公开 ID 使用 `kch_` 前缀 |
+| `document_no` / `content_version` | `VARCHAR(40)` / `VARCHAR(40)` | MySQL 父文档公开 ID与内容版本快照 |
+| `generation_no` | `VARCHAR(40)` | FK `knowledge.index_generations.generation_no` |
+| `scope_type` / `scope_no` | `VARCHAR(16)` / `VARCHAR(64)` | 强制检索 ACL；首发为 `platform/store` |
+| `safe_text` | `TEXT` | NOT NULL，清洗后切片正文 |
+| `search_vector` | `TSVECTOR` | 由 `safe_text` 生成，使用 GIN 索引 |
+| `embedding` | `VECTOR(1536)` | NULL；Embedding 服务降级时仍保留关键词检索 |
+| `embedding_model_code` | `VARCHAR(64)` | FK `knowledge.embedding_models.model_code` |
+| `metadata` | `JSONB` | NOT NULL DEFAULT `{}`；至少含 `chunk_index/index_version` |
+| `created_at` | `TIMESTAMPTZ` | NOT NULL |
 
-约束：`UNIQUE(document_id, chunk_index)`，并对 `search_vector` 建 GIN 索引。Chunk 在标题/段落边界上切分，设定可配置的目标 Token 数和小量 Overlap；表格、问答、政策条款优先保持语义完整，不仅按字符数机械截断。每个 Chunk 保留可回到文档和业务来源的引用。
+约束：`UNIQUE(document_no, content_version, chunk_no)`，并对 `(scope_type, scope_no, document_no, content_version)`、`search_vector` 和 `embedding vector_cosine_ops` 分别建立 ACL、GIN、HNSW 索引。Chunk 在标题/段落边界上切分并保留少量 Overlap；表格、问答和政策条款优先保持语义完整。
 
-为支持多模型/多维度并存，新增 `knowledge.chunk_embeddings`：
-
-| 字段 | 类型 | 约束/内容 |
-| :--- | :--- | :--- |
-| `id` | `UUID` | PK |
-| `chunk_id` / `embedding_model_id` | `UUID` | FK，联合 UK |
-| `embedding` | `extensions.vector` | NOT NULL，可变 Typmod，由检查保证模型维度 |
-| `dimension` | `INTEGER` | NOT NULL，与 Model Profile 一致 |
-| `input_hash` | `BYTEA` | NOT NULL，预处理后输入哈希 |
-| `embedding_status` | `VARCHAR(16)` | `building/active/failed/retiring` |
-| `created_at` / `updated_at` | `TIMESTAMPTZ` | NOT NULL |
-
-查询只在一个 `embedding_model_id` 内执行，并对每个 Active Model 建部分 HNSW 表达式索引。数据库添加 `CHECK (dimension = extensions.vector_dims(embedding))` 检查行内实际维度；由于 CHECK 不应跨表查 Model Registry，Worker 在写入前再根据 `knowledge.embedding_models.dimension` 校验一次。
+`knowledge.index_generations` 以 `generation_no` 标识一次完整构建，同一 `document_no` 只允许一个 `active` 代次；查询必须连接 Active Generation，不能把 Building/Retired 数据返回给 Agent。首发版本将单一模型向量内联在 Chunk 中，以便 Embedding 不可用时降级为关键词检索。多模型升级先创建新 Generation 并使用其 `model_code`；只有业务确需同一 Chunk 同时保留多个模型时，才通过后续 Migration 拆出 `knowledge.chunk_embeddings`，不得依赖尚不存在的表。
 
 #### 3.8.6 knowledge.indexing_jobs 索引任务表
 
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
-| `id` / `job_no` | `UUID` / `VARCHAR(40)` | PK / UK，`job_no` 使用 `kjob_` 前缀 |
-| `document_id` | `UUID` | NULL，单文档任务 |
-| `source_type` / `source_no` / `source_version` | `VARCHAR(32)` / `VARCHAR(64)` / `BIGINT` | NOT NULL，幂等来源 |
-| `admin_job_no` | `VARCHAR(40)` | NULL，来自管理端时指向 MySQL `admin_batch_jobs.job_no`，自动索引事件可为 NULL |
-| `execution_version` | `BIGINT` | NOT NULL DEFAULT 0，每次状态/进度变更单调递增 |
-| `embedding_model_id` | `UUID` | NULL，删除任务可空 |
-| `job_type` | `VARCHAR(16)` | `upsert/delete/rebuild/verify` |
-| `job_status` | `VARCHAR(16)` | `pending/processing/succeeded/retry/dead/cancelled` |
-| `priority` / `attempt_count` | `SMALLINT` / `INTEGER` | NOT NULL |
-| `available_at` | `TIMESTAMPTZ` | NOT NULL |
-| `lease_owner` / `lease_expires_at` | `VARCHAR(128)` / `TIMESTAMPTZ` | NULL |
-| `chunk_count` / `embedded_count` / `failed_count` | `INTEGER` | NOT NULL DEFAULT 0 |
-| `input_content_hash` | `BYTEA` | NULL |
-| `last_error_code` / `last_error` | `VARCHAR(64)` / `TEXT` | NULL，脱敏并限长 |
-| `trace_id` | `VARCHAR(64)` | NULL |
-| `created_at` / `started_at` / `finished_at` | `TIMESTAMPTZ` | NOT NULL / NULL / NULL |
+| `id` / `job_no` | `BIGSERIAL` / `VARCHAR(40)` | PK / UK，PostgreSQL 执行任务公开 ID |
+| `command_job_no` | `VARCHAR(40)` | UK，MySQL `admin_batch_jobs.job_no` 父任务号 |
+| `scope_type` / `scope_no` | `VARCHAR(16)` / `VARCHAR(64)` | 执行数据范围 |
+| `generation_no` | `VARCHAR(40)` | NULL/FK，领取执行后关联构建代次 |
+| `job_status` | `VARCHAR(16)` | `queued/running/succeeded/failed/cancelled` |
+| `progress` | `INTEGER` | `0..100` |
+| `status_version` | `BIGINT` | NOT NULL，状态/进度单调版本 |
+| `error_code` / `error_owner` | `VARCHAR(64)` / `VARCHAR(16)` | NULL；错误归属为 `command/execution/dependency` |
+| `cancel_requested_at` | `TIMESTAMPTZ` | NULL，协作取消意图 |
+| `created_at` / `updated_at` | `TIMESTAMPTZ` | NOT NULL |
 
-约束：活跃任务按 `(source_type, source_no, source_version, embedding_model_id, job_type)` 部分唯一，`admin_job_no` 非空时唯一。领取使用 `FOR UPDATE SKIP LOCKED`和 Lease；耗时解析/Embedding 在领取事务外执行。旧 Source Version 任务启动前/提交前各检查一次，不得把新版本覆盖回旧版本。本表是 Parse/Chunk/Embedding/Index/Activate 执行进度和错误的权威；不反向决定管理员是否有权查看/取消任务。
+约束：`UNIQUE(job_no)`、`UNIQUE(command_job_no)`。Worker 对 `queued/running` 任务作幂等推进，并在单个 PostgreSQL 事务中完成切片写入、旧 Active Generation 退役、新 Generation 激活和任务成功；任何失败都不得暴露 Building Generation。本表是执行进度的权威，但不反向决定管理员是否有权查看/取消任务。
 
-**MySQL/PostgreSQL 父子任务契约**：管理员发起索引时，Knowledge Service 先在 MySQL 事务中创建 `admin_batch_jobs(job_type=knowledge_index, queued)` 和 Outbox；Consumer 按 `admin job_no` 幂等创建本表子任务，再通过事件回填 `execution_job_no`。本表每次状态/进度变更发出带 `admin_job_no + execution_version` 的事件，MySQL 仅消费更大版本并按 `pending→queued、processing→running、retry→running（同时投影下次可重试时间和脱敏错误）、succeeded→succeeded、dead→failed、cancelled→cancelled` 映射管理状态；累计计数同样只接受不小于当前执行版本且满足边界的值。管理端查询 MySQL Job，详细执行页再经后端组合脱敏 PostgreSQL 进度；不让前端直连两库或自行合并状态。
+**MySQL/PostgreSQL 父子任务契约**：管理员发起索引时，Knowledge Service 先在 MySQL 事务中创建 `admin_batch_jobs(job_type=knowledge_index, queued)` 和 Outbox；Consumer 按父任务号幂等创建 PostgreSQL 子任务，再回填 `execution_job_no`。本表每次状态/进度变更以 `command_job_no + status_version` 参与对账，MySQL 仅接受更大版本，并按 `queued→queued、running→running、succeeded→succeeded、failed→failed、cancelled→cancelled` 映射管理状态。管理端查询 MySQL Job，详细执行页再经后端组合脱敏 PostgreSQL 进度；前端不得直连两库或自行合并状态。
 
-取消先在 MySQL Job 上写 `cancel_requested_at/cancel_requested_by/cancel_reason` 并发送 Outbox，父任务仍保持 `queued/running`，界面以独立 `cancellation_requested=true` 投影“取消处理中”；只有收到 PostgreSQL `cancelled` 终态才把父任务置为 `cancelled`。PostgreSQL Worker 只在未 Activate 时协作取消；已原子切换 Active Index 时返回 `succeeded` 和“已完成，不能伪装取消”。Reconciler 定期检查：MySQL 长时无子任务、PG 有 `admin_job_no` 但 MySQL 无链接、状态版本缺口、取消意图未送达和终态不一致；按公开 ID/Version 补链或重放事件，不直接猜测终态。由商品/政策变更自动触发的索引可只有 PostgreSQL Job，`admin_job_no=NULL`，但仍必须有 Source Event 与 Trace。
+取消先在 MySQL Job 上写取消意图并发送 Outbox，父任务仍保持 `queued/running`，界面显示“取消处理中”；只有 PostgreSQL 子任务进入 `cancelled` 才投影父任务终态。已完成 Active Generation 原子切换的任务保持 `succeeded`。首发索引任务必须拥有 MySQL 父任务，不允许创建无 `command_job_no` 的孤儿任务；Reconciler 定期检查缺链、状态版本缺口、取消意图未送达和终态不一致。
 
 #### 3.8.7 knowledge.retrieval_logs 检索记录表
 
@@ -7310,24 +7284,17 @@ WHERE extname = 'vector';
 
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
-| `id` / `retrieval_no` | `UUID` / `VARCHAR(40)` | PK / UK，`retrieval_no` 使用 `rtv_` 前缀 |
-| `trace_id` / `ai_run_no` | `VARCHAR(64)` | NOT NULL / NULL |
-| `conversation_no` / `user_no_hash` | `VARCHAR(64)` / `BYTEA` | NULL，最小化身份关联 |
-| `agent_version_no` | `VARCHAR(64)` | NOT NULL |
-| `embedding_model_id` | `UUID` | NULL，纯关键词降级可空 |
+| `id` / `retrieval_no` | `BIGSERIAL` / `VARCHAR(40)` | PK / UK，公开 ID 使用 `rtv_` 前缀 |
+| `trace_id` | `VARCHAR(64)` | NOT NULL |
 | `query_hash` | `BYTEA` | NOT NULL，规范化 Query Hash |
-| `query_redacted` | `TEXT` | NULL，脱敏、截断且按策略短期保留 |
-| `query_token_count` | `INTEGER` | NOT NULL |
-| `scope_filters` | `JSONB` | NOT NULL，平台/店铺/商品可见性过滤 |
-| `top_k` / `candidate_count` / `returned_count` | `SMALLINT` | NOT NULL |
-| `result_refs` | `JSONB` | NOT NULL，Chunk No、文档版本、各路分数、融合名次 |
-| `retrieval_mode` | `VARCHAR(16)` | `hybrid/vector/keyword/exact/fallback` |
-| `latency_ms` / `embedding_latency_ms` | `INTEGER` | NOT NULL |
-| `outcome` | `VARCHAR(16)` | `hit/empty/degraded/error` |
-| `error_code` | `VARCHAR(64)` | NULL |
+| `scope_type` / `scope_no` | `VARCHAR(16)` / `VARCHAR(64)` | 实际执行的 ACL 范围 |
+| `embedding_model_code` | `VARCHAR(64)` | 查询模型配置码 |
+| `candidate_count` / `returned_count` | `INTEGER` | 融合前候选数 / 最终返回数 |
+| `degraded` | `BOOLEAN` | Embedding 失败并降级关键词时为 True |
+| `latency_ms` | `INTEGER` | 总检索耗时 |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL |
 
-按月分区/归档，索引 `(created_at)`、`(trace_id)`、`(outcome, created_at)`。用户原文默认不进长期评估集；需用于人工标注时经授权/治理流程复制到独立评估数据集。
+索引 `(scope_type, scope_no, created_at DESC)`。首发不保存 Query 原文、用户号、会话号或完整结果正文；通过 `query_hash + trace_id` 关联脱敏 Trace。达到 3.33 容量阈值后再通过 Migration 增加时间分区，不允许在应用代码中直接删当月数据。用户原文默认不进长期评估集；需用于人工标注时经授权/治理流程复制到独立评估数据集。
 
 #### 3.8.8 memory.items 长期记忆表
 
@@ -7359,7 +7326,7 @@ WHERE extname = 'vector';
 
 对 `active` 记忆建立部分唯一索引：`(user_no, namespace, COALESCE(store_no, ''), memory_type, memory_key) WHERE memory_status = 'active'`。同一语义键的新值先通过冲突流程，再以 `supersedes_memory_id` 替换旧版本；不得依赖向量相似度决定唯一性。
 
-新增 `memory.item_embeddings`，字段为 `id、memory_id、embedding_model_id、embedding、dimension、input_hash、embedding_status、created_at`，且 `UNIQUE(memory_id, embedding_model_id)`。它与 `knowledge.chunk_embeddings` 使用相同的多模型、部分 HNSW 和双版本升级规则，但索引和访问权限完全分离。
+新增 `memory.item_embeddings`，字段为 `id、memory_id、embedding_model_id、embedding、dimension、input_hash、embedding_status、created_at`，且 `UNIQUE(memory_id, embedding_model_id)`。它使用独立的部分 HNSW 索引，并通过 `embedding_model_id` 关联模型注册表；其索引和访问权限与知识切片完全分离。
 
 #### 3.8.9 memory.events 记忆变更记录表
 
@@ -7436,15 +7403,13 @@ WHERE extname = 'vector';
 
 #### 3.8.13 HNSW 索引设计
 
-默认使用 Cosine Distance，只在模型官方建议不同指标且离线评估通过时更改。每个模型使用部分表达式索引，示例中的维度和 Model UUID 由迁移生成器写死，不通过查询参数动态替换：
+默认使用 Cosine Distance，只在模型官方建议不同指标且离线评估通过时更改。首发使用固定维度的 Chunk HNSW 索引；维度和算子由 Migration 写死，不通过查询参数动态替换：
 
 ```sql
-CREATE INDEX CONCURRENTLY idx_chunk_embeddings_model_v1_hnsw
-ON knowledge.chunk_embeddings
-USING hnsw ((embedding::extensions.vector(1536)) extensions.vector_cosine_ops)
-WITH (m = 16, ef_construction = 64)
-WHERE embedding_model_id = '00000000-0000-0000-0000-000000000001'
-  AND embedding_status = 'active';
+CREATE INDEX CONCURRENTLY idx_document_chunks_embedding_hnsw_v1
+ON knowledge.document_chunks
+USING hnsw (embedding vector_cosine_ops)
+WITH (m = 16, ef_construction = 128);
 ```
 
 参数基线：`m=16`、`ef_construction=64`作为起点，Query `hnsw.ef_search=40`作为起点，不是生产最终值。调优基于真实数据量和标注 Query Set 的 Recall@K、MRR/nDCG、P95/P99 耗时、索引大小和写入成本。
@@ -7481,9 +7446,9 @@ RRF 参考公式：`score(d) = Σ 1 / (k + rank_i(d))`，`k` 与候选数通过�
 ```text
 注册 Candidate Model Profile（testing）
   → 用固定评估集检查维度/质量/成本/延迟
-  → 创建新 Model 的 Embedding 行，不覆盖旧行
-  → 建立新部分 HNSW 索引
-  → 全量对账：Active Chunk/Memory 都有新向量
+  → 创建使用新 Model 的 Building Generation，不覆盖当前 Active Generation
+  → 必要时为新固定维度建立对应 HNSW 索引
+  → 全量对账：新 Generation Chunk/Memory 都有新向量
   → Shadow Query 对比 Recall、排名变化、延迟和空结果率
   → 1% → 10% → 50% → 100% 灰度切换 Query Model
   → 观察窗口内保留旧模型可一键回退
@@ -7491,7 +7456,7 @@ RRF 参考公式：`score(d) = Σ 1 / (k + rank_i(d))`，`k` 与候选数通过�
   → 过保留窗口后删除旧向量/索引，标记 retired
 ```
 
-切换配置按 Agent/Knowledge Namespace 版本化，不仅使用一个全局环境变量。升级期间新增/变更文档对新旧 Active/Candidate Model 双写向量；任一方失败不阻塞 MySQL 业务发布，但阻止检索流量切换。模型升级与 Chunking/Tokenizer 升级分开实验，避免无法归因质量变化。
+切换配置按 Agent/Knowledge Namespace 版本化，不仅使用一个全局环境变量。升级期间新增/变更文档分别生成新旧 Model Generation；任一方失败不阻塞 MySQL 业务发布，但阻止检索流量切换。首发 `VECTOR(1536)` 不能容纳不同维度，跨维度模型必须先增加新列/新表及索引 Migration。模型升级与 Chunking/Tokenizer 升级分开实验，避免无法归因质量变化。
 
 #### 3.8.16 MySQL 与向量库同步
 
@@ -7501,18 +7466,18 @@ MySQL 业务事务
   └→ outbox_events（同事务）
           → Dispatcher / Redis Stream（可选传输缓冲）
           → PostgreSQL indexing_jobs
-          → 按 Service API/对象引用获取当前原文
-          → documents/chunks/embeddings
-          → 标记 Document Active
+          → 按 MySQL knowledge_documents/对象引用获取当前安全文本
+          → index_generations/document_chunks（内联 embedding）
+          → 原子切换 Active Generation
 ```
 
 同步规则：
 
-- 以 MySQL `event_no` 作为消费幂等键，以 `source_version` 防止旧事件覆盖新数据。
+- 以 MySQL `event_no` 作为消费幂等键，以 `content_version` 防止旧事件覆盖新数据。
 - Event Payload 只含来源号、版本、内容哈希、作用域和文件引用；Worker 用服务身份获取内容，不把大文本/L2 数据放消息总线。
-- PostgreSQL 写入完成不回写 MySQL 业务状态；索引运行状态在 PostgreSQL/可观测平台查询。
-- 只有文档、切片、所需 Model Embedding 全部成功并完成对账后，才将新 Document 切为 Active；切换与旧版 Supersede 在同一 PostgreSQL 事务。
-- 定时对账 MySQL Active Source Version 与 PostgreSQL Active Document Version，发现 Missing/Stale/Orphan 创建 Repair Job。
+- PostgreSQL 写入完成后以 `command_job_no + status_version` 回写 MySQL 管理父任务投影，但不得改变知识父文档内容或交易状态。
+- 只有切片、所需 Model Embedding 全部成功并完成对账后，才将新 Generation 切为 Active；切换与旧 Generation Retire 在同一 PostgreSQL 事务。
+- 定时对账 MySQL Active `content_version` 与 PostgreSQL Active Generation 的 Chunk Version，发现 Missing/Stale/Orphan 创建 Repair Job。
 - 知识索引延迟进入 SLI；延迟超阈值时 Agent 对可能变化的信息改用实时 Tool 或明确提示无法确认。
 
 #### 3.8.17 向量数据删除和重建
@@ -7522,14 +7487,14 @@ MySQL 业务事务
 ```text
 MySQL 来源删除/隐藏/Consent 撤销
   → Outbox Tombstone
-  → 立即将 Document/Memory 标记 deleted/revoked（检索不可见）
-  → 删除/隔离 Embedding
-  → 按保留策略删除切片正文/密文
+  → MySQL Document 先改为不可索引状态；Memory 标记 revoked/deleted
+  → 退役对应 Index Generation，删除/隔离 Embedding
+  → 按保留策略删除 document_chunks 正文/记忆密文
   → 失效 Redis 缓存
   → 写清理事件并对账孤儿向量
 ```
 
-来源下架但仍有合法回滚窗口时，先改为不可检索状态，延迟物理删除；用户撤销长期记忆授权时优先停止可见并删除记忆 Embedding，再按政策清理密文。物理删除后依赖 PostgreSQL VACUUM 回收空间，监控死元组和 HNSW 索引膨胀；达到阈值时用 `REINDEX CONCURRENTLY`/新索引切换维护，不在业务高峰盲目全量重建。
+来源下架但仍有合法回滚窗口时，先退役 Active Generation，延迟物理删除；用户撤销长期记忆授权时优先停止可见并删除记忆 Embedding，再按政策清理密文。物理删除后依赖 PostgreSQL VACUUM 回收空间，监控死元组和 HNSW 索引膨胀；达到阈值时用 `REINDEX CONCURRENTLY`/新索引切换维护，不在业务高峰盲目全量重建。
 
 全量重建从 MySQL/对象存储权威来源出发，写入新 `index_generation`或新 Model 数据集，校验行数、Source Version、Content Hash、Embedding 覆盖率和评估指标后原子切换路由。不对当前在线数据集做“先清空再重建”。
 
@@ -7873,7 +7838,7 @@ MySQL 权威表统一使用 3.7.15 的 `file_objects` 与 `file_upload_sessions`
 
 #### 3.10.6 AI 知识库原始文件
 
-- 文件上传后状态为 `uploaded/scanning`，完成 MIME/哈希/恶意内容/压缩炸弹/密码保护检查后才创建 `knowledge.documents` 索引任务。
+- 文件上传后状态为 `uploaded/scanning`，完成 MIME/哈希/恶意内容/压缩炸弹/密码保护检查后，才创建 MySQL `knowledge_documents` 父记录与索引父任务。
 - Parser 在网络受限、文件系统隔离、CPU/内存/耗时有上限的 Worker 中运行；PDF/Office 宏、外部链接、嵌入对象和公式不被执行。
 - 原文件、解析文本、OCR 结果和切片使用不同 Purpose/Key，各自保存 Content Hash 和 Parser/OCR Version；中间件只保留调试窗口。
 - 店铺上传的知识文件绑定 Store No 和可见范围，不能被其他店铺 Agent 检索；平台知识文件由平台权限发布。
@@ -11431,7 +11396,7 @@ Query Normalize / 实体识别 / 必要时受控改写
 | 管理员上传知识文件 | 按 Visibility/Scope | 对象存储事件 + 沙箱解析 | 未审核文件、恶意宏/脚本 |
 | 受控外部官方资料 | 仅经批准来源 | 定期抓取/人工导入 | 用户任意 URL、未授权转载 |
 
-用户聊天、模型回答、客服临时承诺和搜索引擎结果不自动成为知识源。所有来源在 `knowledge.documents` 记录 Owner、Source Version、Hash、有效期、可见性、敏感等级和审批状态。
+用户聊天、模型回答、客服临时承诺和搜索引擎结果不自动成为知识源。所有来源先由 MySQL `knowledge_documents` 与文件资产/内容治理记录承载 Owner、版本、Hash、有效期、可见性、敏感等级和审批状态，再派生 PostgreSQL 索引数据。
 
 #### 3.21.3 商品知识库
 
@@ -12331,7 +12296,7 @@ Scheduler 按 Shipment 状态、`last_synced_at`、预计时效和 Provider 配�
 
 #### 3.26.10 知识库向量化任务
 
-对象上传或 MySQL Source Version 事件创建 `knowledge.indexing_jobs`，Pipeline 为 `download → security scan → parse/OCR → clean → chunk → embed → index → quality check → atomic activate`。管理端发起时先有 MySQL `admin_batch_jobs`，本任务以 `admin_job_no` 作幂等父链接；自动源事件可无管理父 Job。每一步保存 Checkpoint/计数/Hash，可按 Document/Model/Chunk 批次恢复；每次进度事件带单调 `execution_version` 回写管理父 Job，文件和模型版本变化产生新 Job，不覆盖 Active 版本。
+对象上传或 MySQL Source Version 事件先创建 `admin_batch_jobs`，再以其 `job_no` 作为 `knowledge.indexing_jobs.command_job_no` 幂等创建执行子任务；首发不允许无父任务的孤儿索引 Job。Pipeline 为 `download → security scan → parse/OCR → clean → chunk → embed → index → quality check → atomic activate`。每次进度变更携带单调 `status_version` 回写管理父 Job，文件和模型版本变化产生新 Generation，不覆盖 Active 版本。
 
 Embedding 批量受 Provider 配额、Token/文档大小和数据地域限制，失败批次局部重试；输入 Hash + Model ID 唯一避免重复计费。删除/Tombstone 优先停止召回，再异步删向量/缓存。整份 Job 通过完整性/权限/抽样检索校验后切 Active，失败保持旧安全版本或明确无可用版本。
 
@@ -12387,7 +12352,7 @@ Pending 申请在读取、决定和执行前均惰性校验 `expires_at`；Sched
 
 商品/库存导入、受控导出、知识索引和评估等管理长任务以 `admin_batch_jobs` 为管理命令与管理端可见资源，队列消息只携 `job_no、job_type、request_hash、scope_snapshot、schema_version、traceparent`。Worker 启动前重新读取 Job、发起人状态、当前 Permission/Scope、输入文件 Active 状态和确认版本；权限撤销、Scope 变化、文件过期或请求 Hash 不一致时 Fail Closed。逐项处理写 `admin_batch_job_items`，以业务键 + 输入 Hash 幂等，周期性更新 Checkpoint/计数；不得把整个工作簿或导出结果塞入 Redis Stream/Celery Payload。
 
-知识索引是明确例外：MySQL Job 不复制 Chunk 执行细节，PostgreSQL `knowledge.indexing_jobs` 是索引执行权威子任务。建立、回填、进度、取消和终态通过 `admin_job_no/execution_job_no/execution_version` 双向关联；Consumer 只应用更大版本。对账任务检测孤儿父/子 Job、链接丢失、版本缺口和终态不一致，通过幂等补链/重放修复并告警，不在 MySQL 直接猜测索引成功。
+知识索引是明确例外：MySQL Job 不复制 Chunk 执行细节，PostgreSQL `knowledge.indexing_jobs` 是索引执行权威子任务。建立、回填、进度、取消和终态通过 `command_job_no/execution_job_no/status_version` 双向关联；Consumer 只应用更大版本。对账任务检测孤儿父/子 Job、链接丢失、版本缺口和终态不一致，通过幂等补链/重放修复并告警，不在 MySQL 直接猜测索引成功。
 
 导出 Worker 只执行服务端白名单查询，按当前 Scope 流式写私有对象存储，防 CSV 公式注入并设置最大行数/字节/时长；完成后绑定 `result_file_id` 和短保留期。导入先完成全量结构预检并进入 `awaiting_confirmation`，管理员确认后才执行业务命令；若产品允许部分成功，响应和报告必须明确逐项结果，不能把 Partial 显示为 Success。取消使用协作取消标志，已提交业务事务不回滚历史。
 
@@ -13088,7 +13053,7 @@ Conversation Reopen 专项覆盖：关闭后从业务入口重开、关闭后直
 
 每类任务覆盖至少一次投递、重复投递、乱序、处理时崩溃、超时、暂时/永久错误、最大重试、死信重放和依赖降级。断言业务副作用以 Event/Idempotency Key 去重；Scheduler 多副本同一 Slot 只产生一个扫描 Run，但单个业务任务仍幂等。测试结束检查 Pending/PEL/临时锁无泄漏。
 
-专项 Worker Case 包括：冻结期限到期时仅条件解冻当前仍匹配的状态且不恢复已撤销 Session；角色 Grant 到期后失效权限缓存；服务政策发布/撤回触发缓存失效与 RAG 重建；索引 Outbox 重投递不重复创建 PostgreSQL 子任务，取消可传播，进度事件按 `execution_version` 单调回写，跨库遗漏由 Reconciler 补齐而不倒退终态。
+专项 Worker Case 包括：冻结期限到期时仅条件解冻当前仍匹配的状态且不恢复已撤销 Session；角色 Grant 到期后失效权限缓存；服务政策发布/撤回触发缓存失效与 RAG 重建；索引 Outbox 重投递不重复创建 PostgreSQL 子任务，取消可传播，进度事件按 `status_version` 单调回写，跨库遗漏由 Reconciler 补齐而不倒退终态。
 
 #### 3.30.11 MCP Contract Test
 

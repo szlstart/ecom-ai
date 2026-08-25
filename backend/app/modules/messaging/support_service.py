@@ -76,8 +76,30 @@ class SupportService:
             limit=limit,
         )
         scoped = [row for row in rows if self._scope_allowed(access, row[1])]
+        assignee_ids = {
+            ticket.current_assignee_user_id
+            for ticket, _conversation in scoped
+            if ticket.current_assignee_user_id is not None
+        }
+        assignees = {
+            user.id: user
+            for user in (
+                (await self.session.scalars(select(User).where(User.id.in_(assignee_ids)))).all()
+                if assignee_ids
+                else []
+            )
+        }
         return SupportTicketList(
-            items=[await self._item(ticket, conversation) for ticket, conversation in scoped]
+            items=[
+                _ticket_item(
+                    ticket,
+                    conversation,
+                    assignees.get(ticket.current_assignee_user_id)
+                    if ticket.current_assignee_user_id is not None
+                    else None,
+                )
+                for ticket, conversation in scoped
+            ]
         )
 
     async def get(self, access: AdminAccess, ticket_no: str) -> SupportTicketView:
@@ -146,8 +168,14 @@ class SupportService:
     async def internal_notes(self, access: AdminAccess, ticket_no: str) -> SupportInternalNoteList:
         ticket, conversation = await self._assigned(access, ticket_no)
         notes = await self.repository.internal_notes(ticket.id)
+        author_ids = {item.author_user_id for item in notes}
         authors = {
-            item.author_user_id: await self.session.get(User, item.author_user_id) for item in notes
+            user.id: user
+            for user in (
+                (await self.session.scalars(select(User).where(User.id.in_(author_ids)))).all()
+                if author_ids
+                else []
+            )
         }
         record_admin_operation(
             self.session,
@@ -666,25 +694,7 @@ class SupportService:
             if ticket.current_assignee_user_id is not None
             else None
         )
-        return SupportTicketItem(
-            ticket_id=ticket.ticket_no,
-            conversation_id=conversation.conversation_no,
-            queue_type=cast(Literal["store", "platform"], ticket.queue_type),
-            queue_code=ticket.queue_code,
-            ticket_type=ticket.ticket_type,
-            priority=cast(Literal["low", "normal", "high", "urgent"], ticket.priority),
-            ticket_status=cast(
-                Literal["queued", "assigned", "active", "waiting_user", "resolved", "closed"],
-                ticket.ticket_status,
-            ),
-            assigned_user_id=assignee.user_no if assignee is not None else None,
-            handoff_summary=ticket.handoff_summary,
-            sla_due_at=ticket.sla_due_at,
-            waiting_reason_code=ticket.waiting_reason_code,
-            created_at=ticket.created_at,
-            updated_at=ticket.updated_at,
-            version=ticket.version,
-        )
+        return _ticket_item(ticket, conversation, assignee)
 
     async def _view(
         self, ticket: HumanServiceTicket, conversation: Conversation
@@ -850,6 +860,30 @@ def _support_message_view(message: Message) -> MessageView:
     return _support_visible_message_view(message)
 
 
+def _ticket_item(
+    ticket: HumanServiceTicket, conversation: Conversation, assignee: User | None
+) -> SupportTicketItem:
+    return SupportTicketItem(
+        ticket_id=ticket.ticket_no,
+        conversation_id=conversation.conversation_no,
+        queue_type=cast(Literal["store", "platform"], ticket.queue_type),
+        queue_code=ticket.queue_code,
+        ticket_type=ticket.ticket_type,
+        priority=cast(Literal["low", "normal", "high", "urgent"], ticket.priority),
+        ticket_status=cast(
+            Literal["queued", "assigned", "active", "waiting_user", "resolved", "closed"],
+            ticket.ticket_status,
+        ),
+        assigned_user_id=assignee.user_no if assignee is not None else None,
+        handoff_summary=ticket.handoff_summary,
+        sla_due_at=ticket.sla_due_at,
+        waiting_reason_code=ticket.waiting_reason_code,
+        created_at=ticket.created_at,
+        updated_at=ticket.updated_at,
+        version=ticket.version,
+    )
+
+
 def _support_visible_message_view(message: Message) -> MessageView:
     return MessageView(
         message_id=message.message_no,
@@ -880,7 +914,7 @@ def _context_view(item: ConversationContext) -> ConversationContextView:
     )
 
 
-def _author_no(authors: dict[int, User | None], user_id: int) -> str:
+def _author_no(authors: dict[int, User], user_id: int) -> str:
     author = authors.get(user_id)
     return author.user_no if author is not None else "unknown"
 

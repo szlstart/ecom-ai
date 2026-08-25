@@ -178,7 +178,7 @@ async def run_index_job(
     for index, chunk in enumerate(chunks):
         embedding = embeddings[index]
         chunk_no = (
-            "chk_" + hashlib.sha256(f"{document_no}:{version}:{index}".encode()).hexdigest()[:30]
+            "kch_" + hashlib.sha256(f"{document_no}:{version}:{index}".encode()).hexdigest()[:30]
         )
         await postgres.execute(
             text(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections import defaultdict
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -90,7 +91,23 @@ class ContentService:
                 )
             ).all()
         )
-        return ContentList(items=[await self._view(entry) for entry in entries])
+        if not entries:
+            return ContentList(items=[])
+        versions = list(
+            (
+                await self.session.scalars(
+                    select(PlatformContentVersion)
+                    .where(PlatformContentVersion.entry_id.in_([entry.id for entry in entries]))
+                    .order_by(PlatformContentVersion.entry_id, PlatformContentVersion.id.desc())
+                )
+            ).all()
+        )
+        grouped: dict[int, list[PlatformContentVersion]] = defaultdict(list)
+        for version in versions:
+            grouped[version.entry_id].append(version)
+        return ContentList(
+            items=[_content_view(entry, grouped.get(entry.id, [])) for entry in entries]
+        )
 
     async def get(self, content_no: str) -> ContentView:
         entry = await self.session.scalar(
@@ -260,15 +277,21 @@ class ContentService:
                 )
             ).all()
         )
-        return ContentView(
-            content_id=entry.content_no,
-            content_key=entry.content_key,
-            content_type=entry.content_type,
-            title=entry.title,
-            status=entry.content_status,
-            version=entry.version,
-            versions=[_version(item) for item in versions],
-        )
+        return _content_view(entry, versions)
+
+
+def _content_view(
+    entry: PlatformContentEntry, versions: list[PlatformContentVersion]
+) -> ContentView:
+    return ContentView(
+        content_id=entry.content_no,
+        content_key=entry.content_key,
+        content_type=entry.content_type,
+        title=entry.title,
+        status=entry.content_status,
+        version=entry.version,
+        versions=[_version(item) for item in versions],
+    )
 
 
 def _new_version(
@@ -298,6 +321,7 @@ def _new_version(
 def _version(item: PlatformContentVersion) -> ContentVersionView:
     metadata = item.metadata_json or {}
     blocks = metadata.get("blocks")
+    html = metadata.get("html")
     return ContentVersionView(
         content_version_id=item.content_version_no,
         version=item.document_version,
@@ -305,7 +329,7 @@ def _version(item: PlatformContentVersion) -> ContentVersionView:
         region_code=item.region_code,
         format=str(metadata.get("format") or "structured_v1"),
         blocks=blocks if isinstance(blocks, list) else None,
-        html=metadata.get("html") if isinstance(metadata.get("html"), str) else None,
+        html=html if isinstance(html, str) else None,
         text=item.safe_content,
         status=item.publish_status,
         effective_at=item.effective_at,

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import defaultdict
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,7 +56,8 @@ class KnowledgeAdminService:
                 )
             ).all()
         )
-        return SkillList(items=[await self._skill_view(item) for item in rows])
+        versions = await self._skill_versions_for({item.id for item in rows})
+        return SkillList(items=[_skill_view(item, versions.get(item.id, [])) for item in rows])
 
     async def agents(self) -> AgentList:
         definitions = list(
@@ -64,38 +67,20 @@ class KnowledgeAdminService:
                 )
             ).all()
         )
-        items: list[AgentView] = []
-        for definition in definitions:
-            versions = list(
-                (
-                    await self.session.scalars(
-                        select(AgentVersion)
-                        .where(AgentVersion.agent_id == definition.id)
-                        .order_by(AgentVersion.version_no.desc())
-                    )
-                ).all()
-            )
-            items.append(
-                AgentView(
-                    agent_id=definition.agent_no,
-                    agent_code=definition.agent_code,
-                    display_name=definition.display_name,
-                    scope_type=definition.scope_type,
-                    status=definition.agent_status,
-                    versions=[
-                        AgentVersionSummary(
-                            version_no=item.version_no,
-                            status=item.version_status,
-                            model_profile=item.model_profile,
-                            tool_allowlist=[str(code) for code in item.tool_allowlist],
-                            system_prompt=item.system_prompt,
-                            policy_config=item.policy_config,
-                        )
-                        for item in versions
-                    ],
+        versions: dict[int, list[AgentVersion]] = defaultdict(list)
+        if definitions:
+            version_rows = (
+                await self.session.scalars(
+                    select(AgentVersion)
+                    .where(AgentVersion.agent_id.in_([item.id for item in definitions]))
+                    .order_by(AgentVersion.agent_id, AgentVersion.version_no.desc())
                 )
-            )
-        return AgentList(items=items)
+            ).all()
+            for version in version_rows:
+                versions[version.agent_id].append(version)
+        return AgentList(
+            items=[_agent_view(item, versions.get(item.id, [])) for item in definitions]
+        )
 
     async def create_agent_version(
         self,
@@ -104,9 +89,7 @@ class KnowledgeAdminService:
         payload: AgentVersionCreate,
     ) -> AgentView:
         agent = await self.session.scalar(
-            select(AgentDefinition)
-            .where(AgentDefinition.agent_no == agent_no)
-            .with_for_update()
+            select(AgentDefinition).where(AgentDefinition.agent_no == agent_no).with_for_update()
         )
         if agent is None:
             raise _not_found()
@@ -139,9 +122,7 @@ class KnowledgeAdminService:
         await self.session.commit()
         return next(item for item in (await self.agents()).items if item.agent_id == agent_no)
 
-    async def publish_agent(
-        self, access: AdminAccess, agent_no: str, version_no: int
-    ) -> AgentView:
+    async def publish_agent(self, access: AdminAccess, agent_no: str, version_no: int) -> AgentView:
         agent = await self.session.scalar(
             select(AgentDefinition).where(AgentDefinition.agent_no == agent_no)
         )
@@ -489,9 +470,8 @@ class KnowledgeAdminService:
                 )
             ).all()
         )
-        return ToolList(
-            items=[_tool_view(item, await self._tool_versions(item.id)) for item in rows]
-        )
+        versions = await self._tool_versions_for({item.id for item in rows})
+        return ToolList(items=[_tool_view(item, versions.get(item.id, [])) for item in rows])
 
     async def tool(self, tool_code: str) -> ToolView:
         item = await self.session.scalar(
@@ -604,9 +584,7 @@ class KnowledgeAdminService:
         self, access: AdminAccess, tool_code: str, target_version_no: int
     ) -> ToolView:
         tool = await self.session.scalar(
-            select(ToolDefinition)
-            .where(ToolDefinition.tool_code == tool_code)
-            .with_for_update()
+            select(ToolDefinition).where(ToolDefinition.tool_code == tool_code).with_for_update()
         )
         if tool is None:
             raise _not_found()
@@ -620,12 +598,8 @@ class KnowledgeAdminService:
                 )
             ).all()
         )
-        target = next(
-            (item for item in versions if item.version_no == target_version_no), None
-        )
-        current = next(
-            (item for item in versions if item.version_status == "published"), None
-        )
+        target = next((item for item in versions if item.version_no == target_version_no), None)
+        current = next((item for item in versions if item.version_status == "published"), None)
         if (
             target is None
             or current is None
@@ -663,16 +637,22 @@ class KnowledgeAdminService:
                 )
             ).all()
         )
-        return SkillView(
-            skill_id=item.skill_no,
-            skill_code=item.skill_code,
-            display_name=item.display_name,
-            status=item.skill_status,
-            latest_version=versions[-1].version_no if versions else None,
-            published_version=next(
-                (v.version_no for v in reversed(versions) if v.version_status == "published"), None
-            ),
-        )
+        return _skill_view(item, versions)
+
+    async def _skill_versions_for(self, skill_ids: set[int]) -> dict[int, list[SkillVersion]]:
+        grouped: dict[int, list[SkillVersion]] = defaultdict(list)
+        if not skill_ids:
+            return grouped
+        rows = (
+            await self.session.scalars(
+                select(SkillVersion)
+                .where(SkillVersion.skill_id.in_(skill_ids))
+                .order_by(SkillVersion.skill_id, SkillVersion.version_no)
+            )
+        ).all()
+        for row in rows:
+            grouped[row.skill_id].append(row)
+        return grouped
 
     async def _tool_versions(self, tool_id: int) -> list[ToolVersion]:
         return list(
@@ -684,6 +664,60 @@ class KnowledgeAdminService:
                 )
             ).all()
         )
+
+    async def _tool_versions_for(self, tool_ids: set[int]) -> dict[int, list[ToolVersion]]:
+        grouped: dict[int, list[ToolVersion]] = defaultdict(list)
+        if not tool_ids:
+            return grouped
+        rows = (
+            await self.session.scalars(
+                select(ToolVersion)
+                .where(ToolVersion.tool_id.in_(tool_ids))
+                .order_by(ToolVersion.tool_id, ToolVersion.version_no)
+            )
+        ).all()
+        for row in rows:
+            grouped[row.tool_id].append(row)
+        return grouped
+
+
+def _skill_view(item: SkillDefinition, versions: list[SkillVersion]) -> SkillView:
+    return SkillView(
+        skill_id=item.skill_no,
+        skill_code=item.skill_code,
+        display_name=item.display_name,
+        status=item.skill_status,
+        latest_version=versions[-1].version_no if versions else None,
+        published_version=next(
+            (
+                version.version_no
+                for version in reversed(versions)
+                if version.version_status == "published"
+            ),
+            None,
+        ),
+    )
+
+
+def _agent_view(item: AgentDefinition, versions: list[AgentVersion]) -> AgentView:
+    return AgentView(
+        agent_id=item.agent_no,
+        agent_code=item.agent_code,
+        display_name=item.display_name,
+        scope_type=item.scope_type,
+        status=item.agent_status,
+        versions=[
+            AgentVersionSummary(
+                version_no=version.version_no,
+                status=version.version_status,
+                model_profile=version.model_profile,
+                tool_allowlist=[str(code) for code in version.tool_allowlist],
+                system_prompt=version.system_prompt,
+                policy_config=version.policy_config,
+            )
+            for version in versions
+        ],
+    )
 
 
 def _tool_view(item: ToolDefinition, versions: list[ToolVersion] | None = None) -> ToolView:

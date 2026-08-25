@@ -27,8 +27,10 @@ from app.modules.batch_jobs.schemas import (
     ProductImportTemplateColumn,
     ProductImportTemplateView,
 )
+from app.modules.files.models import FileObject
 from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
+from app.modules.stores.models import Store
 from app.modules.system.models import AdminBatchJob, OutboxEvent
 
 JOB_TERMINAL_STATUSES = {"succeeded", "partial", "failed", "cancelled", "expired"}
@@ -187,8 +189,25 @@ class BatchJobService:
             limit=limit,
         )
         visible = rows[:limit]
+        stores = await self.repository.stores_by_ids({item.scope_id for item in visible})
+        file_ids = {
+            file_id
+            for item in visible
+            for file_id in (item.input_file_id, item.result_file_id, item.error_file_id)
+            if file_id is not None
+        }
+        files = await self.repository.files_by_ids(file_ids)
         return BatchJobList(
-            items=[await self._view(item) for item in visible],
+            items=[
+                _job_view(
+                    item,
+                    stores.get(item.scope_id),
+                    files.get(item.input_file_id) if item.input_file_id is not None else None,
+                    files.get(item.result_file_id) if item.result_file_id is not None else None,
+                    files.get(item.error_file_id) if item.error_file_id is not None else None,
+                )
+                for item in visible
+            ],
             next_cursor=(
                 self.cursor.encode(filter_key=filter_key, values=(visible[-1].job_no,))
                 if len(rows) > limit and visible
@@ -369,40 +388,50 @@ class BatchJobService:
         input_file = await self.repository.file_by_id(job.input_file_id)
         result_file = await self.repository.file_by_id(job.result_file_id)
         error_file = await self.repository.file_by_id(job.error_file_id)
-        config = job.request_config
-        actions: list[str] = []
-        if job.job_status == "awaiting_confirmation" and job.success_count > 0:
-            actions.append("confirm")
-        if job.job_status not in JOB_TERMINAL_STATUSES:
-            actions.append("cancel")
-        return BatchJobView(
-            job_id=job.job_no,
-            job_type=job.job_type,
-            store_id=store.store_no if store else "",
-            schema_version=str(config.get("schema_version", "")),
-            status=job.job_status,
-            total_count=job.total_count,
-            success_count=job.success_count,
-            failure_count=job.failure_count,
-            preview_hash=job.request_hash.hex() if job.job_status != "created" else None,
-            input_file_id=input_file.file_no if input_file else None,
-            result_file_id=result_file.file_no if result_file else None,
-            error_file_id=error_file.file_no if error_file else None,
-            error_code=job.error_code,
-            error_summary=job.error_summary,
-            requested_at=job.created_at,
-            started_at=job.started_at,
-            finished_at=job.finished_at,
-            expires_at=job.expires_at,
-            available_actions=actions,
-            version=job.version,
-        )
+        return _job_view(job, store, input_file, result_file, error_file)
 
     async def _fresh_view(self, job_no: str) -> BatchJobView:
         job = await self.repository.job_by_no(job_no)
         if job is None:
             raise _not_found()
         return await self._view(job)
+
+
+def _job_view(
+    job: AdminBatchJob,
+    store: Store | None,
+    input_file: FileObject | None,
+    result_file: FileObject | None,
+    error_file: FileObject | None,
+) -> BatchJobView:
+    config = job.request_config
+    actions: list[str] = []
+    if job.job_status == "awaiting_confirmation" and job.success_count > 0:
+        actions.append("confirm")
+    if job.job_status not in JOB_TERMINAL_STATUSES:
+        actions.append("cancel")
+    return BatchJobView(
+        job_id=job.job_no,
+        job_type=job.job_type,
+        store_id=store.store_no if store else "",
+        schema_version=str(config.get("schema_version", "")),
+        status=job.job_status,
+        total_count=job.total_count,
+        success_count=job.success_count,
+        failure_count=job.failure_count,
+        preview_hash=job.request_hash.hex() if job.job_status != "created" else None,
+        input_file_id=input_file.file_no if input_file else None,
+        result_file_id=result_file.file_no if result_file else None,
+        error_file_id=error_file.file_no if error_file else None,
+        error_code=job.error_code,
+        error_summary=job.error_summary,
+        requested_at=job.created_at,
+        started_at=job.started_at,
+        finished_at=job.finished_at,
+        expires_at=job.expires_at,
+        available_actions=actions,
+        version=job.version,
+    )
 
 
 def _event(session: AsyncSession, job: AdminBatchJob, event_type: str) -> None:

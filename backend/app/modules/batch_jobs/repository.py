@@ -84,6 +84,12 @@ class BatchJobRepository:
     async def store_by_id(self, store_id: int) -> Store | None:
         return cast(Store | None, await self.session.get(Store, store_id))
 
+    async def stores_by_ids(self, store_ids: set[int]) -> dict[int, Store]:
+        if not store_ids:
+            return {}
+        rows = (await self.session.scalars(select(Store).where(Store.id.in_(store_ids)))).all()
+        return {row.id: row for row in rows}
+
     async def file_by_no(self, file_no: str) -> FileObject | None:
         return cast(
             FileObject | None,
@@ -94,6 +100,14 @@ class BatchJobRepository:
         if file_id is None:
             return None
         return cast(FileObject | None, await self.session.get(FileObject, file_id))
+
+    async def files_by_ids(self, file_ids: set[int]) -> dict[int, FileObject]:
+        if not file_ids:
+            return {}
+        rows = (
+            await self.session.scalars(select(FileObject).where(FileObject.id.in_(file_ids)))
+        ).all()
+        return {row.id: row for row in rows}
 
     async def requester_is_authorized(self, job: AdminBatchJob) -> bool:
         user = cast(User | None, await self.session.get(User, job.requested_by))

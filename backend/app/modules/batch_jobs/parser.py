@@ -6,6 +6,7 @@ import json
 import zipfile
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Literal
 
 from openpyxl import load_workbook
 from pydantic import ValidationError
@@ -204,7 +205,7 @@ def _validate_rows(
                 ],
                 sale_price_amount=_integer(raw.get("sale_price_amount"), minimum=0),
                 market_price_amount=_integer(raw.get("market_price_amount"), minimum=0),
-                currency=_text(raw.get("currency"), required=True, max_length=3),
+                currency=_currency(raw.get("currency")),
                 weight_grams=_optional_integer(raw.get("weight_grams"), minimum=0),
                 barcode=_optional_text(raw.get("barcode"), 64),
                 initial_stock=_integer(raw.get("initial_stock"), minimum=0, maximum=1_000_000_000),
@@ -302,6 +303,13 @@ def _text(value: object, *, required: bool, max_length: int = 10_000) -> str:
     if len(text) > max_length:
         raise ValueError("value exceeds maximum length")
     return text
+
+
+def _currency(value: object) -> Literal["CNY"]:
+    currency = _text(value, required=True, max_length=3)
+    if currency != "CNY":
+        raise ValueError("currency must be CNY")
+    return "CNY"
 
 
 def _optional_text(value: object, max_length: int) -> str | None:

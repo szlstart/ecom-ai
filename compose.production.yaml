@@ -63,6 +63,7 @@ services:
 
   api:
     <<: *api-runtime
+    depends_on: !reset {}
     ports: !reset []
     environment:
       <<: *api-environment
@@ -70,6 +71,7 @@ services:
 
   file-worker:
     <<: *api-runtime
+    depends_on: !reset {}
     environment:
       <<: *api-environment
       ECOM_FILE_SCANNER_ENABLED: "true"
@@ -78,40 +80,49 @@ services:
 
   batch-worker:
     <<: *api-runtime
+    depends_on: !reset {}
     environment: *api-environment
 
   order-timeout-worker:
     <<: *api-runtime
+    depends_on: !reset {}
     environment: *api-environment
 
   payment-reconcile-worker:
     <<: *api-runtime
+    depends_on: !reset {}
     environment: *api-environment
 
   logistics-sync-worker:
     <<: *api-runtime
+    depends_on: !reset {}
     environment: *api-environment
 
   admin-approval-worker:
     <<: *api-runtime
+    depends_on: !reset {}
     environment: *api-environment
 
   realtime-outbox-worker:
     <<: *api-runtime
+    depends_on: !reset {}
     environment: *api-environment
 
   agent-runtime-worker:
     <<: *api-runtime
+    depends_on: !reset {}
     environment:
       <<: *api-environment
       ECOM_OTEL_SERVICE_NAME: ecom-ai-agent-worker
 
   knowledge-indexer:
     <<: *api-runtime
+    depends_on: !reset {}
     environment: *api-environment
 
   ai-memory-cleanup-worker:
     <<: *api-runtime
+    depends_on: !reset {}
     environment: *api-environment
 
   frontend:

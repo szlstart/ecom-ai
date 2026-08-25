@@ -78,6 +78,9 @@ def test_production_override_removes_data_ports_and_has_migration_job() -> None:
     assert "profiles: [local-data]" in production
     assert "env_file: !reset []" in production
     assert "build: !reset null" in production
+    # Keep resets explicit per service: older supported Compose releases do not
+    # consistently apply tagged reset values inherited only through YAML anchors.
+    assert production.count("depends_on: !reset {}") >= 12
     supply_chain = (ROOT / "scripts/sbom-scan.sh").read_text(encoding="utf-8")
     assert "syft" in supply_chain and "trivy" in supply_chain and "cosign" in supply_chain
     canary = (ROOT / "scripts/canary-rollback.sh").read_text(encoding="utf-8")

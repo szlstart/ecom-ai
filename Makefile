@@ -3,7 +3,7 @@ CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
 PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
 
-.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test build registry-check acceptance-audit acceptance-gate openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
+.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -51,6 +51,10 @@ acceptance-audit:
 
 acceptance-gate:
 	$(PYTHON) scripts/acceptance-audit.py --strict
+
+go-no-go-validate:
+	@test -n "$(MANIFEST)" || (echo "Usage: make go-no-go-validate MANIFEST=artifacts/acceptance/<release>/go-no-go.json" && exit 2)
+	$(PYTHON) scripts/validate-go-no-go.py "$(MANIFEST)"
 
 openapi:
 	PYTHONPATH=backend $(PYTHON) scripts/export_openapi.py

@@ -23,3 +23,5 @@
 - `go-no-go.json`：每个门禁的证据 URI、Owner、结论和签字时间。
 
 证据只允许包含公开 ID、脱敏字段和 Trace/Audit 引用，不保存 Token、Cookie、Secret、完整运单号、用户消息正文或模型隐藏推理。
+
+从 `docs/acceptance/go-no-go.template.json` 复制发布清单，填写真实 Commit、证据引用、Owner 与复核人后执行 `make go-no-go-validate MANIFEST=artifacts/acceptance/<release>/go-no-go.json`。只有八类门禁全部为 `pass`，且每类都有证据、复核人和 UTC 决策时间，工具才返回 `go`；`pending`、`insufficient_evidence`、缺失门禁或无签字的 `pass` 均 Fail Closed 为 `no_go`。

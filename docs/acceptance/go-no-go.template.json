@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "release_id": "replace-with-release-id",
+  "commit_sha": "replace-with-40-character-commit-sha",
+  "gates": [
+    {"id": "release", "status": "pending", "owner": "release-manager", "evidence": [], "decided_by": null, "decided_at": null, "notes": "Image digest, SBOM, signature, scan and frozen versions."},
+    {"id": "quality", "status": "pending", "owner": "quality-owner", "evidence": [], "decided_by": null, "decided_at": null, "notes": "Automated tests, browser E2E, security holdout and full Agent evaluation."},
+    {"id": "data", "status": "pending", "owner": "data-owner", "evidence": [], "decided_by": null, "decided_at": null, "notes": "Migrations, encrypted backup, isolated restore, PITR and reconciliation."},
+    {"id": "security", "status": "pending", "owner": "security-owner", "evidence": [], "decided_by": null, "decided_at": null, "notes": "Secrets, TLS, RBAC, MFA, scope isolation, audit and kill switch."},
+    {"id": "operations", "status": "pending", "owner": "operations-owner", "evidence": [], "decided_by": null, "decided_at": null, "notes": "Dashboards, alerts, on-call, runbooks and third-party monitoring."},
+    {"id": "deployment", "status": "pending", "owner": "deployment-owner", "evidence": [], "decided_by": null, "decided_at": null, "notes": "Canary, rollback, migration compatibility and in-flight task handling."},
+    {"id": "business", "status": "pending", "owner": "business-owner", "evidence": [], "decided_by": null, "decided_at": null, "notes": "Production channel approvals, legal content, staffing and ownership."},
+    {"id": "post_release", "status": "pending", "owner": "release-manager", "evidence": [], "decided_by": null, "decided_at": null, "notes": "Observation window, stop thresholds, reconciliation and review date."}
+  ]
+}

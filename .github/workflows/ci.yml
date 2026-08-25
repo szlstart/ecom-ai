@@ -121,3 +121,11 @@ jobs:
           git diff --exit-code -- backend/app/generated/permission_catalog.py backend/app/generated/operation_trace_catalog.py docs/openapi-v1.json frontend/src/api/generated/schema.ts
       - name: Run quality gates
         run: make lint acceptance-test build
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-evidence-${{ github.sha }}
+          path: artifacts/acceptance/current
+          if-no-files-found: error
+          retention-days: 14

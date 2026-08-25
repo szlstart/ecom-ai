@@ -34,7 +34,7 @@ test:
 
 acceptance-test:
 	mkdir -p artifacts/acceptance/current/quality
-	cd backend && ECOM_RUN_INTEGRATION_TESTS=1 $(PYTHON) -m pytest --cov=app --cov-fail-under=60 --cov-report=term:skip-covered --cov-report=xml:../artifacts/acceptance/current/quality/backend-coverage.xml
+	cd backend && ECOM_RUN_INTEGRATION_TESTS=1 $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/quality/backend-junit.xml --cov=app --cov-fail-under=60 --cov-report=term:skip-covered --cov-report=xml:../artifacts/acceptance/current/quality/backend-coverage.xml
 	cd frontend && pnpm test
 
 build:

@@ -37,9 +37,12 @@ def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     assert 'ECOM_RUN_FILE_INTEGRATION_TESTS: "1"' in ci
     assert "ecom-minio-ci" in ci and "ecom-clamav-ci" in ci
     assert "cancel-in-progress: true" in ci
+    assert "actions/upload-artifact@v4" in ci
+    assert "acceptance-evidence-${{ github.sha }}" in ci
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert "ECOM_RUN_INTEGRATION_TESTS=1" in makefile
     assert "--cov-fail-under=60" in makefile
+    assert "backend-junit.xml" in makefile
 
 
 def test_release_images_are_scanned_attested_and_keyless_signed() -> None:

@@ -1,7 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, UniqueConstraint
-from sqlalchemy.dialects.mysql import BIGINT, BINARY
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    Computed,
+    DateTime,
+    ForeignKey,
+    Index,
+    SmallInteger,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import AppendOnlyMySQLModel, MutableMySQLModel, MySQLBase
@@ -128,3 +138,53 @@ class AdminBatchJobItem(AppendOnlyMySQLModel, MySQLBase):
     error_code: Mapped[str | None] = mapped_column(String(64))
     error_message: Mapped[str | None] = mapped_column(String(1000))
     input_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+
+
+class DeadLetterEvent(MutableMySQLModel, MySQLBase):
+    __tablename__ = "dead_letter_events"
+    __table_args__ = (
+        UniqueConstraint("dead_letter_no", name="uk_dead_letter_events_no"),
+        UniqueConstraint("active_source_key", name="uk_dead_letter_events_active_source"),
+        CheckConstraint(
+            "dead_status IN ('open', 'replaying', 'resolved', 'ignored')",
+            name="ck_dead_letter_events_status",
+        ),
+        Index("idx_dead_letter_events_status", "dead_status", "last_failed_at", "id"),
+        Index("idx_dead_letter_events_scope", "scope_type", "scope_id", "dead_status", "id"),
+    )
+
+    dead_letter_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_no: Mapped[str] = mapped_column(String(64), nullable=False)
+    active_source_key: Mapped[str | None] = mapped_column(
+        String(128),
+        Computed(
+            "CASE WHEN dead_status IN ('open', 'replaying') "
+            "THEN CONCAT(source_type, ':', source_no) ELSE NULL END"
+        ),
+    )
+    event_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    schema_version: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=1, server_default="1"
+    )
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    scope_id: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)
+    payload_redacted: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    payload_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    failure_count: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=1, server_default="1"
+    )
+    first_failed_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    last_failed_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    last_error_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    last_error: Mapped[str] = mapped_column(String(1000), nullable=False)
+    dead_status: Mapped[str] = mapped_column(String(16), nullable=False, default="open")
+    resolved_by: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("users.id"))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    resolution_note: Mapped[str | None] = mapped_column(String(1000))
+    replay_count: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+    last_replay_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    original_trace_id: Mapped[str | None] = mapped_column(String(64))
+    replay_trace_id: Mapped[str | None] = mapped_column(String(64))

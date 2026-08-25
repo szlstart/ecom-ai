@@ -795,6 +795,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/dead-letter-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Dead Letters */
+        get: operations["AdminDeadLetter_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dead Letter */
+        get: operations["AdminDeadLetter_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}/replay-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Dead Letter Replay */
+        post: operations["AdminDeadLetter_Preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}/replays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay Dead Letter */
+        post: operations["AdminDeadLetter_Replay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/file-upload-policies/{purpose}": {
         parameters: {
             query?: never;
@@ -7144,6 +7212,97 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** DeadLetterList */
+        DeadLetterList: {
+            /** Items */
+            items: components["schemas"]["DeadLetterView"][];
+        };
+        /** DeadLetterReplayPreview */
+        DeadLetterReplayPreview: {
+            dead_letter: components["schemas"]["DeadLetterView"];
+            /** Replayable */
+            replayable: boolean;
+            /** Blockers */
+            blockers: string[];
+            /** Source Status */
+            source_status: string | null;
+            /** Immutable Payload Hash */
+            immutable_payload_hash: string;
+            /** Impact Summary */
+            impact_summary: string[];
+            /** Required Approval Count */
+            required_approval_count: number;
+            /** Preview Token */
+            preview_token: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** DeadLetterReplayRequest */
+        DeadLetterReplayRequest: {
+            /** Preview Token */
+            preview_token: string;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** DeadLetterView */
+        DeadLetterView: {
+            /** Dead Letter Id */
+            dead_letter_id: string;
+            /** Source Type */
+            source_type: string;
+            /** Source Id */
+            source_id: string;
+            /** Event Type */
+            event_type: string;
+            /** Schema Version */
+            schema_version: number;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: number;
+            /** Payload Hash */
+            payload_hash: string;
+            /** Payload Keys */
+            payload_keys: string[];
+            /** Failure Count */
+            failure_count: number;
+            /**
+             * First Failed At
+             * Format: date-time
+             */
+            first_failed_at: string;
+            /**
+             * Last Failed At
+             * Format: date-time
+             */
+            last_failed_at: string;
+            /** Last Error Code */
+            last_error_code: string;
+            /** Last Error */
+            last_error: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "replaying" | "resolved" | "ignored";
+            /** Replay Count */
+            replay_count: number;
+            /** Last Replay At */
+            last_replay_at: string | null;
+            /** Original Trace Id */
+            original_trace_id: string | null;
+            /** Replay Trace Id */
+            replay_trace_id: string | null;
+            /** Available Actions */
+            available_actions: "preview_replay"[];
+            /** Version */
+            version: number;
+        };
         /** DefaultAddressRequest */
         DefaultAddressRequest: {
             /** Address Id */
@@ -7491,6 +7650,21 @@ export interface components {
         /** Envelope[ConversationView] */
         Envelope_ConversationView_: {
             data: components["schemas"]["ConversationView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[DeadLetterList] */
+        Envelope_DeadLetterList_: {
+            data: components["schemas"]["DeadLetterList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[DeadLetterReplayPreview] */
+        Envelope_DeadLetterReplayPreview_: {
+            data: components["schemas"]["DeadLetterReplayPreview"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[DeadLetterView] */
+        Envelope_DeadLetterView_: {
+            data: components["schemas"]["DeadLetterView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[EvaluationRunList] */
@@ -12662,6 +12836,139 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ObservabilitySummary_"];
+                };
+            };
+        };
+    };
+    AdminDeadLetter_List: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                event_type?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DeadLetterList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminDeadLetter_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dead_letter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DeadLetterView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminDeadLetter_Preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dead_letter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DeadLetterReplayPreview_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminDeadLetter_Replay: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                dead_letter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeadLetterReplayRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

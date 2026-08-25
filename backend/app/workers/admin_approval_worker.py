@@ -24,6 +24,7 @@ from app.modules.after_sale.service import AfterSaleService
 from app.modules.agent_runtime.models import AgentDefinition, AgentVersion
 from app.modules.catalog import models as catalog_models  # noqa: F401
 from app.modules.checkout import models as checkout_models  # noqa: F401
+from app.modules.events.service import DeadLetterService
 from app.modules.identity.models import AuthSession, User
 from app.modules.knowledge.admin_service import KnowledgeAdminService
 from app.modules.knowledge.models import SkillDefinition, SkillVersion, ToolDefinition, ToolVersion
@@ -60,6 +61,7 @@ class AdminApprovalWorker:
                 "ai.tool.publish.v1": self._execute_tool_publication,
                 "ai.tool.rollback.v1": self._execute_tool_rollback,
                 "ai.agent.publish.v1": self._execute_agent_publication,
+                "events.dead_letter.replay.v1": self._execute_dead_letter_replay,
             },
         )
 
@@ -250,9 +252,7 @@ class AdminApprovalWorker:
         }:
             raise _invalid_command()
         access = await self._initiator_access(approval)
-        await KnowledgeAdminService(self.session).publish_tool(
-            access, tool_code, version_no
-        )
+        await KnowledgeAdminService(self.session).publish_tool(access, tool_code, version_no)
         return ApprovalExecutionResult(resource_type="ai_tool_version", resource_no=tool_code)
 
     async def _execute_tool_rollback(
@@ -305,6 +305,21 @@ class AdminApprovalWorker:
         )
         return ApprovalExecutionResult(
             resource_type="ai_tool_version", resource_no=f"{tool_code}:v{target_version_no}"
+        )
+
+    async def _execute_dead_letter_replay(
+        self,
+        raw_payload: dict[str, object],
+        approval: AdminApprovalRequest,
+    ) -> ApprovalExecutionResult:
+        access = await self._initiator_access(approval)
+        result = await DeadLetterService(
+            self.session,
+            self.security,
+        ).execute_replay(access, raw_payload, approval)
+        return ApprovalExecutionResult(
+            resource_type="dead_letter_event",
+            resource_no=result.dead_letter_no,
         )
 
     async def _initiator_access(self, approval: AdminApprovalRequest) -> AdminAccess:

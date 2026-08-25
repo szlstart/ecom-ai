@@ -6989,8 +6989,10 @@ Tool Version 是运行、绑定、权限、审计和回滚的不可变单位。�
 | :--- | :--- | :--- |
 | `dead_letter_no` | `VARCHAR(40)` | UK |
 | `source_type` / `source_no` | `VARCHAR(32)` / `VARCHAR(64)` | `outbox/notification/logistics/indexing/memory` 及来源 ID |
+| `active_source_key` | `VARCHAR(128)` | 生成列；仅 `open/replaying` 状态生成 `source_type:source_no`，用于活跃记录条件唯一 |
 | `event_type` | `VARCHAR(128)` | NOT NULL |
 | `schema_version` | `SMALLINT UNSIGNED` | NOT NULL |
+| `scope_type` / `scope_id` | `VARCHAR(16)` / `BIGINT UNSIGNED` | NOT NULL，`platform/0` 或 `store/{store_pk}`，用于列表、详情和重放的数据范围鉴权 |
 | `payload_redacted` | `JSON` | NULL，可安全重放的最小 Payload |
 | `payload_hash` | `BINARY(32)` | NOT NULL |
 | `failure_count` | `INT UNSIGNED` | NOT NULL |
@@ -7002,7 +7004,7 @@ Tool Version 是运行、绑定、权限、审计和回滚的不可变单位。�
 | `replay_count` / `last_replay_at` | `INT UNSIGNED` / `DATETIME(6)` | NOT NULL DEFAULT 0 / NULL |
 | `original_trace_id` / `replay_trace_id` | `VARCHAR(64)` | NULL |
 
-约束：活跃死信按 `(source_type, source_no)` 唯一，避免同一失败无限创建告警行。重放必须先验证当前 Schema、目标资源版本和消费者幂等性，使用新 Trace ID，记录操作者/理由；禁止在生产管理页“一键无条件重放全部”。
+约束：通过 `active_source_key` 生成列保证活跃死信按 `(source_type, source_no)` 唯一，已解决或已忽略记录不占用活跃唯一键；`dead_status` 使用 CHECK 白名单约束。重放必须先验证当前 Schema、目标资源版本和消费者幂等性，使用新 Trace ID，记录操作者/理由；禁止在生产管理页“一键无条件重放全部”。
 
 ##### 3.7.14.6 admin_batch_jobs 管理端批处理任务表
 

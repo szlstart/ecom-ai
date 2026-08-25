@@ -3421,6 +3421,356 @@
         ]
       }
     },
+    "/api/v1/admin/dead-letter-events": {
+      "get": {
+        "tags": [
+          "event-administration"
+        ],
+        "summary": "List Dead Letters",
+        "operationId": "AdminDeadLetter_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 16
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Event Type"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DeadLetterList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "access.AdminDeadLetter_List",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "events:read"
+        ],
+        "x-requirement-id": [
+          "ADM-DLQ-LIST-01"
+        ],
+        "x-scope-policy": [
+          [
+            "events:read"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-DLQ-*"
+        ]
+      }
+    },
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}": {
+      "get": {
+        "tags": [
+          "event-administration"
+        ],
+        "summary": "Get Dead Letter",
+        "operationId": "AdminDeadLetter_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dead_letter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dead Letter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DeadLetterView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "access.AdminDeadLetter_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "events:read"
+        ],
+        "x-requirement-id": [
+          "ADM-DLQ-01"
+        ],
+        "x-scope-policy": [
+          [
+            "events:read",
+            "events:operate"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-DLQ-*"
+        ]
+      }
+    },
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}/replay-previews": {
+      "post": {
+        "tags": [
+          "event-administration"
+        ],
+        "summary": "Preview Dead Letter Replay",
+        "operationId": "AdminDeadLetter_Preview",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dead_letter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dead Letter Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DeadLetterReplayPreview_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AdminDeadLetter_Preview",
+        "x-domain-command": "AdminDeadLetter_Preview",
+        "x-idempotency-policy": "none",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "events:operate"
+        ],
+        "x-requirement-id": [
+          "ADM-DLQ-01"
+        ],
+        "x-scope-policy": [
+          [
+            "events:read",
+            "events:operate"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-DLQ-*"
+        ]
+      }
+    },
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}/replays": {
+      "post": {
+        "tags": [
+          "event-administration"
+        ],
+        "summary": "Replay Dead Letter",
+        "operationId": "AdminDeadLetter_Replay",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dead_letter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dead Letter Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeadLetterReplayRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ApprovalRequiredView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AdminDeadLetter_Replay",
+        "x-domain-command": "AdminDeadLetter_Replay",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "events:operate"
+        ],
+        "x-requirement-id": [
+          "ADM-DLQ-01"
+        ],
+        "x-scope-policy": [
+          [
+            "events:read",
+            "events:operate"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-DLQ-*"
+        ]
+      }
+    },
     "/api/v1/file-upload-policies/{purpose}": {
       "get": {
         "tags": [
@@ -32862,6 +33212,270 @@
         ],
         "title": "ConversationView"
       },
+      "DeadLetterList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeadLetterView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "DeadLetterList"
+      },
+      "DeadLetterReplayPreview": {
+        "properties": {
+          "dead_letter": {
+            "$ref": "#/components/schemas/DeadLetterView"
+          },
+          "replayable": {
+            "type": "boolean",
+            "title": "Replayable"
+          },
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blockers"
+          },
+          "source_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Status"
+          },
+          "immutable_payload_hash": {
+            "type": "string",
+            "title": "Immutable Payload Hash"
+          },
+          "impact_summary": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Impact Summary"
+          },
+          "required_approval_count": {
+            "type": "integer",
+            "title": "Required Approval Count"
+          },
+          "preview_token": {
+            "type": "string",
+            "title": "Preview Token"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dead_letter",
+          "replayable",
+          "blockers",
+          "source_status",
+          "immutable_payload_hash",
+          "impact_summary",
+          "required_approval_count",
+          "preview_token",
+          "expires_at"
+        ],
+        "title": "DeadLetterReplayPreview"
+      },
+      "DeadLetterReplayRequest": {
+        "properties": {
+          "preview_token": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 40,
+            "title": "Preview Token"
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 5,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "preview_token",
+          "reason_code",
+          "reason"
+        ],
+        "title": "DeadLetterReplayRequest"
+      },
+      "DeadLetterView": {
+        "properties": {
+          "dead_letter_id": {
+            "type": "string",
+            "title": "Dead Letter Id"
+          },
+          "source_type": {
+            "type": "string",
+            "title": "Source Type"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version"
+          },
+          "scope_type": {
+            "type": "string",
+            "title": "Scope Type"
+          },
+          "scope_id": {
+            "type": "integer",
+            "title": "Scope Id"
+          },
+          "payload_hash": {
+            "type": "string",
+            "title": "Payload Hash"
+          },
+          "payload_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Payload Keys"
+          },
+          "failure_count": {
+            "type": "integer",
+            "title": "Failure Count"
+          },
+          "first_failed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Failed At"
+          },
+          "last_failed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Failed At"
+          },
+          "last_error_code": {
+            "type": "string",
+            "title": "Last Error Code"
+          },
+          "last_error": {
+            "type": "string",
+            "title": "Last Error"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "replaying",
+              "resolved",
+              "ignored"
+            ],
+            "title": "Status"
+          },
+          "replay_count": {
+            "type": "integer",
+            "title": "Replay Count"
+          },
+          "last_replay_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Replay At"
+          },
+          "original_trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Trace Id"
+          },
+          "replay_trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replay Trace Id"
+          },
+          "available_actions": {
+            "items": {
+              "type": "string",
+              "const": "preview_replay"
+            },
+            "type": "array",
+            "title": "Available Actions"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "dead_letter_id",
+          "source_type",
+          "source_id",
+          "event_type",
+          "schema_version",
+          "scope_type",
+          "scope_id",
+          "payload_hash",
+          "payload_keys",
+          "failure_count",
+          "first_failed_at",
+          "last_failed_at",
+          "last_error_code",
+          "last_error",
+          "status",
+          "replay_count",
+          "last_replay_at",
+          "original_trace_id",
+          "replay_trace_id",
+          "available_actions",
+          "version"
+        ],
+        "title": "DeadLetterView"
+      },
       "DefaultAddressRequest": {
         "properties": {
           "address_id": {
@@ -33900,6 +34514,51 @@
           "data"
         ],
         "title": "Envelope[ConversationView]"
+      },
+      "Envelope_DeadLetterList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeadLetterList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[DeadLetterList]"
+      },
+      "Envelope_DeadLetterReplayPreview_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeadLetterReplayPreview"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[DeadLetterReplayPreview]"
+      },
+      "Envelope_DeadLetterView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeadLetterView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[DeadLetterView]"
       },
       "Envelope_EvaluationRunList_": {
         "properties": {

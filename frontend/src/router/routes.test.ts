@@ -79,6 +79,8 @@ describe('phase two route contract', () => {
       ['/admin/shipments/:shipmentId', 'ADM-SHIP-02'],
       ['/admin/system/jobs', 'ADM-JOB-LIST-01'],
       ['/admin/system/jobs/:jobId', 'ADM-BATCH-01'],
+      ['/admin/system/dead-letter-events', 'ADM-DLQ-LIST-01'],
+      ['/admin/system/dead-letter-events/:deadLetterId', 'ADM-DLQ-01'],
     ])
     const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
     for (const [path, requirementId] of expected) {

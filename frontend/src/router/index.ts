@@ -108,6 +108,8 @@ const routes: RouteRecordRaw[] = [
     { path: 'content/:contentId', component: () => import('@/pages/admin/AdminContentEditPage.vue'), meta: { ...adminMeta, title: '编辑平台内容', requirementId: 'ADM-CONTENT-01', requiredPermission: 'content:read' } },
     { path: 'system/jobs', component: () => import('@/pages/admin/AdminJobListPage.vue'), meta: { ...adminMeta, title: '批处理任务', requirementId: 'ADM-JOB-LIST-01', requiredPermission: 'jobs:read' } },
     { path: 'system/jobs/:jobId', component: () => import('@/pages/admin/AdminJobDetailPage.vue'), meta: { ...adminMeta, title: '批处理任务详情', requirementId: 'ADM-BATCH-01', requiredAnyPermission: ['jobs:read', 'products:create'] } },
+    { path: 'system/dead-letter-events', component: () => import('@/pages/admin/AdminDeadLetterListPage.vue'), meta: { ...adminMeta, title: '死信事件', requirementId: 'ADM-DLQ-LIST-01', requiredPermission: 'events:read' } },
+    { path: 'system/dead-letter-events/:deadLetterId', component: () => import('@/pages/admin/AdminDeadLetterDetailPage.vue'), meta: { ...adminMeta, title: '死信详情', requirementId: 'ADM-DLQ-01', requiredPermission: 'events:read' } },
   ] },
   { path: '/:pathMatch(.*)*', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '页面不存在', requirementId: 'USR-SYSTEM-404' }, children: [{ path: '', component: () => import('@/pages/NotFoundPage.vue') }] },
 ]

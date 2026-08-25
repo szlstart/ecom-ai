@@ -3,7 +3,7 @@ CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
 PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
 
-.PHONY: bootstrap install lock format trace-catalog lint test build registry-check acceptance-audit acceptance-gate openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
+.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test build registry-check acceptance-audit acceptance-gate openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -30,6 +30,11 @@ format:
 
 test:
 	cd backend && $(PYTHON) -m pytest
+	cd frontend && pnpm test
+
+acceptance-test:
+	mkdir -p artifacts/acceptance/current/quality
+	cd backend && ECOM_RUN_INTEGRATION_TESTS=1 $(PYTHON) -m pytest --cov=app --cov-fail-under=60 --cov-report=term:skip-covered --cov-report=xml:../artifacts/acceptance/current/quality/backend-coverage.xml
 	cd frontend && pnpm test
 
 build:

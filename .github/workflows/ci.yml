@@ -93,4 +93,4 @@ jobs:
           make acceptance-gate
           git diff --exit-code -- backend/app/generated/permission_catalog.py backend/app/generated/operation_trace_catalog.py docs/openapi-v1.json frontend/src/api/generated/schema.ts
       - name: Run quality gates
-        run: make lint test build
+        run: make lint acceptance-test build

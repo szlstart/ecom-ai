@@ -8,6 +8,8 @@
 
 全部仓库内缺口修复后，CI 使用 `make acceptance-gate` 执行严格检查。生产等价压测、备份恢复、PITR、对象复制、镜像签名、真实模型评估和负责人签字属于环境证据，按 `docs/runbooks/release-go-no-go.md` 收集，不得用脚本存在或模拟输出替代。
 
+`make acceptance-test` 会强制启用真实 MySQL/PostgreSQL/Redis 集成套件，并把后端覆盖率 XML 写入 `artifacts/acceptance/current/quality/`。当前仓库门禁为后端行覆盖率不低于 60%；它只用于阻止证据退化，不能替代逐流程、并发、安全、浏览器和环境验收。
+
 ## 证据最小结构
 
 每个发布版本的证据目录至少包含：

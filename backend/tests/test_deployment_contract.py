@@ -31,7 +31,10 @@ def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     assert "alembic.mysql.ini downgrade k05f6a8b9c0d" in ci
     assert "alembic.mysql.ini downgrade base" not in ci
     assert "alembic.postgres.ini downgrade base" in ci
-    assert "make lint test build" in ci
+    assert "make lint acceptance-test build" in ci
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    assert "ECOM_RUN_INTEGRATION_TESTS=1" in makefile
+    assert "--cov-fail-under=60" in makefile
 
 
 def test_release_images_are_scanned_attested_and_keyless_signed() -> None:

@@ -18,7 +18,12 @@ from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, TokenClaims, utc_now
 from app.database.mysql import mysql_session
-from app.modules.after_sale.models import RefundAppeal, RefundApplication, RefundPaymentRecord
+from app.modules.after_sale.models import (
+    RefundAppeal,
+    RefundAppealEvent,
+    RefundApplication,
+    RefundPaymentRecord,
+)
 from app.modules.after_sale.schemas import (
     AdminRefundAppealDecisionRequest,
     AdminRefundDecisionRequest,
@@ -1839,6 +1844,99 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     )
     assert cancelled_refund.status_code == 200, cancelled_refund.text
     assert cancelled_refund.json()["data"]["refund_status"] == "cancelled"
+
+    # A dedicated rejected refund isolates user cancellation from the later
+    # administrator dual-control appeal scenario.
+    async for session in mysql_session():
+        cancelled_refund_row = await session.scalar(
+            select(RefundApplication).where(RefundApplication.refund_no == first_refund_id)
+        )
+        assert cancelled_refund_row is not None
+        cancellable_refund = RefundApplication(
+            refund_no=new_prefixed_ulid("rfd_"),
+            order_id=cancelled_refund_row.order_id,
+            user_id=cancelled_refund_row.user_id,
+            store_id=cancelled_refund_row.store_id,
+            refund_type="refund_only",
+            refund_status="rejected",
+            reason_code="NO_LONGER_NEEDED",
+            reason_detail="验证用户撤销申诉",
+            requested_amount=cancelled_refund_row.requested_amount,
+            approved_amount=0,
+            currency=cancelled_refund_row.currency,
+            policy_snapshot={"fixture": "appeal_cancel"},
+            submitted_at=utc_now(),
+            decided_at=utc_now(),
+        )
+        session.add(cancellable_refund)
+        await session.flush()
+        cancellable_appeal = RefundAppeal(
+            appeal_no=new_prefixed_ulid("rap_"),
+            refund_id=cancellable_refund.id,
+            user_id=cancellable_refund.user_id,
+            store_id=cancellable_refund.store_id,
+            appeal_status="submitted",
+            reason="验证用户撤销申诉",
+        )
+        session.add(cancellable_appeal)
+        await session.flush()
+        session.add(
+            RefundAppealEvent(
+                event_no=new_prefixed_ulid("rae_"),
+                appeal_id=cancellable_appeal.id,
+                event_type="appeal.created",
+                from_status=None,
+                to_status="submitted",
+                actor_type="user",
+                actor_id=cancellable_refund.user_id,
+                reason_code="USER_APPEAL",
+                remark="验证用户撤销申诉",
+                appeal_version=cancellable_appeal.version,
+            )
+        )
+        await session.commit()
+        cancellable_appeal_id = cancellable_appeal.appeal_no
+        cancellable_appeal_version = cancellable_appeal.version
+
+    assert (
+        await client.get(
+            f"/api/v1/refund-appeals/{cancellable_appeal_id}/events", headers=other_auth
+        )
+    ).status_code == 404
+    appeal_events = await client.get(
+        f"/api/v1/refund-appeals/{cancellable_appeal_id}/events", headers=auth
+    )
+    assert appeal_events.status_code == 200, appeal_events.text
+    assert [item["event_type"] for item in appeal_events.json()["data"]["items"]] == [
+        "appeal.created"
+    ]
+    appeal_cancel_key = f"appeal-cancel-{suffix}"
+    cancelled_appeal = await client.post(
+        f"/api/v1/refund-appeals/{cancellable_appeal_id}/cancellations",
+        headers={
+            **auth,
+            "Idempotency-Key": appeal_cancel_key,
+            "If-Match": f'"v{cancellable_appeal_version}"',
+        },
+    )
+    assert cancelled_appeal.status_code == 200, cancelled_appeal.text
+    assert cancelled_appeal.json()["data"]["appeal_status"] == "cancelled"
+    replayed_appeal_cancel = await client.post(
+        f"/api/v1/refund-appeals/{cancellable_appeal_id}/cancellations",
+        headers={
+            **auth,
+            "Idempotency-Key": appeal_cancel_key,
+            "If-Match": f'"v{cancellable_appeal_version}"',
+        },
+    )
+    assert replayed_appeal_cancel.status_code == 200
+    assert replayed_appeal_cancel.json()["data"] == cancelled_appeal.json()["data"]
+    updated_appeal_events = await client.get(
+        f"/api/v1/refund-appeals/{cancellable_appeal_id}/events", headers=auth
+    )
+    assert [
+        item["event_type"] for item in updated_appeal_events.json()["data"]["items"]
+    ] == ["appeal.created", "appeal.cancelled"]
 
     rejected_eligibility = await client.post(
         "/api/v1/refund-eligibility-checks", headers=auth, json=eligibility_payload

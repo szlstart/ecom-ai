@@ -36,6 +36,8 @@ from app.modules.after_sale.schemas import (
     AdminRefundList,
     FakeRefundWebhook,
     RefundAppealCreateRequest,
+    RefundAppealEventList,
+    RefundAppealEventView,
     RefundAppealView,
     RefundApplicationCreateRequest,
     RefundApplicationItemView,
@@ -987,6 +989,90 @@ class AfterSaleService:
         if refund is None:
             raise _not_found()
         return _appeal_view(appeal, refund.refund_no)
+
+    async def appeal_events(self, user: User, appeal_no: str) -> RefundAppealEventList:
+        appeal = await self.repository.appeal(user.id, appeal_no)
+        if appeal is None:
+            raise _not_found()
+        return RefundAppealEventList(
+            items=[
+                RefundAppealEventView(
+                    event_id=event.event_no,
+                    event_type=event.event_type,
+                    from_status=event.from_status,
+                    to_status=event.to_status,
+                    actor_type=event.actor_type,
+                    reason_code=event.reason_code,
+                    remark=event.remark,
+                    appeal_version=event.appeal_version,
+                    occurred_at=event.created_at,
+                )
+                for event in await self.repository.appeal_events(appeal.id)
+            ]
+        )
+
+    async def cancel_appeal(
+        self,
+        user: User,
+        appeal_no: str,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> RefundAppealView:
+        claim = await self.idempotency.begin(
+            scope_key=f"refund:appeal-cancel:{user.user_no}:{appeal_no}",
+            idempotency_key=idempotency_key,
+            payload={"expected_version": expected_version},
+            resource_type="refund_appeal",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return RefundAppealView.model_validate(claim.record.response_body)
+        appeal = await self.repository.appeal(user.id, appeal_no, for_update=True)
+        if appeal is None:
+            raise _not_found()
+        if appeal.version != expected_version:
+            raise ApplicationError(
+                status=412,
+                code="RESOURCE_VERSION_CONFLICT",
+                title="Version conflict",
+                detail="申诉已经变化，请刷新后重试。",
+            )
+        if appeal.appeal_status != "submitted":
+            raise ApplicationError(
+                status=409,
+                code="REFUND_APPEAL_CANCEL_NOT_ALLOWED",
+                title="Appeal cannot be cancelled",
+                detail="申诉已被领取、处理或关闭，当前状态不允许撤销。",
+            )
+        refund = await self.session.get(RefundApplication, appeal.refund_id)
+        if refund is None:
+            raise _not_found()
+        previous = appeal.appeal_status
+        appeal.appeal_status = "cancelled"
+        appeal.version += 1
+        self.session.add(
+            RefundAppealEvent(
+                event_no=new_prefixed_ulid("rae_"),
+                appeal_id=appeal.id,
+                event_type="appeal.cancelled",
+                from_status=previous,
+                to_status=appeal.appeal_status,
+                actor_type="user",
+                actor_id=user.id,
+                reason_code="USER_CANCELLED",
+                appeal_version=appeal.version,
+                trace_id=request_id_context.get(),
+            )
+        )
+        await self.session.flush()
+        result = _appeal_view(appeal, refund.refund_no)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=appeal.appeal_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
 
     async def process_refund_webhook(
         self, provider: str, raw_body: bytes, signature: str, timestamp: str

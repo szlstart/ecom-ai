@@ -1341,6 +1341,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/refund-appeals/{appeal_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Refund Appeal Events */
+        get: operations["RefundAppealEvent_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-appeals/{appeal_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Refund Appeal */
+        post: operations["RefundAppeal_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/refund-applications": {
         parameters: {
             query?: never;
@@ -7338,6 +7372,11 @@ export interface components {
             data: components["schemas"]["ReauthenticationResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[RefundAppealEventList] */
+        Envelope_RefundAppealEventList_: {
+            data: components["schemas"]["RefundAppealEventList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[RefundAppealView] */
         Envelope_RefundAppealView_: {
             data: components["schemas"]["RefundAppealView"];
@@ -9186,6 +9225,35 @@ export interface components {
         RefundAppealCreateRequest: {
             /** Reason */
             reason: string;
+        };
+        /** RefundAppealEventList */
+        RefundAppealEventList: {
+            /** Items */
+            items: components["schemas"]["RefundAppealEventView"][];
+        };
+        /** RefundAppealEventView */
+        RefundAppealEventView: {
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** From Status */
+            from_status: string | null;
+            /** To Status */
+            to_status: string;
+            /** Actor Type */
+            actor_type: string;
+            /** Reason Code */
+            reason_code: string | null;
+            /** Remark */
+            remark: string | null;
+            /** Appeal Version */
+            appeal_version: number;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
         };
         /** RefundAppealView */
         RefundAppealView: {
@@ -13306,6 +13374,71 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundAppealEvent_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealEventList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    RefundAppeal_Cancel: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
             path: {
                 appeal_id: string;
             };

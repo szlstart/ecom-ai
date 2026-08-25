@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.after_sale.models import (
     RefundAppeal,
+    RefundAppealEvent,
     RefundApplication,
     RefundEvent,
     RefundItem,
@@ -152,15 +153,26 @@ class AfterSaleRepository:
         row = (await self.session.execute(statement)).one_or_none()
         return (row[0], row[1]) if row is not None else None
 
-    async def appeal(self, user_id: int, appeal_no: str) -> RefundAppeal | None:
-        return cast(
-            RefundAppeal | None,
-            await self.session.scalar(
-                select(RefundAppeal).where(
-                    RefundAppeal.user_id == user_id,
-                    RefundAppeal.appeal_no == appeal_no,
+    async def appeal(
+        self, user_id: int, appeal_no: str, *, for_update: bool = False
+    ) -> RefundAppeal | None:
+        statement = select(RefundAppeal).where(
+            RefundAppeal.user_id == user_id,
+            RefundAppeal.appeal_no == appeal_no,
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        return cast(RefundAppeal | None, await self.session.scalar(statement))
+
+    async def appeal_events(self, appeal_id: int) -> list[RefundAppealEvent]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(RefundAppealEvent)
+                    .where(RefundAppealEvent.appeal_id == appeal_id)
+                    .order_by(RefundAppealEvent.created_at, RefundAppealEvent.id)
                 )
-            ),
+            ).all()
         )
 
     async def refund_payment_by_no(

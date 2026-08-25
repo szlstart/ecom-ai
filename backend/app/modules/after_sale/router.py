@@ -7,6 +7,7 @@ from app.api.schemas import Envelope, ResponseMeta
 from app.modules.after_sale.dependencies import AfterSaleServiceDependency
 from app.modules.after_sale.schemas import (
     RefundAppealCreateRequest,
+    RefundAppealEventList,
     RefundAppealView,
     RefundApplicationCreateRequest,
     RefundApplicationList,
@@ -199,6 +200,48 @@ async def get_refund_appeal(
     service: AfterSaleServiceDependency,
 ) -> Envelope[RefundAppealView]:
     result = await service.appeal_detail(context.user, appeal_id)
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.get(
+    "/refund-appeals/{appeal_id}/events",
+    response_model=Envelope[RefundAppealEventList],
+    operation_id="RefundAppealEvent_ListMine",
+)
+async def list_refund_appeal_events(
+    appeal_id: str,
+    response: Response,
+    context: UserContext,
+    service: AfterSaleServiceDependency,
+) -> Envelope[RefundAppealEventList]:
+    result = await service.appeal_events(context.user, appeal_id)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/refund-appeals/{appeal_id}/cancellations",
+    response_model=Envelope[RefundAppealView],
+    operation_id="RefundAppeal_Cancel",
+)
+async def cancel_refund_appeal(
+    appeal_id: str,
+    response: Response,
+    context: UserContext,
+    service: AfterSaleServiceDependency,
+    idempotency_key: Annotated[
+        str, Header(alias="Idempotency-Key", min_length=16, max_length=128)
+    ],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[RefundAppealView]:
+    result = await service.cancel_appeal(
+        context.user,
+        appeal_id,
+        _expected_version(if_match),
+        idempotency_key,
+    )
     response.headers["ETag"] = _etag(result.version)
     _no_store(response)
     return Envelope(data=result)

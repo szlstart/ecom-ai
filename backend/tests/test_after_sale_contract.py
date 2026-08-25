@@ -49,6 +49,14 @@ def test_after_sale_user_contract_is_published() -> None:
             "RefundAppeal_Create",
         ),
         "/api/v1/refund-appeals/{appeal_id}": ("get", "RefundAppeal_GetMine"),
+        "/api/v1/refund-appeals/{appeal_id}/events": (
+            "get",
+            "RefundAppealEvent_ListMine",
+        ),
+        "/api/v1/refund-appeals/{appeal_id}/cancellations": (
+            "post",
+            "RefundAppeal_Cancel",
+        ),
         "/api/v1/admin/refund-applications/{refund_id}/claims": (
             "post",
             "AdminRefund_Claim",
@@ -72,6 +80,7 @@ def test_after_sale_user_contract_is_published() -> None:
         assert schema["paths"][path][method]["operationId"] == operation_id
 
     for path in (
+        "/api/v1/refund-appeals/{appeal_id}/cancellations",
         "/api/v1/admin/refund-applications/{refund_id}/claims",
         "/api/v1/admin/refund-applications/{refund_id}/decisions",
         "/api/v1/admin/refund-appeals/{appeal_id}/claims",
@@ -82,6 +91,13 @@ def test_after_sale_user_contract_is_published() -> None:
             parameter["name"] == "Idempotency-Key" and parameter["required"] is True
             for parameter in parameters
         )
+    appeal_cancel_parameters = schema["paths"][
+        "/api/v1/refund-appeals/{appeal_id}/cancellations"
+    ]["post"]["parameters"]
+    assert any(
+        parameter["name"] == "If-Match" and parameter["required"] is False
+        for parameter in appeal_cancel_parameters
+    )
     for path in (
         "/api/v1/admin/refund-applications/{refund_id}/decisions",
         "/api/v1/admin/refund-appeals/{appeal_id}/decisions",

@@ -193,6 +193,22 @@ class RefundAppealView(StrictRequest):
     claimed: bool = False
 
 
+class RefundAppealEventView(StrictRequest):
+    event_id: str
+    event_type: str
+    from_status: str | None
+    to_status: str
+    actor_type: str
+    reason_code: str | None
+    remark: str | None
+    appeal_version: int
+    occurred_at: datetime
+
+
+class RefundAppealEventList(StrictRequest):
+    items: list[RefundAppealEventView]
+
+
 class RefundClaimView(StrictRequest):
     refund_id: str
     version: int

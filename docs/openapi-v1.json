@@ -6107,6 +6107,159 @@
         ]
       }
     },
+    "/api/v1/refund-appeals/{appeal_id}/events": {
+      "get": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "List Refund Appeal Events",
+        "operationId": "RefundAppealEvent_ListMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundAppealEventList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-APPEAL-01"
+        ],
+        "x-scope-policy": [
+          "appeal_owner"
+        ],
+        "x-test-case-ids": [
+          "REFUND-USER-*"
+        ]
+      }
+    },
+    "/api/v1/refund-appeals/{appeal_id}/cancellations": {
+      "post": {
+        "tags": [
+          "after-sale"
+        ],
+        "summary": "Cancel Refund Appeal",
+        "operationId": "RefundAppeal_Cancel",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "appeal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Appeal Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_RefundAppealView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.RefundAppeal_Cancel",
+        "x-domain-command": "RefundAppeal_Cancel",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-APPEAL-01"
+        ],
+        "x-scope-policy": [
+          "appeal_owner"
+        ],
+        "x-test-case-ids": [
+          "REFUND-USER-*"
+        ]
+      }
+    },
     "/api/v1/admin/refund-applications": {
       "get": {
         "tags": [
@@ -32800,6 +32953,21 @@
         ],
         "title": "Envelope[ReauthenticationResult]"
       },
+      "Envelope_RefundAppealEventList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RefundAppealEventList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[RefundAppealEventList]"
+      },
       "Envelope_RefundAppealView_": {
         "properties": {
           "data": {
@@ -38151,6 +38319,99 @@
           "reason"
         ],
         "title": "RefundAppealCreateRequest"
+      },
+      "RefundAppealEventList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundAppealEventView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "RefundAppealEventList"
+      },
+      "RefundAppealEventView": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "from_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Status"
+          },
+          "to_status": {
+            "type": "string",
+            "title": "To Status"
+          },
+          "actor_type": {
+            "type": "string",
+            "title": "Actor Type"
+          },
+          "reason_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason Code"
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remark"
+          },
+          "appeal_version": {
+            "type": "integer",
+            "title": "Appeal Version"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "event_type",
+          "from_status",
+          "to_status",
+          "actor_type",
+          "reason_code",
+          "remark",
+          "appeal_version",
+          "occurred_at"
+        ],
+        "title": "RefundAppealEventView"
       },
       "RefundAppealView": {
         "properties": {

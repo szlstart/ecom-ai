@@ -166,19 +166,54 @@ class StoreService:
 
     async def followed_stores(self, user_id: int, limit: int) -> FollowedStoreList:
         rows = await self.repository.followed_stores(user_id, limit)
-        return FollowedStoreList(items=[await self._store_view(store, user_id) for store in rows])
-
-    async def _store_view(self, store: Store, user_id: int | None) -> StorePublicView:
-        logo = await self.catalog.repository.public_file_by_object_key(store.logo_object_key)
-        followed = bool(
-            user_id is not None
-            and store.id in await self.repository.followed_store_ids(user_id, [store.id])
+        store_ids = [store.id for store in rows]
+        followed_ids = await self.repository.followed_store_ids(user_id, store_ids)
+        active_counts = await self.repository.active_product_counts(store_ids)
+        logos = await self.catalog.repository.public_files_by_object_keys(
+            [store.logo_object_key for store in rows]
         )
+        return FollowedStoreList(
+            items=[
+                await self._store_view(
+                    store,
+                    user_id,
+                    logo_url=(
+                        f"/api/v1/files/{logo.file_no}"
+                        if (logo := logos.get(store.logo_object_key or ""))
+                        else None
+                    ),
+                    followed=store.id in followed_ids,
+                    active_product_count=active_counts.get(store.id, 0),
+                    preloaded=True,
+                )
+                for store in rows
+            ]
+        )
+
+    async def _store_view(
+        self,
+        store: Store,
+        user_id: int | None,
+        *,
+        logo_url: str | None = None,
+        followed: bool = False,
+        active_product_count: int = 0,
+        preloaded: bool = False,
+    ) -> StorePublicView:
+        if not preloaded:
+            logo = await self.catalog.repository.public_file_by_object_key(store.logo_object_key)
+            logo_url = f"/api/v1/files/{logo.file_no}" if logo else None
+            followed = bool(
+                user_id is not None
+                and store.id in await self.repository.followed_store_ids(user_id, [store.id])
+            )
         active = store.store_status == "active"
+        if not preloaded and active:
+            active_product_count = await self.repository.active_product_count(store.id)
         return StorePublicView(
             store_id=store.store_no,
             store_name=store.store_name,
-            logo_url=f"/api/v1/files/{logo.file_no}" if logo else None,
+            logo_url=logo_url,
             description=store.description,
             store_status=store.store_status,
             visibility_mode="public" if active else "historical_limited",
@@ -187,9 +222,7 @@ class StoreService:
             follower_count=store.follower_count,
             sales_count=store.sales_count,
             opened_at=store.opened_at,
-            active_product_count=(await self.repository.active_product_count(store.id))
-            if active
-            else 0,
+            active_product_count=active_product_count if active else 0,
             is_followed=followed,
             customer_service_enabled=active,
         )

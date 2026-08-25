@@ -42,6 +42,21 @@ class StoreRepository:
             or 0
         )
 
+    async def active_product_counts(self, store_ids: list[int]) -> dict[int, int]:
+        if not store_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(Product.store_id, func.count(Product.id))
+                .where(
+                    Product.store_id.in_(store_ids),
+                    Product.product_status == "on_sale",
+                )
+                .group_by(Product.store_id)
+            )
+        ).all()
+        return {int(row[0]): int(row[1]) for row in rows}
+
     async def follow(
         self, user_id: int, store_id: int, *, for_update: bool = False
     ) -> StoreFollow | None:

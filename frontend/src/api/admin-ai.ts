@@ -90,6 +90,8 @@ function post<T>(path: string, payload: unknown, token: string): Promise<ApiResu
 
 export const listKnowledgeDocuments = (token: string) =>
   get<{ items: KnowledgeDocument[] }>('/admin/knowledge/documents', token)
+export const getKnowledgeDocument = (id: string, token: string) =>
+  get<KnowledgeDocument>(`/admin/knowledge/documents/${encodeURIComponent(id)}`, token)
 export const createKnowledgeDocument = (
   payload: { scope_type: string; scope_id: string; title: string; safe_text: string },
   token: string,

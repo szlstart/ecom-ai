@@ -2436,6 +2436,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/knowledge/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document */
+        get: operations["AdminKnowledgeDocument_Get"];
+        put?: never;
+        post?: never;
+        /** Withdraw Document */
+        delete: operations["AdminKnowledgeDocument_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/knowledge/documents/{document_id}/publications": {
         parameters: {
             query?: never;
@@ -2448,23 +2466,6 @@ export interface paths {
         /** Publish Document */
         post: operations["AdminKnowledgeIndex_Create"];
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/knowledge/documents/{document_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Withdraw Document */
-        delete: operations["AdminKnowledgeDocument_Delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -15770,12 +15771,10 @@ export interface operations {
             };
         };
     };
-    AdminKnowledgeIndex_Create: {
+    AdminKnowledgeDocument_Get: {
         parameters: {
             query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
+            header?: never;
             path: {
                 document_id: string;
             };
@@ -15807,6 +15806,39 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminKnowledgeIndex_Create: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
             path: {
                 document_id: string;
             };

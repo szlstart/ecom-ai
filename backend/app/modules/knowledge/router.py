@@ -83,6 +83,23 @@ async def create_document(
     return Envelope(data=result)
 
 
+@router.get(
+    "/documents/{document_id}",
+    response_model=Envelope[KnowledgeDocumentView],
+    operation_id="AdminKnowledgeDocument_Get",
+)
+async def get_document(
+    document_id: str,
+    response: Response,
+    session: DatabaseSession,
+    postgres: PostgresSession,
+    access: Annotated[AdminAccess, require_admin_permission("knowledge:read")],
+) -> Envelope[KnowledgeDocumentView]:
+    result = await KnowledgeDocumentService(session, postgres).detail(access, document_id)
+    _no_store(response)
+    return Envelope(data=result)
+
+
 @router.post(
     "/documents/{document_id}/publications",
     response_model=Envelope[KnowledgeDocumentView],

@@ -27,6 +27,10 @@ def test_skill_and_tool_governance_contracts_are_published() -> None:
             "get": "AdminKnowledgeDocument_List",
             "post": "AdminKnowledgeDocument_Create",
         },
+        "/api/v1/admin/knowledge/documents/{document_id}": {
+            "get": "AdminKnowledgeDocument_Get",
+            "delete": "AdminKnowledgeDocument_Delete",
+        },
     }
     for path, operations in expected.items():
         for method, operation_id in operations.items():

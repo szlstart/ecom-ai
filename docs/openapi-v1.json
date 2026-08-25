@@ -11880,6 +11880,144 @@
         ]
       }
     },
+    "/api/v1/admin/knowledge/documents/{document_id}": {
+      "get": {
+        "tags": [
+          "knowledge-administration"
+        ],
+        "summary": "Get Document",
+        "operationId": "AdminKnowledgeDocument_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KnowledgeDocumentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "access.AdminKnowledgeDocument_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "knowledge:read"
+        ],
+        "x-requirement-id": [
+          "ADM-KNOW-01"
+        ],
+        "x-scope-policy": [
+          [
+            "knowledge:read",
+            "knowledge:manage",
+            "knowledge:publish"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-INDEX-*"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "knowledge-administration"
+        ],
+        "summary": "Withdraw Document",
+        "operationId": "AdminKnowledgeDocument_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_KnowledgeDocumentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AdminKnowledgeDocument_Delete",
+        "x-domain-command": "AdminKnowledgeDocument_Delete",
+        "x-idempotency-policy": "none",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "knowledge:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-KNOW-01",
+          "ADM-KNOW-LIST-01"
+        ],
+        "x-scope-policy": [
+          [
+            "knowledge:read",
+            "knowledge:manage",
+            "knowledge:publish"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-INDEX-*",
+          "ADM-KNOW-*"
+        ]
+      }
+    },
     "/api/v1/admin/knowledge/documents/{document_id}/publications": {
       "post": {
         "tags": [
@@ -11944,77 +12082,6 @@
         ],
         "x-permission-codes": [
           "knowledge:publish"
-        ],
-        "x-requirement-id": [
-          "ADM-KNOW-01",
-          "ADM-KNOW-LIST-01"
-        ],
-        "x-scope-policy": [
-          [
-            "knowledge:read",
-            "knowledge:manage",
-            "knowledge:publish"
-          ]
-        ],
-        "x-test-case-ids": [
-          "ADM-INDEX-*",
-          "ADM-KNOW-*"
-        ]
-      }
-    },
-    "/api/v1/admin/knowledge/documents/{document_id}": {
-      "delete": {
-        "tags": [
-          "knowledge-administration"
-        ],
-        "summary": "Withdraw Document",
-        "operationId": "AdminKnowledgeDocument_Delete",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "document_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Document Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_KnowledgeDocumentView_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "x-audit-event": "command.AdminKnowledgeDocument_Delete",
-        "x-domain-command": "AdminKnowledgeDocument_Delete",
-        "x-idempotency-policy": "none",
-        "x-owner-kind": [
-          "vue_route"
-        ],
-        "x-permission-codes": [
-          "knowledge:manage"
         ],
         "x-requirement-id": [
           "ADM-KNOW-01",

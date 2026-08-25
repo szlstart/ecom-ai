@@ -86,6 +86,9 @@ class KnowledgeDocumentService:
         rows = list((await self.mysql.scalars(statement.limit(limit))).all())
         return [_view(item) for item in rows]
 
+    async def detail(self, access: AdminAccess, document_no: str) -> KnowledgeDocumentView:
+        return _view(await self._document(access, document_no, lock=False))
+
     async def publish(
         self, access: AdminAccess, document_no: str, idempotency_key: str
     ) -> KnowledgeDocumentView:

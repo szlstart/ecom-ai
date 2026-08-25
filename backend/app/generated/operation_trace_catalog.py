@@ -512,6 +512,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [["knowledge:read", "knowledge:manage", "knowledge:publish"]],
         "x-test-case-ids": ["ADM-INDEX-*", "ADM-KNOW-*"],
     },
+    "AdminKnowledgeDocument_Get": {
+        "x-audit-event": "access.AdminKnowledgeDocument_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": ["knowledge:read"],
+        "x-requirement-id": ["ADM-KNOW-01"],
+        "x-scope-policy": [["knowledge:read", "knowledge:manage", "knowledge:publish"]],
+        "x-test-case-ids": ["ADM-INDEX-*"],
+    },
     "AdminKnowledgeDocument_List": {
         "x-audit-event": "access.AdminKnowledgeDocument_List",
         "x-domain-command": "none",

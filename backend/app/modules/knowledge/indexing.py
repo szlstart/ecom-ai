@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
+from app.modules.agent_runtime.prompt_safety import safe_untrusted_excerpt
 from app.modules.knowledge.embedding import (
     EmbeddingProvider,
     EmbeddingUnavailable,
@@ -53,11 +54,7 @@ async def create_index_job(
         ).all()
     )
     command = next(
-        (
-            item
-            for item in candidates
-            if item.request_config.get("request_key") == request_key
-        ),
+        (item for item in candidates if item.request_config.get("request_key") == request_key),
         None,
     )
     if command is None:
@@ -170,7 +167,7 @@ async def run_index_job(
     )
     if claimed.rowcount != 1:
         raise RuntimeError("knowledge index job is no longer executable")
-    chunks = chunk_text(body)
+    chunks = safe_chunks(body)
     try:
         embeddings: list[list[float] | None] = list(await embedder.embed(chunks))
     except (EmbeddingUnavailable, httpx.HTTPError):
@@ -254,6 +251,10 @@ def chunk_text(body: str, *, size: int = 1200, overlap: int = 160) -> list[str]:
             break
         start = max(start + 1, end - overlap)
     return chunks
+
+
+def safe_chunks(body: str) -> list[str]:
+    return [safe_untrusted_excerpt(chunk, len(chunk)) for chunk in chunk_text(body)]
 
 
 async def reconcile_index_job(

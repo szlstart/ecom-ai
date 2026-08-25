@@ -9657,6 +9657,8 @@ Prompt Injection 包括用户直接注入，也包括商品描述、评价、网
 
 内容安全分类器是辅助信号，误报/漏报时不能成为唯一授权机制。即使模型被完全注入，确定性授权层也应保证它无法跨用户、跨店铺或执行未经确认的副作用。
 
+首发运行时在 Planning 前执行 Unicode NFKC/零宽字符归一化的高置信规则检测，并检查可解码的 Base64 指令载荷。命中直接注入时，Run 以 `AI_PROMPT_INJECTION_BLOCKED` 完成安全拒答，只允许写拒答消息、Checkpoint 与审计/事件，不创建人工工单、不调用 MCP/业务 Tool，也不生成售后草稿；普通业务问句不能仅因出现“系统”“政策”等单词被拦截。商品、店铺/平台政策、FAQ 和 Tool 自由文本在渲染/送模前再次作为 Untrusted Data 检测，命中片段替换为固定安全占位，不把原始注入文字复制进 Agent 消息。规则层用于降低已知攻击面，未来分类模型仍不能替代 Scope、Consent、Approval 与 Domain Gateway。
+
 商品描述与 FAQ 采用“双输出、双边界”：浏览器只获得 3.7.4.11/12 的 `safe_blocks/safe_html/safe_text` 发布版本，阻断 XSS；Agent/RAG 只获得同版本 `safe_text`，并标注 `source_type=product_content、trust_level=untrusted_data、store_no、product_no、content_version、content_hash`，阻断把自然语言当系统指令。HTML Sanitizer 不负责判断 Prompt Injection，Prompt 检测也不负责 HTML 安全；两条流水线必须各自通过。命中隐藏指令、数据外带或工具诱导时可从 AI 索引隔离该版本，但页面仍只能按浏览器安全策略决定是否展示，二者状态和原因分别审计。
 
 #### 3.13.18 MCP Server 安全
@@ -12196,6 +12198,8 @@ Tool Result 先通过 Output Schema，再按 `result_policy + current_actor + pu
 检测覆盖用户输入、上传文件、RAG Chunk、网页/商品描述、Memory Candidate 和 Tool 自由文本，识别系统指令伪装、索取 Secret、越权数据、工具诱导、数据外带及持久化污染。使用规则/分类模型/来源标签组合，检测结果是风险信号，不是唯一安全边界。
 
 命中后可隔离片段、降低其 Context Priority、禁用相关 Tool、要求澄清或安全拒答；系统/权限/Approval 仍由确定性代码强制。External Data 永远不能成为 Instruction，检测器漏报也不应造成越权。被污染内容不得写入摘要、长期记忆、FAQ 或评估 Golden Answer；日志只记录脱敏特征/Hash。
+
+首发可执行基线为：直接用户输入命中高置信规则或 Base64 解码后的高置信规则时，在模型规划和任何 Tool 调用之前返回 `AI_PROMPT_INJECTION_BLOCKED`；间接内容命中时使用 `[疑似提示注入内容已省略]` 替换该自由文本片段。中英文、零宽字符、编码载荷、商品/政策/FAQ 与 Tool Result 均进入 Security Holdout；集成测试必须断言对应 Run 的 `AgentToolAudit` 数量为零、售后/工单等业务资源零新增。
 
 #### 3.25.12 越权调用拦截
 

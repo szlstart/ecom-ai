@@ -24,6 +24,7 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
 from app.modules.agent_runtime.exclusive_tools import ExclusiveToolGateway
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
+from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.agent_runtime.store_agent import _stream_events
 from app.modules.agent_runtime.store_tools import StoreToolResult
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
@@ -67,6 +68,17 @@ async def process_exclusive_run(
     run.run_status = "running"
     run.current_phase = "planning"
     run.version += 1
+    trigger_text = context.trigger.text_content or ""
+    if detects_prompt_injection(trigger_text):
+        await _complete(
+            session,
+            context,
+            "检测到可能要求绕过系统规则或泄露敏感信息的指令，本次不会调用业务工具。你可以重新描述正常的平台、订单、物流或售后问题。",
+            error_code="AI_PROMPT_INJECTION_BLOCKED",
+            degraded_reason="prompt_injection_blocked",
+        )
+        await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
     approval = await session.scalar(
         select(AgentToolApproval).where(AgentToolApproval.run_id == run.id)
     )
@@ -82,9 +94,7 @@ async def process_exclusive_run(
         return
 
     try:
-        plan = await (model_gateway or DeterministicExclusiveModelGateway()).plan(
-            context.trigger.text_content or ""
-        )
+        plan = await (model_gateway or DeterministicExclusiveModelGateway()).plan(trigger_text)
     except (ModelGatewayError, TimeoutError):
         await _handoff(session, context, settings, security, "MODEL_UNAVAILABLE")
         await _finish_checkpoint(checkpoint_store, context, "human_handoff")
@@ -435,7 +445,8 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
                 price_value = item.get("price")
                 price: Mapping[str, Any] = price_value if isinstance(price_value, dict) else {}
                 lines.append(
-                    f"- {item.get('name')} ({item.get('store_name')}): "
+                    f"- {safe_untrusted_excerpt(item.get('name'), 120)} "
+                    f"({safe_untrusted_excerpt(item.get('store_name'), 120)}): "
                     f"{price.get('currency', 'CNY')} {int(price.get('min_amount', 0)) / 100:.2f} 起"
                 )
         lines.append("价格与库存以商品详情和结算页实时结果为准。")
@@ -452,7 +463,7 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
         if not isinstance(items, list) or not items:
             return "你的账号下暂未查询到可见订单。"
         return "最近订单:\n" + "\n".join(
-            f"- {item.get('order_id')} ({item.get('store_name')}): "
+            f"- {item.get('order_id')} ({safe_untrusted_excerpt(item.get('store_name'), 120)}): "
             f"{_nested_value(item, 'status', 'order')}"
             for item in items
             if isinstance(item, dict)
@@ -480,8 +491,8 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
         if not isinstance(items, list) or not items:
             return "暂未找到可可靠引用的已发布平台规则，请前往帮助中心或转平台人工客服。"
         return "根据当前已发布平台规则:\n" + "\n".join(
-            f"- {item.get('title')} (版本 {item.get('version')}): "
-            f"{str(item.get('content') or '')[:500]}"
+            f"- {safe_untrusted_excerpt(item.get('title'), 160)} "
+            f"(版本 {item.get('version')}): {safe_untrusted_excerpt(item.get('content'), 500)}"
             for item in items
             if isinstance(item, dict)
         )

@@ -16,6 +16,7 @@ from app.modules.agent_runtime.model_gateway import (
     StoreModelGateway,
 )
 from app.modules.agent_runtime.models import AgentRun
+from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.agent_runtime.store_context import StoreContextBuilder, TrustedStoreAgentContext
 from app.modules.agent_runtime.store_tools import StoreToolGateway, StoreToolResult
 from app.modules.messaging.models import Message
@@ -58,9 +59,20 @@ async def process_store_run(
     run.run_status = "running"
     run.current_phase = "planning"
     run.version += 1
+    trigger_text = context.trigger.text_content or ""
+    if detects_prompt_injection(trigger_text):
+        await _complete_message(
+            session,
+            context,
+            "检测到可能要求绕过系统规则或泄露敏感信息的指令，本次不会调用业务工具。你可以重新描述正常的商品、订单或政策问题。",
+            error_code="AI_PROMPT_INJECTION_BLOCKED",
+            degraded_reason="prompt_injection_blocked",
+        )
+        await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
     gateway = model_gateway or DeterministicStoreModelGateway()
     try:
-        plan = await gateway.plan(context.trigger.text_content or "")
+        plan = await gateway.plan(trigger_text)
     except (ModelGatewayError, TimeoutError):
         await _handoff_or_fallback(session, context, "MODEL_UNAVAILABLE")
         await _finish_checkpoint(checkpoint_store, context, "human_handoff")
@@ -294,7 +306,7 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
         lines = ["根据本店当前生效政策:"]
         for item in items[:3]:
             if isinstance(item, dict):
-                excerpt = str(item.get("content") or "").replace("\n", " ")[:240]
+                excerpt = safe_untrusted_excerpt(item.get("content"), 240)
                 lines.append(
                     f"- {item.get('title', '店铺政策')} "
                     f"(版本 {item.get('source_version')}): {excerpt}"
@@ -331,26 +343,27 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
                 price_value = item.get("price")
                 price: Mapping[str, Any] = price_value if isinstance(price_value, dict) else {}
                 lines.append(
-                    f"- {item.get('name', '商品')}: "
-                    f"{item.get('subtitle') or '查看商品详情'}, "
+                    f"- {safe_untrusted_excerpt(item.get('name', '商品'), 120)}: "
+                    f"{safe_untrusted_excerpt(item.get('subtitle') or '查看商品详情', 300)}, "
                     f"{_money(price.get('min_amount'), price.get('currency'))} 起"
                 )
         return "\n".join(lines)
     attributes = data.get("attributes")
-    lines = [f"商品: {data.get('name', '当前商品')}"]
+    lines = [f"商品: {safe_untrusted_excerpt(data.get('name', '当前商品'), 120)}"]
     if data.get("subtitle"):
-        lines.append(f"商品说明: {str(data['subtitle'])[:300]}")
+        lines.append(f"商品说明: {safe_untrusted_excerpt(data['subtitle'], 300)}")
     if isinstance(attributes, list) and attributes:
         lines.append("公开参数:")
         for item in attributes[:8]:
             if isinstance(item, dict):
                 lines.append(
-                    f"- {item.get('name', item.get('code', '参数'))}: "
-                    f"{item.get('value', '未提供')}{item.get('unit') or ''}"
+                    f"- {safe_untrusted_excerpt(item.get('name', item.get('code', '参数')), 100)}: "
+                    f"{safe_untrusted_excerpt(item.get('value', '未提供'), 300)}"
+                    f"{safe_untrusted_excerpt(item.get('unit') or '', 30)}"
                 )
     faqs = data.get("faqs")
     if isinstance(faqs, list) and faqs and isinstance(faqs[0], dict):
-        lines.append(f"店铺 FAQ: {str(faqs[0].get('answer') or '')[:500]}")
+        lines.append(f"店铺 FAQ: {safe_untrusted_excerpt(faqs[0].get('answer'), 500)}")
     estimate_value = data.get("dispatch_estimate")
     estimate: Mapping[str, Any] = estimate_value if isinstance(estimate_value, dict) else {}
     if estimate.get("status") == "available":

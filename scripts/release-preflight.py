@@ -162,6 +162,21 @@ def validate_compose(rendered: str) -> None:
                 raise ValueError(f"{name} unexpectedly receives a migration credential")
 
 
+def sanitized_process_error(
+    exc: subprocess.CalledProcessError, values: dict[str, str]
+) -> str:
+    """Return actionable Compose diagnostics without exposing configured secrets."""
+
+    detail = (exc.stderr or exc.stdout or str(exc)).strip()
+    for value in sorted(values.values(), key=len, reverse=True):
+        if value:
+            detail = detail.replace(value, "[REDACTED]")
+    detail = re.sub(r"(?i)(password|secret|token|key)=([^\s&]+)", r"\1=[REDACTED]", detail)
+    if len(detail) > 2000:
+        detail = detail[:2000] + "... [truncated]"
+    return detail or f"Docker Compose exited with status {exc.returncode}"
+
+
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     env_path = Path(os.environ.get("ENV_FILE", root / ".env.production")).resolve()
@@ -197,12 +212,13 @@ def main() -> int:
             env={**os.environ, **values},
         )
         validate_compose(result.stdout)
-    except (
-        ValueError,
-        json.JSONDecodeError,
-        subprocess.CalledProcessError,
-        OSError,
-    ) as exc:
+    except subprocess.CalledProcessError as exc:
+        print(
+            "release preflight failed: " + sanitized_process_error(exc, values),
+            file=sys.stderr,
+        )
+        return 2
+    except (ValueError, json.JSONDecodeError, OSError) as exc:
         print(f"release preflight failed: {exc}", file=sys.stderr)
         return 2
     print(

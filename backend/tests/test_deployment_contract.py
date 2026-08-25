@@ -39,6 +39,7 @@ def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     assert "cancel-in-progress: true" in ci
     assert "actions/upload-artifact@v4" in ci
     assert "acceptance-evidence-${{ github.sha }}" in ci
+    assert "PIP_INDEX_URL: https://pypi.org/simple" in ci
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert "ECOM_RUN_INTEGRATION_TESTS=1" in makefile
     assert "--cov-fail-under=60" in makefile

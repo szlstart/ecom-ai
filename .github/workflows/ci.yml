@@ -45,6 +45,8 @@ jobs:
           --health-cmd="redis-cli ping"
           --health-interval=5s --health-timeout=3s --health-retries=20
     env:
+      PIP_INDEX_URL: https://pypi.org/simple
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
       ECOM_ENVIRONMENT: testing
       ECOM_DEBUG: "false"
       ECOM_READINESS_CHECKS_ENABLED: "false"

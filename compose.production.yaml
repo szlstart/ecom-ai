@@ -2,11 +2,8 @@
 # builds. An operator must provide immutable, digest-pinned application images
 # and external managed-service endpoints through .env.production.
 x-api-runtime: &api-runtime
-  build: !reset null
   image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
-  env_file: !reset []
   restart: unless-stopped
-  depends_on: !reset {}
 
 x-api-environment: &api-environment
   ECOM_ENVIRONMENT: production
@@ -63,6 +60,8 @@ services:
 
   api:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     ports: !reset []
     environment:
@@ -71,6 +70,8 @@ services:
 
   file-worker:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment:
       <<: *api-environment
@@ -80,36 +81,50 @@ services:
 
   batch-worker:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment: *api-environment
 
   order-timeout-worker:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment: *api-environment
 
   payment-reconcile-worker:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment: *api-environment
 
   logistics-sync-worker:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment: *api-environment
 
   admin-approval-worker:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment: *api-environment
 
   realtime-outbox-worker:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment: *api-environment
 
   agent-runtime-worker:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment:
       <<: *api-environment
@@ -122,11 +137,15 @@ services:
 
   knowledge-indexer:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment: *api-environment
 
   ai-memory-cleanup-worker:
     <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
     depends_on: !reset {}
     environment: *api-environment
 

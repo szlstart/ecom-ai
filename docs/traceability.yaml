@@ -25,6 +25,69 @@ operation_contract:
     Route-level operation lists are a readable projection. Before code generation,
     each button or automatic behavior is expanded to one OpenAPI operation carrying
     the extensions above; an operation cannot inherit every permission in a route row.
+idempotency_policy:
+  allowed_values:
+    - safe_read
+    - idempotency_key_required
+    - if_match_required_by_domain
+    - idempotency_key_required+if_match_required_by_domain
+    - provider_event_idempotency
+    - http_method_idempotent
+    - read_only_command
+    - payload_client_message_id_deduplication
+    - refresh_token_rotation_replay_detection
+    - session_terminal_state_convergence
+    - state_command_no_automatic_retry
+    - resource_creation_no_automatic_retry
+    - job_intent_no_automatic_retry
+    - rate_limited_security_command_no_automatic_retry
+    - short_lived_single_use_ticket
+  default_method_policies:
+    PUT: http_method_idempotent
+    DELETE: http_method_idempotent
+  operation_overrides:
+    AiConsent_Pause: state_command_no_automatic_retry
+    AiConsent_Resume: state_command_no_automatic_retry
+    AiConsent_Revoke: state_command_no_automatic_retry
+    AuthVerificationCode_Create: rate_limited_security_command_no_automatic_retry
+    Auth_Login: rate_limited_security_command_no_automatic_retry
+    AuthToken_Refresh: refresh_token_rotation_replay_detection
+    Auth_Logout: session_terminal_state_convergence
+    PasswordResetTicket_Create: rate_limited_security_command_no_automatic_retry
+    AdminContent_Create: resource_creation_no_automatic_retry
+    AdminContent_Publish: state_command_no_automatic_retry
+    AdminContent_Withdraw: state_command_no_automatic_retry
+    AdminAiEvaluation_Run: job_intent_no_automatic_retry
+    AdminDeadLetter_Preview: read_only_command
+    RefundEligibility_Check: read_only_command
+    Message_CreateMine: payload_client_message_id_deduplication
+    SupportConversationMessage_Send: payload_client_message_id_deduplication
+    SupportMessage_Send: payload_client_message_id_deduplication
+    RealtimeTicket_CreateMine: short_lived_single_use_ticket
+    SupportRealtimeTicket_Create: short_lived_single_use_ticket
+    AdminKnowledgeDocument_Create: resource_creation_no_automatic_retry
+    AdminKnowledgeIndex_Cancel: state_command_no_automatic_retry
+    AdminKnowledge_Search: read_only_command
+    AdminAgentVersion_Create: resource_creation_no_automatic_retry
+    AdminAgentSkillBinding_Create: resource_creation_no_automatic_retry
+    AdminAiKillSwitch_Activate: state_command_no_automatic_retry
+    AdminAiKillSwitch_Deactivate: state_command_no_automatic_retry
+    AdminSkill_Create: resource_creation_no_automatic_retry
+    AdminSkill_VersionCreate: resource_creation_no_automatic_retry
+    AdminSkillToolBinding_Create: resource_creation_no_automatic_retry
+    AdminTool_Create: resource_creation_no_automatic_retry
+    AdminTool_VersionCreate: resource_creation_no_automatic_retry
+    AdminAuth_Login: rate_limited_security_command_no_automatic_retry
+    AdminAuthToken_Refresh: refresh_token_rotation_replay_detection
+    AdminAuth_Reauthenticate: rate_limited_security_command_no_automatic_retry
+    AdminAuth_Logout: session_terminal_state_convergence
+  semantics: >-
+    Header-backed policies are preferred for retryable business commands. PUT and DELETE use
+    their resource-convergence semantics and still apply domain guards. Payload-deduplicated
+    messages use client_message_id. Refresh and webhook operations use protocol replay guards.
+    A no_automatic_retry policy is an explicit exception: clients must reconcile by a list/detail
+    query after an unknown outcome and must never retry automatically; adding a new exceptional
+    POST requires an operation-level entry here and review. The value none is forbidden.
 required_fields:
   - requirement_id
   - route

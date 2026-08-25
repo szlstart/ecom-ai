@@ -117,6 +117,8 @@ def audit() -> dict[str, Any]:
         traceability["operation_contract"]["openapi_required_extensions"]
     )
     allowed_owner_kinds = set(traceability["operation_contract"]["owner_kinds"])
+    idempotency_config = traceability.get("idempotency_policy", {})
+    allowed_idempotency_policies = set(idempotency_config.get("allowed_values", []))
     routes = traceability["routes"]
     global_components = traceability.get("global_components", [])
     operations = openapi_operations()
@@ -392,6 +394,58 @@ def audit() -> dict[str, Any]:
                         "error",
                         operation_id,
                         f"{extension} must be a non-empty string",
+                    )
+                )
+        idempotency_policy = operation["x-idempotency-policy"]
+        if isinstance(idempotency_policy, str):
+            if idempotency_policy not in allowed_idempotency_policies:
+                findings.append(
+                    Finding(
+                        "OPENAPI_IDEMPOTENCY_POLICY_UNKNOWN",
+                        "error",
+                        operation_id,
+                        idempotency_policy,
+                    )
+                )
+            if method not in {"GET", "HEAD", "OPTIONS"} and idempotency_policy == "safe_read":
+                findings.append(
+                    Finding(
+                        "OPENAPI_WRITE_POLICY_INVALID",
+                        "error",
+                        operation_id,
+                        "write operation cannot use safe_read",
+                    )
+                )
+            if method in {"GET", "HEAD", "OPTIONS"} and idempotency_policy != "safe_read":
+                findings.append(
+                    Finding(
+                        "OPENAPI_READ_POLICY_INVALID",
+                        "error",
+                        operation_id,
+                        idempotency_policy,
+                    )
+                )
+            header_names = {
+                parameter.get("name")
+                for parameter in operation.get("parameters", [])
+                if isinstance(parameter, dict) and parameter.get("in") == "header"
+            }
+            if "idempotency_key_required" in idempotency_policy and "Idempotency-Key" not in header_names:
+                findings.append(
+                    Finding(
+                        "OPENAPI_IDEMPOTENCY_HEADER_MISSING",
+                        "error",
+                        operation_id,
+                        "policy requires Idempotency-Key",
+                    )
+                )
+            if "if_match_required" in idempotency_policy and "If-Match" not in header_names:
+                findings.append(
+                    Finding(
+                        "OPENAPI_IF_MATCH_HEADER_MISSING",
+                        "error",
+                        operation_id,
+                        "policy requires If-Match",
                     )
                 )
 

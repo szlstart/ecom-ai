@@ -8212,6 +8212,9 @@ GET /api/v1/conversations/{conversation_id}/messages?after_cursor=<cursor>&limit
 - 确定业务校验失败可按策略重放相同错误；结果未知的外部写不标记可重新执行，先查渠道/对账。
 - 幂等记录保留时间至少覆盖客户端重试窗口；订单/支付/退款等高价值操作可保留至业务终态/审计窗口，不统一仅24小时就删除。
 - GET/PUT/DELETE 的 HTTP 幂等语义不取代业务并发校验；DELETE 可返回已隐藏的当前结果，不重复产生流水。
+- 每个 OpenAPI Operation 必须通过 `x-idempotency-policy` 声明其实际重试契约，允许值由 `docs/traceability.yaml.idempotency_policy` 唯一登记；写请求不得使用 `none` 或伪装成 `safe_read`。CI 同时校验声明、HTTP Method 和 `Idempotency-Key`/`If-Match` Header 是否匹配。
+- 无副作用但因请求体较大而采用 POST 的资格检查、预览和检索，声明 `read_only_command`；消息发送以 `client_message_id` 做 Payload 去重；Refresh 依赖 Token Rotation 与重放检测；Webhook 依赖 Provider Event ID。PUT/DELETE 的资源收敛语义仍须配合状态 Guard、唯一约束或 ETag，不能只因 Method 名称就省略领域并发测试。
+- 少数验证码签发、登录、短期实时票据、管理端资源创建或状态命令无法安全重放时，必须显式声明对应的 `*_no_automatic_retry`/`short_lived_single_use_ticket` 策略：前端不得自动重试；收到超时或未知结果后，先通过列表/详情/当前状态查询对账，再由用户重新发起。新增此类 POST 必须逐 Operation 登记并评审，未登记时代码生成与 CI 直接失败；后续若业务需要透明重试，应升级为 `Idempotency-Key`，而不是扩大例外。
 
 #### 3.11.15 乐观锁与版本冲突
 

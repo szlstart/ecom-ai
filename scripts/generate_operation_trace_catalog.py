@@ -69,7 +69,11 @@ def owner_index(traceability: dict[str, Any]) -> dict[str, list[dict[str, Any]]]
     return result
 
 
-def idempotency_policy(operation: dict[str, Any], method: str) -> str:
+def idempotency_policy(
+    operation: dict[str, Any],
+    method: str,
+    policy_config: dict[str, Any],
+) -> str:
     headers = {
         parameter.get("name"): bool(parameter.get("required"))
         for parameter in operation.get("parameters", [])
@@ -86,7 +90,18 @@ def idempotency_policy(operation: dict[str, Any], method: str) -> str:
         return "safe_read"
     if any(owner["owner_kind"] == "webhook" for owner in operation.get("_owners", [])):
         return "provider_event_idempotency"
-    return "none"
+    operation_id = str(operation["operationId"])
+    overrides = policy_config.get("operation_overrides", {})
+    override = overrides.get(operation_id) if isinstance(overrides, dict) else None
+    if isinstance(override, str) and override:
+        return override
+    defaults = policy_config.get("default_method_policies", {})
+    default = defaults.get(method) if isinstance(defaults, dict) else None
+    if isinstance(default, str) and default:
+        return default
+    raise ValueError(
+        f"{operation_id}: {method} write operation has no explicit idempotency/retry policy"
+    )
 
 
 def audit_event(
@@ -103,6 +118,8 @@ def audit_event(
 def main() -> None:
     source_bytes = SOURCE.read_bytes()
     traceability = yaml.safe_load(source_bytes)
+    policy_config = traceability["idempotency_policy"]
+    allowed_policies = set(policy_config["allowed_values"])
     owners = owner_index(traceability)
     app = create_app()
     raw_schema = app.openapi()
@@ -141,6 +158,9 @@ def main() -> None:
             )
             permissions = permission_codes(route.dependant)
             operation_with_owners = {**operation, "_owners": operation_owners}
+            policy = idempotency_policy(operation_with_owners, method, policy_config)
+            if policy not in allowed_policies:
+                raise ValueError(f"{operation_id}: unknown idempotency policy {policy!r}")
             contracts[operation_id] = {
                 "x-requirement-id": requirement_ids,
                 "x-owner-kind": owner_kinds,
@@ -150,9 +170,21 @@ def main() -> None:
                 "x-audit-event": audit_event(
                     operation_id, method, operation_owners, permissions
                 ),
-                "x-idempotency-policy": idempotency_policy(operation_with_owners, method),
+                "x-idempotency-policy": policy,
                 "x-test-case-ids": test_case_ids,
             }
+    overrides = policy_config.get("operation_overrides", {})
+    if not isinstance(overrides, dict):
+        raise TypeError("idempotency_policy.operation_overrides must be a mapping")
+    for operation_id, override in overrides.items():
+        contract = contracts.get(str(operation_id))
+        if contract is None:
+            raise ValueError(f"{operation_id}: stale idempotency policy override")
+        if contract["x-idempotency-policy"] != override:
+            raise ValueError(
+                f"{operation_id}: override {override!r} is shadowed by "
+                f"{contract['x-idempotency-policy']!r}; remove or update the override"
+            )
     rendered = (
         '"""Generated from docs/traceability.yaml; do not edit manually."""\n\n'
         f'SOURCE_SHA256 = "{hashlib.sha256(source_bytes).hexdigest()}"\n'

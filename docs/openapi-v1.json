@@ -1064,7 +1064,7 @@
         },
         "x-audit-event": "command.AiConsent_Pause",
         "x-domain-command": "AiConsent_Pause",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -1146,7 +1146,7 @@
         },
         "x-audit-event": "command.AiConsent_Resume",
         "x-domain-command": "AiConsent_Resume",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -1228,7 +1228,7 @@
         },
         "x-audit-event": "command.AiConsent_Revoke",
         "x-domain-command": "AiConsent_Revoke",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -1854,7 +1854,7 @@
         ],
         "x-audit-event": "command.AuthVerificationCode_Create",
         "x-domain-command": "AuthVerificationCode_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -2029,7 +2029,7 @@
         },
         "x-audit-event": "command.Auth_Login",
         "x-domain-command": "Auth_Login",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -2125,7 +2125,7 @@
         },
         "x-audit-event": "command.AuthToken_Refresh",
         "x-domain-command": "AuthToken_Refresh",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "refresh_token_rotation_replay_detection",
         "x-owner-kind": [
           "global_ui"
         ],
@@ -2203,7 +2203,7 @@
         },
         "x-audit-event": "command.Auth_Logout",
         "x-domain-command": "Auth_Logout",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "session_terminal_state_convergence",
         "x-owner-kind": [
           "global_ui"
         ],
@@ -2305,7 +2305,7 @@
         ],
         "x-audit-event": "command.AuthSession_RevokeOthers",
         "x-domain-command": "AuthSession_RevokeOthers",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "global_ui"
         ],
@@ -2379,7 +2379,7 @@
         },
         "x-audit-event": "command.AuthSession_Revoke",
         "x-domain-command": "AuthSession_Revoke",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -2448,7 +2448,7 @@
         },
         "x-audit-event": "command.PasswordResetTicket_Create",
         "x-domain-command": "PasswordResetTicket_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -3156,7 +3156,7 @@
         },
         "x-audit-event": "command.UserContactChangeTicket_Cancel",
         "x-domain-command": "UserContactChangeTicket_Cancel",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -3663,7 +3663,7 @@
         ],
         "x-audit-event": "command.Address_SetDefault",
         "x-domain-command": "Address_SetDefault",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -4304,7 +4304,7 @@
         ],
         "x-audit-event": "command.AdminContent_Create",
         "x-domain-command": "AdminContent_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -4602,7 +4602,7 @@
         },
         "x-audit-event": "command.AdminContent_Publish",
         "x-domain-command": "AdminContent_Publish",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -4690,7 +4690,7 @@
         },
         "x-audit-event": "command.AdminContent_Withdraw",
         "x-domain-command": "AdminContent_Withdraw",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -4832,7 +4832,7 @@
         ],
         "x-audit-event": "command.AdminAiEvaluation_Run",
         "x-domain-command": "AdminAiEvaluation_Run",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "job_intent_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -5179,7 +5179,7 @@
         },
         "x-audit-event": "command.AdminDeadLetter_Preview",
         "x-domain-command": "AdminDeadLetter_Preview",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "read_only_command",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -5632,7 +5632,7 @@
         },
         "x-audit-event": "command.FileUploadSession_Abort",
         "x-domain-command": "FileUploadSession_Abort",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "global_ui"
         ],
@@ -8108,7 +8108,7 @@
         ],
         "x-audit-event": "command.RefundEligibility_Check",
         "x-domain-command": "RefundEligibility_Check",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "read_only_command",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -9875,7 +9875,7 @@
         },
         "x-audit-event": "command.AiFeedbackReaction_Put",
         "x-domain-command": "AiFeedbackReaction_Put",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -9964,7 +9964,7 @@
         },
         "x-audit-event": "command.AiFeedbackReaction_Delete",
         "x-domain-command": "AiFeedbackReaction_Delete",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -10310,7 +10310,7 @@
         ],
         "x-audit-event": "command.ExclusiveConversation_PutMine",
         "x-domain-command": "ExclusiveConversation_PutMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -10391,7 +10391,7 @@
         },
         "x-audit-event": "command.StoreConversation_PutMine",
         "x-domain-command": "StoreConversation_PutMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -10661,7 +10661,7 @@
         },
         "x-audit-event": "command.Message_CreateMine",
         "x-domain-command": "Message_CreateMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -11256,7 +11256,7 @@
         },
         "x-audit-event": "command.MessageReadCursor_PutMine",
         "x-domain-command": "MessageReadCursor_PutMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -11858,7 +11858,7 @@
         },
         "x-audit-event": "command.SupportConversationMessage_Send",
         "x-domain-command": "SupportConversationMessage_Send",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -11960,7 +11960,7 @@
         },
         "x-audit-event": "command.SupportReadCursor_Put",
         "x-domain-command": "SupportReadCursor_Put",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -12682,7 +12682,7 @@
         },
         "x-audit-event": "command.SupportMessage_Send",
         "x-domain-command": "SupportMessage_Send",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -12962,7 +12962,7 @@
         ],
         "x-audit-event": "command.RealtimeTicket_CreateMine",
         "x-domain-command": "RealtimeTicket_CreateMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "short_lived_single_use_ticket",
         "x-owner-kind": [
           "global_ui"
         ],
@@ -13022,7 +13022,7 @@
         ],
         "x-audit-event": "command.SupportRealtimeTicket_Create",
         "x-domain-command": "SupportRealtimeTicket_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "short_lived_single_use_ticket",
         "x-owner-kind": [
           "global_ui"
         ],
@@ -17134,7 +17134,7 @@
         ],
         "x-audit-event": "command.AdminKnowledgeDocument_Create",
         "x-domain-command": "AdminKnowledgeDocument_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -17305,7 +17305,7 @@
         },
         "x-audit-event": "command.AdminKnowledgeDocument_Delete",
         "x-domain-command": "AdminKnowledgeDocument_Delete",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -17580,7 +17580,7 @@
         },
         "x-audit-event": "command.AdminKnowledgeIndex_Cancel",
         "x-domain-command": "AdminKnowledgeIndex_Cancel",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -17663,7 +17663,7 @@
         ],
         "x-audit-event": "command.AdminKnowledge_Search",
         "x-domain-command": "AdminKnowledge_Search",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "read_only_command",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -17822,7 +17822,7 @@
         },
         "x-audit-event": "command.AdminAgentVersion_Create",
         "x-domain-command": "AdminAgentVersion_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -17929,7 +17929,7 @@
         },
         "x-audit-event": "command.AdminAgentSkillBinding_Create",
         "x-domain-command": "AdminAgentSkillBinding_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -18264,7 +18264,7 @@
         },
         "x-audit-event": "command.AdminAiKillSwitch_Activate",
         "x-domain-command": "AdminAiKillSwitch_Activate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -18370,7 +18370,7 @@
         },
         "x-audit-event": "command.AdminAiKillSwitch_Deactivate",
         "x-domain-command": "AdminAiKillSwitch_Deactivate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -18512,7 +18512,7 @@
         ],
         "x-audit-event": "command.AdminSkill_Create",
         "x-domain-command": "AdminSkill_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -18610,7 +18610,7 @@
         },
         "x-audit-event": "command.AdminSkill_VersionCreate",
         "x-domain-command": "AdminSkill_VersionCreate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -18717,7 +18717,7 @@
         },
         "x-audit-event": "command.AdminSkillToolBinding_Create",
         "x-domain-command": "AdminSkillToolBinding_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -18967,7 +18967,7 @@
         ],
         "x-audit-event": "command.AdminTool_Create",
         "x-domain-command": "AdminTool_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -19149,7 +19149,7 @@
         },
         "x-audit-event": "command.AdminTool_VersionCreate",
         "x-domain-command": "AdminTool_VersionCreate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -20124,7 +20124,7 @@
         },
         "x-audit-event": "command.FavoriteProduct_Put",
         "x-domain-command": "FavoriteProduct_Put",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -20196,7 +20196,7 @@
         },
         "x-audit-event": "command.FavoriteProduct_Delete",
         "x-domain-command": "FavoriteProduct_Delete",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -20804,7 +20804,7 @@
         },
         "x-audit-event": "command.FollowedStore_Put",
         "x-domain-command": "FollowedStore_Put",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -20876,7 +20876,7 @@
         },
         "x-audit-event": "command.FollowedStore_Delete",
         "x-domain-command": "FollowedStore_Delete",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -28579,7 +28579,7 @@
         },
         "x-audit-event": "command.AdminAuth_Login",
         "x-domain-command": "AdminAuth_Login",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -28760,7 +28760,7 @@
         },
         "x-audit-event": "command.AdminAuthToken_Refresh",
         "x-domain-command": "AdminAuthToken_Refresh",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "refresh_token_rotation_replay_detection",
         "x-owner-kind": [
           "global_ui"
         ],
@@ -28837,7 +28837,7 @@
         ],
         "x-audit-event": "command.AdminAuth_Reauthenticate",
         "x-domain-command": "AdminAuth_Reauthenticate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -28916,7 +28916,7 @@
         },
         "x-audit-event": "command.AdminAuth_Logout",
         "x-domain-command": "AdminAuth_Logout",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "session_terminal_state_convergence",
         "x-owner-kind": [
           "global_ui"
         ],
@@ -29044,7 +29044,7 @@
         },
         "x-audit-event": "command.AdminAuthSession_Revoke",
         "x-domain-command": "AdminAuthSession_Revoke",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],

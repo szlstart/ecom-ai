@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "ff804e3a218c4ee45afdce542bc919c9fef7963a7936bd4fcdc997341656d5ce"
+SOURCE_SHA256 = "ac4861725aeb207c5f52a85bb1fae1d452b6b17326fec8c86c846fff4e313b31"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -65,7 +65,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "Address_SetDefault": {
         "x-audit-event": "command.Address_SetDefault",
         "x-domain-command": "Address_SetDefault",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-ADDRESS-01"],
@@ -95,7 +95,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAgentSkillBinding_Create": {
         "x-audit-event": "command.AdminAgentSkillBinding_Create",
         "x-domain-command": "AdminAgentSkillBinding_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_agents:manage"],
         "x-requirement-id": ["ADM-AI-AGENT-01"],
@@ -105,7 +105,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAgentVersion_Create": {
         "x-audit-event": "command.AdminAgentVersion_Create",
         "x-domain-command": "AdminAgentVersion_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_agents:manage"],
         "x-requirement-id": ["ADM-AI-AGENT-01"],
@@ -145,7 +145,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAiEvaluation_Run": {
         "x-audit-event": "command.AdminAiEvaluation_Run",
         "x-domain-command": "AdminAiEvaluation_Run",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "job_intent_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_evaluations:run"],
         "x-requirement-id": ["ADM-EVAL-01"],
@@ -155,7 +155,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAiKillSwitch_Activate": {
         "x-audit-event": "command.AdminAiKillSwitch_Activate",
         "x-domain-command": "AdminAiKillSwitch_Activate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_runtime:kill"],
         "x-requirement-id": ["ADM-AI-POLICY-01"],
@@ -165,7 +165,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAiKillSwitch_Deactivate": {
         "x-audit-event": "command.AdminAiKillSwitch_Deactivate",
         "x-domain-command": "AdminAiKillSwitch_Deactivate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_runtime:kill"],
         "x-requirement-id": ["ADM-AI-POLICY-01"],
@@ -235,7 +235,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAuthSession_Revoke": {
         "x-audit-event": "command.AdminAuthSession_Revoke",
         "x-domain-command": "AdminAuthSession_Revoke",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["ADM-AUTH-03"],
@@ -245,7 +245,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAuthToken_Refresh": {
         "x-audit-event": "command.AdminAuthToken_Refresh",
         "x-domain-command": "AdminAuthToken_Refresh",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "refresh_token_rotation_replay_detection",
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-ADMIN-SHELL-01"],
@@ -255,7 +255,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAuth_Login": {
         "x-audit-event": "command.AdminAuth_Login",
         "x-domain-command": "AdminAuth_Login",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["ADM-AUTH-01"],
@@ -265,7 +265,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAuth_Logout": {
         "x-audit-event": "command.AdminAuth_Logout",
         "x-domain-command": "AdminAuth_Logout",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "session_terminal_state_convergence",
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-ADMIN-SHELL-02"],
@@ -285,7 +285,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAuth_Reauthenticate": {
         "x-audit-event": "command.AdminAuth_Reauthenticate",
         "x-domain-command": "AdminAuth_Reauthenticate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["ADM-AUTH-02", "ADM-AUTH-03"],
@@ -415,7 +415,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminContent_Create": {
         "x-audit-event": "command.AdminContent_Create",
         "x-domain-command": "AdminContent_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["content:manage"],
         "x-requirement-id": ["ADM-CONTENT-NEW-01"],
@@ -445,7 +445,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminContent_Publish": {
         "x-audit-event": "command.AdminContent_Publish",
         "x-domain-command": "AdminContent_Publish",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["content:publish"],
         "x-requirement-id": ["ADM-CONTENT-01"],
@@ -465,7 +465,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminContent_Withdraw": {
         "x-audit-event": "command.AdminContent_Withdraw",
         "x-domain-command": "AdminContent_Withdraw",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["content:publish"],
         "x-requirement-id": ["ADM-CONTENT-01"],
@@ -505,7 +505,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminDeadLetter_Preview": {
         "x-audit-event": "command.AdminDeadLetter_Preview",
         "x-domain-command": "AdminDeadLetter_Preview",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "read_only_command",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["events:operate"],
         "x-requirement-id": ["ADM-DLQ-01"],
@@ -555,7 +555,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminKnowledgeDocument_Create": {
         "x-audit-event": "command.AdminKnowledgeDocument_Create",
         "x-domain-command": "AdminKnowledgeDocument_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:manage"],
         "x-requirement-id": ["ADM-KNOW-LIST-01"],
@@ -565,7 +565,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminKnowledgeDocument_Delete": {
         "x-audit-event": "command.AdminKnowledgeDocument_Delete",
         "x-domain-command": "AdminKnowledgeDocument_Delete",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:manage"],
         "x-requirement-id": ["ADM-KNOW-01", "ADM-KNOW-LIST-01"],
@@ -595,7 +595,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminKnowledgeIndex_Cancel": {
         "x-audit-event": "command.AdminKnowledgeIndex_Cancel",
         "x-domain-command": "AdminKnowledgeIndex_Cancel",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:manage"],
         "x-requirement-id": ["ADM-KNOW-JOB-01"],
@@ -625,7 +625,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminKnowledge_Search": {
         "x-audit-event": "command.AdminKnowledge_Search",
         "x-domain-command": "AdminKnowledge_Search",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "read_only_command",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:read"],
         "x-requirement-id": ["ADM-KNOW-LIST-01"],
@@ -1521,7 +1521,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminSkillToolBinding_Create": {
         "x-audit-event": "command.AdminSkillToolBinding_Create",
         "x-domain-command": "AdminSkillToolBinding_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_skills:manage"],
         "x-requirement-id": ["ADM-AI-SKILL-01"],
@@ -1531,7 +1531,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminSkill_Create": {
         "x-audit-event": "command.AdminSkill_Create",
         "x-domain-command": "AdminSkill_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_skills:manage"],
         "x-requirement-id": ["ADM-AI-SKILL-01"],
@@ -1561,7 +1561,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminSkill_VersionCreate": {
         "x-audit-event": "command.AdminSkill_VersionCreate",
         "x-domain-command": "AdminSkill_VersionCreate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_skills:manage"],
         "x-requirement-id": ["ADM-AI-SKILL-01"],
@@ -1851,7 +1851,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminTool_Create": {
         "x-audit-event": "command.AdminTool_Create",
         "x-domain-command": "AdminTool_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_tools:manage"],
         "x-requirement-id": ["ADM-AI-TOOL-LIST-01"],
@@ -1891,7 +1891,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminTool_VersionCreate": {
         "x-audit-event": "command.AdminTool_VersionCreate",
         "x-domain-command": "AdminTool_VersionCreate",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_tools:manage"],
         "x-requirement-id": ["ADM-AI-01"],
@@ -2061,7 +2061,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AiConsent_Pause": {
         "x-audit-event": "command.AiConsent_Pause",
         "x-domain-command": "AiConsent_Pause",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AI-PRIVACY-01"],
@@ -2071,7 +2071,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AiConsent_Resume": {
         "x-audit-event": "command.AiConsent_Resume",
         "x-domain-command": "AiConsent_Resume",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AI-PRIVACY-01"],
@@ -2081,7 +2081,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AiConsent_Revoke": {
         "x-audit-event": "command.AiConsent_Revoke",
         "x-domain-command": "AiConsent_Revoke",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "state_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AI-PRIVACY-01"],
@@ -2101,7 +2101,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AiFeedbackReaction_Delete": {
         "x-audit-event": "command.AiFeedbackReaction_Delete",
         "x-domain-command": "AiFeedbackReaction_Delete",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-MSG-02"],
@@ -2111,7 +2111,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AiFeedbackReaction_Put": {
         "x-audit-event": "command.AiFeedbackReaction_Put",
         "x-domain-command": "AiFeedbackReaction_Put",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-MSG-02"],
@@ -2181,7 +2181,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AuthSession_Revoke": {
         "x-audit-event": "command.AuthSession_Revoke",
         "x-domain-command": "AuthSession_Revoke",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-SECURITY-01"],
@@ -2191,7 +2191,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AuthSession_RevokeOthers": {
         "x-audit-event": "command.AuthSession_RevokeOthers",
         "x-domain-command": "AuthSession_RevokeOthers",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-USER-AUTH-03"],
@@ -2201,7 +2201,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AuthToken_Refresh": {
         "x-audit-event": "command.AuthToken_Refresh",
         "x-domain-command": "AuthToken_Refresh",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "refresh_token_rotation_replay_detection",
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-USER-AUTH-01"],
@@ -2211,7 +2211,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AuthVerificationCode_Create": {
         "x-audit-event": "command.AuthVerificationCode_Create",
         "x-domain-command": "AuthVerificationCode_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AUTH-CODE-01", "USR-AUTH-FORGOT-01", "USR-AUTH-REGISTER-01"],
@@ -2221,7 +2221,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "Auth_Login": {
         "x-audit-event": "command.Auth_Login",
         "x-domain-command": "Auth_Login",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AUTH-CODE-01", "USR-AUTH-LOGIN-01"],
@@ -2231,7 +2231,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "Auth_Logout": {
         "x-audit-event": "command.Auth_Logout",
         "x-domain-command": "Auth_Logout",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "session_terminal_state_convergence",
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-USER-AUTH-02"],
@@ -2431,7 +2431,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "ExclusiveConversation_PutMine": {
         "x-audit-event": "command.ExclusiveConversation_PutMine",
         "x-domain-command": "ExclusiveConversation_PutMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-MSG-01"],
@@ -2441,7 +2441,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "FavoriteProduct_Delete": {
         "x-audit-event": "command.FavoriteProduct_Delete",
         "x-domain-command": "FavoriteProduct_Delete",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-FAVORITE-PRODUCT-01"],
@@ -2461,7 +2461,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "FavoriteProduct_Put": {
         "x-audit-event": "command.FavoriteProduct_Put",
         "x-domain-command": "FavoriteProduct_Put",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-FAVORITE-PRODUCT-01"],
@@ -2481,7 +2481,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "FileUploadSession_Abort": {
         "x-audit-event": "command.FileUploadSession_Abort",
         "x-domain-command": "FileUploadSession_Abort",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-FILE-UPLOAD-01"],
@@ -2541,7 +2541,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "FollowedStore_Delete": {
         "x-audit-event": "command.FollowedStore_Delete",
         "x-domain-command": "FollowedStore_Delete",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-FAVORITE-STORE-01"],
@@ -2561,7 +2561,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "FollowedStore_Put": {
         "x-audit-event": "command.FollowedStore_Put",
         "x-domain-command": "FollowedStore_Put",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-FAVORITE-STORE-01"],
@@ -2691,7 +2691,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "MessageReadCursor_PutMine": {
         "x-audit-event": "command.MessageReadCursor_PutMine",
         "x-domain-command": "MessageReadCursor_PutMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-MSG-02"],
@@ -2701,7 +2701,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "Message_CreateMine": {
         "x-audit-event": "command.Message_CreateMine",
         "x-domain-command": "Message_CreateMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-MSG-02"],
@@ -2811,7 +2811,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "PasswordResetTicket_Create": {
         "x-audit-event": "command.PasswordResetTicket_Create",
         "x-domain-command": "PasswordResetTicket_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AUTH-FORGOT-01"],
@@ -2941,7 +2941,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "RealtimeTicket_CreateMine": {
         "x-audit-event": "command.RealtimeTicket_CreateMine",
         "x-domain-command": "RealtimeTicket_CreateMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "short_lived_single_use_ticket",
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-USER-REALTIME-01"],
@@ -3031,7 +3031,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "RefundEligibility_Check": {
         "x-audit-event": "command.RefundEligibility_Check",
         "x-domain-command": "RefundEligibility_Check",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "read_only_command",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-REFUND-02"],
@@ -3201,7 +3201,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "StoreConversation_PutMine": {
         "x-audit-event": "command.StoreConversation_PutMine",
         "x-domain-command": "StoreConversation_PutMine",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-STORE-01"],
@@ -3261,7 +3261,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "SupportConversationMessage_Send": {
         "x-audit-event": "command.SupportConversationMessage_Send",
         "x-domain-command": "SupportConversationMessage_Send",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["support:reply"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
@@ -3333,7 +3333,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "SupportMessage_Send": {
         "x-audit-event": "command.SupportMessage_Send",
         "x-domain-command": "SupportMessage_Send",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["support:reply"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
@@ -3351,7 +3351,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "SupportReadCursor_Put": {
         "x-audit-event": "command.SupportReadCursor_Put",
         "x-domain-command": "SupportReadCursor_Put",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["support:queue_read"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
@@ -3369,7 +3369,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "SupportRealtimeTicket_Create": {
         "x-audit-event": "command.SupportRealtimeTicket_Create",
         "x-domain-command": "SupportRealtimeTicket_Create",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "short_lived_single_use_ticket",
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": ["support:queue_read"],
         "x-requirement-id": ["GLOBAL-SUPPORT-REALTIME-01"],
@@ -3535,7 +3535,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "UserContactChangeTicket_Cancel": {
         "x-audit-event": "command.UserContactChangeTicket_Cancel",
         "x-domain-command": "UserContactChangeTicket_Cancel",
-        "x-idempotency-policy": "none",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-SECURITY-01"],

@@ -71,6 +71,27 @@ def test_write_concurrency_and_webhook_idempotency_contracts_are_explicit() -> N
         "provider_event_idempotency"
     )
     assert operations["Order_GetMine"]["x-idempotency-policy"] == "safe_read"
+    assert operations["FavoriteProduct_Put"]["x-idempotency-policy"] == (
+        "http_method_idempotent"
+    )
+    assert operations["Message_CreateMine"]["x-idempotency-policy"] == (
+        "payload_client_message_id_deduplication"
+    )
+    assert operations["AuthToken_Refresh"]["x-idempotency-policy"] == (
+        "refresh_token_rotation_replay_detection"
+    )
+
+
+def test_no_write_operation_can_hide_an_unclassified_retry_policy() -> None:
+    schema = create_app().openapi()
+    for path_item in schema["paths"].values():
+        for method, operation in path_item.items():
+            if not isinstance(operation, dict) or "operationId" not in operation:
+                continue
+            policy = operation["x-idempotency-policy"]
+            assert policy != "none", operation["operationId"]
+            if method.upper() not in {"GET", "HEAD", "OPTIONS"}:
+                assert policy != "safe_read", operation["operationId"]
 
 
 def test_every_operation_documents_recoverable_problem_details() -> None:

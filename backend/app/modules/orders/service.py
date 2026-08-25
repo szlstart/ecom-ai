@@ -1529,22 +1529,29 @@ def _order_actions(
         "view_logistics": ("my-order-logistics", {"orderId": order.order_no}, False),
         "view_after_sale": ("my-after-sales", {}, False),
         "apply_after_sale": ("refund-application", {"orderId": order.order_no}, False),
-        "review": (
-            "my-review-create",
-            {
-                "orderItemId": next(
-                    item.order_item_no for item in items if item.review_status == "pending"
-                )
-            },
-            False,
-        ),
         "confirm_receipt": ("my-order-detail", {"orderId": order.order_no}, True),
         "delete_order": ("my-order-detail", {"orderId": order.order_no}, True),
         "repurchase": ("my-order-detail", {"orderId": order.order_no}, False),
     }
     result: list[OrderAction] = []
     for code in available_action_codes(_policy_snapshot(order, items), utc_now()):
-        route, params, confirmation = routes[code]
+        if code == "review":
+            pending_review_item = next(
+                (item for item in items if item.review_status == "pending"),
+                None,
+            )
+            if pending_review_item is None:
+                raise RuntimeError(
+                    f"order action invariant violated for order {order.order_no}: "
+                    "review action has no pending order item"
+                )
+            route, params, confirmation = (
+                "my-review-create",
+                {"orderItemId": pending_review_item.order_item_no},
+                False,
+            )
+        else:
+            route, params, confirmation = routes[code]
         result.append(_route_action(code, route, params, confirmation=confirmation))
     if include_contact_store:
         result.append(

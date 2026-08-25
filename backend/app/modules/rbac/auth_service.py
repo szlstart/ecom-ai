@@ -47,6 +47,11 @@ ADMIN_NAVIGATION = (
     ("store-certifications", "店铺认证", "/admin/store-certifications", "stores:review"),
     ("products", "商品管理", "/admin/products", "products:read"),
     ("inventories", "库存调整", "/admin/inventories", "inventories:read"),
+    ("orders", "订单管理", "/admin/orders", "orders:read"),
+    ("payments", "支付管理", "/admin/payments", "payments:read"),
+    ("refunds", "退款申请", "/admin/refund-applications", "refunds:read"),
+    ("refund-appeals", "退款申诉", "/admin/refund-appeals", "refund_appeals:read"),
+    ("reviews", "评价管理", "/admin/reviews", "reviews:read"),
     ("batch-jobs", "批处理任务", "/admin/system/jobs", "jobs:read"),
     ("categories", "平台分类", "/admin/categories", "catalog_taxonomy:manage"),
     ("brands", "品牌管理", "/admin/brands", "catalog_taxonomy:manage"),
@@ -60,6 +65,12 @@ ADMIN_NAVIGATION = (
     ("ai-evaluations", "AI 评估", "/admin/ai/evaluations", "ai_evaluations:read"),
     ("observability", "可观测性", "/admin/observability", "observability:read"),
     ("content", "平台内容", "/admin/content", "content:read"),
+    (
+        "dead-letter-events",
+        "死信事件",
+        "/admin/system/dead-letter-events",
+        "events:read",
+    ),
     ("audit", "审计日志", "/admin/audit-logs", "audit:read"),
 )
 

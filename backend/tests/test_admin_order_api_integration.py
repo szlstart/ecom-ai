@@ -162,7 +162,9 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
             refunded_quantity=0,
             refunded_amount=0,
             currency="CNY",
-            review_status="pending",
+            # A list projection must not attempt to resolve a review route unless
+            # the policy actually returns the review action.
+            review_status="closed",
             after_sale_status="none",
         )
         inventory = Inventory(
@@ -214,6 +216,10 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
     )
     assert mfa.status_code == 200, mfa.text
     headers = {"Authorization": f"Bearer {mfa.json()['data']['session']['access_token']}"}
+
+    order_list = await client.get("/api/v1/admin/orders", headers=headers)
+    assert order_list.status_code == 200, order_list.text
+    assert any(item["order"]["order_id"] == order_no for item in order_list.json()["data"]["items"])
 
     detail = await client.get(f"/api/v1/admin/orders/{order_no}", headers=headers)
     assert detail.status_code == 200, detail.text

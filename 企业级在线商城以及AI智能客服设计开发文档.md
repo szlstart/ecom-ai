@@ -6895,12 +6895,14 @@ Tool Version 是运行、绑定、权限、审计和回滚的不可变单位。�
 | `active_reaction_key` | `BINARY(32) GENERATED` | 仅当前未撤回 Reaction 为 `SHA256(user_id,message_id,reaction_slot)`，其他 NULL |
 | `reason_code` | `VARCHAR(64)` | NULL |
 | `comment` | `VARCHAR(2000)` | NULL，过滤后文本 |
+| `content_hash` | `BINARY(32)` | NOT NULL，对结构化原因和过滤后文本计算的规范化哈希 |
+| `detail_dedup_key` | `BINARY(32) GENERATED` | 仅 Report/Correction 生成 User+Message+Type+Content Hash 去重键，Reaction 为 NULL |
 | `feedback_status` | `VARCHAR(16)` | `submitted/withdrawn/reviewed/resolved/dismissed` |
 | `withdrawn_at` | `DATETIME(6)` | NULL，撤回 Reaction 时填写；不物理删审计事件 |
 | `reviewed_by` / `reviewed_at` | `BIGINT UNSIGNED` / `DATETIME(6)` | NULL |
 | `resolution_code` | `VARCHAR(64)` | NULL |
 
-约束：`UNIQUE(active_reaction_key)` 保证同一用户对同一 AI 消息至多一个当前赞/踩；PUT 切换时条件撤回旧 Reaction 并建新行，DELETE 幂等置 `withdrawn`。Report/Correction 可多次提交但需用户/Message/Reason Hash 去重与限流。创建前必须从 Message 回溯 Conversation Owner 且校验 `sender_type=agent`；不能反馈他人、Human/System/Tool 或不可见消息。反馈进入评估数据集前必须脱敏、授权、去重、分层采样和人工标注，不把点赞直接当作正确答案，不把纠错写入长期记忆。
+约束：`UNIQUE(active_reaction_key)` 保证同一用户对同一 AI 消息至多一个当前赞/踩；PUT 切换时条件撤回旧 Reaction 并建新行，DELETE 幂等置 `withdrawn`。`UNIQUE(detail_dedup_key)` 只对 Report/Correction 生效，允许用户后续提交内容不同的新证据，但对同一 User+Message+Type+Content Hash 去重并配合限流。创建前必须从 Message 回溯 Conversation Owner 且校验 `sender_type=agent`；不能反馈他人、Human/System/Tool 或不可见消息。反馈进入评估数据集前必须脱敏、授权、去重、分层采样和人工标注，不把点赞直接当作正确答案，不把纠错写入长期记忆。
 
 #### 3.7.14 系统事件与审计表
 

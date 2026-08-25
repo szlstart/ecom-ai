@@ -69,6 +69,7 @@ class MessageView(StrictRequest):
     message_status: str
     moderation_status: str
     content: dict[str, object] | None
+    viewer_reaction: Literal["thumb_up", "thumb_down"] | None = None
     sent_at: datetime
 
 

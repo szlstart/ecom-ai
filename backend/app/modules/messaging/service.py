@@ -11,6 +11,7 @@ from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.security import utc_now
+from app.modules.agent_runtime.models import AiFeedback
 from app.modules.identity.models import User
 from app.modules.messaging.content_safety import blocks_message
 from app.modules.messaging.human_schemas import HumanHandoffRequest, HumanTicketView
@@ -384,15 +385,28 @@ class MessagingService:
         conversation = await self.repository.by_no(user.id, conversation_no)
         if conversation is None:
             raise _not_found()
+        rows = (
+            await self.repository.messages_after(conversation.id, after_sequence, limit)
+            if after_sequence
+            else await self.repository.messages(conversation.id, limit)
+        )
+        reactions: dict[int, str] = {}
+        if rows:
+            reactions = {
+                message_id: feedback_type
+                for message_id, feedback_type in (
+                    await self.session.execute(
+                        select(AiFeedback.message_id, AiFeedback.feedback_type).where(
+                            AiFeedback.user_id == user.id,
+                            AiFeedback.message_id.in_([item.id for item in rows]),
+                            AiFeedback.feedback_type.in_(("thumb_up", "thumb_down")),
+                            AiFeedback.feedback_status == "submitted",
+                        )
+                    )
+                ).all()
+            }
         return MessageList(
-            items=[
-                _message_view(message)
-                for message in (
-                    await self.repository.messages_after(conversation.id, after_sequence, limit)
-                    if after_sequence
-                    else await self.repository.messages(conversation.id, limit)
-                )
-            ]
+            items=[_message_view(message, reactions.get(message.id)) for message in rows]
         )
 
     async def set_context(
@@ -1022,7 +1036,7 @@ class MessagingService:
         )
 
 
-def _message_view(message: Message) -> MessageView:
+def _message_view(message: Message, viewer_reaction: str | None = None) -> MessageView:
     return MessageView(
         message_id=message.message_no,
         sequence_no=message.sequence_no,
@@ -1032,6 +1046,7 @@ def _message_view(message: Message) -> MessageView:
         message_status=message.message_status,
         moderation_status=message.moderation_status,
         content=message.content_payload,
+        viewer_reaction=cast(Literal["thumb_up", "thumb_down"] | None, viewer_reaction),
         sent_at=message.sent_at,
     )
 

@@ -6,6 +6,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKey,
     Index,
@@ -13,7 +14,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER, VARBINARY
+from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER, TINYINT, VARBINARY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import AppendOnlyMySQLModel, MutableMySQLModel, MySQLBase
@@ -185,6 +186,66 @@ class UserAgentConsent(MutableMySQLModel, MySQLBase):
     consent_status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+
+
+class AiFeedback(MutableMySQLModel, MySQLBase):
+    __tablename__ = "ai_feedback"
+    __table_args__ = (
+        UniqueConstraint("feedback_no", name="uk_ai_feedback_no"),
+        UniqueConstraint("active_reaction_key", name="uk_ai_feedback_active_reaction"),
+        UniqueConstraint("detail_dedup_key", name="uk_ai_feedback_detail_dedup"),
+        CheckConstraint(
+            "feedback_type IN ('thumb_up','thumb_down','report','correction')",
+            name="ai_feedback_type",
+        ),
+        CheckConstraint(
+            "feedback_status IN ('submitted','withdrawn','reviewed','resolved','dismissed')",
+            name="ai_feedback_status",
+        ),
+        Index("idx_ai_feedback_user_time", "user_id", "created_at", "id"),
+        Index("idx_ai_feedback_message", "message_id", "created_at", "id"),
+    )
+
+    feedback_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    conversation_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("conversations.id"), nullable=False
+    )
+    message_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("messages.id"), nullable=False
+    )
+    ai_run_no: Mapped[str | None] = mapped_column(String(40))
+    feedback_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    reaction_slot: Mapped[int | None] = mapped_column(
+        TINYINT(unsigned=True),
+        Computed("CASE WHEN feedback_type IN ('thumb_up','thumb_down') THEN 1 ELSE NULL END"),
+    )
+    active_reaction_key: Mapped[bytes | None] = mapped_column(
+        BINARY(32),
+        Computed(
+            "CASE WHEN reaction_slot = 1 AND feedback_status = 'submitted' "
+            "THEN UNHEX(SHA2(CONCAT(user_id, ':', message_id, ':', reaction_slot), 256)) "
+            "ELSE NULL END"
+        ),
+    )
+    reason_code: Mapped[str | None] = mapped_column(String(64))
+    comment: Mapped[str | None] = mapped_column(String(2000))
+    content_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    detail_dedup_key: Mapped[bytes | None] = mapped_column(
+        BINARY(32),
+        Computed(
+            "CASE WHEN feedback_type IN ('report','correction') "
+            "THEN UNHEX(SHA2(CONCAT(user_id, ':', message_id, ':', feedback_type, ':', "
+            "HEX(content_hash)), 256)) ELSE NULL END"
+        ),
+    )
+    feedback_status: Mapped[str] = mapped_column(String(16), nullable=False, default="submitted")
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    reviewed_by: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    resolution_code: Mapped[str | None] = mapped_column(String(64))
 
 
 class AgentRefundDraft(MutableMySQLModel, MySQLBase):

@@ -35,7 +35,16 @@ export interface ChatMessage {
   message_status: string
   moderation_status: string
   content: Record<string, unknown> | null
+  viewer_reaction: 'thumb_up' | 'thumb_down' | null
   sent_at: string
+}
+
+export interface AiFeedback {
+  feedback_id: string | null
+  message_id: string
+  feedback_type: 'thumb_up' | 'thumb_down' | 'report' | 'correction' | null
+  status: 'submitted' | 'withdrawn' | 'reviewed' | 'resolved' | 'dismissed' | null
+  created_at: string | null
 }
 
 export interface ReadCursor {
@@ -124,6 +133,50 @@ export function sendText(
     method: 'POST',
     body: JSON.stringify({ client_message_id: clientMessageId, content: { type: 'text', text } }),
   }, token)
+}
+
+export function setAiMessageReaction(
+  conversationId: string,
+  messageId: string,
+  reaction: 'thumb_up' | 'thumb_down',
+  token: string,
+): Promise<ApiResult<AiFeedback>> {
+  return apiRequest(
+    `/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reaction`,
+    { method: 'PUT', body: JSON.stringify({ reaction }) },
+    token,
+  )
+}
+
+export function removeAiMessageReaction(
+  conversationId: string,
+  messageId: string,
+  token: string,
+): Promise<ApiResult<AiFeedback>> {
+  return apiRequest(
+    `/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reaction`,
+    { method: 'DELETE' },
+    token,
+  )
+}
+
+export function submitAiMessageFeedback(
+  conversationId: string,
+  messageId: string,
+  kind: 'reports' | 'corrections',
+  reasonCode: string,
+  comment: string,
+  token: string,
+): Promise<ApiResult<AiFeedback>> {
+  return apiRequest(
+    `/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/${kind}`,
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': createIdempotencyKey(`ai-feedback-${kind}`) },
+      body: JSON.stringify({ reason_code: reasonCode, comment }),
+    },
+    token,
+  )
 }
 
 export function putReadCursor(

@@ -21,7 +21,10 @@ import {
   listMessages,
   putReadCursor,
   requestHumanService,
+  removeAiMessageReaction,
   sendText,
+  setAiMessageReaction,
+  submitAiMessageFeedback,
   type ChatMessage,
   type Conversation,
   type HumanServiceTicket,
@@ -55,6 +58,14 @@ const approvalBusy = ref<string | null>(null)
 const messageList = ref<HTMLElement | null>(null)
 const newBelowCount = ref(0)
 const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
+const feedbackBusy = ref<string | null>(null)
+const feedbackNotice = ref('')
+const feedbackComposer = ref<{
+  messageId: string
+  kind: 'reports' | 'corrections'
+  reasonCode: string
+  comment: string
+} | null>(null)
 const conversationId = computed(() => String(route.params.conversationId))
 const activeAfterSaleConsent = computed(() => agentConsents.value.find((item) => (
   item.consent_type === 'after_sale_write'
@@ -343,6 +354,48 @@ async function send() {
   try { await deliver(item) }
   finally { sending.value = false }
 }
+async function react(message: ChatMessage, reaction: 'thumb_up' | 'thumb_down') {
+  if (feedbackBusy.value) return
+  feedbackBusy.value = message.message_id
+  error.value = ''; feedbackNotice.value = ''
+  try {
+    if (message.viewer_reaction === reaction) {
+      await removeAiMessageReaction(conversationId.value, message.message_id, token())
+      message.viewer_reaction = null
+      feedbackNotice.value = '已撤回评价。'
+    } else {
+      await setAiMessageReaction(conversationId.value, message.message_id, reaction, token())
+      message.viewer_reaction = reaction
+      feedbackNotice.value = '感谢反馈。赞踩只用于质量分析，不会直接成为标准答案。'
+    }
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { feedbackBusy.value = null }
+}
+function openFeedback(message: ChatMessage, kind: 'reports' | 'corrections') {
+  feedbackComposer.value = {
+    messageId: message.message_id,
+    kind,
+    reasonCode: kind === 'reports' ? 'INAPPROPRIATE_OR_INCORRECT' : 'USER_CORRECTION',
+    comment: '',
+  }
+}
+async function submitFeedback() {
+  const form = feedbackComposer.value
+  if (!form || form.comment.trim().length < 2 || feedbackBusy.value) return
+  feedbackBusy.value = form.messageId
+  error.value = ''; feedbackNotice.value = ''
+  try {
+    await submitAiMessageFeedback(
+      conversationId.value, form.messageId, form.kind, form.reasonCode,
+      form.comment.trim(), token(),
+    )
+    feedbackNotice.value = form.kind === 'reports'
+      ? '举报已提交，将按内容安全流程审核。'
+      : '纠错建议已提交；它不会自动写入长期记忆或标准答案。'
+    feedbackComposer.value = null
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { feedbackBusy.value = null }
+}
 async function retry(item: PendingMessage) { await deliver(item) }
 async function requestHuman() {
   const summary = humanSummary.value.trim()
@@ -485,6 +538,7 @@ onBeforeUnmount(() => {
     <p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <p v-if="humanNotice" class="alert success" role="status">{{ humanNotice }}</p>
     <p v-if="consentNotice" class="alert success" role="status">{{ consentNotice }}</p>
+    <p v-if="feedbackNotice" class="alert success" role="status">{{ feedbackNotice }}</p>
     <section v-if="conversation?.conversation_type === 'exclusive'" class="agent-consent-card" aria-labelledby="after-sale-consent-heading">
       <div>
         <strong id="after-sale-consent-heading">专属客服售后协助授权</strong>
@@ -531,6 +585,12 @@ onBeforeUnmount(() => {
               <button type="button" :disabled="approvalBusy === approvalId(message)" @click="decideApproval(message, 'approve')">{{ approvalBusy === approvalId(message) ? '处理中…' : '核对无误，确认提交' }}</button>
             </div>
           </section>
+          <div v-if="message.sender_type === 'agent'" class="actions ai-feedback-actions" aria-label="评价智能客服回复">
+            <button type="button" class="small secondary" :aria-pressed="message.viewer_reaction === 'thumb_up'" :disabled="feedbackBusy === message.message_id" @click="react(message, 'thumb_up')">有帮助</button>
+            <button type="button" class="small secondary" :aria-pressed="message.viewer_reaction === 'thumb_down'" :disabled="feedbackBusy === message.message_id" @click="react(message, 'thumb_down')">没帮助</button>
+            <button type="button" class="small secondary" @click="openFeedback(message, 'corrections')">纠错</button>
+            <button type="button" class="small secondary" @click="openFeedback(message, 'reports')">举报</button>
+          </div>
           <small><time :datetime="message.sent_at">{{ timeLabel(message.sent_at) }}</time></small>
         </article>
         <article v-for="item in pending" :key="item.clientMessageId" class="message-bubble mine pending-message">
@@ -542,6 +602,13 @@ onBeforeUnmount(() => {
       </div>
       <button v-if="newBelowCount" type="button" class="new-message-button" @click="scrollToBottom">有 {{ newBelowCount }} 条新消息</button>
     </PageState>
+    <form v-if="feedbackComposer" class="card human-request" @submit.prevent="submitFeedback">
+      <h2>{{ feedbackComposer.kind === 'reports' ? '举报这条回复' : '提交纠错建议' }}</h2>
+      <p class="muted">内容会先经过安全与隐私审核，不会自动写入长期记忆、Prompt 或评估金标集。</p>
+      <label>原因码<input v-model.trim="feedbackComposer.reasonCode" pattern="[A-Z][A-Z0-9_]{1,63}" maxlength="64" required /></label>
+      <label>{{ feedbackComposer.kind === 'reports' ? '问题说明' : '你认为正确的说法或来源' }}<textarea v-model.trim="feedbackComposer.comment" minlength="2" maxlength="2000" required /></label>
+      <div class="actions"><button type="button" class="secondary" @click="feedbackComposer = null">取消</button><button :disabled="feedbackBusy === feedbackComposer.messageId">提交</button></div>
+    </form>
     <form class="message-composer" @submit.prevent="send">
       <label><span class="sr-only">输入消息</span><textarea v-model="draft" maxlength="4000" placeholder="输入消息，Enter 换行" required /></label>
       <button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button>

@@ -2,10 +2,18 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Query, Response, status
 
-from app.api.dependencies import UserContext
+from app.api.dependencies import IdempotencyKey, UserContext
 from app.api.schemas import Envelope
 from app.modules.identity.router import _etag, _expected_version, _no_store
-from app.modules.messaging.dependencies import MessagingServiceDependency
+from app.modules.messaging.dependencies import (
+    AiFeedbackServiceDependency,
+    MessagingServiceDependency,
+)
+from app.modules.messaging.feedback_schemas import (
+    AiFeedbackDetailRequest,
+    AiFeedbackView,
+    AiReactionRequest,
+)
 from app.modules.messaging.human_schemas import HumanHandoffRequest, HumanTicketView
 from app.modules.messaging.schemas import (
     ConversationArchiveView,
@@ -22,6 +30,80 @@ from app.modules.messaging.schemas import (
 )
 
 router = APIRouter(tags=["messaging"])
+
+
+@router.put(
+    "/conversations/{conversation_id}/messages/{message_id}/reaction",
+    response_model=Envelope[AiFeedbackView],
+    operation_id="AiFeedbackReaction_Put",
+)
+async def put_ai_feedback_reaction(
+    conversation_id: str,
+    message_id: str,
+    payload: AiReactionRequest,
+    response: Response,
+    context: UserContext,
+    service: AiFeedbackServiceDependency,
+) -> Envelope[AiFeedbackView]:
+    result = await service.put_reaction(context.user, conversation_id, message_id, payload.reaction)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.delete(
+    "/conversations/{conversation_id}/messages/{message_id}/reaction",
+    response_model=Envelope[AiFeedbackView],
+    operation_id="AiFeedbackReaction_Delete",
+)
+async def delete_ai_feedback_reaction(
+    conversation_id: str,
+    message_id: str,
+    response: Response,
+    context: UserContext,
+    service: AiFeedbackServiceDependency,
+) -> Envelope[AiFeedbackView]:
+    result = await service.delete_reaction(context.user, conversation_id, message_id)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+def _feedback_detail_route(path: str, operation_id: str, feedback_type: str) -> None:
+    async def endpoint(
+        conversation_id: str,
+        message_id: str,
+        payload: AiFeedbackDetailRequest,
+        response: Response,
+        context: UserContext,
+        service: AiFeedbackServiceDependency,
+        idempotency_key: IdempotencyKey,
+    ) -> Envelope[AiFeedbackView]:
+        result = await service.create_detail(
+            context.user, conversation_id, message_id, feedback_type, payload, idempotency_key
+        )
+        _no_store(response)
+        return Envelope(data=result)
+
+    endpoint.__name__ = operation_id
+    router.add_api_route(
+        path,
+        endpoint,
+        methods=["POST"],
+        status_code=status.HTTP_201_CREATED,
+        response_model=Envelope[AiFeedbackView],
+        operation_id=operation_id,
+    )
+
+
+_feedback_detail_route(
+    "/conversations/{conversation_id}/messages/{message_id}/reports",
+    "AiFeedbackReport_Create",
+    "report",
+)
+_feedback_detail_route(
+    "/conversations/{conversation_id}/messages/{message_id}/corrections",
+    "AiFeedbackCorrection_Create",
+    "correction",
+)
 
 
 @router.get(

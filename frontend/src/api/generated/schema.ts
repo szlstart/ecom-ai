@@ -1613,6 +1613,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/reaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Ai Feedback Reaction */
+        put: operations["AiFeedbackReaction_Put"];
+        post?: never;
+        /** Delete Ai Feedback Reaction */
+        delete: operations["AiFeedbackReaction_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aifeedbackreport Create */
+        post: operations["AiFeedbackReport_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aifeedbackcorrection Create */
+        post: operations["AiFeedbackCorrection_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations": {
         parameters: {
             query?: never;
@@ -6516,6 +6568,34 @@ export interface components {
             /** Document Version */
             document_version: string;
         };
+        /** AiFeedbackDetailRequest */
+        AiFeedbackDetailRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Comment */
+            comment: string;
+        };
+        /** AiFeedbackView */
+        AiFeedbackView: {
+            /** Feedback Id */
+            feedback_id: string | null;
+            /** Message Id */
+            message_id: string;
+            /** Feedback Type */
+            feedback_type: ("thumb_up" | "thumb_down" | "report" | "correction") | null;
+            /** Status */
+            status: ("submitted" | "withdrawn" | "reviewed" | "resolved" | "dismissed") | null;
+            /** Created At */
+            created_at: string | null;
+        };
+        /** AiReactionRequest */
+        AiReactionRequest: {
+            /**
+             * Reaction
+             * @enum {string}
+             */
+            reaction: "thumb_up" | "thumb_down";
+        };
         /** ApprovalDecisionRequest */
         ApprovalDecisionRequest: {
             /**
@@ -7575,6 +7655,11 @@ export interface components {
         /** Envelope[AgentView] */
         Envelope_AgentView_: {
             data: components["schemas"]["AgentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AiFeedbackView] */
+        Envelope_AiFeedbackView_: {
+            data: components["schemas"]["AiFeedbackView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ApprovalRequiredView] */
@@ -8752,6 +8837,8 @@ export interface components {
             content: {
                 [key: string]: unknown;
             } | null;
+            /** Viewer Reaction */
+            viewer_reaction?: ("thumb_up" | "thumb_down") | null;
             /**
              * Sent At
              * Format: date-time
@@ -14489,6 +14576,150 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiFeedbackReaction_Put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiReactionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiFeedbackReaction_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiFeedbackReport_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiFeedbackDetailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiFeedbackCorrection_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiFeedbackDetailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
                 };
             };
             /** @description Validation Error */

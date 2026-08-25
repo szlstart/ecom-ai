@@ -7479,6 +7479,358 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/reaction": {
+      "put": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Put Ai Feedback Reaction",
+        "operationId": "AiFeedbackReaction_Put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiReactionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiFeedbackView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AiFeedbackReaction_Put",
+        "x-domain-command": "AiFeedbackReaction_Put",
+        "x-idempotency-policy": "none",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-MSG-02"
+        ],
+        "x-scope-policy": [
+          "conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "AI-FEEDBACK-*",
+          "MSG-USER-*"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Delete Ai Feedback Reaction",
+        "operationId": "AiFeedbackReaction_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiFeedbackView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AiFeedbackReaction_Delete",
+        "x-domain-command": "AiFeedbackReaction_Delete",
+        "x-idempotency-policy": "none",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-MSG-02"
+        ],
+        "x-scope-policy": [
+          "conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "AI-FEEDBACK-*",
+          "MSG-USER-*"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/reports": {
+      "post": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Aifeedbackreport Create",
+        "operationId": "AiFeedbackReport_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiFeedbackDetailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiFeedbackView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AiFeedbackReport_Create",
+        "x-domain-command": "AiFeedbackReport_Create",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-MSG-02"
+        ],
+        "x-scope-policy": [
+          "conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "AI-FEEDBACK-*",
+          "MSG-USER-*"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/corrections": {
+      "post": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Aifeedbackcorrection Create",
+        "operationId": "AiFeedbackCorrection_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiFeedbackDetailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiFeedbackView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AiFeedbackCorrection_Create",
+        "x-domain-command": "AiFeedbackCorrection_Create",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-MSG-02"
+        ],
+        "x-scope-policy": [
+          "conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "AI-FEEDBACK-*",
+          "MSG-USER-*"
+        ]
+      }
+    },
     "/api/v1/conversations": {
       "get": {
         "tags": [
@@ -31124,6 +31476,122 @@
         ],
         "title": "AgreementReference"
       },
+      "AiFeedbackDetailRequest": {
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 2,
+            "title": "Comment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason_code",
+          "comment"
+        ],
+        "title": "AiFeedbackDetailRequest"
+      },
+      "AiFeedbackView": {
+        "properties": {
+          "feedback_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Id"
+          },
+          "message_id": {
+            "type": "string",
+            "title": "Message Id"
+          },
+          "feedback_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "thumb_up",
+                  "thumb_down",
+                  "report",
+                  "correction"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Type"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "submitted",
+                  "withdrawn",
+                  "reviewed",
+                  "resolved",
+                  "dismissed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "feedback_id",
+          "message_id",
+          "feedback_type",
+          "status",
+          "created_at"
+        ],
+        "title": "AiFeedbackView"
+      },
+      "AiReactionRequest": {
+        "properties": {
+          "reaction": {
+            "type": "string",
+            "enum": [
+              "thumb_up",
+              "thumb_down"
+            ],
+            "title": "Reaction"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reaction"
+        ],
+        "title": "AiReactionRequest"
+      },
       "ApprovalDecisionRequest": {
         "properties": {
           "decision": {
@@ -34289,6 +34757,21 @@
           "data"
         ],
         "title": "Envelope[AgentView]"
+      },
+      "Envelope_AiFeedbackView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AiFeedbackView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AiFeedbackView]"
       },
       "Envelope_ApprovalRequiredView_": {
         "properties": {
@@ -37814,6 +38297,21 @@
               }
             ],
             "title": "Content"
+          },
+          "viewer_reaction": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "thumb_up",
+                  "thumb_down"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewer Reaction"
           },
           "sent_at": {
             "type": "string",

@@ -10,7 +10,7 @@ families:
   ACCOUNT-CLOSURE: {layers: [contract, integration], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   ADDRESS: {layers: [integration], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   ADM-AGENT: {layers: [integration], selectors: [backend/tests/test_admin_agent_runtime_integration.py::test_admin_can_cancel_only_unexecuted_agent_run_with_audit_and_idempotency]}
-  ADM-AI-POLICY: {layers: [contract, security], selectors: [backend/tests/test_knowledge_contract.py::test_ai_publication_contracts_require_idempotency_and_return_approval_resource]}
+  ADM-AI-POLICY: {layers: [contract, integration, security], selectors: [backend/tests/test_admin_ai_governance_api_integration.py::test_admin_dashboard_observability_evaluation_policy_and_skill_lifecycle]}
   ADM-AI-RUN: {layers: [contract, integration], selectors: [backend/tests/test_agent_runtime_contract.py::test_admin_agent_run_contract_is_redacted_and_concurrency_guarded, backend/tests/test_admin_agent_runtime_integration.py::test_admin_can_cancel_only_unexecuted_agent_run_with_audit_and_idempotency]}
   ADM-APPEAL: {layers: [integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   ADM-APPROVAL: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_admin_approval_separation_of_duties_and_executor]}
@@ -20,13 +20,13 @@ families:
   ADM-CATALOG: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_admin_taxonomy_and_inventory_adjustment_invariants]}
   ADM-CERT: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_admin_store_certification_status_and_policy_lifecycle]}
   ADM-CONTENT: {layers: [contract, integration, security], selectors: [backend/tests/test_content_api_integration.py::test_admin_content_version_publish_public_projection_and_withdrawal]}
-  ADM-DASH: {layers: [contract], selectors: [backend/tests/test_phase11_observability_evaluation_contract.py::test_phase11_admin_operations_are_registered]}
+  ADM-DASH: {layers: [contract, integration], selectors: [backend/tests/test_admin_ai_governance_api_integration.py::test_admin_dashboard_observability_evaluation_policy_and_skill_lifecycle]}
   ADM-DLQ: {layers: [integration, security], selectors: [backend/tests/test_dead_letter_api_integration.py::test_dead_letter_preview_requires_immutable_payload_and_dual_control]}
-  ADM-EVAL: {layers: [contract], selectors: [backend/tests/test_evaluation_runner.py::test_missing_observations_never_fabricate_a_pass]}
+  ADM-EVAL: {layers: [contract, integration], selectors: [backend/tests/test_evaluation_runner.py::test_missing_observations_never_fabricate_a_pass, backend/tests/test_admin_ai_governance_api_integration.py::test_admin_dashboard_observability_evaluation_policy_and_skill_lifecycle]}
   ADM-INDEX: {layers: [integration], selectors: [backend/tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval]}
   ADM-INV: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_admin_taxonomy_and_inventory_adjustment_invariants]}
   ADM-KNOW: {layers: [integration, security], selectors: [backend/tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval]}
-  ADM-OBS: {layers: [unit, contract], selectors: [backend/tests/test_observability.py::test_telemetry_span_attributes_reject_sensitive_keys]}
+  ADM-OBS: {layers: [unit, contract, integration, security], selectors: [backend/tests/test_observability.py::test_telemetry_span_attributes_reject_sensitive_keys, backend/tests/test_admin_ai_governance_api_integration.py::test_admin_dashboard_observability_evaluation_policy_and_skill_lifecycle]}
   ADM-ORDER: {layers: [integration], selectors: [backend/tests/test_admin_order_api_integration.py::test_admin_order_adjustment_and_cancellation_invariants]}
   ADM-PAYMENT: {layers: [integration], selectors: [backend/tests/test_admin_payment_api_integration.py::test_admin_payment_read_and_provider_reconciliation]}
   ADM-POLICY: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_admin_store_certification_status_and_policy_lifecycle]}
@@ -37,7 +37,7 @@ families:
   ADM-SENSITIVE: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_admin_password_mfa_audience_and_reauthentication_lifecycle]}
   ADM-SHIP-CREATE: {layers: [integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   ADM-SHIP-VOID: {layers: [integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
-  ADM-SKILL: {layers: [contract, security], selectors: [backend/tests/test_agent_governance.py::test_skill_hard_deny_wins_over_allow_and_keeps_budgets]}
+  ADM-SKILL: {layers: [contract, integration, security], selectors: [backend/tests/test_agent_governance.py::test_skill_hard_deny_wins_over_allow_and_keeps_budgets, backend/tests/test_admin_ai_governance_api_integration.py::test_admin_dashboard_observability_evaluation_policy_and_skill_lifecycle]}
   ADM-STORE: {layers: [integration], selectors: [backend/tests/test_store_operations_api_integration.py::test_store_operations_are_scoped_versioned_and_publicly_visible]}
   ADM-SUPPORT: {layers: [contract, integration], selectors: [backend/tests/test_messaging_api_integration.py::test_conversation_uniqueness_message_replay_moderation_and_human_handoff]}
   ADM-TOOL: {layers: [integration, security], selectors: [backend/tests/test_tool_rollback_integration.py::test_tool_rollback_is_approved_idempotent_and_keeps_versions_immutable]}

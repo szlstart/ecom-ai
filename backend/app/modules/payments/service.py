@@ -25,6 +25,10 @@ from app.modules.payments.domain import require_payment_transition
 from app.modules.payments.models import Payment, PaymentCallback, PaymentEvent
 from app.modules.payments.repository import PaymentRepository
 from app.modules.payments.schemas import (
+    AdminPaymentList,
+    AdminPaymentReconciliationRequest,
+    AdminPaymentReconciliationResult,
+    AdminPaymentView,
     FakePaymentWebhook,
     PaymentAction,
     PaymentCreateRequest,
@@ -34,6 +38,8 @@ from app.modules.payments.schemas import (
     PaymentView,
     PaymentWebhookAck,
 )
+from app.modules.rbac.audit import record_admin_operation
+from app.modules.rbac.dependencies import AdminAccess
 from app.modules.system.models import OutboxEvent
 
 
@@ -238,6 +244,197 @@ class PaymentService:
             raise _not_found()
         payments = await self.repository.for_trade(user.id, trade_no)
         return PaymentList(items=[await self._view(item, trade) for item in payments])
+
+    async def admin_list(
+        self,
+        access: AdminAccess,
+        *,
+        query: str | None,
+        payment_status: str | None,
+        provider: str | None,
+        limit: int,
+    ) -> AdminPaymentList:
+        normalized_query = query.strip() if query else None
+        rows = await self.repository.admin_payments(
+            scopes=access.scopes,
+            query=normalized_query or None,
+            payment_status=payment_status,
+            provider=provider,
+            limit=limit,
+        )
+        return AdminPaymentList(
+            items=[await self._admin_view(access, payment, trade) for payment, trade in rows]
+        )
+
+    async def admin_detail(self, access: AdminAccess, payment_no: str) -> AdminPaymentView:
+        row = await self.repository.admin_by_no(payment_no)
+        if row is None:
+            raise _not_found()
+        return await self._admin_view(access, row[0], row[1])
+
+    async def admin_reconcile(
+        self,
+        access: AdminAccess,
+        payment_no: str,
+        payload: AdminPaymentReconciliationRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminPaymentReconciliationResult:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:payment-reconcile:{access.context.user.user_no}:{payment_no}",
+            idempotency_key=idempotency_key,
+            payload={"version": expected_version, **payload.model_dump(mode="json")},
+            resource_type="payment",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return AdminPaymentReconciliationResult.model_validate(claim.record.response_body)
+        initial = await self.repository.admin_by_no(payment_no)
+        if initial is None:
+            raise _not_found()
+        initial_payment, initial_trade = initial
+        stores = await self.repository.trade_stores(initial_trade.id)
+        for store_id, _ in stores:
+            access.require_scope("store", store_id)
+        if initial_payment.payment_status not in {"created", "pending"}:
+            raise _error(409, "PAYMENT_NOT_RECONCILABLE", "只有确认中的支付单可以发起对账。")
+        if initial_payment.provider_trade_no is None:
+            raise _error(409, "PAYMENT_PROVIDER_REFERENCE_MISSING", "支付渠道引用不可用。")
+        try:
+            snapshot = await payment_provider(initial_payment.provider).query_payment(
+                initial_payment.provider_trade_no,
+                amount=initial_payment.requested_amount,
+                currency=initial_payment.currency,
+            )
+        except (TimeoutError, ValueError) as exc:
+            raise ApplicationError(
+                status=503,
+                code="PAYMENT_PROVIDER_QUERY_FAILED",
+                title="Payment provider query failed",
+                detail="暂时无法取得支付渠道权威状态，请稍后重试。",
+                retryable=True,
+            ) from exc
+        if (
+            snapshot.provider_trade_no != initial_payment.provider_trade_no
+            or snapshot.amount != initial_payment.requested_amount
+            or snapshot.currency != initial_payment.currency
+        ):
+            raise _error(
+                409,
+                "PAYMENT_RECONCILIATION_MISMATCH",
+                "渠道返回的交易引用、金额或币种与本地支付单不一致，已拒绝自动处理。",
+            )
+        trade = await self.repository.trade_for_update(initial_trade.id)
+        payment = await self.repository.payment_for_update(initial_payment.id)
+        if trade is None or payment is None:
+            raise _not_found()
+        if payment.version != expected_version:
+            raise ApplicationError(
+                status=412,
+                code="RESOURCE_VERSION_CONFLICT",
+                title="Version conflict",
+                detail="支付单已经变化，请刷新后重试。",
+            )
+        if payment.payment_status not in {"created", "pending"}:
+            raise _error(409, "PAYMENT_NOT_RECONCILABLE", "支付单状态已变化，请刷新。")
+        previous_status = payment.payment_status
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        now = utc_now()
+        if snapshot.status == "pending":
+            payment.version += 1
+            self.session.add(
+                _event(
+                    payment,
+                    "reconciliation_observed",
+                    previous_status,
+                    previous_status,
+                    "reconciliation",
+                    request_id,
+                )
+            )
+        elif snapshot.status == "closed":
+            await self._close_locked(payment, trade, request_id, now, source_type="reconciliation")
+        else:
+            confirmation = FakePaymentWebhook(
+                provider_event_id=f"reconciliation:{request_id}",
+                payment_id=payment.payment_no,
+                provider_trade_no=snapshot.provider_trade_no,
+                status=snapshot.status,
+                amount_minor_units=str(snapshot.amount),
+                currency=snapshot.currency,
+                occurred_at=now.replace(tzinfo=UTC),
+                failure_code=("PROVIDER_DECLINED" if snapshot.status == "failed" else None),
+            )
+            if snapshot.status == "failed":
+                await self._record_failed_callback(
+                    payment,
+                    trade,
+                    None,
+                    confirmation,
+                    now,
+                    request_id,
+                    source_type="reconciliation",
+                )
+            else:
+                await self._record_succeeded_callback(
+                    payment,
+                    trade,
+                    None,
+                    confirmation,
+                    now,
+                    request_id,
+                    source_type="reconciliation",
+                )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="payment.reconciled.v1",
+                aggregate_type="payment",
+                aggregate_no=payment.payment_no,
+                aggregate_version=payment.version,
+                payload={
+                    "payment_id": payment.payment_no,
+                    "trade_order_id": trade.trade_no,
+                    "previous_status": previous_status,
+                    "provider_status": snapshot.status,
+                    "local_status": payment.payment_status,
+                    "reason_code": payload.reason_code,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        record_admin_operation(
+            self.session,
+            access,
+            action="reconcile_payment",
+            target_type="payment",
+            target_no=payment.payment_no,
+            reason=payload.reason,
+            before={"payment_status": previous_status, "version": expected_version},
+            after={
+                "payment_status": payment.payment_status,
+                "provider_status": snapshot.status,
+                "version": payment.version,
+                "reason_code": payload.reason_code,
+            },
+        )
+        await self.session.flush()
+        result = AdminPaymentReconciliationResult(
+            payment=await self._admin_view(access, payment, trade),
+            provider_status=snapshot.status,
+            result=("no_change" if payment.payment_status == previous_status else "status_updated"),
+            reconciled_at=now,
+        )
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=payment.payment_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
 
     async def reconcile_expired(self, *, limit: int = 100) -> int:
         now = utc_now()
@@ -496,13 +693,15 @@ class PaymentService:
         self,
         payment: Payment,
         trade: TradeOrder,
-        callback: PaymentCallback,
+        callback: PaymentCallback | None,
         payload: FakePaymentWebhook,
         now: datetime,
         request_id: str,
+        *,
+        source_type: str = "callback",
     ) -> None:
         if trade.trade_status != "pending_payment":
-            _reject_callback(
+            _reject_confirmation(
                 callback,
                 now,
                 "TRADE_ORDER_STATE_CONFLICT",
@@ -518,10 +717,10 @@ class PaymentService:
         self.session.add(
             _event(
                 payment,
-                "callback_failed",
+                f"{source_type}_failed",
                 previous,
                 "failed",
-                "callback",
+                source_type,
                 payload.provider_event_id,
                 provider_occurred_at=provider_time,
             )
@@ -566,13 +765,15 @@ class PaymentService:
         self,
         payment: Payment,
         trade: TradeOrder,
-        callback: PaymentCallback,
+        callback: PaymentCallback | None,
         payload: FakePaymentWebhook,
         now: datetime,
         request_id: str,
+        *,
+        source_type: str = "callback",
     ) -> None:
         if trade.trade_status != "pending_payment":
-            _reject_callback(
+            _reject_confirmation(
                 callback,
                 now,
                 "TRADE_ORDER_STATE_CONFLICT",
@@ -581,7 +782,7 @@ class PaymentService:
             return
         orders = await self.repository.trade_orders_for_update(trade.id)
         if not orders or any(order.order_status != "pending_payment" for order in orders):
-            _reject_callback(
+            _reject_confirmation(
                 callback,
                 now,
                 "ORDER_STATE_CONFLICT",
@@ -595,7 +796,7 @@ class PaymentService:
         expected_item_ids = {item.id for items in items_by_order.values() for item in items}
         reservation_item_ids = {reservation.order_item_id for reservation, _ in reservations}
         if not reservations or reservation_item_ids != expected_item_ids:
-            _reject_callback(
+            _reject_confirmation(
                 callback,
                 now,
                 "INVENTORY_RESERVATION_MISSING",
@@ -608,7 +809,7 @@ class PaymentService:
                 inventory.reserved_quantity < reservation.quantity
                 or inventory.on_hand_quantity < reservation.quantity
             ):
-                _reject_callback(
+                _reject_confirmation(
                     callback,
                     now,
                     "INVENTORY_RESERVATION_INVALID",
@@ -658,10 +859,10 @@ class PaymentService:
         self.session.add(
             _event(
                 payment,
-                "callback_succeeded",
+                f"{source_type}_succeeded",
                 previous_payment,
                 "succeeded",
-                "callback",
+                source_type,
                 payload.provider_event_id,
                 provider_occurred_at=provider_time,
             )
@@ -737,6 +938,28 @@ class PaymentService:
                 attempt_count=0,
                 trace_id=request_id,
             )
+        )
+
+    async def _admin_view(
+        self,
+        access: AdminAccess,
+        payment: Payment,
+        trade: TradeOrder,
+    ) -> AdminPaymentView:
+        stores = await self.repository.trade_stores(trade.id)
+        for store_id, _ in stores:
+            access.require_scope("store", store_id)
+        user_no = await self.repository.user_no(payment.user_id)
+        if user_no is None:
+            raise _not_found()
+        return AdminPaymentView(
+            payment=await self._view(payment, trade),
+            user_id=user_no,
+            store_ids=[store_no for _, store_no in stores],
+            provider_trade_no_masked=_mask_provider_trade_no(payment.provider_trade_no),
+            available_admin_actions=(
+                ["reconcile"] if payment.payment_status in {"created", "pending"} else []
+            ),
         )
 
     async def _view(
@@ -871,6 +1094,26 @@ def _reject_callback(
     callback.error_code = error_code
     callback.last_error = safe_error[:1000]
     callback.version += 1
+
+
+def _reject_confirmation(
+    callback: PaymentCallback | None,
+    now: datetime,
+    error_code: str,
+    safe_error: str,
+) -> None:
+    if callback is not None:
+        _reject_callback(callback, now, error_code, safe_error)
+        return
+    raise _error(409, error_code, "本地交易状态或库存事实不允许应用渠道对账结果。")
+
+
+def _mask_provider_trade_no(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if len(value) <= 8:
+        return "*" * len(value)
+    return f"{value[:4]}{'*' * min(12, len(value) - 8)}{value[-4:]}"
 
 
 def _money(amount: int, currency: str) -> Money:

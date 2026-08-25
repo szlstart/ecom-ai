@@ -74,6 +74,8 @@ describe('phase two route contract', () => {
       ['/admin/inventories', 'ADM-INV-01'],
       ['/admin/orders', 'ADM-ORDER-LIST-01'],
       ['/admin/orders/:orderId', 'ADM-ORDER-01'],
+      ['/admin/payments', 'ADM-PAYMENT-LIST-01'],
+      ['/admin/payments/:paymentId', 'ADM-PAYMENT-01'],
       ['/admin/shipments/:shipmentId', 'ADM-SHIP-02'],
       ['/admin/system/jobs', 'ADM-JOB-LIST-01'],
       ['/admin/system/jobs/:jobId', 'ADM-BATCH-01'],

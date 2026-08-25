@@ -11905,6 +11905,306 @@
         ]
       }
     },
+    "/api/v1/admin/payments": {
+      "get": {
+        "tags": [
+          "payment-administration"
+        ],
+        "summary": "List Payments",
+        "operationId": "AdminPayment_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "payment_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Payment Status"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminPaymentList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "access.AdminPayment_List",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "payments:read"
+        ],
+        "x-requirement-id": [
+          "ADM-PAYMENT-LIST-01"
+        ],
+        "x-scope-policy": [
+          [
+            "payments:read"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-PAYMENT-*"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/{payment_id}": {
+      "get": {
+        "tags": [
+          "payment-administration"
+        ],
+        "summary": "Get Payment",
+        "operationId": "AdminPayment_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Payment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminPaymentView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "access.AdminPayment_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "payments:read"
+        ],
+        "x-requirement-id": [
+          "ADM-PAYMENT-01"
+        ],
+        "x-scope-policy": [
+          [
+            "payments:read",
+            "payments:reconcile"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-PAYMENT-*"
+        ]
+      }
+    },
+    "/api/v1/admin/payments/{payment_id}/reconciliations": {
+      "post": {
+        "tags": [
+          "payment-administration"
+        ],
+        "summary": "Reconcile Payment",
+        "operationId": "AdminPayment_Reconcile",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Payment Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPaymentReconciliationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminPaymentReconciliationResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AdminPayment_Reconcile",
+        "x-domain-command": "AdminPayment_Reconcile",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "payments:reconcile"
+        ],
+        "x-requirement-id": [
+          "ADM-PAYMENT-01"
+        ],
+        "x-scope-policy": [
+          [
+            "payments:read",
+            "payments:reconcile"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-PAYMENT-*"
+        ]
+      }
+    },
     "/api/v1/orders/{order_id}/shipments": {
       "get": {
         "tags": [
@@ -26685,6 +26985,131 @@
         ],
         "title": "AdminOrderSummary"
       },
+      "AdminPaymentList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPaymentView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AdminPaymentList"
+      },
+      "AdminPaymentReconciliationRequest": {
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason_code",
+          "reason"
+        ],
+        "title": "AdminPaymentReconciliationRequest"
+      },
+      "AdminPaymentReconciliationResult": {
+        "properties": {
+          "payment": {
+            "$ref": "#/components/schemas/AdminPaymentView"
+          },
+          "provider_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "succeeded",
+              "failed",
+              "closed"
+            ],
+            "title": "Provider Status"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "no_change",
+              "status_updated"
+            ],
+            "title": "Result"
+          },
+          "reconciled_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Reconciled At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "payment",
+          "provider_status",
+          "result",
+          "reconciled_at"
+        ],
+        "title": "AdminPaymentReconciliationResult"
+      },
+      "AdminPaymentView": {
+        "properties": {
+          "payment": {
+            "$ref": "#/components/schemas/PaymentView"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "store_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Store Ids"
+          },
+          "provider_trade_no_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Trade No Masked"
+          },
+          "available_admin_actions": {
+            "items": {
+              "type": "string",
+              "const": "reconcile"
+            },
+            "type": "array",
+            "title": "Available Admin Actions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "payment",
+          "user_id",
+          "store_ids",
+          "provider_trade_no_masked",
+          "available_admin_actions"
+        ],
+        "title": "AdminPaymentView"
+      },
       "AdminPolicyCommandRequest": {
         "properties": {
           "reason": {
@@ -32860,6 +33285,51 @@
           "data"
         ],
         "title": "Envelope[AdminOrderList]"
+      },
+      "Envelope_AdminPaymentList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminPaymentList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminPaymentList]"
+      },
+      "Envelope_AdminPaymentReconciliationResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminPaymentReconciliationResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminPaymentReconciliationResult]"
+      },
+      "Envelope_AdminPaymentView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminPaymentView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminPaymentView]"
       },
       "Envelope_AdminProductDetail_": {
         "properties": {

@@ -82,3 +82,27 @@ class PaymentWebhookAck(StrictRequest):
 
 class PaymentClosureResult(StrictRequest):
     payment: PaymentView
+
+
+class AdminPaymentView(StrictRequest):
+    payment: PaymentView
+    user_id: str
+    store_ids: list[str]
+    provider_trade_no_masked: str | None
+    available_admin_actions: list[Literal["reconcile"]]
+
+
+class AdminPaymentList(StrictRequest):
+    items: list[AdminPaymentView]
+
+
+class AdminPaymentReconciliationRequest(StrictRequest):
+    reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
+    reason: str = Field(min_length=2, max_length=500)
+
+
+class AdminPaymentReconciliationResult(StrictRequest):
+    payment: AdminPaymentView
+    provider_status: Literal["pending", "succeeded", "failed", "closed"]
+    result: Literal["no_change", "status_updated"]
+    reconciled_at: datetime

@@ -39,3 +39,20 @@ def test_payment_user_operations_are_published() -> None:
         schema["paths"]["/api/v1/payments/{payment_id}/closures"]["post"]["operationId"]
         == "Payment_CloseMine"
     )
+
+
+def test_admin_payment_operations_do_not_accept_a_target_status() -> None:
+    schema = create_app().openapi()
+    expected = {
+        ("/api/v1/admin/payments", "get"): "AdminPayment_List",
+        ("/api/v1/admin/payments/{payment_id}", "get"): "AdminPayment_Get",
+        (
+            "/api/v1/admin/payments/{payment_id}/reconciliations",
+            "post",
+        ): "AdminPayment_Reconcile",
+    }
+    for (path, method), operation_id in expected.items():
+        assert schema["paths"][path][method]["operationId"] == operation_id
+    request_schema = schema["components"]["schemas"]["AdminPaymentReconciliationRequest"]
+    assert set(request_schema["properties"]) == {"reason_code", "reason"}
+    assert "payment_status" not in request_schema["properties"]

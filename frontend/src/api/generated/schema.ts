@@ -2435,6 +2435,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Payments */
+        get: operations["AdminPayment_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments/{payment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Payment */
+        get: operations["AdminPayment_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments/{payment_id}/reconciliations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile Payment */
+        post: operations["AdminPayment_Reconcile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/orders/{order_id}/shipments": {
         parameters: {
             query?: never;
@@ -5256,6 +5307,49 @@ export interface components {
             /** Available Admin Actions */
             available_admin_actions: ("adjust_amount" | "cancel" | "create_shipment")[];
         };
+        /** AdminPaymentList */
+        AdminPaymentList: {
+            /** Items */
+            items: components["schemas"]["AdminPaymentView"][];
+        };
+        /** AdminPaymentReconciliationRequest */
+        AdminPaymentReconciliationRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminPaymentReconciliationResult */
+        AdminPaymentReconciliationResult: {
+            payment: components["schemas"]["AdminPaymentView"];
+            /**
+             * Provider Status
+             * @enum {string}
+             */
+            provider_status: "pending" | "succeeded" | "failed" | "closed";
+            /**
+             * Result
+             * @enum {string}
+             */
+            result: "no_change" | "status_updated";
+            /**
+             * Reconciled At
+             * Format: date-time
+             */
+            reconciled_at: string;
+        };
+        /** AdminPaymentView */
+        AdminPaymentView: {
+            payment: components["schemas"]["PaymentView"];
+            /** User Id */
+            user_id: string;
+            /** Store Ids */
+            store_ids: string[];
+            /** Provider Trade No Masked */
+            provider_trade_no_masked: string | null;
+            /** Available Admin Actions */
+            available_admin_actions: "reconcile"[];
+        };
         /** AdminPolicyCommandRequest */
         AdminPolicyCommandRequest: {
             /** Reason */
@@ -7192,6 +7286,21 @@ export interface components {
         /** Envelope[AdminOrderList] */
         Envelope_AdminOrderList_: {
             data: components["schemas"]["AdminOrderList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminPaymentList] */
+        Envelope_AdminPaymentList_: {
+            data: components["schemas"]["AdminPaymentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminPaymentReconciliationResult] */
+        Envelope_AdminPaymentReconciliationResult_: {
+            data: components["schemas"]["AdminPaymentReconciliationResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminPaymentView] */
+        Envelope_AdminPaymentView_: {
+            data: components["schemas"]["AdminPaymentView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminProductDetail] */
@@ -15982,6 +16091,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_PaymentWebhookAck_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminPayment_List: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                payment_status?: string | null;
+                provider?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPaymentList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminPayment_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPaymentView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminPayment_Reconcile: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPaymentReconciliationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPaymentReconciliationResult_"];
                 };
             };
             /** @description Validation Error */

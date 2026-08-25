@@ -115,6 +115,14 @@ export interface OrderRepurchaseResult {
   cart: CartData
 }
 
+export interface AdminOrderSummary {
+  order: OrderSummary
+  user_id: string
+  user_name_masked: string
+  available_admin_actions: Array<'adjust_amount' | 'cancel' | 'create_shipment'>
+}
+export interface AdminOrderDetail extends AdminOrderSummary { events: OrderEvent[] }
+
 export function listMyOrders(filters: OrderFilters, token: string): Promise<ApiResult<{ items: OrderSummary[] }>> {
   const query = new URLSearchParams({ view: filters.view, limit: String(filters.limit ?? 10) })
   if (filters.q) query.set('q', filters.q)
@@ -151,4 +159,30 @@ export function restoreOrder(result: OrderHideResult, token: string): Promise<Ap
 
 export function repurchaseOrder(orderId: string, cartVersion: number, token: string): Promise<ApiResult<OrderRepurchaseResult>> {
   return apiRequest(`/orders/${encodeURIComponent(orderId)}/repurchases`, { method: 'POST', headers: { 'If-Match': `"v${cartVersion}"`, 'Idempotency-Key': createIdempotencyKey('order-repurchase') } }, token)
+}
+
+export function listAdminOrders(filters: Record<string, string>, token: string): Promise<ApiResult<{ items: AdminOrderSummary[] }>> {
+  const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value))
+  query.set('limit', '100')
+  return apiRequest(`/admin/orders?${query.toString()}`, {}, token)
+}
+
+export function getAdminOrder(orderId: string, token: string): Promise<ApiResult<AdminOrderDetail>> {
+  return apiRequest(`/admin/orders/${encodeURIComponent(orderId)}`, {}, token)
+}
+
+export function adjustAdminOrderAmount(orderId: string, etag: string, adjustmentMinorUnits: string, currency: string, reasonCode: string, reason: string, token: string): Promise<ApiResult<AdminOrderDetail>> {
+  return apiRequest(`/admin/orders/${encodeURIComponent(orderId)}/amount-adjustments`, {
+    method: 'POST',
+    headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey('admin-order-adjust') },
+    body: JSON.stringify({ adjustment_amount: { minor_units: adjustmentMinorUnits, currency }, reason_code: reasonCode, reason }),
+  }, token)
+}
+
+export function cancelAdminOrder(orderId: string, etag: string, reasonCode: string, reason: string, token: string): Promise<ApiResult<AdminOrderDetail>> {
+  return apiRequest(`/admin/orders/${encodeURIComponent(orderId)}/cancellations`, {
+    method: 'POST',
+    headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey('admin-order-cancel') },
+    body: JSON.stringify({ reason_code: reasonCode, reason }),
+  }, token)
 }

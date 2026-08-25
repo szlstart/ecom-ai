@@ -44,6 +44,11 @@ from app.modules.orders.models import (
 )
 from app.modules.orders.repository import OrderRepository
 from app.modules.orders.schemas import (
+    AdminOrderAmountAdjustmentRequest,
+    AdminOrderCancellationRequest,
+    AdminOrderDetail,
+    AdminOrderList,
+    AdminOrderSummary,
     OrderAction,
     OrderActionTarget,
     OrderAddressView,
@@ -66,6 +71,9 @@ from app.modules.orders.schemas import (
     SignedMoney,
     TradeOrderView,
 )
+from app.modules.payments.models import Payment
+from app.modules.rbac.audit import record_admin_operation
+from app.modules.rbac.dependencies import AdminAccess
 from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
 
@@ -428,6 +436,299 @@ class OrderService:
             available_actions=_trade_actions(trade),
             version=trade.version,
         )
+
+    async def admin_list(
+        self,
+        access: AdminAccess,
+        *,
+        query: str | None,
+        order_status: str | None,
+        payment_status: str | None,
+        fulfillment_status: str | None,
+        after_sale_status: str | None,
+        limit: int,
+    ) -> AdminOrderList:
+        normalized_query = query.strip() if query else None
+        rows = await self.repository.admin_orders(
+            scopes=access.scopes,
+            query=normalized_query or None,
+            order_status=order_status,
+            payment_status=payment_status,
+            fulfillment_status=fulfillment_status,
+            after_sale_status=after_sale_status,
+            limit=limit,
+        )
+        order_views = await self._order_views([(row[0], row[1], row[2]) for row in rows])
+        return AdminOrderList(
+            items=[
+                _admin_order_summary(view, row[3])
+                for view, row in zip(order_views, rows, strict=True)
+            ]
+        )
+
+    async def admin_detail(self, access: AdminAccess, order_no: str) -> AdminOrderDetail:
+        row = await self.repository.admin_order(order_no)
+        if row is None:
+            raise _not_found()
+        order, store, trade, user = row
+        access.require_scope("store", store.id)
+        view = (await self._order_views([(order, store, trade)]))[0]
+        return AdminOrderDetail(
+            **_admin_order_summary(view, user).model_dump(),
+            events=[_event_view(event) for event in await self.repository.order_events(order.id)],
+        )
+
+    async def admin_adjust_amount(
+        self,
+        access: AdminAccess,
+        order_no: str,
+        payload: AdminOrderAmountAdjustmentRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminOrderDetail:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:order-adjust:{access.context.user.user_no}:{order_no}",
+            idempotency_key=idempotency_key,
+            payload={"version": expected_version, **payload.model_dump(mode="json")},
+            resource_type="order",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return AdminOrderDetail.model_validate(claim.record.response_body)
+        initial = await self.repository.admin_order(order_no)
+        if initial is None:
+            raise _not_found()
+        access.require_scope("store", initial[1].id)
+        trade = await self.repository.trade_for_update(initial[0].trade_order_id)
+        if trade is None:
+            raise _not_found()
+        orders = await self.repository.trade_orders_for_update(trade.id)
+        order = next((candidate for candidate in orders if candidate.order_no == order_no), None)
+        if order is None:
+            raise _not_found()
+        _require_version(order, expected_version)
+        if (
+            order.order_status != "pending_payment"
+            or order.payment_status != "unpaid"
+            or trade.trade_status != "pending_payment"
+        ):
+            raise _state_conflict(order, "adjust_amount")
+        active_payment = await self.session.scalar(
+            select(Payment.id).where(
+                Payment.trade_order_id == trade.id,
+                Payment.payment_status.in_(("created", "pending")),
+            )
+        )
+        if active_payment is not None:
+            raise _conflict(
+                "ORDER_ADJUSTMENT_BLOCKED_BY_PAYMENT",
+                "交易单存在正在处理或结果未知的支付尝试，不能改价。",
+            )
+        if payload.adjustment_amount.currency != order.currency:
+            raise _conflict("ORDER_CURRENCY_MISMATCH", "调整金额币种与订单不一致。")
+        target_adjustment = int(payload.adjustment_amount.minor_units)
+        if abs(target_adjustment) > 9_000_000_000_000_000:
+            raise _conflict("ORDER_ADJUSTMENT_OUT_OF_RANGE", "调整金额超出允许范围。")
+        items = await self.repository.order_items_for_update(order.id)
+        if not items or order.goods_amount + target_adjustment < 0:
+            raise _conflict(
+                "ORDER_PAYABLE_AMOUNT_INVALID",
+                "调整后商品应付金额不能小于零。",
+            )
+        allocations = _allocate_adjustment(items, target_adjustment)
+        previous_adjustment = order.adjustment_amount
+        previous_payable = order.payable_amount
+        delta = target_adjustment - previous_adjustment
+        for item, allocation in zip(items, allocations, strict=True):
+            item.adjustment_amount = allocation
+            item.payable_amount = item.gross_amount + allocation
+            item.version += 1
+        order.adjustment_amount = target_adjustment
+        order.payable_amount = order.goods_amount + order.freight_amount + target_adjustment
+        order.adjustment_reason_code = payload.reason_code
+        order.adjustment_reason = payload.reason
+        order.adjusted_by = access.context.user.id
+        order.adjusted_at = utc_now()
+        order.version += 1
+        trade.adjustment_amount += delta
+        trade.payable_amount += delta
+        trade.version += 1
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        now = utc_now()
+        self.session.add(
+            OrderStatusLog(
+                order_id=order.id,
+                state_dimension="pricing",
+                from_status=str(previous_adjustment),
+                to_status=str(target_adjustment),
+                event_code="order.amount_adjusted",
+                actor_type="admin",
+                actor_id=access.context.user.id,
+                reason=payload.reason,
+                order_version=order.version,
+                request_id=request_id,
+                trace_id=request_id,
+                created_at=now,
+            )
+        )
+        self.session.add(
+            OrderOperationLog(
+                operation_no=new_prefixed_ulid("oop_"),
+                order_id=order.id,
+                operation_type="admin_adjust_amount",
+                actor_type="admin",
+                actor_id=access.context.user.id,
+                request_payload_hash=canonical_request_hash(payload.model_dump(mode="json")),
+                result_status="success",
+                request_id=request_id,
+                trace_id=request_id,
+            )
+        )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="order.amount_adjusted.v1",
+                aggregate_type="order",
+                aggregate_no=order.order_no,
+                aggregate_version=order.version,
+                payload={
+                    "order_id": order.order_no,
+                    "trade_order_id": trade.trade_no,
+                    "adjustment_amount": str(target_adjustment),
+                    "payable_amount": str(order.payable_amount),
+                    "currency": order.currency,
+                    "reason_code": payload.reason_code,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        record_admin_operation(
+            self.session,
+            access,
+            action="adjust_order_amount",
+            target_type="order",
+            target_no=order.order_no,
+            reason=payload.reason,
+            before={
+                "adjustment_amount": str(previous_adjustment),
+                "payable_amount": str(previous_payable),
+                "version": expected_version,
+            },
+            after={
+                "adjustment_amount": str(target_adjustment),
+                "payable_amount": str(order.payable_amount),
+                "version": order.version,
+                "reason_code": payload.reason_code,
+            },
+            scope_type="store",
+            scope_id=initial[1].id,
+        )
+        await self.session.flush()
+        result = await self.admin_detail(access, order_no)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=order.order_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
+
+    async def admin_cancel(
+        self,
+        access: AdminAccess,
+        order_no: str,
+        payload: AdminOrderCancellationRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminOrderDetail:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:order-cancel:{access.context.user.user_no}:{order_no}",
+            idempotency_key=idempotency_key,
+            payload={"version": expected_version, **payload.model_dump(mode="json")},
+            resource_type="order",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return AdminOrderDetail.model_validate(claim.record.response_body)
+        initial = await self.repository.admin_order(order_no)
+        if initial is None:
+            raise _not_found()
+        for store_id in await self.repository.trade_store_ids(initial[0].trade_order_id):
+            access.require_scope("store", store_id)
+        trade = await self.repository.trade_for_update(initial[0].trade_order_id)
+        if trade is None:
+            raise _not_found()
+        orders = await self.repository.trade_orders_for_update(trade.id)
+        order = next((candidate for candidate in orders if candidate.order_no == order_no), None)
+        if order is None:
+            raise _not_found()
+        _require_version(order, expected_version)
+        if trade.trade_status != "pending_payment" or any(
+            sibling.order_status != "pending_payment" or sibling.payment_status != "unpaid"
+            for sibling in orders
+        ):
+            raise _state_conflict(order, "cancel")
+        active_payment = await self.session.scalar(
+            select(Payment.id).where(
+                Payment.trade_order_id == trade.id,
+                Payment.payment_status.in_(("created", "pending")),
+            )
+        )
+        if active_payment is not None:
+            raise _conflict(
+                "ORDER_CANCELLATION_BLOCKED_BY_PAYMENT",
+                "交易单存在正在处理或结果未知的支付尝试，不能取消。",
+            )
+        reservations = await self.repository.active_reservations_for_orders(
+            [sibling.id for sibling in orders]
+        )
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        self._close_unpaid_trade(
+            trade=trade,
+            orders=orders,
+            reservations=reservations,
+            actor_type="admin",
+            actor_id=access.context.user.id,
+            reason_code=payload.reason_code,
+            reason=payload.reason,
+            event_code="order.admin_cancelled",
+            operation_type="admin_cancel",
+            request_id=request_id,
+            now=utc_now(),
+            request_payload_hash=canonical_request_hash(payload.model_dump(mode="json")),
+        )
+        record_admin_operation(
+            self.session,
+            access,
+            action="cancel_trade_order",
+            target_type="trade_order",
+            target_no=trade.trade_no,
+            reason=payload.reason,
+            before={
+                "trade_status": "pending_payment",
+                "order_ids": [sibling.order_no for sibling in orders],
+                "target_order_version": expected_version,
+            },
+            after={
+                "trade_status": "closed",
+                "order_status": "cancelled",
+                "reason_code": payload.reason_code,
+            },
+            scope_type="store",
+            scope_id=initial[1].id,
+        )
+        await self.session.flush()
+        result = await self.admin_detail(access, order_no)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=order.order_no,
+            response_body=cast(dict[str, object], result.model_dump(mode="json")),
+        )
+        await self.session.commit()
+        return result
 
     async def cancel(
         self,
@@ -1119,6 +1420,51 @@ def _item_view(item: OrderItem, file: FileObject | None) -> OrderItemView:
         review_status=item.review_status,
         after_sale_status=item.after_sale_status,
     )
+
+
+def _admin_order_summary(view: OrderListItem, user: User) -> AdminOrderSummary:
+    actions: list[str] = []
+    if view.order_status == "pending_payment" and view.payment_status == "unpaid":
+        actions.extend(("adjust_amount", "cancel"))
+    if (
+        view.order_status == "pending_shipment"
+        and view.payment_status == "paid"
+        and view.fulfillment_status in {"unfulfilled", "partial"}
+        and view.after_sale_status != "in_progress"
+    ):
+        actions.append("create_shipment")
+    return AdminOrderSummary(
+        order=view,
+        user_id=user.user_no,
+        user_name_masked=_mask_username(user.username),
+        available_admin_actions=cast(Any, actions),
+    )
+
+
+def _mask_username(value: str) -> str:
+    if len(value) <= 2:
+        return value[0] + "*" if value else "*"
+    return value[0] + "*" * min(4, len(value) - 2) + value[-1]
+
+
+def _allocate_adjustment(items: list[OrderItem], target: int) -> list[int]:
+    total = sum(item.gross_amount for item in items)
+    if total <= 0:
+        if target != 0:
+            raise _conflict("ORDER_ADJUSTMENT_UNALLOCATABLE", "订单项金额无法分摊调整额。")
+        return [0 for _ in items]
+    magnitude = abs(target)
+    allocations = [magnitude * item.gross_amount // total for item in items]
+    remainder = magnitude - sum(allocations)
+    for index in range(remainder):
+        allocations[index % len(allocations)] += 1
+    sign = -1 if target < 0 else 1
+    result = [sign * value for value in allocations]
+    if any(
+        item.gross_amount + allocation < 0 for item, allocation in zip(items, result, strict=True)
+    ):
+        raise _conflict("ORDER_ADJUSTMENT_UNALLOCATABLE", "调整额无法安全分摊到订单项。")
+    return result
 
 
 def _policy_snapshot(order: Order, items: list[OrderItem]) -> OrderPolicySnapshot:

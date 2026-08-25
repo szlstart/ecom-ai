@@ -2,7 +2,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.main import create_app
-from app.modules.orders.schemas import OrderCreateRequest
+from app.modules.orders.schemas import AdminOrderAmountAdjustmentRequest, OrderCreateRequest
 
 
 def test_order_create_accepts_only_checkout_identity_and_version() -> None:
@@ -59,3 +59,34 @@ def test_order_list_exposes_the_eight_normative_views() -> None:
         "after_sale",
         "cancelled",
     ]
+
+
+def test_admin_order_operations_are_explicit_resources() -> None:
+    paths = create_app().openapi()["paths"]
+    expected = {
+        ("/api/v1/admin/orders", "get"): "AdminOrder_List",
+        ("/api/v1/admin/orders/{order_id}", "get"): "AdminOrder_Get",
+        (
+            "/api/v1/admin/orders/{order_id}/amount-adjustments",
+            "post",
+        ): "AdminOrder_AdjustAmount",
+        (
+            "/api/v1/admin/orders/{order_id}/cancellations",
+            "post",
+        ): "AdminOrder_Cancel",
+    }
+    for (path, method), operation_id in expected.items():
+        assert paths[path][method]["operationId"] == operation_id
+
+
+def test_admin_order_adjustment_rejects_unknown_fields() -> None:
+    payload = {
+        "adjustment_amount": {"minor_units": "-100", "currency": "CNY"},
+        "reason_code": "MANUAL_PRICE_ADJUSTMENT",
+        "reason": "活动差价人工修正",
+    }
+    assert AdminOrderAmountAdjustmentRequest.model_validate(payload).reason_code
+    with pytest.raises(ValidationError):
+        AdminOrderAmountAdjustmentRequest.model_validate(
+            {**payload, "payable_amount": {"minor_units": "1", "currency": "CNY"}}
+        )

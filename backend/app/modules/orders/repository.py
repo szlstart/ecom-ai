@@ -12,6 +12,7 @@ from app.core.security import utc_now
 from app.modules.cart.models import Cart, CartItem
 from app.modules.catalog.models import Product, ProductImage, ProductSku
 from app.modules.files.models import FileObject
+from app.modules.identity.models import User
 from app.modules.inventory.models import Inventory, InventoryReservation
 from app.modules.orders.models import Order, OrderAddress, OrderItem, OrderStatusLog, TradeOrder
 from app.modules.stores.models import Store
@@ -138,6 +139,87 @@ class OrderRepository:
         if reverse:
             rows.reverse()
         return [(row[0], row[1], row[2]) for row in rows], has_more
+
+    async def admin_orders(
+        self,
+        *,
+        scopes: Sequence[tuple[str, int]],
+        query: str | None,
+        order_status: str | None,
+        payment_status: str | None,
+        fulfillment_status: str | None,
+        after_sale_status: str | None,
+        limit: int,
+    ) -> list[tuple[Order, Store, TradeOrder, User]]:
+        statement = (
+            select(Order, Store, TradeOrder, User)
+            .join(Store, Store.id == Order.store_id)
+            .join(TradeOrder, TradeOrder.id == Order.trade_order_id)
+            .join(User, User.id == Order.user_id)
+        )
+        if ("platform", 0) not in scopes:
+            store_ids = [scope_id for scope_type, scope_id in scopes if scope_type == "store"]
+            if not store_ids:
+                return []
+            statement = statement.where(Order.store_id.in_(store_ids))
+        if query:
+            pattern = f"%{query}%"
+            statement = statement.where(
+                or_(
+                    Order.order_no.like(pattern),
+                    TradeOrder.trade_no.like(pattern),
+                    Store.store_name.like(pattern),
+                    User.user_no.like(pattern),
+                )
+            )
+        if order_status:
+            statement = statement.where(Order.order_status == order_status)
+        if payment_status:
+            statement = statement.where(Order.payment_status == payment_status)
+        if fulfillment_status:
+            statement = statement.where(Order.fulfillment_status == fulfillment_status)
+        if after_sale_status:
+            statement = statement.where(Order.after_sale_status == after_sale_status)
+        rows = (
+            await self.session.execute(
+                statement.order_by(Order.created_at.desc(), Order.id.desc()).limit(limit)
+            )
+        ).all()
+        return [(row[0], row[1], row[2], row[3]) for row in rows]
+
+    async def admin_order(
+        self, order_no: str, *, for_update: bool = False
+    ) -> tuple[Order, Store, TradeOrder, User] | None:
+        statement = (
+            select(Order, Store, TradeOrder, User)
+            .join(Store, Store.id == Order.store_id)
+            .join(TradeOrder, TradeOrder.id == Order.trade_order_id)
+            .join(User, User.id == Order.user_id)
+            .where(Order.order_no == order_no)
+        )
+        if for_update:
+            statement = statement.with_for_update(of=Order)
+        row = (await self.session.execute(statement)).one_or_none()
+        return (row[0], row[1], row[2], row[3]) if row else None
+
+    async def trade_for_update(self, trade_order_id: int) -> TradeOrder | None:
+        return cast(
+            TradeOrder | None,
+            await self.session.scalar(
+                select(TradeOrder).where(TradeOrder.id == trade_order_id).with_for_update()
+            ),
+        )
+
+    async def trade_store_ids(self, trade_order_id: int) -> list[int]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(Order.store_id)
+                    .where(Order.trade_order_id == trade_order_id)
+                    .order_by(Order.store_id)
+                )
+            ).all()
+        )
 
     async def user_order(
         self,
@@ -273,6 +355,18 @@ class OrderRepository:
         for item in rows:
             result.setdefault(item.order_id, []).append(item)
         return result
+
+    async def order_items_for_update(self, order_id: int) -> list[OrderItem]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(OrderItem)
+                    .where(OrderItem.order_id == order_id)
+                    .order_by(OrderItem.id)
+                    .with_for_update()
+                )
+            ).all()
+        )
 
     async def public_files(self, object_keys: set[str]) -> dict[str, FileObject]:
         if not object_keys:

@@ -44,3 +44,10 @@ export function refreshAdminShipment(shipmentId: string, token: string): Promise
     headers: { 'Idempotency-Key': createIdempotencyKey('admin-shipment-refresh') },
   }, token)
 }
+export function createAdminShipment(orderId: string, etag: string, payload: { carrier_code: string; carrier_name: string; tracking_no: string; items: Array<{ order_item_id: string; quantity: number }> }, token: string): Promise<ApiResult<AdminShipmentDetail>> {
+  return apiRequest(`/admin/orders/${encodeURIComponent(orderId)}/shipments`, {
+    method: 'POST',
+    headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey('admin-shipment-create') },
+    body: JSON.stringify(payload),
+  }, token)
+}

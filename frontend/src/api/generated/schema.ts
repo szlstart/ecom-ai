@@ -2282,6 +2282,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Orders */
+        get: operations["AdminOrder_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Order */
+        get: operations["AdminOrder_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{order_id}/amount-adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust Order Amount */
+        post: operations["AdminOrder_AdjustAmount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{order_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Order */
+        post: operations["AdminOrder_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/payments": {
         parameters: {
             query?: never;
@@ -5146,6 +5214,48 @@ export interface components {
                 [key: string]: string | number;
             }[];
         };
+        /** AdminOrderAmountAdjustmentRequest */
+        AdminOrderAmountAdjustmentRequest: {
+            adjustment_amount: components["schemas"]["SignedMoney"];
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminOrderCancellationRequest */
+        AdminOrderCancellationRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminOrderDetail */
+        AdminOrderDetail: {
+            order: components["schemas"]["OrderListItem"];
+            /** User Id */
+            user_id: string;
+            /** User Name Masked */
+            user_name_masked: string;
+            /** Available Admin Actions */
+            available_admin_actions: ("adjust_amount" | "cancel" | "create_shipment")[];
+            /** Events */
+            events: components["schemas"]["OrderEventView"][];
+        };
+        /** AdminOrderList */
+        AdminOrderList: {
+            /** Items */
+            items: components["schemas"]["AdminOrderSummary"][];
+        };
+        /** AdminOrderSummary */
+        AdminOrderSummary: {
+            order: components["schemas"]["OrderListItem"];
+            /** User Id */
+            user_id: string;
+            /** User Name Masked */
+            user_name_masked: string;
+            /** Available Admin Actions */
+            available_admin_actions: ("adjust_amount" | "cancel" | "create_shipment")[];
+        };
         /** AdminPolicyCommandRequest */
         AdminPolicyCommandRequest: {
             /** Reason */
@@ -7072,6 +7182,16 @@ export interface components {
         /** Envelope[AdminNavigation] */
         Envelope_AdminNavigation_: {
             data: components["schemas"]["AdminNavigation"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminOrderDetail] */
+        Envelope_AdminOrderDetail_: {
+            data: components["schemas"]["AdminOrderDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminOrderList] */
+        Envelope_AdminOrderList_: {
+            data: components["schemas"]["AdminOrderList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminProductDetail] */
@@ -15554,6 +15674,149 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_OrderRepurchaseResult_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminOrder_List: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                order_status?: string | null;
+                payment_status?: string | null;
+                fulfillment_status?: string | null;
+                after_sale_status?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminOrderList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminOrder_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminOrderDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminOrder_AdjustAmount: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminOrderAmountAdjustmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminOrderDetail_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminOrder_Cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminOrderCancellationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminOrderDetail_"];
                 };
             };
             /** @description Validation Error */

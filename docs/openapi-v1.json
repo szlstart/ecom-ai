@@ -11073,6 +11073,459 @@
         ]
       }
     },
+    "/api/v1/admin/orders": {
+      "get": {
+        "tags": [
+          "order-administration"
+        ],
+        "summary": "List Orders",
+        "operationId": "AdminOrder_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "order_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Order Status"
+            }
+          },
+          {
+            "name": "payment_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Payment Status"
+            }
+          },
+          {
+            "name": "fulfillment_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Fulfillment Status"
+            }
+          },
+          {
+            "name": "after_sale_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After Sale Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminOrderList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "access.AdminOrder_List",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "orders:read"
+        ],
+        "x-requirement-id": [
+          "ADM-ORDER-LIST-01"
+        ],
+        "x-scope-policy": [
+          [
+            "orders:read"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*"
+        ]
+      }
+    },
+    "/api/v1/admin/orders/{order_id}": {
+      "get": {
+        "tags": [
+          "order-administration"
+        ],
+        "summary": "Get Order",
+        "operationId": "AdminOrder_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminOrderDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "access.AdminOrder_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "orders:read"
+        ],
+        "x-requirement-id": [
+          "ADM-ORDER-01"
+        ],
+        "x-scope-policy": [
+          [
+            "orders:read",
+            "orders:adjust",
+            "orders:cancel",
+            "shipments:create"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-SHIP-CREATE-*"
+        ]
+      }
+    },
+    "/api/v1/admin/orders/{order_id}/amount-adjustments": {
+      "post": {
+        "tags": [
+          "order-administration"
+        ],
+        "summary": "Adjust Order Amount",
+        "operationId": "AdminOrder_AdjustAmount",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminOrderAmountAdjustmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminOrderDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AdminOrder_AdjustAmount",
+        "x-domain-command": "AdminOrder_AdjustAmount",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "orders:adjust"
+        ],
+        "x-requirement-id": [
+          "ADM-ORDER-01"
+        ],
+        "x-scope-policy": [
+          [
+            "orders:read",
+            "orders:adjust",
+            "orders:cancel",
+            "shipments:create"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-SHIP-CREATE-*"
+        ]
+      }
+    },
+    "/api/v1/admin/orders/{order_id}/cancellations": {
+      "post": {
+        "tags": [
+          "order-administration"
+        ],
+        "summary": "Cancel Order",
+        "operationId": "AdminOrder_Cancel",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminOrderCancellationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminOrderDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AdminOrder_Cancel",
+        "x-domain-command": "AdminOrder_Cancel",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "orders:cancel"
+        ],
+        "x-requirement-id": [
+          "ADM-ORDER-01"
+        ],
+        "x-scope-policy": [
+          [
+            "orders:read",
+            "orders:adjust",
+            "orders:cancel",
+            "shipments:create"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-SHIP-CREATE-*"
+        ]
+      }
+    },
     "/api/v1/payments": {
       "post": {
         "tags": [
@@ -26087,6 +26540,151 @@
         ],
         "title": "AdminNavigation"
       },
+      "AdminOrderAmountAdjustmentRequest": {
+        "properties": {
+          "adjustment_amount": {
+            "$ref": "#/components/schemas/SignedMoney"
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "adjustment_amount",
+          "reason_code",
+          "reason"
+        ],
+        "title": "AdminOrderAmountAdjustmentRequest"
+      },
+      "AdminOrderCancellationRequest": {
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason_code",
+          "reason"
+        ],
+        "title": "AdminOrderCancellationRequest"
+      },
+      "AdminOrderDetail": {
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/OrderListItem"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "user_name_masked": {
+            "type": "string",
+            "title": "User Name Masked"
+          },
+          "available_admin_actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "adjust_amount",
+                "cancel",
+                "create_shipment"
+              ]
+            },
+            "type": "array",
+            "title": "Available Admin Actions"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/OrderEventView"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order",
+          "user_id",
+          "user_name_masked",
+          "available_admin_actions",
+          "events"
+        ],
+        "title": "AdminOrderDetail"
+      },
+      "AdminOrderList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminOrderSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AdminOrderList"
+      },
+      "AdminOrderSummary": {
+        "properties": {
+          "order": {
+            "$ref": "#/components/schemas/OrderListItem"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "user_name_masked": {
+            "type": "string",
+            "title": "User Name Masked"
+          },
+          "available_admin_actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "adjust_amount",
+                "cancel",
+                "create_shipment"
+              ]
+            },
+            "type": "array",
+            "title": "Available Admin Actions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order",
+          "user_id",
+          "user_name_masked",
+          "available_admin_actions"
+        ],
+        "title": "AdminOrderSummary"
+      },
       "AdminPolicyCommandRequest": {
         "properties": {
           "reason": {
@@ -32232,6 +32830,36 @@
           "data"
         ],
         "title": "Envelope[AdminNavigation]"
+      },
+      "Envelope_AdminOrderDetail_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminOrderDetail"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminOrderDetail]"
+      },
+      "Envelope_AdminOrderList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminOrderList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminOrderList]"
       },
       "Envelope_AdminProductDetail_": {
         "properties": {

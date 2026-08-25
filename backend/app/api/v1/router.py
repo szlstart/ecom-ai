@@ -23,6 +23,7 @@ from app.modules.logistics.admin_router import router as admin_logistics_router
 from app.modules.logistics.router import router as logistics_router
 from app.modules.messaging.router import router as messaging_router
 from app.modules.messaging.support_router import router as support_router
+from app.modules.orders.admin_router import router as admin_orders_router
 from app.modules.orders.router import router as orders_router
 from app.modules.payments.router import router as payments_router
 from app.modules.rbac.auth_router import router as admin_auth_router
@@ -58,6 +59,7 @@ api_router.include_router(support_realtime_router)
 api_router.include_router(cart_router)
 api_router.include_router(checkout_router)
 api_router.include_router(orders_router)
+api_router.include_router(admin_orders_router)
 api_router.include_router(payments_router)
 api_router.include_router(logistics_router)
 api_router.include_router(knowledge_router)

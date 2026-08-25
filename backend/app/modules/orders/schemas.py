@@ -208,3 +208,29 @@ class OrderRepurchaseResult(StrictRequest):
     unavailable_items: list[RepurchaseUnavailableItem]
     requires_reselection: bool
     cart: CartView
+
+
+class AdminOrderSummary(StrictRequest):
+    order: OrderListItem
+    user_id: str
+    user_name_masked: str
+    available_admin_actions: list[Literal["adjust_amount", "cancel", "create_shipment"]]
+
+
+class AdminOrderList(StrictRequest):
+    items: list[AdminOrderSummary]
+
+
+class AdminOrderDetail(AdminOrderSummary):
+    events: list[OrderEventView]
+
+
+class AdminOrderAmountAdjustmentRequest(StrictRequest):
+    adjustment_amount: SignedMoney
+    reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
+    reason: str = Field(min_length=2, max_length=500)
+
+
+class AdminOrderCancellationRequest(StrictRequest):
+    reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
+    reason: str = Field(min_length=2, max_length=500)

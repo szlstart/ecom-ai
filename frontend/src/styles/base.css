@@ -380,6 +380,9 @@ tr.selected td { background: #f0f4ff; }
 .internal-note-list { display: grid; gap: 10px; }
 .internal-note-list p { margin: 0; white-space: pre-wrap; }
 .internal-note-editor { padding: 14px; border: 1px dashed #b9c5e8; border-radius: 12px; background: #f8faff; }
+.system-state { width: min(680px, calc(100% - 32px)); margin: clamp(48px, 12vh, 120px) auto; padding: clamp(28px, 6vw, 56px); display: grid; gap: 16px; text-align: center; border: 1px solid #dfe4ed; border-radius: 20px; background: #fff; box-shadow: 0 18px 50px rgb(31 45 78 / 10%); }
+.system-state h1, .system-state p { margin: 0; }
+.system-state .actions { justify-content: center; margin-top: 8px; }
 
 @media (max-width: 720px) {
   .nav-links span { display: none; }

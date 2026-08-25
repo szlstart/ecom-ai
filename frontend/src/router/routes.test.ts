@@ -16,6 +16,7 @@ describe('phase two route contract', () => {
       ['/me', 'USR-ME-01'],
       ['/me/profile', 'USR-PROFILE-01'],
       ['/me/settings/security', 'USR-SECURITY-01'],
+      ['/me/settings/ai-personalization', 'USR-AI-PRIVACY-01'],
       ['/me/settings/account-closure', 'USR-CLOSURE-01'],
       ['/me/addresses', 'USR-ADDRESS-01'],
     ])
@@ -130,5 +131,14 @@ describe('phase two route contract', () => {
     expect(routes.get('/help')?.meta.requirementId).toBe('USR-CONTENT-01')
     expect(routes.get('/help/:contentKey')?.meta.requirementId).toBe('USR-CONTENT-02')
     expect(routes.get('/about')?.meta.requirementId).toBe('USR-CONTENT-03')
+  })
+
+  it('registers deterministic recovery routes', () => {
+    const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
+    expect(routes.get('/403')?.meta.requirementId).toBe('USR-SYSTEM-403')
+    expect(routes.get('/gone')?.meta.requirementId).toBe('USR-SYSTEM-GONE')
+    expect(routes.get('/error')?.meta.requirementId).toBe('USR-SYSTEM-ERROR')
+    expect(routes.get('/maintenance')?.meta.requirementId).toBe('USR-SYSTEM-MAINT')
+    expect(routes.get('/:pathMatch(.*)*')?.meta.requirementId).toBe('USR-SYSTEM-404')
   })
 })

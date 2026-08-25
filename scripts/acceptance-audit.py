@@ -46,7 +46,26 @@ def openapi_operations() -> dict[str, tuple[str, str, dict[str, Any]]]:
 def frontend_routes() -> list[tuple[str, str]]:
     source = (ROOT / "frontend/src/router/index.ts").read_text(encoding="utf-8")
     route_pattern = re.compile(r"^\s*\{\s*path:\s*'([^']+)'.*requirementId:\s*'([^']+)'", re.MULTILINE)
-    return [(path, requirement_id) for path, requirement_id in route_pattern.findall(source)]
+    result: list[tuple[str, str]] = []
+    parent_path: str | None = None
+    for line in source.splitlines():
+        match = route_pattern.match(line)
+        if match is None:
+            continue
+        path, requirement_id = match.groups()
+        indentation = len(line) - len(line.lstrip())
+        if indentation == 2 and line.rstrip().endswith("children: ["):
+            parent_path = path
+        elif indentation == 2:
+            parent_path = None
+        normalized_path = path
+        if indentation == 4 and parent_path is not None:
+            if parent_path == "/":
+                normalized_path = "/" + path.lstrip("/")
+            else:
+                normalized_path = parent_path.rstrip("/") + "/" + path.lstrip("/")
+        result.append((normalized_path, requirement_id))
+    return result
 
 
 def component_exists(component: str) -> bool:
@@ -124,6 +143,20 @@ def audit() -> dict[str, Any]:
         findings.append(
             Finding("TRACE_ROUTE_NOT_IMPLEMENTED", "error", requirement_id, "missing from Vue router")
         )
+    trace_path_by_requirement = {
+        route["requirement_id"]: route["route"] for route in routes
+    }
+    for path, requirement_id in router_entries:
+        expected_path = trace_path_by_requirement.get(requirement_id)
+        if expected_path is not None and path != expected_path:
+            findings.append(
+                Finding(
+                    "ROUTER_PATH_MISMATCH",
+                    "error",
+                    requirement_id,
+                    f"router={path}; traceability={expected_path}",
+                )
+            )
 
     owner_rows = [*routes, *global_components]
     owners_by_operation: dict[str, list[str]] = {}

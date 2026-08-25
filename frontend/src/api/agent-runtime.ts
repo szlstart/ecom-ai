@@ -30,6 +30,30 @@ export function listAgentConsents(token: string): Promise<ApiResult<{ items: Age
   return apiRequest('/users/me/agent-consents', {}, token)
 }
 
+export function grantPersonalizationConsent(token: string): Promise<ApiResult<AgentConsent>> {
+  return apiRequest('/users/me/agent-consents', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': createIdempotencyKey('personalization-consent') },
+    body: JSON.stringify({
+      consent_type: 'personalization',
+      scope_type: 'user',
+      scope_id: null,
+      policy_version: 'ai-personalization-v1',
+      expires_at: null,
+    }),
+  }, token)
+}
+
+export function changeAgentConsent(
+  consentId: string,
+  command: 'pauses' | 'resumes' | 'revocations',
+  token: string,
+): Promise<ApiResult<AgentConsent>> {
+  return apiRequest(`/users/me/agent-consents/${encodeURIComponent(consentId)}/${command}`, {
+    method: 'POST',
+  }, token)
+}
+
 export function grantAfterSaleAgentConsent(
   token: string,
   expiresAt: string,
@@ -51,9 +75,7 @@ export function revokeAgentConsent(
   consentId: string,
   token: string,
 ): Promise<ApiResult<AgentConsent>> {
-  return apiRequest(`/users/me/agent-consents/${encodeURIComponent(consentId)}/revocations`, {
-    method: 'POST',
-  }, token)
+  return changeAgentConsent(consentId, 'revocations', token)
 }
 
 export function getAgentToolApproval(

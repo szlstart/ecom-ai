@@ -243,7 +243,10 @@ class PaymentService:
         if trade is None:
             raise _not_found()
         payments = await self.repository.for_trade(user.id, trade_no)
-        return PaymentList(items=[await self._view(item, trade) for item in payments])
+        events = await self.repository.events_for_payments([item.id for item in payments])
+        return PaymentList(
+            items=[self._payment_view(item, trade, events.get(item.id, [])) for item in payments]
+        )
 
     async def admin_list(
         self,
@@ -262,8 +265,23 @@ class PaymentService:
             provider=provider,
             limit=limit,
         )
+        stores_by_trade = await self.repository.trade_stores_for_trades(
+            [trade.id for _, trade in rows]
+        )
+        users = await self.repository.user_nos([payment.user_id for payment, _ in rows])
+        events = await self.repository.events_for_payments([payment.id for payment, _ in rows])
         return AdminPaymentList(
-            items=[await self._admin_view(access, payment, trade) for payment, trade in rows]
+            items=[
+                self._admin_payment_view(
+                    access,
+                    payment,
+                    trade,
+                    stores_by_trade.get(trade.id, []),
+                    users.get(payment.user_id),
+                    events.get(payment.id, []),
+                )
+                for payment, trade in rows
+            ]
         )
 
     async def admin_detail(self, access: AdminAccess, payment_no: str) -> AdminPaymentView:
@@ -950,10 +968,24 @@ class PaymentService:
         for store_id, _ in stores:
             access.require_scope("store", store_id)
         user_no = await self.repository.user_no(payment.user_id)
+        events = await self.repository.events(payment.id)
+        return self._admin_payment_view(access, payment, trade, stores, user_no, events)
+
+    def _admin_payment_view(
+        self,
+        access: AdminAccess,
+        payment: Payment,
+        trade: TradeOrder,
+        stores: list[tuple[int, str]],
+        user_no: str | None,
+        events: list[PaymentEvent],
+    ) -> AdminPaymentView:
+        for store_id, _ in stores:
+            access.require_scope("store", store_id)
         if user_no is None:
             raise _not_found()
         return AdminPaymentView(
-            payment=await self._view(payment, trade),
+            payment=self._payment_view(payment, trade, events),
             user_id=user_no,
             store_ids=[store_no for _, store_no in stores],
             provider_trade_no_masked=_mask_provider_trade_no(payment.provider_trade_no),
@@ -970,6 +1002,16 @@ class PaymentService:
         action: PaymentAction | None = None,
     ) -> PaymentView:
         events = await self.repository.events(payment.id)
+        return self._payment_view(payment, trade, events, action=action)
+
+    def _payment_view(
+        self,
+        payment: Payment,
+        trade: TradeOrder,
+        events: list[PaymentEvent],
+        *,
+        action: PaymentAction | None = None,
+    ) -> PaymentView:
         return PaymentView(
             payment_id=payment.payment_no,
             trade_order_id=trade.trade_no,

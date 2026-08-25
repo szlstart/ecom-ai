@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Sequence
 from datetime import datetime
 from typing import cast
@@ -8,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.identity.models import User
 from app.modules.orders.models import Order, TradeOrder
 from app.modules.payments.models import Payment, PaymentCallback, PaymentEvent
+from app.modules.stores.models import Store
 
 
 class PaymentRepository:
@@ -159,8 +161,6 @@ class PaymentRepository:
         return (row[0], row[1]) if row else None
 
     async def trade_stores(self, trade_order_id: int) -> list[tuple[int, str]]:
-        from app.modules.stores.models import Store
-
         rows = (
             await self.session.execute(
                 select(Store.id, Store.store_no)
@@ -172,11 +172,40 @@ class PaymentRepository:
         ).all()
         return [(row[0], row[1]) for row in rows]
 
+    async def trade_stores_for_trades(
+        self, trade_order_ids: Sequence[int]
+    ) -> dict[int, list[tuple[int, str]]]:
+        if not trade_order_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(Order.trade_order_id, Store.id, Store.store_no)
+                .join(Store, Order.store_id == Store.id)
+                .where(Order.trade_order_id.in_(trade_order_ids))
+                .distinct()
+                .order_by(Order.trade_order_id, Store.id)
+            )
+        ).all()
+        grouped: defaultdict[int, list[tuple[int, str]]] = defaultdict(list)
+        for trade_order_id, store_id, store_no in rows:
+            grouped[trade_order_id].append((store_id, store_no))
+        return dict(grouped)
+
     async def user_no(self, user_id: int) -> str | None:
         return cast(
             str | None,
             await self.session.scalar(select(User.user_no).where(User.id == user_id)),
         )
+
+    async def user_nos(self, user_ids: Sequence[int]) -> dict[int, str]:
+        if not user_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(User.id, User.user_no).where(User.id.in_(user_ids))
+            )
+        ).all()
+        return {user_id: user_no for user_id, user_no in rows}
 
     async def events(self, payment_id: int) -> list[PaymentEvent]:
         return list(
@@ -188,6 +217,25 @@ class PaymentRepository:
                 )
             ).all()
         )
+
+    async def events_for_payments(
+        self, payment_ids: Sequence[int]
+    ) -> dict[int, list[PaymentEvent]]:
+        if not payment_ids:
+            return {}
+        rows = list(
+            (
+                await self.session.scalars(
+                    select(PaymentEvent)
+                    .where(PaymentEvent.payment_id.in_(payment_ids))
+                    .order_by(PaymentEvent.payment_id, PaymentEvent.created_at, PaymentEvent.id)
+                )
+            ).all()
+        )
+        grouped: defaultdict[int, list[PaymentEvent]] = defaultdict(list)
+        for event in rows:
+            grouped[event.payment_id].append(event)
+        return dict(grouped)
 
     async def callback_by_provider_event(
         self, provider: str, provider_event_id: str

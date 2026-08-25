@@ -34,6 +34,7 @@ from app.modules.knowledge.schemas import (
     ToolCreate,
     ToolList,
     ToolVersionCreate,
+    ToolVersionSummary,
     ToolView,
     VersionBindingView,
 )
@@ -492,6 +493,14 @@ class KnowledgeAdminService:
             items=[_tool_view(item, await self._tool_versions(item.id)) for item in rows]
         )
 
+    async def tool(self, tool_code: str) -> ToolView:
+        item = await self.session.scalar(
+            select(ToolDefinition).where(ToolDefinition.tool_code == tool_code)
+        )
+        if item is None:
+            raise _not_found()
+        return _tool_view(item, await self._tool_versions(item.id))
+
     async def create_tool(self, access: AdminAccess, payload: ToolCreate) -> ToolView:
         try:
             deployed_server = server_for_tool(payload.tool_code)
@@ -591,6 +600,59 @@ class KnowledgeAdminService:
         await self.session.commit()
         return _tool_view(tool, await self._tool_versions(tool.id))
 
+    async def rollback_tool(
+        self, access: AdminAccess, tool_code: str, target_version_no: int
+    ) -> ToolView:
+        tool = await self.session.scalar(
+            select(ToolDefinition)
+            .where(ToolDefinition.tool_code == tool_code)
+            .with_for_update()
+        )
+        if tool is None:
+            raise _not_found()
+        versions = list(
+            (
+                await self.session.scalars(
+                    select(ToolVersion)
+                    .where(ToolVersion.tool_id == tool.id)
+                    .order_by(ToolVersion.version_no)
+                    .with_for_update()
+                )
+            ).all()
+        )
+        target = next(
+            (item for item in versions if item.version_no == target_version_no), None
+        )
+        current = next(
+            (item for item in versions if item.version_status == "published"), None
+        )
+        if (
+            target is None
+            or current is None
+            or target.id == current.id
+            or target.version_status != "retired"
+            or not bool(target.evaluation_report.get("passed"))
+        ):
+            raise _conflict("TOOL_VERSION_NOT_ROLLBACKABLE")
+        current.version_status = "retired"
+        current.version += 1
+        target.version_status = "published"
+        target.published_at = utc_now()
+        target.version += 1
+        tool.tool_status = "active"
+        tool.version += 1
+        record_admin_operation(
+            self.session,
+            access,
+            action="tool.version.rollback",
+            target_type="tool",
+            target_no=tool.tool_code,
+            before={"published_version": current.version_no},
+            after={"published_version": target.version_no},
+        )
+        await self.session.commit()
+        return _tool_view(tool, versions)
+
     async def _skill_view(self, item: SkillDefinition) -> SkillView:
         versions = list(
             (
@@ -641,6 +703,17 @@ def _tool_view(item: ToolDefinition, versions: list[ToolVersion] | None = None) 
         published_version=next(
             (v.version_no for v in reversed(versions) if v.version_status == "published"), None
         ),
+        versions=[
+            ToolVersionSummary(
+                version_no=version.version_no,
+                status=version.version_status,
+                input_schema=version.input_schema,
+                output_schema=version.output_schema,
+                evaluation_report=version.evaluation_report,
+                published_at=version.published_at,
+            )
+            for version in reversed(versions)
+        ],
     )
 
 

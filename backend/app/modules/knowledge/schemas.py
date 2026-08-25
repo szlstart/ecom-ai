@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import Field
 
 from app.api.schemas import StrictRequest
@@ -92,12 +94,22 @@ class ToolVersionCreate(StrictRequest):
     evaluation_report: dict[str, object]
 
 
+class ToolVersionSummary(StrictRequest):
+    version_no: int
+    status: str
+    input_schema: dict[str, object]
+    output_schema: dict[str, object]
+    evaluation_report: dict[str, object]
+    published_at: datetime | None
+
+
 class ToolView(ToolCreate):
     input_schema: dict[str, object] | None = None
     output_schema: dict[str, object] | None = None
     status: str
     latest_version: int | None = None
     published_version: int | None = None
+    versions: list[ToolVersionSummary] = Field(default_factory=list)
 
 
 class ToolList(StrictRequest):

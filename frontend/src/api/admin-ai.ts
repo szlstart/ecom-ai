@@ -47,6 +47,16 @@ export interface ToolSummary {
   status: string
   latest_version: number | null
   published_version: number | null
+  versions: ToolVersionSummary[]
+}
+
+export interface ToolVersionSummary {
+  version_no: number
+  status: string
+  input_schema: Record<string, unknown>
+  output_schema: Record<string, unknown>
+  evaluation_report: Record<string, unknown>
+  published_at: string | null
 }
 
 export interface McpServerSummary {
@@ -160,6 +170,8 @@ export const publishSkillVersion = (id: string, version: number, token: string) 
     token,
   )
 export const listTools = (token: string) => get<{ items: ToolSummary[] }>('/admin/ai/tools', token)
+export const getTool = (code: string, token: string) =>
+  get<ToolSummary>(`/admin/ai/tools/${encodeURIComponent(code)}`, token)
 export const createTool = (
   payload: { tool_code: string; server_code: string; risk_level: string },
   token: string,
@@ -173,6 +185,12 @@ export const publishToolVersion = (code: string, version: number, token: string)
   apiRequest<ApprovalRequired>(
     `/admin/ai/tools/${encodeURIComponent(code)}/versions/${version}/publications`,
     { method: 'POST', headers: { 'Idempotency-Key': createIdempotencyKey('tool-publish') }, body: '{}' },
+    token,
+  )
+export const rollbackToolVersion = (code: string, version: number, token: string) =>
+  apiRequest<ApprovalRequired>(
+    `/admin/ai/tools/${encodeURIComponent(code)}/versions/${version}/rollbacks`,
+    { method: 'POST', headers: { 'Idempotency-Key': createIdempotencyKey('tool-rollback') }, body: '{}' },
     token,
   )
 export const listMcpServers = (token: string) =>

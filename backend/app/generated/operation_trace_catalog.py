@@ -1656,6 +1656,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [["stores:read", "stores:manage"]],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
+    "AdminToolVersion_Rollback": {
+        "x-audit-event": "command.AdminToolVersion_Rollback",
+        "x-domain-command": "AdminToolVersion_Rollback",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": ["ai_tools:publish"],
+        "x-requirement-id": ["ADM-AI-01"],
+        "x-scope-policy": [["ai_tools:read", "ai_tools:manage", "ai_tools:publish"]],
+        "x-test-case-ids": ["ADM-TOOL-*"],
+    },
     "AdminTool_Create": {
         "x-audit-event": "command.AdminTool_Create",
         "x-domain-command": "AdminTool_Create",
@@ -1664,6 +1674,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["ai_tools:manage"],
         "x-requirement-id": ["ADM-AI-TOOL-LIST-01"],
         "x-scope-policy": [["ai_tools:read", "ai_tools:manage"]],
+        "x-test-case-ids": ["ADM-TOOL-*"],
+    },
+    "AdminTool_Get": {
+        "x-audit-event": "access.AdminTool_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": ["ai_tools:read"],
+        "x-requirement-id": ["ADM-AI-01"],
+        "x-scope-policy": [["ai_tools:read", "ai_tools:manage", "ai_tools:publish"]],
         "x-test-case-ids": ["ADM-TOOL-*"],
     },
     "AdminTool_List": {

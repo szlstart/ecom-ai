@@ -207,6 +207,70 @@ class AiPublicationService:
             idempotency_key=idempotency_key,
         )
 
+    async def request_tool_rollback(
+        self,
+        access: AdminAccess,
+        tool_code: str,
+        target_version_no: int,
+        idempotency_key: str,
+    ) -> ApprovalRequiredView:
+        rows = list(
+            (
+                await self.session.execute(
+                    select(ToolDefinition, ToolVersion)
+                    .join(ToolVersion, ToolVersion.tool_id == ToolDefinition.id)
+                    .where(ToolDefinition.tool_code == tool_code)
+                    .order_by(ToolVersion.version_no)
+                    .with_for_update()
+                )
+            ).all()
+        )
+        if not rows:
+            raise _not_publishable()
+        tool = rows[0][0]
+        versions = [row[1] for row in rows]
+        target = next(
+            (item for item in versions if item.version_no == target_version_no), None
+        )
+        current = next(
+            (item for item in versions if item.version_status == "published"), None
+        )
+        if (
+            target is None
+            or current is None
+            or target.id == current.id
+            or target.version_status != "retired"
+            or not bool(target.evaluation_report.get("passed"))
+            or not _schemas_are_safe(target.input_schema, target.output_schema)
+        ):
+            raise _not_publishable()
+        return await self._request(
+            access,
+            action_code="ai.tool.rollback.v1",
+            target_type="ai_tool_version",
+            target_no=f"{tool.tool_code}:v{target.version_no}",
+            command_payload={
+                "tool_code": tool.tool_code,
+                "target_version_no": target.version_no,
+                "current_version_no": current.version_no,
+            },
+            display_snapshot={
+                "tool_code": tool.tool_code,
+                "server_code": tool.server_code,
+                "risk_level": tool.risk_level,
+                "from_version_no": current.version_no,
+                "to_version_no": target.version_no,
+                "impact": "原子切换新 Run 使用的 Tool Contract，历史版本正文保持不可变",
+                "evaluation_passed": True,
+            },
+            resource_versions={
+                "definition": tool.version,
+                "target_tool_version": target.version,
+                "current_tool_version": current.version,
+            },
+            idempotency_key=idempotency_key,
+        )
+
     async def _request(
         self,
         access: AdminAccess,

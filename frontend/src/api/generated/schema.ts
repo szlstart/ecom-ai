@@ -2745,6 +2745,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/ai/tools/{tool_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tool */
+        get: operations["AdminTool_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ai/tools/{tool_code}/versions": {
         parameters: {
             query?: never;
@@ -2773,6 +2790,23 @@ export interface paths {
         put?: never;
         /** Publish Tool */
         post: operations["AdminTool_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/tools/{tool_code}/versions/{version_no}/rollbacks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rollback Tool Version */
+        post: operations["AdminToolVersion_Rollback"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10415,6 +10449,27 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** ToolVersionSummary */
+        ToolVersionSummary: {
+            /** Version No */
+            version_no: number;
+            /** Status */
+            status: string;
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Output Schema */
+            output_schema: {
+                [key: string]: unknown;
+            };
+            /** Evaluation Report */
+            evaluation_report: {
+                [key: string]: unknown;
+            };
+            /** Published At */
+            published_at: string | null;
+        };
         /** ToolView */
         ToolView: {
             /** Tool Code */
@@ -10437,6 +10492,8 @@ export interface components {
             latest_version?: number | null;
             /** Published Version */
             published_version?: number | null;
+            /** Versions */
+            versions?: components["schemas"]["ToolVersionSummary"][];
         };
         /** TradeOrderView */
         TradeOrderView: {
@@ -16409,6 +16466,37 @@ export interface operations {
             };
         };
     };
+    AdminTool_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ToolView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     AdminTool_VersionCreate: {
         parameters: {
             query?: never;
@@ -16445,6 +16533,40 @@ export interface operations {
         };
     };
     AdminTool_Publish: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                tool_code: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminToolVersion_Rollback: {
         parameters: {
             query?: never;
             header: {

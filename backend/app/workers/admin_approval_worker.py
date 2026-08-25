@@ -58,6 +58,7 @@ class AdminApprovalWorker:
                 "after_sale.refund_appeal.decide.v1": self._execute_appeal_decision,
                 "ai.skill.publish.v1": self._execute_skill_publication,
                 "ai.tool.publish.v1": self._execute_tool_publication,
+                "ai.tool.rollback.v1": self._execute_tool_rollback,
                 "ai.agent.publish.v1": self._execute_agent_publication,
             },
         )
@@ -253,6 +254,58 @@ class AdminApprovalWorker:
             access, tool_code, version_no
         )
         return ApprovalExecutionResult(resource_type="ai_tool_version", resource_no=tool_code)
+
+    async def _execute_tool_rollback(
+        self,
+        raw_payload: dict[str, object],
+        approval: AdminApprovalRequest,
+    ) -> ApprovalExecutionResult:
+        tool_code = raw_payload.get("tool_code")
+        target_version_no = raw_payload.get("target_version_no")
+        current_version_no = raw_payload.get("current_version_no")
+        if (
+            not isinstance(tool_code, str)
+            or not isinstance(target_version_no, int)
+            or not isinstance(current_version_no, int)
+        ):
+            raise _invalid_command()
+        rows = list(
+            (
+                await self.session.execute(
+                    select(ToolDefinition, ToolVersion)
+                    .join(ToolVersion, ToolVersion.tool_id == ToolDefinition.id)
+                    .where(
+                        ToolDefinition.tool_code == tool_code,
+                        ToolVersion.version_no.in_([target_version_no, current_version_no]),
+                    )
+                    .with_for_update()
+                )
+            ).all()
+        )
+        versions = {row[1].version_no: row[1] for row in rows}
+        if len(rows) != 2:
+            raise _invalid_command()
+        tool = rows[0][0]
+        target = versions[target_version_no]
+        current = versions[current_version_no]
+        if (
+            current.version_status != "published"
+            or target.version_status != "retired"
+            or approval.resource_versions
+            != {
+                "definition": tool.version,
+                "target_tool_version": target.version,
+                "current_tool_version": current.version,
+            }
+        ):
+            raise _invalid_command()
+        access = await self._initiator_access(approval)
+        await KnowledgeAdminService(self.session).rollback_tool(
+            access, tool_code, target_version_no
+        )
+        return ApprovalExecutionResult(
+            resource_type="ai_tool_version", resource_no=f"{tool_code}:v{target_version_no}"
+        )
 
     async def _initiator_access(self, approval: AdminApprovalRequest) -> AdminAccess:
         now = utc_now()

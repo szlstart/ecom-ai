@@ -21,6 +21,10 @@ def test_skill_and_tool_governance_contracts_are_published() -> None:
             "post": "AdminSkill_Publish"
         },
         "/api/v1/admin/ai/tools": {"get": "AdminTool_List", "post": "AdminTool_Create"},
+        "/api/v1/admin/ai/tools/{tool_code}": {"get": "AdminTool_Get"},
+        "/api/v1/admin/ai/tools/{tool_code}/versions/{version_no}/rollbacks": {
+            "post": "AdminToolVersion_Rollback"
+        },
         "/api/v1/admin/ai/agents": {"get": "AdminAgent_List"},
         "/api/v1/admin/ai/kill-switches": {"get": "AdminAiKillSwitch_List"},
         "/api/v1/admin/knowledge/documents": {
@@ -47,8 +51,26 @@ def test_ai_publication_contracts_require_idempotency_and_return_approval_resour
         paths["/api/v1/admin/ai/agents/{agent_id}/versions/{version_no}/publications"][
             "post"
         ],
+        paths["/api/v1/admin/ai/tools/{tool_code}/versions/{version_no}/rollbacks"][
+            "post"
+        ],
     )
     for operation in operations:
         assert operation["responses"]["202"]
         parameters = {(item["in"], item["name"]) for item in operation["parameters"]}
         assert ("header", "Idempotency-Key") in parameters
+
+
+def test_tool_detail_exposes_immutable_version_history() -> None:
+    schema = create_app().openapi()["components"]["schemas"]
+    tool = schema["ToolView"]
+    assert "versions" in tool["properties"]
+    version = schema["ToolVersionSummary"]
+    assert {
+        "version_no",
+        "status",
+        "input_schema",
+        "output_schema",
+        "evaluation_report",
+        "published_at",
+    } <= set(version["properties"])

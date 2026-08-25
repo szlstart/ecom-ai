@@ -13358,6 +13358,75 @@
         ]
       }
     },
+    "/api/v1/admin/ai/tools/{tool_code}": {
+      "get": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Get Tool",
+        "operationId": "AdminTool_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tool_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ToolView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "access.AdminTool_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "ai_tools:read"
+        ],
+        "x-requirement-id": [
+          "ADM-AI-01"
+        ],
+        "x-scope-policy": [
+          [
+            "ai_tools:read",
+            "ai_tools:manage",
+            "ai_tools:publish"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-TOOL-*"
+        ]
+      }
+    },
     "/api/v1/admin/ai/tools/{tool_code}/versions": {
       "post": {
         "tags": [
@@ -13504,6 +13573,95 @@
         },
         "x-audit-event": "command.AdminTool_Publish",
         "x-domain-command": "AdminTool_Publish",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "ai_tools:publish"
+        ],
+        "x-requirement-id": [
+          "ADM-AI-01"
+        ],
+        "x-scope-policy": [
+          [
+            "ai_tools:read",
+            "ai_tools:manage",
+            "ai_tools:publish"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-TOOL-*"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/tools/{tool_code}/versions/{version_no}/rollbacks": {
+      "post": {
+        "tags": [
+          "ai-governance"
+        ],
+        "summary": "Rollback Tool Version",
+        "operationId": "AdminToolVersion_Rollback",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tool_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool Code"
+            }
+          },
+          {
+            "name": "version_no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version No"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ApprovalRequiredView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AdminToolVersion_Rollback",
+        "x-domain-command": "AdminToolVersion_Rollback",
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": [
           "vue_route"
@@ -41760,6 +41918,56 @@
         ],
         "title": "ToolVersionCreate"
       },
+      "ToolVersionSummary": {
+        "properties": {
+          "version_no": {
+            "type": "integer",
+            "title": "Version No"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "input_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Schema"
+          },
+          "output_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Output Schema"
+          },
+          "evaluation_report": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evaluation Report"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version_no",
+          "status",
+          "input_schema",
+          "output_schema",
+          "evaluation_report",
+          "published_at"
+        ],
+        "title": "ToolVersionSummary"
+      },
       "ToolView": {
         "properties": {
           "tool_code": {
@@ -41826,6 +42034,13 @@
               }
             ],
             "title": "Published Version"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ToolVersionSummary"
+            },
+            "type": "array",
+            "title": "Versions"
           }
         },
         "additionalProperties": false,

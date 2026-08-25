@@ -502,6 +502,23 @@ async def create_tool(
     return Envelope(data=result)
 
 
+@ai_router.get(
+    "/tools/{tool_code}",
+    response_model=Envelope[ToolView],
+    operation_id="AdminTool_Get",
+)
+async def get_tool(
+    tool_code: str,
+    response: Response,
+    session: DatabaseSession,
+    access: Annotated[AdminAccess, require_admin_permission("ai_tools:read")],
+) -> Envelope[ToolView]:
+    _ = access
+    result = await KnowledgeAdminService(session).tool(tool_code)
+    _no_store(response)
+    return Envelope(data=result)
+
+
 @ai_router.post(
     "/tools/{tool_code}/versions",
     response_model=Envelope[ToolView],
@@ -539,5 +556,29 @@ async def publish_tool(
     result = await AiPublicationService(session, get_settings(), security).request_tool(
         access, tool_code, version_no, idempotency_key
     )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@ai_router.post(
+    "/tools/{tool_code}/versions/{version_no}/rollbacks",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=Envelope[ApprovalRequiredView],
+    operation_id="AdminToolVersion_Rollback",
+)
+async def rollback_tool_version(
+    tool_code: str,
+    version_no: int,
+    response: Response,
+    session: DatabaseSession,
+    access: Annotated[AdminAccess, require_admin_permission("ai_tools:publish")],
+    idempotency_key: Annotated[
+        str, Header(alias="Idempotency-Key", min_length=16, max_length=128)
+    ],
+    security: Annotated[SecurityService, Depends(get_security_service)],
+) -> Envelope[ApprovalRequiredView]:
+    result = await AiPublicationService(
+        session, get_settings(), security
+    ).request_tool_rollback(access, tool_code, version_no, idempotency_key)
     _no_store(response)
     return Envelope(data=result)

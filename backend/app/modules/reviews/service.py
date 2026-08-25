@@ -96,7 +96,7 @@ class ReviewService:
             review_status=review_status,
             limit=limit,
         )
-        return AdminReviewList(items=[await self._admin_view(row) for row in rows])
+        return AdminReviewList(items=await self._admin_views(rows))
 
     async def admin_detail(self, access: AdminAccess, review_no: str) -> AdminReviewView:
         row = await self.repository.admin_review_detail(review_no)
@@ -758,10 +758,16 @@ class ReviewService:
     async def _admin_view(
         self,
         row: tuple[Review, Order, OrderItem, User, Product, ProductSku, Store],
+        *,
+        reply: ReviewReply | None = None,
+        history: list[ReviewGovernanceRecord] | None = None,
+        preloaded: bool = False,
     ) -> AdminReviewView:
         review, order, item, user, product, sku, store = row
-        reply = await self.repository.reply_for_review(review.id)
-        history = await self.repository.governance_history(review.id)
+        if not preloaded:
+            reply = await self.repository.reply_for_review(review.id)
+            history = await self.repository.governance_history(review.id)
+        assert history is not None
         return AdminReviewView(
             review_id=review.review_no,
             order_id=order.order_no,
@@ -803,6 +809,23 @@ class ReviewService:
             published_at=review.published_at,
             version=review.version,
         )
+
+    async def _admin_views(
+        self,
+        rows: list[tuple[Review, Order, OrderItem, User, Product, ProductSku, Store]],
+    ) -> list[AdminReviewView]:
+        review_ids = [row[0].id for row in rows]
+        replies = await self.repository.replies(review_ids)
+        histories = await self.repository.governance_histories(review_ids)
+        return [
+            await self._admin_view(
+                row,
+                reply=replies.get(row[0].id),
+                history=histories.get(row[0].id, []),
+                preloaded=True,
+            )
+            for row in rows
+        ]
 
     async def _public_detail(
         self,

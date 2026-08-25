@@ -148,6 +148,29 @@ class ReviewRepository:
             ).all()
         )
 
+    async def governance_histories(
+        self, review_ids: Sequence[int]
+    ) -> dict[int, list[ReviewGovernanceRecord]]:
+        if not review_ids:
+            return {}
+        rows = list(
+            (
+                await self.session.scalars(
+                    select(ReviewGovernanceRecord)
+                    .where(ReviewGovernanceRecord.review_id.in_(review_ids))
+                    .order_by(
+                        ReviewGovernanceRecord.review_id,
+                        ReviewGovernanceRecord.created_at,
+                        ReviewGovernanceRecord.id,
+                    )
+                )
+            ).all()
+        )
+        result: dict[int, list[ReviewGovernanceRecord]] = {}
+        for row in rows:
+            result.setdefault(row.review_id, []).append(row)
+        return result
+
     async def user_pending_items(
         self,
         *,

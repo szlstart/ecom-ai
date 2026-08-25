@@ -377,7 +377,7 @@ class MessagingService:
             if store is None:
                 raise _not_found()
             title, store_no = store.store_name, store.store_no
-        return await self._view(conversation, title, store_no)
+        return await self._view(conversation, title, store_no, include_contexts=True)
 
     async def messages(
         self, user: User, conversation_no: str, limit: int, after_sequence: int = 0
@@ -976,7 +976,12 @@ class MessagingService:
         )
 
     async def _view(
-        self, conversation: Conversation, title: str, store_no: str | None
+        self,
+        conversation: Conversation,
+        title: str,
+        store_no: str | None,
+        *,
+        include_contexts: bool = False,
     ) -> ConversationView:
         cursor = await self.repository.read_cursor(conversation.id, conversation.user_id)
         last_message = await self.repository.last_visible_message(conversation)
@@ -997,6 +1002,14 @@ class MessagingService:
             last_sequence_no=conversation.last_sequence_no,
             unread_count=await self.repository.unread_count(conversation.id, last_read),
             version=conversation.version,
+            active_contexts=(
+                [
+                    _context_view(item)
+                    for item in await self.repository.active_contexts(conversation.id)
+                ]
+                if include_contexts
+                else []
+            ),
         )
 
     async def _total_unread(self, user_id: int) -> int:

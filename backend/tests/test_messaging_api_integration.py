@@ -141,6 +141,7 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
         f"/api/v1/conversations/{store_conversation_no}", headers=headers
     )
     assert store_detail.status_code == 200
+    assert store_detail.json()["data"]["active_contexts"] == [context.json()["data"]]
     current_store_version = store_detail.json()["data"]["version"]
     cleared = await client.delete(
         f"/api/v1/conversations/{store_conversation_no}/contexts/store",

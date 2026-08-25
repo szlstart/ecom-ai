@@ -67,6 +67,7 @@ const feedbackComposer = ref<{
   comment: string
 } | null>(null)
 const conversationId = computed(() => String(route.params.conversationId))
+const activeContext = computed(() => conversation.value?.active_contexts.find((item) => item.status === 'active') ?? null)
 const activeAfterSaleConsent = computed(() => agentConsents.value.find((item) => (
   item.consent_type === 'after_sale_write'
   && item.scope_type === 'user'
@@ -92,6 +93,15 @@ function token(): string {
 }
 function senderLabel(value: ChatMessage['sender_type']): string {
   return ({ user: '我', agent: '智能客服', human: '人工客服', system: '系统', tool: '服务结果' } as Record<string, string>)[value] ?? value
+}
+function contextLabel(context: NonNullable<typeof activeContext.value>): string {
+  const snapshot = context.display_snapshot
+  if (context.context_type === 'order') return `正在咨询订单 ${String(snapshot.order_id ?? context.resource_id)}`
+  if (context.context_type === 'product') return `正在咨询商品 ${String(snapshot.name ?? context.resource_id)}`
+  if (context.context_type === 'refund') return `正在咨询售后 ${String(snapshot.refund_id ?? context.resource_id)}`
+  if (context.context_type === 'shipment') return `正在咨询物流 ${String(snapshot.shipment_id ?? context.resource_id)}`
+  if (context.context_type === 'store') return `正在咨询店铺 ${String(snapshot.store_name ?? context.resource_id)}`
+  return '正在咨询本次结算中的店铺商品'
 }
 function timeLabel(value: string): string {
   return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(apiDate(value))
@@ -539,6 +549,10 @@ onBeforeUnmount(() => {
     <p v-if="humanNotice" class="alert success" role="status">{{ humanNotice }}</p>
     <p v-if="consentNotice" class="alert success" role="status">{{ consentNotice }}</p>
     <p v-if="feedbackNotice" class="alert success" role="status">{{ feedbackNotice }}</p>
+    <p v-if="activeContext" class="alert info conversation-context" role="status">
+      <strong>{{ contextLabel(activeContext) }}</strong>
+      <span>客服回答与工具调用将绑定此上下文版本 v{{ activeContext.context_version }}。</span>
+    </p>
     <section v-if="conversation?.conversation_type === 'exclusive'" class="agent-consent-card" aria-labelledby="after-sale-consent-heading">
       <div>
         <strong id="after-sale-consent-heading">专属客服售后协助授权</strong>

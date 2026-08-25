@@ -13,6 +13,7 @@ export interface Conversation {
   last_sequence_no: number
   unread_count: number
   version: number
+  active_contexts: ConversationContext[]
 }
 
 export interface ConversationContext {

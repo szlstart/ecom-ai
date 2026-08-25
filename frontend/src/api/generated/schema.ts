@@ -7517,6 +7517,8 @@ export interface components {
             unread_count: number;
             /** Version */
             version: number;
+            /** Active Contexts */
+            active_contexts?: components["schemas"]["ConversationContextView"][];
         };
         /** DeadLetterList */
         DeadLetterList: {

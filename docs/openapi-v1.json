@@ -34179,6 +34179,13 @@
           "version": {
             "type": "integer",
             "title": "Version"
+          },
+          "active_contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationContextView"
+            },
+            "type": "array",
+            "title": "Active Contexts"
           }
         },
         "additionalProperties": false,

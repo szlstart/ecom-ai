@@ -8889,7 +8889,7 @@ DTO 必须使用不同 Pydantic Response Model/OpenAPI Schema 和 `operationId`�
 | 方法 | 路径 | 访问者 | 用途与关键规则 |
 | --- | --- | --- | --- |
 | `GET` | `/conversations` | 用户 | 获取当前用户会话列表；Cursor 分页；专属客服作为独立固定项说明 |
-| `GET` | `/conversations/{conversation_id}` | 会话所属用户 | 获取用户投影的会话元数据、当前模式、业务上下文、未读数与 ETag |
+| `GET` | `/conversations/{conversation_id}` | 会话所属用户 | 获取用户投影的会话元数据、当前模式、`active_contexts`、未读数与 ETag；上下文只返回经校验的最小展示快照、资源/上下文版本与过期时间，供输入区提示咨询对象，不代替工具调用时的实时鉴权 |
 | `GET` | `/conversations/{conversation_id}/messages` | 会话所属用户 | 按 3.11.13 获取用户可见消息历史；支持 `before/after/limit` |
 | `POST` | `/conversations/{conversation_id}/messages` | 会话所属用户 | 以 `sender_type=user` 发送文本、图片/文件、商品卡片、订单卡片；幂等，请求含 `client_message_id` |
 | `PUT` | `/conversations/{conversation_id}/read-cursor` | 会话所属用户 | 提交已实际可见的 `last_read_message_id + last_read_sequence_no`；服务端校验同会话并单调推进，返回绝对会话/总未读数和 `cursor_version`，较旧位点幂等无变化 |

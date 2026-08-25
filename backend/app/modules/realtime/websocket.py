@@ -129,7 +129,10 @@ async def realtime_websocket(websocket: WebSocket) -> None:
             elif isinstance(error, _ProtocolError):
                 await _safe_close(websocket, 1008, "invalid client frame")
             elif isinstance(error, WebSocketDisconnect):
-                await _safe_close(websocket, error.code, "connection closed")
+                # The peer has already completed (or abandoned) the close handshake.
+                # Sending a second close frame raises WebSocketDisconnect with real
+                # browsers and turns an ordinary navigation into an ASGI traceback.
+                pass
             elif error is not None:
                 await _safe_close(websocket, 1011, "realtime connection failed")
     except (RedisError, _RealtimeDependencyError):
@@ -365,5 +368,5 @@ def _instance_connections_key(settings: Settings) -> str:
 async def _safe_close(websocket: WebSocket, code: int, reason: str) -> None:
     try:
         await websocket.close(code=code, reason=reason)
-    except RuntimeError:
+    except (RuntimeError, WebSocketDisconnect):
         return

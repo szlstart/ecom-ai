@@ -458,7 +458,10 @@ class OrderService:
             after_sale_status=after_sale_status,
             limit=limit,
         )
-        order_views = await self._order_views([(row[0], row[1], row[2]) for row in rows])
+        order_views = await self._order_views(
+            [(row[0], row[1], row[2]) for row in rows],
+            include_contact_store=False,
+        )
         return AdminOrderList(
             items=[
                 _admin_order_summary(view, row[3])
@@ -472,7 +475,12 @@ class OrderService:
             raise _not_found()
         order, store, trade, user = row
         access.require_scope("store", store.id)
-        view = (await self._order_views([(order, store, trade)]))[0]
+        view = (
+            await self._order_views(
+                [(order, store, trade)],
+                include_contact_store=False,
+            )
+        )[0]
         return AdminOrderDetail(
             **_admin_order_summary(view, user).model_dump(),
             events=[_event_view(event) for event in await self.repository.order_events(order.id)],
@@ -1207,7 +1215,10 @@ class OrderService:
         return result
 
     async def _order_views(
-        self, rows: list[tuple[Order, Store, TradeOrder]]
+        self,
+        rows: list[tuple[Order, Store, TradeOrder]],
+        *,
+        include_contact_store: bool = True,
     ) -> list[OrderListItem]:
         order_ids = [order.id for order, _, _ in rows]
         items_by_order = await self.repository.order_items(order_ids)
@@ -1250,7 +1261,12 @@ class OrderService:
                     amounts=_amounts(order),
                     created_at=order.created_at,
                     expires_at=order.expires_at,
-                    available_actions=_order_actions(order, trade, items),
+                    available_actions=_order_actions(
+                        order,
+                        trade,
+                        items,
+                        include_contact_store=include_contact_store,
+                    ),
                     version=order.version,
                 )
             )
@@ -1504,6 +1520,8 @@ def _order_actions(
     order: Order,
     trade: TradeOrder,
     items: list[OrderItem],
+    *,
+    include_contact_store: bool = True,
 ) -> list[OrderAction]:
     routes = {
         "pay": ("payment-cashier", {"tradeOrderId": trade.trade_no}, False),
@@ -1528,6 +1546,14 @@ def _order_actions(
     for code in available_action_codes(_policy_snapshot(order, items), utc_now()):
         route, params, confirmation = routes[code]
         result.append(_route_action(code, route, params, confirmation=confirmation))
+    if include_contact_store:
+        result.append(
+            _route_action(
+                "contact_store",
+                "messages",
+                {},
+            )
+        )
     return result
 
 

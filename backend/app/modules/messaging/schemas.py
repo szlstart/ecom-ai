@@ -21,6 +21,7 @@ class ConversationView(StrictRequest):
     last_sequence_no: int
     unread_count: int
     version: int
+    active_contexts: list[ConversationContextView] = Field(default_factory=list)
 
 
 class ConversationList(StrictRequest):

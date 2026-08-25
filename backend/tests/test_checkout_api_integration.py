@@ -688,6 +688,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert [action["code"] for action in first_body["data"]["items"][0]["available_actions"]] == [
         "pay",
         "cancel_order",
+        "contact_store",
     ]
     dashboard = await client.get("/api/v1/users/me/dashboard", headers=auth)
     assert dashboard.status_code == 200, dashboard.text
@@ -756,6 +757,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert [action["code"] for action in cancelled_data["order"]["available_actions"]] == [
         "delete_order",
         "repurchase",
+        "contact_store",
     ]
     cancellation_replay = await client.post(
         f"/api/v1/orders/{selected_order_id}/cancellations",
@@ -2378,7 +2380,9 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert timeout_payment.status_code == 201
     timeout_payment_data = timeout_payment.json()["data"]
     processing_order = await client.get(f"/api/v1/orders/{timeout_order_id}", headers=auth)
-    assert [action["code"] for action in processing_order.json()["data"]["available_actions"]] == []
+    assert [action["code"] for action in processing_order.json()["data"]["available_actions"]] == [
+        "contact_store"
+    ]
     stale_close = await client.post(
         f"/api/v1/payments/{timeout_payment_data['payment_id']}/closures",
         headers={
@@ -2402,6 +2406,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert [action["code"] for action in payable_again.json()["data"]["available_actions"]] == [
         "pay",
         "cancel_order",
+        "contact_store",
     ]
     close_replay = await client.post(
         f"/api/v1/payments/{timeout_payment_data['payment_id']}/closures",

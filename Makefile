@@ -33,7 +33,11 @@ test:
 	cd frontend && pnpm test
 
 acceptance-test:
-	mkdir -p artifacts/acceptance/current/quality
+	mkdir -p artifacts/acceptance/current/quality artifacts/acceptance/current/database
+	cd backend && $(PYTHON) -m alembic -c alembic.mysql.ini current > ../artifacts/acceptance/current/database/mysql-schema-drift.txt
+	cd backend && $(PYTHON) -m alembic -c alembic.mysql.ini check >> ../artifacts/acceptance/current/database/mysql-schema-drift.txt 2>&1
+	cd backend && $(PYTHON) -m alembic -c alembic.postgres.ini current > ../artifacts/acceptance/current/database/postgres-schema-drift.txt
+	cd backend && $(PYTHON) -m alembic -c alembic.postgres.ini check >> ../artifacts/acceptance/current/database/postgres-schema-drift.txt 2>&1
 	cd backend && ECOM_RUN_INTEGRATION_TESTS=1 $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/quality/backend-junit.xml --cov=app --cov-fail-under=60 --cov-report=term:skip-covered --cov-report=xml:../artifacts/acceptance/current/quality/backend-coverage.xml
 	cd frontend && pnpm test --reporter=junit --outputFile=../artifacts/acceptance/current/quality/frontend-junit.xml
 

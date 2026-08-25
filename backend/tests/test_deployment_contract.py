@@ -44,6 +44,9 @@ def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     assert "--cov-fail-under=60" in makefile
     assert "backend-junit.xml" in makefile
     assert "frontend-junit.xml" in makefile
+    assert "mysql-schema-drift.txt" in makefile
+    assert "postgres-schema-drift.txt" in makefile
+    assert makefile.count("alembic") >= 4
 
 
 def test_release_images_are_scanned_attested_and_keyless_signed() -> None:

@@ -8,7 +8,7 @@
 
 全部仓库内缺口修复后，CI 使用 `make acceptance-gate` 执行严格检查。生产等价压测、备份恢复、PITR、对象复制、镜像签名、真实模型评估和负责人签字属于环境证据，按 `docs/runbooks/release-go-no-go.md` 收集，不得用脚本存在或模拟输出替代。
 
-`make acceptance-test` 会强制启用真实 MySQL/PostgreSQL/Redis 集成套件，并把后端覆盖率 XML 写入 `artifacts/acceptance/current/quality/`。当前仓库门禁为后端行覆盖率不低于 60%；它只用于阻止证据退化，不能替代逐流程、并发、安全、浏览器和环境验收。
+`make acceptance-test` 会先对 MySQL/PostgreSQL 执行 `alembic current/check`，把版本与 ORM/Schema Drift 结果写入 `artifacts/acceptance/current/database/*-schema-drift.txt`，再强制启用真实 MySQL/PostgreSQL/Redis 集成套件并把后端覆盖率 XML 写入 `artifacts/acceptance/current/quality/`。数据库集成用例同时验证 MySQL `READ COMMITTED` 与全部 `DATETIME(6)` 时间列。当前仓库门禁为后端行覆盖率不低于 60%；它只用于阻止证据退化，不能替代目标数据量迁移、Query Plan、加密备份、PITR、隔离恢复和生产最小权限验收。
 
 `docs/test_evidence_registry.yaml` 把追踪矩阵中的测试族绑定到精确的 Pytest/Vitest 选择器，并声明证据层级。`make acceptance-gate` 会解析测试源文件，拒绝不存在或已改名的选择器、未知/孤立测试族，以及没有测试归属的领域聚合；仅在 OpenAPI 中填写 `*-*` 标签不再被视为测试证据。CI 的验收工件同时保存后端和前端 JUnit 报告。
 

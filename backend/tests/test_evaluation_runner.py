@@ -35,6 +35,30 @@ def test_cli_persists_insufficient_evidence_report(tmp_path: Path) -> None:
         "insufficient_evidence"
     )
 
+    evidence_only = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/evaluate-agent.py"),
+            str(ROOT / "eval/golden.json"),
+            "--allow-missing-observations",
+            "--output",
+            str(output),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert evidence_only.returncode == 0
+    assert json.loads(output.read_text(encoding="utf-8")) == {
+        "case_count": 40,
+        "dataset_id": "ecom-ai-release-holdout",
+        "dataset_sha256": "baa725b2d44bf84bb3b2edb5919f43ec82d985d6192fac1435f08f70b78707cf",
+        "dataset_version": "2026.08.25-v1",
+        "reasons": ["observations_missing"],
+        "release_gate": "insufficient_evidence",
+    }
+
 
 ROOT = Path(__file__).resolve().parents[2]
 

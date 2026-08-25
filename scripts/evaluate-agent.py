@@ -19,6 +19,11 @@ def main() -> int:
     parser.add_argument("dataset", type=Path)
     parser.add_argument("--observations", type=Path)
     parser.add_argument("--require-significant-gain", action="store_true")
+    parser.add_argument(
+        "--allow-missing-observations",
+        action="store_true",
+        help="return success only for the explicit no-observations insufficient-evidence report",
+    )
     parser.add_argument("--output", type=Path)
     arguments = parser.parse_args()
 
@@ -39,7 +44,16 @@ def main() -> int:
         arguments.output.write_text(rendered, encoding="utf-8")
     else:
         sys.stdout.write(rendered)
-    return 0 if report["release_gate"] == "pass" else 2
+    if report["release_gate"] == "pass":
+        return 0
+    if (
+        arguments.allow_missing_observations
+        and arguments.observations is None
+        and report["release_gate"] == "insufficient_evidence"
+        and report.get("reasons") == ["observations_missing"]
+    ):
+        return 0
+    return 2
 
 
 if __name__ == "__main__":

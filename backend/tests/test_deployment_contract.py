@@ -47,6 +47,10 @@ def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     assert "mysql-schema-drift.txt" in makefile
     assert "postgres-schema-drift.txt" in makefile
     assert makefile.count("alembic") >= 4
+    assert "agent-security-test" in makefile
+    assert "security-tests.xml" in makefile
+    assert "--allow-missing-observations" in makefile
+    assert "evaluation-report.json" in makefile
 
 
 def test_release_images_are_scanned_attested_and_keyless_signed() -> None:

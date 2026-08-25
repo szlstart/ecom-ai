@@ -12,6 +12,8 @@
 
 `docs/test_evidence_registry.yaml` 把追踪矩阵中的测试族绑定到精确的 Pytest/Vitest 选择器，并声明证据层级。`make acceptance-gate` 会解析测试源文件，拒绝不存在或已改名的选择器、未知/孤立测试族，以及没有测试归属的领域聚合；仅在 OpenAPI 中填写 `*-*` 标签不再被视为测试证据。CI 的验收工件同时保存后端和前端 JUnit 报告。
 
+同一验收命令还会单独执行 Prompt Injection、跨用户/跨店、Consent/Approval、RAG ACL 和记忆隔离安全套件并生成 `agent/security-tests.xml`。未提供真实候选模型 Observation 时仍生成 `agent/evaluation-report.json`，但其结论必须精确为 `insufficient_evidence / observations_missing`；`--allow-missing-observations` 只允许 CI 保存这一 Fail-Closed 事实，不会把它改写为 `pass`。提供候选 Observation 的正式准入仍使用不带该参数的 `make evaluate-agent AGENT_OBSERVATIONS=...`。
+
 ## 证据最小结构
 
 每个发布版本的证据目录至少包含：

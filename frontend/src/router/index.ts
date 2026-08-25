@@ -78,6 +78,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'categories', component: () => import('@/pages/admin/AdminCategoryPage.vue'), meta: { ...adminMeta, title: '平台分类', requirementId: 'ADM-CATEGORY-01', requiredPermission: 'catalog_taxonomy:manage' } },
     { path: 'brands', component: () => import('@/pages/admin/AdminBrandPage.vue'), meta: { ...adminMeta, title: '品牌管理', requirementId: 'ADM-BRAND-01', requiredPermission: 'catalog_taxonomy:manage' } },
     { path: 'inventories', component: () => import('@/pages/admin/AdminInventoryPage.vue'), meta: { ...adminMeta, title: '库存管理', requirementId: 'ADM-INV-01', requiredPermission: 'inventories:read' } },
+    { path: 'shipments/:shipmentId', component: () => import('@/pages/admin/AdminShipmentDetailPage.vue'), meta: { ...adminMeta, title: '物流包裹详情', requirementId: 'ADM-SHIP-02', requiredPermission: 'shipments:read' } },
     { path: 'refund-applications', component: () => import('@/pages/admin/AdminRefundListPage.vue'), meta: { ...adminMeta, title: '退款申请', requirementId: 'ADM-REFUND-LIST-01', requiredPermission: 'refunds:read' } },
     { path: 'refund-applications/:refundId', component: () => import('@/pages/admin/AdminRefundDetailPage.vue'), meta: { ...adminMeta, title: '退款审核', requirementId: 'ADM-REFUND-01', requiredPermission: 'refunds:read' } },
     { path: 'refund-appeals', component: () => import('@/pages/admin/AdminRefundAppealListPage.vue'), meta: { ...adminMeta, title: '退款申诉', requirementId: 'ADM-APPEAL-LIST-01', requiredPermission: 'refund_appeals:read' } },

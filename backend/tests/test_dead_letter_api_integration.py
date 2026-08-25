@@ -135,8 +135,10 @@ async def test_dead_letter_preview_requires_immutable_payload_and_dual_control(
     assert replay.json()["data"]["required_approval_count"] == 2
 
     async for session in mysql_session():
-        source = await session.scalar(select(OutboxEvent).where(OutboxEvent.event_no == source_no))
-        dead = await session.scalar(
+        loaded_source = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.event_no == source_no)
+        )
+        loaded_dead = await session.scalar(
             select(DeadLetterEvent).where(DeadLetterEvent.dead_letter_no == dead_no)
         )
         approval = await session.scalar(
@@ -144,8 +146,12 @@ async def test_dead_letter_preview_requires_immutable_payload_and_dual_control(
                 AdminApprovalRequest.approval_request_no == approval_no
             )
         )
-        assert source is not None and source.event_status == "failed"
-        assert dead is not None and dead.dead_status == "open" and dead.replay_count == 0
+        assert loaded_source is not None and loaded_source.event_status == "failed"
+        assert (
+            loaded_dead is not None
+            and loaded_dead.dead_status == "open"
+            and loaded_dead.replay_count == 0
+        )
         assert approval is not None
         assert approval.action_code == "events.dead_letter.replay.v1"
         assert approval.required_approval_count == 2

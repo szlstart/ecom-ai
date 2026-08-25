@@ -137,7 +137,7 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
     disable_task = disabled.json()["data"]
 
     async for session in mysql_session():
-        consent = await session.scalar(
+        loaded_consent = await session.scalar(
             select(UserAgentConsent).where(UserAgentConsent.consent_no == consent_no)
         )
         task = await session.scalar(
@@ -145,7 +145,7 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
                 AiMemoryCleanupTask.task_no == disable_task["cleanup_task_id"]
             )
         )
-        assert consent is not None and consent.consent_status == "revoked"
+        assert loaded_consent is not None and loaded_consent.consent_status == "revoked"
         assert task is not None
         task.task_status = "failed"
         task.failed_count = 1
@@ -172,7 +172,7 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
     for _ in range(20):
         await process_one()
         async for session in mysql_session():
-            statuses = set(
+            cleanup_statuses = set(
                 (
                     await session.scalars(
                         select(AiMemoryCleanupTask.task_status).where(
@@ -183,12 +183,12 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
                     )
                 ).all()
             )
-        if statuses == {"succeeded"}:
+        if cleanup_statuses == {"succeeded"}:
             break
-    assert statuses == {"succeeded"}
+    assert cleanup_statuses == {"succeeded"}
 
     async for postgres in postgres_session():
-        statuses = (
+        memory_status_rows = (
             await postgres.execute(
                 text(
                     "SELECT memory_no,memory_status FROM memory.items "
@@ -197,8 +197,9 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
                 {"user_no": user_no, "old_no": memory_no, "new_no": revised_memory["memory_id"]},
             )
         ).all()
-        assert dict(statuses)[memory_no] == "superseded"
-        assert dict(statuses)[revised_memory["memory_id"]] == "deleted"
+        memory_statuses = {str(row[0]): str(row[1]) for row in memory_status_rows}
+        assert memory_statuses[memory_no] == "superseded"
+        assert memory_statuses[revised_memory["memory_id"]] == "deleted"
         ciphertext = await postgres.scalar(
             text("SELECT content_ciphertext FROM memory.items WHERE memory_no=:memory_no"),
             {"memory_no": revised_memory["memory_id"]},

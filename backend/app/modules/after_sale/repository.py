@@ -89,6 +89,28 @@ class AfterSaleRepository:
         ).all()
         return [(row[0], row[1]) for row in rows]
 
+    async def items_for_refunds(
+        self, refund_ids: Sequence[int]
+    ) -> list[tuple[RefundItem, OrderItem]]:
+        if not refund_ids:
+            return []
+        rows = (
+            await self.session.execute(
+                select(RefundItem, OrderItem)
+                .join(OrderItem, OrderItem.id == RefundItem.order_item_id)
+                .where(RefundItem.refund_id.in_(refund_ids))
+                .order_by(RefundItem.refund_id, RefundItem.id)
+            )
+        ).all()
+        return [(row[0], row[1]) for row in rows]
+
+    async def orders_by_ids(self, order_ids: Sequence[int]) -> list[Order]:
+        if not order_ids:
+            return []
+        return list(
+            (await self.session.scalars(select(Order).where(Order.id.in_(order_ids)))).all()
+        )
+
     async def events(self, refund_id: int) -> list[RefundEvent]:
         return list(
             (

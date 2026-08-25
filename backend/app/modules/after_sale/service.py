@@ -305,7 +305,7 @@ class AfterSaleService:
         self, user: User, limit: int = 20
     ) -> tuple[RefundApplicationList, PaginationMeta]:
         rows = await self.repository.applications(user.id, limit)
-        return RefundApplicationList(items=[await self._view(row) for row in rows]), PaginationMeta(
+        return RefundApplicationList(items=await self._views(rows)), PaginationMeta(
             limit=limit, has_next=len(rows) == limit
         )
 
@@ -448,7 +448,7 @@ class AfterSaleService:
 
     async def admin_list(self, access: AdminAccess, limit: int) -> AdminRefundList:
         rows = await self.repository.admin_applications(limit, access.scopes)
-        return AdminRefundList(items=[await self._view(item) for item in rows])
+        return AdminRefundList(items=await self._views(rows))
 
     async def admin_appeal_list(self, access: AdminAccess, limit: int) -> AdminRefundAppealList:
         if ("platform", 0) not in access.scopes:
@@ -1319,14 +1319,41 @@ class AfterSaleService:
             version=refund.version,
         )
 
-    async def _view(self, refund: RefundApplication) -> RefundApplicationView:
-        items = await self.repository.items_for_refund(refund.id)
+    async def _views(self, refunds: list[RefundApplication]) -> list[RefundApplicationView]:
+        orders = {
+            order.id: order
+            for order in await self.repository.orders_by_ids([item.order_id for item in refunds])
+        }
+        item_groups: dict[int, list[tuple[RefundItem, OrderItem]]] = {}
+        for refund_item, order_item in await self.repository.items_for_refunds(
+            [item.id for item in refunds]
+        ):
+            item_groups.setdefault(refund_item.refund_id, []).append((refund_item, order_item))
+        return [
+            await self._view(
+                refund,
+                order=orders.get(refund.order_id),
+                items=item_groups.get(refund.id, []),
+            )
+            for refund in refunds
+        ]
+
+    async def _view(
+        self,
+        refund: RefundApplication,
+        *,
+        order: Order | None = None,
+        items: list[tuple[RefundItem, OrderItem]] | None = None,
+    ) -> RefundApplicationView:
+        if items is None:
+            items = await self.repository.items_for_refund(refund.id)
         actions: list[str] = ["view_events"]
         if refund.refund_status in {"submitted", "merchant_review"}:
             actions.insert(0, "cancel")
         if refund.refund_status == "rejected":
             actions.extend(["create_refund_appeal", "create_new_refund_application"])
-        order = await self.session.get(Order, refund.order_id)
+        if order is None:
+            order = await self.session.get(Order, refund.order_id)
         if order is None:
             raise _not_found()
         return RefundApplicationView(

@@ -265,9 +265,11 @@ class CatalogService:
 
     async def categories(self) -> list[CategoryView]:
         rows = await self.repository.categories()
+        icons = await self.repository.public_files_by_object_keys(
+            [row.icon_object_key for row in rows]
+        )
         views: dict[int, CategoryView] = {}
         for row in rows:
-            icon = await self.repository.public_file_by_object_key(row.icon_object_key)
             views[row.id] = CategoryView(
                 category_id=row.category_no,
                 parent_id=None,
@@ -275,7 +277,7 @@ class CatalogService:
                 category_code=row.category_code,
                 level=row.level,
                 sort_order=row.sort_order,
-                icon_url=_file_url(icon),
+                icon_url=_file_url(icons.get(row.icon_object_key or "")),
             )
         roots: list[CategoryView] = []
         for row in rows:
@@ -289,23 +291,29 @@ class CatalogService:
         return roots
 
     async def brands(self, q: str | None, limit: int) -> list[BrandView]:
+        rows = await self.repository.brands(q.strip() if q else None, limit)
+        logos = await self.repository.public_files_by_object_keys(
+            [row.logo_object_key for row in rows]
+        )
         items: list[BrandView] = []
-        for row in await self.repository.brands(q.strip() if q else None, limit):
-            logo = await self.repository.public_file_by_object_key(row.logo_object_key)
+        for row in rows:
             items.append(
                 BrandView(
                     brand_id=row.brand_no,
                     brand_name=row.brand_name,
-                    logo_url=_file_url(logo),
+                    logo_url=_file_url(logos.get(row.logo_object_key or "")),
                     description=row.description,
                 )
             )
         return items
 
     async def homepage_categories(self, limit: int = 10) -> list[CategoryView]:
+        rows = await self.repository.homepage_categories(limit)
+        icons = await self.repository.public_files_by_object_keys(
+            [row.icon_object_key for row in rows]
+        )
         items: list[CategoryView] = []
-        for row in await self.repository.homepage_categories(limit):
-            icon = await self.repository.public_file_by_object_key(row.icon_object_key)
+        for row in rows:
             items.append(
                 CategoryView(
                     category_id=row.category_no,
@@ -314,7 +322,7 @@ class CatalogService:
                     category_code=row.category_code,
                     level=row.level,
                     sort_order=row.sort_order,
-                    icon_url=_file_url(icon),
+                    icon_url=_file_url(icons.get(row.icon_object_key or "")),
                 )
             )
         return items

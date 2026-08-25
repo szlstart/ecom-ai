@@ -287,6 +287,26 @@ class CatalogRepository:
             ),
         )
 
+    async def public_files_by_object_keys(
+        self, object_keys: list[str | None]
+    ) -> dict[str, FileObject]:
+        keys = {value for value in object_keys if value is not None}
+        if not keys:
+            return {}
+        rows = list(
+            (
+                await self.session.scalars(
+                    select(FileObject).where(
+                        FileObject.object_key.in_(keys),
+                        FileObject.visibility == "public_derivative",
+                        FileObject.file_status == "active",
+                        FileObject.scan_status == "safe",
+                    )
+                )
+            ).all()
+        )
+        return {row.object_key: row for row in rows}
+
     async def categories(self) -> list[Category]:
         return list(
             (

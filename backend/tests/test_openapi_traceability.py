@@ -34,6 +34,21 @@ def test_every_openapi_operation_has_a_packaged_trace_contract() -> None:
         assert operation["x-owner-kind"], operation_id
         assert operation["x-scope-policy"], operation_id
         assert operation["x-test-case-ids"], operation_id
+        for extension in (
+            "x-requirement-id",
+            "x-owner-kind",
+            "x-permission-codes",
+            "x-scope-policy",
+            "x-test-case-ids",
+        ):
+            assert isinstance(operation[extension], list), (operation_id, extension)
+            assert all(isinstance(item, str) and item for item in operation[extension])
+        for extension in (
+            "x-domain-command",
+            "x-audit-event",
+            "x-idempotency-policy",
+        ):
+            assert isinstance(operation[extension], str) and operation[extension]
 
 
 def test_permissions_are_extracted_from_each_endpoint_dependency() -> None:

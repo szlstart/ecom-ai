@@ -85,6 +85,7 @@ def audit() -> dict[str, Any]:
     required_extensions = set(
         traceability["operation_contract"]["openapi_required_extensions"]
     )
+    allowed_owner_kinds = set(traceability["operation_contract"]["owner_kinds"])
     routes = traceability["routes"]
     global_components = traceability.get("global_components", [])
     operations = openapi_operations()
@@ -194,6 +195,69 @@ def audit() -> dict[str, Any]:
                     ", ".join(missing_extensions),
                 )
             )
+            continue
+        requirement_ids = operation["x-requirement-id"]
+        owner_kinds = operation["x-owner-kind"]
+        permission_codes = operation["x-permission-codes"]
+        scope_policies = operation["x-scope-policy"]
+        test_case_ids = operation["x-test-case-ids"]
+        list_extensions = {
+            "x-requirement-id": requirement_ids,
+            "x-owner-kind": owner_kinds,
+            "x-permission-codes": permission_codes,
+            "x-scope-policy": scope_policies,
+            "x-test-case-ids": test_case_ids,
+        }
+        for extension, value in list_extensions.items():
+            if not isinstance(value, list) or any(
+                not isinstance(item, str) or not item for item in value
+            ):
+                findings.append(
+                    Finding(
+                        "OPENAPI_TRACE_EXTENSION_INVALID",
+                        "error",
+                        operation_id,
+                        f"{extension} must be a list of non-empty strings",
+                    )
+                )
+        if isinstance(requirement_ids, list) and not set(requirement_ids) <= set(owner_ids):
+            findings.append(
+                Finding(
+                    "OPENAPI_REQUIREMENT_OWNER_MISMATCH",
+                    "error",
+                    operation_id,
+                    f"declared={requirement_ids}; owners={owner_ids}",
+                )
+            )
+        if isinstance(owner_kinds, list) and not set(owner_kinds) <= allowed_owner_kinds:
+            findings.append(
+                Finding(
+                    "OPENAPI_OWNER_KIND_UNKNOWN",
+                    "error",
+                    operation_id,
+                    ", ".join(sorted(set(owner_kinds) - allowed_owner_kinds)),
+                )
+            )
+        if isinstance(permission_codes, list) and not set(permission_codes) <= registered_permissions:
+            findings.append(
+                Finding(
+                    "OPENAPI_PERMISSION_UNKNOWN",
+                    "error",
+                    operation_id,
+                    ", ".join(sorted(set(permission_codes) - registered_permissions)),
+                )
+            )
+        for extension in ("x-domain-command", "x-audit-event", "x-idempotency-policy"):
+            value = operation[extension]
+            if not isinstance(value, str) or not value:
+                findings.append(
+                    Finding(
+                        "OPENAPI_TRACE_EXTENSION_INVALID",
+                        "error",
+                        operation_id,
+                        f"{extension} must be a non-empty string",
+                    )
+                )
 
     counts = Counter(finding.code for finding in findings)
     return {

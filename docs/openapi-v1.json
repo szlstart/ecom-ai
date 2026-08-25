@@ -1309,10 +1309,8 @@
           "ADM-AI-RUN-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_observability:read",
-            "ai_runtime:kill"
-          ]
+          "ai_observability:read",
+          "ai_runtime:kill"
         ],
         "x-test-case-ids": [
           "ADM-AI-RUN-*"
@@ -1414,10 +1412,8 @@
           "ADM-AI-RUN-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_observability:read",
-            "ai_runtime:kill"
-          ]
+          "ai_observability:read",
+          "ai_runtime:kill"
         ],
         "x-test-case-ids": [
           "ADM-AI-RUN-*"
@@ -3441,9 +3437,7 @@
           "ADM-CONTENT-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "content:read"
-          ]
+          "content:read"
         ],
         "x-test-case-ids": [
           "ADM-CONTENT-*"
@@ -3505,9 +3499,7 @@
           "ADM-CONTENT-NEW-01"
         ],
         "x-scope-policy": [
-          [
-            "content:manage"
-          ]
+          "content:manage"
         ],
         "x-test-case-ids": [
           "ADM-CONTENT-*"
@@ -3572,11 +3564,9 @@
           "ADM-CONTENT-01"
         ],
         "x-scope-policy": [
-          [
-            "content:read",
-            "content:manage",
-            "content:publish"
-          ]
+          "content:read",
+          "content:manage",
+          "content:publish"
         ],
         "x-test-case-ids": [
           "ADM-CONTENT-*"
@@ -3665,11 +3655,9 @@
           "ADM-CONTENT-01"
         ],
         "x-scope-policy": [
-          [
-            "content:read",
-            "content:manage",
-            "content:publish"
-          ]
+          "content:read",
+          "content:manage",
+          "content:publish"
         ],
         "x-test-case-ids": [
           "ADM-CONTENT-*"
@@ -3743,11 +3731,9 @@
           "ADM-CONTENT-01"
         ],
         "x-scope-policy": [
-          [
-            "content:read",
-            "content:manage",
-            "content:publish"
-          ]
+          "content:read",
+          "content:manage",
+          "content:publish"
         ],
         "x-test-case-ids": [
           "ADM-CONTENT-*"
@@ -3812,11 +3798,9 @@
           "ADM-CONTENT-01"
         ],
         "x-scope-policy": [
-          [
-            "content:read",
-            "content:manage",
-            "content:publish"
-          ]
+          "content:read",
+          "content:manage",
+          "content:publish"
         ],
         "x-test-case-ids": [
           "ADM-CONTENT-*"
@@ -3860,10 +3844,8 @@
           "ADM-EVAL-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_evaluations:read",
-            "ai_evaluations:run"
-          ]
+          "ai_evaluations:read",
+          "ai_evaluations:run"
         ],
         "x-test-case-ids": [
           "ADM-EVAL-*"
@@ -3925,10 +3907,8 @@
           "ADM-EVAL-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_evaluations:read",
-            "ai_evaluations:run"
-          ]
+          "ai_evaluations:read",
+          "ai_evaluations:run"
         ],
         "x-test-case-ids": [
           "ADM-EVAL-*"
@@ -3972,9 +3952,7 @@
           "ADM-OBS-01"
         ],
         "x-scope-policy": [
-          [
-            "observability:read"
-          ]
+          "observability:read"
         ],
         "x-test-case-ids": [
           "ADM-OBS-*"
@@ -4076,9 +4054,7 @@
           "ADM-DLQ-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "events:read"
-          ]
+          "events:read"
         ],
         "x-test-case-ids": [
           "ADM-DLQ-*"
@@ -4143,10 +4119,8 @@
           "ADM-DLQ-01"
         ],
         "x-scope-policy": [
-          [
-            "events:read",
-            "events:operate"
-          ]
+          "events:read",
+          "events:operate"
         ],
         "x-test-case-ids": [
           "ADM-DLQ-*"
@@ -4211,10 +4185,8 @@
           "ADM-DLQ-01"
         ],
         "x-scope-policy": [
-          [
-            "events:read",
-            "events:operate"
-          ]
+          "events:read",
+          "events:operate"
         ],
         "x-test-case-ids": [
           "ADM-DLQ-*"
@@ -4321,10 +4293,8 @@
           "ADM-DLQ-01"
         ],
         "x-scope-policy": [
-          [
-            "events:read",
-            "events:operate"
-          ]
+          "events:read",
+          "events:operate"
         ],
         "x-test-case-ids": [
           "ADM-DLQ-*"
@@ -4789,10 +4759,8 @@
           "GLOBAL-FILE-UPLOAD-01"
         ],
         "x-scope-policy": [
-          [
-            "jobs:read",
-            "products:create"
-          ],
+          "jobs:read",
+          "products:create",
           "purpose_owner_status_and_scope"
         ],
         "x-test-case-ids": [
@@ -6148,9 +6116,7 @@
           "ADM-REVIEW-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "reviews:read"
-          ]
+          "reviews:read"
         ],
         "x-test-case-ids": [
           "ADM-REVIEW-*"
@@ -6215,11 +6181,9 @@
           "ADM-REVIEW-01"
         ],
         "x-scope-policy": [
-          [
-            "reviews:read",
-            "reviews:reply",
-            "reviews:moderate"
-          ]
+          "reviews:read",
+          "reviews:reply",
+          "reviews:moderate"
         ],
         "x-test-case-ids": [
           "ADM-REVIEW-*"
@@ -6326,11 +6290,9 @@
           "ADM-REVIEW-01"
         ],
         "x-scope-policy": [
-          [
-            "reviews:read",
-            "reviews:reply",
-            "reviews:moderate"
-          ]
+          "reviews:read",
+          "reviews:reply",
+          "reviews:moderate"
         ],
         "x-test-case-ids": [
           "ADM-REVIEW-*"
@@ -6437,11 +6399,9 @@
           "ADM-REVIEW-01"
         ],
         "x-scope-policy": [
-          [
-            "reviews:read",
-            "reviews:reply",
-            "reviews:moderate"
-          ]
+          "reviews:read",
+          "reviews:reply",
+          "reviews:moderate"
         ],
         "x-test-case-ids": [
           "ADM-REVIEW-*"
@@ -7404,9 +7364,7 @@
           "ADM-REFUND-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "refunds:read"
-          ]
+          "refunds:read"
         ],
         "x-test-case-ids": [
           "ADM-REFUND-*"
@@ -7474,9 +7432,7 @@
           "ADM-APPEAL-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "refund_appeals:read"
-          ]
+          "refund_appeals:read"
         ],
         "x-test-case-ids": [
           "ADM-APPEAL-*"
@@ -7541,10 +7497,8 @@
           "ADM-APPEAL-01"
         ],
         "x-scope-policy": [
-          [
-            "refund_appeals:read",
-            "refund_appeals:review"
-          ]
+          "refund_appeals:read",
+          "refund_appeals:review"
         ],
         "x-test-case-ids": [
           "ADM-APPEAL-*"
@@ -7636,10 +7590,8 @@
           "ADM-APPEAL-01"
         ],
         "x-scope-policy": [
-          [
-            "refund_appeals:read",
-            "refund_appeals:review"
-          ]
+          "refund_appeals:read",
+          "refund_appeals:review"
         ],
         "x-test-case-ids": [
           "ADM-APPEAL-*"
@@ -7751,10 +7703,8 @@
           "ADM-APPEAL-01"
         ],
         "x-scope-policy": [
-          [
-            "refund_appeals:read",
-            "refund_appeals:review"
-          ]
+          "refund_appeals:read",
+          "refund_appeals:review"
         ],
         "x-test-case-ids": [
           "ADM-APPEAL-*"
@@ -7819,10 +7769,8 @@
           "ADM-REFUND-01"
         ],
         "x-scope-policy": [
-          [
-            "refunds:read",
-            "refunds:review"
-          ]
+          "refunds:read",
+          "refunds:review"
         ],
         "x-test-case-ids": [
           "ADM-REFUND-*"
@@ -7914,10 +7862,8 @@
           "ADM-REFUND-01"
         ],
         "x-scope-policy": [
-          [
-            "refunds:read",
-            "refunds:review"
-          ]
+          "refunds:read",
+          "refunds:review"
         ],
         "x-test-case-ids": [
           "ADM-REFUND-*"
@@ -8029,10 +7975,8 @@
           "ADM-REFUND-01"
         ],
         "x-scope-policy": [
-          [
-            "refunds:read",
-            "refunds:review"
-          ]
+          "refunds:read",
+          "refunds:review"
         ],
         "x-test-case-ids": [
           "ADM-REFUND-*"
@@ -9423,9 +9367,7 @@
           "ADM-SUPPORT-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read"
-          ]
+          "support:queue_read"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -9490,15 +9432,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -9563,15 +9503,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -9648,15 +9586,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -9729,15 +9665,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -9812,15 +9746,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -9905,15 +9837,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -10008,15 +9938,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -10101,15 +10029,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -10204,15 +10130,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -10307,15 +10231,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -10390,15 +10312,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -10493,15 +10413,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -10564,15 +10482,13 @@
           "ADM-SUPPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "support:queue_read",
-            "support:claim",
-            "support:reply",
-            "support:wait",
-            "support:resume",
-            "support:transfer",
-            "support:resolve"
-          ]
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:wait",
+          "support:resume",
+          "support:transfer",
+          "support:resolve"
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*"
@@ -12482,9 +12398,7 @@
           "ADM-ORDER-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "orders:read"
-          ]
+          "orders:read"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*"
@@ -12549,12 +12463,10 @@
           "ADM-ORDER-01"
         ],
         "x-scope-policy": [
-          [
-            "orders:read",
-            "orders:adjust",
-            "orders:cancel",
-            "shipments:create"
-          ]
+          "orders:read",
+          "orders:adjust",
+          "orders:cancel",
+          "shipments:create"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
@@ -12662,12 +12574,10 @@
           "ADM-ORDER-01"
         ],
         "x-scope-policy": [
-          [
-            "orders:read",
-            "orders:adjust",
-            "orders:cancel",
-            "shipments:create"
-          ]
+          "orders:read",
+          "orders:adjust",
+          "orders:cancel",
+          "shipments:create"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
@@ -12775,12 +12685,10 @@
           "ADM-ORDER-01"
         ],
         "x-scope-policy": [
-          [
-            "orders:read",
-            "orders:adjust",
-            "orders:cancel",
-            "shipments:create"
-          ]
+          "orders:read",
+          "orders:adjust",
+          "orders:cancel",
+          "shipments:create"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
@@ -13280,9 +13188,7 @@
           "ADM-PAYMENT-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "payments:read"
-          ]
+          "payments:read"
         ],
         "x-test-case-ids": [
           "ADM-PAYMENT-*"
@@ -13347,10 +13253,8 @@
           "ADM-PAYMENT-01"
         ],
         "x-scope-policy": [
-          [
-            "payments:read",
-            "payments:reconcile"
-          ]
+          "payments:read",
+          "payments:reconcile"
         ],
         "x-test-case-ids": [
           "ADM-PAYMENT-*"
@@ -13457,10 +13361,8 @@
           "ADM-PAYMENT-01"
         ],
         "x-scope-policy": [
-          [
-            "payments:read",
-            "payments:reconcile"
-          ]
+          "payments:read",
+          "payments:reconcile"
         ],
         "x-test-case-ids": [
           "ADM-PAYMENT-*"
@@ -13991,11 +13893,9 @@
           "ADM-KNOW-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "knowledge:read",
-            "knowledge:manage",
-            "knowledge:publish"
-          ]
+          "knowledge:read",
+          "knowledge:manage",
+          "knowledge:publish"
         ],
         "x-test-case-ids": [
           "ADM-KNOW-*"
@@ -14057,11 +13957,9 @@
           "ADM-KNOW-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "knowledge:read",
-            "knowledge:manage",
-            "knowledge:publish"
-          ]
+          "knowledge:read",
+          "knowledge:manage",
+          "knowledge:publish"
         ],
         "x-test-case-ids": [
           "ADM-KNOW-*"
@@ -14126,11 +14024,9 @@
           "ADM-KNOW-01"
         ],
         "x-scope-policy": [
-          [
-            "knowledge:read",
-            "knowledge:manage",
-            "knowledge:publish"
-          ]
+          "knowledge:read",
+          "knowledge:manage",
+          "knowledge:publish"
         ],
         "x-test-case-ids": [
           "ADM-INDEX-*"
@@ -14194,11 +14090,9 @@
           "ADM-KNOW-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "knowledge:read",
-            "knowledge:manage",
-            "knowledge:publish"
-          ]
+          "knowledge:read",
+          "knowledge:manage",
+          "knowledge:publish"
         ],
         "x-test-case-ids": [
           "ADM-INDEX-*",
@@ -14276,11 +14170,9 @@
           "ADM-KNOW-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "knowledge:read",
-            "knowledge:manage",
-            "knowledge:publish"
-          ]
+          "knowledge:read",
+          "knowledge:manage",
+          "knowledge:publish"
         ],
         "x-test-case-ids": [
           "ADM-INDEX-*",
@@ -14346,10 +14238,8 @@
           "ADM-KNOW-JOB-01"
         ],
         "x-scope-policy": [
-          [
-            "knowledge:read",
-            "knowledge:manage"
-          ]
+          "knowledge:read",
+          "knowledge:manage"
         ],
         "x-test-case-ids": [
           "ADM-INDEX-*"
@@ -14414,10 +14304,8 @@
           "ADM-KNOW-JOB-01"
         ],
         "x-scope-policy": [
-          [
-            "knowledge:read",
-            "knowledge:manage"
-          ]
+          "knowledge:read",
+          "knowledge:manage"
         ],
         "x-test-case-ids": [
           "ADM-INDEX-*"
@@ -14481,11 +14369,9 @@
           "ADM-KNOW-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "knowledge:read",
-            "knowledge:manage",
-            "knowledge:publish"
-          ]
+          "knowledge:read",
+          "knowledge:manage",
+          "knowledge:publish"
         ],
         "x-test-case-ids": [
           "ADM-KNOW-*"
@@ -14529,11 +14415,9 @@
           "ADM-AI-AGENT-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_agents:read",
-            "ai_agents:manage",
-            "ai_agents:publish"
-          ]
+          "ai_agents:read",
+          "ai_agents:manage",
+          "ai_agents:publish"
         ],
         "x-test-case-ids": [
           "ADM-AGENT-*"
@@ -14608,11 +14492,9 @@
           "ADM-AI-AGENT-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_agents:read",
-            "ai_agents:manage",
-            "ai_agents:publish"
-          ]
+          "ai_agents:read",
+          "ai_agents:manage",
+          "ai_agents:publish"
         ],
         "x-test-case-ids": [
           "ADM-AGENT-*"
@@ -14696,11 +14578,9 @@
           "ADM-AI-AGENT-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_agents:read",
-            "ai_agents:manage",
-            "ai_agents:publish"
-          ]
+          "ai_agents:read",
+          "ai_agents:manage",
+          "ai_agents:publish"
         ],
         "x-test-case-ids": [
           "ADM-AGENT-*"
@@ -14785,11 +14665,9 @@
           "ADM-AI-AGENT-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_agents:read",
-            "ai_agents:manage",
-            "ai_agents:publish"
-          ]
+          "ai_agents:read",
+          "ai_agents:manage",
+          "ai_agents:publish"
         ],
         "x-test-case-ids": [
           "ADM-AGENT-*"
@@ -14833,10 +14711,8 @@
           "ADM-AI-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_policies:read",
-            "ai_runtime:kill"
-          ]
+          "ai_policies:read",
+          "ai_runtime:kill"
         ],
         "x-test-case-ids": [
           "ADM-AI-POLICY-*"
@@ -14880,10 +14756,8 @@
           "ADM-AI-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_policies:read",
-            "ai_runtime:kill"
-          ]
+          "ai_policies:read",
+          "ai_runtime:kill"
         ],
         "x-test-case-ids": [
           "ADM-AI-POLICY-*"
@@ -14967,10 +14841,8 @@
           "ADM-AI-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_policies:read",
-            "ai_runtime:kill"
-          ]
+          "ai_policies:read",
+          "ai_runtime:kill"
         ],
         "x-test-case-ids": [
           "ADM-AI-POLICY-*"
@@ -15054,10 +14926,8 @@
           "ADM-AI-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_policies:read",
-            "ai_runtime:kill"
-          ]
+          "ai_policies:read",
+          "ai_runtime:kill"
         ],
         "x-test-case-ids": [
           "ADM-AI-POLICY-*"
@@ -15101,11 +14971,9 @@
           "ADM-AI-SKILL-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_skills:read",
-            "ai_skills:manage",
-            "ai_skills:publish"
-          ]
+          "ai_skills:read",
+          "ai_skills:manage",
+          "ai_skills:publish"
         ],
         "x-test-case-ids": [
           "ADM-SKILL-*"
@@ -15167,11 +15035,9 @@
           "ADM-AI-SKILL-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_skills:read",
-            "ai_skills:manage",
-            "ai_skills:publish"
-          ]
+          "ai_skills:read",
+          "ai_skills:manage",
+          "ai_skills:publish"
         ],
         "x-test-case-ids": [
           "ADM-SKILL-*"
@@ -15246,11 +15112,9 @@
           "ADM-AI-SKILL-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_skills:read",
-            "ai_skills:manage",
-            "ai_skills:publish"
-          ]
+          "ai_skills:read",
+          "ai_skills:manage",
+          "ai_skills:publish"
         ],
         "x-test-case-ids": [
           "ADM-SKILL-*"
@@ -15334,11 +15198,9 @@
           "ADM-AI-SKILL-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_skills:read",
-            "ai_skills:manage",
-            "ai_skills:publish"
-          ]
+          "ai_skills:read",
+          "ai_skills:manage",
+          "ai_skills:publish"
         ],
         "x-test-case-ids": [
           "ADM-SKILL-*"
@@ -15423,11 +15285,9 @@
           "ADM-AI-SKILL-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_skills:read",
-            "ai_skills:manage",
-            "ai_skills:publish"
-          ]
+          "ai_skills:read",
+          "ai_skills:manage",
+          "ai_skills:publish"
         ],
         "x-test-case-ids": [
           "ADM-SKILL-*"
@@ -15471,10 +15331,8 @@
           "ADM-AI-TOOL-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_tools:read",
-            "ai_tools:manage"
-          ]
+          "ai_tools:read",
+          "ai_tools:manage"
         ],
         "x-test-case-ids": [
           "ADM-TOOL-*"
@@ -15536,10 +15394,8 @@
           "ADM-AI-TOOL-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_tools:read",
-            "ai_tools:manage"
-          ]
+          "ai_tools:read",
+          "ai_tools:manage"
         ],
         "x-test-case-ids": [
           "ADM-TOOL-*"
@@ -15604,11 +15460,9 @@
           "ADM-AI-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_tools:read",
-            "ai_tools:manage",
-            "ai_tools:publish"
-          ]
+          "ai_tools:read",
+          "ai_tools:manage",
+          "ai_tools:publish"
         ],
         "x-test-case-ids": [
           "ADM-TOOL-*"
@@ -15683,11 +15537,9 @@
           "ADM-AI-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_tools:read",
-            "ai_tools:manage",
-            "ai_tools:publish"
-          ]
+          "ai_tools:read",
+          "ai_tools:manage",
+          "ai_tools:publish"
         ],
         "x-test-case-ids": [
           "ADM-TOOL-*"
@@ -15772,11 +15624,9 @@
           "ADM-AI-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_tools:read",
-            "ai_tools:manage",
-            "ai_tools:publish"
-          ]
+          "ai_tools:read",
+          "ai_tools:manage",
+          "ai_tools:publish"
         ],
         "x-test-case-ids": [
           "ADM-TOOL-*"
@@ -15861,11 +15711,9 @@
           "ADM-AI-01"
         ],
         "x-scope-policy": [
-          [
-            "ai_tools:read",
-            "ai_tools:manage",
-            "ai_tools:publish"
-          ]
+          "ai_tools:read",
+          "ai_tools:manage",
+          "ai_tools:publish"
         ],
         "x-test-case-ids": [
           "ADM-TOOL-*"
@@ -15972,12 +15820,10 @@
           "ADM-ORDER-01"
         ],
         "x-scope-policy": [
-          [
-            "orders:read",
-            "orders:adjust",
-            "orders:cancel",
-            "shipments:create"
-          ]
+          "orders:read",
+          "orders:adjust",
+          "orders:cancel",
+          "shipments:create"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
@@ -16043,12 +15889,10 @@
           "ADM-SHIP-02"
         ],
         "x-scope-policy": [
-          [
-            "shipments:read",
-            "shipments:correct",
-            "shipments:void",
-            "shipments:refresh"
-          ]
+          "shipments:read",
+          "shipments:correct",
+          "shipments:void",
+          "shipments:refresh"
         ],
         "x-test-case-ids": [
           "ADM-SHIP-VOID-*"
@@ -16155,12 +15999,10 @@
           "ADM-SHIP-02"
         ],
         "x-scope-policy": [
-          [
-            "shipments:read",
-            "shipments:correct",
-            "shipments:void",
-            "shipments:refresh"
-          ]
+          "shipments:read",
+          "shipments:correct",
+          "shipments:void",
+          "shipments:refresh"
         ],
         "x-test-case-ids": [
           "ADM-SHIP-VOID-*"
@@ -16267,12 +16109,10 @@
           "ADM-SHIP-02"
         ],
         "x-scope-policy": [
-          [
-            "shipments:read",
-            "shipments:correct",
-            "shipments:void",
-            "shipments:refresh"
-          ]
+          "shipments:read",
+          "shipments:correct",
+          "shipments:void",
+          "shipments:refresh"
         ],
         "x-test-case-ids": [
           "ADM-SHIP-VOID-*"
@@ -16353,12 +16193,10 @@
           "ADM-SHIP-02"
         ],
         "x-scope-policy": [
-          [
-            "shipments:read",
-            "shipments:correct",
-            "shipments:void",
-            "shipments:refresh"
-          ]
+          "shipments:read",
+          "shipments:correct",
+          "shipments:void",
+          "shipments:refresh"
         ],
         "x-test-case-ids": [
           "ADM-SHIP-VOID-*"
@@ -17141,9 +16979,7 @@
           "ADM-CATEGORY-01"
         ],
         "x-scope-policy": [
-          [
-            "catalog_taxonomy:manage"
-          ]
+          "catalog_taxonomy:manage"
         ],
         "x-test-case-ids": [
           "ADM-CATALOG-*"
@@ -17223,9 +17059,7 @@
           "ADM-CATEGORY-01"
         ],
         "x-scope-policy": [
-          [
-            "catalog_taxonomy:manage"
-          ]
+          "catalog_taxonomy:manage"
         ],
         "x-test-case-ids": [
           "ADM-CATALOG-*"
@@ -17316,9 +17150,7 @@
           "ADM-CATEGORY-01"
         ],
         "x-scope-policy": [
-          [
-            "catalog_taxonomy:manage"
-          ]
+          "catalog_taxonomy:manage"
         ],
         "x-test-case-ids": [
           "ADM-CATALOG-*"
@@ -17362,9 +17194,7 @@
           "ADM-BRAND-01"
         ],
         "x-scope-policy": [
-          [
-            "catalog_taxonomy:manage"
-          ]
+          "catalog_taxonomy:manage"
         ],
         "x-test-case-ids": [
           "ADM-CATALOG-*"
@@ -17444,9 +17274,7 @@
           "ADM-BRAND-01"
         ],
         "x-scope-policy": [
-          [
-            "catalog_taxonomy:manage"
-          ]
+          "catalog_taxonomy:manage"
         ],
         "x-test-case-ids": [
           "ADM-CATALOG-*"
@@ -17537,9 +17365,7 @@
           "ADM-BRAND-01"
         ],
         "x-scope-policy": [
-          [
-            "catalog_taxonomy:manage"
-          ]
+          "catalog_taxonomy:manage"
         ],
         "x-test-case-ids": [
           "ADM-CATALOG-*"
@@ -17643,10 +17469,8 @@
           "ADM-INV-01"
         ],
         "x-scope-policy": [
-          [
-            "inventories:read",
-            "inventories:adjust"
-          ]
+          "inventories:read",
+          "inventories:adjust"
         ],
         "x-test-case-ids": [
           "ADM-INV-*"
@@ -17711,10 +17535,8 @@
           "ADM-INV-01"
         ],
         "x-scope-policy": [
-          [
-            "inventories:read",
-            "inventories:adjust"
-          ]
+          "inventories:read",
+          "inventories:adjust"
         ],
         "x-test-case-ids": [
           "ADM-INV-*"
@@ -17796,10 +17618,8 @@
           "ADM-INV-01"
         ],
         "x-scope-policy": [
-          [
-            "inventories:read",
-            "inventories:adjust"
-          ]
+          "inventories:read",
+          "inventories:adjust"
         ],
         "x-test-case-ids": [
           "ADM-INV-*"
@@ -17936,9 +17756,7 @@
           "ADM-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read"
-          ]
+          "products:read"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18018,9 +17836,7 @@
           "ADM-PRODUCT-NEW-01"
         ],
         "x-scope-policy": [
-          [
-            "products:create"
-          ]
+          "products:create"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18085,12 +17901,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18179,12 +17993,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18291,12 +18103,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18403,12 +18213,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18515,12 +18323,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18627,12 +18433,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18697,12 +18501,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18791,12 +18593,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -18896,12 +18696,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19017,12 +18815,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19087,12 +18883,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19181,12 +18975,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19251,12 +19043,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19345,12 +19135,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19415,12 +19203,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19509,12 +19295,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19605,12 +19389,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19684,12 +19466,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19754,12 +19534,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19848,12 +19626,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -19953,12 +19729,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -20058,12 +19832,10 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:read",
-            "products:update",
-            "products:review",
-            "products:publish"
-          ]
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*"
@@ -20183,9 +19955,7 @@
           "ADM-STORE-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read"
-          ]
+          "stores:read"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -20250,10 +20020,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -20342,10 +20110,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -20452,10 +20218,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -20558,10 +20322,8 @@
           "ADM-CERT-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:review"
-          ]
+          "stores:read",
+          "stores:review"
         ],
         "x-test-case-ids": [
           "ADM-CERT-*"
@@ -20626,9 +20388,7 @@
           "ADM-STORE-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:review"
-          ]
+          "stores:review"
         ],
         "x-test-case-ids": [
           "ADM-CERT-*"
@@ -20694,9 +20454,7 @@
           "ADM-STORE-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:review"
-          ]
+          "stores:review"
         ],
         "x-test-case-ids": [
           "ADM-CERT-*"
@@ -20803,9 +20561,7 @@
           "ADM-STORE-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:review"
-          ]
+          "stores:review"
         ],
         "x-test-case-ids": [
           "ADM-CERT-*"
@@ -20912,9 +20668,7 @@
           "ADM-STORE-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:review"
-          ]
+          "stores:review"
         ],
         "x-test-case-ids": [
           "ADM-CERT-*"
@@ -20979,12 +20733,10 @@
           "ADM-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "store_policies:read",
-            "store_policies:create",
-            "store_policies:update",
-            "store_policies:publish"
-          ]
+          "store_policies:read",
+          "store_policies:create",
+          "store_policies:update",
+          "store_policies:publish"
         ],
         "x-test-case-ids": [
           "ADM-POLICY-*"
@@ -21073,12 +20825,10 @@
           "ADM-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "store_policies:read",
-            "store_policies:create",
-            "store_policies:update",
-            "store_policies:publish"
-          ]
+          "store_policies:read",
+          "store_policies:create",
+          "store_policies:update",
+          "store_policies:publish"
         ],
         "x-test-case-ids": [
           "ADM-POLICY-*"
@@ -21152,12 +20902,10 @@
           "ADM-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "store_policies:read",
-            "store_policies:create",
-            "store_policies:update",
-            "store_policies:publish"
-          ]
+          "store_policies:read",
+          "store_policies:create",
+          "store_policies:update",
+          "store_policies:publish"
         ],
         "x-test-case-ids": [
           "ADM-POLICY-*"
@@ -21255,12 +21003,10 @@
           "ADM-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "store_policies:read",
-            "store_policies:create",
-            "store_policies:update",
-            "store_policies:publish"
-          ]
+          "store_policies:read",
+          "store_policies:create",
+          "store_policies:update",
+          "store_policies:publish"
         ],
         "x-test-case-ids": [
           "ADM-POLICY-*"
@@ -21376,12 +21122,10 @@
           "ADM-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "store_policies:read",
-            "store_policies:create",
-            "store_policies:update",
-            "store_policies:publish"
-          ]
+          "store_policies:read",
+          "store_policies:create",
+          "store_policies:update",
+          "store_policies:publish"
         ],
         "x-test-case-ids": [
           "ADM-POLICY-*"
@@ -21497,12 +21241,10 @@
           "ADM-POLICY-01"
         ],
         "x-scope-policy": [
-          [
-            "store_policies:read",
-            "store_policies:create",
-            "store_policies:update",
-            "store_policies:publish"
-          ]
+          "store_policies:read",
+          "store_policies:create",
+          "store_policies:update",
+          "store_policies:publish"
         ],
         "x-test-case-ids": [
           "ADM-POLICY-*"
@@ -21567,10 +21309,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -21659,10 +21399,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -21762,10 +21500,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -21865,10 +21601,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -21933,10 +21667,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -22025,10 +21757,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -22128,10 +21858,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -22247,10 +21975,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -22315,10 +22041,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -22407,10 +22131,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -22510,10 +22232,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -22589,10 +22309,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -22681,10 +22399,8 @@
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
-          [
-            "stores:read",
-            "stores:manage"
-          ]
+          "stores:read",
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*"
@@ -22728,9 +22444,7 @@
           "ADM-PRODUCT-IMPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:create"
-          ]
+          "products:create"
         ],
         "x-test-case-ids": [
           "ADM-BATCH-*"
@@ -22767,9 +22481,7 @@
           "ADM-PRODUCT-IMPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:create"
-          ]
+          "products:create"
         ],
         "x-test-case-ids": [
           "ADM-BATCH-*"
@@ -22851,9 +22563,7 @@
           "ADM-PRODUCT-IMPORT-01"
         ],
         "x-scope-policy": [
-          [
-            "products:create"
-          ]
+          "products:create"
         ],
         "x-test-case-ids": [
           "ADM-BATCH-*"
@@ -22972,12 +22682,8 @@
           "ADM-KNOW-JOBS-01"
         ],
         "x-scope-policy": [
-          [
-            "knowledge:read"
-          ],
-          [
-            "jobs:read"
-          ]
+          "knowledge:read",
+          "jobs:read"
         ],
         "x-test-case-ids": [
           "ADM-BATCH-*",
@@ -23045,10 +22751,8 @@
           "ADM-BATCH-01"
         ],
         "x-scope-policy": [
-          [
-            "jobs:read",
-            "products:create"
-          ]
+          "jobs:read",
+          "products:create"
         ],
         "x-test-case-ids": [
           "ADM-BATCH-*"
@@ -23161,10 +22865,8 @@
           "ADM-BATCH-01"
         ],
         "x-scope-policy": [
-          [
-            "jobs:read",
-            "products:create"
-          ]
+          "jobs:read",
+          "products:create"
         ],
         "x-test-case-ids": [
           "ADM-BATCH-*"
@@ -23271,10 +22973,8 @@
           "ADM-BATCH-01"
         ],
         "x-scope-policy": [
-          [
-            "jobs:read",
-            "products:create"
-          ]
+          "jobs:read",
+          "products:create"
         ],
         "x-test-case-ids": [
           "ADM-BATCH-*"
@@ -23383,10 +23083,8 @@
           "ADM-BATCH-01"
         ],
         "x-scope-policy": [
-          [
-            "jobs:read",
-            "products:create"
-          ]
+          "jobs:read",
+          "products:create"
         ],
         "x-test-case-ids": [
           "ADM-BATCH-*"
@@ -23951,9 +23649,7 @@
           "ADM-DASH-01"
         ],
         "x-scope-policy": [
-          [
-            "dashboard:read"
-          ]
+          "dashboard:read"
         ],
         "x-test-case-ids": [
           "ADM-DASH-*"
@@ -24038,9 +23734,7 @@
           "ADM-USER-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read"
-          ]
+          "users:read"
         ],
         "x-test-case-ids": [
           "ADM-USER-*"
@@ -24105,15 +23799,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -24192,15 +23884,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -24309,15 +23999,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -24410,15 +24098,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -24511,15 +24197,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -24565,10 +24249,8 @@
           "ADM-RBAC-01"
         ],
         "x-scope-policy": [
-          [
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*"
@@ -24648,10 +24330,8 @@
           "ADM-RBAC-01"
         ],
         "x-scope-policy": [
-          [
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*"
@@ -24716,10 +24396,8 @@
           "ADM-RBAC-02"
         ],
         "x-scope-policy": [
-          [
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*"
@@ -24808,10 +24486,8 @@
           "ADM-RBAC-02"
         ],
         "x-scope-policy": [
-          [
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*"
@@ -24902,10 +24578,8 @@
           "ADM-RBAC-02"
         ],
         "x-scope-policy": [
-          [
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*"
@@ -24970,15 +24644,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -25085,15 +24757,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -25172,15 +24842,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -25298,15 +24966,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -25399,15 +25065,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -25517,15 +25181,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -25601,15 +25263,13 @@
           "ADM-USER-01"
         ],
         "x-scope-policy": [
-          [
-            "users:read",
-            "users:manage",
-            "users:read_sensitive",
-            "users:sessions_revoke",
-            "users:force_password_reset",
-            "rbac:read",
-            "rbac:manage"
-          ]
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage"
         ],
         "x-test-case-ids": [
           "ADM-RBAC-*",
@@ -25655,9 +25315,7 @@
           "ADM-APPROVAL-LIST-01"
         ],
         "x-scope-policy": [
-          [
-            "admin_approvals:read"
-          ]
+          "admin_approvals:read"
         ],
         "x-test-case-ids": [
           "ADM-APPROVAL-*"
@@ -25722,10 +25380,8 @@
           "ADM-APPROVAL-01"
         ],
         "x-scope-policy": [
-          [
-            "admin_approvals:read",
-            "admin_approvals:decide"
-          ]
+          "admin_approvals:read",
+          "admin_approvals:decide"
         ],
         "x-test-case-ids": [
           "ADM-APPROVAL-*"
@@ -25832,10 +25488,8 @@
           "ADM-APPROVAL-01"
         ],
         "x-scope-policy": [
-          [
-            "admin_approvals:read",
-            "admin_approvals:decide"
-          ]
+          "admin_approvals:read",
+          "admin_approvals:decide"
         ],
         "x-test-case-ids": [
           "ADM-APPROVAL-*"
@@ -25903,9 +25557,7 @@
           "ADM-AUDIT-01"
         ],
         "x-scope-policy": [
-          [
-            "audit:read"
-          ]
+          "audit:read"
         ],
         "x-test-case-ids": [
           "ADM-AUDIT-*"

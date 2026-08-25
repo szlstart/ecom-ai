@@ -124,11 +124,14 @@ def main() -> None:
             method = method_name.upper()
             requirement_ids = sorted({owner["requirement_id"] for owner in operation_owners})
             owner_kinds = sorted({owner["owner_kind"] for owner in operation_owners})
-            scope_policies: list[object] = []
+            scope_policies: list[str] = []
             for owner in operation_owners:
                 policy = owner["scope_policy"]
-                if policy not in scope_policies:
-                    scope_policies.append(policy)
+                policy_values = policy if isinstance(policy, list) else [policy]
+                for value in policy_values:
+                    normalized = str(value)
+                    if normalized not in scope_policies:
+                        scope_policies.append(normalized)
             test_case_ids = sorted(
                 {
                     str(case_id)

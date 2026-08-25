@@ -79,7 +79,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_observability:read"],
         "x-requirement-id": ["ADM-AI-RUN-01"],
-        "x-scope-policy": [["ai_observability:read", "ai_runtime:kill"]],
+        "x-scope-policy": ["ai_observability:read", "ai_runtime:kill"],
         "x-test-case-ids": ["ADM-AI-RUN-*"],
     },
     "AdminAgentRun_Kill": {
@@ -89,7 +89,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_runtime:kill"],
         "x-requirement-id": ["ADM-AI-RUN-01"],
-        "x-scope-policy": [["ai_observability:read", "ai_runtime:kill"]],
+        "x-scope-policy": ["ai_observability:read", "ai_runtime:kill"],
         "x-test-case-ids": ["ADM-AI-RUN-*"],
     },
     "AdminAgentSkillBinding_Create": {
@@ -99,7 +99,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_agents:manage"],
         "x-requirement-id": ["ADM-AI-AGENT-01"],
-        "x-scope-policy": [["ai_agents:read", "ai_agents:manage", "ai_agents:publish"]],
+        "x-scope-policy": ["ai_agents:read", "ai_agents:manage", "ai_agents:publish"],
         "x-test-case-ids": ["ADM-AGENT-*"],
     },
     "AdminAgentVersion_Create": {
@@ -109,7 +109,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_agents:manage"],
         "x-requirement-id": ["ADM-AI-AGENT-01"],
-        "x-scope-policy": [["ai_agents:read", "ai_agents:manage", "ai_agents:publish"]],
+        "x-scope-policy": ["ai_agents:read", "ai_agents:manage", "ai_agents:publish"],
         "x-test-case-ids": ["ADM-AGENT-*"],
     },
     "AdminAgentVersion_Publish": {
@@ -119,7 +119,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_agents:publish"],
         "x-requirement-id": ["ADM-AI-AGENT-01"],
-        "x-scope-policy": [["ai_agents:read", "ai_agents:manage", "ai_agents:publish"]],
+        "x-scope-policy": ["ai_agents:read", "ai_agents:manage", "ai_agents:publish"],
         "x-test-case-ids": ["ADM-AGENT-*"],
     },
     "AdminAgent_List": {
@@ -129,7 +129,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_agents:read"],
         "x-requirement-id": ["ADM-AI-AGENT-01"],
-        "x-scope-policy": [["ai_agents:read", "ai_agents:manage", "ai_agents:publish"]],
+        "x-scope-policy": ["ai_agents:read", "ai_agents:manage", "ai_agents:publish"],
         "x-test-case-ids": ["ADM-AGENT-*"],
     },
     "AdminAiEvaluation_List": {
@@ -139,7 +139,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_evaluations:read"],
         "x-requirement-id": ["ADM-EVAL-01"],
-        "x-scope-policy": [["ai_evaluations:read", "ai_evaluations:run"]],
+        "x-scope-policy": ["ai_evaluations:read", "ai_evaluations:run"],
         "x-test-case-ids": ["ADM-EVAL-*"],
     },
     "AdminAiEvaluation_Run": {
@@ -149,7 +149,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_evaluations:run"],
         "x-requirement-id": ["ADM-EVAL-01"],
-        "x-scope-policy": [["ai_evaluations:read", "ai_evaluations:run"]],
+        "x-scope-policy": ["ai_evaluations:read", "ai_evaluations:run"],
         "x-test-case-ids": ["ADM-EVAL-*"],
     },
     "AdminAiKillSwitch_Activate": {
@@ -159,7 +159,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_runtime:kill"],
         "x-requirement-id": ["ADM-AI-POLICY-01"],
-        "x-scope-policy": [["ai_policies:read", "ai_runtime:kill"]],
+        "x-scope-policy": ["ai_policies:read", "ai_runtime:kill"],
         "x-test-case-ids": ["ADM-AI-POLICY-*"],
     },
     "AdminAiKillSwitch_Deactivate": {
@@ -169,7 +169,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_runtime:kill"],
         "x-requirement-id": ["ADM-AI-POLICY-01"],
-        "x-scope-policy": [["ai_policies:read", "ai_runtime:kill"]],
+        "x-scope-policy": ["ai_policies:read", "ai_runtime:kill"],
         "x-test-case-ids": ["ADM-AI-POLICY-*"],
     },
     "AdminAiKillSwitch_List": {
@@ -179,7 +179,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_policies:read"],
         "x-requirement-id": ["ADM-AI-POLICY-01"],
-        "x-scope-policy": [["ai_policies:read", "ai_runtime:kill"]],
+        "x-scope-policy": ["ai_policies:read", "ai_runtime:kill"],
         "x-test-case-ids": ["ADM-AI-POLICY-*"],
     },
     "AdminApproval_Decide": {
@@ -189,7 +189,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["admin_approvals:decide"],
         "x-requirement-id": ["ADM-APPROVAL-01"],
-        "x-scope-policy": [["admin_approvals:read", "admin_approvals:decide"]],
+        "x-scope-policy": ["admin_approvals:read", "admin_approvals:decide"],
         "x-test-case-ids": ["ADM-APPROVAL-*"],
     },
     "AdminApproval_Get": {
@@ -199,7 +199,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["admin_approvals:read"],
         "x-requirement-id": ["ADM-APPROVAL-01"],
-        "x-scope-policy": [["admin_approvals:read", "admin_approvals:decide"]],
+        "x-scope-policy": ["admin_approvals:read", "admin_approvals:decide"],
         "x-test-case-ids": ["ADM-APPROVAL-*"],
     },
     "AdminApproval_List": {
@@ -209,7 +209,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["admin_approvals:read"],
         "x-requirement-id": ["ADM-APPROVAL-LIST-01"],
-        "x-scope-policy": [["admin_approvals:read"]],
+        "x-scope-policy": ["admin_approvals:read"],
         "x-test-case-ids": ["ADM-APPROVAL-*"],
     },
     "AdminAudit_List": {
@@ -219,7 +219,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["audit:read"],
         "x-requirement-id": ["ADM-AUDIT-01"],
-        "x-scope-policy": [["audit:read"]],
+        "x-scope-policy": ["audit:read"],
         "x-test-case-ids": ["ADM-AUDIT-*"],
     },
     "AdminAuthSession_ListMine": {
@@ -299,7 +299,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["jobs:read", "knowledge:read", "products:create"],
         "x-requirement-id": ["ADM-BATCH-01"],
-        "x-scope-policy": [["jobs:read", "products:create"]],
+        "x-scope-policy": ["jobs:read", "products:create"],
         "x-test-case-ids": ["ADM-BATCH-*"],
     },
     "AdminBatchJob_Cancel": {
@@ -309,7 +309,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["jobs:read", "knowledge:manage", "products:create"],
         "x-requirement-id": ["ADM-BATCH-01"],
-        "x-scope-policy": [["jobs:read", "products:create"]],
+        "x-scope-policy": ["jobs:read", "products:create"],
         "x-test-case-ids": ["ADM-BATCH-*"],
     },
     "AdminBatchJob_Confirm": {
@@ -319,7 +319,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:create"],
         "x-requirement-id": ["ADM-BATCH-01"],
-        "x-scope-policy": [["jobs:read", "products:create"]],
+        "x-scope-policy": ["jobs:read", "products:create"],
         "x-test-case-ids": ["ADM-BATCH-*"],
     },
     "AdminBatchJob_Create": {
@@ -329,7 +329,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:create"],
         "x-requirement-id": ["ADM-PRODUCT-IMPORT-01"],
-        "x-scope-policy": [["products:create"]],
+        "x-scope-policy": ["products:create"],
         "x-test-case-ids": ["ADM-BATCH-*"],
     },
     "AdminBatchJob_Get": {
@@ -339,7 +339,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["jobs:read", "knowledge:read", "products:create"],
         "x-requirement-id": ["ADM-BATCH-01"],
-        "x-scope-policy": [["jobs:read", "products:create"]],
+        "x-scope-policy": ["jobs:read", "products:create"],
         "x-test-case-ids": ["ADM-BATCH-*"],
     },
     "AdminBatchJob_List": {
@@ -349,7 +349,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["jobs:read", "knowledge:read"],
         "x-requirement-id": ["ADM-JOB-LIST-01", "ADM-KNOW-JOBS-01"],
-        "x-scope-policy": [["knowledge:read"], ["jobs:read"]],
+        "x-scope-policy": ["knowledge:read", "jobs:read"],
         "x-test-case-ids": ["ADM-BATCH-*", "ADM-INDEX-*"],
     },
     "AdminBrand_List": {
@@ -359,7 +359,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["catalog_taxonomy:manage"],
         "x-requirement-id": ["ADM-BRAND-01"],
-        "x-scope-policy": [["catalog_taxonomy:manage"]],
+        "x-scope-policy": ["catalog_taxonomy:manage"],
         "x-test-case-ids": ["ADM-CATALOG-*"],
     },
     "AdminBrand_Update": {
@@ -369,7 +369,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["catalog_taxonomy:manage"],
         "x-requirement-id": ["ADM-BRAND-01"],
-        "x-scope-policy": [["catalog_taxonomy:manage"]],
+        "x-scope-policy": ["catalog_taxonomy:manage"],
         "x-test-case-ids": ["ADM-CATALOG-*"],
     },
     "AdminBrand_Upsert": {
@@ -379,7 +379,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["catalog_taxonomy:manage"],
         "x-requirement-id": ["ADM-BRAND-01"],
-        "x-scope-policy": [["catalog_taxonomy:manage"]],
+        "x-scope-policy": ["catalog_taxonomy:manage"],
         "x-test-case-ids": ["ADM-CATALOG-*"],
     },
     "AdminCategory_List": {
@@ -389,7 +389,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["catalog_taxonomy:manage"],
         "x-requirement-id": ["ADM-CATEGORY-01"],
-        "x-scope-policy": [["catalog_taxonomy:manage"]],
+        "x-scope-policy": ["catalog_taxonomy:manage"],
         "x-test-case-ids": ["ADM-CATALOG-*"],
     },
     "AdminCategory_Update": {
@@ -399,7 +399,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["catalog_taxonomy:manage"],
         "x-requirement-id": ["ADM-CATEGORY-01"],
-        "x-scope-policy": [["catalog_taxonomy:manage"]],
+        "x-scope-policy": ["catalog_taxonomy:manage"],
         "x-test-case-ids": ["ADM-CATALOG-*"],
     },
     "AdminCategory_Upsert": {
@@ -409,7 +409,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["catalog_taxonomy:manage"],
         "x-requirement-id": ["ADM-CATEGORY-01"],
-        "x-scope-policy": [["catalog_taxonomy:manage"]],
+        "x-scope-policy": ["catalog_taxonomy:manage"],
         "x-test-case-ids": ["ADM-CATALOG-*"],
     },
     "AdminContent_Create": {
@@ -419,7 +419,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["content:manage"],
         "x-requirement-id": ["ADM-CONTENT-NEW-01"],
-        "x-scope-policy": [["content:manage"]],
+        "x-scope-policy": ["content:manage"],
         "x-test-case-ids": ["ADM-CONTENT-*"],
     },
     "AdminContent_Get": {
@@ -429,7 +429,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["content:read"],
         "x-requirement-id": ["ADM-CONTENT-01"],
-        "x-scope-policy": [["content:read", "content:manage", "content:publish"]],
+        "x-scope-policy": ["content:read", "content:manage", "content:publish"],
         "x-test-case-ids": ["ADM-CONTENT-*"],
     },
     "AdminContent_List": {
@@ -439,7 +439,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["content:read"],
         "x-requirement-id": ["ADM-CONTENT-LIST-01"],
-        "x-scope-policy": [["content:read"]],
+        "x-scope-policy": ["content:read"],
         "x-test-case-ids": ["ADM-CONTENT-*"],
     },
     "AdminContent_Publish": {
@@ -449,7 +449,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["content:publish"],
         "x-requirement-id": ["ADM-CONTENT-01"],
-        "x-scope-policy": [["content:read", "content:manage", "content:publish"]],
+        "x-scope-policy": ["content:read", "content:manage", "content:publish"],
         "x-test-case-ids": ["ADM-CONTENT-*"],
     },
     "AdminContent_Update": {
@@ -459,7 +459,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["content:manage"],
         "x-requirement-id": ["ADM-CONTENT-01"],
-        "x-scope-policy": [["content:read", "content:manage", "content:publish"]],
+        "x-scope-policy": ["content:read", "content:manage", "content:publish"],
         "x-test-case-ids": ["ADM-CONTENT-*"],
     },
     "AdminContent_Withdraw": {
@@ -469,7 +469,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["content:publish"],
         "x-requirement-id": ["ADM-CONTENT-01"],
-        "x-scope-policy": [["content:read", "content:manage", "content:publish"]],
+        "x-scope-policy": ["content:read", "content:manage", "content:publish"],
         "x-test-case-ids": ["ADM-CONTENT-*"],
     },
     "AdminDashboard_Get": {
@@ -479,7 +479,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["dashboard:read"],
         "x-requirement-id": ["ADM-DASH-01"],
-        "x-scope-policy": [["dashboard:read"]],
+        "x-scope-policy": ["dashboard:read"],
         "x-test-case-ids": ["ADM-DASH-*"],
     },
     "AdminDeadLetter_Get": {
@@ -489,7 +489,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["events:read"],
         "x-requirement-id": ["ADM-DLQ-01"],
-        "x-scope-policy": [["events:read", "events:operate"]],
+        "x-scope-policy": ["events:read", "events:operate"],
         "x-test-case-ids": ["ADM-DLQ-*"],
     },
     "AdminDeadLetter_List": {
@@ -499,7 +499,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["events:read"],
         "x-requirement-id": ["ADM-DLQ-LIST-01"],
-        "x-scope-policy": [["events:read"]],
+        "x-scope-policy": ["events:read"],
         "x-test-case-ids": ["ADM-DLQ-*"],
     },
     "AdminDeadLetter_Preview": {
@@ -509,7 +509,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["events:operate"],
         "x-requirement-id": ["ADM-DLQ-01"],
-        "x-scope-policy": [["events:read", "events:operate"]],
+        "x-scope-policy": ["events:read", "events:operate"],
         "x-test-case-ids": ["ADM-DLQ-*"],
     },
     "AdminDeadLetter_Replay": {
@@ -519,7 +519,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["events:operate"],
         "x-requirement-id": ["ADM-DLQ-01"],
-        "x-scope-policy": [["events:read", "events:operate"]],
+        "x-scope-policy": ["events:read", "events:operate"],
         "x-test-case-ids": ["ADM-DLQ-*"],
     },
     "AdminInventory_Adjust": {
@@ -529,7 +529,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["inventories:adjust"],
         "x-requirement-id": ["ADM-INV-01"],
-        "x-scope-policy": [["inventories:read", "inventories:adjust"]],
+        "x-scope-policy": ["inventories:read", "inventories:adjust"],
         "x-test-case-ids": ["ADM-INV-*"],
     },
     "AdminInventory_Get": {
@@ -539,7 +539,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["inventories:read"],
         "x-requirement-id": ["ADM-INV-01"],
-        "x-scope-policy": [["inventories:read", "inventories:adjust"]],
+        "x-scope-policy": ["inventories:read", "inventories:adjust"],
         "x-test-case-ids": ["ADM-INV-*"],
     },
     "AdminInventory_List": {
@@ -549,7 +549,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["inventories:read"],
         "x-requirement-id": ["ADM-INV-01"],
-        "x-scope-policy": [["inventories:read", "inventories:adjust"]],
+        "x-scope-policy": ["inventories:read", "inventories:adjust"],
         "x-test-case-ids": ["ADM-INV-*"],
     },
     "AdminKnowledgeDocument_Create": {
@@ -559,7 +559,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:manage"],
         "x-requirement-id": ["ADM-KNOW-LIST-01"],
-        "x-scope-policy": [["knowledge:read", "knowledge:manage", "knowledge:publish"]],
+        "x-scope-policy": ["knowledge:read", "knowledge:manage", "knowledge:publish"],
         "x-test-case-ids": ["ADM-KNOW-*"],
     },
     "AdminKnowledgeDocument_Delete": {
@@ -569,7 +569,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:manage"],
         "x-requirement-id": ["ADM-KNOW-01", "ADM-KNOW-LIST-01"],
-        "x-scope-policy": [["knowledge:read", "knowledge:manage", "knowledge:publish"]],
+        "x-scope-policy": ["knowledge:read", "knowledge:manage", "knowledge:publish"],
         "x-test-case-ids": ["ADM-INDEX-*", "ADM-KNOW-*"],
     },
     "AdminKnowledgeDocument_Get": {
@@ -579,7 +579,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:read"],
         "x-requirement-id": ["ADM-KNOW-01"],
-        "x-scope-policy": [["knowledge:read", "knowledge:manage", "knowledge:publish"]],
+        "x-scope-policy": ["knowledge:read", "knowledge:manage", "knowledge:publish"],
         "x-test-case-ids": ["ADM-INDEX-*"],
     },
     "AdminKnowledgeDocument_List": {
@@ -589,7 +589,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:read"],
         "x-requirement-id": ["ADM-KNOW-LIST-01"],
-        "x-scope-policy": [["knowledge:read", "knowledge:manage", "knowledge:publish"]],
+        "x-scope-policy": ["knowledge:read", "knowledge:manage", "knowledge:publish"],
         "x-test-case-ids": ["ADM-KNOW-*"],
     },
     "AdminKnowledgeIndex_Cancel": {
@@ -599,7 +599,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:manage"],
         "x-requirement-id": ["ADM-KNOW-JOB-01"],
-        "x-scope-policy": [["knowledge:read", "knowledge:manage"]],
+        "x-scope-policy": ["knowledge:read", "knowledge:manage"],
         "x-test-case-ids": ["ADM-INDEX-*"],
     },
     "AdminKnowledgeIndex_Create": {
@@ -609,7 +609,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:publish"],
         "x-requirement-id": ["ADM-KNOW-01", "ADM-KNOW-LIST-01"],
-        "x-scope-policy": [["knowledge:read", "knowledge:manage", "knowledge:publish"]],
+        "x-scope-policy": ["knowledge:read", "knowledge:manage", "knowledge:publish"],
         "x-test-case-ids": ["ADM-INDEX-*", "ADM-KNOW-*"],
     },
     "AdminKnowledgeIndex_Get": {
@@ -619,7 +619,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:read"],
         "x-requirement-id": ["ADM-KNOW-JOB-01"],
-        "x-scope-policy": [["knowledge:read", "knowledge:manage"]],
+        "x-scope-policy": ["knowledge:read", "knowledge:manage"],
         "x-test-case-ids": ["ADM-INDEX-*"],
     },
     "AdminKnowledge_Search": {
@@ -629,7 +629,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["knowledge:read"],
         "x-requirement-id": ["ADM-KNOW-LIST-01"],
-        "x-scope-policy": [["knowledge:read", "knowledge:manage", "knowledge:publish"]],
+        "x-scope-policy": ["knowledge:read", "knowledge:manage", "knowledge:publish"],
         "x-test-case-ids": ["ADM-KNOW-*"],
     },
     "AdminMcpServer_List": {
@@ -639,7 +639,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_policies:read"],
         "x-requirement-id": ["ADM-AI-POLICY-01"],
-        "x-scope-policy": [["ai_policies:read", "ai_runtime:kill"]],
+        "x-scope-policy": ["ai_policies:read", "ai_runtime:kill"],
         "x-test-case-ids": ["ADM-AI-POLICY-*"],
     },
     "AdminMe_Get": {
@@ -669,7 +669,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["observability:read"],
         "x-requirement-id": ["ADM-OBS-01"],
-        "x-scope-policy": [["observability:read"]],
+        "x-scope-policy": ["observability:read"],
         "x-test-case-ids": ["ADM-OBS-*"],
     },
     "AdminOrder_AdjustAmount": {
@@ -679,7 +679,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["orders:adjust"],
         "x-requirement-id": ["ADM-ORDER-01"],
-        "x-scope-policy": [["orders:read", "orders:adjust", "orders:cancel", "shipments:create"]],
+        "x-scope-policy": ["orders:read", "orders:adjust", "orders:cancel", "shipments:create"],
         "x-test-case-ids": ["ADM-ORDER-*", "ADM-SHIP-CREATE-*"],
     },
     "AdminOrder_Cancel": {
@@ -689,7 +689,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["orders:cancel"],
         "x-requirement-id": ["ADM-ORDER-01"],
-        "x-scope-policy": [["orders:read", "orders:adjust", "orders:cancel", "shipments:create"]],
+        "x-scope-policy": ["orders:read", "orders:adjust", "orders:cancel", "shipments:create"],
         "x-test-case-ids": ["ADM-ORDER-*", "ADM-SHIP-CREATE-*"],
     },
     "AdminOrder_Get": {
@@ -699,7 +699,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["orders:read"],
         "x-requirement-id": ["ADM-ORDER-01"],
-        "x-scope-policy": [["orders:read", "orders:adjust", "orders:cancel", "shipments:create"]],
+        "x-scope-policy": ["orders:read", "orders:adjust", "orders:cancel", "shipments:create"],
         "x-test-case-ids": ["ADM-ORDER-*", "ADM-SHIP-CREATE-*"],
     },
     "AdminOrder_List": {
@@ -709,7 +709,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["orders:read"],
         "x-requirement-id": ["ADM-ORDER-LIST-01"],
-        "x-scope-policy": [["orders:read"]],
+        "x-scope-policy": ["orders:read"],
         "x-test-case-ids": ["ADM-ORDER-*"],
     },
     "AdminPayment_Get": {
@@ -719,7 +719,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["payments:read"],
         "x-requirement-id": ["ADM-PAYMENT-01"],
-        "x-scope-policy": [["payments:read", "payments:reconcile"]],
+        "x-scope-policy": ["payments:read", "payments:reconcile"],
         "x-test-case-ids": ["ADM-PAYMENT-*"],
     },
     "AdminPayment_List": {
@@ -729,7 +729,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["payments:read"],
         "x-requirement-id": ["ADM-PAYMENT-LIST-01"],
-        "x-scope-policy": [["payments:read"]],
+        "x-scope-policy": ["payments:read"],
         "x-test-case-ids": ["ADM-PAYMENT-*"],
     },
     "AdminPayment_Reconcile": {
@@ -739,7 +739,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["payments:reconcile"],
         "x-requirement-id": ["ADM-PAYMENT-01"],
-        "x-scope-policy": [["payments:read", "payments:reconcile"]],
+        "x-scope-policy": ["payments:read", "payments:reconcile"],
         "x-test-case-ids": ["ADM-PAYMENT-*"],
     },
     "AdminProductAttribute_List": {
@@ -750,7 +750,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -762,7 +765,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -774,7 +780,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -786,7 +795,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -798,7 +810,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -810,7 +825,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -822,7 +840,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -834,7 +855,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:publish"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -846,7 +870,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -858,7 +885,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -870,7 +900,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -882,7 +915,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -893,7 +929,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:create"],
         "x-requirement-id": ["ADM-PRODUCT-IMPORT-01"],
-        "x-scope-policy": [["products:create"]],
+        "x-scope-policy": ["products:create"],
         "x-test-case-ids": ["ADM-BATCH-*"],
     },
     "AdminProductImportTemplate_Get": {
@@ -903,7 +939,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:create"],
         "x-requirement-id": ["ADM-PRODUCT-IMPORT-01"],
-        "x-scope-policy": [["products:create"]],
+        "x-scope-policy": ["products:create"],
         "x-test-case-ids": ["ADM-BATCH-*"],
     },
     "AdminProductSku_ChangeStatus": {
@@ -914,7 +950,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -926,7 +965,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -938,7 +980,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -950,7 +995,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -961,7 +1009,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:create"],
         "x-requirement-id": ["ADM-PRODUCT-NEW-01"],
-        "x-scope-policy": [["products:create"]],
+        "x-scope-policy": ["products:create"],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
     "AdminProduct_Get": {
@@ -972,7 +1020,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -983,7 +1034,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-LIST-01"],
-        "x-scope-policy": [["products:read"]],
+        "x-scope-policy": ["products:read"],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
     "AdminProduct_Moderate": {
@@ -994,7 +1045,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:review"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -1006,7 +1060,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:publish"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -1018,7 +1075,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:publish"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -1030,7 +1090,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -1042,7 +1105,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
-            ["products:read", "products:update", "products:review", "products:publish"]
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
@@ -1053,7 +1119,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["refund_appeals:review"],
         "x-requirement-id": ["ADM-APPEAL-01"],
-        "x-scope-policy": [["refund_appeals:read", "refund_appeals:review"]],
+        "x-scope-policy": ["refund_appeals:read", "refund_appeals:review"],
         "x-test-case-ids": ["ADM-APPEAL-*"],
     },
     "AdminRefundAppeal_Decide": {
@@ -1063,7 +1129,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["refund_appeals:review"],
         "x-requirement-id": ["ADM-APPEAL-01"],
-        "x-scope-policy": [["refund_appeals:read", "refund_appeals:review"]],
+        "x-scope-policy": ["refund_appeals:read", "refund_appeals:review"],
         "x-test-case-ids": ["ADM-APPEAL-*"],
     },
     "AdminRefundAppeal_Get": {
@@ -1073,7 +1139,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["refund_appeals:read"],
         "x-requirement-id": ["ADM-APPEAL-01"],
-        "x-scope-policy": [["refund_appeals:read", "refund_appeals:review"]],
+        "x-scope-policy": ["refund_appeals:read", "refund_appeals:review"],
         "x-test-case-ids": ["ADM-APPEAL-*"],
     },
     "AdminRefundAppeal_List": {
@@ -1083,7 +1149,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["refund_appeals:read"],
         "x-requirement-id": ["ADM-APPEAL-LIST-01"],
-        "x-scope-policy": [["refund_appeals:read"]],
+        "x-scope-policy": ["refund_appeals:read"],
         "x-test-case-ids": ["ADM-APPEAL-*"],
     },
     "AdminRefund_Claim": {
@@ -1093,7 +1159,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["refunds:review"],
         "x-requirement-id": ["ADM-REFUND-01"],
-        "x-scope-policy": [["refunds:read", "refunds:review"]],
+        "x-scope-policy": ["refunds:read", "refunds:review"],
         "x-test-case-ids": ["ADM-REFUND-*"],
     },
     "AdminRefund_Decide": {
@@ -1103,7 +1169,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["refunds:review"],
         "x-requirement-id": ["ADM-REFUND-01"],
-        "x-scope-policy": [["refunds:read", "refunds:review"]],
+        "x-scope-policy": ["refunds:read", "refunds:review"],
         "x-test-case-ids": ["ADM-REFUND-*"],
     },
     "AdminRefund_Get": {
@@ -1113,7 +1179,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["refunds:read"],
         "x-requirement-id": ["ADM-REFUND-01"],
-        "x-scope-policy": [["refunds:read", "refunds:review"]],
+        "x-scope-policy": ["refunds:read", "refunds:review"],
         "x-test-case-ids": ["ADM-REFUND-*"],
     },
     "AdminRefund_List": {
@@ -1123,7 +1189,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["refunds:read"],
         "x-requirement-id": ["ADM-REFUND-LIST-01"],
-        "x-scope-policy": [["refunds:read"]],
+        "x-scope-policy": ["refunds:read"],
         "x-test-case-ids": ["ADM-REFUND-*"],
     },
     "AdminReview_Get": {
@@ -1133,7 +1199,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["reviews:read"],
         "x-requirement-id": ["ADM-REVIEW-01"],
-        "x-scope-policy": [["reviews:read", "reviews:reply", "reviews:moderate"]],
+        "x-scope-policy": ["reviews:read", "reviews:reply", "reviews:moderate"],
         "x-test-case-ids": ["ADM-REVIEW-*"],
     },
     "AdminReview_List": {
@@ -1143,7 +1209,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["reviews:read"],
         "x-requirement-id": ["ADM-REVIEW-LIST-01"],
-        "x-scope-policy": [["reviews:read"]],
+        "x-scope-policy": ["reviews:read"],
         "x-test-case-ids": ["ADM-REVIEW-*"],
     },
     "AdminReview_Moderate": {
@@ -1153,7 +1219,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["reviews:moderate"],
         "x-requirement-id": ["ADM-REVIEW-01"],
-        "x-scope-policy": [["reviews:read", "reviews:reply", "reviews:moderate"]],
+        "x-scope-policy": ["reviews:read", "reviews:reply", "reviews:moderate"],
         "x-test-case-ids": ["ADM-REVIEW-*"],
     },
     "AdminReview_Reply": {
@@ -1163,7 +1229,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["reviews:reply"],
         "x-requirement-id": ["ADM-REVIEW-01"],
-        "x-scope-policy": [["reviews:read", "reviews:reply", "reviews:moderate"]],
+        "x-scope-policy": ["reviews:read", "reviews:reply", "reviews:moderate"],
         "x-test-case-ids": ["ADM-REVIEW-*"],
     },
     "AdminRoleGrantEvent_List": {
@@ -1174,15 +1240,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["rbac:read"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1194,15 +1258,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["rbac:manage"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1214,15 +1276,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["rbac:read"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1234,15 +1294,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["rbac:manage"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1253,7 +1311,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["rbac:manage"],
         "x-requirement-id": ["ADM-RBAC-02"],
-        "x-scope-policy": [["rbac:read", "rbac:manage"]],
+        "x-scope-policy": ["rbac:read", "rbac:manage"],
         "x-test-case-ids": ["ADM-RBAC-*"],
     },
     "AdminRole_Create": {
@@ -1263,7 +1321,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["rbac:manage"],
         "x-requirement-id": ["ADM-RBAC-01"],
-        "x-scope-policy": [["rbac:read", "rbac:manage"]],
+        "x-scope-policy": ["rbac:read", "rbac:manage"],
         "x-test-case-ids": ["ADM-RBAC-*"],
     },
     "AdminRole_Get": {
@@ -1273,7 +1331,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["rbac:read"],
         "x-requirement-id": ["ADM-RBAC-02"],
-        "x-scope-policy": [["rbac:read", "rbac:manage"]],
+        "x-scope-policy": ["rbac:read", "rbac:manage"],
         "x-test-case-ids": ["ADM-RBAC-*"],
     },
     "AdminRole_List": {
@@ -1283,7 +1341,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["rbac:read"],
         "x-requirement-id": ["ADM-RBAC-01"],
-        "x-scope-policy": [["rbac:read", "rbac:manage"]],
+        "x-scope-policy": ["rbac:read", "rbac:manage"],
         "x-test-case-ids": ["ADM-RBAC-*"],
     },
     "AdminRole_Update": {
@@ -1293,7 +1351,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["rbac:manage"],
         "x-requirement-id": ["ADM-RBAC-02"],
-        "x-scope-policy": [["rbac:read", "rbac:manage"]],
+        "x-scope-policy": ["rbac:read", "rbac:manage"],
         "x-test-case-ids": ["ADM-RBAC-*"],
     },
     "AdminSensitiveFields_Get": {
@@ -1304,15 +1362,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["users:read_sensitive"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1324,15 +1380,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["users:read_sensitive"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1344,15 +1398,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["users:manage", "users:read_sensitive"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1364,7 +1416,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["shipments:correct"],
         "x-requirement-id": ["ADM-SHIP-02"],
         "x-scope-policy": [
-            ["shipments:read", "shipments:correct", "shipments:void", "shipments:refresh"]
+            "shipments:read",
+            "shipments:correct",
+            "shipments:void",
+            "shipments:refresh",
         ],
         "x-test-case-ids": ["ADM-SHIP-VOID-*"],
     },
@@ -1375,7 +1430,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["shipments:create"],
         "x-requirement-id": ["ADM-ORDER-01"],
-        "x-scope-policy": [["orders:read", "orders:adjust", "orders:cancel", "shipments:create"]],
+        "x-scope-policy": ["orders:read", "orders:adjust", "orders:cancel", "shipments:create"],
         "x-test-case-ids": ["ADM-ORDER-*", "ADM-SHIP-CREATE-*"],
     },
     "AdminShipment_Get": {
@@ -1386,7 +1441,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["shipments:read"],
         "x-requirement-id": ["ADM-SHIP-02"],
         "x-scope-policy": [
-            ["shipments:read", "shipments:correct", "shipments:void", "shipments:refresh"]
+            "shipments:read",
+            "shipments:correct",
+            "shipments:void",
+            "shipments:refresh",
         ],
         "x-test-case-ids": ["ADM-SHIP-VOID-*"],
     },
@@ -1398,7 +1456,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["shipments:refresh"],
         "x-requirement-id": ["ADM-SHIP-02"],
         "x-scope-policy": [
-            ["shipments:read", "shipments:correct", "shipments:void", "shipments:refresh"]
+            "shipments:read",
+            "shipments:correct",
+            "shipments:void",
+            "shipments:refresh",
         ],
         "x-test-case-ids": ["ADM-SHIP-VOID-*"],
     },
@@ -1410,7 +1471,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["shipments:void"],
         "x-requirement-id": ["ADM-SHIP-02"],
         "x-scope-policy": [
-            ["shipments:read", "shipments:correct", "shipments:void", "shipments:refresh"]
+            "shipments:read",
+            "shipments:correct",
+            "shipments:void",
+            "shipments:refresh",
         ],
         "x-test-case-ids": ["ADM-SHIP-VOID-*"],
     },
@@ -1421,7 +1485,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminShippingTemplate_List": {
@@ -1431,7 +1495,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:read"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminShippingTemplate_Publish": {
@@ -1441,7 +1505,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminShippingTemplate_Update": {
@@ -1451,7 +1515,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminSkillToolBinding_Create": {
@@ -1461,7 +1525,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_skills:manage"],
         "x-requirement-id": ["ADM-AI-SKILL-01"],
-        "x-scope-policy": [["ai_skills:read", "ai_skills:manage", "ai_skills:publish"]],
+        "x-scope-policy": ["ai_skills:read", "ai_skills:manage", "ai_skills:publish"],
         "x-test-case-ids": ["ADM-SKILL-*"],
     },
     "AdminSkill_Create": {
@@ -1471,7 +1535,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_skills:manage"],
         "x-requirement-id": ["ADM-AI-SKILL-01"],
-        "x-scope-policy": [["ai_skills:read", "ai_skills:manage", "ai_skills:publish"]],
+        "x-scope-policy": ["ai_skills:read", "ai_skills:manage", "ai_skills:publish"],
         "x-test-case-ids": ["ADM-SKILL-*"],
     },
     "AdminSkill_List": {
@@ -1481,7 +1545,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_skills:read"],
         "x-requirement-id": ["ADM-AI-SKILL-01"],
-        "x-scope-policy": [["ai_skills:read", "ai_skills:manage", "ai_skills:publish"]],
+        "x-scope-policy": ["ai_skills:read", "ai_skills:manage", "ai_skills:publish"],
         "x-test-case-ids": ["ADM-SKILL-*"],
     },
     "AdminSkill_Publish": {
@@ -1491,7 +1555,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_skills:publish"],
         "x-requirement-id": ["ADM-AI-SKILL-01"],
-        "x-scope-policy": [["ai_skills:read", "ai_skills:manage", "ai_skills:publish"]],
+        "x-scope-policy": ["ai_skills:read", "ai_skills:manage", "ai_skills:publish"],
         "x-test-case-ids": ["ADM-SKILL-*"],
     },
     "AdminSkill_VersionCreate": {
@@ -1501,7 +1565,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_skills:manage"],
         "x-requirement-id": ["ADM-AI-SKILL-01"],
-        "x-scope-policy": [["ai_skills:read", "ai_skills:manage", "ai_skills:publish"]],
+        "x-scope-policy": ["ai_skills:read", "ai_skills:manage", "ai_skills:publish"],
         "x-test-case-ids": ["ADM-SKILL-*"],
     },
     "AdminStoreAnnouncement_Create": {
@@ -1511,7 +1575,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStoreAnnouncement_List": {
@@ -1521,7 +1585,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:read"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStoreAnnouncement_Update": {
@@ -1531,7 +1595,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStoreCertificationEvent_List": {
@@ -1541,7 +1605,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage", "stores:review"],
         "x-requirement-id": ["ADM-STORE-01"],
-        "x-scope-policy": [["stores:review"]],
+        "x-scope-policy": ["stores:review"],
         "x-test-case-ids": ["ADM-CERT-*"],
     },
     "AdminStoreCertification_AddMaterialVersion": {
@@ -1551,7 +1615,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-01"],
-        "x-scope-policy": [["stores:review"]],
+        "x-scope-policy": ["stores:review"],
         "x-test-case-ids": ["ADM-CERT-*"],
     },
     "AdminStoreCertification_Decide": {
@@ -1561,7 +1625,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:review"],
         "x-requirement-id": ["ADM-STORE-01"],
-        "x-scope-policy": [["stores:review"]],
+        "x-scope-policy": ["stores:review"],
         "x-test-case-ids": ["ADM-CERT-*"],
     },
     "AdminStoreCertification_Get": {
@@ -1571,7 +1635,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:review"],
         "x-requirement-id": ["ADM-STORE-01"],
-        "x-scope-policy": [["stores:review"]],
+        "x-scope-policy": ["stores:review"],
         "x-test-case-ids": ["ADM-CERT-*"],
     },
     "AdminStoreCertification_List": {
@@ -1581,7 +1645,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:read", "stores:review"],
         "x-requirement-id": ["ADM-CERT-LIST-01"],
-        "x-scope-policy": [["stores:read", "stores:review"]],
+        "x-scope-policy": ["stores:read", "stores:review"],
         "x-test-case-ids": ["ADM-CERT-*"],
     },
     "AdminStoreFeaturedProduct_List": {
@@ -1591,7 +1655,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:read"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStoreFeaturedProduct_Replace": {
@@ -1601,7 +1665,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStorePolicy_Create": {
@@ -1612,12 +1676,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["store_policies:create"],
         "x-requirement-id": ["ADM-POLICY-01"],
         "x-scope-policy": [
-            [
-                "store_policies:read",
-                "store_policies:create",
-                "store_policies:update",
-                "store_policies:publish",
-            ]
+            "store_policies:read",
+            "store_policies:create",
+            "store_policies:update",
+            "store_policies:publish",
         ],
         "x-test-case-ids": ["ADM-POLICY-*"],
     },
@@ -1629,12 +1691,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["store_policies:read"],
         "x-requirement-id": ["ADM-POLICY-01"],
         "x-scope-policy": [
-            [
-                "store_policies:read",
-                "store_policies:create",
-                "store_policies:update",
-                "store_policies:publish",
-            ]
+            "store_policies:read",
+            "store_policies:create",
+            "store_policies:update",
+            "store_policies:publish",
         ],
         "x-test-case-ids": ["ADM-POLICY-*"],
     },
@@ -1646,12 +1706,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["store_policies:read"],
         "x-requirement-id": ["ADM-POLICY-01"],
         "x-scope-policy": [
-            [
-                "store_policies:read",
-                "store_policies:create",
-                "store_policies:update",
-                "store_policies:publish",
-            ]
+            "store_policies:read",
+            "store_policies:create",
+            "store_policies:update",
+            "store_policies:publish",
         ],
         "x-test-case-ids": ["ADM-POLICY-*"],
     },
@@ -1663,12 +1721,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["store_policies:publish"],
         "x-requirement-id": ["ADM-POLICY-01"],
         "x-scope-policy": [
-            [
-                "store_policies:read",
-                "store_policies:create",
-                "store_policies:update",
-                "store_policies:publish",
-            ]
+            "store_policies:read",
+            "store_policies:create",
+            "store_policies:update",
+            "store_policies:publish",
         ],
         "x-test-case-ids": ["ADM-POLICY-*"],
     },
@@ -1680,12 +1736,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["store_policies:update"],
         "x-requirement-id": ["ADM-POLICY-01"],
         "x-scope-policy": [
-            [
-                "store_policies:read",
-                "store_policies:create",
-                "store_policies:update",
-                "store_policies:publish",
-            ]
+            "store_policies:read",
+            "store_policies:create",
+            "store_policies:update",
+            "store_policies:publish",
         ],
         "x-test-case-ids": ["ADM-POLICY-*"],
     },
@@ -1697,12 +1751,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["store_policies:publish"],
         "x-requirement-id": ["ADM-POLICY-01"],
         "x-scope-policy": [
-            [
-                "store_policies:read",
-                "store_policies:create",
-                "store_policies:update",
-                "store_policies:publish",
-            ]
+            "store_policies:read",
+            "store_policies:create",
+            "store_policies:update",
+            "store_policies:publish",
         ],
         "x-test-case-ids": ["ADM-POLICY-*"],
     },
@@ -1713,7 +1765,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStoreProductGroup_List": {
@@ -1723,7 +1775,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:read"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStoreProductGroup_ReplaceProducts": {
@@ -1733,7 +1785,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStoreProductGroup_Update": {
@@ -1743,7 +1795,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStore_ChangeStatus": {
@@ -1753,7 +1805,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStore_Get": {
@@ -1763,7 +1815,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:read"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStore_List": {
@@ -1773,7 +1825,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:read"],
         "x-requirement-id": ["ADM-STORE-LIST-01"],
-        "x-scope-policy": [["stores:read"]],
+        "x-scope-policy": ["stores:read"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminStore_Update": {
@@ -1783,7 +1835,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": [["stores:read", "stores:manage"]],
+        "x-scope-policy": ["stores:read", "stores:manage"],
         "x-test-case-ids": ["ADM-STORE-*"],
     },
     "AdminToolVersion_Rollback": {
@@ -1793,7 +1845,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_tools:publish"],
         "x-requirement-id": ["ADM-AI-01"],
-        "x-scope-policy": [["ai_tools:read", "ai_tools:manage", "ai_tools:publish"]],
+        "x-scope-policy": ["ai_tools:read", "ai_tools:manage", "ai_tools:publish"],
         "x-test-case-ids": ["ADM-TOOL-*"],
     },
     "AdminTool_Create": {
@@ -1803,7 +1855,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_tools:manage"],
         "x-requirement-id": ["ADM-AI-TOOL-LIST-01"],
-        "x-scope-policy": [["ai_tools:read", "ai_tools:manage"]],
+        "x-scope-policy": ["ai_tools:read", "ai_tools:manage"],
         "x-test-case-ids": ["ADM-TOOL-*"],
     },
     "AdminTool_Get": {
@@ -1813,7 +1865,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_tools:read"],
         "x-requirement-id": ["ADM-AI-01"],
-        "x-scope-policy": [["ai_tools:read", "ai_tools:manage", "ai_tools:publish"]],
+        "x-scope-policy": ["ai_tools:read", "ai_tools:manage", "ai_tools:publish"],
         "x-test-case-ids": ["ADM-TOOL-*"],
     },
     "AdminTool_List": {
@@ -1823,7 +1875,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_tools:read"],
         "x-requirement-id": ["ADM-AI-TOOL-LIST-01"],
-        "x-scope-policy": [["ai_tools:read", "ai_tools:manage"]],
+        "x-scope-policy": ["ai_tools:read", "ai_tools:manage"],
         "x-test-case-ids": ["ADM-TOOL-*"],
     },
     "AdminTool_Publish": {
@@ -1833,7 +1885,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_tools:publish"],
         "x-requirement-id": ["ADM-AI-01"],
-        "x-scope-policy": [["ai_tools:read", "ai_tools:manage", "ai_tools:publish"]],
+        "x-scope-policy": ["ai_tools:read", "ai_tools:manage", "ai_tools:publish"],
         "x-test-case-ids": ["ADM-TOOL-*"],
     },
     "AdminTool_VersionCreate": {
@@ -1843,7 +1895,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_tools:manage"],
         "x-requirement-id": ["ADM-AI-01"],
-        "x-scope-policy": [["ai_tools:read", "ai_tools:manage", "ai_tools:publish"]],
+        "x-scope-policy": ["ai_tools:read", "ai_tools:manage", "ai_tools:publish"],
         "x-test-case-ids": ["ADM-TOOL-*"],
     },
     "AdminUserPasswordReset_Require": {
@@ -1854,15 +1906,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["users:force_password_reset"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1874,15 +1924,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["users:sessions_revoke"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1894,15 +1942,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["users:read"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1914,15 +1960,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["users:manage"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1934,15 +1978,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["users:read"],
         "x-requirement-id": ["ADM-USER-01"],
         "x-scope-policy": [
-            [
-                "users:read",
-                "users:manage",
-                "users:read_sensitive",
-                "users:sessions_revoke",
-                "users:force_password_reset",
-                "rbac:read",
-                "rbac:manage",
-            ]
+            "users:read",
+            "users:manage",
+            "users:read_sensitive",
+            "users:sessions_revoke",
+            "users:force_password_reset",
+            "rbac:read",
+            "rbac:manage",
         ],
         "x-test-case-ids": ["ADM-RBAC-*", "ADM-SENSITIVE-*", "ADM-USER-STATUS-*"],
     },
@@ -1953,7 +1995,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["users:read"],
         "x-requirement-id": ["ADM-USER-LIST-01"],
-        "x-scope-policy": [["users:read"]],
+        "x-scope-policy": ["users:read"],
         "x-test-case-ids": ["ADM-USER-*"],
     },
     "AgentRun_GetMine": {
@@ -2483,7 +2525,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["global_ui", "vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["ADM-BATCH-01", "GLOBAL-FILE-UPLOAD-01"],
-        "x-scope-policy": [["jobs:read", "products:create"], "purpose_owner_status_and_scope"],
+        "x-scope-policy": ["jobs:read", "products:create", "purpose_owner_status_and_scope"],
         "x-test-case-ids": ["ADM-BATCH-*", "FILE-UPLOAD-*"],
     },
     "File_GetMetadata": {
@@ -3224,15 +3266,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:reply"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3244,15 +3284,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:internal_notes_write"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3264,15 +3302,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:internal_notes_read"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3284,15 +3320,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:queue_read"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3304,15 +3338,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:reply"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3324,15 +3356,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:queue_read"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3354,15 +3384,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:claim"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3374,15 +3402,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:queue_read"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3393,7 +3419,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["support:queue_read"],
         "x-requirement-id": ["ADM-SUPPORT-LIST-01"],
-        "x-scope-policy": [["support:queue_read"]],
+        "x-scope-policy": ["support:queue_read"],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
     "SupportTicket_Resolve": {
@@ -3404,15 +3430,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:resolve"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3424,15 +3448,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:resume"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3444,15 +3466,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:transfer"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3464,15 +3484,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:wait"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
@@ -3484,15 +3502,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["support:queue_read"],
         "x-requirement-id": ["ADM-SUPPORT-01"],
         "x-scope-policy": [
-            [
-                "support:queue_read",
-                "support:claim",
-                "support:reply",
-                "support:wait",
-                "support:resume",
-                "support:transfer",
-                "support:resolve",
-            ]
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:wait",
+            "support:resume",
+            "support:transfer",
+            "support:resolve",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*"],
     },

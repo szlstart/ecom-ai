@@ -5,7 +5,7 @@ description: >-
   evidence merely because its label is present in OpenAPI: every selector below
   must resolve to a collected backend or frontend test. Selectors may be shared
   when one end-to-end scenario deliberately proves several adjacent contracts.
-allowed_layers: [unit, contract, integration, ui, security, migration, operations]
+allowed_layers: [unit, contract, integration, ui, e2e, accessibility, security, migration, operations]
 families:
   ACCOUNT-CLOSURE: {layers: [contract, integration], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   ADDRESS: {layers: [integration], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
@@ -52,6 +52,11 @@ families:
   AUTH-REFRESH: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-REGISTER: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-RESET: {layers: [contract, integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
+  BROWSER-AUTH: {layers: [e2e, accessibility], selectors: ["frontend/e2e/release-acceptance.spec.ts::AUTH-BROWSER keeps user and admin authentication entry points keyboard reachable"]}
+  BROWSER-GUARD: {layers: [e2e, security], selectors: ["frontend/e2e/release-acceptance.spec.ts::AUTH-GUARD-BROWSER fails closed for protected user and admin routes"]}
+  BROWSER-HOME: {layers: [e2e, accessibility], selectors: ["frontend/e2e/release-acceptance.spec.ts::HOME-BROWSER renders deterministic loading-complete content without serious accessibility violations"]}
+  BROWSER-SEARCH: {layers: [e2e, accessibility], selectors: ["frontend/e2e/release-acceptance.spec.ts::SEARCH-BROWSER preserves URL filters and exposes an empty recovery state"]}
+  BROWSER-SYSTEM: {layers: [e2e, accessibility], selectors: ["frontend/e2e/release-acceptance.spec.ts::SYSTEM-STATE-BROWSER exposes deterministic recovery pages"]}
   CART: {layers: [contract, integration], selectors: [backend/tests/test_cart_api_integration.py::test_permanent_cart_idempotency_etag_and_invalid_cleanup]}
   CHECKOUT: {layers: [contract, integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   FAVORITE: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}

@@ -11581,8 +11581,123 @@ export interface components {
             /** Effect */
             effect: string;
         };
+        /** ProblemDetails */
+        ProblemDetails: {
+            /**
+             * Type
+             * @default about:blank
+             */
+            type: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: number;
+            /** Detail */
+            detail: string;
+            /** Code */
+            code: string;
+            /**
+             * Request Id
+             * @default null
+             */
+            request_id: string | null;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable: boolean;
+            /**
+             * Errors
+             * @default null
+             */
+            errors: {
+                [key: string]: string;
+            }[] | null;
+        };
     };
-    responses: never;
+    responses: {
+        /** @description Authentication is missing, expired, revoked, or has the wrong audience. */
+        Problem401: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The authenticated subject lacks the required permission or data scope. */
+        Problem403: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The resource does not exist or is deliberately hidden by ownership rules. */
+        Problem404: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The command conflicts with current state, replay scope, or a concurrent command. */
+        Problem409: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The supplied entity version is stale. */
+        Problem412: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description A required precondition such as If-Match is missing. */
+        Problem428: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The caller exceeded an API or Agent rate limit. */
+        Problem429: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The service failed without exposing internal details. */
+        Problem500: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description A required dependency is unavailable or the write outcome is unknown. */
+        Problem503: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -11608,6 +11723,9 @@ export interface operations {
                     "application/json": components["schemas"]["LivenessResponse"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Health_Ready: {
@@ -11628,6 +11746,9 @@ export interface operations {
                     "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiMemory_ListMine: {
@@ -11653,6 +11774,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiMemoryList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11662,6 +11784,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiMemory_Revise: {
@@ -11690,6 +11815,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiMemoryView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11699,6 +11828,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiMemory_Delete: {
@@ -11728,6 +11861,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11737,6 +11874,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiPersonalization_DisableAll: {
@@ -11763,6 +11904,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11772,6 +11915,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CleanupTask_GetMine: {
@@ -11794,6 +11940,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11803,6 +11951,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CleanupTask_RetryMine: {
@@ -11828,6 +11979,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11837,6 +11992,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiConsent_ListMine: {
@@ -11857,6 +12016,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentConsentList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiConsent_Grant: {
@@ -11883,6 +12046,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentConsentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11892,6 +12057,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiConsent_GetMine: {
@@ -11914,6 +12082,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentConsentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11923,6 +12093,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiConsent_Pause: {
@@ -11945,6 +12118,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentConsentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11954,6 +12130,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiConsent_Resume: {
@@ -11976,6 +12155,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentConsentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -11985,6 +12167,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiConsent_Revoke: {
@@ -12007,6 +12192,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentConsentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12016,6 +12204,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AgentRun_GetMine: {
@@ -12038,6 +12229,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentRunView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12047,6 +12240,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AgentToolApproval_GetMine: {
@@ -12069,6 +12265,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentApprovalView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12078,6 +12276,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AgentToolApproval_DecideMine: {
@@ -12107,6 +12308,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentApprovalView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12116,6 +12321,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAgentRun_Get: {
@@ -12138,6 +12347,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminAgentRunView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12147,6 +12359,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAgentRun_Kill: {
@@ -12176,6 +12391,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminAgentRunView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12185,6 +12405,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RegistrationConfig_Get: {
@@ -12205,6 +12429,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_dict_str__object__"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AuthVerificationCode_Create: {
@@ -12229,6 +12456,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_VerificationCodeAccepted_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12238,6 +12467,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Registration_Create: {
@@ -12264,6 +12496,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12273,6 +12506,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Auth_Login: {
@@ -12297,6 +12533,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12306,6 +12543,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AuthToken_Refresh: {
@@ -12330,6 +12570,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12339,6 +12580,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Auth_Logout: {
@@ -12359,6 +12603,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12368,6 +12614,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AuthSession_ListMine: {
@@ -12388,6 +12637,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_SessionSummary__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AuthSession_RevokeOthers: {
@@ -12406,6 +12659,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AuthSession_Revoke: {
@@ -12426,6 +12684,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12435,6 +12696,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     PasswordResetTicket_Create: {
@@ -12459,6 +12723,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PasswordResetTicketResult_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12468,6 +12733,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     PasswordReset_Complete: {
@@ -12494,6 +12762,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12503,6 +12772,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserDashboard_Get: {
@@ -12523,6 +12795,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_UserDashboard_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserProfile_Get: {
@@ -12543,6 +12819,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_UserProfile_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserProfile_Patch: {
@@ -12569,6 +12849,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_UserProfile_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12578,6 +12861,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserPassword_Replace: {
@@ -12604,6 +12891,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12613,6 +12902,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserSecurity_Get: {
@@ -12633,6 +12925,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SecuritySummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserContactChangeTicket_Create: {
@@ -12659,6 +12955,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ContactChangeTicketResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12668,6 +12966,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserContactChange_Complete: {
@@ -12694,6 +12995,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12703,6 +13006,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserContactChangeTicket_Cancel: {
@@ -12723,6 +13029,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12732,6 +13041,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_ListMine: {
@@ -12752,6 +13064,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_Create: {
@@ -12778,6 +13094,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12787,6 +13105,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_GetMine: {
@@ -12809,6 +13130,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12818,6 +13141,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_Delete: {
@@ -12840,6 +13166,10 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12849,6 +13179,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_Patch: {
@@ -12877,6 +13211,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12886,6 +13224,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_SetDefault: {
@@ -12910,6 +13252,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12919,6 +13263,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserAccountClosureRequest_Create: {
@@ -12945,6 +13292,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -12954,6 +13303,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     HomeBanner_ListPublished: {
@@ -12974,6 +13326,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PublishedContentList_"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     PlatformAnnouncement_ListPublished: {
@@ -12994,6 +13349,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PublishedContentList_"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     HelpArticle_ListPublished: {
@@ -13014,6 +13372,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PublishedContentList_"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     HelpArticle_GetPublished: {
@@ -13036,6 +13397,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PublishedContent_"];
                 };
             };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13045,6 +13407,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FooterContent_GetPublished: {
@@ -13065,6 +13430,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PublishedContentList_"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AboutContent_GetPublished: {
@@ -13085,6 +13453,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PublishedContentList_"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     LegalDocument_GetPublished: {
@@ -13111,6 +13482,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_LegalDocument_"];
                 };
             };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13120,6 +13492,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminContent_List: {
@@ -13140,6 +13515,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ContentList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminContent_Create: {
@@ -13164,6 +13544,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ContentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13173,6 +13556,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminContent_Get: {
@@ -13195,6 +13581,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ContentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13204,6 +13593,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminContent_Update: {
@@ -13232,6 +13624,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ContentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13241,6 +13638,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminContent_Publish: {
@@ -13264,6 +13665,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ContentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13273,6 +13678,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminContent_Withdraw: {
@@ -13295,6 +13703,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ContentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13304,6 +13716,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAiEvaluation_List: {
@@ -13324,6 +13739,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_EvaluationRunList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAiEvaluation_Run: {
@@ -13348,6 +13768,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_EvaluationRunView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13357,6 +13780,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminObservability_Query: {
@@ -13377,6 +13803,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ObservabilitySummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminDeadLetter_List: {
@@ -13401,6 +13832,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_DeadLetterList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13410,6 +13843,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminDeadLetter_Get: {
@@ -13432,6 +13868,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_DeadLetterView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13441,6 +13880,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminDeadLetter_Preview: {
@@ -13463,6 +13905,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_DeadLetterReplayPreview_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13472,6 +13918,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminDeadLetter_Replay: {
@@ -13501,6 +13950,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13510,6 +13964,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FileUploadPolicy_Get: {
@@ -13532,6 +13990,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_FileUploadPolicyView_"];
                 };
             };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13541,6 +14000,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FileUploadSession_Create: {
@@ -13567,6 +14029,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_FileUploadSessionView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13576,6 +14040,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FileUploadSession_Get: {
@@ -13598,6 +14065,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_FileUploadSessionView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13607,6 +14076,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FileUploadSession_Abort: {
@@ -13627,6 +14099,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13636,6 +14111,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FileUploadSession_Complete: {
@@ -13664,6 +14142,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_FileUploadSessionView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13673,6 +14154,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     File_GetMetadata: {
@@ -13695,6 +14179,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_FileMetadataView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13704,6 +14190,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     File_Get: {
@@ -13724,6 +14213,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13733,6 +14224,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Homepage_Get: {
@@ -13753,6 +14247,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_HomepageView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Product_Search: {
@@ -13783,6 +14281,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ProductList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13792,6 +14291,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Product_Get: {
@@ -13814,6 +14316,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ProductDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13823,6 +14327,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ProductSku_List: {
@@ -13845,6 +14352,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ProductSkuList_"];
                 };
             };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13854,6 +14362,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ProductFaq_List: {
@@ -13876,6 +14387,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ProductFaqList_"];
                 };
             };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -13885,6 +14397,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Category_List: {
@@ -13905,6 +14420,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_CategoryView__"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Brand_List: {
@@ -13937,6 +14455,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SearchSuggestion_List: {
@@ -13969,6 +14490,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ProductReview_List: {
@@ -13998,6 +14522,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ProductReviewList_"];
                 };
             };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14007,6 +14532,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ReviewEligibility_Get: {
@@ -14029,6 +14557,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ReviewEligibility_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14038,6 +14568,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Review_ListMine: {
@@ -14063,6 +14596,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MyReviewList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14072,6 +14606,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Review_Create: {
@@ -14098,6 +14635,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MyReviewView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14107,6 +14646,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Review_GetMine: {
@@ -14129,6 +14671,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_Union_MyReviewView__ProductReviewView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14138,6 +14682,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Review_Update: {
@@ -14166,6 +14713,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MyReviewView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14175,6 +14726,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Review_Append: {
@@ -14203,6 +14758,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MyReviewView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14212,6 +14770,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminReview_List: {
@@ -14235,6 +14796,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminReviewList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14244,6 +14807,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminReview_Get: {
@@ -14266,6 +14832,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminReviewView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14275,6 +14844,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminReview_Reply: {
@@ -14304,6 +14876,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminReviewView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14313,6 +14890,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminReview_Moderate: {
@@ -14342,6 +14923,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminReviewView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14351,6 +14937,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundReturnShipment_Upsert: {
@@ -14379,6 +14969,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundReturnShipmentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14388,6 +14982,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundPaymentWebhook_Process: {
@@ -14413,6 +15011,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundPaymentCallbackAck_"];
                 };
             };
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14422,6 +15022,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundEligibility_Check: {
@@ -14446,6 +15049,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundEligibilityCheck_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14455,6 +15060,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundApplication_Create: {
@@ -14481,6 +15089,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14490,6 +15100,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundApplication_ListMine: {
@@ -14512,6 +15125,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundApplicationList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14521,6 +15135,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundApplication_GetMine: {
@@ -14543,6 +15160,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14552,6 +15171,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundEvent_ListMine: {
@@ -14574,6 +15196,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundEventList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14583,6 +15207,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundApplication_Cancel: {
@@ -14611,6 +15238,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14620,6 +15250,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundAppeal_Create: {
@@ -14648,6 +15281,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundAppealView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14657,6 +15293,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundAppeal_GetMine: {
@@ -14679,6 +15318,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundAppealView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14688,6 +15329,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundAppealEvent_ListMine: {
@@ -14710,6 +15354,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundAppealEventList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14719,6 +15365,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RefundAppeal_Cancel: {
@@ -14744,6 +15393,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundAppealView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14753,6 +15406,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRefund_List: {
@@ -14775,6 +15432,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminRefundList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14784,6 +15443,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRefundAppeal_List: {
@@ -14806,6 +15468,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminRefundAppealList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14815,6 +15479,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRefundAppeal_Get: {
@@ -14837,6 +15504,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundAppealView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14846,6 +15516,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRefundAppeal_Claim: {
@@ -14871,6 +15544,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundAppealView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14880,6 +15558,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRefundAppeal_Decide: {
@@ -14918,6 +15600,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14927,6 +15614,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRefund_Get: {
@@ -14949,6 +15640,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14958,6 +15652,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRefund_Claim: {
@@ -14983,6 +15680,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14992,6 +15694,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRefund_Decide: {
@@ -15030,6 +15736,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15039,6 +15750,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiFeedbackReaction_Put: {
@@ -15066,6 +15781,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15075,6 +15793,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiFeedbackReaction_Delete: {
@@ -15098,6 +15819,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15107,6 +15831,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiFeedbackReport_Create: {
@@ -15136,6 +15863,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15145,6 +15875,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AiFeedbackCorrection_Create: {
@@ -15174,6 +15907,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15183,6 +15919,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Conversation_ListMine: {
@@ -15203,6 +15942,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ConversationList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ExclusiveConversation_PutMine: {
@@ -15223,6 +15966,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ConversationView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     StoreConversation_PutMine: {
@@ -15245,6 +15993,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ConversationView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15254,6 +16005,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Conversation_GetMine: {
@@ -15276,6 +16030,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ConversationView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15285,6 +16041,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Message_ListMine: {
@@ -15310,6 +16069,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15319,6 +16080,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Message_CreateMine: {
@@ -15345,6 +16109,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15354,6 +16121,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ConversationContext_PutMine: {
@@ -15383,6 +16153,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ConversationContextView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15392,6 +16166,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ConversationContext_DeleteMine: {
@@ -15417,6 +16195,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ConversationContextClearView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15426,6 +16208,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ConversationArchive_CreateMine: {
@@ -15451,6 +16237,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ConversationArchiveView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15460,6 +16250,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     HumanServiceTicket_GetMine: {
@@ -15482,6 +16276,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_HumanTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15491,6 +16287,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     HumanServiceTicketCancellation_CreateMine: {
@@ -15515,6 +16314,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_HumanTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15524,6 +16326,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     MessageReadCursor_PutMine: {
@@ -15550,6 +16355,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ReadCursorView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15559,6 +16367,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     HumanServiceRequest_CreateMine: {
@@ -15587,6 +16398,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_HumanTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15596,6 +16410,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportTicket_List: {
@@ -15620,6 +16437,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportTicketList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15629,6 +16448,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportTicket_Get: {
@@ -15651,6 +16473,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15660,6 +16485,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportWorkspace_Get: {
@@ -15682,6 +16510,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportWorkspaceView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15691,6 +16522,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportMessage_List: {
@@ -15715,6 +16549,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15724,6 +16561,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportConversationMessage_Send: {
@@ -15750,6 +16590,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15759,6 +16603,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportReadCursor_Put: {
@@ -15785,6 +16632,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportReadCursorView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15794,6 +16645,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportTicket_Claim: {
@@ -15819,6 +16673,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15828,6 +16687,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportTicket_Wait: {
@@ -15857,6 +16720,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15866,6 +16734,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportTicket_Resume: {
@@ -15891,6 +16763,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15900,6 +16777,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportTicket_Transfer: {
@@ -15929,6 +16810,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15938,6 +16824,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportTicket_Resolve: {
@@ -15967,6 +16857,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -15976,6 +16871,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportMessage_Send: {
@@ -16002,6 +16901,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16011,6 +16914,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportInternalNote_List: {
@@ -16033,6 +16939,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportInternalNoteList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16042,6 +16951,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportInternalNote_Create: {
@@ -16071,6 +16983,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SupportTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16080,6 +16997,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RealtimeTicket_CreateMine: {
@@ -16100,6 +17021,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RealtimeTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     SupportRealtimeTicket_Create: {
@@ -16120,6 +17046,12 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RealtimeTicketView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Cart_GetMine: {
@@ -16140,6 +17072,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CartView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CartItem_Create: {
@@ -16166,6 +17102,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CartView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16175,6 +17113,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CartItem_Delete: {
@@ -16199,6 +17140,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CartView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16208,6 +17153,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CartItem_Patch: {
@@ -16236,6 +17185,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CartView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16245,6 +17198,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CartSelection_Replace: {
@@ -16271,6 +17228,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CartView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16280,6 +17240,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CartInvalidItem_Clear: {
@@ -16302,6 +17266,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CartView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16311,6 +17278,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CheckoutSession_Create: {
@@ -16337,6 +17308,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CheckoutView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16346,6 +17319,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CheckoutSession_Get: {
@@ -16368,6 +17344,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CheckoutView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16377,6 +17355,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CheckoutSession_Patch: {
@@ -16405,6 +17386,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CheckoutView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16414,6 +17399,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     CheckoutRepricing_Create: {
@@ -16438,6 +17427,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_CheckoutView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16447,6 +17439,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Order_Create: {
@@ -16473,6 +17468,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_OrderCreateResponse_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16482,6 +17479,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Order_ListMine: {
@@ -16509,6 +17509,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_OrderList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16518,6 +17519,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Order_GetMine: {
@@ -16540,6 +17544,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_OrderDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16549,6 +17555,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     OrderEvent_ListMine: {
@@ -16571,6 +17580,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_OrderEventList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16580,6 +17591,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     TradeOrder_GetMine: {
@@ -16602,6 +17616,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_TradeOrderView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16611,6 +17627,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Order_CancelMine: {
@@ -16640,6 +17659,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16649,6 +17672,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Order_ConfirmReceiptMine: {
@@ -16674,6 +17701,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16683,6 +17714,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Order_HideMine: {
@@ -16707,6 +17742,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_OrderHideResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16716,6 +17755,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Order_RestoreMine: {
@@ -16741,6 +17784,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_OrderListItem_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16750,6 +17797,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Order_RepurchaseMine: {
@@ -16775,6 +17826,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_OrderRepurchaseResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16784,6 +17839,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminOrder_List: {
@@ -16811,6 +17870,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminOrderList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16820,6 +17881,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminOrder_Get: {
@@ -16842,6 +17906,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminOrderDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16851,6 +17918,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminOrder_AdjustAmount: {
@@ -16880,6 +17950,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminOrderDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16889,6 +17964,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminOrder_Cancel: {
@@ -16918,6 +17997,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminOrderDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16927,6 +18011,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Payment_Create: {
@@ -16953,6 +18041,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PaymentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16962,6 +18052,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Payment_GetMine: {
@@ -16984,6 +18077,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PaymentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -16993,6 +18088,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Payment_CloseMine: {
@@ -17018,6 +18116,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PaymentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17027,6 +18129,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Payment_ListForTradeOrder: {
@@ -17049,6 +18155,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PaymentList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17058,6 +18166,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     PaymentWebhook_Process: {
@@ -17083,6 +18194,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PaymentWebhookAck_"];
                 };
             };
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17092,6 +18205,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminPayment_List: {
@@ -17117,6 +18233,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminPaymentList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17126,6 +18244,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminPayment_Get: {
@@ -17148,6 +18269,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminPaymentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17157,6 +18281,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminPayment_Reconcile: {
@@ -17186,6 +18313,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminPaymentReconciliationResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17195,6 +18327,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Shipment_ListMine: {
@@ -17217,6 +18353,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_UserOrderShipmentList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17226,6 +18364,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Shipment_GetMine: {
@@ -17248,6 +18389,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_UserShipmentDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17257,6 +18400,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ShipmentTrack_ListMine: {
@@ -17282,6 +18428,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ShipmentTrackList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17291,6 +18439,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     ShipmentRefresh_Create: {
@@ -17315,6 +18466,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ShipmentRefreshResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17324,6 +18478,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     LogisticsWebhook_Process: {
@@ -17385,6 +18542,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_LogisticsWebhookAck_"];
                 };
             };
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17394,6 +18553,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminKnowledgeDocument_List: {
@@ -17414,6 +18576,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KnowledgeDocumentList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminKnowledgeDocument_Create: {
@@ -17438,6 +18605,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17447,6 +18617,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminKnowledgeDocument_Get: {
@@ -17469,6 +18642,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17478,6 +18654,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminKnowledgeDocument_Delete: {
@@ -17500,6 +18679,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17509,6 +18692,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminKnowledgeIndex_Create: {
@@ -17533,6 +18719,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17542,6 +18732,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminKnowledgeIndex_Get: {
@@ -17564,6 +18757,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KnowledgeIndexJobView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17573,6 +18769,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminKnowledgeIndex_Cancel: {
@@ -17595,6 +18794,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KnowledgeIndexJobView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17604,6 +18807,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminKnowledge_Search: {
@@ -17628,6 +18834,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KnowledgeSearchResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17637,6 +18846,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAgent_List: {
@@ -17657,6 +18869,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAgentVersion_Create: {
@@ -17683,6 +18900,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AgentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17692,6 +18913,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAgentSkillBinding_Create: {
@@ -17719,6 +18943,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_VersionBindingView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17728,6 +18956,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAgentVersion_Publish: {
@@ -17753,6 +18984,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17762,6 +18997,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminMcpServer_List: {
@@ -17782,6 +19020,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_McpServerList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAiKillSwitch_List: {
@@ -17802,6 +19045,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KillSwitchList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAiKillSwitch_Activate: {
@@ -17829,6 +19077,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KillSwitchView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17838,6 +19090,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAiKillSwitch_Deactivate: {
@@ -17865,6 +19120,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_KillSwitchView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17874,6 +19133,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSkill_List: {
@@ -17894,6 +19156,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SkillList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSkill_Create: {
@@ -17918,6 +19185,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SkillView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17927,6 +19197,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSkill_VersionCreate: {
@@ -17953,6 +19226,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SkillView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17962,6 +19239,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSkillToolBinding_Create: {
@@ -17989,6 +19269,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_VersionBindingView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -17998,6 +19282,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSkill_Publish: {
@@ -18023,6 +19310,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18032,6 +19323,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminTool_List: {
@@ -18052,6 +19346,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ToolList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminTool_Create: {
@@ -18076,6 +19375,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ToolView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18085,6 +19387,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminTool_Get: {
@@ -18107,6 +19412,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ToolView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18116,6 +19424,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminTool_VersionCreate: {
@@ -18142,6 +19453,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ToolView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18151,6 +19466,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminTool_Publish: {
@@ -18176,6 +19494,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18185,6 +19507,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminToolVersion_Rollback: {
@@ -18210,6 +19535,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18219,6 +19548,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminShipment_Create: {
@@ -18248,6 +19580,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18257,6 +19594,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminShipment_Get: {
@@ -18279,6 +19620,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18288,6 +19632,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminShipment_CorrectTracking: {
@@ -18317,6 +19664,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18326,6 +19678,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminShipment_Void: {
@@ -18355,6 +19711,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18364,6 +19725,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminShipment_Refresh: {
@@ -18388,6 +19753,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ShipmentRefreshResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18397,6 +19766,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FavoriteProduct_ListMine: {
@@ -18419,6 +19791,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ProductList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18428,6 +19801,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FavoriteProduct_Put: {
@@ -18448,6 +19824,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18457,6 +19836,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FavoriteProduct_Delete: {
@@ -18477,6 +19859,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18486,6 +19871,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Store_Get: {
@@ -18508,6 +19896,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_StorePublicView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18517,6 +19907,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     StoreProduct_List: {
@@ -18545,6 +19938,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ProductList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18554,6 +19949,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     StoreProductGroup_List: {
@@ -18576,6 +19974,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_StoreProductGroupList_"];
                 };
             };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18585,6 +19984,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     StoreHomeContent_Get: {
@@ -18607,6 +20009,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_StoreHomeContent_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18616,6 +20020,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     StorePolicy_ListPublic: {
@@ -18638,6 +20045,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_StorePolicyList_"];
                 };
             };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18647,6 +20055,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FollowedStore_ListMine: {
@@ -18669,6 +20080,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_FollowedStoreList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18678,6 +20090,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FollowedStore_Put: {
@@ -18698,6 +20113,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18707,6 +20125,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     FollowedStore_Delete: {
@@ -18727,6 +20148,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18736,6 +20160,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminCategory_List: {
@@ -18756,6 +20183,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminCategoryView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminCategory_Upsert: {
@@ -18782,6 +20214,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminCategoryView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18791,6 +20226,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminCategory_Update: {
@@ -18819,6 +20257,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminCategoryView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18828,6 +20271,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminBrand_List: {
@@ -18848,6 +20295,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminBrandView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminBrand_Upsert: {
@@ -18874,6 +20326,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminBrandView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18883,6 +20338,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminBrand_Update: {
@@ -18911,6 +20369,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminBrandView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18920,6 +20383,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminInventory_List: {
@@ -18944,6 +20411,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminInventoryList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18953,6 +20422,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminInventory_Get: {
@@ -18975,6 +20447,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminInventoryView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -18984,6 +20459,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminInventory_Adjust: {
@@ -19010,6 +20488,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminInventoryAdjustmentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19019,6 +20500,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProduct_List: {
@@ -19045,6 +20529,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminProductList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19054,6 +20540,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProduct_Create: {
@@ -19080,6 +20569,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19089,6 +20581,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProduct_Get: {
@@ -19111,6 +20606,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19120,6 +20618,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProduct_Update: {
@@ -19148,6 +20649,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19157,6 +20663,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProduct_Submit: {
@@ -19186,6 +20696,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19195,6 +20710,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProduct_Moderate: {
@@ -19224,6 +20743,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19233,6 +20757,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProduct_Publish: {
@@ -19262,6 +20790,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19271,6 +20804,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProduct_OffShelf: {
@@ -19300,6 +20837,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19309,6 +20851,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductSku_List: {
@@ -19331,6 +20877,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminSkuView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19340,6 +20889,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductSku_Create: {
@@ -19368,6 +20920,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminSkuView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19377,6 +20933,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductSku_Update: {
@@ -19406,6 +20965,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminSkuView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19415,6 +20979,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductSku_ChangeStatus: {
@@ -19445,6 +21013,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminSkuView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19454,6 +21027,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductImage_List: {
@@ -19476,6 +21053,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminProductImageView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19485,6 +21065,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductImage_Replace: {
@@ -19513,6 +21096,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminProductImageView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19522,6 +21110,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductFulfillment_Get: {
@@ -19544,6 +21136,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_Union_AdminProductFulfillmentView__NoneType__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19553,6 +21148,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductFulfillment_Upsert: {
@@ -19581,6 +21179,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminProductFulfillmentView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19590,6 +21193,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductAttribute_List: {
@@ -19612,6 +21219,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminProductAttributeInput__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19621,6 +21231,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductAttribute_Replace: {
@@ -19649,6 +21262,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminProductAttributeInput__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19658,6 +21276,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductContentVersion_Create: {
@@ -19686,6 +21308,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminContentVersionView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19695,6 +21321,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductContentVersion_Get: {
@@ -19718,6 +21347,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminContentVersionView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19727,6 +21359,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductFaq_List: {
@@ -19749,6 +21384,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminFaqView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19758,6 +21396,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductFaq_Create: {
@@ -19786,6 +21427,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminFaqView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19795,6 +21440,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductFaqVersion_Create: {
@@ -19824,6 +21472,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminContentVersionView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19833,6 +21485,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductFaq_Publish: {
@@ -19862,6 +21517,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminFaqView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19871,6 +21530,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStore_List: {
@@ -19896,6 +21558,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStoreList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19905,6 +21569,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStore_Get: {
@@ -19927,6 +21594,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStoreView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19936,6 +21606,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStore_Update: {
@@ -19964,6 +21637,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStoreView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -19973,6 +21651,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStore_ChangeStatus: {
@@ -20002,6 +21684,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStoreView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20011,6 +21698,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreCertification_List: {
@@ -20035,6 +21726,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminCertificationList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20044,6 +21737,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreCertification_Get: {
@@ -20066,6 +21762,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminCertificationDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20075,6 +21774,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreCertificationEvent_List: {
@@ -20097,6 +21799,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminCertificationEventView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20106,6 +21811,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreCertification_Decide: {
@@ -20135,6 +21843,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminCertificationDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20144,6 +21857,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreCertification_AddMaterialVersion: {
@@ -20173,6 +21890,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminCertificationDetail_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20182,6 +21904,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStorePolicy_List: {
@@ -20204,6 +21930,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminStorePolicyView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20213,6 +21942,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStorePolicy_Create: {
@@ -20241,6 +21973,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20250,6 +21986,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStorePolicy_Get: {
@@ -20273,6 +22012,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20282,6 +22024,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStorePolicy_Update: {
@@ -20311,6 +22056,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20320,6 +22070,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStorePolicy_Publish: {
@@ -20350,6 +22104,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20359,6 +22118,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStorePolicy_Withdraw: {
@@ -20389,6 +22152,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20398,6 +22166,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreProductGroup_List: {
@@ -20420,6 +22192,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminStoreProductGroupView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20429,6 +22204,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreProductGroup_Create: {
@@ -20457,6 +22235,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStoreProductGroupView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20466,6 +22248,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreProductGroup_Update: {
@@ -20495,6 +22280,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStoreProductGroupView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20504,6 +22294,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreProductGroup_ReplaceProducts: {
@@ -20533,6 +22327,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStoreProductGroupView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20542,6 +22341,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminShippingTemplate_List: {
@@ -20564,6 +22367,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminShippingTemplateView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20573,6 +22379,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminShippingTemplate_Create: {
@@ -20601,6 +22410,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminShippingTemplateView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20610,6 +22423,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminShippingTemplate_Update: {
@@ -20639,6 +22455,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminShippingTemplateView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20648,6 +22469,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminShippingTemplate_Publish: {
@@ -20678,6 +22503,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminShippingTemplateView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20687,6 +22517,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreAnnouncement_List: {
@@ -20709,6 +22543,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminStoreAnnouncementView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20718,6 +22555,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreAnnouncement_Create: {
@@ -20746,6 +22586,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStoreAnnouncementView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20755,6 +22599,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreAnnouncement_Update: {
@@ -20784,6 +22631,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminStoreAnnouncementView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20793,6 +22645,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreFeaturedProduct_List: {
@@ -20817,6 +22673,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminFeaturedProductView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20826,6 +22685,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminStoreFeaturedProduct_Replace: {
@@ -20854,6 +22716,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AdminFeaturedProductView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20863,6 +22730,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductImportTemplate_Get: {
@@ -20883,6 +22754,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ProductImportTemplateView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminProductImportTemplate_Download: {
@@ -20901,6 +22777,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminBatchJob_List: {
@@ -20926,6 +22807,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_BatchJobList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20935,6 +22818,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminBatchJob_Create: {
@@ -20961,6 +22847,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_BatchJobView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -20970,6 +22859,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminBatchJob_Get: {
@@ -20992,6 +22884,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_BatchJobView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21001,6 +22896,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminBatchJobItem_List: {
@@ -21027,6 +22925,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_BatchJobItemList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21036,6 +22937,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminBatchJob_Confirm: {
@@ -21065,6 +22969,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_BatchJobView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21074,6 +22983,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminBatchJob_Cancel: {
@@ -21103,6 +23016,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_BatchJobView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21112,6 +23030,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuth_Login: {
@@ -21136,6 +23058,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminMfaChallenge_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21145,6 +23068,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuth_MfaVerify: {
@@ -21171,6 +23097,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21180,6 +23107,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuthToken_Refresh: {
@@ -21204,6 +23134,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21213,6 +23144,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuth_Reauthenticate: {
@@ -21237,6 +23171,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ReauthenticationResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21246,6 +23182,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuth_Logout: {
@@ -21266,6 +23205,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21275,6 +23216,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuthSession_ListMine: {
@@ -21295,6 +23239,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_SessionSummary__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuthSession_Revoke: {
@@ -21315,6 +23263,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21324,6 +23275,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminMe_Get: {
@@ -21344,6 +23298,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminMe_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminNavigation_Get: {
@@ -21364,6 +23322,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminNavigation_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminDashboard_Get: {
@@ -21384,6 +23346,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminDashboardSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUser_List: {
@@ -21407,6 +23374,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminUserList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21416,6 +23385,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUser_Get: {
@@ -21438,6 +23410,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminUserSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21447,6 +23422,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUserStatusEvent_List: {
@@ -21471,6 +23449,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_UserStatusEventView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21480,6 +23461,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUser_ChangeStatus: {
@@ -21509,6 +23493,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminUserSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21518,6 +23507,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUserSession_Revoke: {
@@ -21546,6 +23539,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21555,6 +23552,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUserPasswordReset_Require: {
@@ -21583,6 +23583,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21592,6 +23596,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRole_List: {
@@ -21612,6 +23619,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_RoleSummary__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRole_Create: {
@@ -21638,6 +23650,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21647,6 +23662,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRole_Get: {
@@ -21669,6 +23687,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21678,6 +23699,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRole_Update: {
@@ -21706,6 +23730,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21715,6 +23744,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRolePermission_Replace: {
@@ -21743,6 +23776,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21752,6 +23790,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRoleGrant_List: {
@@ -21774,6 +23816,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_RoleGrantView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21783,6 +23828,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRoleGrant_Create: {
@@ -21812,6 +23860,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleGrantView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21821,6 +23874,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRoleGrantEvent_List: {
@@ -21845,6 +23902,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_RoleGrantEventView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21854,6 +23914,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRoleGrant_Revoke: {
@@ -21884,6 +23947,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21893,6 +23961,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSensitiveGrant_Create: {
@@ -21921,6 +23993,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SensitiveGrantResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21930,6 +24006,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSensitiveGrant_Revoke: {
@@ -21959,6 +24038,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -21968,6 +24052,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSensitiveFields_Get: {
@@ -21992,6 +24080,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SensitiveFields_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -22001,6 +24092,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminApproval_List: {
@@ -22021,6 +24115,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_ApprovalView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminApproval_Get: {
@@ -22043,6 +24142,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -22052,6 +24154,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminApproval_Decide: {
@@ -22081,6 +24186,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -22090,6 +24200,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAudit_List: {
@@ -22112,6 +24226,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AuditLogView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -22121,6 +24237,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
 }

@@ -45,6 +45,7 @@ button:disabled { cursor: not-allowed; background: #9aa6c5; }
 .danger { color: #fff; background: #bc3344; }
 .small { padding: 8px 11px; font-size: .875rem; }
 .form-help { margin: 0; color: #687287; text-align: center; }
+.form-help a { text-decoration: underline; text-underline-offset: 0.18em; }
 .form-links, .actions, .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .muted { color: #687287; }
 .alert { padding: 12px 14px; margin: 0; border: 1px solid; border-radius: 10px; }

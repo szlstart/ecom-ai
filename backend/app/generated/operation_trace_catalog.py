@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "1d8f6858f5733bc71fba3b054d727a43c7efcfd6009746897e6f45274bf7e709"
+SOURCE_SHA256 = "ff804e3a218c4ee45afdce542bc919c9fef7963a7936bd4fcdc997341656d5ce"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -260,7 +260,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["ADM-AUTH-01"],
         "x-scope-policy": ["admin_audience"],
-        "x-test-case-ids": ["ADM-AUTH-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "BROWSER-AUTH-*"],
     },
     "AdminAuth_Logout": {
         "x-audit-event": "command.AdminAuth_Logout",
@@ -480,7 +480,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["dashboard:read"],
         "x-requirement-id": ["ADM-DASH-01"],
         "x-scope-policy": ["dashboard:read"],
-        "x-test-case-ids": ["ADM-DASH-*"],
+        "x-test-case-ids": ["ADM-DASH-*", "BROWSER-GUARD-*"],
     },
     "AdminDeadLetter_Get": {
         "x-audit-event": "access.AdminDeadLetter_Get",
@@ -2226,7 +2226,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AUTH-CODE-01", "USR-AUTH-LOGIN-01"],
         "x-scope-policy": ["user_audience"],
-        "x-test-case-ids": ["AUTH-CODE-*", "AUTH-LOGIN-*"],
+        "x-test-case-ids": ["AUTH-CODE-*", "AUTH-LOGIN-*", "BROWSER-AUTH-*"],
     },
     "Auth_Logout": {
         "x-audit-event": "command.Auth_Logout",
@@ -2246,7 +2246,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-HOME-01"],
         "x-scope-policy": ["public_projection"],
-        "x-test-case-ids": ["HOME-*"],
+        "x-test-case-ids": ["BROWSER-HOME-*", "HOME-*"],
     },
     "CartInvalidItem_Clear": {
         "x-audit-event": "command.CartInvalidItem_Clear",
@@ -2256,7 +2256,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-CART-01"],
         "x-scope-policy": ["current_user"],
-        "x-test-case-ids": ["CART-*"],
+        "x-test-case-ids": ["BROWSER-GUARD-*", "CART-*"],
     },
     "CartItem_Create": {
         "x-audit-event": "command.CartItem_Create",
@@ -2266,7 +2266,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-CART-01"],
         "x-scope-policy": ["current_user"],
-        "x-test-case-ids": ["CART-*"],
+        "x-test-case-ids": ["BROWSER-GUARD-*", "CART-*"],
     },
     "CartItem_Delete": {
         "x-audit-event": "command.CartItem_Delete",
@@ -2276,7 +2276,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-CART-01"],
         "x-scope-policy": ["current_user"],
-        "x-test-case-ids": ["CART-*"],
+        "x-test-case-ids": ["BROWSER-GUARD-*", "CART-*"],
     },
     "CartItem_Patch": {
         "x-audit-event": "command.CartItem_Patch",
@@ -2286,7 +2286,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-CART-01"],
         "x-scope-policy": ["current_user"],
-        "x-test-case-ids": ["CART-*"],
+        "x-test-case-ids": ["BROWSER-GUARD-*", "CART-*"],
     },
     "CartSelection_Replace": {
         "x-audit-event": "command.CartSelection_Replace",
@@ -2296,7 +2296,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-CART-01"],
         "x-scope-policy": ["current_user"],
-        "x-test-case-ids": ["CART-*"],
+        "x-test-case-ids": ["BROWSER-GUARD-*", "CART-*"],
     },
     "Cart_GetMine": {
         "x-audit-event": "none",
@@ -2306,7 +2306,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-CART-01", "USR-ORDER-01", "USR-ORDER-02"],
         "x-scope-policy": ["current_user", "order_owner"],
-        "x-test-case-ids": ["CART-*", "ORDER-DOMAIN-*", "ORDER-USER-*"],
+        "x-test-case-ids": ["BROWSER-GUARD-*", "CART-*", "ORDER-DOMAIN-*", "ORDER-USER-*"],
     },
     "Category_List": {
         "x-audit-event": "none",
@@ -2316,7 +2316,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-HOME-01"],
         "x-scope-policy": ["public_projection"],
-        "x-test-case-ids": ["HOME-*"],
+        "x-test-case-ids": ["BROWSER-HOME-*", "HOME-*"],
     },
     "CheckoutRepricing_Create": {
         "x-audit-event": "command.CheckoutRepricing_Create",
@@ -2626,7 +2626,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-HOME-01"],
         "x-scope-policy": ["public_projection"],
-        "x-test-case-ids": ["HOME-*"],
+        "x-test-case-ids": ["BROWSER-HOME-*", "HOME-*"],
     },
     "Homepage_Get": {
         "x-audit-event": "none",
@@ -2636,7 +2636,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-HOME-01"],
         "x-scope-policy": ["public_projection"],
-        "x-test-case-ids": ["HOME-*"],
+        "x-test-case-ids": ["BROWSER-HOME-*", "HOME-*"],
     },
     "HumanServiceRequest_CreateMine": {
         "x-audit-event": "command.HumanServiceRequest_CreateMine",
@@ -2886,7 +2886,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-HOME-01"],
         "x-scope-policy": ["public_projection"],
-        "x-test-case-ids": ["HOME-*"],
+        "x-test-case-ids": ["BROWSER-HOME-*", "HOME-*"],
     },
     "ProductFaq_List": {
         "x-audit-event": "none",
@@ -2936,7 +2936,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-SEARCH-01"],
         "x-scope-policy": ["public_projection"],
-        "x-test-case-ids": ["SEARCH-*"],
+        "x-test-case-ids": ["BROWSER-SEARCH-*", "SEARCH-*"],
     },
     "RealtimeTicket_CreateMine": {
         "x-audit-event": "command.RealtimeTicket_CreateMine",
@@ -3156,7 +3156,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-SEARCH-01"],
         "x-scope-policy": ["public_projection"],
-        "x-test-case-ids": ["SEARCH-*"],
+        "x-test-case-ids": ["BROWSER-SEARCH-*", "SEARCH-*"],
     },
     "ShipmentRefresh_Create": {
         "x-audit-event": "command.ShipmentRefresh_Create",

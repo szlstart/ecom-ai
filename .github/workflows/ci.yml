@@ -101,6 +101,8 @@ jobs:
             clamav/clamav-debian@sha256:2bb8cd7dfe3e87f86e969a2c415f7698583175e46dc2234672be9210c982c144
           timeout 180 bash -c 'until curl --fail --silent http://127.0.0.1:9000/minio/health/live; do sleep 2; done'
           timeout 240 bash -c 'until [[ "$(docker inspect --format={{.State.Health.Status}} ecom-clamav-ci)" == healthy ]]; do sleep 3; done'
+      - name: Install browser acceptance runtime
+        run: pnpm --dir frontend exec playwright install --with-deps chromium
       - name: Apply database migrations and seed references
         run: |
           cd backend
@@ -122,7 +124,7 @@ jobs:
           make acceptance-gate
           git diff --exit-code -- backend/app/generated/permission_catalog.py backend/app/generated/operation_trace_catalog.py docs/openapi-v1.json frontend/src/api/generated/schema.ts
       - name: Run quality gates
-        run: make lint acceptance-test build
+        run: make lint acceptance-test
       - name: Upload acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4

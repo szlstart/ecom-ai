@@ -70,15 +70,40 @@ def validate(manifest: dict[str, Any]) -> dict[str, Any]:
             not isinstance(item, str) or not item for item in evidence
         ):
             errors.append(f"{gate_id}: evidence must be a list of non-empty references")
+        required_evidence = gate.get("required_evidence")
+        if not isinstance(required_evidence, list) or not required_evidence or any(
+            not isinstance(item, str) or not item for item in required_evidence
+        ):
+            errors.append(f"{gate_id}: required_evidence must be a non-empty string list")
+        verification_commands = gate.get("verification_commands")
+        if not isinstance(verification_commands, list) or not verification_commands or any(
+            not isinstance(item, str) or not item for item in verification_commands
+        ):
+            errors.append(f"{gate_id}: verification_commands must be a non-empty string list")
+        exit_conditions = gate.get("exit_conditions")
+        if not isinstance(exit_conditions, list) or not exit_conditions or any(
+            not isinstance(item, str) or not item for item in exit_conditions
+        ):
+            errors.append(f"{gate_id}: exit_conditions must be a non-empty string list")
+        missing_evidence = gate.get("missing_evidence")
+        if not isinstance(missing_evidence, list) or any(
+            not isinstance(item, str) or not item for item in missing_evidence
+        ):
+            errors.append(f"{gate_id}: missing_evidence must be a string list")
+            missing_evidence = []
         if status == "pass":
             if not evidence:
                 errors.append(f"{gate_id}: pass requires evidence")
+            if missing_evidence:
+                errors.append(f"{gate_id}: pass cannot retain missing_evidence")
             decided_by = gate.get("decided_by")
             if not isinstance(decided_by, str) or not decided_by:
                 errors.append(f"{gate_id}: pass requires decided_by")
             decided_at = gate.get("decided_at")
             if not isinstance(decided_at, str) or ISO_UTC.fullmatch(decided_at) is None:
                 errors.append(f"{gate_id}: pass requires a UTC decided_at timestamp")
+        elif status in {"pending", "insufficient_evidence"} and not missing_evidence:
+            errors.append(f"{gate_id}: {status} requires missing_evidence")
 
     all_pass = set(gate_statuses) == REQUIRED_GATES and all(
         gate_statuses[gate_id] == "pass" for gate_id in REQUIRED_GATES

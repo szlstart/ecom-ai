@@ -30,21 +30,26 @@ def test_compose_uses_loopback_ports_and_observability_profiles() -> None:
 
 def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert "alembic.mysql.ini downgrade k05f6a8b9c0d" in ci
     assert "alembic.mysql.ini downgrade base" not in ci
     assert "alembic.postgres.ini downgrade base" in ci
-    assert "make lint acceptance-test build" in ci
+    assert "make lint acceptance-test" in ci
+    assert "acceptance-test: build" in makefile
     assert 'ECOM_RUN_FILE_INTEGRATION_TESTS: "1"' in ci
     assert "ecom-minio-ci" in ci and "ecom-clamav-ci" in ci
     assert "cancel-in-progress: true" in ci
     assert "actions/upload-artifact@v4" in ci
     assert "acceptance-evidence-${{ github.sha }}" in ci
     assert "PIP_INDEX_URL: https://pypi.org/simple" in ci
-    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    assert "playwright install --with-deps chromium" in ci
     assert "ECOM_RUN_INTEGRATION_TESTS=1" in makefile
+    assert "ECOM_RUN_FILE_INTEGRATION_TESTS=1" in makefile
     assert "--cov-fail-under=60" in makefile
     assert "backend-junit.xml" in makefile
     assert "frontend-junit.xml" in makefile
+    assert "pnpm test:e2e" in makefile
+    assert "acceptance-evidence" in makefile
     assert "mysql-schema-drift.txt" in makefile
     assert "postgres-schema-drift.txt" in makefile
     assert makefile.count("alembic") >= 4

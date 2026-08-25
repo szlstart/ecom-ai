@@ -93,6 +93,10 @@ def collected_test_selectors() -> set[str]:
         relative = path.relative_to(ROOT).as_posix()
         source = path.read_text(encoding="utf-8")
         selectors.update(f"{relative}::{match.group(2)}" for match in pattern.finditer(source))
+    for path in sorted((ROOT / "frontend/e2e").rglob("*.spec.ts")):
+        relative = path.relative_to(ROOT).as_posix()
+        source = path.read_text(encoding="utf-8")
+        selectors.update(f"{relative}::{match.group(2)}" for match in pattern.finditer(source))
     return selectors
 
 

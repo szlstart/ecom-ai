@@ -16,7 +16,7 @@ Decision: **NO-GO for production traffic**
 
 ## Missing operational evidence
 
-- Local image build could not reach Docker Hub because Docker Desktop is configured to use an inactive HTTPS proxy at `127.0.0.1:7890`.
+- Docker Desktop 本地基础设施现已健康运行且未配置失效代理；这只证明开发环境可用，不构成生产镜像或生产编排证据。
 - No release image digest has yet been built, scanned, signed and verified by the release workflow.
 - `syft`, `trivy`, `cosign`, `k6`, `age` and AWS CLI were not available in the local verification environment.
 - No real target traffic model, production-parity dataset, Load/Stress/Spike/Soak report, 30% headroom calculation or model-cost ceiling has been supplied.

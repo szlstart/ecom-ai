@@ -71,3 +71,32 @@ def test_write_concurrency_and_webhook_idempotency_contracts_are_explicit() -> N
         "provider_event_idempotency"
     )
     assert operations["Order_GetMine"]["x-idempotency-policy"] == "safe_read"
+
+
+def test_every_operation_documents_recoverable_problem_details() -> None:
+    operations = _operations()
+    for operation_id, operation in operations.items():
+        responses = operation["responses"]
+        for status in ("429", "500", "503"):
+            assert responses[status] == {
+                "$ref": f"#/components/responses/Problem{status}"
+            }, (operation_id, status)
+        if operation.get("security"):
+            assert "401" in responses, operation_id
+        if operation["x-permission-codes"]:
+            assert "403" in responses, operation_id
+
+
+def test_write_and_entity_version_error_contracts_are_machine_readable() -> None:
+    schema = create_app().openapi()
+    for path, path_item in schema["paths"].items():
+        for method, operation in path_item.items():
+            if not isinstance(operation, dict) or "operationId" not in operation:
+                continue
+            responses = operation["responses"]
+            if "{" in path:
+                assert "404" in responses, operation["operationId"]
+            if method.upper() not in {"GET", "HEAD", "OPTIONS"}:
+                assert "409" in responses, operation["operationId"]
+            if "if_match_required" in operation["x-idempotency-policy"]:
+                assert {"412", "428"} <= responses.keys(), operation["operationId"]

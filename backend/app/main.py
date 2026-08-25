@@ -9,6 +9,7 @@ from app.core.lifespan import application_lifespan
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.core.observability import MetricsMiddleware, metrics
+from app.core.openapi_trace import install_traced_openapi
 from app.modules.health.router import router as health_router
 from app.modules.realtime.websocket import realtime_websocket
 
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     app.add_api_websocket_route("/ws/v1", realtime_websocket, name="realtime-websocket")
+    install_traced_openapi(app)
 
     @app.get("/metrics", include_in_schema=False)
     async def prometheus_metrics() -> PlainTextResponse:

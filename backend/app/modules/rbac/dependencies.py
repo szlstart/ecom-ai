@@ -83,4 +83,5 @@ def require_any_admin_permission(*permission_codes: str) -> object:
         scopes = tuple(sorted({(grant.scope_type, grant.scope_id) for _, grant, _ in matching}))
         return AdminAccess(context=context, permission=permission, scopes=scopes)
 
+    dependency.__permission_codes__ = permission_codes  # type: ignore[attr-defined]
     return Depends(dependency)

@@ -12,6 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 PERMISSION_SOURCE = DOCS / "permission_registry.yaml"
 PERMISSION_CATALOG = ROOT / "backend" / "app" / "generated" / "permission_catalog.py"
+OPERATION_TRACE_CATALOG = (
+    ROOT / "backend" / "app" / "generated" / "operation_trace_catalog.py"
+)
 
 
 def load(name: str) -> dict[str, Any]:
@@ -69,6 +72,7 @@ def validate() -> None:
                 raise ValueError(f"{name}/{transition['command']}: unknown state")
 
     validate_generated_permission_catalog()
+    validate_generated_operation_trace_catalog(traceability)
 
     print(
         "Registry validation passed: "
@@ -92,6 +96,29 @@ def validate_generated_permission_catalog() -> None:
         raise ValueError(
             "generated permission catalog is stale; run scripts/generate_permission_catalog.py"
         )
+
+
+def validate_generated_operation_trace_catalog(traceability: dict[str, Any]) -> None:
+    if not OPERATION_TRACE_CATALOG.exists():
+        raise ValueError("generated operation trace catalog is missing")
+    spec = importlib.util.spec_from_file_location(
+        "operation_trace_catalog", OPERATION_TRACE_CATALOG
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("generated operation trace catalog cannot be imported")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    expected = hashlib.sha256((DOCS / "traceability.yaml").read_bytes()).hexdigest()
+    if module.SOURCE_SHA256 != expected:
+        raise ValueError(
+            "generated operation trace catalog is stale; "
+            "run scripts/generate_operation_trace_catalog.py"
+        )
+    required = set(traceability["operation_contract"]["openapi_required_extensions"])
+    for operation_id, contract in module.OPERATIONS.items():
+        missing = required - contract.keys()
+        if missing:
+            raise ValueError(f"{operation_id}: generated trace extensions missing {missing}")
 
 
 if __name__ == "__main__":

@@ -70,7 +70,7 @@ families:
   PROFILE: {layers: [integration], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   PUBLIC-CONTENT: {layers: [contract, integration, security], selectors: [backend/tests/test_content_api_integration.py::test_admin_content_version_publish_public_projection_and_withdrawal]}
   REFUND-USER: {layers: [contract, integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
-  REFUND-WEBHOOK: {layers: [contract, security], selectors: [backend/tests/test_after_sale_contract.py::test_after_sale_user_contract_is_published]}
+  REFUND-WEBHOOK: {layers: [contract, integration, security], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   REVIEW: {layers: [contract, integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   REVIEW-PUBLIC: {layers: [contract, integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}
   SEARCH: {layers: [contract, integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}

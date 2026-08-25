@@ -1,12 +1,21 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Response, status
+from fastapi import APIRouter, Header, Query, Response, status
 
 from app.api.dependencies import IdempotencyKey, UserContext
 from app.api.schemas import Envelope
 from app.modules.agent_runtime.dependencies import (
     AgentApprovalServiceDependency,
     AgentRuntimeServiceDependency,
+    AiPrivacyServiceDependency,
+)
+from app.modules.agent_runtime.privacy_schemas import (
+    AiCleanupTaskView,
+    AiMemoryDeleteRequest,
+    AiMemoryList,
+    AiMemoryRevisionRequest,
+    AiMemoryView,
+    AiPersonalizationDisableRequest,
 )
 from app.modules.agent_runtime.schemas import (
     AgentApprovalDecisionRequest,
@@ -19,6 +28,136 @@ from app.modules.agent_runtime.schemas import (
 from app.modules.identity.router import _etag, _expected_version, _no_store
 
 router = APIRouter(tags=["agent-runtime"])
+
+
+@router.get(
+    "/users/me/ai-memory-items",
+    response_model=Envelope[AiMemoryList],
+    operation_id="AiMemory_ListMine",
+)
+async def list_ai_memory_items(
+    response: Response,
+    context: UserContext,
+    service: AiPrivacyServiceDependency,
+    namespace: Annotated[str | None, Query(pattern=r"^(exclusive|store)$")] = None,
+    store_id: Annotated[str | None, Query(max_length=64)] = None,
+    memory_type: Annotated[str | None, Query(max_length=32)] = None,
+    memory_status: Annotated[
+        str | None,
+        Query(pattern=r"^(candidate|active|superseded|revoked|expired|deleted)$"),
+    ] = None,
+) -> Envelope[AiMemoryList]:
+    result = await service.list_memories(
+        context.user,
+        namespace=namespace,
+        store_no=store_id,
+        memory_type=memory_type,
+        status=memory_status,
+    )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/users/me/ai-memory-items/{memory_id}/revisions",
+    response_model=Envelope[AiMemoryView],
+    status_code=status.HTTP_201_CREATED,
+    operation_id="AiMemory_Revise",
+)
+async def revise_ai_memory_item(
+    memory_id: str,
+    payload: AiMemoryRevisionRequest,
+    response: Response,
+    context: UserContext,
+    service: AiPrivacyServiceDependency,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AiMemoryView]:
+    result = await service.revise_memory(
+        context.user, memory_id, payload, _expected_version(if_match)
+    )
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.delete(
+    "/users/me/ai-memory-items/{memory_id}",
+    response_model=Envelope[AiCleanupTaskView],
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="AiMemory_Delete",
+)
+async def delete_ai_memory_item(
+    memory_id: str,
+    payload: AiMemoryDeleteRequest,
+    response: Response,
+    context: UserContext,
+    service: AiPrivacyServiceDependency,
+    idempotency_key: IdempotencyKey,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AiCleanupTaskView]:
+    result = await service.delete_memory(
+        context.user, memory_id, payload, _expected_version(if_match), idempotency_key
+    )
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/users/me/ai-personalization/disable-all",
+    response_model=Envelope[AiCleanupTaskView],
+    status_code=status.HTTP_202_ACCEPTED,
+    operation_id="AiPersonalization_DisableAll",
+)
+async def disable_all_ai_personalization(
+    payload: AiPersonalizationDisableRequest,
+    response: Response,
+    context: UserContext,
+    service: AiPrivacyServiceDependency,
+    idempotency_key: IdempotencyKey,
+) -> Envelope[AiCleanupTaskView]:
+    result = await service.disable_all(context.user, payload, idempotency_key)
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.get(
+    "/users/me/ai-cleanup-tasks/{task_id}",
+    response_model=Envelope[AiCleanupTaskView],
+    operation_id="CleanupTask_GetMine",
+)
+async def get_ai_cleanup_task(
+    task_id: str,
+    response: Response,
+    context: UserContext,
+    service: AiPrivacyServiceDependency,
+) -> Envelope[AiCleanupTaskView]:
+    result = await service.get_cleanup(context.user, task_id)
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/users/me/ai-cleanup-tasks/{task_id}/retries",
+    response_model=Envelope[AiCleanupTaskView],
+    operation_id="CleanupTask_RetryMine",
+)
+async def retry_ai_cleanup_task(
+    task_id: str,
+    response: Response,
+    context: UserContext,
+    service: AiPrivacyServiceDependency,
+    idempotency_key: IdempotencyKey,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AiCleanupTaskView]:
+    result = await service.retry_cleanup(
+        context.user, task_id, _expected_version(if_match), idempotency_key
+    )
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
 
 
 @router.get(

@@ -38,6 +38,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/ai-memory-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Ai Memory Items */
+        get: operations["AiMemory_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-memory-items/{memory_id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revise Ai Memory Item */
+        post: operations["AiMemory_Revise"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-memory-items/{memory_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Ai Memory Item */
+        delete: operations["AiMemory_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-personalization/disable-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable All Ai Personalization */
+        post: operations["AiPersonalization_DisableAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-cleanup-tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ai Cleanup Task */
+        get: operations["CleanupTask_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-cleanup-tasks/{task_id}/retries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Ai Cleanup Task */
+        post: operations["CleanupTask_RetryMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users/me/agent-consents": {
         parameters: {
             query?: never;
@@ -6568,6 +6670,52 @@ export interface components {
             /** Document Version */
             document_version: string;
         };
+        /** AiCleanupTaskView */
+        AiCleanupTaskView: {
+            /** Cleanup Task Id */
+            cleanup_task_id: string;
+            /** Command Type */
+            command_type: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string;
+            /** Source Resource Type */
+            source_resource_type: string;
+            /** Source Resource Id */
+            source_resource_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "succeeded" | "partial_failed" | "failed";
+            /** Total Count */
+            total_count: number;
+            /** Processed Count */
+            processed_count: number;
+            /** Failed Count */
+            failed_count: number;
+            /** Retry Count */
+            retry_count: number;
+            /** Max Retries */
+            max_retries: number;
+            /** Error Code */
+            error_code: string | null;
+            /** Can Retry */
+            can_retry: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
         /** AiFeedbackDetailRequest */
         AiFeedbackDetailRequest: {
             /** Reason Code */
@@ -6587,6 +6735,84 @@ export interface components {
             status: ("submitted" | "withdrawn" | "reviewed" | "resolved" | "dismissed") | null;
             /** Created At */
             created_at: string | null;
+        };
+        /** AiMemoryDeleteRequest */
+        AiMemoryDeleteRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+        };
+        /** AiMemoryList */
+        AiMemoryList: {
+            /** Items */
+            items: components["schemas"]["AiMemoryView"][];
+        };
+        /** AiMemoryRevisionRequest */
+        AiMemoryRevisionRequest: {
+            /** New Value */
+            new_value: string;
+            /** Reason Code */
+            reason_code: string;
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+        };
+        /** AiMemoryView */
+        AiMemoryView: {
+            /** Memory Id */
+            memory_id: string;
+            /**
+             * Namespace
+             * @enum {string}
+             */
+            namespace: "exclusive" | "store";
+            /** Store Id */
+            store_id: string | null;
+            /** Memory Type */
+            memory_type: string;
+            /** Memory Key */
+            memory_key: string;
+            /** Value */
+            value: string;
+            /** Source Type */
+            source_type: string;
+            /** Consent Id */
+            consent_id: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "candidate" | "active" | "superseded" | "revoked" | "expired" | "deleted";
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** AiPersonalizationDisableRequest */
+        AiPersonalizationDisableRequest: {
+            /**
+             * Confirmation
+             * @constant
+             */
+            confirmation: "DISABLE_ALL_AI_PERSONALIZATION";
+            /** Reason Code */
+            reason_code: string;
         };
         /** AiReactionRequest */
         AiReactionRequest: {
@@ -7657,9 +7883,24 @@ export interface components {
             data: components["schemas"]["AgentView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AiCleanupTaskView] */
+        Envelope_AiCleanupTaskView_: {
+            data: components["schemas"]["AiCleanupTaskView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AiFeedbackView] */
         Envelope_AiFeedbackView_: {
             data: components["schemas"]["AiFeedbackView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AiMemoryList] */
+        Envelope_AiMemoryList_: {
+            data: components["schemas"]["AiMemoryList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AiMemoryView] */
+        Envelope_AiMemoryView_: {
+            data: components["schemas"]["AiMemoryView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ApprovalRequiredView] */
@@ -11383,6 +11624,215 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+        };
+    };
+    AiMemory_ListMine: {
+        parameters: {
+            query?: {
+                namespace?: string | null;
+                store_id?: string | null;
+                memory_type?: string | null;
+                memory_status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiMemoryList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiMemory_Revise: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiMemoryRevisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiMemoryView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiMemory_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiMemoryDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AiPersonalization_DisableAll: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiPersonalizationDisableRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    CleanupTask_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    CleanupTask_RetryMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

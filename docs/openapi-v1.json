@@ -79,6 +79,566 @@
         ]
       }
     },
+    "/api/v1/users/me/ai-memory-items": {
+      "get": {
+        "tags": [
+          "agent-runtime"
+        ],
+        "summary": "List Ai Memory Items",
+        "operationId": "AiMemory_ListMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(exclusive|store)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Namespace"
+            }
+          },
+          {
+            "name": "store_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Store Id"
+            }
+          },
+          {
+            "name": "memory_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Memory Type"
+            }
+          },
+          {
+            "name": "memory_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(candidate|active|superseded|revoked|expired|deleted)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Memory Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiMemoryList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-AI-PRIVACY-01"
+        ],
+        "x-scope-policy": [
+          "current_user_and_scope"
+        ],
+        "x-test-case-ids": [
+          "AI-CONSENT-*",
+          "AI-MEMORY-*"
+        ]
+      }
+    },
+    "/api/v1/users/me/ai-memory-items/{memory_id}/revisions": {
+      "post": {
+        "tags": [
+          "agent-runtime"
+        ],
+        "summary": "Revise Ai Memory Item",
+        "operationId": "AiMemory_Revise",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Memory Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiMemoryRevisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiMemoryView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AiMemory_Revise",
+        "x-domain-command": "AiMemory_Revise",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-AI-PRIVACY-01"
+        ],
+        "x-scope-policy": [
+          "current_user_and_scope"
+        ],
+        "x-test-case-ids": [
+          "AI-CONSENT-*",
+          "AI-MEMORY-*"
+        ]
+      }
+    },
+    "/api/v1/users/me/ai-memory-items/{memory_id}": {
+      "delete": {
+        "tags": [
+          "agent-runtime"
+        ],
+        "summary": "Delete Ai Memory Item",
+        "operationId": "AiMemory_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Memory Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiMemoryDeleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiCleanupTaskView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AiMemory_Delete",
+        "x-domain-command": "AiMemory_Delete",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-AI-PRIVACY-01"
+        ],
+        "x-scope-policy": [
+          "current_user_and_scope"
+        ],
+        "x-test-case-ids": [
+          "AI-CONSENT-*",
+          "AI-MEMORY-*"
+        ]
+      }
+    },
+    "/api/v1/users/me/ai-personalization/disable-all": {
+      "post": {
+        "tags": [
+          "agent-runtime"
+        ],
+        "summary": "Disable All Ai Personalization",
+        "operationId": "AiPersonalization_DisableAll",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiPersonalizationDisableRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiCleanupTaskView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AiPersonalization_DisableAll",
+        "x-domain-command": "AiPersonalization_DisableAll",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-AI-PRIVACY-01"
+        ],
+        "x-scope-policy": [
+          "current_user_and_scope"
+        ],
+        "x-test-case-ids": [
+          "AI-CONSENT-*",
+          "AI-MEMORY-*"
+        ]
+      }
+    },
+    "/api/v1/users/me/ai-cleanup-tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "agent-runtime"
+        ],
+        "summary": "Get Ai Cleanup Task",
+        "operationId": "CleanupTask_GetMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiCleanupTaskView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-AI-PRIVACY-01"
+        ],
+        "x-scope-policy": [
+          "current_user_and_scope"
+        ],
+        "x-test-case-ids": [
+          "AI-CONSENT-*",
+          "AI-MEMORY-*"
+        ]
+      }
+    },
+    "/api/v1/users/me/ai-cleanup-tasks/{task_id}/retries": {
+      "post": {
+        "tags": [
+          "agent-runtime"
+        ],
+        "summary": "Retry Ai Cleanup Task",
+        "operationId": "CleanupTask_RetryMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiCleanupTaskView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.CleanupTask_RetryMine",
+        "x-domain-command": "CleanupTask_RetryMine",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-AI-PRIVACY-01"
+        ],
+        "x-scope-policy": [
+          "current_user_and_scope"
+        ],
+        "x-test-case-ids": [
+          "AI-CONSENT-*",
+          "AI-MEMORY-*"
+        ]
+      }
+    },
     "/api/v1/users/me/agent-consents": {
       "get": {
         "tags": [
@@ -31476,6 +32036,116 @@
         ],
         "title": "AgreementReference"
       },
+      "AiCleanupTaskView": {
+        "properties": {
+          "cleanup_task_id": {
+            "type": "string",
+            "title": "Cleanup Task Id"
+          },
+          "command_type": {
+            "type": "string",
+            "title": "Command Type"
+          },
+          "scope_type": {
+            "type": "string",
+            "title": "Scope Type"
+          },
+          "scope_id": {
+            "type": "string",
+            "title": "Scope Id"
+          },
+          "source_resource_type": {
+            "type": "string",
+            "title": "Source Resource Type"
+          },
+          "source_resource_id": {
+            "type": "string",
+            "title": "Source Resource Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "partial_failed",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "total_count": {
+            "type": "integer",
+            "title": "Total Count"
+          },
+          "processed_count": {
+            "type": "integer",
+            "title": "Processed Count"
+          },
+          "failed_count": {
+            "type": "integer",
+            "title": "Failed Count"
+          },
+          "retry_count": {
+            "type": "integer",
+            "title": "Retry Count"
+          },
+          "max_retries": {
+            "type": "integer",
+            "title": "Max Retries"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "can_retry": {
+            "type": "boolean",
+            "title": "Can Retry"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cleanup_task_id",
+          "command_type",
+          "scope_type",
+          "scope_id",
+          "source_resource_type",
+          "source_resource_id",
+          "status",
+          "total_count",
+          "processed_count",
+          "failed_count",
+          "retry_count",
+          "max_retries",
+          "error_code",
+          "can_retry",
+          "created_at",
+          "updated_at",
+          "version"
+        ],
+        "title": "AiCleanupTaskView"
+      },
       "AiFeedbackDetailRequest": {
         "properties": {
           "reason_code": {
@@ -31573,6 +32243,203 @@
           "created_at"
         ],
         "title": "AiFeedbackView"
+      },
+      "AiMemoryDeleteRequest": {
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "const": true,
+            "title": "Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason_code",
+          "confirmed"
+        ],
+        "title": "AiMemoryDeleteRequest"
+      },
+      "AiMemoryList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AiMemoryView"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AiMemoryList"
+      },
+      "AiMemoryRevisionRequest": {
+        "properties": {
+          "new_value": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "New Value"
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "const": true,
+            "title": "Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "new_value",
+          "reason_code",
+          "confirmed"
+        ],
+        "title": "AiMemoryRevisionRequest"
+      },
+      "AiMemoryView": {
+        "properties": {
+          "memory_id": {
+            "type": "string",
+            "title": "Memory Id"
+          },
+          "namespace": {
+            "type": "string",
+            "enum": [
+              "exclusive",
+              "store"
+            ],
+            "title": "Namespace"
+          },
+          "store_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Id"
+          },
+          "memory_type": {
+            "type": "string",
+            "title": "Memory Type"
+          },
+          "memory_key": {
+            "type": "string",
+            "title": "Memory Key"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "source_type": {
+            "type": "string",
+            "title": "Source Type"
+          },
+          "consent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consent Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "active",
+              "superseded",
+              "revoked",
+              "expired",
+              "deleted"
+            ],
+            "title": "Status"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "memory_id",
+          "namespace",
+          "store_id",
+          "memory_type",
+          "memory_key",
+          "value",
+          "source_type",
+          "consent_id",
+          "status",
+          "expires_at",
+          "created_at",
+          "updated_at",
+          "version"
+        ],
+        "title": "AiMemoryView"
+      },
+      "AiPersonalizationDisableRequest": {
+        "properties": {
+          "confirmation": {
+            "type": "string",
+            "const": "DISABLE_ALL_AI_PERSONALIZATION",
+            "title": "Confirmation"
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirmation",
+          "reason_code"
+        ],
+        "title": "AiPersonalizationDisableRequest"
       },
       "AiReactionRequest": {
         "properties": {
@@ -34758,6 +35625,21 @@
         ],
         "title": "Envelope[AgentView]"
       },
+      "Envelope_AiCleanupTaskView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AiCleanupTaskView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AiCleanupTaskView]"
+      },
       "Envelope_AiFeedbackView_": {
         "properties": {
           "data": {
@@ -34772,6 +35654,36 @@
           "data"
         ],
         "title": "Envelope[AiFeedbackView]"
+      },
+      "Envelope_AiMemoryList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AiMemoryList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AiMemoryList]"
+      },
+      "Envelope_AiMemoryView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AiMemoryView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AiMemoryView]"
       },
       "Envelope_ApprovalRequiredView_": {
         "properties": {

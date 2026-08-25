@@ -248,6 +248,51 @@ class AiFeedback(MutableMySQLModel, MySQLBase):
     resolution_code: Mapped[str | None] = mapped_column(String(64))
 
 
+class AiMemoryCleanupTask(MutableMySQLModel, MySQLBase):
+    __tablename__ = "ai_memory_cleanup_tasks"
+    __table_args__ = (
+        UniqueConstraint("task_no", name="uk_ai_memory_cleanup_tasks_no"),
+        UniqueConstraint(
+            "user_id", "idempotency_key_hash", name="uk_ai_memory_cleanup_user_key"
+        ),
+        CheckConstraint(
+            "task_status IN ('queued','running','succeeded','partial_failed','failed')",
+            name="ai_memory_cleanup_status",
+        ),
+        Index("idx_ai_cleanup_user_time", "user_id", "created_at", "id"),
+    )
+
+    task_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    command_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    scope_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    scope_no: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_resource_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_resource_no: Mapped[str] = mapped_column(String(64), nullable=False)
+    task_status: Mapped[str] = mapped_column(String(20), nullable=False, default="queued")
+    total_count: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+    processed_count: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+    failed_count: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+    retry_count: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+    max_retries: Mapped[int] = mapped_column(
+        INTEGER(unsigned=True), nullable=False, default=3, server_default="3"
+    )
+    idempotency_key_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+
+
 class AgentRefundDraft(MutableMySQLModel, MySQLBase):
     __tablename__ = "ai_refund_drafts"
     __table_args__ = (

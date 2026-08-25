@@ -298,6 +298,21 @@ class CatalogRepository:
             ).all()
         )
 
+    async def homepage_categories(self, limit: int) -> list[Category]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(Category)
+                    .where(
+                        Category.category_status == "active",
+                        Category.parent_id.is_(None),
+                    )
+                    .order_by(Category.sort_order, Category.id)
+                    .limit(limit)
+                )
+            ).all()
+        )
+
     async def brands(self, q: str | None, limit: int) -> list[Brand]:
         statement = select(Brand).where(Brand.brand_status == "active")
         if q:

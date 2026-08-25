@@ -302,6 +302,23 @@ class CatalogService:
             )
         return items
 
+    async def homepage_categories(self, limit: int = 10) -> list[CategoryView]:
+        items: list[CategoryView] = []
+        for row in await self.repository.homepage_categories(limit):
+            icon = await self.repository.public_file_by_object_key(row.icon_object_key)
+            items.append(
+                CategoryView(
+                    category_id=row.category_no,
+                    parent_id=None,
+                    category_name=row.category_name,
+                    category_code=row.category_code,
+                    level=row.level,
+                    sort_order=row.sort_order,
+                    icon_url=_file_url(icon),
+                )
+            )
+        return items
+
     async def suggestions(self, q: str, limit: int) -> SearchSuggestionList:
         normalized = q.strip()
         if not normalized:
@@ -345,7 +362,7 @@ class CatalogService:
             feed_version="catalog-v1",
             announcements=[item.model_dump(mode="json") for item in announcements.items],
             banners=[item.model_dump(mode="json") for item in banners.items],
-            categories=await self.categories(),
+            categories=await self.homepage_categories(),
             sections=sections,
         )
 

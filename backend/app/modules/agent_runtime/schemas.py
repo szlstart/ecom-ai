@@ -21,6 +21,27 @@ class AgentRunView(StrictRequest):
     updated_at: datetime
 
 
+class AdminAgentRunView(StrictRequest):
+    run_id: str
+    status: AgentRunStatus
+    current_phase: str
+    agent_code: str
+    agent_version_no: int
+    conversation_type: Literal["exclusive", "store"]
+    trace_id: str
+    context_ref_count: int
+    error_code: str | None
+    degraded_reason: str | None
+    available_actions: list[Literal["cancel"]]
+    created_at: datetime
+    updated_at: datetime
+    version: int
+
+
+class AdminAgentRunCancelRequest(StrictRequest):
+    reason: str = Field(min_length=3, max_length=500)
+
+
 class AgentConsentGrantRequest(StrictRequest):
     consent_type: Literal["personalization", "order_read", "after_sale_write"]
     scope_type: Literal["user", "conversation", "store"]

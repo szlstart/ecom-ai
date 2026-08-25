@@ -175,6 +175,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/ai/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Run */
+        get: operations["AdminAgentRun_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/runs/{run_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Agent Run */
+        post: operations["AdminAgentRun_Kill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/registration-config": {
         parameters: {
             query?: never;
@@ -4562,6 +4596,54 @@ export interface components {
              */
             is_default: boolean;
         };
+        /** AdminAgentRunCancelRequest */
+        AdminAgentRunCancelRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** AdminAgentRunView */
+        AdminAgentRunView: {
+            /** Run Id */
+            run_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled";
+            /** Current Phase */
+            current_phase: string;
+            /** Agent Code */
+            agent_code: string;
+            /** Agent Version No */
+            agent_version_no: number;
+            /**
+             * Conversation Type
+             * @enum {string}
+             */
+            conversation_type: "exclusive" | "store";
+            /** Trace Id */
+            trace_id: string;
+            /** Context Ref Count */
+            context_ref_count: number;
+            /** Error Code */
+            error_code: string | null;
+            /** Degraded Reason */
+            degraded_reason: string | null;
+            /** Available Actions */
+            available_actions: "cancel"[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
         /** AdminBootstrap */
         AdminBootstrap: {
             session: components["schemas"]["SessionBootstrap"];
@@ -6915,6 +6997,11 @@ export interface components {
         /** Envelope[AddressView] */
         Envelope_AddressView_: {
             data: components["schemas"]["AddressView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminAgentRunView] */
+        Envelope_AdminAgentRunView_: {
+            data: components["schemas"]["AdminAgentRunView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminBootstrap] */
@@ -11076,6 +11163,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_AgentApprovalView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminAgentRun_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminAgentRunView_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    AdminAgentRun_Kill: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAgentRunCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminAgentRunView_"];
                 };
             };
             /** @description Validation Error */

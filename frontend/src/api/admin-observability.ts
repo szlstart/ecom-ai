@@ -1,4 +1,4 @@
-import { apiRequest, type ApiResult } from '@/api/http'
+import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
 
 export interface EvaluationRun {
   evaluation_id: string
@@ -46,4 +46,45 @@ export interface ObservabilitySummary {
 
 export function getObservabilitySummary(token: string): Promise<ApiResult<ObservabilitySummary>> {
   return apiRequest('/admin/observability', {}, token)
+}
+
+export interface AdminAgentRun {
+  run_id: string
+  status: 'queued' | 'running' | 'waiting' | 'completed' | 'failed' | 'cancelled'
+  current_phase: string
+  agent_code: string
+  agent_version_no: number
+  conversation_type: 'exclusive' | 'store'
+  trace_id: string
+  context_ref_count: number
+  error_code: string | null
+  degraded_reason: string | null
+  available_actions: Array<'cancel'>
+  created_at: string
+  updated_at: string
+  version: number
+}
+
+export function getAdminAgentRun(id: string, token: string): Promise<ApiResult<AdminAgentRun>> {
+  return apiRequest(`/admin/ai/runs/${encodeURIComponent(id)}`, {}, token)
+}
+
+export function cancelAdminAgentRun(
+  id: string,
+  reason: string,
+  etag: string,
+  token: string,
+): Promise<ApiResult<AdminAgentRun>> {
+  return apiRequest(
+    `/admin/ai/runs/${encodeURIComponent(id)}/cancellations`,
+    {
+      method: 'POST',
+      headers: {
+        'Idempotency-Key': createIdempotencyKey('agent-run-cancel'),
+        'If-Match': etag,
+      },
+      body: JSON.stringify({ reason }),
+    },
+    token,
+  )
 }

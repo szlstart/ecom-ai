@@ -189,6 +189,36 @@ def test_agent_run_contract_is_published() -> None:
     assert path["operationId"] == "AgentRun_GetMine"
 
 
+def test_admin_agent_run_contract_is_redacted_and_concurrency_guarded() -> None:
+    schema = create_app().openapi()
+    detail = schema["paths"]["/api/v1/admin/ai/runs/{run_id}"]["get"]
+    cancellation = schema["paths"][
+        "/api/v1/admin/ai/runs/{run_id}/cancellations"
+    ]["post"]
+    assert detail["operationId"] == "AdminAgentRun_Get"
+    assert cancellation["operationId"] == "AdminAgentRun_Kill"
+    headers = {
+        parameter["name"]
+        for parameter in cancellation["parameters"]
+        if parameter["in"] == "header"
+    }
+    assert {"If-Match", "Idempotency-Key"} <= headers
+    properties = schema["components"]["schemas"]["AdminAgentRunView"]["properties"]
+    assert {
+        "run_id",
+        "status",
+        "current_phase",
+        "agent_code",
+        "agent_version_no",
+        "trace_id",
+        "context_ref_count",
+        "version",
+    } <= set(properties)
+    assert {"output", "prompt", "message", "context_snapshot", "user_id"}.isdisjoint(
+        properties
+    )
+
+
 def test_agent_consent_contract_is_published() -> None:
     paths = create_app().openapi()["paths"]
     expected = {

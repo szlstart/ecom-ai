@@ -691,6 +691,179 @@
         ]
       }
     },
+    "/api/v1/admin/ai/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "admin-agent-runtime"
+        ],
+        "summary": "Get Agent Run",
+        "operationId": "AdminAgentRun_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminAgentRunView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "access.AdminAgentRun_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "ai_observability:read"
+        ],
+        "x-requirement-id": [
+          "ADM-AI-RUN-01"
+        ],
+        "x-scope-policy": [
+          [
+            "ai_observability:read",
+            "ai_runtime:kill"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-AI-RUN-*"
+        ]
+      }
+    },
+    "/api/v1/admin/ai/runs/{run_id}/cancellations": {
+      "post": {
+        "tags": [
+          "admin-agent-runtime"
+        ],
+        "summary": "Cancel Agent Run",
+        "operationId": "AdminAgentRun_Kill",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminAgentRunCancelRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminAgentRunView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-audit-event": "command.AdminAgentRun_Kill",
+        "x-domain-command": "AdminAgentRun_Kill",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "ai_runtime:kill"
+        ],
+        "x-requirement-id": [
+          "ADM-AI-RUN-01"
+        ],
+        "x-scope-policy": [
+          [
+            "ai_observability:read",
+            "ai_runtime:kill"
+          ]
+        ],
+        "x-test-case-ids": [
+          "ADM-AI-RUN-*"
+        ]
+      }
+    },
     "/api/v1/auth/registration-config": {
       "get": {
         "tags": [
@@ -24091,6 +24264,133 @@
         ],
         "title": "AddressWrite"
       },
+      "AdminAgentRunCancelRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "AdminAgentRunCancelRequest"
+      },
+      "AdminAgentRunView": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "waiting",
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "current_phase": {
+            "type": "string",
+            "title": "Current Phase"
+          },
+          "agent_code": {
+            "type": "string",
+            "title": "Agent Code"
+          },
+          "agent_version_no": {
+            "type": "integer",
+            "title": "Agent Version No"
+          },
+          "conversation_type": {
+            "type": "string",
+            "enum": [
+              "exclusive",
+              "store"
+            ],
+            "title": "Conversation Type"
+          },
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id"
+          },
+          "context_ref_count": {
+            "type": "integer",
+            "title": "Context Ref Count"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "degraded_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Degraded Reason"
+          },
+          "available_actions": {
+            "items": {
+              "type": "string",
+              "const": "cancel"
+            },
+            "type": "array",
+            "title": "Available Actions"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "current_phase",
+          "agent_code",
+          "agent_version_no",
+          "conversation_type",
+          "trace_id",
+          "context_ref_count",
+          "error_code",
+          "degraded_reason",
+          "available_actions",
+          "created_at",
+          "updated_at",
+          "version"
+        ],
+        "title": "AdminAgentRunView"
+      },
       "AdminBootstrap": {
         "properties": {
           "session": {
@@ -31707,6 +32007,21 @@
           "data"
         ],
         "title": "Envelope[AddressView]"
+      },
+      "Envelope_AdminAgentRunView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminAgentRunView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminAgentRunView]"
       },
       "Envelope_AdminBootstrap_": {
         "properties": {

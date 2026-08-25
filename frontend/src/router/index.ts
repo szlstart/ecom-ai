@@ -96,6 +96,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'knowledge/indexing-jobs', component: () => import('@/pages/admin/AdminJobListPage.vue'), meta: { ...adminMeta, title: '知识索引任务', requirementId: 'ADM-KNOW-JOBS-01', requiredPermission: 'knowledge:read' } },
     { path: 'knowledge/indexing-jobs/:jobId', component: () => import('@/pages/admin/AdminKnowledgeJobPage.vue'), meta: { ...adminMeta, title: '知识索引任务详情', requirementId: 'ADM-KNOW-JOB-01', requiredPermission: 'knowledge:read' } },
     { path: 'ai/evaluations', component: () => import('@/pages/admin/AdminAiEvaluationPage.vue'), meta: { ...adminMeta, title: 'AI 评估', requirementId: 'ADM-EVAL-01', requiredPermission: 'ai_evaluations:read' } },
+    { path: 'ai/runs/:runId', component: () => import('@/pages/admin/AdminAiRunDetailPage.vue'), meta: { ...adminMeta, title: 'Agent Run 详情', requirementId: 'ADM-AI-RUN-01', requiredPermission: 'ai_observability:read' } },
     { path: 'observability', component: () => import('@/pages/admin/AdminObservabilityPage.vue'), meta: { ...adminMeta, title: '可观测性', requirementId: 'ADM-OBS-01', requiredPermission: 'observability:read' } },
     { path: 'content', component: () => import('@/pages/admin/AdminContentListPage.vue'), meta: { ...adminMeta, title: '平台内容', requirementId: 'ADM-CONTENT-LIST-01', requiredPermission: 'content:read' } },
     { path: 'content/new', component: () => import('@/pages/admin/AdminContentEditPage.vue'), meta: { ...adminMeta, title: '新建平台内容', requirementId: 'ADM-CONTENT-NEW-01', requiredPermission: 'content:manage' } },

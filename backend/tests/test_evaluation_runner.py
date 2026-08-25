@@ -1,5 +1,7 @@
 import hashlib
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -11,6 +13,28 @@ from app.modules.evaluation.runner import (
     load_dataset,
     load_observations,
 )
+
+
+def test_cli_persists_insufficient_evidence_report(tmp_path: Path) -> None:
+    output = tmp_path / "nested" / "agent-report.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/evaluate-agent.py"),
+            str(ROOT / "eval/golden.json"),
+            "--output",
+            str(output),
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert json.loads(output.read_text(encoding="utf-8"))["release_gate"] == (
+        "insufficient_evidence"
+    )
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -51,8 +75,7 @@ def test_security_violation_is_a_hard_failure() -> None:
 def test_multi_agent_requires_pre_registered_significant_gain() -> None:
     dataset = load_dataset(ROOT / "eval/golden.json")
     rows = tuple(
-        PairedObservation(case.case_id, _observation(), _observation())
-        for case in dataset.cases
+        PairedObservation(case.case_id, _observation(), _observation()) for case in dataset.cases
     )
     report = evaluate(dataset, rows, require_significant_gain=True)
     assert report["release_gate"] == "insufficient_evidence"

@@ -113,7 +113,8 @@ release-preflight:
 	$(PYTHON) scripts/release-preflight.py
 
 evaluate-agent:
-	./scripts/evaluate-agent.py eval/golden.json
+	mkdir -p artifacts/acceptance/current/agent
+	$(PYTHON) scripts/evaluate-agent.py eval/golden.json $(if $(AGENT_OBSERVATIONS),--observations $(AGENT_OBSERVATIONS),) --output artifacts/acceptance/current/agent/evaluation-report.json
 
 api:
 	cd backend && $(PYTHON) -m uvicorn app.main:create_app --factory --reload --host 127.0.0.1 --port 8000

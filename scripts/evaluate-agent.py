@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
-from app.modules.evaluation.runner import evaluate, load_dataset, load_observations  # noqa: E402
+from app.modules.evaluation.runner import evaluate, load_dataset, load_observations
 
 
 def main() -> int:
@@ -24,7 +24,9 @@ def main() -> int:
 
     dataset = load_dataset(arguments.dataset)
     observations = (
-        load_observations(arguments.observations, dataset) if arguments.observations else None
+        load_observations(arguments.observations, dataset)
+        if arguments.observations
+        else None
     )
     report = evaluate(
         dataset,
@@ -33,6 +35,7 @@ def main() -> int:
     )
     rendered = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
     if arguments.output:
+        arguments.output.parent.mkdir(parents=True, exist_ok=True)
         arguments.output.write_text(rendered, encoding="utf-8")
     else:
         sys.stdout.write(rendered)

@@ -52,6 +52,15 @@ jobs:
       ECOM_FIELD_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
       ECOM_DEBUG_VERIFICATION_CODE: "000000"
       ECOM_RUN_INTEGRATION_TESTS: "1"
+      ECOM_RUN_FILE_INTEGRATION_TESTS: "1"
+      ECOM_OBJECT_STORAGE_ENABLED: "true"
+      ECOM_OBJECT_STORAGE_ENDPOINT: http://127.0.0.1:9000
+      ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+      ECOM_OBJECT_STORAGE_ACCESS_KEY: ci-minio-admin
+      ECOM_OBJECT_STORAGE_SECRET_KEY: ci-minio-password-not-for-production
+      ECOM_FILE_SCANNER_ENABLED: "true"
+      ECOM_FILE_SCANNER_HOST: 127.0.0.1
+      ECOM_FILE_SCANNER_PORT: "3310"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -72,6 +81,20 @@ jobs:
           python -m pip install --require-hashes -r backend/requirements/dev.txt
           python -m pip install --no-deps -e backend
           pnpm --dir frontend install --frozen-lockfile
+      - name: Start file security dependencies
+        run: |
+          docker run --detach --name ecom-minio-ci --publish 9000:9000 \
+            --env MINIO_ROOT_USER="$ECOM_OBJECT_STORAGE_ACCESS_KEY" \
+            --env MINIO_ROOT_PASSWORD="$ECOM_OBJECT_STORAGE_SECRET_KEY" \
+            minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e \
+            server /data
+          docker run --detach --name ecom-clamav-ci --publish 3310:3310 \
+            --health-cmd='printf health | clamdscan --stream - --no-summary >/dev/null 2>&1' \
+            --health-interval=10s --health-timeout=10s --health-retries=30 \
+            --health-start-period=90s \
+            clamav/clamav-debian@sha256:2bb8cd7dfe3e87f86e969a2c415f7698583175e46dc2234672be9210c982c144
+          timeout 180 bash -c 'until curl --fail --silent http://127.0.0.1:9000/minio/health/live; do sleep 2; done'
+          timeout 240 bash -c 'until [[ "$(docker inspect --format={{.State.Health.Status}} ecom-clamav-ci)" == healthy ]]; do sleep 3; done'
       - name: Apply database migrations and seed references
         run: |
           cd backend

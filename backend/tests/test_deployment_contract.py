@@ -32,6 +32,8 @@ def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     assert "alembic.mysql.ini downgrade base" not in ci
     assert "alembic.postgres.ini downgrade base" in ci
     assert "make lint acceptance-test build" in ci
+    assert 'ECOM_RUN_FILE_INTEGRATION_TESTS: "1"' in ci
+    assert "ecom-minio-ci" in ci and "ecom-clamav-ci" in ci
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert "ECOM_RUN_INTEGRATION_TESTS=1" in makefile
     assert "--cov-fail-under=60" in makefile
@@ -79,3 +81,9 @@ def test_production_override_removes_data_ports_and_has_migration_job() -> None:
     release_preflight = (ROOT / "scripts/release-preflight.py").read_text(encoding="utf-8")
     assert "DIGEST_IMAGE" in release_preflight
     assert "rediss://" in release_preflight
+
+
+def test_local_file_dependency_images_are_digest_pinned() -> None:
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    assert "minio/minio@sha256:" in compose
+    assert "clamav/clamav-debian@sha256:" in compose

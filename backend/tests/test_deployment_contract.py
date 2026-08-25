@@ -36,6 +36,7 @@ def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     assert "make lint acceptance-test build" in ci
     assert 'ECOM_RUN_FILE_INTEGRATION_TESTS: "1"' in ci
     assert "ecom-minio-ci" in ci and "ecom-clamav-ci" in ci
+    assert "cancel-in-progress: true" in ci
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     assert "ECOM_RUN_INTEGRATION_TESTS=1" in makefile
     assert "--cov-fail-under=60" in makefile

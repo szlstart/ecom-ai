@@ -4,7 +4,7 @@
 x-api-runtime: &api-runtime
   build: !reset null
   image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
-  env_file: !override [.env.production]
+  env_file: !reset []
   restart: unless-stopped
   depends_on: !reset {}
 
@@ -12,9 +12,21 @@ x-api-environment: &api-environment
   ECOM_ENVIRONMENT: production
   ECOM_DEBUG: "false"
   ECOM_REFRESH_COOKIE_SECURE: "true"
+  ECOM_PUBLIC_ORIGIN: ${ECOM_PUBLIC_ORIGIN:?public HTTPS origin required}
+  ECOM_ALLOWED_ORIGINS: ${ECOM_ALLOWED_ORIGINS:?explicit production CORS origins required}
+  ECOM_ACCESS_TOKEN_SECRET: ${ECOM_ACCESS_TOKEN_SECRET:?access token secret required}
+  ECOM_SECURITY_HMAC_SECRET: ${ECOM_SECURITY_HMAC_SECRET:?security HMAC secret required}
+  ECOM_FIELD_ENCRYPTION_KEY: ${ECOM_FIELD_ENCRYPTION_KEY:?field encryption key required}
   ECOM_MYSQL_DSN: ${ECOM_MYSQL_DSN:?external production MySQL DSN required}
   ECOM_POSTGRES_DSN: ${ECOM_POSTGRES_DSN:?external production PostgreSQL DSN required}
   ECOM_REDIS_URL: ${ECOM_REDIS_URL:?external production Redis URL required}
+  ECOM_MYSQL_POOL_SIZE: ${ECOM_MYSQL_POOL_SIZE:-10}
+  ECOM_MYSQL_MAX_OVERFLOW: ${ECOM_MYSQL_MAX_OVERFLOW:-10}
+  ECOM_MYSQL_POOL_TIMEOUT_SECONDS: ${ECOM_MYSQL_POOL_TIMEOUT_SECONDS:-10}
+  ECOM_POSTGRES_POOL_SIZE: ${ECOM_POSTGRES_POOL_SIZE:-5}
+  ECOM_POSTGRES_MAX_OVERFLOW: ${ECOM_POSTGRES_MAX_OVERFLOW:-5}
+  ECOM_POSTGRES_POOL_TIMEOUT_SECONDS: ${ECOM_POSTGRES_POOL_TIMEOUT_SECONDS:-10}
+  ECOM_REDIS_MAX_CONNECTIONS: ${ECOM_REDIS_MAX_CONNECTIONS:-20}
   ECOM_OBJECT_STORAGE_ENABLED: "true"
   ECOM_OBJECT_STORAGE_ENDPOINT: ${ECOM_OBJECT_STORAGE_ENDPOINT:?external object storage endpoint required}
   ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT: ${ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT:?public object storage endpoint required}
@@ -113,10 +125,9 @@ services:
   mysql-migration-job:
     profiles: [release]
     image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
-    env_file: !override [.env.production]
     environment:
-      ECOM_ENVIRONMENT: production
-      ECOM_MYSQL_DSN: ${ECOM_MYSQL_DSN:?external production MySQL DSN required}
+      ECOM_ENVIRONMENT: migration
+      ECOM_MYSQL_DSN: ${ECOM_MYSQL_MIGRATION_DSN:?separate production MySQL migration DSN required}
     command: ["python", "-m", "alembic", "-c", "alembic.mysql.ini", "upgrade", "head"]
     restart: "no"
     networks: [backend]
@@ -124,10 +135,9 @@ services:
   postgres-migration-job:
     profiles: [release]
     image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
-    env_file: !override [.env.production]
     environment:
-      ECOM_ENVIRONMENT: production
-      ECOM_POSTGRES_DSN: ${ECOM_POSTGRES_DSN:?external production PostgreSQL DSN required}
+      ECOM_ENVIRONMENT: migration
+      ECOM_POSTGRES_DSN: ${ECOM_POSTGRES_MIGRATION_DSN:?separate production PostgreSQL migration DSN required}
     command: ["python", "-m", "alembic", "-c", "alembic.postgres.ini", "upgrade", "head"]
     restart: "no"
     networks: [backend]

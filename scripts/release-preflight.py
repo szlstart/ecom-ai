@@ -19,6 +19,8 @@ REQUIRED = {
     "ECOM_ALLOWED_ORIGINS",
     "ECOM_MYSQL_DSN",
     "ECOM_POSTGRES_DSN",
+    "ECOM_MYSQL_MIGRATION_DSN",
+    "ECOM_POSTGRES_MIGRATION_DSN",
     "ECOM_REDIS_URL",
     "ECOM_ACCESS_TOKEN_SECRET",
     "ECOM_SECURITY_HMAC_SECRET",
@@ -35,7 +37,9 @@ PLACEHOLDERS = ("change-me", "<", ">", "example.com", "localhost", "127.0.0.1")
 
 def read_env(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
-    for line_no, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_no, raw in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
@@ -95,7 +99,11 @@ def validate(values: dict[str, str]) -> None:
     for key in https_keys:
         if not values[key].startswith("https://"):
             raise ValueError(f"{key} must use HTTPS")
-    origins = [item.strip() for item in values["ECOM_ALLOWED_ORIGINS"].split(",") if item.strip()]
+    origins = [
+        item.strip()
+        for item in values["ECOM_ALLOWED_ORIGINS"].split(",")
+        if item.strip()
+    ]
     if not origins or any(not item.startswith("https://") for item in origins):
         raise ValueError("ECOM_ALLOWED_ORIGINS must contain explicit HTTPS origins")
 
@@ -105,6 +113,8 @@ def validate(values: dict[str, str]) -> None:
         raise ValueError("authentication secrets must contain at least 32 characters")
     require_tls("MySQL", values["ECOM_MYSQL_DSN"])
     require_tls("PostgreSQL", values["ECOM_POSTGRES_DSN"])
+    require_tls("MySQL migration", values["ECOM_MYSQL_MIGRATION_DSN"])
+    require_tls("PostgreSQL migration", values["ECOM_POSTGRES_MIGRATION_DSN"])
     require_tls("Redis", values["ECOM_REDIS_URL"])
 
 
@@ -123,9 +133,12 @@ def validate_compose(rendered: str) -> None:
         "realtime-outbox-worker",
         "agent-runtime-worker",
         "knowledge-indexer",
+        "ai-memory-cleanup-worker",
     }
     if set(services) != expected:
-        raise ValueError("production app profile contains an unexpected or missing service")
+        raise ValueError(
+            "production app profile contains an unexpected or missing service"
+        )
     for name, service in services.items():
         if service.get("build"):
             raise ValueError(f"{name} contains a production build directive")
@@ -140,14 +153,23 @@ def validate_compose(rendered: str) -> None:
             raise ValueError(f"{name} unexpectedly publishes a port")
         for port in ports:
             if port.get("host_ip") != "127.0.0.1":
-                raise ValueError("frontend must be exposed only to the local TLS ingress")
+                raise ValueError(
+                    "frontend must be exposed only to the local TLS ingress"
+                )
+        environment = service.get("environment", {})
+        for forbidden in ("ECOM_MYSQL_MIGRATION_DSN", "ECOM_POSTGRES_MIGRATION_DSN"):
+            if forbidden in environment:
+                raise ValueError(f"{name} unexpectedly receives a migration credential")
 
 
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     env_path = Path(os.environ.get("ENV_FILE", root / ".env.production")).resolve()
     if not env_path.is_file():
-        print(f"release preflight failed: environment file not found: {env_path}", file=sys.stderr)
+        print(
+            f"release preflight failed: environment file not found: {env_path}",
+            file=sys.stderr,
+        )
         return 2
     try:
         values = read_env(env_path)
@@ -175,7 +197,12 @@ def main() -> int:
             env={**os.environ, **values},
         )
         validate_compose(result.stdout)
-    except (ValueError, json.JSONDecodeError, subprocess.CalledProcessError, OSError) as exc:
+    except (
+        ValueError,
+        json.JSONDecodeError,
+        subprocess.CalledProcessError,
+        OSError,
+    ) as exc:
         print(f"release preflight failed: {exc}", file=sys.stderr)
         return 2
     print(

@@ -13631,7 +13631,7 @@ API 的 Pool Size 从每实例 5–10、有限 Overflow 起压测，Worker/Agent
 
 #### 3.34.12 第十二阶段：部署与性能优化
 
-完成生产级镜像签名/SBOM/扫描、Secret、TLS/域名、独立数据服务、迁移 Job、Canary/Rollback、备份/PITR、对象复制、环境隔离和 On-call。依据真实目标规模优化 SQL/索引/连接池/缓存/Worker/Agent 并发，执行 Load/Stress/Spike/Soak/Chaos 与恢复演练。
+完成生产级镜像签名/SBOM/扫描、Secret、TLS/域名、独立数据服务、迁移 Job、Canary/Rollback、备份/PITR、对象复制、环境隔离和 On-call。迁移 Job 使用独立 `ECOM_MYSQL_MIGRATION_DSN` / `ECOM_POSTGRES_MIGRATION_DSN` Secret，运行结束即销毁；API/Worker 只获得最小读写权限 DSN，不能执行 DDL、创建扩展或获得迁移凭证。依据真实目标规模优化 SQL/索引/连接池/缓存/Worker/Agent 并发，执行 Load/Stress/Spike/Soak/Chaos 与恢复演练。
 
 验收：3.33 SLO 与 Headroom 达标，连接/磁盘/队列/成本有扩容预案；RPO/RTO 演练达到 3.32.14；灰度自动/人工回滚完成且无不一致；生产 Compose/编排无默认密码、公开数据库端口、源码挂载或 `latest`。完成最终 Go/No-Go Review 后才开放真实支付和 AI 写 Skill。
 

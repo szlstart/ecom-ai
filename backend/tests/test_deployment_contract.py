@@ -1,3 +1,5 @@
+import os
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -71,8 +73,10 @@ def test_production_override_removes_data_ports_and_has_migration_job() -> None:
     assert "must be pinned by sha256 digest" in production
     assert "mysql-migration-job:" in production
     assert "postgres-migration-job:" in production
+    assert "ECOM_MYSQL_MIGRATION_DSN" in production
+    assert "ECOM_POSTGRES_MIGRATION_DSN" in production
     assert "profiles: [local-data]" in production
-    assert "env_file: !override [.env.production]" in production
+    assert "env_file: !reset []" in production
     assert "build: !reset null" in production
     supply_chain = (ROOT / "scripts/sbom-scan.sh").read_text(encoding="utf-8")
     assert "syft" in supply_chain and "trivy" in supply_chain and "cosign" in supply_chain
@@ -87,3 +91,42 @@ def test_local_file_dependency_images_are_digest_pinned() -> None:
     compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
     assert "minio/minio@sha256:" in compose
     assert "clamav/clamav-debian@sha256:" in compose
+
+
+def test_release_preflight_accepts_synthetic_tls_configuration(tmp_path: Path) -> None:
+    digest = "a" * 64
+    env_file = tmp_path / "release.env"
+    env_file.write_text(
+        "\n".join(
+            (
+                f"ECOM_API_IMAGE=registry.invalid/ecom/api@sha256:{digest}",
+                f"ECOM_FRONTEND_IMAGE=registry.invalid/ecom/frontend@sha256:{digest}",
+                "ECOM_PUBLIC_ORIGIN=https://shop.invalid",
+                "ECOM_ALLOWED_ORIGINS=https://shop.invalid",
+                "ECOM_MYSQL_DSN=mysql+asyncmy://runtime:secret@mysql.private.invalid:3306/ecom?ssl=true",
+                "ECOM_POSTGRES_DSN=postgresql+asyncpg://runtime:secret@postgres.private.invalid:5432/ecom?ssl=require",
+                "ECOM_MYSQL_MIGRATION_DSN=mysql+asyncmy://migration:secret@mysql.private.invalid:3306/ecom?ssl=true",
+                "ECOM_POSTGRES_MIGRATION_DSN=postgresql+asyncpg://migration:secret@postgres.private.invalid:5432/ecom?ssl=require",
+                "ECOM_REDIS_URL=rediss://:secret@redis.private.invalid:6379/0",
+                "ECOM_ACCESS_TOKEN_SECRET=synthetic-access-secret-32-characters-long",
+                "ECOM_SECURITY_HMAC_SECRET=synthetic-hmac-secret-32-characters-long",
+                "ECOM_FIELD_ENCRYPTION_KEY=synthetic-versioned-base64-key",
+                "ECOM_OBJECT_STORAGE_ENDPOINT=https://objects.private.invalid",
+                "ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT=https://cdn.invalid",
+                "ECOM_OBJECT_STORAGE_ACCESS_KEY=synthetic-object-access",
+                "ECOM_OBJECT_STORAGE_SECRET_KEY=synthetic-object-secret",
+                "ECOM_FILE_SCANNER_HOST=scanner.private.invalid",
+                "ECOM_OTEL_EXPORTER_OTLP_ENDPOINT=https://otel.private.invalid:4317",
+            )
+        ),
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [str(ROOT / "scripts/release-preflight.py")],
+        cwd=ROOT,
+        env={**os.environ, "ENV_FILE": str(env_file)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr

@@ -106,13 +106,13 @@ class AiPrivacyService:
         await self.postgres.execute(
             text(
                 """INSERT INTO memory.items
-                (memory_no,user_no,namespace,store_no,memory_type,safe_text,embedding,confidence,
+                (memory_no,user_no,namespace,store_no,memory_type,confidence,
                  memory_status,consent_no,expires_at,memory_key,content_ciphertext,content_hash,
                  dedupe_fingerprint,key_version,source_type,source_ref,source_conversation_no,
                  source_message_no,consent_policy_version,validation_snapshot,salience,
                  data_classification,memory_risk_level,valid_from,valid_until,
                  supersedes_memory_id,version)
-                VALUES (:memory_no,:user_no,:namespace,:store_no,:memory_type,NULL,NULL,:confidence,
+                VALUES (:memory_no,:user_no,:namespace,:store_no,:memory_type,:confidence,
                  'active',:consent_no,:expires_at,:memory_key,:ciphertext,:content_hash,
                  :dedupe,1,'user_settings',:source_ref,NULL,NULL,:policy_version,
                  CAST(:validation AS JSONB),:salience,'L2','low',now(),:valid_until,:old_id,0)"""
@@ -173,7 +173,7 @@ class AiPrivacyService:
             raise _state_conflict()
         await self.postgres.execute(
             text(
-                """UPDATE memory.items SET memory_status='deleted', embedding=NULL,
+                """UPDATE memory.items SET memory_status='deleted',
                 version=version+1, updated_at=now() WHERE id=:id AND version=:version"""
             ),
             {"id": row["id"], "version": expected_version},
@@ -370,9 +370,10 @@ class AiPrivacyService:
         await self.postgres.execute(
             text(
                 """INSERT INTO memory.events
-                (event_no,memory_no,event_type,actor_type,reason_code,user_no,from_status,to_status,
+                (event_no,memory_id,event_type,actor_type,reason_code,user_no,from_status,to_status,
                  actor_no,content_hash_before,content_hash_after,trace_id,metadata_redacted)
-                VALUES (:event_no,:memory_no,:event_type,'user',:reason_code,:user_no,:from_status,
+                VALUES (:event_no,(SELECT id FROM memory.items WHERE memory_no=:memory_no),
+                 :event_type,'user',:reason_code,:user_no,:from_status,
                  :to_status,:user_no,:before,:after,:trace_id,'{}'::jsonb)"""
             ),
             {

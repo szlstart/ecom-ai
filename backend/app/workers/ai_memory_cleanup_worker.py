@@ -7,6 +7,7 @@ import structlog
 from sqlalchemy import select, text
 
 from app.core.config import get_settings
+from app.core.id_generator import new_prefixed_ulid
 from app.core.logging import configure_logging
 from app.core.security import utc_now
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
@@ -54,21 +55,67 @@ async def process_one() -> bool:
                 if command_type == "memory_delete":
                     await postgres.execute(
                         text(
-                            """UPDATE memory.items SET embedding=NULL, content_ciphertext=NULL,
+                            """DELETE FROM memory.item_embeddings WHERE memory_id IN
+                            (SELECT id FROM memory.items WHERE user_no=:user_no
+                             AND memory_no=:memory_no)"""
+                        ),
+                        {"user_no": user_no, "memory_no": source_resource_no},
+                    )
+                    await postgres.execute(
+                        text(
+                            """UPDATE memory.items SET content_ciphertext=NULL,
                             updated_at=now() WHERE user_no=:user_no AND memory_no=:memory_no
                             AND memory_status='deleted'"""
                         ),
                         {"user_no": user_no, "memory_no": source_resource_no},
                     )
                 elif command_type in {"disable_all", "consent_revoke", "scope_pause"}:
-                    await postgres.execute(
-                        text(
-                            """UPDATE memory.items SET memory_status='revoked', embedding=NULL,
-                            version=version+1, updated_at=now() WHERE user_no=:user_no
-                            AND memory_status IN ('active','candidate')"""
-                        ),
-                        {"user_no": user_no},
-                    )
+                    revoked = (
+                        await postgres.execute(
+                            text(
+                                """WITH targets AS MATERIALIZED (
+                                SELECT id,memory_status AS from_status FROM memory.items
+                                WHERE user_no=:user_no
+                                AND memory_status IN ('active','candidate') FOR UPDATE
+                                )
+                                UPDATE memory.items item SET memory_status='revoked',
+                                content_ciphertext=NULL, version=item.version+1, updated_at=now()
+                                FROM targets WHERE item.id=targets.id
+                                RETURNING item.id,item.memory_no,item.content_hash,
+                                targets.from_status"""
+                            ),
+                            {"user_no": user_no},
+                        )
+                    ).mappings().all()
+                    if revoked:
+                        await postgres.execute(
+                            text(
+                                "DELETE FROM memory.item_embeddings WHERE memory_id = ANY(:ids)"
+                            ),
+                            {"ids": [row["id"] for row in revoked]},
+                        )
+                    for row in revoked:
+                        await postgres.execute(
+                            text(
+                                """INSERT INTO memory.events
+                                (event_no,memory_id,event_type,actor_type,reason_code,user_no,
+                                 from_status,to_status,actor_no,content_hash_before,
+                                 content_hash_after,trace_id,metadata_redacted)
+                                VALUES (:event_no,:memory_id,'revoked','system',:reason_code,
+                                 :user_no,:from_status,'revoked',:task_no,:content_hash,NULL,
+                                 :trace_id,'{}'::jsonb)"""
+                            ),
+                            {
+                                "event_no": new_prefixed_ulid("mev_"),
+                                "memory_id": row["id"],
+                                "reason_code": command_type,
+                                "user_no": user_no,
+                                "from_status": row["from_status"],
+                                "task_no": task_no,
+                                "content_hash": row["content_hash"],
+                                "trace_id": task_no,
+                            },
+                        )
                 else:
                     raise RuntimeError("unsupported AI memory cleanup command")
                 processed = total_count

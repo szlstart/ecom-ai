@@ -7,6 +7,9 @@ def test_postgres_agent_and_knowledge_migrations_have_acl_and_runtime_keys() -> 
         encoding="utf-8"
     )
     knowledge = (directory / "20260824_0003_knowledge_memory.py").read_text(encoding="utf-8")
+    aligned_memory = (directory / "20260825_0005_align_memory_schema.py").read_text(
+        encoding="utf-8"
+    )
     for required in (
         "agent_runtime.run_state_refs",
         "conversation_no",
@@ -26,6 +29,14 @@ def test_postgres_agent_and_knowledge_migrations_have_acl_and_runtime_keys() -> 
         "USING hnsw",
     ):
         assert required in knowledge
+    for required in (
+        "memory.item_embeddings",
+        "id_uuid UUID",
+        "summary_ciphertext BYTEA NOT NULL",
+        "ck_memory_items_content_lifecycle",
+        "idx_memory_item_embeddings_hnsw",
+    ):
+        assert required in aligned_memory
 
 
 def test_mysql_phase_nine_migration_fixes_version_ownership_and_bindings() -> None:

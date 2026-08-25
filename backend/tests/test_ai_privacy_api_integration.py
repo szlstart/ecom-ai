@@ -70,11 +70,11 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
         await postgres.execute(
             text(
                 """INSERT INTO memory.items
-                (memory_no,user_no,namespace,store_no,memory_type,safe_text,embedding,confidence,
+                (memory_no,user_no,namespace,store_no,memory_type,confidence,
                  memory_status,consent_no,expires_at,memory_key,content_ciphertext,content_hash,
                  dedupe_fingerprint,key_version,source_type,source_ref,consent_policy_version,
                  validation_snapshot,salience,data_classification,memory_risk_level,valid_from,version)
-                VALUES (:memory_no,:user_no,'exclusive',NULL,'preference',NULL,NULL,0.900,
+                VALUES (:memory_no,:user_no,'exclusive',NULL,'preference',0.900,
                  'active',:consent_no,now()+interval '180 days','shopping.preferred_colors',
                  :ciphertext,:content_hash,:dedupe,1,'user_confirmation','integration',
                  'ai-personalization-v1','{}'::jsonb,0.800,'L2','low',now(),0)"""
@@ -124,6 +124,34 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
     assert deleted.status_code == 202, deleted.text
     delete_task = deleted.json()["data"]
     assert delete_task["status"] == "queued"
+
+    disable_memory_no = new_prefixed_ulid("mem_")
+    disable_ciphertext = security.encrypt("ai-memory-content", "偏好轻量商品")
+    disable_hash = security.keyed_hash("ai-memory-content-hash", "偏好轻量商品")
+    async for postgres in postgres_session():
+        await postgres.execute(
+            text(
+                """INSERT INTO memory.items
+                (memory_no,user_no,namespace,store_no,memory_type,confidence,
+                 memory_status,consent_no,expires_at,memory_key,content_ciphertext,content_hash,
+                 dedupe_fingerprint,key_version,source_type,source_ref,consent_policy_version,
+                 validation_snapshot,salience,data_classification,memory_risk_level,valid_from,
+                 version)
+                VALUES (:memory_no,:user_no,'exclusive',NULL,'preference',0.850,
+                 'active',:consent_no,now()+interval '90 days','shopping.preferred_weight',
+                 :ciphertext,:content_hash,:dedupe,1,'user_confirmation','integration-disable',
+                 'ai-personalization-v1','{}'::jsonb,0.700,'L2','low',now(),0)"""
+            ),
+            {
+                "memory_no": disable_memory_no,
+                "user_no": user_no,
+                "consent_no": consent_no,
+                "ciphertext": disable_ciphertext,
+                "content_hash": disable_hash,
+                "dedupe": security.keyed_hash("ai-memory-dedupe", f"{user_no}:lightweight"),
+            },
+        )
+        await postgres.commit()
 
     disabled = await client.post(
         "/api/v1/users/me/ai-personalization/disable-all",
@@ -205,6 +233,37 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
             {"memory_no": revised_memory["memory_id"]},
         )
         assert ciphertext is None
+        revoked = (
+            await postgres.execute(
+                text(
+                    """SELECT item.memory_status,item.content_ciphertext,event.event_type,
+                    event.actor_type,event.reason_code FROM memory.items item
+                    JOIN memory.events event ON event.memory_id=item.id
+                    WHERE item.memory_no=:memory_no ORDER BY event.created_at DESC LIMIT 1"""
+                ),
+                {"memory_no": disable_memory_no},
+            )
+        ).one()
+        assert tuple(revoked) == ("revoked", None, "revoked", "system", "disable_all")
+        item_id_type = await postgres.scalar(
+            text(
+                """SELECT data_type FROM information_schema.columns
+                WHERE table_schema='memory' AND table_name='items' AND column_name='id'"""
+            )
+        )
+        legacy_columns = set(
+            (
+                await postgres.scalars(
+                    text(
+                        """SELECT column_name FROM information_schema.columns
+                        WHERE table_schema='memory' AND table_name='items'
+                        AND column_name IN ('safe_text','embedding')"""
+                    )
+                )
+            ).all()
+        )
+        assert item_id_type == "uuid"
+        assert legacy_columns == set()
 
 
 def _identity(security: SecurityService, suffix: str, now: datetime) -> tuple[User, AuthSession]:

@@ -7339,7 +7339,7 @@ WHERE extname = 'vector';
 | `store_no` | `VARCHAR(64)` | NULL，店铺记忆必填，专属记忆可空 |
 | `memory_type` | `VARCHAR(32)` | `preference/stable_fact/constraint/service_history` |
 | `memory_key` | `VARCHAR(128)` | NOT NULL，稳定语义键，如 `shopping.preferred_colors`，用于冲突检测与定向修改 |
-| `content_ciphertext` | `BYTEA` | NOT NULL，应用层信封加密 |
+| `content_ciphertext` | `BYTEA` | Active/Candidate/Superseded 时 NOT NULL，应用层信封加密；Revoked/Expired/Deleted 完成清理后为 NULL |
 | `content_hash` / `dedupe_fingerprint` | `BYTEA` | NOT NULL，完整性/语义归一去重 |
 | `key_version` | `SMALLINT` | NOT NULL |
 | `source_type` / `source_ref` | `VARCHAR(32)` / `VARCHAR(128)` | NOT NULL，`user_message/user_confirmation/business_signal/user_settings` 及对应审计引用 |

@@ -82,8 +82,8 @@ describe('phase two route contract', () => {
 
   it('registers the phase six user messaging and support workspace routes', () => {
     const expected = new Map([
-      ['/messages', 'USR-MESSAGE-LIST-01'],
-      ['/messages/:conversationId', 'USR-MESSAGE-01'],
+      ['/messages', 'USR-MSG-01'],
+      ['/messages/:conversationId', 'USR-MSG-02'],
       ['/admin/support/tickets', 'ADM-SUPPORT-LIST-01'],
       ['/admin/support/tickets/:ticketId', 'ADM-SUPPORT-01'],
     ])
@@ -97,11 +97,12 @@ describe('phase two route contract', () => {
     const expected = new Map([
       ['/admin/ai/agents', 'ADM-AI-AGENT-01'],
       ['/admin/ai/skills', 'ADM-AI-SKILL-01'],
-      ['/admin/ai/tools', 'ADM-AI-01'],
+      ['/admin/ai/tools', 'ADM-AI-TOOL-LIST-01'],
+      ['/admin/ai/tools/:toolId', 'ADM-AI-01'],
       ['/admin/ai/policies', 'ADM-AI-POLICY-01'],
-      ['/admin/knowledge/documents', 'ADM-KNOW-01'],
+      ['/admin/knowledge/documents', 'ADM-KNOW-LIST-01'],
       ['/admin/knowledge/documents/:documentId', 'ADM-KNOW-01'],
-      ['/admin/knowledge/indexing-jobs', 'ADM-KNOW-JOB-01'],
+      ['/admin/knowledge/indexing-jobs', 'ADM-KNOW-JOBS-01'],
       ['/admin/knowledge/indexing-jobs/:jobId', 'ADM-KNOW-JOB-01'],
     ])
     const routes = new Map(router.getRoutes().map((route) => [route.path, route]))

@@ -74,6 +74,27 @@ pytestmark = [
 ]
 
 
+async def _auth_context(
+    session: AsyncSession, user_no: str, session_no: str
+) -> AuthContext:
+    user = await session.scalar(select(User).where(User.user_no == user_no))
+    auth_session = await session.scalar(
+        select(AuthSession).where(AuthSession.session_no == session_no)
+    )
+    assert user is not None and auth_session is not None
+    return AuthContext(
+        user=user,
+        session=auth_session,
+        claims=TokenClaims(
+            subject=user.user_no,
+            session_id=auth_session.session_no,
+            audience="admin",
+            permission_version=user.permission_version,
+            expires_at=auth_session.expires_at,
+        ),
+    )
+
+
 async def _admin_access(
     session: AsyncSession,
     user_no: str,
@@ -81,26 +102,12 @@ async def _admin_access(
     *,
     permission_code: str,
 ) -> AdminAccess:
-    user = await session.scalar(select(User).where(User.user_no == user_no))
-    auth_session = await session.scalar(
-        select(AuthSession).where(AuthSession.session_no == session_no)
-    )
     permission = await session.scalar(
         select(Permission).where(Permission.permission_code == permission_code)
     )
-    assert user is not None and auth_session is not None and permission is not None
+    assert permission is not None
     return AdminAccess(
-        context=AuthContext(
-            user=user,
-            session=auth_session,
-            claims=TokenClaims(
-                subject=user.user_no,
-                session_id=auth_session.session_no,
-                audience="admin",
-                permission_version=user.permission_version,
-                expires_at=auth_session.expires_at,
-            ),
-        ),
+        context=await _auth_context(session, user_no, session_no),
         permission=permission,
         scopes=(("platform", 0),),
     )
@@ -1685,8 +1692,9 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         review = await session.scalar(select(Review).where(Review.review_no == review_id))
         assert review is not None
         review_service = ReviewService(session, get_settings())
+        review_admin_context = await _auth_context(session, user_no, session_no)
         reply_access = AdminAccess(
-            context=access.context,
+            context=review_admin_context,
             permission=Permission(
                 permission_code="reviews:reply",
                 resource="reviews",
@@ -1712,7 +1720,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         )
         assert replied_review.merchant_reply is not None
         moderation_access = AdminAccess(
-            context=access.context,
+            context=review_admin_context,
             permission=Permission(
                 permission_code="reviews:moderate",
                 resource="reviews",
@@ -1960,6 +1968,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert rejected_refund.status_code == 201, rejected_refund.text
     rejected_refund_id = rejected_refund.json()["data"]["refund_id"]
     async for session in mysql_session():
+        refund_admin_context = await _auth_context(session, user_no, session_no)
         permission = Permission(
             permission_code="refunds:review",
             resource="refunds",
@@ -1975,7 +1984,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             permission_status="active",
         )
         refund_access = AdminAccess(
-            context=access.context,
+            context=refund_admin_context,
             permission=permission,
             scopes=(("store", receipt_store_id),),
         )
@@ -1998,6 +2007,11 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             )
         assert unclaimed_decision.value.code == "REFUND_CLAIM_REQUIRED"
         await session.rollback()
+        refund_access = AdminAccess(
+            context=await _auth_context(session, user_no, session_no),
+            permission=permission,
+            scopes=(("store", receipt_store_id),),
+        )
         rejected_row = await session.scalar(
             select(RefundApplication).where(RefundApplication.refund_no == rejected_refund_id)
         )

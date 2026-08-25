@@ -307,6 +307,95 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     assert login_response.status_code == 200, login_response.text
     assert login_response.json()["data"]["user"]["username"] == username
 
+    reset_code = await client.post(
+        "/api/v1/auth/verification-codes",
+        json={
+            "purpose": "reset_password",
+            "target_type": "email",
+            "target": changed_email,
+            "locale": "zh-CN",
+            "challenge_token": None,
+            "change_ticket_id": None,
+        },
+    )
+    assert reset_code.status_code == 202, reset_code.text
+    reset_ticket = await client.post(
+        "/api/v1/auth/password-reset-tickets",
+        json={
+            "target_type": "email",
+            "target": changed_email,
+            "verification_id": reset_code.json()["data"]["verification_id"],
+            "verification_code": "000000",
+        },
+    )
+    assert reset_ticket.status_code == 200, reset_ticket.text
+    new_password = f"Reset-Correct-Horse-{suffix}-Battery!"
+    reset_headers = {"Idempotency-Key": f"password-reset-{suffix}-001"}
+    reset_payload = {
+        "reset_ticket": reset_ticket.json()["data"]["reset_ticket"],
+        "new_password": new_password,
+    }
+    reset = await client.post(
+        "/api/v1/auth/password-resets",
+        headers=reset_headers,
+        json=reset_payload,
+    )
+    assert reset.status_code == 200, reset.text
+    reset_replay = await client.post(
+        "/api/v1/auth/password-resets",
+        headers=reset_headers,
+        json=reset_payload,
+    )
+    assert reset_replay.status_code == 200
+
+    old_password_login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "auth_method": "password",
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Old Password"},
+            "challenge_token": None,
+        },
+    )
+    assert old_password_login.status_code == 401
+    new_password_login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "auth_method": "password",
+            "identifier": username,
+            "password": new_password,
+            "client": {"client_type": "web", "device_name": "Closure Test"},
+            "challenge_token": None,
+        },
+    )
+    assert new_password_login.status_code == 200, new_password_login.text
+    closure_auth = {
+        "Authorization": f"Bearer {new_password_login.json()['data']['access_token']}"
+    }
+    closure_headers = {
+        **closure_auth,
+        "Idempotency-Key": f"account-closure-{suffix}-001",
+    }
+    closure_payload = {
+        "reason_code": "no_longer_needed",
+        "reason": "Integration acceptance",
+        "confirmation": "CLOSE_MY_ACCOUNT",
+    }
+    closure = await client.post(
+        "/api/v1/users/me/account-closure-requests",
+        headers=closure_headers,
+        json=closure_payload,
+    )
+    assert closure.status_code == 202, closure.text
+    closure_replay = await client.post(
+        "/api/v1/users/me/account-closure-requests",
+        headers=closure_headers,
+        json=closure_payload,
+    )
+    assert closure_replay.status_code in {202, 401}
+    assert (await client.get("/api/v1/users/me", headers=closure_auth)).status_code == 401
+
 
 async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     client: AsyncClient,

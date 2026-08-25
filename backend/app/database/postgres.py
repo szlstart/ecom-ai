@@ -44,7 +44,11 @@ async def postgres_session() -> AsyncIterator[AsyncSession]:
     if _session_factory is None:
         raise RuntimeError("PostgreSQL is not initialized")
     async with _session_factory() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            if session.in_transaction():
+                await session.rollback()
 
 
 async def probe_postgres(timeout_seconds: float) -> None:

@@ -23,6 +23,7 @@ def initialize_mysql(dsn: str) -> None:
     settings = get_settings()
     _engine = create_async_engine(
         dsn,
+        isolation_level="READ COMMITTED",
         pool_pre_ping=True,
         pool_size=settings.mysql_pool_size,
         max_overflow=settings.mysql_max_overflow,
@@ -45,7 +46,11 @@ async def mysql_session() -> AsyncIterator[AsyncSession]:
     if _session_factory is None:
         raise RuntimeError("MySQL is not initialized")
     async with _session_factory() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            if session.in_transaction():
+                await session.rollback()
 
 
 async def probe_mysql(timeout_seconds: float) -> None:

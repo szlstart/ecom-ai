@@ -1,6 +1,7 @@
 from typing import Any
 
 from app.generated.operation_trace_catalog import OPERATIONS
+from app.generated.permission_catalog import PERMISSIONS
 from app.main import create_app
 
 REQUIRED_EXTENSIONS = {
@@ -92,6 +93,28 @@ def test_no_write_operation_can_hide_an_unclassified_retry_policy() -> None:
             assert policy != "none", operation["operationId"]
             if method.upper() not in {"GET", "HEAD", "OPTIONS"}:
                 assert policy != "safe_read", operation["operationId"]
+
+
+def test_high_risk_admin_writes_require_step_up_or_approval() -> None:
+    permissions = {item["code"]: item for item in PERMISSIONS}
+    schema = create_app().openapi()
+    for path_item in schema["paths"].values():
+        for method, operation in path_item.items():
+            if (
+                not isinstance(operation, dict)
+                or "operationId" not in operation
+                or method.upper() in {"GET", "HEAD", "OPTIONS"}
+            ):
+                continue
+            for permission_code in operation["x-permission-codes"]:
+                permission = permissions[permission_code]
+                if permission["risk_level"] not in {"high", "critical"}:
+                    continue
+                assert (
+                    permission["requires_mfa"]
+                    or permission["requires_recent_auth"]
+                    or permission["approval_policy"] != "none"
+                ), (operation["operationId"], permission_code)
 
 
 def test_every_operation_documents_recoverable_problem_details() -> None:

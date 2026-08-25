@@ -38,7 +38,7 @@ permissions:
   - {<<: *defaults, code: 'products:read', resource: products, action: read, risk_level: low, allowed_scope_types: [platform, store], owner: catalog}
   - {<<: *defaults, code: 'products:create', resource: products, action: create, risk_level: medium, allowed_scope_types: [platform, store], owner: catalog}
   - {<<: *defaults, code: 'products:update', resource: products, action: update, risk_level: medium, allowed_scope_types: [platform, store], owner: catalog}
-  - {<<: *defaults, code: 'products:review', resource: products, action: review, risk_level: high, allowed_scope_types: [platform], owner: catalog}
+  - {<<: *defaults, code: 'products:review', resource: products, action: review, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: catalog}
   - {<<: *defaults, code: 'products:publish', resource: products, action: publish, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, owner: catalog}
   - {<<: *defaults, code: 'catalog_taxonomy:manage', resource: catalog_taxonomy, action: manage, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: catalog}
   - {<<: *defaults, code: 'inventories:read', resource: inventories, action: read, risk_level: medium, allowed_scope_types: [platform, store], owner: inventory}
@@ -65,10 +65,10 @@ permissions:
   - {<<: *defaults, code: 'support:reply', resource: support, action: reply, risk_level: medium, allowed_scope_types: [platform, store, queue], owner: support}
   - {<<: *defaults, code: 'support:wait', resource: support, action: wait, risk_level: medium, allowed_scope_types: [platform, store, queue], owner: support}
   - {<<: *defaults, code: 'support:resume', resource: support, action: resume, risk_level: medium, allowed_scope_types: [platform, store, queue], owner: support}
-  - {<<: *defaults, code: 'support:transfer', resource: support, action: transfer, risk_level: high, allowed_scope_types: [platform, store, queue], owner: support}
-  - {<<: *defaults, code: 'support:resolve', resource: support, action: resolve, risk_level: high, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:transfer', resource: support, action: transfer, risk_level: high, allowed_scope_types: [platform, store, queue], requires_recent_auth: true, owner: support}
+  - {<<: *defaults, code: 'support:resolve', resource: support, action: resolve, risk_level: high, allowed_scope_types: [platform, store, queue], requires_recent_auth: true, owner: support}
   - {<<: *defaults, code: 'support:internal_notes_read', resource: support, action: internal_notes_read, risk_level: high, allowed_scope_types: [platform, store, queue], owner: support}
-  - {<<: *defaults, code: 'support:internal_notes_write', resource: support, action: internal_notes_write, risk_level: high, allowed_scope_types: [platform, store, queue], owner: support}
+  - {<<: *defaults, code: 'support:internal_notes_write', resource: support, action: internal_notes_write, risk_level: high, allowed_scope_types: [platform, store, queue], requires_recent_auth: true, owner: support}
   - {<<: *defaults, code: 'ai_agents:read', resource: ai_agents, action: read, risk_level: medium, allowed_scope_types: [platform], owner: ai_governance}
   - {<<: *defaults, code: 'ai_agents:manage', resource: ai_agents, action: manage, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: ai_governance}
   - {<<: *defaults, code: 'ai_agents:publish', resource: ai_agents, action: publish, risk_level: critical, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, approval_policy: dual_control, owner: ai_governance}
@@ -83,14 +83,14 @@ permissions:
   - {<<: *defaults, code: 'ai_policies:publish', resource: ai_policies, action: publish, risk_level: critical, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, approval_policy: dual_control, owner: ai_governance}
   - {<<: *defaults, code: 'ai_runtime:kill', resource: ai_runtime, action: kill, risk_level: critical, allowed_scope_types: [platform], delegation_policy: non_delegable, requires_mfa: true, requires_recent_auth: true, owner: ai_governance}
   - {<<: *defaults, code: 'knowledge:read', resource: knowledge, action: read, risk_level: medium, allowed_scope_types: [platform, store], owner: knowledge}
-  - {<<: *defaults, code: 'knowledge:manage', resource: knowledge, action: manage, risk_level: high, allowed_scope_types: [platform, store], owner: knowledge}
+  - {<<: *defaults, code: 'knowledge:manage', resource: knowledge, action: manage, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, owner: knowledge}
   - {<<: *defaults, code: 'knowledge:publish', resource: knowledge, action: publish, risk_level: high, allowed_scope_types: [platform, store], requires_recent_auth: true, approval_policy: risk_based, owner: knowledge}
   - {<<: *defaults, code: 'ai_evaluations:read', resource: ai_evaluations, action: read, risk_level: medium, allowed_scope_types: [platform], owner: ai_evaluation}
   - {<<: *defaults, code: 'ai_evaluations:run', resource: ai_evaluations, action: run, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: ai_evaluation}
   - {<<: *defaults, code: 'ai_observability:read', resource: ai_observability, action: read, risk_level: high, allowed_scope_types: [platform], owner: observability}
   - {<<: *defaults, code: 'observability:read', resource: observability, action: read, risk_level: high, allowed_scope_types: [platform, store], owner: observability}
   - {<<: *defaults, code: 'content:read', resource: content, action: read, risk_level: low, allowed_scope_types: [platform], owner: content}
-  - {<<: *defaults, code: 'content:manage', resource: content, action: manage, risk_level: high, allowed_scope_types: [platform], owner: content}
+  - {<<: *defaults, code: 'content:manage', resource: content, action: manage, risk_level: high, allowed_scope_types: [platform], requires_recent_auth: true, owner: content}
   - {<<: *defaults, code: 'content:publish', resource: content, action: publish, risk_level: critical, allowed_scope_types: [platform], requires_mfa: true, requires_recent_auth: true, approval_policy: risk_based, owner: content}
   - {<<: *defaults, code: 'admin_approvals:read', resource: admin_approvals, action: read, risk_level: high, allowed_scope_types: [platform, store], owner: admin_governance}
   - {<<: *defaults, code: 'admin_approvals:decide', resource: admin_approvals, action: decide, risk_level: critical, allowed_scope_types: [platform, store], delegation_policy: non_delegable, requires_mfa: true, requires_recent_auth: true, owner: admin_governance}

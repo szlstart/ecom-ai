@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Any, cast
 
@@ -60,6 +61,21 @@ def test_traceability_references_registered_permissions() -> None:
         values = authorization if isinstance(authorization, list) else [authorization]
         referenced.update(value for value in values if isinstance(value, str) and ":" in value)
     assert referenced <= permission_codes
+
+
+def test_permission_codes_fields_and_security_controls_are_well_formed() -> None:
+    registry = load_registry("permission_registry.yaml")
+    pattern = re.compile(registry["code_pattern"])
+    required_fields = set(registry["required_fields"])
+    for permission in registry["permissions"]:
+        assert required_fields <= permission.keys(), permission["code"]
+        assert pattern.fullmatch(permission["code"]), permission["code"]
+        resource, action = permission["code"].split(":", 1)
+        assert permission["resource"] == resource
+        assert permission["action"] == action
+        assert permission["risk_level"] in {"low", "medium", "high", "critical"}
+        assert set(permission["allowed_scope_types"]) <= {"platform", "store", "queue"}
+        assert permission["allowed_scope_types"]
 
 
 def test_domain_transitions_reference_registered_states() -> None:

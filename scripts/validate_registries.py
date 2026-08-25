@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,44 @@ def validate() -> None:
 
     permission_codes = [item["code"] for item in permissions["permissions"]]
     ensure_unique(permission_codes, "Permission codes")
+    permission_pattern = re.compile(permissions["code_pattern"])
+    required_permission_fields = set(permissions["required_fields"])
+    allowed_risk_levels = {"low", "medium", "high", "critical"}
+    allowed_scope_types = {"platform", "store", "queue"}
+    allowed_approval_policies = {
+        "none",
+        "risk_based",
+        "amount_based",
+        "dual_control",
+        "single_use_grant",
+    }
+    allowed_delegation_policies = {"role_policy", "non_delegable"}
+    for permission in permissions["permissions"]:
+        missing_fields = required_permission_fields - permission.keys()
+        if missing_fields:
+            raise ValueError(
+                f"{permission.get('code', '<missing>')}: missing permission fields "
+                f"{sorted(missing_fields)}"
+            )
+        code = permission["code"]
+        if not isinstance(code, str) or permission_pattern.fullmatch(code) is None:
+            raise ValueError(f"Permission code does not match code_pattern: {code!r}")
+        resource, action = code.split(":", 1)
+        if permission["resource"] != resource or permission["action"] != action:
+            raise ValueError(f"{code}: resource/action do not match the permission code")
+        if permission["risk_level"] not in allowed_risk_levels:
+            raise ValueError(f"{code}: invalid risk_level")
+        scopes = permission["allowed_scope_types"]
+        if not isinstance(scopes, list) or not scopes or not set(scopes) <= allowed_scope_types:
+            raise ValueError(f"{code}: invalid allowed_scope_types")
+        if permission["approval_policy"] not in allowed_approval_policies:
+            raise ValueError(f"{code}: invalid approval_policy")
+        if permission["delegation_policy"] not in allowed_delegation_policies:
+            raise ValueError(f"{code}: invalid delegation_policy")
+        if not isinstance(permission["requires_mfa"], bool) or not isinstance(
+            permission["requires_recent_auth"], bool
+        ):
+            raise TypeError(f"{code}: step-up flags must be booleans")
 
     routes = traceability["routes"]
     ensure_unique([item["route"] for item in routes], "Vue routes")

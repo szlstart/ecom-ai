@@ -111,7 +111,8 @@ def audit() -> dict[str, Any]:
     permissions = load_yaml("permission_registry.yaml")
     domains = load_yaml("domain_registry.yaml")
     test_registry = load_yaml("test_evidence_registry.yaml")
-    registered_permissions = {item["code"] for item in permissions["permissions"]}
+    permissions_by_code = {item["code"]: item for item in permissions["permissions"]}
+    registered_permissions = set(permissions_by_code)
     required_route_fields = set(traceability["required_fields"])
     required_extensions = set(
         traceability["operation_contract"]["openapi_required_extensions"]
@@ -385,6 +386,28 @@ def audit() -> dict[str, Any]:
                     ", ".join(sorted(set(permission_codes) - registered_permissions)),
                 )
             )
+        if method not in {"GET", "HEAD", "OPTIONS"} and isinstance(permission_codes, list):
+            for permission_code in permission_codes:
+                permission = permissions_by_code.get(permission_code)
+                if not isinstance(permission, dict) or permission.get("risk_level") not in {
+                    "high",
+                    "critical",
+                }:
+                    continue
+                has_step_up_or_approval = bool(
+                    permission.get("requires_mfa")
+                    or permission.get("requires_recent_auth")
+                    or permission.get("approval_policy") != "none"
+                )
+                if not has_step_up_or_approval:
+                    findings.append(
+                        Finding(
+                            "OPENAPI_HIGH_RISK_CONTROL_MISSING",
+                            "error",
+                            operation_id,
+                            f"{permission_code} requires MFA, recent authentication or approval",
+                        )
+                    )
         for extension in ("x-domain-command", "x-audit-event", "x-idempotency-policy"):
             value = operation[extension]
             if not isinstance(value, str) or not value:

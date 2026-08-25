@@ -1,6 +1,6 @@
 """Generated from docs/permission_registry.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "66ab8d4b2774c2638e88f3a30aaa5b962f20f97ef6d49f8ab9ab0b763885a85c"
+SOURCE_SHA256 = "d8d82baec26a439b9b33cf1dea4dd78a0a750477de2e94d11952b07b44f8f941"
 PERMISSIONS = [
     {
         "delegation_policy": "role_policy",
@@ -257,7 +257,7 @@ PERMISSIONS = [
     {
         "delegation_policy": "role_policy",
         "requires_mfa": False,
-        "requires_recent_auth": False,
+        "requires_recent_auth": True,
         "approval_policy": "none",
         "status": "active",
         "code": "products:review",
@@ -635,7 +635,7 @@ PERMISSIONS = [
     {
         "delegation_policy": "role_policy",
         "requires_mfa": False,
-        "requires_recent_auth": False,
+        "requires_recent_auth": True,
         "approval_policy": "none",
         "status": "active",
         "code": "support:transfer",
@@ -649,7 +649,7 @@ PERMISSIONS = [
     {
         "delegation_policy": "role_policy",
         "requires_mfa": False,
-        "requires_recent_auth": False,
+        "requires_recent_auth": True,
         "approval_policy": "none",
         "status": "active",
         "code": "support:resolve",
@@ -677,7 +677,7 @@ PERMISSIONS = [
     {
         "delegation_policy": "role_policy",
         "requires_mfa": False,
-        "requires_recent_auth": False,
+        "requires_recent_auth": True,
         "approval_policy": "none",
         "status": "active",
         "code": "support:internal_notes_write",
@@ -887,7 +887,7 @@ PERMISSIONS = [
     {
         "delegation_policy": "role_policy",
         "requires_mfa": False,
-        "requires_recent_auth": False,
+        "requires_recent_auth": True,
         "approval_policy": "none",
         "status": "active",
         "code": "knowledge:manage",
@@ -985,7 +985,7 @@ PERMISSIONS = [
     {
         "delegation_policy": "role_policy",
         "requires_mfa": False,
-        "requires_recent_auth": False,
+        "requires_recent_auth": True,
         "approval_policy": "none",
         "status": "active",
         "code": "content:manage",

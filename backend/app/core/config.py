@@ -1,7 +1,7 @@
 from functools import lru_cache
 from urllib.parse import parse_qs, urlparse
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     embedding_model: str = "ecom-multilingual-v1"
     embedding_dimension: int = Field(default=1536, ge=1, le=4096)
     embedding_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    agent_model_required: bool = False
+    agent_model_api_url: str | None = None
+    agent_model_api_key: SecretStr | None = None
+    agent_model_name: str | None = None
+    agent_model_timeout_seconds: float = Field(default=30.0, gt=0, le=90)
     redis_url: str = "redis://:local-redis-change-me@127.0.0.1:16379/0"
     redis_max_connections: int = Field(default=50, ge=5, le=1000)
     realtime_ticket_ttl_seconds: int = Field(default=30, ge=10, le=120)
@@ -97,8 +102,29 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
+    @field_validator(
+        "agent_model_api_url",
+        "agent_model_api_key",
+        "agent_model_name",
+        mode="before",
+    )
+    @classmethod
+    def empty_agent_model_values_are_unconfigured(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
     @model_validator(mode="after")
     def reject_development_secrets_in_production(self) -> "Settings":
+        model_values = (
+            self.agent_model_api_url,
+            self.agent_model_api_key,
+            self.agent_model_name,
+        )
+        if any(value is not None for value in model_values) and not all(
+            value is not None for value in model_values
+        ):
+            raise ValueError("Agent model URL, API key and model name must be configured together")
+        if self.agent_model_required and not all(value is not None for value in model_values):
+            raise ValueError("this service requires an Agent model provider")
         if self.environment.lower() != "production":
             return self
         secrets = (
@@ -119,6 +145,8 @@ class Settings(BaseSettings):
             raise ValueError("Secure refresh cookies are required in production")
         if self.embedding_api_url and self.embedding_api_key is None:
             raise ValueError("embedding API key is required when an embedding API URL is set")
+        if self.agent_model_api_url and not self.agent_model_api_url.startswith("https://"):
+            raise ValueError("production Agent model API URL must use HTTPS")
         if not self.public_origin.startswith("https://"):
             raise ValueError("production public origin must use HTTPS")
         if not self.cors_origins or any(

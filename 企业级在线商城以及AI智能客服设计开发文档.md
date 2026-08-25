@@ -10444,6 +10444,8 @@ Capability Registry 记录每个部署模型是否支持 Tool Calling、JSON Sch
 
 首版可直接使用官方 Provider SDK 实现 Adapter；是否引入 LiteLLM/独立模型代理作为部署实现，经压测、错误语义、流式兼容和安全评审后决定，不让 Graph 依赖其专有接口。
 
+首发代码提供 OpenAI-compatible Chat Completions 结构化规划 Adapter，但只允许模型返回闭集 `intent + search_text`，不向模型开放 Tool、Permission、业务 ID 或任意写参数；返回值必须通过 JSON Schema 和本地 Literal 白名单二次校验。开发/测试环境在未配置 Provider 时使用确定性规划器，生产 `agent-runtime-worker` 必须设置 `ECOM_AGENT_MODEL_REQUIRED=true`，并通过 Secret 注入 HTTPS Endpoint、API Key 和已批准 Model Deployment；模型凭证不得注入 API 或其他 Worker。Provider 超时、HTTP/JSON/Schema 异常统一转 `ModelGatewayError`，沿既有安全降级/转人工路径处理，不回退到未经评估的模型。
+
 #### 3.16.5 模型选择与路由
 
 模型路由是确定性、版本化策略，不由用户 Prompt 指定。建议 Profile：
@@ -13670,6 +13672,8 @@ MySQL/PostgreSQL Migration 能从空库安装、从上一生产版本升级并�
 #### 3.34.17 Agent 质量验收标准
 
 每个 Agent/Intent 在固定 Release Holdout 上报告任务完成、事实一致、Citation、Tool 选择/参数、拒答/转接、Memory、Multi-Agent、TTFT/P95 和单成功任务成本，并提供 Case-level Diff/置信区间。高影响订单/金额/政策 Claim 必须由 Tool/有效 Citation 支持；无可靠证据时正确拒答。
+
+规则规划器和 Mock Provider 仅用于开发、契约与故障测试，不构成生产模型质量证据。候选发布必须使用实际配置的 `provider/model/deployment/profile/policy_version` 生成不可变 Observation；缺少真实模型调用、逐用例输出、Usage/Latency/Cost 或 Dataset Hash 对齐时，Evaluation Runner 必须返回 `insufficient_evidence`。
 
 准入沿用 3.28.34–3.28.37：相对当前基线关键指标绝对下降默认不超过 1 个百分点且置信区间支持非劣，P95/成本默认不恶化超过 15%；具体 Intent 可设置更严目标。Golden Dataset 之外还需 Canary/线上观察，自助解决不能仅以“未转人工”计算。评估样本不足则 `insufficient_evidence`，不得视为通过。
 

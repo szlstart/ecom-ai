@@ -20,6 +20,7 @@ from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.exclusive_agent import process_exclusive_run
 from app.modules.agent_runtime.models import AgentRun
+from app.modules.agent_runtime.provider_gateway import configured_model_gateways
 from app.modules.agent_runtime.service import AgentRuntimeService
 from app.modules.agent_runtime.store_agent import process_store_run
 from app.modules.messaging.models import Conversation, Message
@@ -100,6 +101,7 @@ async def process_batch(limit: int = 20) -> int:
     processed = 0
     settings = get_settings()
     security = SecurityService(settings)
+    store_model_gateway, exclusive_model_gateway = configured_model_gateways(settings)
     async for session in mysql_session():
         await AgentApprovalService(session, settings, security).reconcile_unknown(limit=limit)
         runs = list(
@@ -139,12 +141,14 @@ async def process_batch(limit: int = 20) -> int:
                             settings=settings,
                             security=security,
                             checkpoint_store=checkpoint_store,
+                            model_gateway=exclusive_model_gateway,
                         )
                     else:
                         await process_store_run(
                             session,
                             run,
                             checkpoint_store=checkpoint_store,
+                            model_gateway=store_model_gateway,
                         )
                 metrics.observe_ai(
                     AiMetric(

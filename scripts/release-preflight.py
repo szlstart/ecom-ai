@@ -22,6 +22,9 @@ REQUIRED = {
     "ECOM_MYSQL_MIGRATION_DSN",
     "ECOM_POSTGRES_MIGRATION_DSN",
     "ECOM_REDIS_URL",
+    "ECOM_AGENT_MODEL_API_URL",
+    "ECOM_AGENT_MODEL_API_KEY",
+    "ECOM_AGENT_MODEL_NAME",
     "ECOM_ACCESS_TOKEN_SECRET",
     "ECOM_SECURITY_HMAC_SECRET",
     "ECOM_FIELD_ENCRYPTION_KEY",
@@ -95,6 +98,7 @@ def validate(values: dict[str, str]) -> None:
         "ECOM_OBJECT_STORAGE_ENDPOINT",
         "ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT",
         "ECOM_OTEL_EXPORTER_OTLP_ENDPOINT",
+        "ECOM_AGENT_MODEL_API_URL",
     )
     for key in https_keys:
         if not values[key].startswith("https://"):
@@ -160,6 +164,18 @@ def validate_compose(rendered: str) -> None:
         for forbidden in ("ECOM_MYSQL_MIGRATION_DSN", "ECOM_POSTGRES_MIGRATION_DSN"):
             if forbidden in environment:
                 raise ValueError(f"{name} unexpectedly receives a migration credential")
+        model_secret = "ECOM_AGENT_MODEL_API_KEY"
+        if name == "agent-runtime-worker":
+            for required in (
+                "ECOM_AGENT_MODEL_REQUIRED",
+                "ECOM_AGENT_MODEL_API_URL",
+                model_secret,
+                "ECOM_AGENT_MODEL_NAME",
+            ):
+                if required not in environment:
+                    raise ValueError(f"agent-runtime-worker is missing {required}")
+        elif model_secret in environment:
+            raise ValueError(f"{name} unexpectedly receives the Agent model credential")
 
 
 def sanitized_process_error(

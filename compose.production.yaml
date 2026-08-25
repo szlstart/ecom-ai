@@ -114,6 +114,11 @@ services:
     environment:
       <<: *api-environment
       ECOM_OTEL_SERVICE_NAME: ecom-ai-agent-worker
+      ECOM_AGENT_MODEL_REQUIRED: "true"
+      ECOM_AGENT_MODEL_API_URL: ${ECOM_AGENT_MODEL_API_URL:?approved Agent model endpoint required}
+      ECOM_AGENT_MODEL_API_KEY: ${ECOM_AGENT_MODEL_API_KEY:?Agent model API key required}
+      ECOM_AGENT_MODEL_NAME: ${ECOM_AGENT_MODEL_NAME:?approved Agent model deployment required}
+      ECOM_AGENT_MODEL_TIMEOUT_SECONDS: ${ECOM_AGENT_MODEL_TIMEOUT_SECONDS:-30}
 
   knowledge-indexer:
     <<: *api-runtime

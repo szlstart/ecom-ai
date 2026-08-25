@@ -40,6 +40,25 @@ def test_production_settings_accept_external_tls_dependencies() -> None:
     assert settings.environment == "production"
 
 
+def test_agent_worker_requires_complete_https_model_configuration() -> None:
+    with pytest.raises(ValidationError):
+        production_settings(agent_model_required=True)
+    with pytest.raises(ValidationError):
+        production_settings(
+            agent_model_required=True,
+            agent_model_api_url="http://models.private.acme.cn/v1/chat/completions",
+            agent_model_api_key="secret",
+            agent_model_name="approved-model",
+        )
+    settings = production_settings(
+        agent_model_required=True,
+        agent_model_api_url="https://models.private.acme.cn/v1/chat/completions",
+        agent_model_api_key="secret",
+        agent_model_name="approved-model",
+    )
+    assert settings.agent_model_name == "approved-model"
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

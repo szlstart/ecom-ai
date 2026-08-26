@@ -183,7 +183,7 @@ onBeforeUnmount(() => {
           <label>计算结果<input v-model="captchaAnswer" inputmode="numeric" pattern="[0-9]+" autocomplete="off" required /></label>
           <label>密码<input v-model="password" autocomplete="new-password" required type="password" /><small>密码不能为空，且不能包含空格、换行或其他空白字符；长度不限。</small></label>
           <label>确认密码<input v-model="confirmation" autocomplete="new-password" required type="password" /></label>
-          <label>邮箱<input v-model.trim="email" autocomplete="email" maxlength="254" required type="email" /><small>仅用于忘记密码时核对账号，不发送验证码，也不会用于营销。</small></label>
+          <label>邮箱<input v-model.trim="email" autocomplete="email" maxlength="254" required type="email" /><small>仅用于忘记密码时核对身份并重置密码；注册后可在“我的 → 账号安全”中按需更换。</small></label>
           <fieldset v-if="config"><legend>协议确认</legend><label v-for="item in config.required_agreements" :key="item.document_type" class="check-row"><input v-model="accepted" :value="item.document_type" type="checkbox" /><span>我已阅读并同意 <RouterLink :to="`/legal/${item.document_type}?version=${item.document_version}`" target="_blank">{{ item.title }}</RouterLink></span></label></fieldset>
           <button :disabled="pending || !registrationReady" type="submit">同意协议并注册</button>
           <p class="form-help">已有账号？<button class="link-button" type="button" @click="switchMode('login')">返回登录</button></p>

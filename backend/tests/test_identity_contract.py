@@ -93,8 +93,8 @@ def test_registration_uses_arithmetic_captcha_and_recovery_email() -> None:
 
 
 def test_recovery_email_hint_masks_the_middle() -> None:
-    assert mask_recovery_email("1390003212@qq.com") == "139xxx3212@qq.com"
-    assert mask_recovery_email("short@example.com") == "shxxxrt@example.com"
+    assert mask_recovery_email("1390003212@qq.com") == "139***3212@qq.com"
+    assert mask_recovery_email("short@example.com") == "sh***rt@example.com"
 
 
 def test_address_recipient_name_accepts_one_character() -> None:

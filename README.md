@@ -44,6 +44,15 @@ make admin-bootstrap USERNAME=your_admin_name
 
 命令会提示输入密码，并只显示一次 TOTP Secret、绑定 URI 和恢复码。请立即保存到密码管理器，不要写入 `.env`、截图或提交到 Git。管理端入口为 `http://127.0.0.1:8080/admin/login`。
 
+首次使用商家中心时，可在本地交互式创建一个店铺和店铺运营账号：
+
+```bash
+conda activate ecom-ai
+make merchant-bootstrap USERNAME=your_merchant_name STORE_NAME="你的店铺名称"
+```
+
+命令同样会提示输入密码，并只显示一次 TOTP Secret 与恢复码。商家中心入口为 `http://127.0.0.1:8080/merchant/login`；商家只能访问绑定店铺的商品、库存、客服、评价和店铺资料，不能进入平台治理功能。
+
 对象存储通过 S3 兼容适配层接入，当前基线默认关闭；选定持续维护的本地/生产对象存储实现后再启用，避免把已停止维护的镜像固化进开发环境。
 
 ## 质量检查

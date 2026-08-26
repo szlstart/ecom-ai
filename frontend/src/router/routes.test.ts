@@ -57,6 +57,42 @@ describe('phase two route contract', () => {
     }
   })
 
+  it('keeps the merchant portal isolated from platform administration', () => {
+    const expected = new Map([
+      ['/merchant/login', 'MCH-AUTH-01'],
+      ['/merchant/login/mfa', 'MCH-AUTH-02'],
+      ['/merchant/reauthenticate', 'MCH-AUTH-03'],
+      ['/merchant', 'MCH-SHELL-01'],
+      ['/merchant/dashboard', 'MCH-DASH-01'],
+      ['/merchant/products', 'MCH-PRODUCT-LIST-01'],
+      ['/merchant/products/new', 'MCH-PRODUCT-NEW-01'],
+      ['/merchant/products/:productId', 'MCH-PRODUCT-EDIT-01'],
+      ['/merchant/inventory', 'MCH-INVENTORY-01'],
+      ['/merchant/support', 'MCH-SUPPORT-LIST-01'],
+      ['/merchant/support/:ticketId', 'MCH-SUPPORT-01'],
+      ['/merchant/reviews', 'MCH-REVIEW-LIST-01'],
+      ['/merchant/reviews/:reviewId', 'MCH-REVIEW-01'],
+      ['/merchant/store', 'MCH-STORE-01'],
+    ])
+    const routes = new Map(router.getRoutes().map((route) => [route.path, route]))
+    for (const [path, requirementId] of expected) {
+      const route = routes.get(path)
+      expect(route?.meta.requirementId).toBe(requirementId)
+      expect(route?.meta.audience).toBe('merchant')
+      if (!path.startsWith('/merchant/login')) expect(route?.meta.requiresAuth).toBe(true)
+    }
+    const merchantPermissions = router
+      .getRoutes()
+      .filter((route) => route.path.startsWith('/merchant'))
+      .flatMap((route) => [route.meta.requiredPermission, ...(route.meta.requiredAnyPermission ?? [])])
+      .filter(Boolean)
+    expect(merchantPermissions).not.toContain('users:read')
+    expect(routes.get('/merchant/dashboard')?.meta.requiredPermission).toBe('stores:read')
+    expect(merchantPermissions).not.toContain('dashboard:read')
+    expect(merchantPermissions).not.toContain('reviews:moderate')
+    expect(merchantPermissions).not.toContain('products:review')
+  })
+
   it('registers every phase three administration route from the traceability matrix', () => {
     const expected = new Map([
       ['/admin/store-certifications', 'ADM-CERT-LIST-01'],

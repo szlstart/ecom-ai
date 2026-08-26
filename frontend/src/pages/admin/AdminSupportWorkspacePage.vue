@@ -23,6 +23,8 @@ import { createClientMessageId, type ChatMessage } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
+const props = withDefaults(defineProps<{ portal?: 'admin' | 'merchant' }>(), { portal: 'admin' })
+
 const route = useRoute()
 const auth = useAdminAuthStore()
 const ticketId = String(route.params.ticketId)
@@ -150,7 +152,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="admin-page-stack support-workspace-page">
-    <header class="page-heading"><div><p class="eyebrow">人工客服工作台</p><h1>{{ ticketId }}</h1><p class="muted"><span class="connection-dot" :class="connectionState" />用户可见消息、交接资料和内部备注严格分区。</p></div><RouterLink to="/admin/support/tickets">返回工单队列</RouterLink></header>
+    <header class="page-heading"><div><p class="eyebrow">{{ props.portal === 'merchant' ? '店铺客服' : '人工客服工作台' }}</p><h1>{{ ticketId }}</h1><p class="muted"><span class="connection-dot" :class="connectionState" />用户可见消息、交接资料和内部备注严格分区。</p></div><RouterLink :to="props.portal === 'merchant' ? '/merchant/support' : '/admin/support/tickets'">返回工单队列</RouterLink></header>
     <p v-if="notice" class="alert success" role="status">{{ notice }}</p><p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <PageState :loading="loading" :error="''" :empty="!workspace" empty-title="工单不存在或不在当前数据范围" @retry="load">
       <template v-if="workspace && ticket">

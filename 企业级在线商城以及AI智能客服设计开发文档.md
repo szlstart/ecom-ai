@@ -1,4 +1,4 @@
-# 面向用户、管理员的企业级在线商城以及AI智能客服
+# 面向用户、商家、管理员的企业级在线商城以及AI智能客服
 
 ## 0 目录
 
@@ -24,6 +24,7 @@
     - 2.12.3.2 用户注册页面
     - 2.12.3.3 认证页面共用体验、安全与可访问性
   - 2.13 管理后台界面设计
+  - 2.14 店铺商家中心界面设计
 - 3 后端系统设计
   - 3.1 后端设计目标与范围
   - 3.2 后端总体架构
@@ -64,7 +65,7 @@
 
 ### 1.1 角色分类
 
-用户角色分为两类：**用户（普通消费者）** 与 **管理员（运营/管理人员）**。
+系统人员角色分为三类：**用户（普通消费者）**、**商家（店铺运营人员）** 与 **平台管理员（平台治理人员）**。商家使用独立 `/merchant` 商家中心，只能访问已授权 Store Scope；平台管理员使用独立 `/admin` 管理端，负责跨店平台治理。两者虽然复用受控管理 API 与 Admin Audience 安全会话基础设施，但角色、菜单、数据范围和前端信息架构必须分离，商家页面不得出现平台治理能力。
 
 > **说明**：所有访问者必须先完成注册并登录才能使用商城核心功能（商品浏览为公开访问，但加入购物车、下单、使用AI客服等交互功能均需登录）。
 
@@ -2748,6 +2749,65 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 结果未知 | 显示 Job/Command ID 和“对账中” | 禁用再执行，只允许刷新/对账 |
 
 所有表格、Tab、弹窗和抽屉必须有语义标题、键盘导航、可见焦点和关闭后焦点恢复。图表同时提供文字/表格摘要；颜色不是状态的唯一传达方式。高风险确认默认焦点放在取消，审批、原因和影响摘要可被辅助技术完整读取。
+
+### 2.14 店铺商家中心界面设计
+
+#### 2.14.1 定位、入口与权限边界
+
+商家中心入口固定为 `/merchant/login`，登录后进入 `/merchant/dashboard`。商家账号必须具有 `store_operator` 角色、至少一个有效 Store Scope，并完成账号密码与 MFA 两步验证；没有 Store Scope 的平台管理员账号、普通用户账号均不得进入。首版复用 Admin Audience 的安全会话、刷新 Cookie、近期认证和审计基础设施，但 Vue 使用独立 `MerchantAuthLayout/MerchantLayout`，不复用平台管理端菜单。
+
+商家端只能处理当前店铺商品、库存、店铺人工客服、店铺评价回复和公开店铺资料。商家不得审核自己提交的商品，不得屏蔽/恢复用户评价，不得访问其他店铺、平台用户治理、支付对账、AI 治理、系统任务或全平台指标。公开商品遵循“草稿 → 提交审核 → 平台审核通过 → 商家上架”的状态机；商家拥有上架/下架命令，但没有 `products:review`。
+
+#### 2.14.2 总体布局（Text UI）
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 左侧固定导航 248px              │ 顶栏：商家工作空间 / 当前店铺 / 数据已隔离 │
+│ Ecom AI 商家中心                ├───────────────────────────────────────────┤
+│ [店铺 Logo] 当前店铺 / 营业中   │                                           │
+│ ⌂ 工作台                        │ 当前页面标题、说明、首要操作               │
+│ □ 商品管理                      │ 筛选/状态分段                              │
+│ ▦ 库存管理                      │ 结构化内容区                               │
+│ ◌ 客户咨询                      │ Loading / Empty / Error / 412 / 428       │
+│ ☆ 评价回复                      │                                           │
+│ ◇ 店铺资料                      │                                           │
+│ 查看用户端店铺 / 安全验证 / 退出│                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+视觉上使用深绿色商家侧栏、浅色工作区和低密度卡片，不沿用平台管理端的高密度全权限菜单。桌面端侧栏固定，移动端导航横向滚动；内容区最大宽度受控，表格在窄屏横向滚动，不压缩到无法操作。
+
+#### 2.14.3 页面与路由
+
+| 页面 | Vue Route / Component | 主要能力 | Permission / Scope |
+| :--- | :--- | :--- | :--- |
+| 商家登录 | `/merchant/login` / `MerchantLoginPage.vue` | 账号密码登录 | 店铺运营身份准入 |
+| MFA/重新认证 | `/merchant/login/mfa`、`/merchant/reauthenticate` / `MerchantMfaPage.vue` | MFA、恢复码、近期认证 | 当前 Merchant Session |
+| 工作台 | `/merchant/dashboard` / `MerchantDashboardPage.vue` | 在售/待完善商品、待处理咨询、待回复评价 | `stores:read` + Store；不授予平台仪表盘权限 |
+| 商品列表 | `/merchant/products` / `MerchantProductListPage.vue` | 按名称和状态筛选本店商品 | `products:read` + Store |
+| 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `AdminProductEditPage.vue(portal=merchant)` | 基础资料、SKU、图片、参数、履约、详情、FAQ、提交审核、上架/下架 | `products:create/update/publish` + Store |
+| 库存 | `/merchant/inventory` / `AdminInventoryPage.vue(portal=merchant)` | 本店 SKU 库存查询和有据可查的增减调整 | `inventories:read/adjust` + Store |
+| 客户咨询 | `/merchant/support`、`/merchant/support/:ticketId` / `MerchantSupportListPage.vue`、`AdminSupportWorkspacePage.vue(portal=merchant)` | 店铺人工工单领取、回复、等待、恢复和解决 | `support:*` + Store Queue |
+| 评价回复 | `/merchant/reviews`、`/merchant/reviews/:reviewId` / `MerchantReview*Page.vue` | 查看本店已发布评价、发布一次商家回复 | `reviews:read/reply` + Store |
+| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo 和用户端预览 | `stores:read/manage` + Store |
+
+#### 2.14.4 工作台与任务优先级
+
+工作台第一屏固定展示“销售中的商品、待完善商品、待处理咨询、待回复评价”四项任务指标，并提供直接下钻链接。指标必须来自 Store Scope API，不得以全平台结果在前端过滤。最近商品只显示名称、分类、售价和中文状态；没有商品时突出“发布新商品”，没有待办时显示明确完成态而不是空白卡片。
+
+#### 2.14.5 商品上架与编辑交互
+
+商品编辑按“基础信息、销售规格、商品图片、商品参数、发货设置、商品详情、常见问题、上架检查”顺序组织。新建页自动使用账号唯一绑定店铺，不要求商家输入 `sto_...`；存在多个授权店铺时必须显式选择，前端选择只缩小 Scope，服务端仍从 Grant 与目标资源重新校验。
+
+SKU 价格在界面使用元，提交时转换为整数分；市场价不得低于售价。图片必须通过受控上传、病毒扫描和安全衍生后绑定；恰好一张公共主图。上架检查由服务端返回完整性缺项和 `available_actions`，前端不得自行绕过 SKU、主图、参数、履约与详情版本要求。高风险上架、下架、库存调整或店铺资料修改如返回 428，应保留输入并引导 `/merchant/reauthenticate?redirect=<当前安全站内路由>`。
+
+#### 2.14.6 客服与评价回复
+
+客户咨询列表固定请求 `queue_type=store`，只显示当前 Store Scope 的人工工单。未领取工单仅展示必要交接摘要，领取后才读取完整授权会话；用户可见回复与内部备注严格分区。评价列表只读取本店已发布评价，可按“全部、待回复、已回复”筛选；详情页允许一次公开商家回复并提供友好措辞模板。商家没有评价治理权限，页面不得出现屏蔽、恢复、规则码或平台审核记录操作。
+
+#### 2.14.7 空状态、冲突与安全要求
+
+所有列表实现 Loading、Empty、Error 和 Retry。403 表示角色缺权限；跨店资源统一返回 404；412 保留本地输入并提示刷新资源版本；428 引导近期认证；429 遵循 `Retry-After`。创建和命令携带 Idempotency-Key，可变资源携带 If-Match。商家退出只撤销 Merchant/Admin Audience 管理会话，不影响同一自然人的消费者会话。浏览器不得持久化客户会话正文、评价敏感投影、Token 或其他店铺数据。
 
 ---
 
@@ -9367,6 +9427,14 @@ Webhook 路由不使用用户 Bearer Token，必须对每个 Provider 实现独�
 Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否返回 4xx/5xx 必须按渠道重试契约适配：永久无效签名拒绝，已可靠持久化但业务异步中的事件通常返回成功以阻止风暴。原始报文若含敏感数据必须加密/脱敏并按最短审计期限保存；日志只记录摘要、Provider Event ID、处理状态、Request ID 和 Trace ID。
 
 出站 Webhook 如后续开放给企业商家，必须另行设计 Endpoint 验证、签名 Secret 轮换、事件订阅、重放保护、重试与停用机制，不能复用入站 Provider Secret，也不能让商家自定义内网/云元数据地址造成 SSRF。
+
+#### 3.12.26 商家中心接口投影
+
+商家中心首版不复制一套领域实现。它复用 `/admin/auth/*`、`/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API，但 Token 必须含 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。`/merchant` 是独立 Vue 路由空间，不是新的不受控 API 前缀；未来只有在商家与平台 DTO 或生命周期确实分化时，才可增加 `/merchant/*` Facade，且仍调用相同 Domain Service。
+
+`store_operator` 首版权限集合固定为：`stores:read/manage`、`store_policies:read/create/update/publish`、`products:read/create/update/publish`、`inventories:read/adjust`、`reviews:read/reply`、`support:queue_read/claim/reply/wait/resume/resolve`。明确排除平台仪表盘 `dashboard:read`、`products:review`、`reviews:moderate`、跨店/平台权限、客服转派与内部高敏备注。角色 Permission Binding 由可信商家开户流程或本地 `merchant-bootstrap` 建立，不能由商家自行扩权。
+
+商家登录仍执行 `AdminAuth_Login → AdminAuth_MfaVerify → AdminMe_Get`，前端在 MFA 后额外要求至少一个 `scope_type=store`；后端 API 不依赖这次前端检查，仍由 `require_admin_permission + AdminAccess.require_scope` 执行真正授权。商家端共享的管理 Operation 在追踪矩阵中同时列出 Admin 与 Merchant Route Owner，测试必须覆盖 Store Scope 列表过滤、跨店 404、缺权限 403、MFA/近期认证和审计记录。
 
 ---
 

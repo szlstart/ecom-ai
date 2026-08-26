@@ -3,7 +3,7 @@ CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
 PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
 
-.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-evidence agent-security-test build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
+.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-evidence agent-security-test build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap merchant-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -85,6 +85,11 @@ seed:
 admin-bootstrap:
 	@test -n "$(USERNAME)" || (echo "Usage: make admin-bootstrap USERNAME=<admin_username>" && exit 2)
 	cd backend && $(PYTHON) -m app.bootstrap.admin_cli "$(USERNAME)"
+
+merchant-bootstrap:
+	@test -n "$(USERNAME)" || (echo "Usage: make merchant-bootstrap USERNAME=<merchant_username> STORE_NAME=<store_name>" && exit 2)
+	@test -n "$(STORE_NAME)" || (echo "Usage: make merchant-bootstrap USERNAME=<merchant_username> STORE_NAME=<store_name>" && exit 2)
+	cd backend && $(PYTHON) -m app.bootstrap.merchant_cli "$(USERNAME)" --store-name "$(STORE_NAME)"
 
 infra-up:
 	docker compose up -d mysql postgres redis minio clamav

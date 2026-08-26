@@ -5,6 +5,7 @@ import { useUserAuthStore } from '@/stores/user-auth'
 const authMeta = { layout: 'auth', audience: 'user', requiresAuth: false } as const
 const userMeta = { layout: 'storefront', audience: 'user', requiresAuth: true } as const
 const adminMeta = { layout: 'admin', audience: 'admin', requiresAuth: true } as const
+const merchantMeta = { layout: 'merchant', audience: 'merchant', requiresAuth: true } as const
 
 const routes: RouteRecordRaw[] = [
   { path: '/', component: () => import('@/layouts/StorefrontLayout.vue'), meta: { layout: 'storefront', audience: 'public', requiresAuth: false, title: '在线商城', requirementId: 'USR-HOME-01' }, children: [
@@ -53,6 +54,21 @@ const routes: RouteRecordRaw[] = [
   { path: '/gone', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '内容已失效', requirementId: 'USR-SYSTEM-GONE' }, children: [{ path: '', component: () => import('@/pages/GonePage.vue') }] },
   { path: '/error', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '系统异常', requirementId: 'USR-SYSTEM-ERROR' }, children: [{ path: '', component: () => import('@/pages/SystemErrorPage.vue') }] },
   { path: '/maintenance', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '系统维护', requirementId: 'USR-SYSTEM-MAINT' }, children: [{ path: '', component: () => import('@/pages/MaintenancePage.vue') }] },
+  { path: '/merchant/login', component: () => import('@/layouts/MerchantAuthLayout.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: false, title: '商家登录', requirementId: 'MCH-AUTH-01' }, children: [{ path: '', component: () => import('@/pages/merchant/MerchantLoginPage.vue') }] },
+  { path: '/merchant/login/mfa', component: () => import('@/layouts/MerchantAuthLayout.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: false, title: '商家安全验证', requirementId: 'MCH-AUTH-02' }, children: [{ path: '', component: () => import('@/pages/merchant/MerchantMfaPage.vue') }] },
+  { path: '/merchant/reauthenticate', component: () => import('@/layouts/MerchantAuthLayout.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: true, title: '商家重新验证', requirementId: 'MCH-AUTH-03' }, children: [{ path: '', component: () => import('@/pages/merchant/MerchantMfaPage.vue') }] },
+  { path: '/merchant', component: () => import('@/layouts/MerchantLayout.vue'), meta: { ...merchantMeta, title: '商家中心', requirementId: 'MCH-SHELL-01' }, children: [
+    { path: 'dashboard', component: () => import('@/pages/merchant/MerchantDashboardPage.vue'), meta: { ...merchantMeta, title: '商家工作台', requirementId: 'MCH-DASH-01', requiredPermission: 'stores:read' } },
+    { path: 'products', component: () => import('@/pages/merchant/MerchantProductListPage.vue'), meta: { ...merchantMeta, title: '商品管理', requirementId: 'MCH-PRODUCT-LIST-01', requiredPermission: 'products:read' } },
+    { path: 'products/new', component: () => import('@/pages/admin/AdminProductEditPage.vue'), props: { portal: 'merchant' }, meta: { ...merchantMeta, title: '发布新商品', requirementId: 'MCH-PRODUCT-NEW-01', requiredPermission: 'products:create' } },
+    { path: 'products/:productId', component: () => import('@/pages/admin/AdminProductEditPage.vue'), props: { portal: 'merchant' }, meta: { ...merchantMeta, title: '编辑商品', requirementId: 'MCH-PRODUCT-EDIT-01', requiredPermission: 'products:read' } },
+    { path: 'inventory', component: () => import('@/pages/admin/AdminInventoryPage.vue'), props: { portal: 'merchant' }, meta: { ...merchantMeta, title: '库存管理', requirementId: 'MCH-INVENTORY-01', requiredPermission: 'inventories:read' } },
+    { path: 'support', component: () => import('@/pages/merchant/MerchantSupportListPage.vue'), meta: { ...merchantMeta, title: '客户咨询', requirementId: 'MCH-SUPPORT-LIST-01', requiredPermission: 'support:queue_read' } },
+    { path: 'support/:ticketId', component: () => import('@/pages/admin/AdminSupportWorkspacePage.vue'), props: { portal: 'merchant' }, meta: { ...merchantMeta, title: '客服会话', requirementId: 'MCH-SUPPORT-01', requiredPermission: 'support:queue_read' } },
+    { path: 'reviews', component: () => import('@/pages/merchant/MerchantReviewListPage.vue'), meta: { ...merchantMeta, title: '评价回复', requirementId: 'MCH-REVIEW-LIST-01', requiredPermission: 'reviews:read' } },
+    { path: 'reviews/:reviewId', component: () => import('@/pages/merchant/MerchantReviewDetailPage.vue'), meta: { ...merchantMeta, title: '回复评价', requirementId: 'MCH-REVIEW-01', requiredPermission: 'reviews:read' } },
+    { path: 'store', component: () => import('@/pages/merchant/MerchantStorePage.vue'), meta: { ...merchantMeta, title: '店铺资料', requirementId: 'MCH-STORE-01', requiredPermission: 'stores:read' } },
+  ] },
   { path: '/admin/login', component: () => import('@/layouts/AdminAuthLayout.vue'), meta: { layout: 'admin-auth', audience: 'admin', requiresAuth: false, title: '管理端登录', requirementId: 'ADM-AUTH-01' }, children: [{ path: '', component: () => import('@/pages/admin/AdminLoginPage.vue') }] },
   { path: '/admin/login/mfa', component: () => import('@/layouts/AdminAuthLayout.vue'), meta: { layout: 'admin-auth', audience: 'admin', requiresAuth: false, title: '管理端安全验证', requirementId: 'ADM-AUTH-02' }, children: [{ path: '', component: () => import('@/pages/admin/AdminMfaPage.vue') }] },
   { path: '/admin', component: () => import('@/layouts/AdminLayout.vue'), meta: { ...adminMeta, title: '管理后台', requirementId: 'ADM-SHELL-01' }, children: [
@@ -123,6 +139,7 @@ const router = createRouter({
   },
 })
 router.beforeEach(async (to) => {
+  if (to.path === '/merchant') return { path: '/merchant/dashboard' }
   if (!to.meta.requiresAuth) return true
   if (to.meta.audience === 'user') {
     const auth = useUserAuthStore()
@@ -131,8 +148,20 @@ router.beforeEach(async (to) => {
   if (to.meta.audience === 'admin') {
     const auth = useAdminAuthStore()
     if (!auth.isAuthenticated && !(await auth.refresh())) return { path: '/admin/login' }
+    if (auth.scopes.some((scope) => scope.scope_type === 'store') && !auth.scopes.some((scope) => scope.scope_type === 'platform')) return { path: '/merchant/dashboard' }
     if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/admin/dashboard', query: { denied: to.meta.requiredAnyPermission.join('|') } }
     if (to.meta.requiredPermission && !auth.has(to.meta.requiredPermission)) return { path: '/admin/dashboard', query: { denied: to.meta.requiredPermission } }
+  }
+  if (to.meta.audience === 'merchant') {
+    const auth = useAdminAuthStore()
+    if (!auth.isAuthenticated && !(await auth.refresh())) return { path: '/merchant/login' }
+    if (!auth.scopes.some((scope) => scope.scope_type === 'store')) {
+      if (auth.scopes.some((scope) => scope.scope_type === 'platform')) return { path: '/admin/dashboard' }
+      await auth.logout()
+      return { path: '/merchant/login', query: { denied: 'store_scope' } }
+    }
+    if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/merchant/dashboard', query: { denied: to.meta.requiredAnyPermission.join('|') } }
+    if (to.meta.requiredPermission && !auth.has(to.meta.requiredPermission)) return { path: '/merchant/dashboard', query: { denied: to.meta.requiredPermission } }
   }
   return true
 })

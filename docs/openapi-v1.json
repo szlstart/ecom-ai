@@ -6241,17 +6241,22 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01",
+          "MCH-PRODUCT-NEW-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
+          "products:create",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -6333,17 +6338,22 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01",
+          "MCH-PRODUCT-NEW-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
+          "products:create",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -7284,13 +7294,18 @@
           "reviews:read"
         ],
         "x-requirement-id": [
-          "ADM-REVIEW-LIST-01"
+          "ADM-REVIEW-LIST-01",
+          "MCH-DASH-01",
+          "MCH-REVIEW-LIST-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "store_scope",
           "reviews:read"
         ],
         "x-test-case-ids": [
-          "ADM-REVIEW-*"
+          "ADM-REVIEW-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -7367,7 +7382,8 @@
           "reviews:read"
         ],
         "x-requirement-id": [
-          "ADM-REVIEW-01"
+          "ADM-REVIEW-01",
+          "MCH-REVIEW-01"
         ],
         "x-scope-policy": [
           "reviews:read",
@@ -7375,7 +7391,8 @@
           "reviews:moderate"
         ],
         "x-test-case-ids": [
-          "ADM-REVIEW-*"
+          "ADM-REVIEW-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -7503,7 +7520,8 @@
           "reviews:reply"
         ],
         "x-requirement-id": [
-          "ADM-REVIEW-01"
+          "ADM-REVIEW-01",
+          "MCH-REVIEW-01"
         ],
         "x-scope-policy": [
           "reviews:read",
@@ -7511,7 +7529,8 @@
           "reviews:moderate"
         ],
         "x-test-case-ids": [
-          "ADM-REVIEW-*"
+          "ADM-REVIEW-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -11303,13 +11322,18 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-LIST-01"
+          "ADM-SUPPORT-LIST-01",
+          "MCH-DASH-01",
+          "MCH-SUPPORT-LIST-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "store_scope",
           "support:queue_read"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -11386,7 +11410,8 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -11394,11 +11419,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -11475,7 +11501,8 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -11483,11 +11510,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -11576,7 +11604,8 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -11584,11 +11613,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       },
       "post": {
@@ -11676,7 +11706,8 @@
           "support:reply"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -11684,11 +11715,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -11778,7 +11810,8 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -11786,11 +11819,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -11896,7 +11930,8 @@
           "support:claim"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -11904,11 +11939,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -12024,7 +12060,8 @@
           "support:wait"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -12032,11 +12069,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -12142,7 +12180,8 @@
           "support:resume"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -12150,11 +12189,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -12398,7 +12438,8 @@
           "support:resolve"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -12406,11 +12447,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -12500,7 +12542,8 @@
           "support:reply"
         ],
         "x-requirement-id": [
-          "ADM-SUPPORT-01"
+          "ADM-SUPPORT-01",
+          "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
@@ -12508,11 +12551,12 @@
           "support:reply",
           "support:wait",
           "support:resume",
-          "support:transfer",
-          "support:resolve"
+          "support:resolve",
+          "support:transfer"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -21361,14 +21405,16 @@
           "inventories:read"
         ],
         "x-requirement-id": [
-          "ADM-INV-01"
+          "ADM-INV-01",
+          "MCH-INVENTORY-01"
         ],
         "x-scope-policy": [
           "inventories:read",
           "inventories:adjust"
         ],
         "x-test-case-ids": [
-          "ADM-INV-*"
+          "ADM-INV-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -21445,14 +21491,16 @@
           "inventories:read"
         ],
         "x-requirement-id": [
-          "ADM-INV-01"
+          "ADM-INV-01",
+          "MCH-INVENTORY-01"
         ],
         "x-scope-policy": [
           "inventories:read",
           "inventories:adjust"
         ],
         "x-test-case-ids": [
-          "ADM-INV-*"
+          "ADM-INV-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -21546,14 +21594,16 @@
           "inventories:adjust"
         ],
         "x-requirement-id": [
-          "ADM-INV-01"
+          "ADM-INV-01",
+          "MCH-INVENTORY-01"
         ],
         "x-scope-policy": [
           "inventories:read",
           "inventories:adjust"
         ],
         "x-test-case-ids": [
-          "ADM-INV-*"
+          "ADM-INV-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -21699,13 +21749,18 @@
           "products:read"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-LIST-01"
+          "ADM-PRODUCT-LIST-01",
+          "MCH-DASH-01",
+          "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "store_scope",
           "products:read"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       },
       "post": {
@@ -21797,13 +21852,17 @@
           "products:create"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-NEW-01"
+          "ADM-PRODUCT-NEW-01",
+          "MCH-PRODUCT-NEW-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
+          "stores:read",
           "products:create"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -21880,17 +21939,19 @@
           "products:read"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       },
       "patch": {
@@ -22000,17 +22061,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -22138,17 +22201,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -22414,17 +22479,19 @@
           "products:publish"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -22552,17 +22619,19 @@
           "products:publish"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -22639,17 +22708,19 @@
           "products:read"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       },
       "post": {
@@ -22753,17 +22824,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -22884,17 +22957,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -23031,17 +23106,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -23118,17 +23195,19 @@
           "products:read"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       },
       "put": {
@@ -23238,17 +23317,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -23325,17 +23406,19 @@
           "products:read"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       },
       "put": {
@@ -23445,17 +23528,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -23532,17 +23617,19 @@
           "products:read"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       },
       "put": {
@@ -23652,17 +23739,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -23768,17 +23857,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -23864,17 +23955,19 @@
           "products:read"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -23951,17 +24044,19 @@
           "products:read"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       },
       "post": {
@@ -24065,17 +24160,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -24190,17 +24287,19 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -24315,17 +24414,19 @@
           "products:publish"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -24454,13 +24555,22 @@
           "stores:read"
         ],
         "x-requirement-id": [
-          "ADM-STORE-LIST-01"
+          "ADM-STORE-LIST-01",
+          "MCH-DASH-01",
+          "MCH-PRODUCT-NEW-01",
+          "MCH-STORE-01"
         ],
         "x-scope-policy": [
-          "stores:read"
+          "stores:read",
+          "store_scope",
+          "public_reference_projection",
+          "products:create",
+          "stores:manage"
         ],
         "x-test-case-ids": [
-          "ADM-STORE-*"
+          "ADM-PRODUCT-*",
+          "ADM-STORE-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -24654,14 +24764,16 @@
           "stores:manage"
         ],
         "x-requirement-id": [
-          "ADM-STORE-DETAIL-01"
+          "ADM-STORE-DETAIL-01",
+          "MCH-STORE-01"
         ],
         "x-scope-policy": [
           "stores:read",
           "stores:manage"
         ],
         "x-test-case-ids": [
-          "ADM-STORE-*"
+          "ADM-STORE-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -28417,14 +28529,17 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "ADM-AUTH-01"
+          "ADM-AUTH-01",
+          "MCH-AUTH-01"
         ],
         "x-scope-policy": [
+          "store_operator_audience",
           "admin_audience"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
-          "BROWSER-AUTH-*"
+          "BROWSER-AUTH-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -28505,13 +28620,16 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "ADM-AUTH-02"
+          "ADM-AUTH-02",
+          "MCH-AUTH-02"
         ],
         "x-scope-policy": [
+          "store_operator_audience",
           "admin_session"
         ],
         "x-test-case-ids": [
-          "ADM-AUTH-*"
+          "ADM-AUTH-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -28676,13 +28794,16 @@
         "x-permission-codes": [],
         "x-requirement-id": [
           "ADM-AUTH-02",
-          "ADM-AUTH-03"
+          "ADM-AUTH-03",
+          "MCH-AUTH-03"
         ],
         "x-scope-policy": [
+          "store_operator_audience",
           "admin_session"
         ],
         "x-test-case-ids": [
-          "ADM-AUTH-*"
+          "ADM-AUTH-*",
+          "MCH-PORTAL-*"
         ]
       }
     },

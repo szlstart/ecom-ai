@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "5ac8fbecaef894c67b74f1777112425aa1c6d3b96f6bad9364bb81e0d242c031"
+SOURCE_SHA256 = "b0894e2119cbea6ec7b019b71a1fcfa19e29c6c2c9b0c14fed6132f2276b96a1"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -2230,16 +2230,6 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["user_refresh_cookie"],
         "x-test-case-ids": ["AUTH-REFRESH-*"],
     },
-    "AuthVerificationCode_Create": {
-        "x-audit-event": "command.AuthVerificationCode_Create",
-        "x-domain-command": "AuthVerificationCode_Create",
-        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
-        "x-owner-kind": ["vue_route"],
-        "x-permission-codes": [],
-        "x-requirement-id": ["USR-AUTH-FORGOT-01"],
-        "x-scope-policy": ["user_audience"],
-        "x-test-case-ids": ["AUTH-RESET-*"],
-    },
     "Auth_Login": {
         "x-audit-event": "command.Auth_Login",
         "x-domain-command": "Auth_Login",
@@ -2841,6 +2831,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["USR-ORDER-01", "USR-ORDER-02"],
         "x-scope-policy": ["order_owner"],
         "x-test-case-ids": ["ORDER-DOMAIN-*", "ORDER-USER-*"],
+    },
+    "PasswordResetHint_Get": {
+        "x-audit-event": "command.PasswordResetHint_Get",
+        "x-domain-command": "PasswordResetHint_Get",
+        "x-idempotency-policy": "read_only_command",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["USR-AUTH-FORGOT-01"],
+        "x-scope-policy": ["user_audience"],
+        "x-test-case-ids": ["AUTH-RESET-*"],
     },
     "PasswordResetTicket_Create": {
         "x-audit-event": "command.PasswordResetTicket_Create",
@@ -3565,26 +3565,6 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["USR-CLOSURE-01"],
         "x-scope-policy": ["current_user"],
         "x-test-case-ids": ["ACCOUNT-CLOSURE-*"],
-    },
-    "UserContactChangeTicket_Cancel": {
-        "x-audit-event": "command.UserContactChangeTicket_Cancel",
-        "x-domain-command": "UserContactChangeTicket_Cancel",
-        "x-idempotency-policy": "http_method_idempotent",
-        "x-owner-kind": ["vue_route"],
-        "x-permission-codes": [],
-        "x-requirement-id": ["USR-SECURITY-01"],
-        "x-scope-policy": ["current_user"],
-        "x-test-case-ids": ["SECURITY-*"],
-    },
-    "UserContactChangeTicket_Create": {
-        "x-audit-event": "command.UserContactChangeTicket_Create",
-        "x-domain-command": "UserContactChangeTicket_Create",
-        "x-idempotency-policy": "idempotency_key_required",
-        "x-owner-kind": ["vue_route"],
-        "x-permission-codes": [],
-        "x-requirement-id": ["USR-SECURITY-01"],
-        "x-scope-policy": ["current_user"],
-        "x-test-case-ids": ["SECURITY-*"],
     },
     "UserContactChange_Complete": {
         "x-audit-event": "command.UserContactChange_Complete",

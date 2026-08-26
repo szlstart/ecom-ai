@@ -35,6 +35,7 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
 ) -> None:
     suffix = secrets.token_hex(4)
     username = f"user_{suffix}"
+    registration_email = f"user_{suffix}@example.com"
     password = f"Correct-Horse-{suffix}-Battery-Staple!"
 
     config_response = await client.get("/api/v1/auth/registration-config")
@@ -56,6 +57,7 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         headers={"Idempotency-Key": f"registration-{suffix}-wrong"},
         json={
             "username": username,
+            "email": registration_email,
             "captcha_id": captcha["captcha_id"],
             "captcha_answer": str(captcha_answer + 1),
             "password": password,
@@ -84,6 +86,7 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         headers={"Idempotency-Key": f"registration-{suffix}-0001"},
         json={
             "username": username,
+            "email": registration_email,
             "captcha_id": captcha["captcha_id"],
             "captcha_answer": str(captcha_answer),
             "password": password,
@@ -111,6 +114,7 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         headers={"Idempotency-Key": f"registration-{suffix}-reused"},
         json={
             "username": f"other_{suffix}",
+            "email": f"other_{suffix}@example.com",
             "captcha_id": captcha["captcha_id"],
             "captcha_answer": str(captcha_answer),
             "password": password,
@@ -245,61 +249,19 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     assert address_update.json()["data"]["label"] == "常用地址"
 
     changed_email = f"changed_{suffix}@example.com"
-    change_ticket_response = await client.post(
-        "/api/v1/users/me/contact-change-tickets",
-        headers={
-            **auth_headers,
-            "Idempotency-Key": f"contact-ticket-{suffix}-001",
-        },
-        json={"credential_type": "email", "current_password": password},
-    )
-    assert change_ticket_response.status_code == 201, change_ticket_response.text
-    change_ticket = change_ticket_response.json()["data"]
-    repeated_change_ticket = await client.post(
-        "/api/v1/users/me/contact-change-tickets",
-        headers={
-            **auth_headers,
-            "Idempotency-Key": f"contact-ticket-{suffix}-001",
-        },
-        json={"credential_type": "email", "current_password": password},
-    )
-    assert repeated_change_ticket.status_code == 201
-    assert (
-        repeated_change_ticket.json()["data"]["change_ticket_id"]
-        == change_ticket["change_ticket_id"]
-    )
-
-    change_code_response = await client.post(
-        "/api/v1/auth/verification-codes",
-        headers=auth_headers,
-        json={
-            "purpose": "change_email",
-            "target_type": "email",
-            "target": changed_email,
-            "locale": "zh-CN",
-            "challenge_token": None,
-            "change_ticket_id": change_ticket["change_ticket_id"],
-        },
-    )
-    assert change_code_response.status_code == 202, change_code_response.text
-
     contact_change_response = await client.post(
         "/api/v1/users/me/contact-changes",
         headers={
             **auth_headers,
             "Idempotency-Key": f"contact-change-{suffix}-001",
         },
-        json={
-            "change_ticket_id": change_ticket["change_ticket_id"],
-            "new_target": changed_email,
-            "verification_id": change_code_response.json()["data"]["verification_id"],
-            "verification_code": "000000",
-        },
+        json={"new_email": changed_email},
     )
     assert contact_change_response.status_code == 200, contact_change_response.text
 
     security_response = await client.get("/api/v1/users/me/security", headers=auth_headers)
     assert security_response.status_code == 200
+    assert security_response.json()["data"]["current_email"] == changed_email
     assert any(
         item["type"] == "email" and item["masked"].startswith("ch")
         for item in security_response.json()["data"]["bound_accounts"]
@@ -342,26 +304,21 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     assert login_response.status_code == 200, login_response.text
     assert login_response.json()["data"]["user"]["username"] == username
 
-    reset_code = await client.post(
-        "/api/v1/auth/verification-codes",
-        json={
-            "purpose": "reset_password",
-            "target_type": "email",
-            "target": changed_email,
-            "locale": "zh-CN",
-            "challenge_token": None,
-            "change_ticket_id": None,
-        },
+    reset_hint = await client.post(
+        "/api/v1/auth/password-reset-hints",
+        json={"username": username},
     )
-    assert reset_code.status_code == 202, reset_code.text
+    assert reset_hint.status_code == 200, reset_hint.text
+    assert reset_hint.json()["data"]["email_masked"].endswith("@example.com")
+    mismatched_ticket = await client.post(
+        "/api/v1/auth/password-reset-tickets",
+        json={"username": username, "email": f"wrong_{suffix}@example.com"},
+    )
+    assert mismatched_ticket.status_code == 422
+    assert mismatched_ticket.json()["code"] == "PASSWORD_RECOVERY_EMAIL_MISMATCH"
     reset_ticket = await client.post(
         "/api/v1/auth/password-reset-tickets",
-        json={
-            "target_type": "email",
-            "target": changed_email,
-            "verification_id": reset_code.json()["data"]["verification_id"],
-            "verification_code": "000000",
-        },
+        json={"username": username, "email": changed_email},
     )
     assert reset_ticket.status_code == 200, reset_ticket.text
     new_password = f"Reset-Correct-Horse-{suffix}-Battery!"

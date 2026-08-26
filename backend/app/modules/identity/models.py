@@ -164,8 +164,8 @@ class PasswordResetRecord(AppendOnlyMySQLModel, MySQLBase):
     user_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
     )
-    verification_id: Mapped[int] = mapped_column(
-        BIGINT(unsigned=True), ForeignKey("verification_codes.id"), nullable=False
+    verification_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("verification_codes.id"), nullable=True
     )
     reset_token_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
     credential_version_before: Mapped[int] = mapped_column(BIGINT(unsigned=True), nullable=False)

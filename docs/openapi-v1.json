@@ -1794,83 +1794,6 @@
         ]
       }
     },
-    "/api/v1/auth/verification-codes": {
-      "post": {
-        "tags": [
-          "authentication"
-        ],
-        "summary": "Create Verification Code",
-        "operationId": "AuthVerificationCode_Create",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VerificationCodeRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_VerificationCodeAccepted_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Problem401"
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem409"
-          },
-          "429": {
-            "$ref": "#/components/responses/Problem429"
-          },
-          "500": {
-            "$ref": "#/components/responses/Problem500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem503"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "x-audit-event": "command.AuthVerificationCode_Create",
-        "x-domain-command": "AuthVerificationCode_Create",
-        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
-        "x-owner-kind": [
-          "vue_route"
-        ],
-        "x-permission-codes": [],
-        "x-requirement-id": [
-          "USR-AUTH-FORGOT-01"
-        ],
-        "x-scope-policy": [
-          "user_audience"
-        ],
-        "x-test-case-ids": [
-          "AUTH-RESET-*"
-        ]
-      }
-    },
     "/api/v1/auth/registrations": {
       "post": {
         "tags": [
@@ -2373,6 +2296,75 @@
         ],
         "x-test-case-ids": [
           "SECURITY-*"
+        ]
+      }
+    },
+    "/api/v1/auth/password-reset-hints": {
+      "post": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Get Password Reset Hint",
+        "operationId": "PasswordResetHint_Get",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetHintRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_PasswordResetHintResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.PasswordResetHint_Get",
+        "x-domain-command": "PasswordResetHint_Get",
+        "x-idempotency-policy": "read_only_command",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-AUTH-FORGOT-01"
+        ],
+        "x-scope-policy": [
+          "user_audience"
+        ],
+        "x-test-case-ids": [
+          "AUTH-RESET-*"
         ]
       }
     },
@@ -2889,101 +2881,6 @@
         ]
       }
     },
-    "/api/v1/users/me/contact-change-tickets": {
-      "post": {
-        "tags": [
-          "current-user"
-        ],
-        "summary": "Create Contact Change Ticket",
-        "operationId": "UserContactChangeTicket_Create",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Idempotency-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ContactChangeTicketRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_ContactChangeTicketResult_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Problem401"
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem409"
-          },
-          "429": {
-            "$ref": "#/components/responses/Problem429"
-          },
-          "500": {
-            "$ref": "#/components/responses/Problem500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem503"
-          }
-        },
-        "x-audit-event": "command.UserContactChangeTicket_Create",
-        "x-domain-command": "UserContactChangeTicket_Create",
-        "x-idempotency-policy": "idempotency_key_required",
-        "x-owner-kind": [
-          "vue_route"
-        ],
-        "x-permission-codes": [],
-        "x-requirement-id": [
-          "USR-SECURITY-01"
-        ],
-        "x-scope-policy": [
-          "current_user"
-        ],
-        "x-test-case-ids": [
-          "SECURITY-*"
-        ]
-      }
-    },
     "/api/v1/users/me/contact-changes": {
       "post": {
         "tags": [
@@ -3064,80 +2961,6 @@
         "x-audit-event": "command.UserContactChange_Complete",
         "x-domain-command": "UserContactChange_Complete",
         "x-idempotency-policy": "idempotency_key_required",
-        "x-owner-kind": [
-          "vue_route"
-        ],
-        "x-permission-codes": [],
-        "x-requirement-id": [
-          "USR-SECURITY-01"
-        ],
-        "x-scope-policy": [
-          "current_user"
-        ],
-        "x-test-case-ids": [
-          "SECURITY-*"
-        ]
-      }
-    },
-    "/api/v1/users/me/contact-change-tickets/{change_ticket_id}": {
-      "delete": {
-        "tags": [
-          "current-user"
-        ],
-        "summary": "Cancel Contact Change",
-        "operationId": "UserContactChangeTicket_Cancel",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "change_ticket_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Change Ticket Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Problem401"
-          },
-          "404": {
-            "$ref": "#/components/responses/Problem404"
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem409"
-          },
-          "429": {
-            "$ref": "#/components/responses/Problem429"
-          },
-          "500": {
-            "$ref": "#/components/responses/Problem500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem503"
-          }
-        },
-        "x-audit-event": "command.UserContactChangeTicket_Cancel",
-        "x-domain-command": "UserContactChangeTicket_Cancel",
-        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -39540,92 +39363,19 @@
       },
       "ContactChangeRequest": {
         "properties": {
-          "change_ticket_id": {
-            "type": "string",
-            "maxLength": 40,
-            "minLength": 5,
-            "title": "Change Ticket Id"
-          },
-          "new_target": {
+          "new_email": {
             "type": "string",
             "maxLength": 254,
             "minLength": 3,
-            "title": "New Target"
-          },
-          "verification_id": {
-            "type": "string",
-            "maxLength": 40,
-            "minLength": 5,
-            "title": "Verification Id"
-          },
-          "verification_code": {
-            "type": "string",
-            "pattern": "^[0-9]{6}$",
-            "title": "Verification Code"
+            "title": "New Email"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "change_ticket_id",
-          "new_target",
-          "verification_id",
-          "verification_code"
+          "new_email"
         ],
         "title": "ContactChangeRequest"
-      },
-      "ContactChangeTicketRequest": {
-        "properties": {
-          "credential_type": {
-            "type": "string",
-            "enum": [
-              "phone",
-              "email"
-            ],
-            "title": "Credential Type"
-          },
-          "current_password": {
-            "type": "string",
-            "minLength": 1,
-            "title": "Current Password"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "credential_type",
-          "current_password"
-        ],
-        "title": "ContactChangeTicketRequest"
-      },
-      "ContactChangeTicketResult": {
-        "properties": {
-          "change_ticket_id": {
-            "type": "string",
-            "title": "Change Ticket Id"
-          },
-          "credential_type": {
-            "type": "string",
-            "enum": [
-              "phone",
-              "email"
-            ],
-            "title": "Credential Type"
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Expires At"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "change_ticket_id",
-          "credential_type",
-          "expires_at"
-        ],
-        "title": "ContactChangeTicketResult"
       },
       "ContentCreate": {
         "properties": {
@@ -41425,21 +41175,6 @@
         ],
         "title": "Envelope[CheckoutView]"
       },
-      "Envelope_ContactChangeTicketResult_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/ContactChangeTicketResult"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/ResponseMeta"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[ContactChangeTicketResult]"
-      },
       "Envelope_ContentList_": {
         "properties": {
           "data": {
@@ -42054,6 +41789,21 @@
           "data"
         ],
         "title": "Envelope[OrderRepurchaseResult]"
+      },
+      "Envelope_PasswordResetHintResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PasswordResetHintResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[PasswordResetHintResult]"
       },
       "Envelope_PasswordResetTicketResult_": {
         "properties": {
@@ -42910,21 +42660,6 @@
           "data"
         ],
         "title": "Envelope[UserShipmentDetail]"
-      },
-      "Envelope_VerificationCodeAccepted_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/VerificationCodeAccepted"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/ResponseMeta"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[VerificationCodeAccepted]"
       },
       "Envelope_VersionBindingView_": {
         "properties": {
@@ -46286,6 +46021,37 @@
         ],
         "title": "PasswordLoginRequest"
       },
+      "PasswordResetHintRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 4,
+            "pattern": "^[A-Za-z0-9_]+$",
+            "title": "Username"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "title": "PasswordResetHintRequest"
+      },
+      "PasswordResetHintResult": {
+        "properties": {
+          "email_masked": {
+            "type": "string",
+            "title": "Email Masked"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email_masked"
+        ],
+        "title": "PasswordResetHintResult"
+      },
       "PasswordResetRequest": {
         "properties": {
           "reset_ticket": {
@@ -46326,37 +46092,25 @@
       },
       "PasswordResetTicketRequest": {
         "properties": {
-          "target_type": {
+          "username": {
             "type": "string",
-            "enum": [
-              "phone",
-              "email"
-            ],
-            "title": "Target Type"
+            "maxLength": 32,
+            "minLength": 4,
+            "pattern": "^[A-Za-z0-9_]+$",
+            "title": "Username"
           },
-          "target": {
+          "email": {
             "type": "string",
             "maxLength": 254,
             "minLength": 3,
-            "title": "Target"
-          },
-          "verification_id": {
-            "type": "string",
-            "title": "Verification Id"
-          },
-          "verification_code": {
-            "type": "string",
-            "pattern": "^[0-9]{6}$",
-            "title": "Verification Code"
+            "title": "Email"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "target_type",
-          "target",
-          "verification_id",
-          "verification_code"
+          "username",
+          "email"
         ],
         "title": "PasswordResetTicketRequest"
       },
@@ -48425,6 +48179,12 @@
             "pattern": "^[A-Za-z0-9_]+$",
             "title": "Username"
           },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email"
+          },
           "captcha_id": {
             "type": "string",
             "maxLength": 128,
@@ -48471,6 +48231,7 @@
         "type": "object",
         "required": [
           "username",
+          "email",
           "captcha_id",
           "captcha_answer",
           "password",
@@ -49298,6 +49059,17 @@
             ],
             "title": "Password Changed At"
           },
+          "current_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Email"
+          },
           "bound_accounts": {
             "items": {
               "additionalProperties": {
@@ -49325,6 +49097,7 @@
         "required": [
           "password_set",
           "password_changed_at",
+          "current_email",
           "bound_accounts",
           "active_session_count"
         ],
@@ -51793,107 +51566,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "VerificationCodeAccepted": {
-        "properties": {
-          "verification_id": {
-            "type": "string",
-            "title": "Verification Id"
-          },
-          "delivery_status": {
-            "type": "string",
-            "const": "accepted",
-            "title": "Delivery Status",
-            "default": "accepted"
-          },
-          "target_masked": {
-            "type": "string",
-            "title": "Target Masked"
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Expires At"
-          },
-          "retry_after_seconds": {
-            "type": "integer",
-            "title": "Retry After Seconds"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "verification_id",
-          "target_masked",
-          "expires_at",
-          "retry_after_seconds"
-        ],
-        "title": "VerificationCodeAccepted"
-      },
-      "VerificationCodeRequest": {
-        "properties": {
-          "purpose": {
-            "type": "string",
-            "enum": [
-              "reset_password",
-              "change_phone",
-              "change_email"
-            ],
-            "title": "Purpose"
-          },
-          "target_type": {
-            "type": "string",
-            "enum": [
-              "phone",
-              "email"
-            ],
-            "title": "Target Type"
-          },
-          "target": {
-            "type": "string",
-            "maxLength": 254,
-            "minLength": 3,
-            "title": "Target"
-          },
-          "locale": {
-            "type": "string",
-            "maxLength": 16,
-            "title": "Locale",
-            "default": "zh-CN"
-          },
-          "challenge_token": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2048
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Challenge Token"
-          },
-          "change_ticket_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 40
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Change Ticket Id"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "purpose",
-          "target_type",
-          "target"
-        ],
-        "title": "VerificationCodeRequest"
       },
       "VersionBindingView": {
         "properties": {

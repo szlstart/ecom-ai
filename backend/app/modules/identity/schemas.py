@@ -15,6 +15,7 @@ class AgreementReference(StrictRequest):
 
 class RegistrationRequest(StrictRequest):
     username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    email: str = Field(min_length=3, max_length=254)
     captcha_id: str = Field(min_length=16, max_length=128)
     captcha_answer: str = Field(pattern=r"^[0-9]{1,3}$")
     password: str = Field(min_length=1)
@@ -93,11 +94,17 @@ class VerificationCodeAccepted(StrictRequest):
     retry_after_seconds: int
 
 
+class PasswordResetHintRequest(StrictRequest):
+    username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+
+
+class PasswordResetHintResult(StrictRequest):
+    email_masked: str
+
+
 class PasswordResetTicketRequest(StrictRequest):
-    target_type: Literal["phone", "email"]
-    target: str = Field(min_length=3, max_length=254)
-    verification_id: str
-    verification_code: str = Field(pattern=r"^[0-9]{6}$")
+    username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    email: str = Field(min_length=3, max_length=254)
 
 
 class PasswordResetTicketResult(StrictRequest):
@@ -141,6 +148,7 @@ class PasswordChangeRequest(StrictRequest):
 class SecuritySummary(StrictRequest):
     password_set: bool
     password_changed_at: datetime | None
+    current_email: str | None
     bound_accounts: list[dict[str, str | bool]]
     active_session_count: int
 
@@ -215,10 +223,7 @@ class ContactChangeTicketResult(StrictRequest):
 
 
 class ContactChangeRequest(StrictRequest):
-    change_ticket_id: str = Field(min_length=5, max_length=40)
-    new_target: str = Field(min_length=3, max_length=254)
-    verification_id: str = Field(min_length=5, max_length=40)
-    verification_code: str = Field(pattern=r"^[0-9]{6}$")
+    new_email: str = Field(min_length=3, max_length=254)
 
 
 class UserDashboard(StrictRequest):

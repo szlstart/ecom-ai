@@ -22,6 +22,7 @@ from app.core.security import (
     USERNAME_PATTERN,
     SecurityService,
     canonical_request_hash,
+    mask_recovery_email,
     mask_target,
     normalize_target,
     normalize_username,
@@ -51,6 +52,8 @@ from app.modules.identity.schemas import (
     ContactChangeTicketResult,
     PasswordChangeRequest,
     PasswordLoginRequest,
+    PasswordResetHintRequest,
+    PasswordResetHintResult,
     PasswordResetRequest,
     PasswordResetTicketRequest,
     PasswordResetTicketResult,
@@ -256,6 +259,11 @@ class IdentityService:
         if not USERNAME_PATTERN.fullmatch(request.username):
             raise _field_error("/username", "INVALID_USERNAME", "用户名格式不正确。")
         username_hash = self.security.keyed_hash("username", normalized_username)
+        try:
+            normalized_email = normalize_target("email", request.email)
+        except ValueError as exc:
+            raise _field_error("/email", "INVALID_EMAIL", "邮箱格式不正确。") from exc
+        email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
         request_hash = self.security.keyed_hash(
             "registration-idempotency-payload",
             canonical_request_hash(request.model_dump(mode="json")),
@@ -308,6 +316,13 @@ class IdentityService:
                 title="Username unavailable",
                 detail="该用户名不可用，请更换后重试。",
             )
+        if await self.repository.credential_by_identifier("email", email_hash) is not None:
+            raise ApplicationError(
+                status=409,
+                code="REGISTRATION_EMAIL_UNAVAILABLE",
+                title="Email unavailable",
+                detail="该邮箱已被其他账号使用。",
+            )
         now = utc_now()
         user = User(
             user_no=new_prefixed_ulid("usr_"),
@@ -341,6 +356,20 @@ class IdentityService:
                 is_verified=True,
                 verified_at=now,
                 password_changed_at=now,
+                credential_status="active",
+            )
+        )
+        self.session.add(
+            UserCredential(
+                user_id=user.id,
+                credential_type="email",
+                identifier_ciphertext=self.security.encrypt(
+                    "user-credential:email", normalized_email
+                ),
+                identifier_hash=email_hash,
+                key_version=1,
+                is_primary=True,
+                is_verified=False,
                 credential_status="active",
             )
         )
@@ -451,7 +480,7 @@ class IdentityService:
                 status=409,
                 code="REGISTRATION_CONFLICT",
                 title="Registration conflict",
-                detail="用户名刚刚被使用，请更换后重试。",
+                detail="用户名或邮箱刚刚被使用，请更换后重试。",
             ) from exc
 
     async def login(
@@ -635,29 +664,54 @@ class IdentityService:
         )
         await self.session.commit()
 
+    async def password_reset_hint(
+        self, request: PasswordResetHintRequest, ip_address: str
+    ) -> PasswordResetHintResult:
+        normalized_username = normalize_username(request.username)
+        await self._enforce_rate_limit(
+            f"password-reset-hint:{self.security.keyed_hash('request-ip', ip_address).hex()}",
+            limit=10,
+            window_seconds=600,
+        )
+        user = await self.repository.user_by_username(normalized_username)
+        email = await self._recovery_email_for_user(user.id) if user is not None else None
+        if email is None:
+            raise ApplicationError(
+                status=404,
+                code="PASSWORD_RECOVERY_EMAIL_UNAVAILABLE",
+                title="Recovery email unavailable",
+                detail="未找到该用户名对应的可用找回邮箱。",
+            )
+        return PasswordResetHintResult(email_masked=mask_recovery_email(email))
+
     async def create_password_reset_ticket(
         self, request: PasswordResetTicketRequest, ip_address: str
     ) -> PasswordResetTicketResult:
+        normalized_username = normalize_username(request.username)
         try:
-            target = normalize_target(request.target_type, request.target)
+            submitted_email = normalize_target("email", request.email)
         except ValueError as exc:
-            raise _invalid_credentials() from exc
-        verification = await self._verify_code(
-            request.verification_id,
-            request.verification_code,
-            "reset_password",
-            request.target_type,
-            target,
-            consume=True,
+            raise _field_error("/email", "INVALID_EMAIL", "邮箱格式不正确。") from exc
+        await self._enforce_rate_limit(
+            f"password-reset-ticket:{self.security.keyed_hash('request-ip', ip_address).hex()}",
+            limit=10,
+            window_seconds=600,
         )
-        credential = await self.repository.credential_by_identifier(
-            request.target_type,
-            self.security.keyed_hash("credential-identifier", target),
-            for_update=True,
+        user = await self.repository.user_by_username(normalized_username)
+        registered_email = (
+            await self._recovery_email_for_user(user.id) if user is not None else None
         )
-        if credential is None:
-            raise _invalid_credentials()
-        password = await self.repository.password_credential(credential.user_id, for_update=True)
+        matches = registered_email is not None and hmac.compare_digest(
+            self.security.keyed_hash("credential-identifier", registered_email),
+            self.security.keyed_hash("credential-identifier", submitted_email),
+        )
+        if user is None or not matches:
+            raise _field_error(
+                "/email",
+                "PASSWORD_RECOVERY_EMAIL_MISMATCH",
+                "输入的完整邮箱与该账号登记邮箱不一致。",
+            )
+        password = await self.repository.password_credential(user.id, for_update=True)
         if password is None:
             raise _invalid_credentials()
         token = self.security.new_opaque_token()
@@ -665,8 +719,8 @@ class IdentityService:
         self.session.add(
             PasswordResetRecord(
                 reset_no=new_prefixed_ulid("rst_"),
-                user_id=credential.user_id,
-                verification_id=verification.id,
+                user_id=user.id,
+                verification_id=None,
                 reset_token_hash=self.security.keyed_hash("reset-token", token),
                 credential_version_before=password.credential_version,
                 expires_at=expires_at,
@@ -805,10 +859,24 @@ class IdentityService:
     async def security_summary(self, user: User) -> SecuritySummary:
         credentials = await self.repository.credentials_for_user(user.id)
         password = next((item for item in credentials if item.credential_type == "password"), None)
+        email_credential = next(
+            (
+                item
+                for item in credentials
+                if item.credential_type == "email" and item.identifier_ciphertext is not None
+            ),
+            None,
+        )
+        current_email = (
+            self.security.decrypt("user-credential:email", email_credential.identifier_ciphertext)
+            if email_credential is not None and email_credential.identifier_ciphertext is not None
+            else None
+        )
         sessions = await self.repository.active_sessions(user.id, "user")
         return SecuritySummary(
             password_set=password is not None,
             password_changed_at=password.password_changed_at if password else None,
+            current_email=current_email,
             bound_accounts=self._bound_accounts(credentials),
             active_session_count=len(sessions),
         )
@@ -934,51 +1002,14 @@ class IdentityService:
         )
         if claim.replayed:
             return
-        ticket = await self.repository.credential_change_by_no(
-            user.id,
-            request.change_ticket_id,
-            for_update=True,
-        )
         now = utc_now()
-        if ticket is None or ticket.change_status != "pending" or ticket.expires_at <= now:
-            raise ApplicationError(
-                status=410,
-                code="CONTACT_CHANGE_TICKET_EXPIRED",
-                title="Contact change ticket expired",
-                detail="换绑安全验证已失效，请重新发起。",
-            )
         try:
-            new_target = normalize_target(ticket.credential_type, request.new_target)
+            new_email = normalize_target("email", request.new_email)
         except ValueError as exc:
-            raise _field_error("/new_target", "INVALID_TARGET", "手机号或邮箱格式不正确。") from exc
-        target_hash = self.security.keyed_hash("credential-identifier", new_target)
-        if ticket.new_identifier_hash is None or not hmac.compare_digest(
-            ticket.new_identifier_hash,
-            target_hash,
-        ):
-            raise ApplicationError(
-                status=422,
-                code="CONTACT_CHANGE_TARGET_MISMATCH",
-                title="Contact target mismatch",
-                detail="验证码目标与换绑目标不一致。",
-            )
-        verification = await self._verify_code(
-            request.verification_id,
-            request.verification_code,
-            f"change_{ticket.credential_type}",
-            ticket.credential_type,
-            new_target,
-            consume=True,
-        )
-        if verification.user_id != user.id:
-            raise ApplicationError(
-                status=403,
-                code="CONTACT_CHANGE_VERIFICATION_MISMATCH",
-                title="Contact verification mismatch",
-                detail="验证码不属于当前换绑流程。",
-            )
+            raise _field_error("/new_email", "INVALID_EMAIL", "邮箱格式不正确。") from exc
+        target_hash = self.security.keyed_hash("credential-identifier", new_email)
         conflict = await self.repository.credential_by_identifier(
-            ticket.credential_type,
+            "email",
             target_hash,
             for_update=True,
         )
@@ -987,41 +1018,26 @@ class IdentityService:
                 status=409,
                 code="CONTACT_TARGET_ALREADY_BOUND",
                 title="Contact already bound",
-                detail="该联系方式已绑定其他账号。",
+                detail="该邮箱已绑定其他账号。",
             )
-        current = (
-            await self.session.get(UserCredential, ticket.old_credential_id)
-            if ticket.old_credential_id is not None
-            else None
-        )
-        if current is not None and current.credential_version != ticket.credential_version_before:
-            raise ApplicationError(
-                status=409,
-                code="CONTACT_CREDENTIAL_CHANGED",
-                title="Contact credential changed",
-                detail="联系方式已经变化，请重新发起换绑。",
-            )
+        credentials = await self.repository.credentials_for_user(user.id)
+        current = next((item for item in credentials if item.credential_type == "email"), None)
         if current is None:
             current = UserCredential(
                 user_id=user.id,
-                credential_type=ticket.credential_type,
+                credential_type="email",
                 credential_status="active",
                 credential_version=1,
             )
             self.session.add(current)
         else:
             current.credential_version += 1
-        current.identifier_ciphertext = self.security.encrypt(
-            f"user-credential:{ticket.credential_type}", new_target
-        )
+        current.identifier_ciphertext = self.security.encrypt("user-credential:email", new_email)
         current.identifier_hash = target_hash
         current.key_version = 1
         current.is_primary = True
-        current.is_verified = True
-        current.verified_at = now
-        ticket.new_verification_id = verification.id
-        ticket.change_status = "confirmed"
-        ticket.confirmed_at = now
+        current.is_verified = False
+        current.verified_at = None
         await self.repository.revoke_user_sessions(
             user.id,
             now,
@@ -1032,9 +1048,23 @@ class IdentityService:
         self.idempotency.complete(
             claim,
             response_status=200,
-            resource_no=ticket.change_no,
+            resource_no=user.user_no,
         )
         await self.session.commit()
+
+    async def _recovery_email_for_user(self, user_id: int) -> str | None:
+        credentials = await self.repository.credentials_for_user(user_id)
+        email = next(
+            (
+                item
+                for item in credentials
+                if item.credential_type == "email" and item.identifier_ciphertext is not None
+            ),
+            None,
+        )
+        if email is None or email.identifier_ciphertext is None:
+            return None
+        return self.security.decrypt("user-credential:email", email.identifier_ciphertext)
 
     async def cancel_contact_change(self, user_id: int, change_no: str) -> None:
         ticket = await self.repository.credential_change_by_no(

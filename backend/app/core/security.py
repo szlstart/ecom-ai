@@ -53,6 +53,20 @@ def mask_target(target_type: str, value: str) -> str:
     return f"{value[:3]}****{value[-4:]}"
 
 
+def mask_recovery_email(value: str) -> str:
+    """Return a recognizable hint without exposing the full registered address."""
+    local, domain = value.split("@", 1)
+    if len(local) >= 8:
+        masked_local = f"{local[:3]}xxx{local[-4:]}"
+    elif len(local) >= 5:
+        masked_local = f"{local[:2]}xxx{local[-2:]}"
+    elif len(local) >= 3:
+        masked_local = f"{local[:1]}xxx{local[-1:]}"
+    else:
+        masked_local = f"{local[:1]}xxx"
+    return f"{masked_local}@{domain}"
+
+
 @dataclass(frozen=True)
 class TokenClaims:
     subject: str

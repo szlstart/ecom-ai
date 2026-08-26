@@ -328,23 +328,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/verification-codes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Verification Code */
-        post: operations["AuthVerificationCode_Create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/auth/registrations": {
         parameters: {
             query?: never;
@@ -443,6 +426,23 @@ export interface paths {
         post?: never;
         /** Revoke Session */
         delete: operations["AuthSession_Revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/password-reset-hints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get Password Reset Hint */
+        post: operations["PasswordResetHint_Get"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -551,23 +551,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/me/contact-change-tickets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Contact Change Ticket */
-        post: operations["UserContactChangeTicket_Create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/users/me/contact-changes": {
         parameters: {
             query?: never;
@@ -580,23 +563,6 @@ export interface paths {
         /** Complete Contact Change */
         post: operations["UserContactChange_Complete"];
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/me/contact-change-tickets/{change_ticket_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Cancel Contact Change */
-        delete: operations["UserContactChangeTicket_Cancel"];
         options?: never;
         head?: never;
         patch?: never;
@@ -7264,39 +7230,8 @@ export interface components {
         };
         /** ContactChangeRequest */
         ContactChangeRequest: {
-            /** Change Ticket Id */
-            change_ticket_id: string;
-            /** New Target */
-            new_target: string;
-            /** Verification Id */
-            verification_id: string;
-            /** Verification Code */
-            verification_code: string;
-        };
-        /** ContactChangeTicketRequest */
-        ContactChangeTicketRequest: {
-            /**
-             * Credential Type
-             * @enum {string}
-             */
-            credential_type: "phone" | "email";
-            /** Current Password */
-            current_password: string;
-        };
-        /** ContactChangeTicketResult */
-        ContactChangeTicketResult: {
-            /** Change Ticket Id */
-            change_ticket_id: string;
-            /**
-             * Credential Type
-             * @enum {string}
-             */
-            credential_type: "phone" | "email";
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
+            /** New Email */
+            new_email: string;
         };
         /** ContentCreate */
         ContentCreate: {
@@ -7918,11 +7853,6 @@ export interface components {
             data: components["schemas"]["CheckoutView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
-        /** Envelope[ContactChangeTicketResult] */
-        Envelope_ContactChangeTicketResult_: {
-            data: components["schemas"]["ContactChangeTicketResult"];
-            meta?: components["schemas"]["ResponseMeta"];
-        };
         /** Envelope[ContentList] */
         Envelope_ContentList_: {
             data: components["schemas"]["ContentList"];
@@ -8126,6 +8056,11 @@ export interface components {
         /** Envelope[OrderRepurchaseResult] */
         Envelope_OrderRepurchaseResult_: {
             data: components["schemas"]["OrderRepurchaseResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[PasswordResetHintResult] */
+        Envelope_PasswordResetHintResult_: {
+            data: components["schemas"]["PasswordResetHintResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[PasswordResetTicketResult] */
@@ -8404,11 +8339,6 @@ export interface components {
         /** Envelope[UserShipmentDetail] */
         Envelope_UserShipmentDetail_: {
             data: components["schemas"]["UserShipmentDetail"];
-            meta?: components["schemas"]["ResponseMeta"];
-        };
-        /** Envelope[VerificationCodeAccepted] */
-        Envelope_VerificationCodeAccepted_: {
-            data: components["schemas"]["VerificationCodeAccepted"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[VersionBindingView] */
@@ -9577,6 +9507,16 @@ export interface components {
             /** Challenge Token */
             challenge_token?: string | null;
         };
+        /** PasswordResetHintRequest */
+        PasswordResetHintRequest: {
+            /** Username */
+            username: string;
+        };
+        /** PasswordResetHintResult */
+        PasswordResetHintResult: {
+            /** Email Masked */
+            email_masked: string;
+        };
         /** PasswordResetRequest */
         PasswordResetRequest: {
             /** Reset Ticket */
@@ -9591,17 +9531,10 @@ export interface components {
         };
         /** PasswordResetTicketRequest */
         PasswordResetTicketRequest: {
-            /**
-             * Target Type
-             * @enum {string}
-             */
-            target_type: "phone" | "email";
-            /** Target */
-            target: string;
-            /** Verification Id */
-            verification_id: string;
-            /** Verification Code */
-            verification_code: string;
+            /** Username */
+            username: string;
+            /** Email */
+            email: string;
         };
         /** PasswordResetTicketResult */
         PasswordResetTicketResult: {
@@ -10327,6 +10260,8 @@ export interface components {
         RegistrationRequest: {
             /** Username */
             username: string;
+            /** Email */
+            email: string;
             /** Captcha Id */
             captcha_id: string;
             /** Captcha Answer */
@@ -10616,6 +10551,8 @@ export interface components {
             password_set: boolean;
             /** Password Changed At */
             password_changed_at: string | null;
+            /** Current Email */
+            current_email: string | null;
             /** Bound Accounts */
             bound_accounts: {
                 [key: string]: string | boolean;
@@ -11493,50 +11430,6 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
-        /** VerificationCodeAccepted */
-        VerificationCodeAccepted: {
-            /** Verification Id */
-            verification_id: string;
-            /**
-             * Delivery Status
-             * @default accepted
-             * @constant
-             */
-            delivery_status: "accepted";
-            /** Target Masked */
-            target_masked: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-            /** Retry After Seconds */
-            retry_after_seconds: number;
-        };
-        /** VerificationCodeRequest */
-        VerificationCodeRequest: {
-            /**
-             * Purpose
-             * @enum {string}
-             */
-            purpose: "reset_password" | "change_phone" | "change_email";
-            /**
-             * Target Type
-             * @enum {string}
-             */
-            target_type: "phone" | "email";
-            /** Target */
-            target: string;
-            /**
-             * Locale
-             * @default zh-CN
-             */
-            locale: string;
-            /** Challenge Token */
-            challenge_token?: string | null;
-            /** Change Ticket Id */
-            change_ticket_id?: string | null;
-        };
         /** VersionBindingView */
         VersionBindingView: {
             /** Binding Id */
@@ -12403,44 +12296,6 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
-    AuthVerificationCode_Create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["VerificationCodeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_VerificationCodeAccepted_"];
-                };
-            };
-            401: components["responses"]["Problem401"];
-            409: components["responses"]["Problem409"];
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            429: components["responses"]["Problem429"];
-            500: components["responses"]["Problem500"];
-            503: components["responses"]["Problem503"];
-        };
-    };
     Registration_Create: {
         parameters: {
             query?: never;
@@ -12655,6 +12510,43 @@ export interface operations {
             };
             401: components["responses"]["Problem401"];
             404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    PasswordResetHint_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetHintRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PasswordResetHintResult_"];
+                };
+            };
             409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
@@ -12900,46 +12792,6 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
-    UserContactChangeTicket_Create: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ContactChangeTicketRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_ContactChangeTicketResult_"];
-                };
-            };
-            401: components["responses"]["Problem401"];
-            409: components["responses"]["Problem409"];
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            429: components["responses"]["Problem429"];
-            500: components["responses"]["Problem500"];
-            503: components["responses"]["Problem503"];
-        };
-    };
     UserContactChange_Complete: {
         parameters: {
             query?: never;
@@ -12965,41 +12817,6 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem401"];
-            409: components["responses"]["Problem409"];
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            429: components["responses"]["Problem429"];
-            500: components["responses"]["Problem500"];
-            503: components["responses"]["Problem503"];
-        };
-    };
-    UserContactChangeTicket_Cancel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                change_ticket_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Problem401"];
-            404: components["responses"]["Problem404"];
             409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {

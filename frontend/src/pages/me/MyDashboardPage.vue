@@ -18,6 +18,13 @@ const router = useRouter()
 const data = ref<Dashboard | null>(null)
 const error = ref('')
 const loggingOut = ref(false)
+const orderCountLabels: Record<string, string> = {
+  pending_payment: '待支付',
+  pending_shipment: '待发货',
+  in_transit: '运输中',
+  pending_review: '待评价',
+  after_sale: '售后中',
+}
 
 onMounted(async () => {
   try {
@@ -50,7 +57,7 @@ async function logout() {
     <div v-if="data" class="dashboard-sections">
       <article class="card dashboard-card dashboard-card-orders">
         <div class="dashboard-card-heading"><div><p class="eyebrow">订单</p><h2>我的订单</h2></div><RouterLink to="/me/orders?view=all">查看全部订单</RouterLink></div>
-        <dl class="metric-list"><div v-for="(count, key) in data.order_counts" :key="key"><dt>{{ key }}</dt><dd>{{ count }}</dd></div></dl>
+        <dl class="metric-list"><div v-for="(count, key) in data.order_counts" :key="key"><dt>{{ orderCountLabels[key] ?? key }}</dt><dd>{{ count }}</dd></div></dl>
       </article>
 
       <article class="card dashboard-card dashboard-card-address">

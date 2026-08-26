@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from app.core.exceptions import ApplicationError
+from app.core.security import mask_recovery_email
 from app.main import create_app
 from app.modules.identity.schemas import AddressPatch, AddressWrite, RegistrationRequest
 from app.modules.identity.service import IdentityService
@@ -16,7 +17,7 @@ def test_identity_openapi_contract_has_stable_operation_ids() -> None:
     paths = schema["paths"]
     expected = {
         ("/api/v1/auth/registration-config", "get"): "RegistrationConfig_Get",
-        ("/api/v1/auth/verification-codes", "post"): "AuthVerificationCode_Create",
+        ("/api/v1/auth/password-reset-hints", "post"): "PasswordResetHint_Get",
         ("/api/v1/auth/registrations", "post"): "Registration_Create",
         ("/api/v1/auth/login", "post"): "Auth_Login",
         ("/api/v1/auth/token-refresh", "post"): "AuthToken_Refresh",
@@ -71,10 +72,11 @@ def test_login_is_password_only_and_sensitive_endpoints_are_not_gets() -> None:
     assert "get" not in schema["paths"]["/api/v1/auth/logout"]
 
 
-def test_registration_uses_arithmetic_captcha_without_contact_fields() -> None:
+def test_registration_uses_arithmetic_captcha_and_recovery_email() -> None:
     request = RegistrationRequest.model_validate(
         {
             "username": "test_user",
+            "email": "test_user@example.com",
             "captcha_id": "captcha-identifier-0001",
             "captcha_answer": "12",
             "password": "x" * 1024,
@@ -86,7 +88,13 @@ def test_registration_uses_arithmetic_captcha_without_contact_fields() -> None:
         }
     )
     assert request.captcha_answer == "12"
+    assert request.email == "test_user@example.com"
     assert len(request.password) == 1024
+
+
+def test_recovery_email_hint_masks_the_middle() -> None:
+    assert mask_recovery_email("1390003212@qq.com") == "139xxx3212@qq.com"
+    assert mask_recovery_email("short@example.com") == "shxxxrt@example.com"
 
 
 def test_address_recipient_name_accepts_one_character() -> None:

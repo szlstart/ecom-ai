@@ -24,28 +24,18 @@ def test_websocket_uses_origin_checked_one_time_subprotocol_ticket() -> None:
     suffix = secrets.token_hex(5)
     with TestClient(create_app(), base_url="http://testserver") as client:
         config = client.get("/api/v1/auth/registration-config").json()["data"]
+        captcha = config["captcha"]
+        left, operator, right, _, _ = captcha["question"].split()
+        captcha_answer = int(left) + int(right) if operator == "+" else int(left) - int(right)
         email = f"realtime_{suffix}@example.com"
-        verification = client.post(
-            "/api/v1/auth/verification-codes",
-            json={
-                "purpose": "register",
-                "target_type": "email",
-                "target": email,
-                "locale": "zh-CN",
-                "challenge_token": None,
-                "change_ticket_id": None,
-            },
-        )
-        assert verification.status_code == 202
         registration = client.post(
             "/api/v1/auth/registrations",
             headers={"Idempotency-Key": f"realtime-registration-{suffix}"},
             json={
                 "username": f"realtime_{suffix}",
-                "target_type": "email",
-                "target": email,
-                "verification_id": verification.json()["data"]["verification_id"],
-                "verification_code": "000000",
+                "email": email,
+                "captcha_id": captcha["captcha_id"],
+                "captcha_answer": str(captcha_answer),
                 "password": f"Correct-Horse-{suffix}-Battery-Staple!",
                 "config_version": config["config_version"],
                 "agreement_acceptances": [

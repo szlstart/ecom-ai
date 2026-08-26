@@ -152,7 +152,7 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         "/api/v1/users/me/addresses",
         headers={**auth_headers, "Idempotency-Key": f"address-{suffix}-0000001"},
         json={
-            "recipient_name": "张三",
+            "recipient_name": "张",
             "phone": "+8613800000000",
             "country_code": "CN",
             "province_code": "440000",
@@ -172,7 +172,7 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         "/api/v1/users/me/addresses",
         headers={**auth_headers, "Idempotency-Key": f"address-{suffix}-0000001"},
         json={
-            "recipient_name": "张三",
+            "recipient_name": "张",
             "phone": "+8613800000000",
             "country_code": "CN",
             "province_code": "440000",
@@ -238,9 +238,10 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     address_update = await client.patch(
         f"/api/v1/users/me/addresses/{address['address_id']}",
         headers={**auth_headers, "If-Match": address_response.headers["etag"]},
-        json={"label": "常用地址"},
+        json={"recipient_name": "李", "label": "常用地址"},
     )
     assert address_update.status_code == 200
+    assert address_update.json()["data"]["recipient_name"] == "李"
     assert address_update.json()["data"]["label"] == "常用地址"
 
     changed_email = f"changed_{suffix}@example.com"

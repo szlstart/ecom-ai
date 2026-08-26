@@ -5,7 +5,7 @@ import pytest
 
 from app.core.exceptions import ApplicationError
 from app.main import create_app
-from app.modules.identity.schemas import RegistrationRequest
+from app.modules.identity.schemas import AddressPatch, AddressWrite, RegistrationRequest
 from app.modules.identity.service import IdentityService
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -87,6 +87,23 @@ def test_registration_uses_arithmetic_captcha_without_contact_fields() -> None:
     )
     assert request.captcha_answer == "12"
     assert len(request.password) == 1024
+
+
+def test_address_recipient_name_accepts_one_character() -> None:
+    address = AddressWrite.model_validate(
+        {
+            "recipient_name": "张",
+            "phone": "+8613800000000",
+            "province_code": "440000",
+            "city_code": "440300",
+            "district_code": "440305",
+            "address": "测试路 1 号",
+        }
+    )
+    update = AddressPatch.model_validate({"recipient_name": "A"})
+
+    assert address.recipient_name == "张"
+    assert update.recipient_name == "A"
 
 
 def test_user_password_policy_only_rejects_empty_or_whitespace() -> None:

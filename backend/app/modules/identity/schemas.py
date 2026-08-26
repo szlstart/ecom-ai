@@ -146,7 +146,7 @@ class SecuritySummary(StrictRequest):
 
 
 class AddressWrite(StrictRequest):
-    recipient_name: str = Field(min_length=2, max_length=64)
+    recipient_name: str = Field(min_length=1, max_length=64)
     phone: str = Field(min_length=7, max_length=32)
     country_code: str = Field(default="CN", pattern=r"^[A-Z]{2}$")
     province_code: str = Field(min_length=1, max_length=32)
@@ -159,7 +159,7 @@ class AddressWrite(StrictRequest):
 
 
 class AddressPatch(StrictRequest):
-    recipient_name: str | None = Field(default=None, min_length=2, max_length=64)
+    recipient_name: str | None = Field(default=None, min_length=1, max_length=64)
     phone: str | None = Field(default=None, min_length=7, max_length=32)
     country_code: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
     province_code: str | None = Field(default=None, min_length=1, max_length=32)

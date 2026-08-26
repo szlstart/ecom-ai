@@ -31680,7 +31680,7 @@
               {
                 "type": "string",
                 "maxLength": 64,
-                "minLength": 2
+                "minLength": 1
               },
               {
                 "type": "null"
@@ -31887,7 +31887,7 @@
           "recipient_name": {
             "type": "string",
             "maxLength": 64,
-            "minLength": 2,
+            "minLength": 1,
             "title": "Recipient Name"
           },
           "phone": {

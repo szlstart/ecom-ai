@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { onClickOutside } from '@vueuse/core'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import type { LocationQueryRaw } from 'vue-router'
 
@@ -21,6 +22,8 @@ const greeting = computed(() => {
   if (hour >= 14 && hour < 18) return '下午好'
   return '晚上好'
 })
+
+onClickOutside(userMenu, () => userMenu.value?.removeAttribute('open'))
 
 function search() {
   const q = searchTerm.value.trim()

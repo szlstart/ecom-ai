@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
+import { ApiProblem, apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
 import { useUserAuthStore, type SessionBootstrap } from '@/stores/user-auth'
 
 interface Agreement {
@@ -26,6 +26,8 @@ const mode = ref<'login' | 'register'>(props.initialMode ?? 'login')
 const firstInput = ref<HTMLInputElement | null>(null)
 const pending = ref(false)
 const error = ref('')
+const usernameError = ref('')
+const emailError = ref('')
 
 const identifier = ref('')
 const loginPassword = ref('')
@@ -49,6 +51,8 @@ const registrationReady = computed(() => Boolean(
 function switchMode(nextMode: 'login' | 'register') {
   mode.value = nextMode
   error.value = ''
+  usernameError.value = ''
+  emailError.value = ''
   void nextTick(() => firstInput.value?.focus())
 }
 
@@ -101,6 +105,8 @@ async function register() {
   }
   pending.value = true
   error.value = ''
+  usernameError.value = ''
+  emailError.value = ''
   try {
     const response = await apiRequest<SessionBootstrap>('/auth/registrations', {
       method: 'POST',
@@ -121,7 +127,11 @@ async function register() {
     requestKey = createIdempotencyKey('registration')
     emit('authenticated')
   } catch (reason) {
-    error.value = errorMessage(reason)
+    if (reason instanceof ApiProblem) {
+      usernameError.value = reason.body.errors?.find((item) => item.pointer === '/username')?.message ?? ''
+      emailError.value = reason.body.errors?.find((item) => item.pointer === '/email')?.message ?? ''
+    }
+    if (!usernameError.value && !emailError.value) error.value = errorMessage(reason)
     await loadRegistrationConfig(true)
   } finally {
     pending.value = false
@@ -135,6 +145,8 @@ function onKeydown(event: KeyboardEvent) {
 watch(mode, (value) => {
   if (value === 'register') void loadRegistrationConfig()
 })
+watch(username, () => { usernameError.value = '' })
+watch(email, () => { emailError.value = '' })
 
 onMounted(() => {
   document.body.classList.add('modal-open')
@@ -175,7 +187,7 @@ onBeforeUnmount(() => {
           <p class="eyebrow">用户端</p>
           <h1 id="auth-modal-title">注册账号</h1>
           <p v-if="error" class="alert error" role="alert">{{ error }}</p>
-          <label>用户名<input ref="firstInput" v-model="username" autocomplete="username" minlength="4" maxlength="32" pattern="[A-Za-z0-9_]+" required /></label>
+          <label>用户名<input ref="firstInput" v-model="username" autocomplete="username" minlength="4" maxlength="32" pattern="[A-Za-z0-9_]+" :aria-invalid="Boolean(usernameError)" :aria-describedby="usernameError ? 'registration-username-error' : undefined" required /><small v-if="usernameError" id="registration-username-error" class="field-error" role="alert">{{ usernameError }}</small></label>
           <div class="arithmetic-captcha" aria-live="polite">
             <p><strong>验证码：{{ config?.captcha.question ?? '正在生成算术题…' }}</strong></p>
             <button class="link-button" type="button" :disabled="pending" @click="loadRegistrationConfig(true)">换一道题</button>
@@ -183,7 +195,7 @@ onBeforeUnmount(() => {
           <label>计算结果<input v-model="captchaAnswer" inputmode="numeric" pattern="[0-9]+" autocomplete="off" required /></label>
           <label>密码<input v-model="password" autocomplete="new-password" required type="password" /><small>密码不能为空，且不能包含空格、换行或其他空白字符；长度不限。</small></label>
           <label>确认密码<input v-model="confirmation" autocomplete="new-password" required type="password" /></label>
-          <label>邮箱<input v-model.trim="email" autocomplete="email" maxlength="254" required type="email" /><small>仅用于忘记密码时核对身份并重置密码；注册后可在“我的 → 账号安全”中按需更换。</small></label>
+          <label>邮箱<input v-model.trim="email" autocomplete="email" maxlength="254" :aria-invalid="Boolean(emailError)" :aria-describedby="emailError ? 'registration-email-help registration-email-error' : 'registration-email-help'" required type="email" /><small id="registration-email-help">仅用于忘记密码时核对身份并重置密码；注册后可在“我的 → 账号安全”中按需更换。</small><small v-if="emailError" id="registration-email-error" class="field-error" role="alert">{{ emailError }}</small></label>
           <fieldset v-if="config"><legend>协议确认</legend><label v-for="item in config.required_agreements" :key="item.document_type" class="check-row"><input v-model="accepted" :value="item.document_type" type="checkbox" /><span>我已阅读并同意 <RouterLink :to="`/legal/${item.document_type}?version=${item.document_version}`" target="_blank">{{ item.title }}</RouterLink></span></label></fieldset>
           <button :disabled="pending || !registrationReady" type="submit">同意协议并注册</button>
           <p class="form-help">已有账号？<button class="link-button" type="button" @click="switchMode('login')">返回登录</button></p>

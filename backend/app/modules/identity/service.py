@@ -314,7 +314,14 @@ class IdentityService:
                 status=409,
                 code="REGISTRATION_USERNAME_UNAVAILABLE",
                 title="Username unavailable",
-                detail="该用户名不可用，请更换后重试。",
+                detail="该用户名已被注册，请更换一个用户名。",
+                errors=[
+                    {
+                        "pointer": "/username",
+                        "code": "REGISTRATION_USERNAME_UNAVAILABLE",
+                        "message": "该用户名已被注册，请更换一个用户名。",
+                    }
+                ],
             )
         if await self.repository.credential_by_identifier("email", email_hash) is not None:
             raise ApplicationError(
@@ -322,6 +329,13 @@ class IdentityService:
                 code="REGISTRATION_EMAIL_UNAVAILABLE",
                 title="Email unavailable",
                 detail="该邮箱已被其他账号使用。",
+                errors=[
+                    {
+                        "pointer": "/email",
+                        "code": "REGISTRATION_EMAIL_UNAVAILABLE",
+                        "message": "该邮箱已被其他账号使用。",
+                    }
+                ],
             )
         now = utc_now()
         user = User(

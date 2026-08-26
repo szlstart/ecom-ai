@@ -109,6 +109,46 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     csrf_token = bootstrap["csrf_token"]
     auth_headers = {"Authorization": f"Bearer {access_token}"}
 
+    duplicate_config = (await client.get("/api/v1/auth/registration-config")).json()["data"]
+    duplicate_captcha = duplicate_config["captcha"]
+    duplicate_left, duplicate_operator, duplicate_right, _, _ = duplicate_captcha[
+        "question"
+    ].split()
+    duplicate_answer = (
+        int(duplicate_left) + int(duplicate_right)
+        if duplicate_operator == "+"
+        else int(duplicate_left) - int(duplicate_right)
+    )
+    duplicate_username_response = await client.post(
+        "/api/v1/auth/registrations",
+        headers={"Idempotency-Key": f"registration-{suffix}-duplicate-username"},
+        json={
+            "username": username,
+            "email": f"duplicate_{suffix}@example.com",
+            "captcha_id": duplicate_captcha["captcha_id"],
+            "captcha_answer": str(duplicate_answer),
+            "password": password,
+            "config_version": duplicate_config["config_version"],
+            "agreement_acceptances": [
+                {
+                    "document_type": item["document_type"],
+                    "document_version": item["document_version"],
+                }
+                for item in duplicate_config["required_agreements"]
+            ],
+        },
+    )
+    assert duplicate_username_response.status_code == 409
+    duplicate_problem = duplicate_username_response.json()
+    assert duplicate_problem["detail"] == "该用户名已被注册，请更换一个用户名。"
+    assert duplicate_problem["errors"] == [
+        {
+            "pointer": "/username",
+            "code": "REGISTRATION_USERNAME_UNAVAILABLE",
+            "message": "该用户名已被注册，请更换一个用户名。",
+        }
+    ]
+
     reused_captcha_response = await client.post(
         "/api/v1/auth/registrations",
         headers={"Idempotency-Key": f"registration-{suffix}-reused"},

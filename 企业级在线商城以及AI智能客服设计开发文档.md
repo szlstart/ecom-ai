@@ -2254,7 +2254,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | :--- | :--- | :--- |
 | 配置或算术题生成失败 | 503 `REGISTRATION_CONFIG_UNAVAILABLE/REGISTRATION_CAPTCHA_UNAVAILABLE` | 禁用注册，提供 [重新加载] 和 Request ID |
 | 算术验证码错误/过期/已使用 | 422 `REGISTRATION_CAPTCHA_INVALID/EXPIRED` | 关联计算结果字段，自动换题并清空旧答案 |
-| 用户名不可用 | 409 `REGISTRATION_USERNAME_UNAVAILABLE` | 聚焦用户名，保留其他非敏感字段 |
+| 用户名已被注册 | 409 `REGISTRATION_USERNAME_UNAVAILABLE` | 在用户名字段下提示“该用户名已被注册，请更换一个用户名”，聚焦用户名并保留其他非敏感字段 |
 | 邮箱格式错误/已占用 | 422 `INVALID_EMAIL` / 409 `REGISTRATION_EMAIL_UNAVAILABLE` | 在邮箱字段下说明原因；不清空用户名、协议或算术答案 |
 | 协议版本变化 | 409 `AGREEMENT_VERSION_CHANGED` | 加载新版本并清除旧勾选状态 |
 | 幂等请求处理中 | 409 `IDEMPOTENCY_REQUEST_IN_PROGRESS` | 按 `Retry-After` 使用同一 Key 查询/重放 |
@@ -8447,7 +8447,7 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | `AUTH_RATE_LIMITED` | 429 | 返回 `Retry-After` 和安全 `retry_after_seconds` |
 | `AUTH_ACCOUNT_UNAVAILABLE` | 403 | 只有凭证已经正确验证后才可返回账号冻结/关闭的安全说明与申诉入口 |
 | `AUTH_PASSWORD_CHANGE_REQUIRED` | 403 | 返回短时受限 Ticket 与重置路由，不签发普通 Access/Refresh Token |
-| `REGISTRATION_USERNAME_UNAVAILABLE` | 409 | 用户名不可用；用户名是公开标识但仍需限流防批量枚举 |
+| `REGISTRATION_USERNAME_UNAVAILABLE` | 409 | 该用户名已被注册；错误关联 `/username` 字段并提示更换，用户名是公开标识但仍需限流防批量枚举 |
 | `AGREEMENT_VERSION_CHANGED` | 409 | 返回新的 `config_version` 和重新加载指示，不自动代用户勾选 |
 
 登录错误统一返回模糊提示；锁定和风控挑战可通过安全字段表达，但不能泄露内部风控规则。用户名对应的脱敏邮箱提示是本项目明确采用的恢复体验，因此必须配合严格限流、审计和 `no-store`，禁止搜索引擎、埋点或日志收集。密码凭证命中 `must_change_password=true` 时，不签发普通业务会话，只签发短时、仅可调用密码重置接口的受限 Ticket；成功重置后原子清除该标志。浏览器优先把 Refresh Token 放在 `HttpOnly + Secure + SameSite` Cookie 中，并对刷新/退出接口执行 CSRF 防护。登录、注册和找回密码响应必须设置 `Cache-Control: no-store`、`Pragma: no-cache`。

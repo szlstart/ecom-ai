@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
           <label>账号<input ref="firstInput" v-model="identifier" autocomplete="username" required /></label>
           <label>密码<input v-model="loginPassword" autocomplete="current-password" required type="password" /></label>
           <button :disabled="pending" type="submit">{{ pending ? '正在登录…' : '登录' }}</button>
-          <div class="form-links"><RouterLink to="/forgot-password" @click="emit('close')">忘记密码</RouterLink></div>
+          <div class="form-links"><RouterLink to="/forgot-password">忘记密码</RouterLink></div>
           <p class="form-help">还没有账号？<button class="link-button" type="button" @click="switchMode('register')">立即注册</button></p>
         </form>
 

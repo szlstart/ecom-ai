@@ -120,6 +120,8 @@ pre { max-width: 100%; overflow: auto; padding: 12px; border-radius: 8px; backgr
 .auth-mode-tabs { margin: 0 46px 24px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .auth-mode-tabs button { color: #3158d8; border: 1px solid #c9d3ec; background: #fff; }
 .auth-mode-tabs button.active { color: #fff; border-color: #3158d8; background: #3158d8; }
+.arithmetic-captcha { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid #c9d3ec; border-radius: 10px; background: #f7f9ff; }
+.arithmetic-captcha p { color: #172033; font-size: 1.05rem; }
 .storefront-stack { min-width: 0; display: grid; gap: 44px; }
 .storefront-stack > * { min-width: 0; }
 .commerce-hero { min-height: 330px; padding: clamp(32px, 7vw, 76px); display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, .6fr); align-items: center; gap: 32px; border-radius: 28px; background: linear-gradient(135deg, #fff 15%, #e8eeff 70%, #d7e2ff); box-shadow: 0 20px 60px rgb(27 49 101 / 9%); }

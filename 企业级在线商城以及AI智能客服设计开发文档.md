@@ -118,7 +118,7 @@
 
 #### 1.3.1 用户 (User)
 
-- **定义**：已完成注册并通过手机号/邮箱验证的普通消费者。
+- **定义**：已完成用户名、密码和一次性算术验证码注册的普通消费者；手机号/邮箱可在注册后按需绑定。
 - **核心诉求**：流畅购物、订单追踪、收藏管理、售后保障、智能咨询。
 - **准入条件**：必须登录方可使用除商品浏览外的所有功能。
 - **核心权限**：
@@ -279,7 +279,7 @@
 
 ### 2.2 整体布局与全局展示契约
 
-用户商城普通业务页默认使用以下 `StorefrontLayout` 框架。密码登录和注册使用挂载在该布局根节点的全局 `AuthModal`，旧 `/login`、`/register` 仅作为兼容入口重定向回商城并打开弹窗；验证码登录、找回/重置密码仍使用独立 `AuthLayout`。公开协议/隐私政策正文使用不读取登录态角标的 `LegalLayout`，管理端使用独立 `AdminLayout`；支付渠道跳转承接页、系统维护页等特殊页面按 2.12.2/2.13.16 的 Route Meta 使用专用 Layout。
+用户商城普通业务页默认使用以下 `StorefrontLayout` 框架。密码登录和注册使用挂载在该布局根节点的全局 `AuthModal`，旧 `/login`、`/register` 仅作为兼容入口重定向回商城并打开弹窗；找回/重置密码仍使用独立 `AuthLayout`，首版不提供验证码登录页面。公开协议/隐私政策正文使用不读取登录态角标的 `LegalLayout`，管理端使用独立 `AdminLayout`；支付渠道跳转承接页、系统维护页等特殊页面按 2.12.2/2.13.16 的 Route Meta 使用专用 Layout。
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────┐
@@ -1681,7 +1681,7 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-单因素密码最少 15 个字符，前端至少允许输入 64 个字符，并允许空格和 Unicode；不强制字母、数字、特殊字符组合，但应提示并拒绝已泄露、常用或与账号上下文高度相关的弱密码。密码不得与原密码相同，不截断粘贴内容，不妨碍密码管理器和浏览器自动填充。修改成功后关闭弹窗、显示成功提示，并使其他设备登录令牌失效；当前设备可根据安全策略保留登录或要求重新登录。若未来启用 MFA，最低长度仍不得少于服务端当时返回的密码策略。
+用户密码不能为空，且不能包含空格、换行、制表符等 Unicode 空白字符；首版不设置字符长度限制，也不强制大小写、数字或特殊符号组合。密码不得与原密码相同，不截断粘贴内容，不妨碍密码管理器和浏览器自动填充。修改成功后关闭弹窗、显示成功提示，并使其他设备登录令牌失效；当前设备可根据安全策略保留登录或要求重新登录。
 
 #### 2.8.3 我的收货地址
 
@@ -2065,8 +2065,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | 首页 | `/` / `HomePage.vue` | 否 | 区块 Cursor 仅保存在恢复状态 | `GET /homepage` | 在线商城；L/E/N；none |
 | 登录弹窗 | 全局 `AuthModal.vue`；兼容 `/login` 重定向为 `/?auth=login` | 否 | `redirect` 仅允许 User Audience 站内白名单路径 | `POST /auth/login` | 登录；认证失败/挑战/限流/网络未知；form |
-| 注册弹窗 | 全局 `AuthModal.vue`；兼容 `/register` 重定向为 `/?auth=register` | 否 | 可选安全 `redirect`，规则同登录 | `GET /auth/registration-config`、`POST /auth/verification-codes`、`POST /auth/registrations` | 注册；配置/验证码/协议变化/冲突/限流；form |
-| 验证码登录 | `/login/code` / `CodeLoginPage.vue` | 否 | `redirect` 规则同密码登录 | `POST /auth/verification-codes`、`POST /auth/login` | 验证码登录；倒计时/挑战/限流；form |
+| 注册弹窗 | 全局 `AuthModal.vue`；兼容 `/register` 重定向为 `/?auth=register` | 否 | 可选安全 `redirect`，规则同登录 | `GET /auth/registration-config`、`POST /auth/registrations` | 注册；一次性算术验证码/配置/协议变化/冲突/限流；form |
 | 找回密码 | `/forgot-password` / `ForgotPasswordPage.vue` | 否 | 无 | `AuthVerificationCode_Create / POST /api/v1/auth/verification-codes`、`PasswordResetTicket_Create / POST /api/v1/auth/password-reset-tickets` | 找回密码；统一模糊结果；form |
 | 重置密码 | `/reset-password` / `ResetPasswordPage.vue` | 否 | 一次性 `ticket` 仅由上一步写入内存或受限 `history.state`，不进 URL/日志/持久存储 | `POST /auth/password-resets` | 重置密码；410/已使用；form |
 | 法务文档 | `/legal/:documentType` / `LegalDocumentPage.vue` | 否 | `documentType` 仅允许注册表值；`version、locale、region_code` | `GET /content/legal-documents/{document_type}` | 用户协议/隐私政策；L/404/410/N；none |
@@ -2114,11 +2113,11 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 #### 2.12.3 登录、注册及其他补充页面 UI 与交互规格
 
-密码登录和注册统一使用 `StorefrontLayout` 根节点挂载的 `AuthModal.vue`。弹窗浮于当前页面上方，底层使用半透明遮罩变暗并停止滚动；支持关闭按钮、点击遮罩关闭、Esc 关闭、焦点可见与 `aria-modal`。弹窗内部使用“登录/注册”Tab 切换，不再提供独立 `LoginPage.vue` 或 `RegisterPage.vue`。验证码登录、找回密码和重置密码仍使用不读取登录态角标的独立 `AuthLayout.vue`。认证弹窗最大宽度建议 520px，内容超过视口时弹窗内部自然滚动，不能让软键盘或浏览器缩放遮挡提交按钮和错误摘要。
+密码登录和注册统一使用 `StorefrontLayout` 根节点挂载的 `AuthModal.vue`。弹窗浮于当前页面上方，底层使用半透明遮罩变暗并停止滚动；支持关闭按钮、点击遮罩关闭、Esc 关闭、焦点可见与 `aria-modal`。弹窗内部使用“登录/注册”Tab 切换，不再提供独立 `LoginPage.vue`、`RegisterPage.vue` 或 `CodeLoginPage.vue`。找回密码和重置密码仍使用不读取登录态角标的独立 `AuthLayout.vue`。认证弹窗最大宽度建议 520px，内容超过视口时弹窗内部自然滚动，不能让软键盘或浏览器缩放遮挡提交按钮和错误摘要。
 
 ##### 2.12.3.1 用户登录弹窗
 
-认证弹窗默认展示账号密码登录，并可直接切换到注册；历史 `/login` 地址仅重定向到 `/?auth=login` 后打开弹窗。`/login/code` 保留为验证码登录恢复路由。用户已登录时访问这些入口不重复创建 Session，直接跳转到通过安全校验的 `redirect`，没有有效目标则返回首页。
+认证弹窗默认展示账号密码登录，并可直接切换到注册；历史 `/login` 地址仅重定向到 `/?auth=login` 后打开弹窗。首版不提供验证码登录入口或 `/login/code` 路由。用户已登录时访问这些入口不重复创建 Session，直接跳转到通过安全校验的 `redirect`，没有有效目标则返回首页。
 
 账号密码登录 Text UI：
 
@@ -2129,7 +2128,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 │                                                                                              │
 │  ┌────────────────────────────────────┐     ┌────────────────────────────────────────────┐  │
 │  │ 安心购物，智能服务                 │     │ 登录商城                                   │  │
-│  │ · 订单、支付和售后全程可追踪       │     │ [账号密码登录]  [验证码登录]               │  │
+│  │ · 订单、支付和售后全程可追踪       │     │ 登录                                       │  │
 │  │ · 专属客服与店铺客服边界清晰       │     │                                            │  │
 │  │ · 账号凭证和隐私数据安全保护       │     │ 账号                                       │  │
 │  │                                    │     │ [用户名 / 手机号 / 邮箱________________]    │  │
@@ -2147,46 +2146,26 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-验证码登录 Text UI：
-
-```text
-┌────────────────────────────────────────────────────────────┐
-│ 登录商城                                                   │
-│ [账号密码登录]  [验证码登录]                               │
-│                                                            │
-│ 手机号或邮箱                                               │
-│ [________________________________________]                  │
-│                                                            │
-│ 验证码                                                     │
-│ [________________________] [获取验证码]                    │
-│                                                            │
-│ [登录__________________________________________________]    │
-│                                                            │
-│ [使用密码登录]                    没有账号？[立即注册]      │
-└────────────────────────────────────────────────────────────┘
-```
-
 登录字段和交互契约：
 
-| 项目 | 账号密码登录 | 验证码登录 |
-| :--- | :--- | :--- |
-| 登录标识 | 一个字段接受用户名、规范化手机号或邮箱；最大长度与字符范围由 OpenAPI 返回，不在前端猜测账号类型 | 接受手机号或邮箱；先在本地做基础格式提示，服务端仍执行规范化和风险校验 |
-| 凭证 | 密码允许粘贴、密码管理器和浏览器自动填充；默认隐藏，显示按钮具有 `aria-pressed` 和明确可访问名称 | 验证码支持自动填充 `autocomplete=one-time-code`，按服务端长度限制，只接受允许字符 |
-| 提交条件 | 账号和密码非空；本地校验只改善体验，不代替服务端认证 | 目标、`verification_id` 和验证码齐全；更换目标后旧验证码立即在前端失配，提交仍由服务端拒绝旧绑定 |
-| 成功结果 | Access Token 只写内存，Refresh Cookie 由服务端设置；加载当前用户安全摘要后跳转 | 与密码登录创建相同 User Audience Session，不建立“低权限验证码会话”第二套模型 |
-| 失败结果 | 账号不存在、密码错误或凭证禁用统一显示“账号或密码不正确”；不指出账号是否存在 | 目标不存在、验证码错误/过期/已使用统一显示安全文案；可重新发送但不能绕过倒计时 |
+| 项目 | 账号密码登录 |
+| :--- | :--- |
+| 登录标识 | 一个字段接受用户名；为兼容后续已绑定联系方式的账号，后端仍可解析规范化手机号或邮箱，但界面不提供验证码登录 |
+| 凭证 | 密码允许粘贴、密码管理器和浏览器自动填充；默认隐藏，不截断用户输入 |
+| 提交条件 | 账号和密码非空；本地校验只改善体验，不代替服务端认证 |
+| 成功结果 | Access Token 只写内存，Refresh Cookie 由服务端设置；加载当前用户安全摘要后跳转 |
+| 失败结果 | 账号不存在、密码错误或凭证禁用统一显示“账号或密码不正确”；不指出账号是否存在 |
 
 页面行为：
 
 1. 用户点击 [登录] 后先锁定当前提交按钮并显示按钮内 Loading，但账号字段仍可复制；请求返回前禁止重复提交。密码不得写入 Pinia 持久化、`localStorage/sessionStorage`、URL、日志、埋点、错误上报或恢复草稿。
 2. 密码输入框开启 Caps Lock 时仅显示辅助提示，不阻止提交；浏览器和密码管理器生成/填充的长密码不得被截断。按 Enter 提交当前有效表单，不触发另一个 Tab 的隐藏表单。
-3. 验证码 [获取验证码] 调用 `POST /auth/verification-codes`，`purpose=login`。成功与“目标不存在”使用相同外观；倒计时以响应 `retry_after_seconds` 和服务端时间为准，刷新页面后可从短期非敏感发送状态恢复，但验证码原文不保存。
-4. 返回 `AUTH_CHALLENGE_REQUIRED` 时，在原卡片内展示服务端批准的可访问挑战组件；挑战通过后以短时 `challenge_token` 重试原登录。不得让第三方挑战脚本读取密码或 Access Token。
-5. 返回 429 时显示“尝试过于频繁，请在 HH:mm 后重试”，按钮倒计时遵循 `Retry-After`；不得换接口、变更标识格式或自动循环请求规避限流。
-6. 凭证验证成功后若账号为业务冻结/关闭状态，展示经认证后才允许返回的安全状态说明和申诉/人工客服公开入口，不签发普通业务 Session。`must_change_password` 命中时导航到受限重置流程，不进入商城。
-7. 网络超时不能宣称登录成功或失败，也不自动重复提交密码。页面显示“暂未确认登录结果”，先检查是否已收到有效 Session；没有时允许用户明确重试。若服务端已创建多个同设备 Session，由安全会话页可见并可撤销。
-8. 登录成功后只接受相对站内白名单 `redirect`；拒绝 `//evil.example`、绝对 URL、编码绕过、管理端路径及不属于 User Audience 的目标。无效目标统一回首页。
-9. 从结算、订单、消息等受保护页面跳转登录时，可展示“登录后继续访问：确认订单”等安全、固定文案，不回显含敏感 Query 的完整 URL。成功返回后重新获取目标数据，不复用登录前的敏感缓存或过期资格。
+3. 返回 `AUTH_CHALLENGE_REQUIRED` 时，在原卡片内展示服务端批准的可访问挑战组件；挑战通过后以短时 `challenge_token` 重试原登录。不得让第三方挑战脚本读取密码或 Access Token。
+4. 返回 429 时显示“尝试过于频繁，请在 HH:mm 后重试”，按钮倒计时遵循 `Retry-After`；不得换接口、变更标识格式或自动循环请求规避限流。
+5. 凭证验证成功后若账号为业务冻结/关闭状态，展示经认证后才允许返回的安全状态说明和申诉/人工客服公开入口，不签发普通业务 Session。`must_change_password` 命中时导航到受限重置流程，不进入商城。
+6. 网络超时不能宣称登录成功或失败，也不自动重复提交密码。页面显示“暂未确认登录结果”，先检查是否已收到有效 Session；没有时允许用户明确重试。若服务端已创建多个同设备 Session，由安全会话页可见并可撤销。
+7. 登录成功后只接受相对站内白名单 `redirect`；拒绝 `//evil.example`、绝对 URL、编码绕过、管理端路径及不属于 User Audience 的目标。无效目标统一回首页。
+8. 从结算、订单、消息等受保护页面跳转登录时，可展示“登录后继续访问：确认订单”等安全、固定文案，不回显含敏感 Query 的完整 URL。成功返回后重新获取目标数据，不复用登录前的敏感缓存或过期资格。
 
 登录状态与反馈：
 
@@ -2194,8 +2173,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | :--- | :--- | :--- |
 | 初始 | 第一个字段获得焦点；不自动弹出错误 | 输入账号 |
 | 校验错误 | 字段下方说明并在顶部生成错误摘要；不清空用户已输入账号 | 修正后重新提交 |
-| 认证失败 | 使用统一错误文案；密码字段清空，账号保留 | 重新输入密码或切换验证码登录 |
-| 验证码已发送 | 显示掩码目标、有效期和重发倒计时 | 输入验证码或修改目标 |
+| 认证失败 | 使用统一错误文案；密码字段清空，账号保留 | 重新输入密码 |
 | 风险挑战 | 保留账号，密码只留在当前受控表单内且挑战组件不得读取 | 完成挑战/取消返回 |
 | 限流 | 提交或发送按钮禁用至服务端时间 | 等待 `Retry-After` |
 | 网络异常 | 显示重试和返回首页；不显示“账号不存在” | 用户主动重试 |
@@ -2203,7 +2181,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 ##### 2.12.3.2 用户注册弹窗
 
-注册作为全局认证弹窗的第二个 Tab，历史 `/register` 仅重定向为 `/?auth=register`。首版支持手机号或邮箱二选一完成所有权验证，同时必须设置唯一用户名和密码。注册成功后创建普通用户、User Audience Session 和固定专属客服会话并自动登录；若原请求来自受保护页面，可按登录相同的安全 `redirect` 规则返回，否则关闭弹窗并留在当前公开页面。注册不是创建店铺或管理员身份的入口。
+注册作为全局认证弹窗的第二个 Tab，历史 `/register` 仅重定向为 `/?auth=register`。首版不接入短信或邮件验证码发送服务，注册只要求唯一用户名、一次性算术验证码和密码；不要求绑定手机号或邮箱。注册成功后创建普通用户、User Audience Session 和固定专属客服会话并自动登录；若原请求来自受保护页面，可按登录相同的安全 `redirect` 规则返回，否则关闭弹窗并留在当前公开页面。注册不是创建店铺或管理员身份的入口。
 
 注册页面 Text UI：
 
@@ -2219,15 +2197,13 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 │                              │ [____________________________________]    │                  │
 │                              │ 用于登录和公开展示；注册后按规则修改       │                  │
 │                              │                                            │                  │
-│                              │ 验证方式  ● 手机号   ○ 邮箱               │                  │
-│                              │ [手机号或邮箱________________________]    │                  │
-│                              │                                            │                  │
-│                              │ 验证码                                     │                  │
-│                              │ [____________________] [获取验证码]        │                  │
+│                              │ 验证码：12 + 7 = ?          [换一道题]     │                  │
+│                              │ 计算结果                                   │                  │
+│                              │ [____________________________________]    │                  │
 │                              │                                            │                  │
 │                              │ 设置密码                     [显示密码]    │                  │
 │                              │ [____________________________________]    │                  │
-│                              │ 密码要求：至少 15 个字符，支持密码管理器   │                  │
+│                              │ 密码非空且不含空白字符，长度不限           │                  │
 │                              │                                            │                  │
 │                              │ 确认密码                                   │                  │
 │                              │ [____________________________________]    │                  │
@@ -2245,35 +2221,31 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 字段 | 必填 | 前端规则 | 服务端权威规则 |
 | :--- | :---: | :--- | :--- |
 | 用户名 | 是 | 去除首尾空白，显示允许字符、长度与示例；输入法组合期间不误报 | NFKC/大小写等规范化、保留词/冒充/内容安全、唯一约束；不把数据库 Collation 当唯一规则 |
-| 验证方式 | 是 | `phone/email` 二选一，切换前提示旧验证码将失效 | `target_type` 与 `purpose=register`、验证码记录和规范化 Target Hash 完全匹配 |
-| 手机号/邮箱 | 是 | 手机号使用国家/地区码组件，邮箱只做基础格式校验 | 规范化、长度、渠道策略、风险和唯一性；原文按 3.6.13 加密，查找使用 HMAC |
-| 验证码 | 是 | 绑定本次 `verification_id`；支持系统一次性验证码自动填充 | 未过期、未失效、未消费、尝试数未超限，并原子消费一次 |
-| 密码 | 是 | 至少允许输入 64 个字符，允许粘贴、空格、Unicode 和密码管理器；强度提示仅作建议 | 采用 3.13.11 当前密码策略、泄露/常见密码检查与 Argon2id；不得截断后再哈希 |
+| 算术验证码 | 是 | 显示“验证码：整数 ± 整数 = ?”，用户将结果输入下方；支持 [换一道题] | `captcha_id` 与答案绑定，Redis 保存 HMAC 校验值并设置 10 分钟 TTL；正确答案只可成功消费一次，过期、错误或重复使用均拒绝 |
+| 密码 | 是 | 允许粘贴、Unicode 和密码管理器；不能为空、不能含空格/换行/制表符等空白字符，不设置长度限制 | 执行相同的非空与无空白校验后使用 Argon2id 哈希；不得截断、规范化或记录明文 |
 | 确认密码 | 是 | 与密码逐字符一致；只在前端使用 | 不传第二份确认密码，API 只接收一次 `password` |
 | 协议同意 | 是 | 用户必须主动勾选；协议/隐私链接打开后不清空表单 | 提交精确 `document_type/version`，服务端校验仍可接受且在注册事务内写不可变接受记录 |
 | Locale/Timezone | 否 | 从应用和浏览器给出候选，可由用户后续修改 | 只接受白名单值；缺失使用平台默认值，不信任它做安全决策 |
 
 注册交互和事务反馈：
 
-1. 页面初始化调用 `GET /auth/registration-config`，读取用户名策略、密码策略、可用验证渠道、验证码长度/冷却提示以及当前必须接受的协议版本；配置失败时禁止提交，不使用前端内置旧版本协议冒充当前版本。
-2. [获取验证码] 只发送 `target_type、target、purpose=register` 和风险上下文。响应为 202，并返回公开 `verification_id、expires_at、retry_after_seconds`；无论目标是否已注册都保持相同响应外观和近似时序。
-3. 用户修改手机号/邮箱的规范化值或切换验证方式后，前端立即废弃当前 `verification_id`、清空验证码并停止旧倒计时；后端即使收到旧组合也必须因 Target/Purpose 不匹配拒绝。
-4. 用户名不提供无频率限制的逐键实时查重。失焦时只执行本地格式提示；最终提交后，用户名冲突返回 `REGISTRATION_USERNAME_UNAVAILABLE`。验证目标冲突只有在验证码所有权已验证后才返回可操作提示“该联系方式已绑定账号，可直接登录或找回密码”。
+1. 页面初始化调用 `GET /auth/registration-config`，读取用户名策略、非空/无空白密码策略、一次性算术题以及当前必须接受的协议版本；配置或 Redis 验证码生成失败时禁止提交，不使用前端内置固定题目或旧版本协议冒充当前配置。
+2. 算术题由后端使用两个 1～20 的整数和随机加减运算生成；减法调整操作数顺序以保证结果非负。响应只返回随机 `captcha_id`、题目和有效期，不返回答案或答案派生值。
+3. 用户点击 [换一道题]、算术题过期或注册提交失败后重新读取注册配置并清空旧答案；旧 `captcha_id` 不能代替新题继续提交。服务端必须验证答案并以原子删除结果保证同一题最多成功使用一次。
+4. 用户名不提供无频率限制的逐键实时查重。失焦时只执行本地格式提示；最终提交后，用户名冲突返回 `REGISTRATION_USERNAME_UNAVAILABLE`。
 5. 点击 [注册并登录] 后先聚焦错误摘要或进入 Loading。请求携 `Idempotency-Key`；网络超时使用同一 Key 查询/重放，不生成第二个用户、第二份协议接受记录、第二个默认角色或第二个专属客服会话。
-6. 成功响应为 201；前端清除密码、验证码、Verification ID 和注册草稿，Access Token 仅驻留内存，Refresh Cookie 由服务端设置。随后获取当前用户摘要并安全跳转，不在成功页显示密码或完整联系方式。
-7. 验证码错误/过期时保留用户名和协议勾选，清空验证码；密码策略失败时保留非敏感字段但清空两次密码。协议版本在填写期间更新时返回 409 `AGREEMENT_VERSION_CHANGED`，页面展示新版摘要并要求用户重新查看、主动勾选。
-8. 注册成功但欢迎通知、画像初始化或其他异步任务失败不回滚账号；页面仍按成功处理。只有用户、凭证、协议接受、默认角色、唯一专属会话、Session 与 Outbox 的核心事务失败才返回注册失败。
-9. 用户离开存在未提交内容的注册页时触发离开确认；允许短期恢复用户名、验证方式和协议版本，但不得恢复密码、确认密码、验证码、完整手机号/邮箱或挑战 Token。
+6. 成功响应为 201；前端清除密码、算术答案、Captcha ID 和注册草稿，Access Token 仅驻留内存，Refresh Cookie 由服务端设置。随后获取当前用户摘要并安全跳转。
+7. 算术答案错误、过期或已使用时保留用户名和协议勾选，重新生成题目并清空答案；密码为空或含空白字符时保留非敏感字段并清空两次密码。协议版本在填写期间更新时返回 409 `AGREEMENT_VERSION_CHANGED`，页面展示新版摘要并要求用户重新查看、主动勾选。
+8. 注册成功但欢迎通知、画像初始化或其他异步任务失败不回滚账号；页面仍按成功处理。只有用户、密码凭证、协议接受、默认角色、唯一专属会话、Session 与 Outbox 的核心事务失败才返回注册失败。
+9. 用户离开存在未提交内容的注册页时触发离开确认；允许短期恢复用户名和协议版本，但不得恢复密码、确认密码、算术答案或 Captcha ID。
 
 注册状态与错误映射：
 
 | 场景 | HTTP / 错误码 | 页面处理 |
 | :--- | :--- | :--- |
-| 配置加载失败 | 503 `REGISTRATION_CONFIG_UNAVAILABLE` | 禁用发送/注册，提供 [重新加载] 和 Request ID |
-| 验证码发送受理 | 202 | 展示统一发送结果、掩码目标和服务端倒计时 |
-| 验证码错误/过期/已消费 | 422/410 `VERIFICATION_CODE_INVALID/EXPIRED/CONSUMED` | 关联验证码字段；允许重新发送 |
+| 配置或算术题生成失败 | 503 `REGISTRATION_CONFIG_UNAVAILABLE/REGISTRATION_CAPTCHA_UNAVAILABLE` | 禁用注册，提供 [重新加载] 和 Request ID |
+| 算术验证码错误/过期/已使用 | 422 `REGISTRATION_CAPTCHA_INVALID/EXPIRED` | 关联计算结果字段，自动换题并清空旧答案 |
 | 用户名不可用 | 409 `REGISTRATION_USERNAME_UNAVAILABLE` | 聚焦用户名，保留其他非敏感字段 |
-| 已验证联系方式已绑定 | 409 `REGISTRATION_TARGET_ALREADY_BOUND` | 提供 [去登录]/[找回密码]，不回显完整目标 |
 | 协议版本变化 | 409 `AGREEMENT_VERSION_CHANGED` | 加载新版本并清除旧勾选状态 |
 | 幂等请求处理中 | 409 `IDEMPOTENCY_REQUEST_IN_PROGRESS` | 按 `Retry-After` 使用同一 Key 查询/重放 |
 | 注册成功 | 201 | 建立登录态并跳转；重复响应不重复初始化 |
@@ -2371,7 +2343,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 - 每个页面分别实现首屏 Loading、局部 Refresh、Empty、403、404、410、Network Error；局部失败不得抹掉已成功区域。Skeleton 不参与 Read Cursor、埋点曝光或可用按钮判断。
 - Access Token 失效先执行单次受控 Refresh；Refresh 失败弹出 Session 过期 Dialog，保存当前 URL、公开筛选、表单中非敏感草稿和滚动锚点，登录后回到原目标。密码、验证码、完整地址、支付参数、上传二进制和 Approval Token 不保存。
-- 登录/注册弹窗只可在当前挂载周期内恢复用户名、验证方式、协议版本和安全 `redirect`；不得恢复密码、确认密码、验证码、完整手机/邮箱、Challenge/CSRF/Access/Refresh Token。认证响应为 `no-store`，Service Worker 不缓存 `/auth/*`。
+- 登录/注册弹窗只可在当前挂载周期内恢复用户名、协议版本和安全 `redirect`；不得恢复密码、确认密码、算术答案、Captcha ID、Challenge/CSRF/Access/Refresh Token。认证响应为 `no-store`，Service Worker 不缓存 `/auth/*`。
 - 写操作返回 412 时停止提交、获取服务端最新资源/ETag、展示“内容已被更新”及字段级差异；用户确认后基于新版本重新编辑，不静默覆盖，也不自动复用旧确认。
 - 429 必须读取 `Retry-After`，在倒计时结束前禁用对应动作；仅 GET 可按策略有界自动重试，写操作不得无限重试或换 Idempotency Key。
 - 410 `CHECKOUT_SESSION_EXPIRED` 提供 [按原来源重新结算]，但重新读取当前商品/购物车；`CURSOR_EXPIRED` 保留筛选并从第一页重新加载，再尽量恢复锚点；过期重置/上传/授权 Ticket 必须重新发起对应流程。
@@ -2390,7 +2362,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 #### 2.12.7 用户端开发验收要点
 
 1. 完整路由表中的每一页面均能映射到 Vue Component、OpenAPI Operation、鉴权条件、状态集合和至少一个 E2E Case；不存在只有入口没有目标页或只有 API 没有恢复 UI 的孤儿项。
-2. 密码登录/注册使用全局 AuthModal，`/login/code` 使用 AuthLayout；其 Text UI、字段、校验、错误摘要、挑战、倒计时和安全 `redirect` 均按 2.12.3 实现。注册配置、验证码 Purpose/Target、协议版本、幂等结果和 User Audience Session 与 3.12.1 契约一致，不保存或回显密码、确认密码、验证码和 Token。
+2. 密码登录/注册使用全局 AuthModal，首版无 `/login/code` 路由；其 Text UI、字段、算术验证码、错误摘要、挑战和安全 `redirect` 均按 2.12.3 实现。注册配置、一次性 Captcha、协议版本、幂等结果和 User Audience Session 与 3.12.1 契约一致，不保存或回显密码、确认密码、算术答案和 Token。
 3. 首页模块可独立降级，搜索进入独立 `/search`；商品详情首次停留顶部，SKU 图片集回退、Sticky 与移动购买栏正确且不产生嵌套整页滚动。
 4. 订单创建与 Payment 创建使用两个独立幂等步骤；Payment 创建失败、渠道返回、结果未知、取消和明确失败均不重复创建订单或误判成功。
 5. 结算联系客服只建立本店 `checkout_store_group` 上下文；跨店、旧 Checkout Version、已过期/已消费 Checkout 和完整地址/优惠信息均不能进入店铺客服。
@@ -4984,8 +4956,8 @@ Payment 只归属 Trade Order 支付尝试，不向 `orders/order_items` 增加�
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
 | `verification_no` | `VARCHAR(40)` | UK |
-| `user_id` | `BIGINT UNSIGNED` | NULL，未注册验证时可空 |
-| `purpose` | `VARCHAR(32)` | `register/login/reset_password/change_phone/change_email` 等；必须与后续动作和目标类型绑定 |
+| `user_id` | `BIGINT UNSIGNED` | NULL，匿名找回密码发起时可空 |
+| `purpose` | `VARCHAR(32)` | 首版仅 `reset_password/change_phone/change_email`；必须与后续动作和目标类型绑定，注册/登录用途由 API Schema 拒绝 |
 | `target_type` | `VARCHAR(16)` | `phone/email` |
 | `target_hash` | `BINARY(32)` | NOT NULL，归一化 HMAC |
 | `code_hash` | `BINARY(32)` | NOT NULL，带服务端 Pepper |
@@ -8313,11 +8285,11 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 
 | 方法 | 路径 | 访问者 | 用途与关键规则 |
 | --- | --- | --- | --- |
-| `GET` | `/auth/registration-config` | 匿名 | 返回当前地区/语言可用验证渠道、用户名/密码策略、验证码展示参数和必须接受的 Published 协议版本；不返回风控阈值或内部规则 |
+| `GET` | `/auth/registration-config` | 匿名 | 返回用户名/密码策略、一次性算术验证码和必须接受的 Published 协议版本；算术答案的 HMAC 校验值只在 Redis 保存，不返回客户端 |
 | `GET` | `/content/legal-documents/{document_type}` | 匿名 | 按 `version、locale、region_code` 返回注册配置引用的精确不可变用户协议/隐私政策安全正文；不得用新版静默替换旧版本 |
-| `POST` | `/auth/verification-codes` | 匿名/用户 | 发送注册、登录验证、找回密码或敏感操作验证码；换绑验证码必须携有效 `change_ticket_id` 并与新目标 Hash、`purpose` 绑定；按 IP、账号标识、设备限流，响应不泄露账号是否存在 |
-| `POST` | `/auth/registrations` | 匿名 | 使用验证码注册并创建用户；幂等；密码仅通过 TLS 传输，服务端立即做强哈希，不记录明文 |
-| `POST` | `/auth/login` | 匿名 | 账号密码或验证码登录；成功在 JSON 返回短期 Access Token 与当前用户/Session 摘要，Refresh Token 仅通过安全 Cookie 返回 |
+| `POST` | `/auth/verification-codes` | 匿名/用户 | 仅用于找回密码或已登录用户换绑联系方式；首版不用于注册或登录；换绑必须携有效 `change_ticket_id` 并与新目标 Hash、`purpose` 绑定 |
+| `POST` | `/auth/registrations` | 匿名 | 使用一次性算术验证码注册并创建用户；不要求手机号/邮箱；幂等；密码立即做 Argon2id 哈希且不记录明文 |
+| `POST` | `/auth/login` | 匿名 | 仅支持账号密码登录；成功在 JSON 返回短期 Access Token 与当前用户/Session 摘要，Refresh Token 仅通过安全 Cookie 返回 |
 | `POST` | `/auth/token-refresh` | 持有刷新凭证 | Refresh Token 轮换；旧 Token 进入重用检测，发现重放时撤销该 Token Family |
 | `POST` | `/auth/logout` | 用户 | 撤销当前会话和刷新凭证；多次调用结果一致 |
 | `GET` | `/auth/sessions` | 用户 | 查询当前账号活跃设备/会话，不返回 Token；标记当前会话 |
@@ -8330,10 +8302,9 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 
 ```json
 {
-  "config_version": "regcfg_2026_08_01",
+  "config_version": "regcfg_2026_08_26",
   "locale": "zh-CN",
   "region_code": "CN",
-  "verification_channels": ["phone", "email"],
   "username_policy": {
     "min_length": 4,
     "max_length": 32,
@@ -8341,16 +8312,15 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
     "policy_version": "username_v1"
   },
   "password_policy": {
-    "min_length": 15,
-    "max_length": 128,
+    "non_empty": true,
+    "forbid_whitespace": true,
     "allow_unicode": true,
-    "breached_password_check": true,
-    "policy_version": "password_v3"
+    "policy_version": "password_v4"
   },
-  "verification_policy": {
-    "code_length": 6,
-    "expires_in_seconds": 600,
-    "resend_hint_seconds": 60
+  "captcha": {
+    "captcha_id": "随机 32 字符不透明标识",
+    "question": "12 + 7 = ?",
+    "expires_in_seconds": 600
   },
   "required_agreements": [
     {
@@ -8373,13 +8343,13 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 
 `username_policy.allowed_pattern` 是供 UI 提示和生成客户端校验的受控字符串，不允许由前端当作可执行代码；服务端始终按 `policy_version` 的规则重新验证。`content_url` 只允许本站相对 URL 或配置白名单中的公开法务域名。注册页面仅可在当前页面内存中短暂复用配置，不写 Service Worker、持久缓存或离线包；提交必须携 `config_version`，服务端发现关键策略/协议已变化时返回可恢复冲突。
 
-验证码发送请求和响应：
+短信/邮件验证码发送请求和响应只适用于找回密码或联系方式换绑，不用于注册和登录：
 
 ```json
 {
-  "purpose": "register",
-  "target_type": "phone",
-  "target": "+8613800000000",
+  "purpose": "reset_password",
+  "target_type": "email",
+  "target": "user@example.com",
   "locale": "zh-CN",
   "challenge_token": null
 }
@@ -8389,7 +8359,7 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 {
   "verification_id": "ver_01K...",
   "delivery_status": "accepted",
-  "target_masked": "+86 138****0000",
+  "target_masked": "u***@example.com",
   "expires_at": "2026-08-22T10:10:00Z",
   "retry_after_seconds": 60
 }
@@ -8402,12 +8372,10 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 ```json
 {
   "username": "zhangsan_2026",
-  "target_type": "phone",
-  "target": "+8613800000000",
-  "verification_id": "ver_01K...",
-  "verification_code": "123456",
-  "password": "由密码管理器生成的长密码",
-  "config_version": "regcfg_2026_08_01",
+  "captcha_id": "服务端返回的一次性算术题标识",
+  "captcha_answer": "19",
+  "password": "非空且不含空白字符的密码",
+  "config_version": "regcfg_2026_08_26",
   "agreement_acceptances": [
     {"document_type": "terms_of_service", "document_version": "terms_2026_08"},
     {"document_type": "privacy_policy", "document_version": "privacy_2026_08"}
@@ -8417,10 +8385,10 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 }
 ```
 
-- 请求必须携 `Idempotency-Key`；幂等 Scope 绑定规范化 Target Hash 和 `config_version`，相同 Key 但关键 Payload Hash 不同返回 409 `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`。
+- 请求必须携 `Idempotency-Key`；幂等 Scope 绑定规范化 Username Hash 和 `config_version`，相同 Key 但关键 Payload Hash 不同返回 409 `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`。
 - API 不接收 `confirm_password、role、user_status、is_admin、store_id、permission`。默认用户角色和所有 Scope 由服务端固定创建；Mass Assignment 字段由 Pydantic `extra=forbid` 拒绝。
 - `agreement_acceptances` 必须与配置中所有 Required Agreement 精确覆盖，不允许缺失、重复、增加未知类型或接受尚未生效/已撤回版本。服务端按 Content Version 重新取得 Hash，不信任客户端传正文/Hash。
-- 验证码先校验但只在核心注册事务内最终消费；用户名、Target 唯一约束处理并发。冲突后不得把验证码错误标为已消费，除非安全策略因尝试上限主动失效。
+- `captcha_id` 对应的答案 HMAC 只在 Redis 保存 10 分钟；答案正确后依靠删除结果保证最多一个请求继续注册。题目错误、过期、已使用或 Redis 不可用均 Fail Closed。用户名唯一约束处理并发。
 
 注册成功返回 201：
 
@@ -8448,7 +8416,7 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 
 Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志。`nickname` 首版可在服务端使用通过内容安全校验的 Username 初始化，后续由资料页修改。专属客服会话无需塞进注册响应，消息页通过确定性获取接口读取；注册事务仍保证唯一会话已存在。
 
-登录请求使用 `auth_method` 判别联合，不能让一个 Payload 同时携密码和验证码：
+登录请求只支持密码方式：
 
 ```json
 {
@@ -8460,25 +8428,15 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 }
 ```
 
-```json
-{
-  "auth_method": "verification_code",
-  "target_type": "email",
-  "target": "user@example.com",
-  "verification_id": "ver_01K...",
-  "verification_code": "123456",
-  "client": {"client_type": "web", "device_name": "Chrome on macOS"},
-  "challenge_token": null
-}
-```
-
 `client_type` 必须与使用的公开 Client/Origin 匹配，不能由 Payload 把 User 登录变成 Admin Audience；`device_name` 只作经安全过滤的用户会话展示，服务端设备/风险标识由可信上下文生成。登录成功使用与注册相同的 Session Response Schema 和 Cookie 策略，并额外返回安全 `redirect_capabilities` 时也只能是后端枚举，不接受任意 URL。
 
 认证错误码和泄漏边界：
 
 | 错误码 | HTTP | 可公开含义与字段 |
 | :--- | :---: | :--- |
-| `AUTH_INVALID_CREDENTIALS` | 401 | 匿名统一提示；不区分账号不存在、密码错误、验证码目标不存在或凭证禁用 |
+| `AUTH_INVALID_CREDENTIALS` | 401 | 匿名统一提示；不区分账号不存在、密码错误或凭证禁用 |
+| `REGISTRATION_CAPTCHA_INVALID/EXPIRED` | 422 | 注册算术答案不正确、已过期或已使用；客户端重新获取注册配置和题目 |
+| `REGISTRATION_CAPTCHA_UNAVAILABLE` | 503 | Redis 无法生成或验证算术题；注册 Fail Closed |
 | `VERIFICATION_CODE_INVALID` | 422 | 验证码不正确；只在已持有对应 `verification_id` 的流程返回 |
 | `VERIFICATION_CODE_EXPIRED/CONSUMED` | 410/409 | 当前验证流程已过期/使用，允许重新发送；不泄露其他流程 |
 | `AUTH_CHALLENGE_REQUIRED` | 428 | 返回批准的 `challenge_type、challenge_id、expires_at`，不返回风险分/规则 |
@@ -8486,10 +8444,9 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | `AUTH_ACCOUNT_UNAVAILABLE` | 403 | 只有凭证已经正确验证后才可返回账号冻结/关闭的安全说明与申诉入口 |
 | `AUTH_PASSWORD_CHANGE_REQUIRED` | 403 | 返回短时受限 Ticket 与重置路由，不签发普通 Access/Refresh Token |
 | `REGISTRATION_USERNAME_UNAVAILABLE` | 409 | 用户名不可用；用户名是公开标识但仍需限流防批量枚举 |
-| `REGISTRATION_TARGET_ALREADY_BOUND` | 409 | 只有注册验证码已正确验证后返回，并提供登录/找回入口 |
 | `AGREEMENT_VERSION_CHANGED` | 409 | 返回新的 `config_version` 和重新加载指示，不自动代用户勾选 |
 
-验证码接口请求中的 `purpose` 必须与后续动作完全一致，不能把注册验证码用于重置密码。登录错误统一返回模糊提示；锁定、风控挑战和验证码倒计时可通过安全字段表达，但不能暴露用户是否注册。密码凭证命中 `must_change_password=true` 时，不签发普通业务会话，只签发短时、仅可调用密码重置接口的受限 Ticket；成功重置后原子清除该标志。浏览器优先把 Refresh Token 放在 `HttpOnly + Secure + SameSite` Cookie 中，并对刷新/退出接口执行 CSRF 防护。登录、注册和验证码响应必须设置 `Cache-Control: no-store`、`Pragma: no-cache`，不得被 CDN/Service Worker/浏览器页面缓存保存。
+短信/邮件验证码接口请求中的 `purpose` 必须是 `reset_password/change_phone/change_email` 并与后续动作完全一致，注册和登录用途由 Schema 直接拒绝。登录错误统一返回模糊提示；锁定和风控挑战可通过安全字段表达，但不能暴露用户是否注册。密码凭证命中 `must_change_password=true` 时，不签发普通业务会话，只签发短时、仅可调用密码重置接口的受限 Ticket；成功重置后原子清除该标志。浏览器优先把 Refresh Token 放在 `HttpOnly + Secure + SameSite` Cookie 中，并对刷新/退出接口执行 CSRF 防护。登录、注册和验证码响应必须设置 `Cache-Control: no-store`、`Pragma: no-cache`，不得被 CDN/Service Worker/浏览器页面缓存保存。
 
 #### 3.12.2 用户信息与密码接口
 
@@ -9419,20 +9376,20 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 #### 3.13.1 登录认证方案
 
-首版支持“账号 + 密码”和“手机/邮箱验证码”两种用户登录方式；管理员必须使用独立管理入口的账号密码 + MFA，推荐优先接入 WebAuthn/Passkey 等抗钓鱼认证器。第三方 OAuth/OIDC 登录作为可选扩展，使用 Authorization Code + PKCE、精确 Redirect URI 和 `state/nonce` 校验，不采用 Implicit Flow。
+首版用户端只支持“账号 + 密码”登录，不提供短信/邮件验证码登录；管理员必须使用独立管理入口的账号密码 + MFA，推荐优先接入 WebAuthn/Passkey 等抗钓鱼认证器。第三方 OAuth/OIDC 登录作为可选扩展，使用 Authorization Code + PKCE、精确 Redirect URI 和 `state/nonce` 校验，不采用 Implicit Flow。
 
 ##### 3.13.1.1 用户注册安全
 
-注册由“权威配置 → 目标所有权验证 → 核心事务 → 建立 Session”组成，不能让 Vue 页面自行决定用户名、密码、协议或角色策略：
+注册由“权威配置与一次性算术题 → 核心事务 → 建立 Session”组成，不能让 Vue 页面自行决定用户名、密码、协议或角色策略：
 
-1. `GET /auth/registration-config` 只投影已发布 Username/Password/Verification Policy 和当前地区/语言必须接受的法务 Content Version；配置带版本，注册提交时重验。
-2. 验证码发送前执行 IP、Target Monitoring Hash、设备、渠道和风险多维限流。无论目标是否已绑定，匿名响应状态、Payload 形状和耗时保持近似；实际渠道发送与不存在账号的安全抑制不能被响应区分。
-3. 注册验证码只证明当前请求者控制该手机号/邮箱，不证明用户名可用、不授予任何已有账号访问权，也不能用于登录、重置密码或联系方式换绑。
+1. `GET /auth/registration-config` 只投影已发布 Username/Password Policy、当前地区/语言必须接受的法务 Content Version 和一次性算术题；配置带版本，注册提交时重验。
+2. 算术题由后端生成两个整数的加减运算，答案 HMAC 只写入 Redis 并设置 10 分钟 TTL；响应仅返回随机 `captcha_id`、题面和有效期。客户端自算结果不能替代服务端验证。
+3. 注册提交按 IP 和 Captcha ID 限流；答案错误、过期、重复使用或 Redis 故障均 Fail Closed。正确答案依靠原子删除结果保证最多一个请求继续，不授予任何已有账号访问权。
 4. 用户名先做确定性 Unicode 规范化、保留词/仿冒/内容安全和长度检查，再以数据库唯一约束处理并发。用户名可公开不表示允许无限 Availability 枚举，相关接口仍需限流和异常扫描。
-5. 密码策略遵循 3.13.11；在 Argon2id 哈希完成前，密码只存在于当前请求受控内存，异常、APM、审计、队列和 Outbox 均不得包含原文。泄露密码检查优先使用本地/隐私保护查询，不向第三方发送完整密码。
+5. 密码策略遵循 3.13.11；在 Argon2id 哈希完成前，密码只存在于当前请求受控内存，异常、APM、审计、队列和 Outbox 均不得包含原文。
 6. Required Agreement 必须逐项主动接受。服务端按 `document_type + document_version + locale + region` 重新加载 Published 不可变版本和 Hash；缺失、撤回、未生效或版本变化一律拒绝，不从旧勾选推定接受新版。
-7. 客户端不得传 Role/Permission/Store/Admin 字段；注册用例固定授予普通 User Role。邮箱/手机号、密码凭证、协议接受记录、默认角色、专属客服会话、Session 和 `UserRegistered` Outbox 的原子范围以 3.14.1 为准。
-8. 防自动化挑战只能作为纵深措施，不替代限流、唯一约束和审计；挑战 Token 绑定 Purpose、匿名 Flow、Target Hash、Client、过期时间和单次使用，不能跨注册/登录复用。
+7. 客户端不得传 Role/Permission/Store/Admin/Phone/Email 字段；注册用例固定授予普通 User Role。密码凭证、协议接受记录、默认角色、专属客服会话、Session 和 `UserRegistered` Outbox 的原子范围以 3.14.1 为准。
+8. 算术验证码只作为基础防误提交措施，不替代限流、用户名唯一约束、风险监控和审计；手机号/邮箱所有权必须在注册后的独立绑定流程验证。
 
 ##### 3.13.1.2 用户登录安全
 
@@ -9585,9 +9542,9 @@ Consent 表达“允许某类数据在某用途和范围被 AI 持续使用”�
 
 #### 3.13.11 密码安全
 
-- 单因素密码最少 15 个字符，允许至少 64 个字符、空格和 Unicode；如未来密码只作为 MFA 的一部分，最低仍不得少于 8 个字符。
-- 不强制“大小写 + 数字 + 特殊符号”组合，不定期强迫修改；检测已泄露/常用/上下文相关弱密码，确认泄露或高风险事件时强制重置。
-- 允许 Password Manager、粘贴和浏览器自动填充；不使用安全问题/KBA，不截断密码。Unicode 如支持，哈希前采用明确且稳定的 NFC 归一化策略并在客户端提示。
+- 用户密码必须是非空字符串，且不能包含空格、换行、制表符等 Unicode 空白字符；首版不设置字符长度限制。
+- 不强制“大小写 + 数字 + 特殊符号”组合，不定期强迫修改；确认凭证泄漏或高风险事件时可强制重置。
+- 允许 Password Manager、粘贴、Unicode 和浏览器自动填充；不使用安全问题/KBA，不截断、不静默修剪或归一化密码，按用户输入的原始字符序列哈希。
 - 使用 Argon2id 独立随机 Salt 哈希，参数通过目标生产硬件压测确定并版本化；登录成功时可渐进 Rehash。可选 Pepper 仅存 Secret Manager，不能与哈希同库。
 - 密码比较使用常量时间；登录失败采用账号/IP/设备多维限流和渐进延迟，防止暴力破解但避免被攻击者轻易永久锁死账号。
 - 密码不写日志、Trace、审计 Payload、异常、消息、Analytics 或模型上下文；前后端错误采集必须对相关字段强制 Redact。
@@ -9694,16 +9651,15 @@ Prompt Injection 包括用户直接注入，也包括商品描述、评价、网
 
 #### 3.14.1 用户注册登录流程
 
-注册验证码发送：
+注册配置与算术验证码生成：
 
 ```text
 读取 Registration Config/Policy Version
-  → 规范化 Target（phone/email），计算 Credential HMAC 与 Monitoring HMAC
-  → IP + Target + Device + Channel 限流/风险判断
-  → 必要时完成可访问挑战
-  → 创建 verification_codes（只存 Code Hash/Purpose/Target Hash/TTL）
-  → 事务外调用短信/邮件 Provider
-  → 更新 delivery_status，向匿名端始终返回统一 202 投影
+  → 读取当前 Published Required Agreements
+  → 随机生成两个 1～20 整数和加/减运算；减法结果保持非负
+  → 创建随机 captcha_id
+  → Redis SET ecom:auth:registration-captcha:{captcha_id} = HMAC(captcha_id:answer), EX=600
+  → 返回 Config Version、题面、Captcha ID、TTL 和协议版本；绝不返回答案
 ```
 
 注册提交：
@@ -9711,20 +9667,17 @@ Prompt Injection 包括用户直接注入，也包括商品描述、评价、网
 ```text
 接收 Idempotency-Key + RegistrationRequest
   → 锁定/读取 Idempotency Record；相同 Key 不同 Payload 立即冲突
-  → 校验 config_version、Username/Password Policy 和 Required Agreements
-  → 锁定 verification_codes
-  → 校验 Purpose=register、Target Type/Hash、TTL、Attempts、未消费/未失效
-  → 常量时间校验验证码并增加失败尝试或准备消费
-  → 规范化用户名/手机号/邮箱，预检查冲突
+  → 校验 Username、密码非空/无空白、IP 限流
+  → 常量时间校验 Redis 中 Captcha HMAC，并以 DELETE 返回值保证单次成功使用
+  → 校验 config_version 和 Required Agreements
+  → 规范化用户名并预检查冲突
   → Argon2id 哈希密码（进入数据库事务前完成）
   → Transaction:
        users(active)
        + user_credentials(password active)
-       + user_credentials(phone/email active + verified)
        + user_agreement_acceptances(required versions)
        + user_roles(default user Role)
        + conversations(exclusive, unique user)
-       + verification_codes.consumed_at
        + auth_sessions(new User Audience family)
        + idempotency_records(completed user/session reference，不含 Token 明文)
        + outbox_events(UserRegistered)
@@ -9733,9 +9686,9 @@ Prompt Injection 包括用户直接注入，也包括商品描述、评价、网
   → 异步欢迎通知/安全通知/非关键初始化
 ```
 
-密码哈希属于 CPU 密集步骤，在受限线程池/Worker 舱壁中执行，不长时间占用 Event Loop 或数据库行锁；但生成的 Hash 仅在当前请求内存保留到事务完成。用户标识与凭证活跃标识唯一约束是并发最终裁判；冲突时整个事务回滚，验证码是否继续可用由尝试/风险策略决定，不产生半个账号。专属客服会话以唯一约束保证一个用户一条；在同一注册事务内新用户不应发生正常冲突，异常冲突必须回滚并告警，不能静默关联其他用户会话。
+密码哈希属于 CPU 密集步骤，在受限线程池/Worker 舱壁中执行，不长时间占用 Event Loop 或数据库行锁；但生成的 Hash 仅在当前请求内存保留到事务完成。用户名唯一约束是并发最终裁判；冲突时整个事务回滚且客户端重新获取算术题，不产生半个账号。专属客服会话以唯一约束保证一个用户一条；在同一注册事务内新用户不应发生正常冲突，异常冲突必须回滚并告警，不能静默关联其他用户会话。
 
-协议 Version 在验证码发送后可能变化，因此只以注册提交事务内重新读取的 Published/Effective 版本为准；版本不匹配在消费验证码和创建用户之前返回 `AGREEMENT_VERSION_CHANGED`。短信/邮件发送、欢迎通知、风控外部查询不得放在持有核心数据库锁的事务内。欢迎通知失败不回滚注册，Outbox 负责重试。
+协议 Version 在算术题生成后可能变化，因此只以注册提交时重新读取的 Published/Effective 版本为准；版本不匹配返回 `AGREEMENT_VERSION_CHANGED` 并要求重新加载配置。欢迎通知和风控外部查询不得放在持有核心数据库锁的事务内。欢迎通知失败不回滚注册，Outbox 负责重试。
 
 密码登录：
 
@@ -9755,16 +9708,17 @@ Prompt Injection 包括用户直接注入，也包括商品描述、评价、网
   → Commit → 签发 Access/Refresh/CSRF → 返回 User Session DTO
 ```
 
-验证码登录先以 `purpose=login` 发送验证码，提交时锁定 Verification Record 并匹配 Target；消费验证码、创建 Session、更新 Last Login、写 Auth Attempt/Outbox 在同一事务完成。验证码正确但 Target 未绑定任何 Active Credential 时对匿名端仍映射为 `AUTH_INVALID_CREDENTIALS`，不自动注册新用户；“验证码登录即注册”不在首版范围内。
+首版不实现验证码登录；`POST /auth/login` 的 Schema 只接受 `auth_method=password`。短信/邮件验证码只保留给找回密码和登录后的联系方式换绑流程，`purpose=register/login` 由请求 Schema 直接拒绝。
 
 失败和并发处理：
 
 | 场景 | 服务端处理 |
 | :--- | :--- |
-| 密码/验证码错误 | 原子增加凭证或 Verification Attempt；达到阈值后设置短时锁定/失效，写 `auth_attempts`；匿名响应保持模糊 |
+| 密码错误 | 原子增加凭证失败次数；达到阈值后设置短时锁定，写 `auth_attempts`；匿名响应保持模糊 |
+| 注册算术题错误/过期/已用 | 拒绝注册并返回字段错误；客户端重新取得题目；Redis 不可用时 Fail Closed |
 | 账号业务冻结/关闭 | 仅在凭证正确后返回安全 `AUTH_ACCOUNT_UNAVAILABLE`；不创建 Session |
-| 并发注册同一用户名/Target | 数据库唯一约束只允许一个事务成功；其他请求回滚并返回稳定冲突，不关联成功用户 ID |
-| 相同注册幂等 Key 重放 | Processing 返回 409 + `Retry-After`；Completed 返回同一 `user_id` 且不重复验证码消费、协议、角色或会话初始化。若需恢复登录态，必须在再次校验相同 Payload Hash 与客户端绑定后撤销原 Bootstrap Session、创建替代 Session 并轮换认证材料；不能保存/重放 Refresh Token 明文 |
+| 并发注册同一用户名 | 数据库唯一约束只允许一个事务成功；其他请求回滚并返回稳定冲突，不关联成功用户 ID |
+| 相同注册幂等 Key 重放 | Processing 返回 409 + `Retry-After`；Completed 返回同一 `user_id` 且不重复算术题消费、协议、角色或会话初始化。若需恢复登录态，必须在再次校验相同 Payload Hash 与客户端绑定后撤销原 Bootstrap Session、创建替代 Session 并轮换认证材料；不能保存/重放 Refresh Token 明文 |
 | 登录响应在网络中丢失 | 已创建 Session 保持可见；客户端不自动重发密码，用户重试可创建新 Session，旧同设备 Session 可由策略合并/撤销并在安全页可见 |
 | Session/Token 签发前 Commit 失败 | 不返回 Token/Cookie；清理请求内 Token 材料，按同一注册 Key安全重试 |
 | Commit 成功但响应中断 | 注册重放通过 Idempotency Record 查到成功账号，并按上一行的固定 Bootstrap Session Replacement 策略恢复登录态；超过恢复窗口则返回“账号已创建，请登录”，不得再接受已消费验证码创建会话 |
@@ -12863,9 +12817,9 @@ Prometheus 只承载低基数近实时指标；User/Order/Store ID 等明细进�
 
 #### 3.29.1 注册与登录指标
 
-注册 Funnel 至少记录 `registration_config_loaded、registration_started、verification_requested、verification_passed、agreement_accepted、registration_completed`，按渠道、客户端版本和脱敏地区聚合，计算配置加载可用率、步骤转化、完成时长、验证码发送/校验成功率、协议版本冲突率、重复账号和风控拦截率。注册完成以 `users`、Credential、Required Agreement、默认角色、专属客服会话、Session 与 Outbox 的核心事务成功为准，前端跳转成功不能作为完成；页面校验错误与服务端拒绝分开统计。
+注册 Funnel 至少记录 `registration_config_loaded、registration_started、captcha_answered、agreement_accepted、registration_completed`，按客户端版本和脱敏地区聚合，计算配置加载可用率、步骤转化、完成时长、算术验证码正确率/过期率、协议版本冲突率、重复用户名和风控拦截率。注册完成以 `users`、Password Credential、Required Agreement、默认角色、专属客服会话、Session 与 Outbox 的核心事务成功为准，前端跳转成功不能作为完成；页面校验错误与服务端拒绝分开统计。
 
-登录按密码/验证码分别统计 Attempt、Success、Invalid Credential、Account Unavailable、Challenge Required/Failed、Rate Limited、验证码 Provider/System Error、Refresh Success/Reuse Detection、Session Fixation Defense 和强制下线。`login_success_rate = 成功登录 / 合法登录尝试`，机器人/压测/健康检查单独标记；Invalid Credential 激增可能是撞库，Provider Error 激增是可用性故障，两者告警路径不同。监控认证页加载失败、安全 Redirect 拒绝和注册幂等恢复结果，但不得把账号、手机号、邮箱、IP 原值、验证码、协议正文或 Token 放入 Metrics Label/前端埋点。
+登录统计 Password Attempt、Success、Invalid Credential、Account Unavailable、Challenge Required/Failed、Rate Limited、Refresh Success/Reuse Detection、Session Fixation Defense 和强制下线。`login_success_rate = 成功登录 / 合法登录尝试`，机器人/压测/健康检查单独标记；Invalid Credential 激增可能是撞库。监控认证页加载失败、安全 Redirect 拒绝、算术验证码失败/过期/Redis 不可用和注册幂等恢复结果，但不得把账号、IP 原值、密码、算术答案、协议正文或 Token 放入 Metrics Label/前端埋点。
 
 #### 3.29.2 商品查询指标
 
@@ -13160,7 +13114,7 @@ AI 隐私/反馈 Release Gate 另要求：用户不经聊天即可在 `/me/setti
 
 以 2.12.2 每行路由生成 Route Contract Test，校验 Component、Auth Meta、参数到生成 Client 的 snake_case 映射、页面标题、Loading/Empty/403/404/410/Network 状态及离开 Guard。Mock Service Worker 只模拟 OpenAPI 已定义响应；前端不得通过手写字段适配隐藏契约漂移。覆盖刷新、深链、前进/后退、Session 过期登录返回、Cursor 过期、412 Diff、429 `Retry-After` 和写结果未知。
 
-组件测试覆盖：AuthModal、AuthLayout、密码登录、验证码登录、注册配置、协议链接/勾选、验证码倒计时、密码可见切换、Caps Lock、错误摘要、挑战和安全 Redirect；首页唯一推荐区与 Feed 恢复；搜索即时排序按钮；省市区县级联；商品 Scroll Spy、SKU 图片回退和 Sticky 边界；消息 `…` 菜单、移动两级路由、草稿 TTL、新消息不抢滚动、同 `client_message_id` 重试、重连去重及完整消息 Live Region；订单/支付两阶段；结算 Context；评价、物流、售后、收藏、设置和错误页。使用真实布局引擎的 Playwright 在 `<768、768～1199、≥1200`、横竖屏与 200% 缩放运行截图和遮挡断言，检查顶部/底部固定栏、Safe Area、焦点可见性和无意横向溢出。
+组件测试覆盖：AuthModal、AuthLayout、密码登录、注册配置、算术验证码展示/换题/错误刷新、协议链接/勾选、密码无空白校验、密码可见切换、Caps Lock、错误摘要、挑战和安全 Redirect；首页唯一推荐区与 Feed 恢复；搜索即时排序按钮；省市区县级联；商品 Scroll Spy、SKU 图片回退和 Sticky 边界；消息 `…` 菜单、移动两级路由、草稿 TTL、新消息不抢滚动、同 `client_message_id` 重试、重连去重及完整消息 Live Region；订单/支付两阶段；结算 Context；评价、物流、售后、收藏、设置和错误页。使用真实布局引擎的 Playwright 在 `<768、768～1199、≥1200`、横竖屏与 200% 缩放运行截图和遮挡断言，检查顶部/底部固定栏、Safe Area、焦点可见性和无意横向溢出。
 
 可访问性采用自动扫描加人工键盘/屏幕阅读器抽查：原生语义、Enter/Space、跳过导航、Landmark、标题层级、可见焦点、错误关联、Live Region、对比度、44×44 目标、Reduced Motion、Dialog Focus Trap/Esc/焦点恢复必须通过。自动扫描为零严重问题仍不能替代人工验证；AI 流式消息逐 Token 播报、右键唯一功能、颜色唯一状态或被 Sticky 遮挡的焦点均直接阻断用户端发布。
 
@@ -13183,14 +13137,14 @@ AI 隐私/反馈 Release Gate 另要求：用户不经聊天即可在 `/me/setti
 
 | 测试层 | 必测内容 |
 | :--- | :--- |
-| Vue 组件与可访问性 | 全局 AuthModal 的遮罩、关闭、焦点和登录/注册 Tab，以及 `/login/code` 的独立恢复布局；Label、Autocomplete、密码管理器、显示密码、Caps Lock、Enter 提交、字段错误和错误摘要焦点；验证码倒计时以服务端时间为准；协议链接在明确的新窗口打开且不丢失当前表单，`/legal/:documentType` 精确展示版本/生效时间/地区/安全正文；Challenge 有非图形替代；键盘、屏幕阅读器、Reduced Motion、200% 缩放和窄屏通过 |
-| OpenAPI Contract | Registration Config 判别策略；Verification Code 的 Purpose/Target/ID/TTL；Registration 严格 Schema 与 `extra=forbid`；Login 的 Password/Code 判别联合；Required Agreement 精确覆盖；201/202/400/401/409/410/422/429/503、Problem Details、`Retry-After`、`Cache-Control: no-store`、Refresh Cookie 和 CSRF 字段均与 3.12.1 一致 |
-| Repository/事务 | User、两类 Credential、Agreement Acceptance、默认 User Role、Exclusive Conversation、Verification Consume、Session、Idempotency Record 和 Outbox 要么全部提交，要么全部回滚；协议/验证码/用户名/Target 唯一约束与索引由真实数据库验证 |
-| 并发与幂等 | 同 Username、同 Target、同验证码、相同/不同 Payload 的同 Idempotency Key、协议版本切换、验证码到期边界、Provider 接受后失败、Commit 前失败、Commit 成功响应丢失；断言最多一个用户、无重复角色/会话初始化/协议记录，旧 Bootstrap Session 不泄漏且恢复策略确定 |
-| 安全 | 账号存在/不存在、已注册/未注册目标的响应形状与时序分布测试；Dummy Argon2id、IP/Target/Device 多维限流、挑战绑定、验证码 Purpose 隔离、尝试上限、Session Fixation、Login CSRF、CORS/Origin、Open Redirect、Audience 交换、Mass Assignment、弱密码/泄露密码、敏感日志与浏览器持久化全部验证 |
-| E2E | 受保护页跳转登录并安全返回；密码登录；验证码登录但未绑定目标不自动注册；注册读取配置/打开协议/验证码/提交/自动登录/访问唯一专属客服会话；账号不可用、协议变化、429、网络结果未知、Refresh 恢复和 Session 过期路径均具有确定 UI |
+| Vue 组件与可访问性 | 全局 AuthModal 的遮罩、关闭、焦点和登录/注册 Tab；Label、Autocomplete、密码管理器、Enter 提交、字段错误和错误摘要焦点；算术题以文字展示并有换题按钮；协议链接不丢失当前表单，`/legal/:documentType` 精确展示版本；键盘、屏幕阅读器、200% 缩放和窄屏通过 |
+| OpenAPI Contract | Registration Config 的 Captcha/Password Policy；Registration 严格 Schema 与 `extra=forbid`；Login 只接受 Password Schema；Required Agreement 精确覆盖；201/400/401/409/422/429/503、Problem Details、`Cache-Control: no-store`、Refresh Cookie 和 CSRF 字段均与 3.12.1 一致 |
+| Repository/事务 | User、Password Credential、Agreement Acceptance、默认 User Role、Exclusive Conversation、Session、Idempotency Record 和 Outbox 要么全部提交，要么全部回滚；协议和用户名唯一约束由真实数据库验证，Captcha 在 Redis 单次消费 |
+| 并发与幂等 | 同 Username、同 Captcha、相同/不同 Payload 的同 Idempotency Key、协议版本切换、Captcha 到期边界、Commit 前失败、Commit 成功响应丢失；断言最多一个用户、无重复角色/会话初始化/协议记录，旧 Bootstrap Session 不泄漏且恢复策略确定 |
+| 安全 | 账号存在/不存在响应形状与时序；Dummy Argon2id、IP/Captcha 多维限流、Captcha 单次使用、Session Fixation、Login CSRF、CORS/Origin、Open Redirect、Audience 交换、Mass Assignment、空白密码、敏感日志与浏览器持久化全部验证 |
+| E2E | 受保护页跳转登录并安全返回；密码登录；注册读取配置/打开协议/计算算术题/提交/自动登录/访问唯一专属客服会话；账号不可用、算术题错误/过期、协议变化、429、网络结果未知、Refresh 恢复和 Session 过期路径均具有确定 UI |
 
-Release Gate 的 Case ID 分为 `AUTH-LOGIN-*`、`AUTH-CODE-LOGIN-*`、`AUTH-REGISTER-*`、`AUTH-SESSION-*` 和 `AUTH-RECOVERY-*`。账号枚举形成可利用旁路、注册产生半成品用户/重复身份、法务接受记录缺失、Admin/Store Scope 可被请求体注入、旧 Refresh Token 可被重放或认证秘密进入 Artifact，均按 P0 阻断发布。
+Release Gate 的 Case ID 分为 `AUTH-LOGIN-*`、`AUTH-REGISTER-*`、`AUTH-SESSION-*` 和 `AUTH-RECOVERY-*`。账号枚举形成可利用旁路、Captcha 可重复成功使用、注册产生半成品用户/重复身份、法务接受记录缺失、Admin/Store Scope 可被请求体注入、旧 Refresh Token 可被重放或认证秘密进入 Artifact，均按 P0 阻断发布。
 
 ---
 
@@ -13580,9 +13534,9 @@ API 的 Pool Size 从每实例 5–10、有限 Overflow 起压测，Worker/Agent
 
 #### 3.34.2 第二阶段：用户与权限
 
-实现 Registration Config、注册、密码/验证码登录、Refresh Rotation/Reuse Detection、退出/强制下线、找回/重置/修改密码、个人信息、地址、账号安全会话与注销申请、RBAC、管理员账号/MFA/近期认证/操作日志、管理员审批聚合与 Executor 骨架、Cookie/CSRF/CORS/限流和字段加密。数据层交付 `users、user_credentials、auth_sessions、verification_codes、password_reset_records、user_addresses、user_agreement_acceptances、auth_attempts` 及法务 Content Version 的迁移/Repository。Vue3 用户端完成 2.12.2、2.12.3.1～2.12.3.3 的 AuthModal、验证码/找回/重置 AuthLayout、登录注册、我的资料、密码、会话、三级地区地址和账号注销联调；独立管理端完成密码 + MFA 登录、Admin Audience Session、后台 Shell、权限菜单、Scope 切换、用户治理、角色权限、安全会话和审批中心页面。
+实现 Registration Config、算术验证码注册、密码登录、Refresh Rotation/Reuse Detection、退出/强制下线、找回/重置/修改密码、个人信息、地址、账号安全会话与注销申请、RBAC、管理员账号/MFA/近期认证/操作日志、管理员审批聚合与 Executor 骨架、Cookie/CSRF/CORS/限流和字段加密。数据层交付 `users、user_credentials、auth_sessions、verification_codes（仅找回/换绑）、password_reset_records、user_addresses、user_agreement_acceptances、auth_attempts` 及法务 Content Version 的迁移/Repository；注册算术题只在 Redis 短期保存 HMAC。Vue3 用户端完成 2.12.2、2.12.3.1～2.12.3.3 的 AuthModal、找回/重置 AuthLayout、登录注册、我的资料、密码、会话、三级地区地址和账号注销联调；独立管理端完成密码 + MFA 登录、Admin Audience Session、后台 Shell、权限菜单、Scope 切换、用户治理、角色权限、安全会话和审批中心页面。
 
-验收：2.12.3 的 Text UI、响应式、键盘和错误状态通过 3.30.24；Registration Config、精确协议版本、验证码 Purpose/Target、严格 Registration Schema、User Audience Session 与安全 Redirect 的前后端契约一致。注册核心资源全成或全败；并发同 Username/Target 仅一人成功；相同幂等 Key 不重复创建用户、协议、角色、专属客服会话或 Session，Commit 成功响应丢失按固定 Bootstrap Session Replacement 策略恢复。认证/API/数据库并发测试通过；密码哈希/验证码/Token/MFA Secret 不入日志、Trace、截图或浏览器持久存储；账号枚举、Refresh/恢复码重放被阻断并撤销相应会话；用户 Token 与 Admin Token Audience 不能混用；同一自然人持有多种身份时仍使用独立入口、Cookie Path、CSRF 上下文与 Session，交换 `aud/client_type` 的负向测试全部拒绝。生产 Admin Audience 无购物车、下单或支付能力，业务演练只允许隔离环境的独立 Sandbox 用户且生产镜像/配置不含 Sandbox 凭据。IDOR、横向/纵向越权、安全错误信息测试为零泄漏；权限自提升、删除最后安全管理员、近期认证绕过、发起人自批、重复审批席位和跨店 Scope 测试全部拒绝且管理员高危操作审计完整。角色撤销/过期后重新授权生成新 Grant，历史事件不可改写且任意时刻仅有一条 Active Grant；用户业务冻结与登录失败锁定严格分离，到期或提前解冻不恢复已撤销 Session；敏感字段临时 Grant 完成绑定、一次性消费、撤销、过期与全程脱敏测试。Redis 全丢最多导致重新认证或回源 MySQL，不得恢复已撤销 Session/Grant。
+验收：2.12.3 的 Text UI、响应式、键盘和错误状态通过 3.30.24；Registration Config、精确协议版本、一次性 Captcha、严格 Registration/Password-only Login Schema、User Audience Session 与安全 Redirect 的前后端契约一致。注册核心资源全成或全败；并发同 Username 或同 Captcha 仅一人成功；相同幂等 Key 不重复创建用户、协议、角色、专属客服会话或 Session，Commit 成功响应丢失按固定 Bootstrap Session Replacement 策略恢复。认证/API/数据库并发测试通过；密码哈希/算术答案/Token/MFA Secret 不入日志、Trace、截图或浏览器持久存储；账号枚举、Refresh/恢复码重放被阻断并撤销相应会话；用户 Token 与 Admin Token Audience 不能混用；同一自然人持有多种身份时仍使用独立入口、Cookie Path、CSRF 上下文与 Session，交换 `aud/client_type` 的负向测试全部拒绝。生产 Admin Audience 无购物车、下单或支付能力，业务演练只允许隔离环境的独立 Sandbox 用户且生产镜像/配置不含 Sandbox 凭据。IDOR、横向/纵向越权、安全错误信息测试为零泄漏；权限自提升、删除最后安全管理员、近期认证绕过、发起人自批、重复审批席位和跨店 Scope 测试全部拒绝且管理员高危操作审计完整。角色撤销/过期后重新授权生成新 Grant，历史事件不可改写且任意时刻仅有一条 Active Grant；用户业务冻结与登录失败锁定严格分离，到期或提前解冻不恢复已撤销 Session；敏感字段临时 Grant 完成绑定、一次性消费、撤销、过期与全程脱敏测试。Redis 全丢最多导致重新认证或回源 MySQL，不得恢复已撤销 Session/Grant；注册在 Redis 不可用时 Fail Closed。
 
 #### 3.34.3 第三阶段：店铺、商品与库存
 
@@ -13646,7 +13600,7 @@ API 的 Pool Size 从每实例 5–10、有限 Overflow 起压测，Worker/Agent
 
 #### 3.34.13 功能验收标准
 
-按角色和页面建立可追踪矩阵 `Requirement → Vue Route → API Operation → Permission/Data Scope → Domain Rule → Audit → Test → Evidence`。用户端以 2.12.2 完整路由表为准，必须通过：首页、登录/注册/验证码登录/找回与重置密码、独立搜索、店铺、商品详情/全部评价、购物车、结算、收银台/支付结果、消息列表/单会话、我的/资料/安全/注销、地址、商品/店铺收藏、订单、物流两级页、评价创建/编辑/追评、售后列表/申请/详情/退货物流/申诉及系统状态页。管理员端必须覆盖独立密码 + MFA 登录、权限菜单/Scope、用户/RBAC、管理员审批中心、店铺审核/运营、商品/SKU/分类品牌/库存、订单/支付/发货、退款/申诉/评价、客服工作台、Agent/Skill/Tool/Policy、知识/索引/评估报告/Run、平台内容、批处理、审计和死信。任一首版路由缺少 Component、Operation、状态、Guard 或测试，任一管理按钮缺少 Permission、Scope、命令接口或审计证据，均不通过验收。
+按角色和页面建立可追踪矩阵 `Requirement → Vue Route → API Operation → Permission/Data Scope → Domain Rule → Audit → Test → Evidence`。用户端以 2.12.2 完整路由表为准，必须通过：首页、密码登录/算术验证码注册/找回与重置密码、独立搜索、店铺、商品详情/全部评价、购物车、结算、收银台/支付结果、消息列表/单会话、我的/资料/安全/注销、地址、商品/店铺收藏、订单、物流两级页、评价创建/编辑/追评、售后列表/申请/详情/退货物流/申诉及系统状态页。管理员端必须覆盖独立密码 + MFA 登录、权限菜单/Scope、用户/RBAC、管理员审批中心、店铺审核/运营、商品/SKU/分类品牌/库存、订单/支付/发货、退款/申诉/评价、客服工作台、Agent/Skill/Tool/Policy、知识/索引/评估报告/Run、平台内容、批处理、审计和死信。任一首版路由缺少 Component、Operation、状态、Guard 或测试，任一管理按钮缺少 Permission、Scope、命令接口或审计证据，均不通过验收。
 
 每个流程验证 Happy Path、Loading、Empty、403/404、412、428、429、非法状态、重复提交、依赖故障、结果未知、移动/桌面 UI 和可访问性基础；页面按钮与 API `available_actions` 一致，所有首版管理页面符合 2.13.17 的 Text UI。验收数据可重复初始化，测试支付/短信/邮件不触达真实用户。3.34.19 的追踪矩阵及机器可读源不得存在页面按钮、API、Permission、状态机、测试或 Owner 孤儿项；所有 P0/P1/P2 文档缺陷清零，3.30.23 的 P2 契约套件通过，不以规避方案代替既定展示、安全或身份契约。
 
@@ -13658,13 +13612,13 @@ P1-01～P1-09 设用户体验 Release Gate：完整路由无孤儿项；首页/�
 
 MySQL/PostgreSQL Migration 能从空库安装、从上一生产版本升级并在目标数据量内完成；ORM/Schema/Index 一致，无手工漂移。主键/公开 ID、金额 Decimal、UTC 时间、状态/版本、唯一约束、逻辑删除、敏感加密和审计符合 3.6/3.7；核心 SQL 有 Query Plan/索引证据，无已知 N+1/长事务。
 
-注册核心事务保证 User、Password/Phone/Email Credential、Required Agreement Acceptance、默认 User Role、Exclusive Conversation、Verification Consume、User Session、Idempotency Record 与 Outbox 全成或全败；Username/规范化 Target 并发唯一，验证码只能按 Verification ID + Purpose + Target 原子消费。法务 Content Version 与 Acceptance 引用不可变，`auth_attempts` 不含认证秘密且按期限分区/清理。订单—库存—支付—退款/Outbox 不变量和并发测试全部通过；一个 Checkout 只能创建一组 Trade Order，订单/Payment 幂等 Scope 分离。退款活动占用由锁定订单项后汇总活动数量/金额保证，不使用订单级“存在售后”唯一约束；拒绝后新申请和申诉各自保留不可变资源与事件。每个店铺会话/上下文类型最多一条 Active Context，`context_version` 单调增加；`checkout_store_group` 绑定 Checkout Version/Expiry，NULL 安全唯一约束有效，旧版本即时 Fail Closed。商品详情/FAQ 原始 Source、净化结果和发布指针构成可追溯不可变版本链。`buyer_remark` 数据库 500 字符冗余容量不扩大 API 200 Unicode 字符边界。Active Role Grant 唯一、用户冻结投影/事件、敏感访问 Grant 一次性消费、认证材料版本链、政策有效版本、包裹数量守恒以及索引父子任务映射约束均有真实数据库证据。跨库同步可重试/对账，向量数据可重建且 Memory/Checkpoint 有备份。备份 Checksum 与隔离恢复成功，RPO/RTO 达标；应用账号最小权限、无 Root/Superuser。生产容量有 30% 以上 Headroom，大表变更有 Expand/Contract 和 Forward Fix。
+注册核心事务保证 User、Password Credential、Required Agreement Acceptance、默认 User Role、Exclusive Conversation、User Session、Idempotency Record 与 Outbox 全成或全败；Username 并发唯一，算术验证码按 Captcha ID 在 Redis 最多成功消费一次。法务 Content Version 与 Acceptance 引用不可变，`auth_attempts` 不含认证秘密且按期限分区/清理。订单—库存—支付—退款/Outbox 不变量和并发测试全部通过；一个 Checkout 只能创建一组 Trade Order，订单/Payment 幂等 Scope 分离。退款活动占用由锁定订单项后汇总活动数量/金额保证，不使用订单级“存在售后”唯一约束；拒绝后新申请和申诉各自保留不可变资源与事件。每个店铺会话/上下文类型最多一条 Active Context，`context_version` 单调增加；`checkout_store_group` 绑定 Checkout Version/Expiry，NULL 安全唯一约束有效，旧版本即时 Fail Closed。商品详情/FAQ 原始 Source、净化结果和发布指针构成可追溯不可变版本链。`buyer_remark` 数据库 500 字符冗余容量不扩大 API 200 Unicode 字符边界。Active Role Grant 唯一、用户冻结投影/事件、敏感访问 Grant 一次性消费、认证材料版本链、政策有效版本、包裹数量守恒以及索引父子任务映射约束均有真实数据库证据。跨库同步可重试/对账，向量数据可重建且 Memory/Checkpoint 有备份。备份 Checksum 与隔离恢复成功，RPO/RTO 达标；应用账号最小权限、无 Root/Superuser。生产容量有 30% 以上 Headroom，大表变更有 Expand/Contract 和 Forward Fix。
 
 #### 3.34.15 API 验收标准
 
 全部公开接口位于 `/api/v1`，OpenAPI 通过 Lint/Breaking Change，生成的 TypeScript Client 可编译并完成前端契约测试。所有资源 ID 满足 3.6.2/`docs/id_registry.yaml` 的前缀、资源类型和容量约束：普通公开资源 ID 按注册表使用 `VARCHAR(40)`，已登记的 `trd_/ord_/pay_/ref_/tkt_` 核心业务号使用 `VARCHAR(32)`，不得用统一 40 字符的断言覆盖该例外。Cart Item、File、Upload、Conversation 等路径均无内部自增主键泄漏。请求/响应、时间、金额、分页、Cursor、Problem Details、错误码、Request ID、ETag/Version、Idempotency-Key 和上传遵循 3.11；无 ORM/内部主键/敏感字段泄漏。
 
-认证 Contract 必须覆盖 `RegistrationConfig_Get、LegalDocument_Get、VerificationCode_Create、UserRegistration_Create、UserAuth_Login、AuthToken_Refresh、AuthSession_List/Revoke`：密码/验证码 Login 为判别联合，Registration 禁止 Role/Permission/Store 字段，协议版本精确匹配且法务接口不会静默替换版本，验证码绑定 Purpose/Target，认证响应 `no-store`，Refresh 仅用安全 Cookie，Open Redirect 与幂等结果未知有确定行为。Admin/User Audience 隔离、MFA/近期认证、RBAC、Resource Scope、职责分离、管理员审批、限流、CSRF/CORS、Webhook 签名和重放测试通过；同一业务对象的用户与管理操作使用独立 Operation ID、专用路径和响应投影，互换 Audience 的负向测试全部拒绝。所有 JSON/Query 为 snake_case，Vue camelCase 仅限 Route Placeholder；公开 Schema 不出现内部自增 ID。P0 Contract 额外验证物流、Read Cursor、退款占用、Context 和安全富文本投影。P1 Contract 验证首页聚合、店铺 Query、200 字买家备注、完整页面读取/命令、订单/Payment 双幂等及错误分支，以及 `checkout_store_group` 的 Store/Version/Expiry 最小投影。成功/失败/重复/并发/超时有明确状态码与相同幂等结果。管理 API 必须通过用户冻结、角色 Grant、敏感字段 Grant、认证补件、政策版本发布、商品发布、库存调整、包裹创建/纠错/作废、退款决定、评价屏蔽/恢复、客服等待/恢复、内容/AI/Tool Version 发布、索引父子 Job、管理员审批和死信重放 Contract Test，且不存在通用状态/金额写接口。P95/P99 达 3.33.2，错误率/SLO 达标；SSE Resume、WebSocket 重连和 Graceful Shutdown 通过。弃用接口有 Sunset/兼容窗口，生产 Debug Docs 按策略受控。
+认证 Contract 必须覆盖 `RegistrationConfig_Get、LegalDocument_Get、UserRegistration_Create、UserAuth_Login、VerificationCode_Create、AuthToken_Refresh、AuthSession_List/Revoke`：Login 只接受 Password Schema，Registration 必须携一次性算术 Captcha 且禁止 Role/Permission/Store/Phone/Email 字段，协议版本精确匹配且法务接口不会静默替换版本；短信/邮件验证码只允许 Reset/Change Purpose，认证响应 `no-store`，Refresh 仅用安全 Cookie，Open Redirect 与幂等结果未知有确定行为。Admin/User Audience 隔离、MFA/近期认证、RBAC、Resource Scope、职责分离、管理员审批、限流、CSRF/CORS、Webhook 签名和重放测试通过；同一业务对象的用户与管理操作使用独立 Operation ID、专用路径和响应投影，互换 Audience 的负向测试全部拒绝。所有 JSON/Query 为 snake_case，Vue camelCase 仅限 Route Placeholder；公开 Schema 不出现内部自增 ID。P0 Contract 额外验证物流、Read Cursor、退款占用、Context 和安全富文本投影。P1 Contract 验证首页聚合、店铺 Query、200 字买家备注、完整页面读取/命令、订单/Payment 双幂等及错误分支，以及 `checkout_store_group` 的 Store/Version/Expiry 最小投影。成功/失败/重复/并发/超时有明确状态码与相同幂等结果。管理 API 必须通过用户冻结、角色 Grant、敏感字段 Grant、认证补件、政策版本发布、商品发布、库存调整、包裹创建/纠错/作废、退款决定、评价屏蔽/恢复、客服等待/恢复、内容/AI/Tool Version 发布、索引父子 Job、管理员审批和死信重放 Contract Test，且不存在通用状态/金额写接口。P95/P99 达 3.33.2，错误率/SLO 达标；SSE Resume、WebSocket 重连和 Graceful Shutdown 通过。弃用接口有 Sunset/兼容窗口，生产 Debug Docs 按策略受控。
 
 #### 3.34.16 AI 安全验收标准
 
@@ -13706,8 +13660,7 @@ Go/No-Go Meeting 逐项确认并保存签字证据：
 | Requirement ID / 页面操作 | Vue Route | OpenAPI Operation / 路径 | 授权与领域规则 | Audit / Test / Evidence |
 | :--- | :--- | :--- | :--- | :--- |
 | `USR-AUTH-01` 密码登录 | 全局 AuthModal；`/login → /?auth=login` | `UserAuth_Login` / `POST /auth/login` | Anonymous；Password 判别分支、凭证锁定、Dummy Hash、限流、安全 Redirect、User Audience 新 Session | Security+E2E `AUTH-LOGIN-*` |
-| `USR-AUTH-02` 用户注册/查阅协议 | 全局 AuthModal；`/register → /?auth=register`；`/legal/:documentType` | `RegistrationConfig_Get`、`LegalDocument_Get`、`VerificationCode_Create`、`UserRegistration_Create` / `GET /auth/registration-config`、`GET /content/legal-documents/{document_type}`、`POST /auth/verification-codes`、`POST /auth/registrations` | Anonymous；配置/协议精确版本、Purpose/Target、严格 Schema、幂等、普通 User 固定角色、核心事务全成或全败 | Contract+Concurrency+E2E `AUTH-REGISTER-*` |
-| `USR-AUTH-03` 验证码登录 | `/login/code` | `VerificationCode_Create`、`UserAuth_Login` / `POST /auth/verification-codes`、`POST /auth/login` | Anonymous；Login Purpose、已绑定 Active Credential、原子消费、不得隐式注册、User Audience 新 Session | Security+E2E `AUTH-CODE-LOGIN-*` |
+| `USR-AUTH-02` 用户注册/查阅协议 | 全局 AuthModal；`/register → /?auth=register`；`/legal/:documentType` | `RegistrationConfig_Get`、`LegalDocument_Get`、`UserRegistration_Create` / `GET /auth/registration-config`、`GET /content/legal-documents/{document_type}`、`POST /auth/registrations` | Anonymous；配置/协议精确版本、一次性算术 Captcha、严格 Schema、幂等、普通 User 固定角色、核心事务全成或全败 | Contract+Concurrency+E2E `AUTH-REGISTER-*` |
 | `USR-AUTH-04` 找回与重置密码 | `/forgot-password`、`/reset-password` | `VerificationCode_Create`、`PasswordResetTicket_Create`、`PasswordReset_Execute` | Anonymous/受限 Ticket；Reset Purpose、限流、模糊响应、一次性消费、撤销旧 Session | Security+E2E `AUTH-RECOVERY-*` |
 | `USR-HOME-01` 首页聚合 | `/` | `Homepage_Get` / `GET /homepage` | Public/Current User；Consent-aware 通用/个性推荐；局部降级 | Query Count+Cursor+UI `HOME-*` |
 | `USR-SEARCH-01` 商品搜索 | `/search` | `Product_Search`、`SearchSuggestion_List` | Public；URL 筛选、opaque Cursor、限流 | Contract+Restore `SEARCH-*` |

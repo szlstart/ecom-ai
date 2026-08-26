@@ -45,7 +45,6 @@ const routes: RouteRecordRaw[] = [
     { path: 'me/favorites/stores', component: () => import('@/pages/me/FollowedStoresPage.vue'), meta: { ...userMeta, title: '店铺收藏', requirementId: 'USR-FAVORITE-STORE-01' } },
   ] },
   { path: '/login', redirect: (to) => ({ path: '/', query: { ...to.query, auth: 'login' } }), meta: { ...authMeta, title: '登录', requirementId: 'USR-AUTH-LOGIN-01' } },
-  { path: '/login/code', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '验证码登录', requirementId: 'USR-AUTH-CODE-01' }, children: [{ path: '', component: () => import('@/pages/CodeLoginPage.vue') }] },
   { path: '/register', redirect: (to) => ({ path: '/', query: { ...to.query, auth: 'register' } }), meta: { ...authMeta, title: '注册', requirementId: 'USR-AUTH-REGISTER-01' } },
   { path: '/forgot-password', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '找回密码', requirementId: 'USR-AUTH-FORGOT-01' }, children: [{ path: '', component: () => import('@/pages/ForgotPasswordPage.vue') }] },
   { path: '/reset-password', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '重置密码', requirementId: 'USR-AUTH-RESET-01' }, children: [{ path: '', component: () => import('@/pages/ResetPasswordPage.vue') }] },

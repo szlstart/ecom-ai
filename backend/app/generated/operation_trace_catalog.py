@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "17ecd77b10a9fe65b60b77471fb699abb6ff90160cfb703ee3e723d20db0a586"
+SOURCE_SHA256 = "5ac8fbecaef894c67b74f1777112425aa1c6d3b96f6bad9364bb81e0d242c031"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -2236,9 +2236,9 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
-        "x-requirement-id": ["USR-AUTH-CODE-01", "USR-AUTH-FORGOT-01", "USR-AUTH-REGISTER-01"],
+        "x-requirement-id": ["USR-AUTH-FORGOT-01"],
         "x-scope-policy": ["user_audience"],
-        "x-test-case-ids": ["AUTH-CODE-*", "AUTH-REGISTER-*", "AUTH-RESET-*"],
+        "x-test-case-ids": ["AUTH-RESET-*"],
     },
     "Auth_Login": {
         "x-audit-event": "command.Auth_Login",
@@ -2246,9 +2246,9 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
-        "x-requirement-id": ["USR-AUTH-CODE-01", "USR-AUTH-LOGIN-01"],
+        "x-requirement-id": ["USR-AUTH-LOGIN-01"],
         "x-scope-policy": ["user_audience"],
-        "x-test-case-ids": ["AUTH-CODE-*", "AUTH-LOGIN-*", "BROWSER-AUTH-*"],
+        "x-test-case-ids": ["AUTH-LOGIN-*", "BROWSER-AUTH-*"],
     },
     "Auth_Logout": {
         "x-audit-event": "command.Auth_Logout",
@@ -3110,7 +3110,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AUTH-REGISTER-01"],
         "x-scope-policy": ["user_audience"],
-        "x-test-case-ids": ["AUTH-REGISTER-*"],
+        "x-test-case-ids": ["AUTH-CAPTCHA-*", "AUTH-REGISTER-*"],
     },
     "Registration_Create": {
         "x-audit-event": "command.Registration_Create",
@@ -3120,7 +3120,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AUTH-REGISTER-01"],
         "x-scope-policy": ["user_audience"],
-        "x-test-case-ids": ["AUTH-REGISTER-*"],
+        "x-test-case-ids": ["AUTH-CAPTCHA-*", "AUTH-REGISTER-*"],
     },
     "ReviewEligibility_Get": {
         "x-audit-event": "none",

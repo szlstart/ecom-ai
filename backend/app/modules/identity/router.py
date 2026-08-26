@@ -51,9 +51,10 @@ USER_CSRF_COOKIE = "ecom_user_csrf"
     operation_id="RegistrationConfig_Get",
 )
 async def get_registration_config(
+    request: Request,
     service: IdentityServiceDependency,
 ) -> Envelope[dict[str, object]]:
-    return Envelope(data=await service.registration_config())
+    return Envelope(data=await service.registration_config(_client_ip(request)))
 
 
 @auth_router.post(

@@ -67,8 +67,6 @@ class Settings(BaseSettings):
     refresh_token_ttl_days: int = Field(default=30, ge=1, le=90)
     admin_refresh_token_ttl_hours: int = Field(default=8, ge=1, le=24)
     admin_recent_auth_seconds: int = Field(default=300, ge=60, le=1800)
-    password_min_length: int = Field(default=15, ge=15, le=64)
-    password_max_length: int = Field(default=128, ge=64, le=256)
     refresh_cookie_secure: bool = False
     allowed_origins: str = "http://127.0.0.1:5173,http://127.0.0.1:8080"
     debug_verification_code: SecretStr | None = None

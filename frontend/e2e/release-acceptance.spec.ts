@@ -56,7 +56,8 @@ async function installPublicApi(page: Page) {
     if (url.pathname.endsWith('/auth/registration-config')) {
       await json(route, {
         config_version: 'browser-v1',
-        password_policy: { min_length: 15, max_length: 128 },
+        password_policy: { non_empty: true, forbid_whitespace: true },
+        captcha: { captcha_id: 'browser-captcha-000001', question: '12 + 7 = ?', expires_in_seconds: 600 },
         required_agreements: [],
       })
       return
@@ -135,6 +136,11 @@ test('NAV-BROWSER opens the same authentication modal for every protected naviga
   await page.getByRole('button', { name: '注册/登录' }).click()
   await page.getByRole('tab', { name: '注册' }).click()
   await expect(page.getByRole('heading', { name: '注册账号' })).toBeVisible()
+  await expect(page.getByText('验证码：12 + 7 = ?')).toBeVisible()
+  await expect(page.getByLabel('计算结果')).toBeVisible()
+  await expect(page.getByText('验证方式')).toHaveCount(0)
+  await expect(page.getByText('手机号或邮箱')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: '验证码登录' })).toHaveCount(0)
   await assertBaselineAccessibility(page)
 })
 
@@ -186,6 +192,9 @@ test('AUTH-BROWSER keeps user and admin authentication entry points keyboard rea
   await expect(page.getByLabel('账号')).toBeFocused()
   await assertBaselineAccessibility(page)
   await page.screenshot({ path: testInfo.outputPath('user-login.png'), fullPage: true })
+
+  await page.goto('/login/code')
+  await expect(page.getByRole('heading', { name: '页面不存在' })).toBeVisible()
 
   await page.goto('/admin/login')
   await expect(page.getByRole('heading', { name: '管理端登录' })).toBeVisible()

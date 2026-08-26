@@ -7262,28 +7262,6 @@ export interface components {
             /** Device Name */
             device_name: string;
         };
-        /** CodeLoginRequest */
-        CodeLoginRequest: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            auth_method: "verification_code";
-            /**
-             * Target Type
-             * @enum {string}
-             */
-            target_type: "phone" | "email";
-            /** Target */
-            target: string;
-            /** Verification Id */
-            verification_id: string;
-            /** Verification Code */
-            verification_code: string;
-            client: components["schemas"]["ClientDescriptor"];
-            /** Challenge Token */
-            challenge_token?: string | null;
-        };
         /** ContactChangeRequest */
         ContactChangeRequest: {
             /** Change Ticket Id */
@@ -9587,8 +9565,8 @@ export interface components {
         /** PasswordLoginRequest */
         PasswordLoginRequest: {
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
+             * Auth Method
+             * @constant
              */
             auth_method: "password";
             /** Identifier */
@@ -10349,17 +10327,10 @@ export interface components {
         RegistrationRequest: {
             /** Username */
             username: string;
-            /**
-             * Target Type
-             * @enum {string}
-             */
-            target_type: "phone" | "email";
-            /** Target */
-            target: string;
-            /** Verification Id */
-            verification_id: string;
-            /** Verification Code */
-            verification_code: string;
+            /** Captcha Id */
+            captcha_id: string;
+            /** Captcha Answer */
+            captcha_answer: string;
             /** Password */
             password: string;
             /** Config Version */
@@ -11548,7 +11519,7 @@ export interface components {
              * Purpose
              * @enum {string}
              */
-            purpose: "register" | "login" | "reset_password" | "change_phone" | "change_email";
+            purpose: "reset_password" | "change_phone" | "change_email";
             /**
              * Target Type
              * @enum {string}
@@ -12518,7 +12489,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PasswordLoginRequest"] | components["schemas"]["CodeLoginRequest"];
+                "application/json": components["schemas"]["PasswordLoginRequest"];
             };
         };
         responses: {

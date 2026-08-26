@@ -14,7 +14,8 @@ interface Agreement {
 
 interface RegistrationConfig {
   config_version: string
-  password_policy: { min_length: number; max_length: number }
+  password_policy: { non_empty: boolean; forbid_whitespace: boolean }
+  captcha: { captcha_id: string; question: string; expires_in_seconds: number }
   required_agreements: Agreement[]
 }
 
@@ -25,17 +26,13 @@ const mode = ref<'login' | 'register'>(props.initialMode ?? 'login')
 const firstInput = ref<HTMLInputElement | null>(null)
 const pending = ref(false)
 const error = ref('')
-const message = ref('')
 
 const identifier = ref('')
 const loginPassword = ref('')
 
 const config = ref<RegistrationConfig | null>(null)
 const username = ref('')
-const targetType = ref<'email' | 'phone'>('email')
-const target = ref('')
-const verificationId = ref('')
-const code = ref('')
+const captchaAnswer = ref('')
 const password = ref('')
 const confirmation = ref('')
 const accepted = ref<string[]>([])
@@ -43,21 +40,25 @@ let requestKey = createIdempotencyKey('registration')
 
 const registrationReady = computed(() => Boolean(
   config.value
-  && verificationId.value
+  && captchaAnswer.value
   && accepted.value.length === config.value.required_agreements.length,
 ))
 
 function switchMode(nextMode: 'login' | 'register') {
   mode.value = nextMode
   error.value = ''
-  message.value = ''
   void nextTick(() => firstInput.value?.focus())
 }
 
-async function loadRegistrationConfig() {
-  if (config.value) return
+async function loadRegistrationConfig(force = false) {
+  if (config.value && !force) return
+  const previousConfigVersion = config.value?.config_version
+  if (force) config.value = null
   try {
-    config.value = (await apiRequest<RegistrationConfig>('/auth/registration-config')).data
+    const nextConfig = (await apiRequest<RegistrationConfig>('/auth/registration-config')).data
+    if (previousConfigVersion && previousConfigVersion !== nextConfig.config_version) accepted.value = []
+    config.value = nextConfig
+    captchaAnswer.value = ''
   } catch (reason) {
     error.value = errorMessage(reason)
   }
@@ -86,32 +87,12 @@ async function login() {
   }
 }
 
-async function sendCode() {
-  pending.value = true
-  error.value = ''
-  try {
-    const response = await apiRequest<{ verification_id: string }>('/auth/verification-codes', {
-      method: 'POST',
-      body: JSON.stringify({
-        purpose: 'register',
-        target_type: targetType.value,
-        target: target.value,
-        locale: 'zh-CN',
-        challenge_token: null,
-        change_ticket_id: null,
-      }),
-    })
-    verificationId.value = response.data.verification_id
-    message.value = '验证码请求已受理。'
-  } catch (reason) {
-    error.value = errorMessage(reason)
-  } finally {
-    pending.value = false
-  }
-}
-
 async function register() {
   if (!config.value) return
+  if (!password.value || /\s/u.test(password.value)) {
+    error.value = '密码不能为空，也不能包含空格、换行或其他空白字符。'
+    return
+  }
   if (password.value !== confirmation.value) {
     error.value = '两次输入的密码不一致。'
     return
@@ -124,10 +105,8 @@ async function register() {
       headers: { 'Idempotency-Key': requestKey },
       body: JSON.stringify({
         username: username.value,
-        target_type: targetType.value,
-        target: target.value,
-        verification_id: verificationId.value,
-        verification_code: code.value,
+        captcha_id: config.value.captcha.captcha_id,
+        captcha_answer: captchaAnswer.value,
         password: password.value,
         config_version: config.value.config_version,
         agreement_acceptances: config.value.required_agreements.map(({ document_type, document_version }) => ({ document_type, document_version })),
@@ -140,6 +119,7 @@ async function register() {
     emit('authenticated')
   } catch (reason) {
     error.value = errorMessage(reason)
+    await loadRegistrationConfig(true)
   } finally {
     pending.value = false
   }
@@ -184,21 +164,21 @@ onBeforeUnmount(() => {
           <label>账号<input ref="firstInput" v-model="identifier" autocomplete="username" required /></label>
           <label>密码<input v-model="loginPassword" autocomplete="current-password" required type="password" /></label>
           <button :disabled="pending" type="submit">{{ pending ? '正在登录…' : '登录' }}</button>
-          <div class="form-links"><RouterLink to="/login/code" @click="emit('close')">验证码登录</RouterLink><RouterLink to="/forgot-password" @click="emit('close')">忘记密码</RouterLink></div>
+          <div class="form-links"><RouterLink to="/forgot-password" @click="emit('close')">忘记密码</RouterLink></div>
           <p class="form-help">还没有账号？<button class="link-button" type="button" @click="switchMode('register')">立即注册</button></p>
         </form>
 
         <form v-else aria-labelledby="auth-modal-title" @submit.prevent="register">
           <p class="eyebrow">用户端</p>
           <h1 id="auth-modal-title">注册账号</h1>
-          <p v-if="message" class="alert success" role="status">{{ message }}</p>
           <p v-if="error" class="alert error" role="alert">{{ error }}</p>
           <label>用户名<input ref="firstInput" v-model="username" autocomplete="username" minlength="4" maxlength="32" pattern="[A-Za-z0-9_]+" required /></label>
-          <label>验证方式<select v-model="targetType"><option value="email">邮箱</option><option value="phone">手机号</option></select></label>
-          <label>手机号或邮箱<input v-model="target" required /></label>
-          <button class="secondary" :disabled="pending || !target" type="button" @click="sendCode">发送验证码</button>
-          <label>验证码<input v-model="code" autocomplete="one-time-code" maxlength="6" required /></label>
-          <label>密码<input v-model="password" autocomplete="new-password" :minlength="config?.password_policy.min_length ?? 15" required type="password" /><small>至少 {{ config?.password_policy.min_length ?? 15 }} 个字符，支持密码管理器。</small></label>
+          <div class="arithmetic-captcha" aria-live="polite">
+            <p><strong>验证码：{{ config?.captcha.question ?? '正在生成算术题…' }}</strong></p>
+            <button class="link-button" type="button" :disabled="pending" @click="loadRegistrationConfig(true)">换一道题</button>
+          </div>
+          <label>计算结果<input v-model="captchaAnswer" inputmode="numeric" pattern="[0-9]+" autocomplete="off" required /></label>
+          <label>密码<input v-model="password" autocomplete="new-password" required type="password" /><small>密码不能为空，且不能包含空格、换行或其他空白字符；长度不限。</small></label>
           <label>确认密码<input v-model="confirmation" autocomplete="new-password" required type="password" /></label>
           <fieldset v-if="config"><legend>协议确认</legend><label v-for="item in config.required_agreements" :key="item.document_type" class="check-row"><input v-model="accepted" :value="item.document_type" type="checkbox" /><span>我已阅读并同意 <RouterLink :to="`/legal/${item.document_type}?version=${item.document_version}`" target="_blank">{{ item.title }}</RouterLink></span></label></fieldset>
           <button :disabled="pending || !registrationReady" type="submit">同意协议并注册</button>

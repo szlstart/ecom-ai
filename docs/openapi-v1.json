@@ -1789,6 +1789,7 @@
           "user_audience"
         ],
         "x-test-case-ids": [
+          "AUTH-CAPTCHA-*",
           "AUTH-REGISTER-*"
         ]
       }
@@ -1860,16 +1861,12 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "USR-AUTH-CODE-01",
-          "USR-AUTH-FORGOT-01",
-          "USR-AUTH-REGISTER-01"
+          "USR-AUTH-FORGOT-01"
         ],
         "x-scope-policy": [
           "user_audience"
         ],
         "x-test-case-ids": [
-          "AUTH-CODE-*",
-          "AUTH-REGISTER-*",
           "AUTH-RESET-*"
         ]
       }
@@ -1957,6 +1954,7 @@
           "user_audience"
         ],
         "x-test-case-ids": [
+          "AUTH-CAPTCHA-*",
           "AUTH-REGISTER-*"
         ]
       }
@@ -1972,22 +1970,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/PasswordLoginRequest"
-                  },
-                  {
-                    "$ref": "#/components/schemas/CodeLoginRequest"
-                  }
-                ],
-                "title": "Payload",
-                "discriminator": {
-                  "propertyName": "auth_method",
-                  "mapping": {
-                    "password": "#/components/schemas/PasswordLoginRequest",
-                    "verification_code": "#/components/schemas/CodeLoginRequest"
-                  }
-                }
+                "$ref": "#/components/schemas/PasswordLoginRequest"
               }
             }
           },
@@ -2035,14 +2018,12 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "USR-AUTH-CODE-01",
           "USR-AUTH-LOGIN-01"
         ],
         "x-scope-policy": [
           "user_audience"
         ],
         "x-test-case-ids": [
-          "AUTH-CODE-*",
           "AUTH-LOGIN-*",
           "BROWSER-AUTH-*"
         ]
@@ -39557,66 +39538,6 @@
         ],
         "title": "ClientDescriptor"
       },
-      "CodeLoginRequest": {
-        "properties": {
-          "auth_method": {
-            "type": "string",
-            "const": "verification_code",
-            "title": "Auth Method"
-          },
-          "target_type": {
-            "type": "string",
-            "enum": [
-              "phone",
-              "email"
-            ],
-            "title": "Target Type"
-          },
-          "target": {
-            "type": "string",
-            "maxLength": 254,
-            "minLength": 3,
-            "title": "Target"
-          },
-          "verification_id": {
-            "type": "string",
-            "maxLength": 40,
-            "minLength": 5,
-            "title": "Verification Id"
-          },
-          "verification_code": {
-            "type": "string",
-            "pattern": "^[0-9]{6}$",
-            "title": "Verification Code"
-          },
-          "client": {
-            "$ref": "#/components/schemas/ClientDescriptor"
-          },
-          "challenge_token": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 2048
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Challenge Token"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "auth_method",
-          "target_type",
-          "target",
-          "verification_id",
-          "verification_code",
-          "client"
-        ],
-        "title": "CodeLoginRequest"
-      },
       "ContactChangeRequest": {
         "properties": {
           "change_ticket_id": {
@@ -39665,7 +39586,6 @@
           },
           "current_password": {
             "type": "string",
-            "maxLength": 128,
             "minLength": 1,
             "title": "Current Password"
           }
@@ -46305,14 +46225,12 @@
         "properties": {
           "current_password": {
             "type": "string",
-            "maxLength": 128,
             "minLength": 1,
             "title": "Current Password"
           },
           "new_password": {
             "type": "string",
-            "maxLength": 128,
-            "minLength": 15,
+            "minLength": 1,
             "title": "New Password"
           }
         },
@@ -46339,7 +46257,6 @@
           },
           "password": {
             "type": "string",
-            "maxLength": 128,
             "minLength": 1,
             "title": "Password"
           },
@@ -46379,8 +46296,7 @@
           },
           "new_password": {
             "type": "string",
-            "maxLength": 128,
-            "minLength": 15,
+            "minLength": 1,
             "title": "New Password"
           }
         },
@@ -48509,35 +48425,20 @@
             "pattern": "^[A-Za-z0-9_]+$",
             "title": "Username"
           },
-          "target_type": {
+          "captcha_id": {
             "type": "string",
-            "enum": [
-              "phone",
-              "email"
-            ],
-            "title": "Target Type"
+            "maxLength": 128,
+            "minLength": 16,
+            "title": "Captcha Id"
           },
-          "target": {
+          "captcha_answer": {
             "type": "string",
-            "maxLength": 254,
-            "minLength": 3,
-            "title": "Target"
-          },
-          "verification_id": {
-            "type": "string",
-            "maxLength": 40,
-            "minLength": 5,
-            "title": "Verification Id"
-          },
-          "verification_code": {
-            "type": "string",
-            "pattern": "^[0-9]{6}$",
-            "title": "Verification Code"
+            "pattern": "^[0-9]{1,3}$",
+            "title": "Captcha Answer"
           },
           "password": {
             "type": "string",
-            "maxLength": 128,
-            "minLength": 15,
+            "minLength": 1,
             "title": "Password"
           },
           "config_version": {
@@ -48570,10 +48471,8 @@
         "type": "object",
         "required": [
           "username",
-          "target_type",
-          "target",
-          "verification_id",
-          "verification_code",
+          "captcha_id",
+          "captcha_answer",
           "password",
           "config_version",
           "agreement_acceptances"
@@ -51936,8 +51835,6 @@
           "purpose": {
             "type": "string",
             "enum": [
-              "register",
-              "login",
               "reset_password",
               "change_phone",
               "change_email"

@@ -35,13 +35,42 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
 ) -> None:
     suffix = secrets.token_hex(4)
     username = f"user_{suffix}"
-    email = f"user_{suffix}@example.com"
     password = f"Correct-Horse-{suffix}-Battery-Staple!"
 
     config_response = await client.get("/api/v1/auth/registration-config")
     assert config_response.status_code == 200
     registration_config = config_response.json()["data"]
     assert len(registration_config["required_agreements"]) == 2
+    assert registration_config["password_policy"] == {
+        "non_empty": True,
+        "forbid_whitespace": True,
+        "allow_unicode": True,
+        "policy_version": "password_v4",
+    }
+    captcha = registration_config["captcha"]
+    left, operator, right, _, _ = captcha["question"].split()
+    captcha_answer = int(left) + int(right) if operator == "+" else int(left) - int(right)
+
+    wrong_captcha_response = await client.post(
+        "/api/v1/auth/registrations",
+        headers={"Idempotency-Key": f"registration-{suffix}-wrong"},
+        json={
+            "username": username,
+            "captcha_id": captcha["captcha_id"],
+            "captcha_answer": str(captcha_answer + 1),
+            "password": password,
+            "config_version": registration_config["config_version"],
+            "agreement_acceptances": [
+                {
+                    "document_type": item["document_type"],
+                    "document_version": item["document_version"],
+                }
+                for item in registration_config["required_agreements"]
+            ],
+        },
+    )
+    assert wrong_captcha_response.status_code == 422
+    assert wrong_captcha_response.json()["code"] == "REGISTRATION_CAPTCHA_INVALID"
 
     agreement = registration_config["required_agreements"][0]
     legal_response = await client.get(
@@ -50,29 +79,13 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     assert legal_response.status_code == 200
     assert legal_response.json()["data"]["content_hash"] == agreement["content_hash"]
 
-    verification_response = await client.post(
-        "/api/v1/auth/verification-codes",
-        json={
-            "purpose": "register",
-            "target_type": "email",
-            "target": email,
-            "locale": "zh-CN",
-            "challenge_token": None,
-            "change_ticket_id": None,
-        },
-    )
-    assert verification_response.status_code == 202
-    verification_id = verification_response.json()["data"]["verification_id"]
-
     registration_response = await client.post(
         "/api/v1/auth/registrations",
         headers={"Idempotency-Key": f"registration-{suffix}-0001"},
         json={
             "username": username,
-            "target_type": "email",
-            "target": email,
-            "verification_id": verification_id,
-            "verification_code": "000000",
+            "captcha_id": captcha["captcha_id"],
+            "captcha_answer": str(captcha_answer),
             "password": password,
             "config_version": registration_config["config_version"],
             "agreement_acceptances": [
@@ -92,6 +105,27 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     access_token = bootstrap["access_token"]
     csrf_token = bootstrap["csrf_token"]
     auth_headers = {"Authorization": f"Bearer {access_token}"}
+
+    reused_captcha_response = await client.post(
+        "/api/v1/auth/registrations",
+        headers={"Idempotency-Key": f"registration-{suffix}-reused"},
+        json={
+            "username": f"other_{suffix}",
+            "captcha_id": captcha["captcha_id"],
+            "captcha_answer": str(captcha_answer),
+            "password": password,
+            "config_version": registration_config["config_version"],
+            "agreement_acceptances": [
+                {
+                    "document_type": item["document_type"],
+                    "document_version": item["document_version"],
+                }
+                for item in registration_config["required_agreements"]
+            ],
+        },
+    )
+    assert reused_captcha_response.status_code == 422
+    assert reused_captcha_response.json()["code"] == "REGISTRATION_CAPTCHA_INVALID"
 
     profile_response = await client.get("/api/v1/users/me", headers=auth_headers)
     assert profile_response.status_code == 200

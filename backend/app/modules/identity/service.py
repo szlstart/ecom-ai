@@ -46,7 +46,6 @@ from app.modules.identity.schemas import (
     AddressPatch,
     AddressView,
     AddressWrite,
-    CodeLoginRequest,
     ContactChangeRequest,
     ContactChangeTicketRequest,
     ContactChangeTicketResult,
@@ -71,13 +70,8 @@ from app.modules.rbac.models import UserRole
 from app.modules.system.models import IdempotencyRecord, OutboxEvent
 
 MAX_ACTIVE_ADDRESSES_PER_USER = 20
-REGISTRATION_CONFIG_VERSION = "regcfg_2026_08_01"
-COMMON_PASSWORDS = {
-    "passwordpassword",
-    "123456789012345",
-    "qwertyuiopasdfgh",
-    "adminadminadmin",
-}
+REGISTRATION_CONFIG_VERSION = "regcfg_2026_08_26"
+REGISTRATION_CAPTCHA_TTL_SECONDS = 600
 
 
 @dataclass(frozen=True)
@@ -101,7 +95,12 @@ class IdentityService:
         self.repository = IdentityRepository(session)
         self.idempotency = IdempotencyService(session)
 
-    async def registration_config(self) -> dict[str, object]:
+    async def registration_config(self, ip_address: str) -> dict[str, object]:
+        await self._enforce_rate_limit(
+            f"registration-config:{self.security.keyed_hash('registration-ip', ip_address).hex()}",
+            limit=60,
+            window_seconds=600,
+        )
         agreements = await self.repository.active_legal_versions()
         if len(agreements) != 2:
             raise ApplicationError(
@@ -126,11 +125,11 @@ class IdentityService:
                     "content_hash": _base64url(version.content_hash),
                 }
             )
+        captcha = await self._issue_registration_captcha()
         return {
             "config_version": REGISTRATION_CONFIG_VERSION,
             "locale": "zh-CN",
             "region_code": "CN",
-            "verification_channels": ["phone", "email"],
             "username_policy": {
                 "min_length": 4,
                 "max_length": 32,
@@ -138,17 +137,12 @@ class IdentityService:
                 "policy_version": "username_v1",
             },
             "password_policy": {
-                "min_length": self.settings.password_min_length,
-                "max_length": self.settings.password_max_length,
+                "non_empty": True,
+                "forbid_whitespace": True,
                 "allow_unicode": True,
-                "breached_password_check": True,
-                "policy_version": "password_v3",
+                "policy_version": "password_v4",
             },
-            "verification_policy": {
-                "code_length": 6,
-                "expires_in_seconds": 600,
-                "resend_hint_seconds": 60,
-            },
+            "captcha": captcha,
             "required_agreements": required,
         }
 
@@ -261,16 +255,12 @@ class IdentityService:
         normalized_username = normalize_username(request.username)
         if not USERNAME_PATTERN.fullmatch(request.username):
             raise _field_error("/username", "INVALID_USERNAME", "用户名格式不正确。")
-        try:
-            target = normalize_target(request.target_type, request.target)
-        except ValueError as exc:
-            raise _field_error("/target", "INVALID_TARGET", "手机号或邮箱格式不正确。") from exc
-        target_hash = self.security.keyed_hash("credential-identifier", target)
+        username_hash = self.security.keyed_hash("username", normalized_username)
         request_hash = self.security.keyed_hash(
             "registration-idempotency-payload",
             canonical_request_hash(request.model_dump(mode="json")),
         )
-        scope = f"registration:{target_hash.hex()}:{request.config_version}"
+        scope = f"registration:{username_hash.hex()}:{request.config_version}"
 
         existing_idempotency = await self.repository.idempotency_record(
             scope, idempotency_key, for_update=True
@@ -304,14 +294,12 @@ class IdentityService:
                 retryable=True,
             )
 
-        verification = await self._verify_code(
-            request.verification_id,
-            request.verification_code,
-            "register",
-            request.target_type,
-            target,
-            consume=False,
+        await self._enforce_rate_limit(
+            f"registration-ip:{self.security.keyed_hash('registration-ip', ip_address).hex()}",
+            limit=10,
+            window_seconds=600,
         )
+        await self._verify_registration_captcha(request.captcha_id, request.captcha_answer)
         legal_versions = await self._validate_registration_contract(request)
         if await self.repository.user_by_username(normalized_username) is not None:
             raise ApplicationError(
@@ -320,14 +308,6 @@ class IdentityService:
                 title="Username unavailable",
                 detail="该用户名不可用，请更换后重试。",
             )
-        if await self.repository.credential_by_identifier(request.target_type, target_hash):
-            raise ApplicationError(
-                status=409,
-                code="REGISTRATION_TARGET_ALREADY_BOUND",
-                title="Contact already registered",
-                detail="该联系方式已绑定账号，可直接登录或找回密码。",
-            )
-
         now = utc_now()
         user = User(
             user_no=new_prefixed_ulid("usr_"),
@@ -349,35 +329,20 @@ class IdentityService:
                 status=409,
                 code="REGISTRATION_CONFLICT",
                 title="Registration conflict",
-                detail="用户名或联系方式刚刚被使用，请检查后重试。",
+                detail="用户名刚刚被使用，请更换后重试。",
             ) from exc
-        self.session.add_all(
-            [
-                UserCredential(
-                    user_id=user.id,
-                    credential_type="password",
-                    secret_hash=self.security.hash_password(request.password),
-                    algorithm="argon2id",
-                    is_primary=True,
-                    is_verified=True,
-                    verified_at=now,
-                    password_changed_at=now,
-                    credential_status="active",
-                ),
-                UserCredential(
-                    user_id=user.id,
-                    credential_type=request.target_type,
-                    identifier_ciphertext=self.security.encrypt(
-                        f"user-credential:{request.target_type}", target
-                    ),
-                    identifier_hash=target_hash,
-                    key_version=1,
-                    is_primary=True,
-                    is_verified=True,
-                    verified_at=now,
-                    credential_status="active",
-                ),
-            ]
+        self.session.add(
+            UserCredential(
+                user_id=user.id,
+                credential_type="password",
+                secret_hash=self.security.hash_password(request.password),
+                algorithm="argon2id",
+                is_primary=True,
+                is_verified=True,
+                verified_at=now,
+                password_changed_at=now,
+                credential_status="active",
+            )
         )
         role = await self.repository.role_by_code("user")
         if role is None:
@@ -431,7 +396,6 @@ class IdentityService:
                 conversation_status="active",
             )
         )
-        verification.consumed_at = now
         self.session.add(
             IdempotencyRecord(
                 scope_key=scope,
@@ -461,7 +425,7 @@ class IdentityService:
                 audience="user",
                 client_type="web",
                 device_name="Registration",
-                auth_methods=["password", f"verified_{request.target_type}"],
+                auth_methods=["password", "arithmetic_captcha"],
                 assurance_level="aal1",
                 ip_address=ip_address,
                 user_agent=user_agent,
@@ -470,12 +434,12 @@ class IdentityService:
             self.session.add(
                 self._auth_attempt(
                     "registration",
-                    "verification_code",
+                    "arithmetic_captcha",
                     "succeeded",
                     "REGISTERED",
                     user_id=user.id,
                     session_id=None,
-                    identifier_hash=target_hash,
+                    identifier_hash=username_hash,
                     ip_address=ip_address,
                 )
             )
@@ -487,12 +451,12 @@ class IdentityService:
                 status=409,
                 code="REGISTRATION_CONFLICT",
                 title="Registration conflict",
-                detail="用户名或联系方式刚刚被使用，请检查后重试。",
+                detail="用户名刚刚被使用，请更换后重试。",
             ) from exc
 
     async def login(
         self,
-        request: PasswordLoginRequest | CodeLoginRequest,
+        request: PasswordLoginRequest,
         ip_address: str,
         user_agent: str,
     ) -> BootstrapResult:
@@ -501,64 +465,35 @@ class IdentityService:
             limit=20,
             window_seconds=600,
         )
-        if isinstance(request, PasswordLoginRequest):
-            user, credential, monitoring_hash = await self._resolve_password_identity(
-                request.identifier
-            )
-            valid = self.security.verify_password(
-                credential.secret_hash if credential is not None else None, request.password
-            )
-            now = utc_now()
-            if credential is not None and credential.locked_until and credential.locked_until > now:
-                valid = False
-            if user is None or credential is None or not valid:
-                if credential is not None:
-                    credential.failed_attempts += 1
-                    if credential.failed_attempts >= 5:
-                        credential.locked_until = now + timedelta(minutes=15)
-                self.session.add(
-                    self._auth_attempt(
-                        "password_login",
-                        "password",
-                        "invalid",
-                        "INVALID_CREDENTIALS",
-                        user_id=user.id if user else None,
-                        identifier_hash=monitoring_hash,
-                        ip_address=ip_address,
-                    )
+        user, credential, monitoring_hash = await self._resolve_password_identity(
+            request.identifier
+        )
+        valid = self.security.verify_password(
+            credential.secret_hash if credential is not None else None, request.password
+        )
+        now = utc_now()
+        if credential is not None and credential.locked_until and credential.locked_until > now:
+            valid = False
+        if user is None or credential is None or not valid:
+            if credential is not None:
+                credential.failed_attempts += 1
+                if credential.failed_attempts >= 5:
+                    credential.locked_until = now + timedelta(minutes=15)
+            self.session.add(
+                self._auth_attempt(
+                    "password_login",
+                    "password",
+                    "invalid",
+                    "INVALID_CREDENTIALS",
+                    user_id=user.id if user else None,
+                    identifier_hash=monitoring_hash,
+                    ip_address=ip_address,
                 )
-                await self.session.commit()
-                raise _invalid_credentials()
-            credential.failed_attempts = 0
-            credential.locked_until = None
-            auth_methods = ["password"]
-            device_name = request.client.device_name
-        else:
-            try:
-                target = normalize_target(request.target_type, request.target)
-            except ValueError as exc:
-                raise _invalid_credentials() from exc
-            credential = await self.repository.credential_by_identifier(
-                request.target_type,
-                self.security.keyed_hash("credential-identifier", target),
-                for_update=True,
             )
-            await self._verify_code(
-                request.verification_id,
-                request.verification_code,
-                "login",
-                request.target_type,
-                target,
-                consume=True,
-            )
-            if credential is None:
-                raise _invalid_credentials()
-            user = await self.session.get(User, credential.user_id)
-            if user is None:
-                raise _invalid_credentials()
-            monitoring_hash = self.security.keyed_hash("auth-monitoring", target)
-            auth_methods = ["verification_code"]
-            device_name = request.client.device_name
+            await self.session.commit()
+            raise _invalid_credentials()
+        credential.failed_attempts = 0
+        credential.locked_until = None
 
         if user.user_status != "active":
             raise ApplicationError(
@@ -579,8 +514,8 @@ class IdentityService:
             user,
             audience="user",
             client_type="web",
-            device_name=device_name,
-            auth_methods=auth_methods,
+            device_name=request.client.device_name,
+            auth_methods=["password"],
             assurance_level="aal1",
             ip_address=ip_address,
             user_agent=user_agent,
@@ -588,8 +523,8 @@ class IdentityService:
         )
         self.session.add(
             self._auth_attempt(
-                "password_login" if isinstance(request, PasswordLoginRequest) else "code_login",
-                "password" if isinstance(request, PasswordLoginRequest) else "verification_code",
+                "password_login",
+                "password",
                 "succeeded",
                 "AUTHENTICATED",
                 user_id=user.id,
@@ -1473,20 +1408,77 @@ class IdentityService:
             ) from exc
 
     def _validate_password(self, password: str) -> None:
-        if (
-            not self.settings.password_min_length
-            <= len(password)
-            <= self.settings.password_max_length
-        ):
+        if not password:
             raise _field_error(
                 "/password",
                 "PASSWORD_POLICY_FAILED",
-                f"密码长度必须为 {self.settings.password_min_length} 到 "
-                f"{self.settings.password_max_length} 个字符。",
+                "密码不能为空。",
             )
-        normalized = password.casefold().strip()
-        if normalized in COMMON_PASSWORDS or len(set(password)) < 5:
-            raise _field_error("/password", "PASSWORD_TOO_WEAK", "该密码过于常见或容易猜测。")
+        if any(character.isspace() for character in password):
+            raise _field_error(
+                "/password",
+                "PASSWORD_WHITESPACE_FORBIDDEN",
+                "密码不能包含空格、换行或其他空白字符。",
+            )
+
+    async def _issue_registration_captcha(self) -> dict[str, object]:
+        left = secrets.randbelow(20) + 1
+        right = secrets.randbelow(20) + 1
+        operator = "+" if secrets.randbelow(2) == 0 else "-"
+        if operator == "-" and right > left:
+            left, right = right, left
+        answer = left + right if operator == "+" else left - right
+        captcha_id = secrets.token_urlsafe(24)
+        answer_hash = self.security.keyed_hash(
+            "registration-captcha", f"{captcha_id}:{answer}"
+        ).hex()
+        try:
+            await self.redis.set(
+                f"ecom:auth:registration-captcha:{captcha_id}",
+                answer_hash,
+                ex=REGISTRATION_CAPTCHA_TTL_SECONDS,
+            )
+        except RedisError as exc:
+            raise ApplicationError(
+                status=503,
+                code="REGISTRATION_CAPTCHA_UNAVAILABLE",
+                title="Registration captcha unavailable",
+                detail="注册验证码暂不可用，请稍后重试。",
+                retryable=True,
+            ) from exc
+        return {
+            "captcha_id": captcha_id,
+            "question": f"{left} {operator} {right} = ?",
+            "expires_in_seconds": REGISTRATION_CAPTCHA_TTL_SECONDS,
+        }
+
+    async def _verify_registration_captcha(self, captcha_id: str, answer: str) -> None:
+        key = f"ecom:auth:registration-captcha:{captcha_id}"
+        submitted_hash = self.security.keyed_hash(
+            "registration-captcha", f"{captcha_id}:{answer}"
+        ).hex()
+        try:
+            stored_hash = await self.redis.get(key)
+            if stored_hash is None or not hmac.compare_digest(stored_hash, submitted_hash):
+                raise _field_error(
+                    "/captcha_answer",
+                    "REGISTRATION_CAPTCHA_INVALID",
+                    "算术验证码不正确或已过期，请重新计算。",
+                )
+            if await self.redis.delete(key) != 1:
+                raise _field_error(
+                    "/captcha_answer",
+                    "REGISTRATION_CAPTCHA_EXPIRED",
+                    "算术验证码已使用或已过期，请刷新后重试。",
+                )
+        except RedisError as exc:
+            raise ApplicationError(
+                status=503,
+                code="REGISTRATION_CAPTCHA_UNAVAILABLE",
+                title="Registration captcha unavailable",
+                detail="注册验证码暂不可用，请稍后重试。",
+                retryable=True,
+            ) from exc
 
     def _idempotency_payload(self, purpose: str, value: object) -> dict[str, str]:
         return {

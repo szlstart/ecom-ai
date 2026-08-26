@@ -112,7 +112,7 @@ non_resource_identifiers:
     client_generated: false
   configuration_version:
     format: registered_semantic_version
-    examples: [regcfg_2026_08_01, username_v1, password_v3]
+    examples: [regcfg_2026_08_26, username_v1, password_v4]
   legal_document_version:
     format: registered_semantic_version
     examples: [terms_2026_08, privacy_2026_08]

@@ -1,7 +1,12 @@
 import json
 from pathlib import Path
 
+import pytest
+
+from app.core.exceptions import ApplicationError
 from app.main import create_app
+from app.modules.identity.schemas import RegistrationRequest
+from app.modules.identity.service import IdentityService
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -55,13 +60,42 @@ def test_committed_openapi_artifact_matches_application() -> None:
     assert committed == create_app().openapi()
 
 
-def test_login_is_a_discriminated_union_and_sensitive_endpoints_are_not_gets() -> None:
+def test_login_is_password_only_and_sensitive_endpoints_are_not_gets() -> None:
     schema = create_app().openapi()
     login_schema = schema["paths"]["/api/v1/auth/login"]["post"]["requestBody"]["content"][
         "application/json"
     ]["schema"]
 
-    assert "oneOf" in login_schema
-    assert login_schema["discriminator"]["propertyName"] == "auth_method"
+    assert login_schema == {"$ref": "#/components/schemas/PasswordLoginRequest"}
     assert "get" not in schema["paths"]["/api/v1/auth/token-refresh"]
     assert "get" not in schema["paths"]["/api/v1/auth/logout"]
+
+
+def test_registration_uses_arithmetic_captcha_without_contact_fields() -> None:
+    request = RegistrationRequest.model_validate(
+        {
+            "username": "test_user",
+            "captcha_id": "captcha-identifier-0001",
+            "captcha_answer": "12",
+            "password": "x" * 1024,
+            "config_version": "regcfg_test",
+            "agreement_acceptances": [
+                {"document_type": "terms_of_service", "document_version": "v1"},
+                {"document_type": "privacy_policy", "document_version": "v1"},
+            ],
+        }
+    )
+    assert request.captcha_answer == "12"
+    assert len(request.password) == 1024
+
+
+def test_user_password_policy_only_rejects_empty_or_whitespace() -> None:
+    service = IdentityService.__new__(IdentityService)
+    service._validate_password("a")
+    service._validate_password("长" * 1024)
+    with pytest.raises(ApplicationError) as empty_error:
+        service._validate_password("")
+    assert empty_error.value.code == "PASSWORD_POLICY_FAILED"
+    with pytest.raises(ApplicationError) as exc_info:
+        service._validate_password("contains space")
+    assert exc_info.value.code == "PASSWORD_WHITESPACE_FORBIDDEN"

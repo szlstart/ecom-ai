@@ -9,7 +9,6 @@ describe('phase two route contract', () => {
   it('registers all user identity routes with traceability metadata', () => {
     const expected = new Map([
       ['/login', 'USR-AUTH-LOGIN-01'],
-      ['/login/code', 'USR-AUTH-CODE-01'],
       ['/register', 'USR-AUTH-REGISTER-01'],
       ['/forgot-password', 'USR-AUTH-FORGOT-01'],
       ['/reset-password', 'USR-AUTH-RESET-01'],

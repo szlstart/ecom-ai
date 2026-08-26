@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Literal
 
 from pydantic import Field, model_validator
 
@@ -15,11 +15,9 @@ class AgreementReference(StrictRequest):
 
 class RegistrationRequest(StrictRequest):
     username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
-    target_type: Literal["phone", "email"]
-    target: str = Field(min_length=3, max_length=254)
-    verification_id: str = Field(min_length=5, max_length=40)
-    verification_code: str = Field(pattern=r"^[0-9]{6}$")
-    password: str = Field(min_length=15, max_length=128)
+    captcha_id: str = Field(min_length=16, max_length=128)
+    captcha_answer: str = Field(pattern=r"^[0-9]{1,3}$")
+    password: str = Field(min_length=1)
     config_version: str
     agreement_acceptances: list[AgreementReference] = Field(min_length=2, max_length=2)
     locale: str = Field(default="zh-CN", max_length=16)
@@ -27,7 +25,7 @@ class RegistrationRequest(StrictRequest):
 
 
 class VerificationCodeRequest(StrictRequest):
-    purpose: Literal["register", "login", "reset_password", "change_phone", "change_email"]
+    purpose: Literal["reset_password", "change_phone", "change_email"]
     target_type: Literal["phone", "email"]
     target: str = Field(min_length=3, max_length=254)
     locale: str = Field(default="zh-CN", max_length=16)
@@ -51,25 +49,12 @@ class ClientDescriptor(StrictRequest):
 class PasswordLoginRequest(StrictRequest):
     auth_method: Literal["password"]
     identifier: str = Field(min_length=1, max_length=254)
-    password: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1)
     client: ClientDescriptor
     challenge_token: str | None = Field(default=None, max_length=2048)
 
 
-class CodeLoginRequest(StrictRequest):
-    auth_method: Literal["verification_code"]
-    target_type: Literal["phone", "email"]
-    target: str = Field(min_length=3, max_length=254)
-    verification_id: str = Field(min_length=5, max_length=40)
-    verification_code: str = Field(pattern=r"^[0-9]{6}$")
-    client: ClientDescriptor
-    challenge_token: str | None = Field(default=None, max_length=2048)
-
-
-LoginRequest = Annotated[
-    PasswordLoginRequest | CodeLoginRequest,
-    Field(discriminator="auth_method"),
-]
+LoginRequest = PasswordLoginRequest
 
 
 class UserSummary(StrictRequest):
@@ -122,7 +107,7 @@ class PasswordResetTicketResult(StrictRequest):
 
 class PasswordResetRequest(StrictRequest):
     reset_ticket: str = Field(min_length=32, max_length=256)
-    new_password: str = Field(min_length=15, max_length=128)
+    new_password: str = Field(min_length=1)
 
 
 class MessageResult(StrictRequest):
@@ -149,8 +134,8 @@ class UserProfileUpdate(StrictRequest):
 
 
 class PasswordChangeRequest(StrictRequest):
-    current_password: str = Field(min_length=1, max_length=128)
-    new_password: str = Field(min_length=15, max_length=128)
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=1)
 
 
 class SecuritySummary(StrictRequest):
@@ -220,7 +205,7 @@ class AccountClosureRequest(StrictRequest):
 
 class ContactChangeTicketRequest(StrictRequest):
     credential_type: Literal["phone", "email"]
-    current_password: str = Field(min_length=1, max_length=128)
+    current_password: str = Field(min_length=1)
 
 
 class ContactChangeTicketResult(StrictRequest):

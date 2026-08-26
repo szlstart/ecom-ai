@@ -46,8 +46,8 @@ families:
   AI-CONSENT: {layers: [contract, integration, security], selectors: [backend/tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry]}
   AI-FEEDBACK: {layers: [contract, integration], selectors: [backend/tests/test_ai_feedback_api_integration.py::test_ai_feedback_is_owned_versioned_idempotent_and_agent_only]}
   AI-MEMORY: {layers: [integration, security], selectors: [backend/tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry]}
-  AUTH-CODE: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-LOGIN: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
+  AUTH-CAPTCHA: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-LOGOUT: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-REFRESH: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-REGISTER: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}

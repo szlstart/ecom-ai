@@ -34,6 +34,7 @@ from app.modules.rbac.schemas import (
     AdminMfaChallenge,
     AdminMfaVerificationRequest,
     AdminNavigation,
+    AdminPasswordReauthenticationRequest,
     AdminReauthenticationRequest,
     MerchantReauthenticationRequest,
     NavigationItem,
@@ -109,7 +110,10 @@ class AdminAuthService:
         if user.user_status != "active":
             raise _invalid_admin_credentials()
         grants = await self.rbac.active_grants(user.id, utc_now())
-        if not any(role.role_code != "user" for _, role in grants):
+        if not any(
+            grant.scope_type == "platform" and role.role_code != "user"
+            for grant, role in grants
+        ):
             raise _invalid_admin_credentials()
         authenticator = await self.rbac.active_admin_mfa(user.id)
         if authenticator is None:
@@ -138,6 +142,61 @@ class AdminAuthService:
             challenge_id=challenge,
             allowed_methods=methods,
             expires_at=expires_at,
+        )
+
+    async def login_platform_password(
+        self,
+        request: AdminLoginRequest,
+        ip_address: str,
+        user_agent: str,
+    ) -> tuple[AdminBootstrap, str]:
+        await self._rate_limit(
+            f"platform-login-ip:"
+            f"{self.security.keyed_hash('platform-login-ip', ip_address).hex()}",
+            10,
+            600,
+        )
+        user, credential = await self._resolve_identity(request.identifier)
+        valid = self.security.verify_password(
+            credential.secret_hash if credential is not None else None,
+            request.password,
+        )
+        if (
+            user is None
+            or credential is None
+            or not valid
+            or user.user_status != "active"
+            or credential.must_change_password
+        ):
+            raise _invalid_admin_credentials()
+        grants = await self.rbac.active_grants(user.id, utc_now())
+        if not any(
+            grant.scope_type == "platform" and role.role_code != "user"
+            for grant, role in grants
+        ):
+            raise _invalid_admin_credentials()
+
+        user.last_login_at = utc_now()
+        result = await self.identity_service.issue_session(
+            user,
+            audience="admin",
+            client_type="admin_password",
+            device_name=request.client.device_name,
+            auth_methods=["password"],
+            assurance_level="password_admin",
+            ip_address=ip_address,
+            user_agent=user_agent,
+            commit=False,
+        )
+        permissions, scopes = await self._authorization_projection(user.id)
+        await self.session.commit()
+        return (
+            AdminBootstrap(
+                session=result.payload,
+                permission_codes=permissions,
+                scopes=scopes,
+            ),
+            result.refresh_token,
         )
 
     async def login_merchant(
@@ -366,6 +425,42 @@ class AdminAuthService:
         return ReauthenticationResult(
             reauth_expires_at=now + timedelta(seconds=self.settings.admin_recent_auth_seconds),
             assurance_level="aal1",
+        )
+
+    async def reauthenticate_platform_password(
+        self,
+        user: User,
+        auth_session: AuthSession,
+        request: AdminPasswordReauthenticationRequest,
+        ip_address: str,
+    ) -> ReauthenticationResult:
+        await self._rate_limit(
+            f"platform-reauth:{user.user_no}:"
+            f"{self.security.keyed_hash('platform-reauth-ip', ip_address).hex()}",
+            10,
+            600,
+        )
+        if auth_session.client_type != "admin_password":
+            raise _invalid_admin_credentials()
+        credential = await self.identity.password_credential(user.id, for_update=True)
+        grants = await self.rbac.active_grants(user.id, utc_now())
+        if (
+            credential is None
+            or not self.security.verify_password(credential.secret_hash, request.password)
+            or not any(
+                grant.scope_type == "platform" and role.role_code != "user"
+                for grant, role in grants
+            )
+        ):
+            raise _invalid_admin_credentials()
+        now = utc_now()
+        auth_session.authenticated_at = now
+        auth_session.assurance_level = "password_admin"
+        auth_session.authentication_methods = ["password"]
+        await self.session.commit()
+        return ReauthenticationResult(
+            reauth_expires_at=now + timedelta(seconds=self.settings.admin_recent_auth_seconds),
+            assurance_level="password_admin",
         )
 
     async def me(self, user: User, auth_session: AuthSession) -> AdminMe:

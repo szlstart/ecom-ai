@@ -37,6 +37,10 @@ class MerchantReauthenticationRequest(StrictRequest):
     password: str = Field(min_length=1, max_length=128)
 
 
+class AdminPasswordReauthenticationRequest(StrictRequest):
+    password: str = Field(min_length=1, max_length=128)
+
+
 class AdminBootstrap(StrictRequest):
     session: SessionBootstrap
     permission_codes: list[str]

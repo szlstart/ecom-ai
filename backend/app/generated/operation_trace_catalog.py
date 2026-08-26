@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "1902effb355760386277b10f74bb12f2c2ae771935e2c9db215e0a7d8a1d5275"
+SOURCE_SHA256 = "7f2dabe02b9a5bc6f439ff0f419e863be73a1993eb9e5598adf784f3a7f66724"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -252,16 +252,6 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["admin_refresh_cookie"],
         "x-test-case-ids": ["ADM-AUTH-*"],
     },
-    "AdminAuth_Login": {
-        "x-audit-event": "command.AdminAuth_Login",
-        "x-domain-command": "AdminAuth_Login",
-        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
-        "x-owner-kind": ["vue_route"],
-        "x-permission-codes": [],
-        "x-requirement-id": ["ADM-AUTH-01"],
-        "x-scope-policy": ["admin_audience"],
-        "x-test-case-ids": ["ADM-AUTH-*", "BROWSER-AUTH-*"],
-    },
     "AdminAuth_Logout": {
         "x-audit-event": "command.AdminAuth_Logout",
         "x-domain-command": "AdminAuth_Logout",
@@ -272,24 +262,24 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["admin_session"],
         "x-test-case-ids": ["ADM-AUTH-*"],
     },
-    "AdminAuth_MfaVerify": {
-        "x-audit-event": "command.AdminAuth_MfaVerify",
-        "x-domain-command": "AdminAuth_MfaVerify",
-        "x-idempotency-policy": "idempotency_key_required",
-        "x-owner-kind": ["vue_route"],
-        "x-permission-codes": [],
-        "x-requirement-id": ["ADM-AUTH-02"],
-        "x-scope-policy": ["admin_session"],
-        "x-test-case-ids": ["ADM-AUTH-*"],
-    },
-    "AdminAuth_Reauthenticate": {
-        "x-audit-event": "command.AdminAuth_Reauthenticate",
-        "x-domain-command": "AdminAuth_Reauthenticate",
+    "AdminAuth_PasswordLogin": {
+        "x-audit-event": "command.AdminAuth_PasswordLogin",
+        "x-domain-command": "AdminAuth_PasswordLogin",
         "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
-        "x-requirement-id": ["ADM-AUTH-02", "ADM-AUTH-03"],
-        "x-scope-policy": ["admin_session"],
+        "x-requirement-id": ["ADM-AUTH-01"],
+        "x-scope-policy": ["platform_admin_only"],
+        "x-test-case-ids": ["ADM-AUTH-*", "BROWSER-AUTH-*"],
+    },
+    "AdminAuth_PasswordReauthenticate": {
+        "x-audit-event": "command.AdminAuth_PasswordReauthenticate",
+        "x-domain-command": "AdminAuth_PasswordReauthenticate",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["ADM-AUTH-02"],
+        "x-scope-policy": ["platform_admin_session"],
         "x-test-case-ids": ["ADM-AUTH-*"],
     },
     "AdminBatchJobItem_List": {

@@ -4329,7 +4329,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/auth/login": {
+    "/api/v1/admin/auth/password-login": {
         parameters: {
             query?: never;
             header?: never;
@@ -4338,15 +4338,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Admin Login */
-        post: operations["AdminAuth_Login"];
+        /** Admin Password Login */
+        post: operations["AdminAuth_PasswordLogin"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/auth/mfa-verifications": {
+    "/api/v1/admin/auth/password-reauthentications": {
         parameters: {
             query?: never;
             header?: never;
@@ -4355,8 +4355,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Verify Admin Mfa */
-        post: operations["AdminAuth_MfaVerify"];
+        /** Reauthenticate Admin Password */
+        post: operations["AdminAuth_PasswordReauthenticate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4374,23 +4374,6 @@ export interface paths {
         put?: never;
         /** Refresh Admin Token */
         post: operations["AdminAuthToken_Refresh"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/auth/reauthentications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reauthenticate Admin */
-        post: operations["AdminAuth_Reauthenticate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5454,30 +5437,6 @@ export interface components {
                 [key: string]: string | number;
             }[];
         };
-        /** AdminMfaChallenge */
-        AdminMfaChallenge: {
-            /** Challenge Id */
-            challenge_id: string;
-            /** Allowed Methods */
-            allowed_methods: ("totp" | "recovery_code")[];
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-        };
-        /** AdminMfaVerificationRequest */
-        AdminMfaVerificationRequest: {
-            /** Challenge Id */
-            challenge_id: string;
-            /**
-             * Method
-             * @enum {string}
-             */
-            method: "totp" | "recovery_code";
-            /** Code */
-            code: string;
-        };
         /** AdminNavigation */
         AdminNavigation: {
             /** Items */
@@ -5528,6 +5487,11 @@ export interface components {
             user_name_masked: string;
             /** Available Admin Actions */
             available_admin_actions: ("adjust_amount" | "cancel" | "create_shipment")[];
+        };
+        /** AdminPasswordReauthenticationRequest */
+        AdminPasswordReauthenticationRequest: {
+            /** Password */
+            password: string;
         };
         /** AdminPaymentList */
         AdminPaymentList: {
@@ -5837,18 +5801,6 @@ export interface components {
             subtitle?: string | null;
             /** Description */
             description?: string | null;
-        };
-        /** AdminReauthenticationRequest */
-        AdminReauthenticationRequest: {
-            /** Password */
-            password: string;
-            /**
-             * Method
-             * @enum {string}
-             */
-            method: "totp" | "recovery_code";
-            /** Code */
-            code: string;
         };
         /** AdminRefundAppealDecisionRequest */
         AdminRefundAppealDecisionRequest: {
@@ -7684,11 +7636,6 @@ export interface components {
         /** Envelope[AdminMe] */
         Envelope_AdminMe_: {
             data: components["schemas"]["AdminMe"];
-            meta?: components["schemas"]["ResponseMeta"];
-        };
-        /** Envelope[AdminMfaChallenge] */
-        Envelope_AdminMfaChallenge_: {
-            data: components["schemas"]["AdminMfaChallenge"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminNavigation] */
@@ -22940,7 +22887,7 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
-    AdminAuth_Login: {
+    AdminAuth_PasswordLogin: {
         parameters: {
             query?: never;
             header?: never;
@@ -22959,7 +22906,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Envelope_AdminMfaChallenge_"];
+                    "application/json": components["schemas"]["Envelope_AdminBootstrap_"];
                 };
             };
             409: components["responses"]["Problem409"];
@@ -22977,18 +22924,16 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
-    AdminAuth_MfaVerify: {
+    AdminAuth_PasswordReauthenticate: {
         parameters: {
             query?: never;
-            header?: {
-                "Idempotency-Key"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminMfaVerificationRequest"];
+                "application/json": components["schemas"]["AdminPasswordReauthenticationRequest"];
             };
         };
         responses: {
@@ -22998,9 +22943,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Envelope_AdminBootstrap_"];
+                    "application/json": components["schemas"]["Envelope_ReauthenticationResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
             409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
@@ -23038,44 +22984,6 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
                 };
             };
-            409: components["responses"]["Problem409"];
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            429: components["responses"]["Problem429"];
-            500: components["responses"]["Problem500"];
-            503: components["responses"]["Problem503"];
-        };
-    };
-    AdminAuth_Reauthenticate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminReauthenticationRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_ReauthenticationResult_"];
-                };
-            };
-            401: components["responses"]["Problem401"];
             409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {

@@ -61,7 +61,11 @@ def require_any_admin_permission(*permission_codes: str) -> object:
                 detail=f"当前管理身份缺少所需权限: {'、'.join(permission_codes)}。",
             )
         permission = matching[0][0]
-        if permission.requires_mfa and context.session.assurance_level not in {"aal2", "aal3"}:
+        if permission.requires_mfa and context.session.assurance_level not in {
+            "aal2",
+            "aal3",
+            "password_admin",
+        }:
             raise ApplicationError(
                 status=403,
                 code="AUTH_MFA_REQUIRED",

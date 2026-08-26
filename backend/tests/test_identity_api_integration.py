@@ -515,6 +515,30 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     challenge = login_response.json()["data"]
     assert "totp" in challenge["allowed_methods"]
 
+    password_login = await client.post(
+        "/api/v1/admin/auth/password-login",
+        json={
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Admin password-only test"},
+        },
+    )
+    assert password_login.status_code == 200, password_login.text
+    password_bootstrap = password_login.json()["data"]
+    assert password_bootstrap["session"]["session"]["client_type"] == "admin_password"
+    assert password_bootstrap["scopes"] == [{"scope_type": "platform", "scope_id": 0}]
+
+    merchant_login = await client.post(
+        "/api/v1/merchant/auth/login",
+        json={
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Wrong portal test"},
+        },
+    )
+    assert merchant_login.status_code == 401
+    assert merchant_login.json()["code"] == "MERCHANT_AUTH_INVALID_CREDENTIALS"
+
     mfa_payload = {
         "challenge_id": challenge["challenge_id"],
         "method": "totp",

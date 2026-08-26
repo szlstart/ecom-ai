@@ -1,24 +1,16 @@
 from __future__ import annotations
 
 import json
-import secrets
 from dataclasses import dataclass
 from decimal import Decimal
 
-import pyotp
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, normalize_username, utc_now
 from app.modules.identity.models import User, UserCredential
-from app.modules.rbac.models import (
-    AdminMfaAuthenticator,
-    Permission,
-    Role,
-    RolePermission,
-    UserRole,
-)
+from app.modules.rbac.models import Permission, Role, RolePermission, UserRole
 from app.modules.stores.models import Store
 
 STORE_OPERATOR_PERMISSIONS = (
@@ -51,9 +43,6 @@ class MerchantProvisioningResult:
     username: str
     store_no: str
     store_name: str
-    totp_secret: str
-    provisioning_uri: str
-    recovery_codes: list[str]
 
 
 async def provision_store_operator(
@@ -200,40 +189,13 @@ async def provision_store_operator(
                 )
             )
 
-    totp_secret = pyotp.random_base32()
-    recovery_codes = [secrets.token_urlsafe(10) for _ in range(8)]
-    session.add(
-        AdminMfaAuthenticator(
-            authenticator_no=new_prefixed_ulid("mfa_"),
-            user_id=user.id,
-            authenticator_type="totp",
-            display_name="Store management authenticator",
-            secret_ciphertext=security.encrypt("admin-mfa-totp", totp_secret),
-            recovery_codes_hashes=[
-                {
-                    "hash": security.keyed_hash("admin-mfa-recovery", code).hex(),
-                    "used": False,
-                }
-                for code in recovery_codes
-            ],
-            key_version=1,
-            authenticator_status="active",
-        )
-    )
     await session.commit()
 
-    provisioning_uri = pyotp.TOTP(totp_secret).provisioning_uri(
-        name=username,
-        issuer_name="Ecom AI Merchant",
-    )
     return MerchantProvisioningResult(
         user_no=user.user_no,
         username=user.username,
         store_no=store.store_no,
         store_name=store.store_name,
-        totp_secret=totp_secret,
-        provisioning_uri=provisioning_uri,
-        recovery_codes=recovery_codes,
     )
 
 
@@ -244,10 +206,7 @@ def provisioning_result_json(result: MerchantProvisioningResult) -> str:
             "username": result.username,
             "store_id": result.store_no,
             "store_name": result.store_name,
-            "totp_secret": result.totp_secret,
-            "provisioning_uri": result.provisioning_uri,
-            "recovery_codes": result.recovery_codes,
-            "warning": "Store these values now. They cannot be retrieved later.",
+            "authentication": "password_only",
         },
         ensure_ascii=False,
         indent=2,

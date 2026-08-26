@@ -53,7 +53,7 @@ describe('phase two route contract', () => {
     for (const route of protectedRoutes) {
       expect(route.meta.audience).toBe('admin')
       expect(route.meta.requiresAuth).toBe(true)
-      if (route.path !== '/admin/security') expect(route.meta.requiredPermission || route.meta.requiredAnyPermission).toBeTruthy()
+      if (!['/admin/security', '/admin/reauthenticate'].includes(route.path)) expect(route.meta.requiredPermission || route.meta.requiredAnyPermission).toBeTruthy()
     }
   })
 

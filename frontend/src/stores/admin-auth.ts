@@ -4,12 +4,6 @@ import { computed, ref } from 'vue'
 import { apiRequest } from '@/api/http'
 import type { SessionBootstrap } from '@/stores/user-auth'
 
-interface AdminMfaChallenge {
-  challenge_id: string
-  allowed_methods: Array<'totp' | 'recovery_code'>
-  expires_at: string
-}
-
 interface AdminBootstrap {
   session: SessionBootstrap
   permission_codes: string[]
@@ -24,25 +18,12 @@ interface ReauthenticationResult {
 export const useAdminAuthStore = defineStore('admin-auth', () => {
   const accessToken = ref<string | null>(null)
   const csrfToken = ref<string | null>(readCookie('ecom_admin_csrf'))
-  const challenge = ref<AdminMfaChallenge | null>(null)
   const permissions = ref<string[]>([])
   const scopes = ref<Array<{ scope_type: string; scope_id: number }>>([])
   const userId = ref<string | null>(null)
   const refreshAttempted = ref(false)
   const reauthExpiresAt = ref<string | null>(null)
   const isAuthenticated = computed(() => accessToken.value !== null)
-
-  async function passwordLogin(identifier: string, password: string, deviceName: string) {
-    const response = await apiRequest<AdminMfaChallenge>('/admin/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({
-        identifier,
-        password,
-        client: { client_type: 'web', device_name: deviceName },
-      }),
-    })
-    challenge.value = response.data
-  }
 
   async function merchantPasswordLogin(identifier: string, password: string, deviceName: string) {
     const response = await apiRequest<AdminBootstrap>('/merchant/auth/login', {
@@ -55,19 +36,19 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     })
     accept(response.data)
     userId.value = response.data.session.user.user_id
-    challenge.value = null
   }
 
-  async function verifyMfa(method: 'totp' | 'recovery_code', code: string, key: string) {
-    if (!challenge.value) throw new Error('MFA challenge is missing')
-    const response = await apiRequest<AdminBootstrap>('/admin/auth/mfa-verifications', {
+  async function platformPasswordLogin(identifier: string, password: string, deviceName: string) {
+    const response = await apiRequest<AdminBootstrap>('/admin/auth/password-login', {
       method: 'POST',
-      headers: { 'Idempotency-Key': key },
-      body: JSON.stringify({ challenge_id: challenge.value.challenge_id, method, code }),
+      body: JSON.stringify({
+        identifier,
+        password,
+        client: { client_type: 'web', device_name: deviceName },
+      }),
     })
     accept(response.data)
-    await loadAuthorization()
-    challenge.value = null
+    userId.value = response.data.session.user.user_id
   }
 
   function accept(bootstrap: AdminBootstrap) {
@@ -107,26 +88,19 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     scopes.value = response.data.scopes
   }
 
-  async function reauthenticate(
-    password: string,
-    method: 'totp' | 'recovery_code',
-    code: string,
-  ) {
+  async function reauthenticateMerchant(password: string) {
     const response = await apiRequest<ReauthenticationResult>(
-      '/admin/auth/reauthentications',
-      {
-        method: 'POST',
-        body: JSON.stringify({ password, method, code }),
-      },
+      '/merchant/auth/reauthentications',
+      { method: 'POST', body: JSON.stringify({ password }) },
       accessToken.value,
     )
     reauthExpiresAt.value = response.data.reauth_expires_at
     return response.data
   }
 
-  async function reauthenticateMerchant(password: string) {
+  async function reauthenticatePlatformPassword(password: string) {
     const response = await apiRequest<ReauthenticationResult>(
-      '/merchant/auth/reauthentications',
+      '/admin/auth/password-reauthentications',
       { method: 'POST', body: JSON.stringify({ password }) },
       accessToken.value,
     )
@@ -161,19 +135,17 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
   return {
     accessToken,
     csrfToken,
-    challenge,
     permissions,
     scopes,
     userId,
     reauthExpiresAt,
     isAuthenticated,
-    passwordLogin,
     merchantPasswordLogin,
-    verifyMfa,
+    platformPasswordLogin,
     refresh,
     loadAuthorization,
-    reauthenticate,
     reauthenticateMerchant,
+    reauthenticatePlatformPassword,
     has,
     logout,
     clear,

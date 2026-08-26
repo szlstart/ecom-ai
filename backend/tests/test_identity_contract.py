@@ -26,7 +26,11 @@ def test_identity_openapi_contract_has_stable_operation_ids() -> None:
         ("/api/v1/users/me", "patch"): "UserProfile_Patch",
         ("/api/v1/users/me/addresses", "post"): "Address_Create",
         ("/api/v1/users/me/addresses/{address_id}", "patch"): "Address_Patch",
-        ("/api/v1/admin/auth/login", "post"): "AdminAuth_Login",
+        ("/api/v1/admin/auth/password-login", "post"): "AdminAuth_PasswordLogin",
+        (
+            "/api/v1/admin/auth/password-reauthentications",
+            "post",
+        ): "AdminAuth_PasswordReauthenticate",
         ("/api/v1/merchant/auth/login", "post"): "MerchantAuth_Login",
         (
             "/api/v1/merchant/auth/reauthentications",

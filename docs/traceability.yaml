@@ -77,12 +77,12 @@ idempotency_policy:
     AdminSkillToolBinding_Create: resource_creation_no_automatic_retry
     AdminTool_Create: resource_creation_no_automatic_retry
     AdminTool_VersionCreate: resource_creation_no_automatic_retry
-    AdminAuth_Login: rate_limited_security_command_no_automatic_retry
     AdminAuthToken_Refresh: refresh_token_rotation_replay_detection
-    AdminAuth_Reauthenticate: rate_limited_security_command_no_automatic_retry
     AdminAuth_Logout: session_terminal_state_convergence
     MerchantAuth_Login: rate_limited_security_command_no_automatic_retry
     MerchantAuth_Reauthenticate: rate_limited_security_command_no_automatic_retry
+    AdminAuth_PasswordLogin: rate_limited_security_command_no_automatic_retry
+    AdminAuth_PasswordReauthenticate: rate_limited_security_command_no_automatic_retry
   semantics: >-
     Header-backed policies are preferred for retryable business commands. PUT and DELETE use
     their resource-convergence semantics and still apply domain guards. Payload-deduplicated
@@ -205,9 +205,9 @@ routes:
   - {requirement_id: MCH-REVIEW-LIST-01, route: /merchant/reviews, component: MerchantReviewListPage.vue, audience: merchant, layout: MerchantLayout, auth: required, operations: [AdminReview_List], authorization: ['reviews:read'], domain_rules: [store_scope, published_reviews], tests: [MCH-PORTAL-*, ADM-REVIEW-*]}
   - {requirement_id: MCH-REVIEW-01, route: '/merchant/reviews/:reviewId', component: MerchantReviewDetailPage.vue, audience: merchant, layout: MerchantLayout, auth: required, operations: [AdminReview_Get, AdminReview_Reply], authorization: ['reviews:read', 'reviews:reply'], domain_rules: [store_scope, public_merchant_reply, no_moderation], tests: [MCH-PORTAL-*, ADM-REVIEW-*]}
   - {requirement_id: MCH-STORE-01, route: /merchant/store, component: MerchantStorePage.vue, audience: merchant, layout: MerchantLayout, auth: required, operations: [AdminStore_List, AdminStore_Update], authorization: ['stores:read', 'stores:manage'], domain_rules: [store_scope, etag, public_profile_projection, globally_unique_store_name, merchant_store_name_change_once_per_seven_days], tests: [MCH-PORTAL-*, ADM-STORE-*]}
-  - {requirement_id: ADM-AUTH-01, route: /admin/login, component: AdminLoginPage.vue, audience: admin, layout: AdminAuthLayout, auth: anonymous_only, operations: [AdminAuth_Login], authorization: admin_audience, domain_rules: [safe_redirect], tests: [ADM-AUTH-*, BROWSER-AUTH-*]}
-  - {requirement_id: ADM-AUTH-02, route: /admin/login/mfa, component: AdminMfaPage.vue, audience: admin, layout: AdminAuthLayout, auth: admin_challenge_or_session, operations: [AdminAuth_MfaVerify, AdminAuth_Reauthenticate], authorization: admin_session, domain_rules: [aal_bound_challenge, recent_auth], tests: [ADM-AUTH-*]}
-  - {requirement_id: ADM-AUTH-03, route: /admin/security, component: AdminSecurityPage.vue, audience: admin, layout: AdminLayout, auth: required, operations: [AdminAuthSession_ListMine, AdminAuthSession_Revoke, AdminAuth_Reauthenticate], authorization: admin_session, domain_rules: [admin_audience_only, current_identity_only], tests: [ADM-AUTH-*]}
+  - {requirement_id: ADM-AUTH-01, route: /admin/login, component: AdminLoginPage.vue, audience: admin, layout: AdminAuthLayout, auth: anonymous_only, operations: [AdminAuth_PasswordLogin], authorization: platform_admin_only, domain_rules: [password_only_login, server_side_platform_scope_gate, reject_store_operator, safe_redirect], tests: [ADM-AUTH-*, BROWSER-AUTH-*]}
+  - {requirement_id: ADM-AUTH-02, route: /admin/reauthenticate, component: AdminReauthenticatePage.vue, audience: admin, layout: AdminAuthLayout, auth: required, operations: [AdminAuth_PasswordReauthenticate], authorization: platform_admin_session, domain_rules: [password_only_recent_auth, safe_redirect], tests: [ADM-AUTH-*]}
+  - {requirement_id: ADM-AUTH-03, route: /admin/security, component: AdminSecurityPage.vue, audience: admin, layout: AdminLayout, auth: required, operations: [AdminAuthSession_ListMine, AdminAuthSession_Revoke], authorization: admin_session, domain_rules: [admin_audience_only, current_identity_only], tests: [ADM-AUTH-*]}
   - {requirement_id: ADM-DASH-01, route: /admin/dashboard, component: AdminDashboardPage.vue, audience: admin, layout: AdminLayout, auth: required, operations: [AdminDashboard_Get], authorization: ['dashboard:read'], domain_rules: [scope_aggregated_metrics], tests: [ADM-DASH-*, BROWSER-GUARD-*]}
   - {requirement_id: ADM-USER-LIST-01, route: /admin/users, component: AdminUserListPage.vue, audience: admin, layout: AdminLayout, auth: required, operations: [AdminUser_List], authorization: ['users:read'], domain_rules: [masked_by_default], tests: [ADM-USER-*]}
   - {requirement_id: ADM-USER-01, route: '/admin/users/:userId', component: AdminUserDetailPage.vue, audience: admin, layout: AdminLayout, auth: required, operations: [AdminUser_Get, AdminUserStatusEvent_List, AdminUser_ChangeStatus, AdminUserSession_Revoke, AdminUserPasswordReset_Require, AdminSensitiveGrant_Create, AdminSensitiveGrant_Revoke, AdminSensitiveFields_Get, AdminRoleGrant_List, AdminRoleGrantEvent_List, AdminRoleGrant_Create, AdminRoleGrant_Revoke], authorization: ['users:read', 'users:manage', 'users:read_sensitive', 'users:sessions_revoke', 'users:force_password_reset', 'rbac:read', 'rbac:manage'], domain_rules: [etag, recent_auth, one_time_sensitive_grant, separation_of_duties], tests: [ADM-USER-STATUS-*, ADM-SENSITIVE-*, ADM-RBAC-*]}

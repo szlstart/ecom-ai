@@ -28624,13 +28624,13 @@
         ]
       }
     },
-    "/api/v1/admin/auth/login": {
+    "/api/v1/admin/auth/password-login": {
       "post": {
         "tags": [
           "admin-authentication"
         ],
-        "summary": "Admin Login",
-        "operationId": "AdminAuth_Login",
+        "summary": "Admin Password Login",
+        "operationId": "AdminAuth_PasswordLogin",
         "requestBody": {
           "content": {
             "application/json": {
@@ -28640,94 +28640,6 @@
             }
           },
           "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_AdminMfaChallenge_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem409"
-          },
-          "429": {
-            "$ref": "#/components/responses/Problem429"
-          },
-          "500": {
-            "$ref": "#/components/responses/Problem500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem503"
-          }
-        },
-        "x-audit-event": "command.AdminAuth_Login",
-        "x-domain-command": "AdminAuth_Login",
-        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
-        "x-owner-kind": [
-          "vue_route"
-        ],
-        "x-permission-codes": [],
-        "x-requirement-id": [
-          "ADM-AUTH-01"
-        ],
-        "x-scope-policy": [
-          "admin_audience"
-        ],
-        "x-test-case-ids": [
-          "ADM-AUTH-*",
-          "BROWSER-AUTH-*"
-        ]
-      }
-    },
-    "/api/v1/admin/auth/mfa-verifications": {
-      "post": {
-        "tags": [
-          "admin-authentication"
-        ],
-        "summary": "Verify Admin Mfa",
-        "operationId": "AdminAuth_MfaVerify",
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Idempotency-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AdminMfaVerificationRequest"
-              }
-            }
-          }
         },
         "responses": {
           "200": {
@@ -28763,9 +28675,87 @@
             "$ref": "#/components/responses/Problem503"
           }
         },
-        "x-audit-event": "command.AdminAuth_MfaVerify",
-        "x-domain-command": "AdminAuth_MfaVerify",
-        "x-idempotency-policy": "idempotency_key_required",
+        "x-audit-event": "command.AdminAuth_PasswordLogin",
+        "x-domain-command": "AdminAuth_PasswordLogin",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "ADM-AUTH-01"
+        ],
+        "x-scope-policy": [
+          "platform_admin_only"
+        ],
+        "x-test-case-ids": [
+          "ADM-AUTH-*",
+          "BROWSER-AUTH-*"
+        ]
+      }
+    },
+    "/api/v1/admin/auth/password-reauthentications": {
+      "post": {
+        "tags": [
+          "admin-authentication"
+        ],
+        "summary": "Reauthenticate Admin Password",
+        "operationId": "AdminAuth_PasswordReauthenticate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPasswordReauthenticationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ReauthenticationResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "command.AdminAuth_PasswordReauthenticate",
+        "x-domain-command": "AdminAuth_PasswordReauthenticate",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -28774,7 +28764,7 @@
           "ADM-AUTH-02"
         ],
         "x-scope-policy": [
-          "admin_session"
+          "platform_admin_session"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*"
@@ -28868,84 +28858,6 @@
         ],
         "x-scope-policy": [
           "admin_refresh_cookie"
-        ],
-        "x-test-case-ids": [
-          "ADM-AUTH-*"
-        ]
-      }
-    },
-    "/api/v1/admin/auth/reauthentications": {
-      "post": {
-        "tags": [
-          "admin-authentication"
-        ],
-        "summary": "Reauthenticate Admin",
-        "operationId": "AdminAuth_Reauthenticate",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AdminReauthenticationRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_ReauthenticationResult_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Problem401"
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem409"
-          },
-          "429": {
-            "$ref": "#/components/responses/Problem429"
-          },
-          "500": {
-            "$ref": "#/components/responses/Problem500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem503"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "x-audit-event": "command.AdminAuth_Reauthenticate",
-        "x-domain-command": "AdminAuth_Reauthenticate",
-        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
-        "x-owner-kind": [
-          "vue_route"
-        ],
-        "x-permission-codes": [],
-        "x-requirement-id": [
-          "ADM-AUTH-02",
-          "ADM-AUTH-03"
-        ],
-        "x-scope-policy": [
-          "admin_session"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*"
@@ -33781,70 +33693,6 @@
         ],
         "title": "AdminMe"
       },
-      "AdminMfaChallenge": {
-        "properties": {
-          "challenge_id": {
-            "type": "string",
-            "title": "Challenge Id"
-          },
-          "allowed_methods": {
-            "items": {
-              "type": "string",
-              "enum": [
-                "totp",
-                "recovery_code"
-              ]
-            },
-            "type": "array",
-            "title": "Allowed Methods"
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Expires At"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "challenge_id",
-          "allowed_methods",
-          "expires_at"
-        ],
-        "title": "AdminMfaChallenge"
-      },
-      "AdminMfaVerificationRequest": {
-        "properties": {
-          "challenge_id": {
-            "type": "string",
-            "maxLength": 256,
-            "minLength": 32,
-            "title": "Challenge Id"
-          },
-          "method": {
-            "type": "string",
-            "enum": [
-              "totp",
-              "recovery_code"
-            ],
-            "title": "Method"
-          },
-          "code": {
-            "type": "string",
-            "maxLength": 64,
-            "minLength": 6,
-            "title": "Code"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "challenge_id",
-          "method",
-          "code"
-        ],
-        "title": "AdminMfaVerificationRequest"
-      },
       "AdminNavigation": {
         "properties": {
           "items": {
@@ -34024,6 +33872,22 @@
           "available_admin_actions"
         ],
         "title": "AdminOrderSummary"
+      },
+      "AdminPasswordReauthenticationRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "AdminPasswordReauthenticationRequest"
       },
       "AdminPaymentList": {
         "properties": {
@@ -35076,38 +34940,6 @@
         "additionalProperties": false,
         "type": "object",
         "title": "AdminProductUpdateRequest"
-      },
-      "AdminReauthenticationRequest": {
-        "properties": {
-          "password": {
-            "type": "string",
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Password"
-          },
-          "method": {
-            "type": "string",
-            "enum": [
-              "totp",
-              "recovery_code"
-            ],
-            "title": "Method"
-          },
-          "code": {
-            "type": "string",
-            "maxLength": 64,
-            "minLength": 6,
-            "title": "Code"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "password",
-          "method",
-          "code"
-        ],
-        "title": "AdminReauthenticationRequest"
       },
       "AdminRefundAppealDecisionRequest": {
         "properties": {
@@ -40851,21 +40683,6 @@
           "data"
         ],
         "title": "Envelope[AdminMe]"
-      },
-      "Envelope_AdminMfaChallenge_": {
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/AdminMfaChallenge"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/ResponseMeta"
-          }
-        },
-        "type": "object",
-        "required": [
-          "data"
-        ],
-        "title": "Envelope[AdminMfaChallenge]"
       },
       "Envelope_AdminNavigation_": {
         "properties": {

@@ -59,6 +59,17 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
         },
     )
     assert login.status_code == 200, login.text
+
+    platform_login = await client.post(
+        "/api/v1/admin/auth/password-login",
+        json={
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Wrong portal test"},
+        },
+    )
+    assert platform_login.status_code == 401
+    assert platform_login.json()["code"] == "ADMIN_AUTH_INVALID_CREDENTIALS"
     bootstrap = login.json()["data"]
     assert bootstrap["session"]["session"]["client_type"] == "merchant"
     assert "challenge_id" not in bootstrap

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { adminGet, requireAdminToken, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
+import { adminGet, adminUpdate, requireAdminToken, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
 import { listAdminReviews, type AdminReview } from '@/api/admin-reviews'
 import { listSupportTickets, type SupportTicket } from '@/api/admin-support'
 import { errorMessage } from '@/api/http'
@@ -16,10 +16,16 @@ const store = ref<AdminStore | null>(null)
 const products = ref<AdminProductSummary[]>([])
 const reviews = ref<AdminReview[]>([])
 const tickets = ref<SupportTicket[]>([])
+const storeName = ref('')
+const renaming = ref(false)
+const renameError = ref('')
+const renameNotice = ref('')
 const onSale = computed(() => products.value.filter((item) => item.status === 'on_sale').length)
 const drafts = computed(() => products.value.filter((item) => ['draft', 'rejected', 'off_shelf'].includes(item.status)).length)
 const unansweredReviews = computed(() => reviews.value.filter((item) => item.review_status === 'published' && !item.merchant_reply).length)
 const openTickets = computed(() => tickets.value.filter((item) => !['resolved', 'closed'].includes(item.ticket_status)).length)
+const canRename = computed(() => !store.value?.store_name_change_available_at || new Date(store.value.store_name_change_available_at).getTime() <= Date.now())
+const renameAvailableLabel = computed(() => store.value?.store_name_change_available_at ? new Date(store.value.store_name_change_available_at).toLocaleString('zh-CN') : '')
 
 function token() { return requireAdminToken(auth.accessToken) }
 function statusLabel(value: string) { return ({ draft: '草稿', pending_review: '审核中', rejected: '需修改', on_sale: '销售中', off_shelf: '已下架' } as Record<string, string>)[value] ?? value }
@@ -35,6 +41,7 @@ async function load() {
       listSupportTickets({ queueType: 'store' }, token()),
     ])
     store.value = storeResult.data.items[0] ?? null
+    storeName.value = store.value?.store_name ?? ''
     products.value = productResult.data.items
     reviews.value = reviewResult.data.items
     tickets.value = ticketResult.data.items
@@ -42,6 +49,27 @@ async function load() {
     error.value = errorMessage(cause)
   } finally {
     loading.value = false
+  }
+}
+
+async function renameStore() {
+  if (!store.value || !canRename.value || storeName.value.trim() === store.value.store_name) return
+  renaming.value = true
+  renameError.value = ''
+  renameNotice.value = ''
+  try {
+    store.value = (await adminUpdate<AdminStore>(
+      `/admin/stores/${encodeURIComponent(store.value.store_id)}`,
+      { store_name: storeName.value.trim() },
+      token(),
+      store.value.version,
+    )).data
+    storeName.value = store.value.store_name
+    renameNotice.value = '店铺名称已更新，并同步到用户端。'
+  } catch (cause) {
+    renameError.value = errorMessage(cause)
+  } finally {
+    renaming.value = false
   }
 }
 
@@ -58,6 +86,12 @@ onMounted(load)
         <RouterLink to="/merchant/support"><span>待处理咨询</span><strong>{{ openTickets }}</strong><small>及时回复顾客问题</small></RouterLink>
         <RouterLink to="/merchant/reviews?unanswered=1"><span>待回复评价</span><strong>{{ unansweredReviews }}</strong><small>感谢并回应顾客</small></RouterLink>
       </div>
+      <article class="card merchant-rename-card">
+        <div><p class="eyebrow">店铺名称</p><h2>用户看到的店铺名</h2><p>名称不能与其他店铺重复，商家每 7 天只能修改一次。</p></div>
+        <form @submit.prevent="renameStore"><label>新店铺名称<input v-model.trim="storeName" required minlength="2" maxlength="128" :disabled="!canRename" /></label><button :disabled="renaming || !canRename || storeName.trim() === store?.store_name">{{ renaming ? '正在保存…' : '修改店铺名' }}</button></form>
+        <p v-if="!canRename" class="merchant-field-hint">下次可修改时间：{{ renameAvailableLabel }}</p>
+        <p v-if="renameNotice" class="alert success">{{ renameNotice }}</p><p v-if="renameError" class="alert error">{{ renameError }}</p>
+      </article>
       <div class="merchant-dashboard-grid">
         <article class="card merchant-task-card"><header><div><p class="eyebrow">商品</p><h2>最近更新</h2></div><RouterLink to="/merchant/products">全部商品</RouterLink></header><div class="merchant-compact-list"><RouterLink v-for="item in products.slice(0, 5)" :key="item.product_id" :to="`/merchant/products/${item.product_id}`"><span><strong>{{ item.product_name }}</strong><small>{{ item.category_name }} · ¥{{ item.min_price }}</small></span><span class="badge">{{ statusLabel(item.status) }}</span></RouterLink><p v-if="!products.length" class="muted">还没有商品，先发布第一件商品吧。</p></div></article>
         <article class="card merchant-task-card"><header><div><p class="eyebrow">顾客</p><h2>等待处理</h2></div></header><div class="merchant-action-list"><RouterLink to="/merchant/support"><span>客户咨询</span><strong>{{ openTickets }} 件</strong></RouterLink><RouterLink to="/merchant/reviews?unanswered=1"><span>未回复评价</span><strong>{{ unansweredReviews }} 条</strong></RouterLink><RouterLink to="/merchant/inventory"><span>库存维护</span><strong>进入调整</strong></RouterLink></div></article>

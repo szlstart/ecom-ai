@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.id_generator import new_prefixed_ulid
 from app.generated.permission_catalog import PERMISSIONS
+from app.modules.catalog.models import Category
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
 from app.modules.rbac.models import Permission, Role
 
@@ -25,10 +26,22 @@ LEGAL_DOCUMENTS = {
     },
 }
 
+BASE_CATEGORIES = (
+    ("digital", "数码家电"),
+    ("clothing", "服饰鞋包"),
+    ("home", "家居生活"),
+    ("beauty", "美妆个护"),
+    ("food", "食品生鲜"),
+    ("books", "图书文娱"),
+    ("sports", "运动户外"),
+    ("other", "其他商品"),
+)
+
 
 async def seed_reference_data(session: AsyncSession) -> None:
     await _seed_permissions(session)
     await _seed_roles(session)
+    await _seed_categories(session)
     await _seed_legal_documents(session)
     await session.commit()
 
@@ -76,6 +89,24 @@ async def _seed_roles(session: AsyncSession) -> None:
                 role_type="system",
                 description=description,
                 role_status="active",
+            )
+        )
+
+
+async def _seed_categories(session: AsyncSession) -> None:
+    existing = set((await session.scalars(select(Category.category_code))).all())
+    for sort_order, (code, name) in enumerate(BASE_CATEGORIES, start=1):
+        if code in existing:
+            continue
+        session.add(
+            Category(
+                category_no=new_prefixed_ulid("cat_"),
+                category_name=name,
+                category_code=code,
+                path=f"/{code}",
+                level=1,
+                sort_order=sort_order,
+                category_status="active",
             )
         )
 

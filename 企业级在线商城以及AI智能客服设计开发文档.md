@@ -2783,13 +2783,13 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | :--- | :--- | :--- | :--- |
 | 商家登录 | `/merchant/login` / `MerchantLoginPage.vue` | 账号密码登录 | 店铺运营身份准入 |
 | MFA/重新认证 | `/merchant/login/mfa`、`/merchant/reauthenticate` / `MerchantMfaPage.vue` | MFA、恢复码、近期认证 | 当前 Merchant Session |
-| 工作台 | `/merchant/dashboard` / `MerchantDashboardPage.vue` | 在售/待完善商品、待处理咨询、待回复评价 | `stores:read` + Store；不授予平台仪表盘权限 |
+| 工作台 | `/merchant/dashboard` / `MerchantDashboardPage.vue` | 在售/待完善商品、待处理咨询、待回复评价；可直接修改当前店铺名称 | `stores:read/manage` + Store；不授予平台仪表盘权限 |
 | 商品列表 | `/merchant/products` / `MerchantProductListPage.vue` | 按名称和状态筛选本店商品 | `products:read` + Store |
 | 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `AdminProductEditPage.vue(portal=merchant)` | 基础资料、SKU、图片、参数、履约、详情、FAQ、提交审核、上架/下架 | `products:create/update/publish` + Store |
 | 库存 | `/merchant/inventory` / `AdminInventoryPage.vue(portal=merchant)` | 本店 SKU 库存查询和有据可查的增减调整 | `inventories:read/adjust` + Store |
 | 客户咨询 | `/merchant/support`、`/merchant/support/:ticketId` / `MerchantSupportListPage.vue`、`AdminSupportWorkspacePage.vue(portal=merchant)` | 店铺人工工单领取、回复、等待、恢复和解决 | `support:*` + Store Queue |
 | 评价回复 | `/merchant/reviews`、`/merchant/reviews/:reviewId` / `MerchantReview*Page.vue` | 查看本店已发布评价、发布一次商家回复 | `reviews:read/reply` + Store |
-| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo 和用户端预览 | `stores:read/manage` + Store |
+| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo 和用户端预览；展示店名下次可修改时间 | `stores:read/manage` + Store |
 
 #### 2.14.4 工作台与任务优先级
 
@@ -2800,6 +2800,8 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 商品编辑按“基础信息、销售规格、商品图片、商品参数、发货设置、商品详情、常见问题、上架检查”顺序组织。新建页自动使用账号唯一绑定店铺，不要求商家输入 `sto_...`；存在多个授权店铺时必须显式选择，前端选择只缩小 Scope，服务端仍从 Grant 与目标资源重新校验。
 
 SKU 价格在界面使用元，提交时转换为整数分；市场价不得低于售价。图片必须通过受控上传、病毒扫描和安全衍生后绑定；恰好一张公共主图。上架检查由服务端返回完整性缺项和 `available_actions`，前端不得自行绕过 SKU、主图、参数、履约与详情版本要求。高风险上架、下架、库存调整或店铺资料修改如返回 428，应保留输入并引导 `/merchant/reauthenticate?redirect=<当前安全站内路由>`。
+
+店铺名称使用 `store_name_normalized` 全局唯一约束，并在事务内进行重复预检与唯一键兜底。店铺范围账号成功改名时写入 `store_name_changed_at`，之后 7×24 小时内再次改名返回 `STORE_NAME_CHANGE_COOLDOWN`；查询投影同时返回 `store_name_change_available_at` 供界面禁用输入并显示准确时间。修改简介和 Logo 不受店名冷却期影响。Platform Scope 管理员可为纠错或治理目的覆盖冷却限制，但仍受名称唯一约束与审计约束。
 
 #### 2.14.6 客服与评价回复
 
@@ -9097,7 +9099,7 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `GET` | `/admin/store-certifications/{certification_id}/events` | `stores:review` 或 `stores:manage` + 本店 Scope；Cursor 返回材料版本与审核时间线 |
 | `POST` | `/admin/store-certifications/{certification_id}/material-versions` | `stores:manage` + 本店 Scope；仅 `more_info_required`，提交完整 Active 私有文件集、材料版本、If-Match 与幂等，成功后回到 `pending` |
 | `GET` | `/admin/stores`、`/admin/stores/{store_id}` | `stores:read` + Data Scope |
-| `PATCH` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；修改名称、简介或已通过扫描且归属本店的 `store_logo` 派生文件，If-Match 必填 |
+| `PATCH` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；修改名称、简介或已通过扫描且归属本店的 `store_logo` 派生文件，If-Match 必填；名称全局唯一，店铺范围账号 7 天只能成功改名一次 |
 | `POST` | `/admin/stores/{store_id}/status-changes` | `stores:manage`；展示/提交影响码，不能覆盖认证历史 |
 | `GET/POST/PATCH` | `/admin/stores/{store_id}/product-groups` | 店铺运营权限；If-Match、店铺归属校验 |
 | `PUT` | `/admin/stores/{store_id}/product-groups/{group_id}/products` | 完整目标商品集；所有 Product 必须属于本店 |

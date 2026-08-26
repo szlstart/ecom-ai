@@ -20,6 +20,8 @@ class AdminStoreView(StrictRequest):
     rating_count: int
     follower_count: int
     sales_count: int
+    store_name_changed_at: datetime | None
+    store_name_change_available_at: datetime | None
     opened_at: datetime | None
     suspended_at: datetime | None
     closed_at: datetime | None

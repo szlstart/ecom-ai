@@ -43,7 +43,7 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
             store_no=f"sto_foreign_{suffix}",
             owner_user_id=own_store.owner_user_id,
             store_name=f"隔离测试店铺 {suffix}",
-            store_name_normalized=f"isolated-store-{suffix}",
+            store_name_normalized=f"隔离测试店铺 {suffix}".casefold(),
             store_status="active",
         )
         session.add(foreign_store)
@@ -82,6 +82,34 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
     assert [item["store_id"] for item in stores.json()["data"]["items"]] == [
         provisioning.store_no
     ]
+
+    store_detail = await client.get(
+        f"/api/v1/admin/stores/{provisioning.store_no}", headers=headers
+    )
+    duplicate_name = await client.patch(
+        f"/api/v1/admin/stores/{provisioning.store_no}",
+        headers={**headers, "If-Match": store_detail.headers["etag"]},
+        json={"store_name": f"隔离测试店铺 {suffix}"},
+    )
+    assert duplicate_name.status_code == 409, duplicate_name.text
+    assert duplicate_name.json()["code"] == "STORE_NAME_ALREADY_EXISTS"
+
+    renamed = await client.patch(
+        f"/api/v1/admin/stores/{provisioning.store_no}",
+        headers={**headers, "If-Match": store_detail.headers["etag"]},
+        json={"store_name": f"商家正式店铺 {suffix}"},
+    )
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["data"]["store_name_changed_at"] is not None
+    assert renamed.json()["data"]["store_name_change_available_at"] is not None
+
+    cooldown = await client.patch(
+        f"/api/v1/admin/stores/{provisioning.store_no}",
+        headers={**headers, "If-Match": renamed.headers["etag"]},
+        json={"store_name": f"商家再次改名 {suffix}"},
+    )
+    assert cooldown.status_code == 409, cooldown.text
+    assert cooldown.json()["code"] == "STORE_NAME_CHANGE_COOLDOWN"
 
     forbidden = await client.get(f"/api/v1/admin/stores/{foreign_store_no}", headers=headers)
     assert forbidden.status_code == 404

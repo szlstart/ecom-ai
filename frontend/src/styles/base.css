@@ -475,6 +475,12 @@ tr.selected td { background: #f0f4ff; }
 .merchant-compact-list, .merchant-action-list { display: grid; }
 .merchant-compact-list > a, .merchant-action-list > a { padding: 13px 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; color: #173228; border-top: 1px solid #edf1ee; }
 .merchant-compact-list > a:hover, .merchant-action-list > a:hover { color: #187657; text-decoration: none; }
+.merchant-rename-card { margin-top: 20px; display: grid; grid-template-columns: minmax(220px, .8fr) minmax(320px, 1.2fr); gap: 20px 32px; align-items: end; }
+.merchant-rename-card h2 { margin: 4px 0 8px; }
+.merchant-rename-card p { margin: 0; }
+.merchant-rename-card form { display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 12px; align-items: end; }
+.merchant-rename-card .alert, .merchant-rename-card .merchant-field-hint { grid-column: 1 / -1; }
+.merchant-field-hint { color: #8a5b20; font-weight: 700; }
 .merchant-filter-bar { padding: 18px; display: grid; grid-template-columns: minmax(260px, 1fr) 220px auto; align-items: end; gap: 14px; border: 1px solid #dce5df; border-radius: 16px; background: #fff; }
 .merchant-product-table { overflow: hidden; border: 1px solid #dce5df; border-radius: 16px; background: #fff; }
 .merchant-product-row { padding: 16px 18px; display: grid; grid-template-columns: minmax(260px, 2fr) minmax(110px, .7fr) minmax(100px, .6fr) minmax(180px, 1fr) 90px; align-items: center; gap: 18px; border-top: 1px solid #edf1ee; }
@@ -576,7 +582,8 @@ tr.selected td { background: #f0f4ff; }
   .merchant-content { padding: 24px 16px; }
   .merchant-page-heading { align-items: flex-start; flex-direction: column; }
   .merchant-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .merchant-dashboard-grid, .merchant-review-detail, .merchant-store-settings { grid-template-columns: 1fr; }
+  .merchant-dashboard-grid, .merchant-review-detail, .merchant-store-settings, .merchant-rename-card { grid-template-columns: 1fr; }
+  .merchant-rename-card form { grid-template-columns: 1fr; }
   .merchant-filter-bar { grid-template-columns: 1fr; }
   .merchant-product-table { overflow-x: auto; }
   .merchant-product-row { min-width: 820px; }

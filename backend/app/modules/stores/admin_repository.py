@@ -60,6 +60,15 @@ class AdminStoreRepository:
         row = (await self.session.execute(statement)).one_or_none()
         return None if row is None else (row[0], row[1])
 
+    async def store_name_exists(self, normalized_name: str, *, exclude_store_id: int) -> bool:
+        count = await self.session.scalar(
+            select(func.count(Store.id)).where(
+                Store.store_name_normalized == normalized_name,
+                Store.id != exclude_store_id,
+            )
+        )
+        return bool(count)
+
     async def approved_certification_exists(self, store_id: int, now: datetime) -> bool:
         count = await self.session.scalar(
             select(func.count(StoreCertification.id)).where(

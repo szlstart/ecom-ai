@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "89d7e6da977ab5aefc0f959971f52434ac20092aa9bebd92aa760af309156f77"
+SOURCE_SHA256 = "f10ff0f55e2f062c7f38f1efe50a49c3f05fe83b17702eb2e7e2b314b2b07ded"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -1051,8 +1051,8 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-LIST-01", "MCH-DASH-01", "MCH-PRODUCT-LIST-01"],
-        "x-scope-policy": ["stores:read", "store_scope", "products:read"],
-        "x-test-case-ids": ["ADM-PRODUCT-*", "MCH-PORTAL-*"],
+        "x-scope-policy": ["stores:read", "stores:manage", "store_scope", "products:read"],
+        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-STORE-*", "MCH-PORTAL-*"],
     },
     "AdminProduct_Moderate": {
         "x-audit-event": "command.AdminProduct_Moderate",
@@ -1231,8 +1231,8 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["reviews:read"],
         "x-requirement-id": ["ADM-REVIEW-LIST-01", "MCH-DASH-01", "MCH-REVIEW-LIST-01"],
-        "x-scope-policy": ["stores:read", "store_scope", "reviews:read"],
-        "x-test-case-ids": ["ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-scope-policy": ["stores:read", "stores:manage", "store_scope", "reviews:read"],
+        "x-test-case-ids": ["ADM-REVIEW-*", "ADM-STORE-*", "MCH-PORTAL-*"],
     },
     "AdminReview_Moderate": {
         "x-audit-event": "command.AdminReview_Moderate",
@@ -1854,10 +1854,10 @@ OPERATIONS: dict[str, dict[str, object]] = {
         ],
         "x-scope-policy": [
             "stores:read",
+            "stores:manage",
             "store_scope",
             "public_reference_projection",
             "products:create",
-            "stores:manage",
         ],
         "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-STORE-*", "MCH-PORTAL-*"],
     },
@@ -1867,8 +1867,8 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
-        "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-STORE-01"],
-        "x-scope-policy": ["stores:read", "stores:manage"],
+        "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-DASH-01", "MCH-STORE-01"],
+        "x-scope-policy": ["stores:read", "stores:manage", "store_scope"],
         "x-test-case-ids": ["ADM-STORE-*", "MCH-PORTAL-*"],
     },
     "AdminToolVersion_Rollback": {
@@ -3468,8 +3468,8 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["support:queue_read"],
         "x-requirement-id": ["ADM-SUPPORT-LIST-01", "MCH-DASH-01", "MCH-SUPPORT-LIST-01"],
-        "x-scope-policy": ["stores:read", "store_scope", "support:queue_read"],
-        "x-test-case-ids": ["ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-scope-policy": ["stores:read", "stores:manage", "store_scope", "support:queue_read"],
+        "x-test-case-ids": ["ADM-STORE-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
     },
     "SupportTicket_Resolve": {
         "x-audit-event": "command.SupportTicket_Resolve",

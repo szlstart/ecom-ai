@@ -7300,11 +7300,13 @@
         ],
         "x-scope-policy": [
           "stores:read",
+          "stores:manage",
           "store_scope",
           "reviews:read"
         ],
         "x-test-case-ids": [
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -11328,10 +11330,12 @@
         ],
         "x-scope-policy": [
           "stores:read",
+          "stores:manage",
           "store_scope",
           "support:queue_read"
         ],
         "x-test-case-ids": [
+          "ADM-STORE-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
@@ -21755,11 +21759,13 @@
         ],
         "x-scope-policy": [
           "stores:read",
+          "stores:manage",
           "store_scope",
           "products:read"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -24562,10 +24568,10 @@
         ],
         "x-scope-policy": [
           "stores:read",
+          "stores:manage",
           "store_scope",
           "public_reference_projection",
-          "products:create",
-          "stores:manage"
+          "products:create"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
@@ -24765,11 +24771,13 @@
         ],
         "x-requirement-id": [
           "ADM-STORE-DETAIL-01",
+          "MCH-DASH-01",
           "MCH-STORE-01"
         ],
         "x-scope-policy": [
           "stores:read",
-          "stores:manage"
+          "stores:manage",
+          "store_scope"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*",
@@ -36949,6 +36957,30 @@
             "type": "integer",
             "title": "Sales Count"
           },
+          "store_name_changed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Name Changed At"
+          },
+          "store_name_change_available_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Name Change Available At"
+          },
           "opened_at": {
             "anyOf": [
               {
@@ -37004,6 +37036,8 @@
           "rating_count",
           "follower_count",
           "sales_count",
+          "store_name_changed_at",
+          "store_name_change_available_at",
           "opened_at",
           "suspended_at",
           "closed_at",

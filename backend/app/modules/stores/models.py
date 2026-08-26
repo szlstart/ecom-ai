@@ -57,6 +57,7 @@ class Store(MutableMySQLModel, MySQLBase):
     sales_count: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), nullable=False, default=0, server_default="0"
     )
+    store_name_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))

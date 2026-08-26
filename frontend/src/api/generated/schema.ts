@@ -6397,6 +6397,10 @@ export interface components {
             follower_count: number;
             /** Sales Count */
             sales_count: number;
+            /** Store Name Changed At */
+            store_name_changed_at: string | null;
+            /** Store Name Change Available At */
+            store_name_change_available_at: string | null;
             /** Opened At */
             opened_at: string | null;
             /** Suspended At */

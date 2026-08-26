@@ -97,6 +97,8 @@ fieldset { display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid
 .field-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .address-card { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .address-form { margin-bottom: 22px; }
+.field-error { display: block; margin-top: 6px; color: #b42318; font-size: .82rem; font-weight: 600; }
+[aria-invalid="true"] { border-color: #d92d20; box-shadow: 0 0 0 3px rgb(217 45 32 / 10%); }
 .region-selector { background: #f8faff; }
 .region-selector select:disabled { color: #8a93a5; background: #eef1f6; }
 .badge { display: inline-block; margin-right: 8px; padding: 3px 8px; color: #3158d8; border-radius: 999px; background: #edf1ff; font-size: .78rem; font-weight: 700; }

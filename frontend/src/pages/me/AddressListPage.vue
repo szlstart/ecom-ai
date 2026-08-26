@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import areaData from 'china-area-data'
 
-import { apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
+import { ApiProblem, apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 interface Address {
@@ -19,6 +19,7 @@ interface Address {
 }
 
 interface RegionOption { code: string; name: string }
+type AddressField = 'recipient_name' | 'phone' | 'province_code' | 'city_code' | 'district_code' | 'address'
 
 const excludedProvinceCodes = new Set(['810000', '820000'])
 const provinces = Object.entries(areaData['86'] ?? {})
@@ -43,6 +44,14 @@ const form = reactive({
   address: '',
   is_default: false,
 })
+const fieldErrors = reactive<Record<AddressField, string>>({
+  recipient_name: '',
+  phone: '',
+  province_code: '',
+  city_code: '',
+  district_code: '',
+  address: '',
+})
 
 const cities = computed(() => optionsFor(form.province_code))
 const districts = computed(() => optionsFor(form.city_code))
@@ -52,12 +61,86 @@ function optionsFor(parentCode: string): RegionOption[] {
 }
 
 function selectProvince() {
+  clearFieldError('province_code')
+  clearFieldError('city_code')
+  clearFieldError('district_code')
   form.city_code = ''
   form.district_code = ''
 }
 
 function selectCity() {
+  clearFieldError('city_code')
+  clearFieldError('district_code')
   form.district_code = ''
+}
+
+function clearFieldError(field: AddressField) {
+  fieldErrors[field] = ''
+}
+
+function clearFieldErrors() {
+  for (const field of Object.keys(fieldErrors) as AddressField[]) fieldErrors[field] = ''
+}
+
+function validateForm(): boolean {
+  clearFieldErrors()
+  if (!form.recipient_name.trim()) fieldErrors.recipient_name = '请输入收货人。'
+  else if (form.recipient_name.trim().length > 64) fieldErrors.recipient_name = '收货人不能超过 64 个字符。'
+  if (!form.phone.trim()) fieldErrors.phone = '请输入联系电话。'
+  else if (form.phone.trim().length < 7) fieldErrors.phone = '联系电话至少需要 7 个字符。'
+  else if (form.phone.trim().length > 32) fieldErrors.phone = '联系电话不能超过 32 个字符。'
+  if (!form.province_code) fieldErrors.province_code = '请选择省份。'
+  if (!form.city_code) fieldErrors.city_code = '请选择城市。'
+  if (!form.district_code) fieldErrors.district_code = '请选择区或县。'
+  if (!form.address.trim()) fieldErrors.address = '请输入详细地址。'
+  else if (form.address.trim().length < 2) fieldErrors.address = '详细地址至少需要 2 个字符。'
+  return !Object.values(fieldErrors).some(Boolean)
+}
+
+function validationMessage(field: AddressField, code: string): string {
+  const messages: Record<AddressField, Record<string, string>> = {
+    recipient_name: {
+      missing: '请输入收货人。',
+      string_too_short: '请输入至少 1 个字符的收货人。',
+      string_too_long: '收货人不能超过 64 个字符。',
+    },
+    phone: {
+      missing: '请输入联系电话。',
+      string_too_short: '联系电话至少需要 7 个字符。',
+      string_too_long: '联系电话不能超过 32 个字符。',
+    },
+    province_code: { missing: '请选择省份。' },
+    city_code: { missing: '请选择城市。' },
+    district_code: { missing: '请选择区或县。' },
+    address: {
+      missing: '请输入详细地址。',
+      string_too_short: '详细地址至少需要 2 个字符。',
+      string_too_long: '详细地址不能超过 500 个字符。',
+    },
+  }
+  return messages[field][code] ?? `请检查${{
+    recipient_name: '收货人',
+    phone: '联系电话',
+    province_code: '省份',
+    city_code: '城市',
+    district_code: '区或县',
+    address: '详细地址',
+  }[field]}。`
+}
+
+function showRequestError(reason: unknown) {
+  if (reason instanceof ApiProblem && reason.body.status === 422 && reason.body.errors?.length) {
+    let matched = false
+    for (const item of reason.body.errors) {
+      const field = item.pointer.split('/').at(-1) as AddressField | undefined
+      if (field && field in fieldErrors) {
+        fieldErrors[field] = validationMessage(field, item.code)
+        matched = true
+      }
+    }
+    if (matched) return
+  }
+  error.value = errorMessage(reason)
 }
 
 function regionName(code: string): string {
@@ -84,6 +167,7 @@ function resetForm() {
     address: '',
     is_default: false,
   })
+  clearFieldErrors()
 }
 
 function openCreateForm() {
@@ -124,8 +208,9 @@ async function load() {
 }
 
 async function save() {
-  pending.value = true
   error.value = ''
+  if (!validateForm()) return
+  pending.value = true
   try {
     if (editingAddressId.value && editingVersion.value !== null) {
       await apiRequest(`/users/me/addresses/${editingAddressId.value}`, {
@@ -151,7 +236,7 @@ async function save() {
     cancelForm()
     await load()
   } catch (reason) {
-    error.value = errorMessage(reason)
+    showRequestError(reason)
   } finally {
     pending.value = false
   }
@@ -193,19 +278,19 @@ onMounted(() => load().catch((reason) => { error.value = errorMessage(reason) })
     </div>
     <p v-if="error" class="alert error">{{ error }}</p>
 
-    <form v-if="showForm" class="card address-form" @submit.prevent="save">
+    <form v-if="showForm" class="card address-form" novalidate @submit.prevent="save">
       <h2>{{ isEditing ? '编辑收货地址' : '新增收货地址' }}</h2>
-      <label>收货人<input v-model.trim="form.recipient_name" autocomplete="name" minlength="1" maxlength="64" required /></label>
-      <label>联系电话<input v-model="form.phone" autocomplete="tel" required /></label>
+      <label>收货人<input v-model.trim="form.recipient_name" autocomplete="name" minlength="1" maxlength="64" required :aria-invalid="Boolean(fieldErrors.recipient_name)" @input="clearFieldError('recipient_name')" /><small v-if="fieldErrors.recipient_name" class="field-error" role="alert">{{ fieldErrors.recipient_name }}</small></label>
+      <label>联系电话<input v-model.trim="form.phone" autocomplete="tel" minlength="7" maxlength="32" required :aria-invalid="Boolean(fieldErrors.phone)" @input="clearFieldError('phone')" /><small v-if="fieldErrors.phone" class="field-error" role="alert">{{ fieldErrors.phone }}</small></label>
       <fieldset class="region-selector">
         <legend>地区</legend>
         <div class="field-row">
-          <label>省份<select v-model="form.province_code" required @change="selectProvince"><option value="" disabled>请选择省份</option><option v-for="item in provinces" :key="item.code" :value="item.code">{{ item.name }}</option></select></label>
-          <label>城市<select v-model="form.city_code" required :disabled="!form.province_code" @change="selectCity"><option value="" disabled>请选择城市</option><option v-for="item in cities" :key="item.code" :value="item.code">{{ item.name }}</option></select></label>
-          <label>区 / 县<select v-model="form.district_code" required :disabled="!form.city_code"><option value="" disabled>请选择区或县</option><option v-for="item in districts" :key="item.code" :value="item.code">{{ item.name }}</option></select></label>
+          <label>省份<select v-model="form.province_code" required :aria-invalid="Boolean(fieldErrors.province_code)" @change="selectProvince"><option value="" disabled>请选择省份</option><option v-for="item in provinces" :key="item.code" :value="item.code">{{ item.name }}</option></select><small v-if="fieldErrors.province_code" class="field-error" role="alert">{{ fieldErrors.province_code }}</small></label>
+          <label>城市<select v-model="form.city_code" required :disabled="!form.province_code" :aria-invalid="Boolean(fieldErrors.city_code)" @change="selectCity"><option value="" disabled>请选择城市</option><option v-for="item in cities" :key="item.code" :value="item.code">{{ item.name }}</option></select><small v-if="fieldErrors.city_code" class="field-error" role="alert">{{ fieldErrors.city_code }}</small></label>
+          <label>区 / 县<select v-model="form.district_code" required :disabled="!form.city_code" :aria-invalid="Boolean(fieldErrors.district_code)" @change="clearFieldError('district_code')"><option value="" disabled>请选择区或县</option><option v-for="item in districts" :key="item.code" :value="item.code">{{ item.name }}</option></select><small v-if="fieldErrors.district_code" class="field-error" role="alert">{{ fieldErrors.district_code }}</small></label>
         </div>
       </fieldset>
-      <label>详细地址<textarea v-model="form.address" autocomplete="street-address" maxlength="500" placeholder="请输入街道、门牌号、小区、楼栋及房间号" required /></label>
+      <label>详细地址<textarea v-model.trim="form.address" autocomplete="street-address" minlength="2" maxlength="500" placeholder="请输入街道、门牌号、小区、楼栋及房间号" required :aria-invalid="Boolean(fieldErrors.address)" @input="clearFieldError('address')" /><small v-if="fieldErrors.address" class="field-error" role="alert">{{ fieldErrors.address }}</small></label>
       <label v-if="!isEditing" class="check-row"><input v-model="form.is_default" type="checkbox" />设为默认地址</label>
       <div class="actions form-actions">
         <button :disabled="pending" type="submit">{{ pending ? '正在保存…' : isEditing ? '保存修改' : '保存地址' }}</button>

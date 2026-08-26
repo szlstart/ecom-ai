@@ -87,7 +87,7 @@ function setQuantity(value: number) {
 async function contactStore() {
   if (!product.value) return
   if (!auth.accessToken) {
-    await router.push({ path: '/login', query: { redirect: route.fullPath } })
+    await router.push({ path: route.path, query: { ...route.query, auth: 'login', redirect: route.fullPath } })
     return
   }
   contactBusy.value = true
@@ -103,7 +103,7 @@ async function contactStore() {
 async function toggleFavorite() {
   if (!product.value) return
   if (!auth.accessToken) {
-    await router.push({ path: '/login', query: { redirect: route.fullPath } })
+    await router.push({ path: route.path, query: { ...route.query, auth: 'login', redirect: route.fullPath } })
     return
   }
   favoriteBusy.value = true
@@ -121,7 +121,7 @@ async function toggleFavorite() {
 async function addToCart() {
   if (!selectedSku.value || !canPurchase.value) return
   if (!auth.accessToken) {
-    await router.push({ path: '/login', query: { redirect: route.fullPath } })
+    await router.push({ path: route.path, query: { ...route.query, auth: 'login', redirect: route.fullPath } })
     return
   }
   cartBusy.value = true
@@ -149,7 +149,7 @@ async function addToCart() {
 
 async function buyNow() {
   if (!selectedSku.value || !canPurchase.value) return
-  if (!auth.accessToken) { await router.push({ path: '/login', query: { redirect: route.fullPath } }); return }
+  if (!auth.accessToken) { await router.push({ path: route.path, query: { ...route.query, auth: 'login', redirect: route.fullPath } }); return }
   buyBusy.value = true; error.value = ''
   try { const response = await createBuyNowCheckout(selectedSku.value.sku_id, quantity.value, auth.accessToken); await router.push(`/checkout/${response.data.checkout_id}`) }
   catch (cause) { error.value = errorMessage(cause) }

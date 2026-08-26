@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { LocationQueryRaw } from 'vue-router'
 
 import {
-  getBrands,
-  getCategories,
   getSuggestions,
   searchProducts,
-  type Brand,
-  type Category,
   type ProductCardData,
 } from '@/api/catalog'
 import { errorMessage, type PaginationMeta } from '@/api/http'
@@ -20,13 +17,7 @@ const route = useRoute()
 const router = useRouter()
 const auth = useUserAuthStore()
 const q = ref('')
-const categoryId = ref('')
-const brandId = ref('')
-const priceMin = ref('')
-const priceMax = ref('')
 const sort = ref('relevance')
-const categories = ref<Category[]>([])
-const brands = ref<Brand[]>([])
 const products = ref<ProductCardData[]>([])
 const suggestions = ref<string[]>([])
 const pagination = ref<PaginationMeta | null>(null)
@@ -41,10 +32,6 @@ function one(value: unknown): string {
 
 function syncForm() {
   q.value = one(route.query.q)
-  categoryId.value = one(route.query.category_id)
-  brandId.value = one(route.query.brand_id)
-  priceMin.value = one(route.query.price_min)
-  priceMax.value = one(route.query.price_max)
   sort.value = one(route.query.sort) || 'relevance'
 }
 
@@ -55,10 +42,6 @@ async function loadProducts() {
   try {
     const response = await searchProducts({
       q: one(route.query.q) || undefined,
-      category_id: one(route.query.category_id) || undefined,
-      brand_id: one(route.query.brand_id) || undefined,
-      price_min: one(route.query.price_min) || undefined,
-      price_max: one(route.query.price_max) || undefined,
       sort: one(route.query.sort) || 'relevance',
       cursor: one(route.query.cursor) || undefined,
       limit: 20,
@@ -73,25 +56,24 @@ async function loadProducts() {
   }
 }
 
-async function loadFilters() {
-  const [categoryResult, brandResult] = await Promise.allSettled([getCategories(), getBrands()])
-  if (categoryResult.status === 'fulfilled') categories.value = categoryResult.value.data
-  if (brandResult.status === 'fulfilled') brands.value = brandResult.value.data
-}
-
 function submitSearch() {
   suggestions.value = []
   void router.push({
     path: '/search',
     query: compact({
       q: q.value.trim(),
-      category_id: categoryId.value,
-      brand_id: brandId.value,
-      price_min: priceMin.value,
-      price_max: priceMax.value,
       sort: sort.value === 'relevance' ? '' : sort.value,
     }),
   })
+}
+
+function applySort(nextSort: string) {
+  if (sort.value === nextSort && !route.query.cursor) return
+  sort.value = nextSort
+  const query: LocationQueryRaw = { ...route.query, sort: nextSort === 'relevance' ? undefined : nextSort }
+  delete query.cursor
+  if (!query.sort) delete query.sort
+  void router.push({ path: '/search', query })
 }
 
 function changeCursor(cursor: string | null | undefined) {
@@ -126,7 +108,7 @@ function compact(values: Record<string, string>) {
 
 onMounted(() => {
   syncForm()
-  void Promise.all([loadProducts(), loadFilters()])
+  void loadProducts()
 })
 watch(() => route.fullPath, () => {
   syncForm()
@@ -140,7 +122,7 @@ onBeforeUnmount(() => { if (suggestionTimer) clearTimeout(suggestionTimer) })
   <section class="storefront-stack">
     <header class="page-heading">
       <div><p class="eyebrow">商品搜索</p><h1>搜索商品</h1></div>
-      <span class="muted">筛选条件保存在地址栏，可复制或返回恢复</span>
+      <span class="muted">搜索词与排序方式保存在地址栏，可复制或返回恢复</span>
     </header>
 
     <form class="search-panel" role="search" @submit.prevent="submitSearch">
@@ -150,13 +132,17 @@ onBeforeUnmount(() => { if (suggestionTimer) clearTimeout(suggestionTimer) })
           <li v-for="item in suggestions" :key="item"><button type="button" @click="selectSuggestion(item)">{{ item }}</button></li>
         </ul>
       </div>
-      <label>分类<select v-model="categoryId"><option value="">全部分类</option><option v-for="item in categories" :key="item.category_id" :value="item.category_id">{{ item.category_name }}</option></select></label>
-      <label>品牌<select v-model="brandId"><option value="">全部品牌</option><option v-for="item in brands" :key="item.brand_id" :value="item.brand_id">{{ item.brand_name }}</option></select></label>
-      <label>最低价（分）<input v-model="priceMin" inputmode="numeric" pattern="[0-9]*" placeholder="0" /></label>
-      <label>最高价（分）<input v-model="priceMax" inputmode="numeric" pattern="[0-9]*" placeholder="不限" /></label>
-      <label>排序<select v-model="sort"><option value="relevance">综合</option><option value="sales">销量</option><option value="newest">最新</option><option value="price_asc">价格从低到高</option><option value="price_desc">价格从高到低</option></select></label>
-      <button type="submit">应用筛选</button>
+      <button type="submit">搜索</button>
     </form>
+
+    <div class="sort-bar" aria-label="商品排序">
+      <span>排序</span>
+      <button type="button" :class="{ active: sort === 'relevance' }" :aria-pressed="sort === 'relevance'" @click="applySort('relevance')">综合排序</button>
+      <button type="button" :class="{ active: sort === 'sales' }" :aria-pressed="sort === 'sales'" @click="applySort('sales')">销量排序</button>
+      <button type="button" :class="{ active: sort === 'newest' }" :aria-pressed="sort === 'newest'" @click="applySort('newest')">最新</button>
+      <button type="button" :class="{ active: sort === 'price_asc' }" :aria-pressed="sort === 'price_asc'" @click="applySort('price_asc')">价格从低到高</button>
+      <button type="button" :class="{ active: sort === 'price_desc' }" :aria-pressed="sort === 'price_desc'" @click="applySort('price_desc')">价格从高到低</button>
+    </div>
 
     <div id="search-results" tabindex="-1">
       <PageState
@@ -164,7 +150,7 @@ onBeforeUnmount(() => { if (suggestionTimer) clearTimeout(suggestionTimer) })
         :error="error"
         :empty="!loading && !error && products.length === 0"
         empty-title="没有找到匹配商品"
-        empty-detail="可以减少筛选条件，或尝试其他关键词。"
+        empty-detail="可以尝试其他关键词。"
         @retry="loadProducts"
       >
         <div class="product-grid">

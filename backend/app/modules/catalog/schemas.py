@@ -154,7 +154,7 @@ class SearchSuggestionList(BaseModel):
 
 
 class HomepageSection(BaseModel):
-    section: Literal["recommended", "hot", "new_arrival"]
+    section: Literal["recommended"]
     title: str
     status: Literal["available", "unavailable"]
     items: list[ProductCard]
@@ -166,5 +166,4 @@ class HomepageView(BaseModel):
     feed_version: str
     announcements: list[dict[str, str]]
     banners: list[dict[str, object]]
-    categories: list[CategoryView]
     sections: list[HomepageSection]

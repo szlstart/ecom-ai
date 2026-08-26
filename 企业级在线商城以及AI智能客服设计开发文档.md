@@ -228,7 +228,7 @@
 
 ## 2 前端界面
 
-商城界面设有顶部导航栏，包含顶部搜索框以及四个核心栏目：**首页**、**购物车**、**消息**、**我的**。
+商城界面设有顶部搜索框、**购物车**、**消息**、**收藏**、**地址**、**我的**五个业务入口，以及独立的账户入口。Logo 点击返回首页。
 
 进入商城后默认显示首页界面，用户可通过点击切换各栏目。
 
@@ -245,15 +245,10 @@
 │ 全局顶部导航（参见 2.2）                                                                    │
 ├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │ [平台公告：配送服务调整说明 →]                                                              │
-│ ┌──────────────────────────── Banner 轮播 ────────────────────────────┐  ┌── 分类导航 ──┐ │
-│ │ [活动图/品牌内容]                  [立即查看]    ● ○ ○            │  │ 手机 / 家电 │ │
-│ └─────────────────────────────────────────────────────────────────────┘  │ 食品 / 日用 │ │
-│                                                                          └──────────────┘ │
+│ ┌──────────────────────────────── Banner 轮播 ──────────────────────────────────────────┐ │
+│ │ [活动图/品牌内容]                                      [立即查看]    ● ○ ○            │ │
+│ └────────────────────────────────────────────────────────────────────────────────────────┘ │
 │ 为你推荐（未授权个性化时显示通用推荐）                                                    │
-│ [商品卡] [商品卡] [商品卡] [商品卡] [商品卡] [商品卡]                                   │
-│ 热销商品                                                                                │
-│ [商品卡] [商品卡] [商品卡] [商品卡] [商品卡] [商品卡]                                   │
-│ 新品上架                                                                                │
 │ [商品卡] [商品卡] [商品卡] [商品卡] [商品卡] [商品卡]                                   │
 │                              [加载更多 / 重试]                                             │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -261,34 +256,34 @@
 
 #### 2.1.2 数据来源与降级规则
 
-首页首屏使用 `GET /api/v1/homepage` 聚合读取，返回当前有效 Banner、平台公告、平台分类摘要，以及 `recommended/hot/new_arrival` 三类商品区块；它是专用 Read Model，不在服务端串行调用多个公开 API。商品卡继续使用与搜索页相同的 `ProductCard` DTO，点击进入商品详情。
+首页首屏使用 `GET /api/v1/homepage` 聚合读取，返回当前有效 Banner、平台公告和唯一的 `recommended` 商品区块；首页不返回分类摘要、热门商品或新品上架区块。它是专用 Read Model，不在服务端串行调用多个公开 API。商品卡继续使用与搜索页相同的 `ProductCard` DTO，点击进入商品详情。
 
-- Banner/公告只展示当前已发布且处于生效时间窗的版本；没有 Banner 时删除轮播占位并让分类/商品区上移，没有公告时不显示公告条。
+- Banner/公告只展示当前已发布且处于生效时间窗的版本；没有 Banner 时删除轮播占位并让推荐商品区上移，没有公告时不显示公告条。
 - 未登录、未同意个性化或推荐服务降级时，`recommended` 使用平台通用推荐，并显示“热门推荐”，不得伪装成个性化结果。
-- 热销来自稳定统计窗口，新品来自商品发布时间；区块数据为空时隐藏该区块，三个区块都为空时显示“暂时没有可展示商品”及 [重新加载]，不得展示管理端草稿或下架商品。
-- 首页聚合失败但商品搜索可用时，降级为“全部商品”Cursor 流；Banner、推荐或单一区块失败时只显示该模块局部错误和 [重试]，不阻断其他区块。
+- 推荐区为空时显示“暂时没有可展示商品”及 [重新加载]，不得回退展示管理端草稿、下架商品、热门商品或新品上架。
+- 首页聚合失败但商品搜索可用时，降级为“全部商品”Cursor 流；Banner、公告或推荐区失败时只显示对应模块局部错误和 [重试]，不阻断其他模块。
 
 #### 2.1.3 首页加载、分页与返回恢复
 
-首屏显示与最终卡片等高的骨架屏；后续商品使用服务端 opaque Cursor 分区加载，前端只原样透传 `next_cursor`。一次只允许一个同区块请求，失败保留已加载卡片并显示行内 [重新加载]，不得无限自动重试。到达末页显示“已经到底了”，重复卡片按 `product_id` 去重但不能据此修补服务端排序错误。
+首屏显示与最终卡片等高的骨架屏；后续推荐商品使用服务端 opaque Cursor 加载，前端只原样透传 `next_cursor`。一次只允许一个推荐区请求，失败保留已加载卡片并显示行内 [重新加载]，不得无限自动重试。到达末页显示“已经到底了”，重复卡片按 `product_id` 去重但不能据此修补服务端排序错误。
 
-从商品详情返回首页时，恢复 `home_feed_version、各区块 cursor、已加载商品公开 ID、筛选状态和 scroll_y`；恢复信息只保存在当前 Session 的内存/`sessionStorage`，设置短 TTL，不保存价格之外的敏感信息。若首页版本、登录身份或推荐 Consent 已变化，则丢弃旧 Cursor、重新加载并尽量滚动到原 `anchor_product_id`，不能继续请求已失效 Cursor。
+从商品详情返回首页时，恢复 `home_feed_version、recommended_cursor、已加载商品公开 ID 和 scroll_y`；恢复信息只保存在当前 Session 的内存/`sessionStorage`，设置短 TTL，不保存价格之外的敏感信息。若首页版本、登录身份或推荐 Consent 已变化，则丢弃旧 Cursor、重新加载并尽量滚动到原 `anchor_product_id`，不能继续请求已失效 Cursor。
 
-#### 2.1.4 搜索与分类导航
+#### 2.1.4 搜索入口
 
-顶部搜索提交始终导航至 `/search?q=<规范化关键词>`，分类点击导航至 `/search?category_id=<公开分类ID>`；首页不维护另一套隐藏搜索结果状态。空白关键词不提交；联想词只用于填充/提交，不能直接信任为商品 ID。搜索页筛选、排序、分页和无结果状态由 2.12.3 定义。
+顶部搜索提交始终导航至 `/search?q=<规范化关键词>`；首页不展示分类导航，也不维护另一套隐藏搜索结果状态。空白关键词不提交；联想词只用于填充/提交，不能直接信任为商品 ID。搜索页用户可见条件仅包含关键词和 `relevance/sales/newest/price_asc/price_desc` 五种排序按钮；点击排序按钮立即请求并清除旧 Cursor，无需再次点击应用按钮。
 
 #### 2.1.5 首页响应式行为
 
-桌面端 Banner 与分类并排、商品最多六列；平板端分类改为横向可滚动 Chip、商品三至四列；手机端 Banner 单列、分类为两行横向滚动、商品两列。任何断点下 DOM 阅读顺序均为公告→Banner→分类→商品区块，视觉重排不能改变键盘/屏幕阅读器顺序。
+桌面端 Banner 占满内容宽度、推荐商品最多六列；平板端推荐商品三至四列；手机端 Banner 单列、商品两列。任何断点下 DOM 阅读顺序均为公告→Banner→为你推荐，视觉重排不能改变键盘/屏幕阅读器顺序。
 
 ### 2.2 整体布局与全局展示契约
 
-用户商城普通业务页默认使用以下 `StorefrontLayout` 框架。认证页使用独立 `AuthLayout`，公开协议/隐私政策正文使用不读取登录态角标的 `LegalLayout`，管理端使用独立 `AdminLayout`；支付渠道跳转承接页、系统维护页等特殊页面按 2.12.2/2.13.16 的 Route Meta 使用专用 Layout。任何 Route 必须且只能声明一个 Layout，例外页面不得加载购物车、消息角标或错误 Audience 的用户数据。
+用户商城普通业务页默认使用以下 `StorefrontLayout` 框架。密码登录和注册使用挂载在该布局根节点的全局 `AuthModal`，旧 `/login`、`/register` 仅作为兼容入口重定向回商城并打开弹窗；验证码登录、找回/重置密码仍使用独立 `AuthLayout`。公开协议/隐私政策正文使用不读取登录态角标的 `LegalLayout`，管理端使用独立 `AdminLayout`；支付渠道跳转承接页、系统维护页等特殊页面按 2.12.2/2.13.16 的 Route Meta 使用专用 Layout。
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────────────┐
-│  首页 │                                    你好，请登录/注册 | 购物车 | 消息 | 我的  │  ← 顶部导航栏（固定）
+│ Logo │              购物车 | 消息 | 收藏 | 地址 | 我的 | 注册/登录（或时段问候+用户名） │  ← 顶部导航栏
 ├─────────────────────────────────────────────────────────────────────────────────┐
 |  logo │                         搜索框[  ]搜索（关键词搜索）                         │← 搜索栏
 │       │                      【候选词（10个左右）】                                 │
@@ -302,7 +297,7 @@
 └───────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-如果已经登录则把“你好，请登录/注册 ”改为 “上午/下午/晚上好！用户名 ”。
+未登录账户入口显示“注册/登录”；点击后打开居中认证弹窗并使底层页面变暗。已登录账户入口显示“早上/中午/下午/晚上好，用户名”，点击展开“查看我的、退出登录”菜单；导航中的“我的”始终是独立业务入口。
 
 全局层级使用 Design Token，不允许页面自行填写任意 `z-index`：顶部导航 `--z-global-nav=300`，搜索栏 `--z-global-search=290`，页面 Sticky Tab `--z-page-sticky=200`，移动端底部操作栏 `--z-page-action=250`，抽屉/遮罩/弹窗为 `400/500/600`。主体设置 `scroll-padding-top`，页面锚点设置 `scroll-margin-top`，其值等于当前断点下“固定导航 + 搜索栏 + 页面 Sticky 区”的实际高度；底部固定栏出现时主体增加等高 `padding-bottom + safe-area-inset-bottom`，避免首尾内容和焦点被遮挡。
 
@@ -312,11 +307,13 @@
 
 | 导航项            | 说明                                                         |
 | :---------------- | :----------------------------------------------------------- |
-| 首页              | 点击返回首页                                                 |
-| 你好，请登录/注册 | 未登录时显示。点击登录则跳转到登录界面，点击注册则跳转到注册页面<br />如果已经登录，则把“你好，请登录/注册 ”改为 “上午/下午/晚上好！用户头像和用户名 ”。 |
-| 购物车            | 若未登录点击则跳转到登录界面。<br />已登录显示购物车角标（商品总件数），点击则跳转到购物车界面 |
-| 消息              | 若未登录点击则跳转到登录界面。<br />已登录显示未读消息角标，点击则跳转到消息界面 |
-| 我的              | 若未登录点击则跳转到登录界面。<br />已登录点击则跳转到我的界面 |
+| Logo/首页         | 点击返回首页                                                 |
+| 购物车            | 未登录点击打开认证弹窗并保存 `/cart`；已登录点击进入购物车，可展示服务端返回的商品总件数角标 |
+| 消息              | 未登录点击打开认证弹窗并保存 `/messages`；已登录时必须是可点击链接，进入消息界面并可展示未读角标，禁止以灰色禁用文本代替 |
+| 收藏              | 未登录点击打开认证弹窗并保存收藏目标；已登录进入商品收藏页 |
+| 地址              | 未登录点击打开认证弹窗并保存地址目标；已登录进入收货地址页 |
+| 我的              | 未登录点击打开认证弹窗并保存 `/me`；已登录进入我的界面 |
+| 注册/登录或账户问候 | 未登录显示“注册/登录”，点击打开包含登录/注册 Tab 的遮罩弹窗；已登录显示按本地时间计算的问候语和用户名，点击展开“查看我的、退出登录”菜单 |
 
 #### 2.2.2 搜索框
 
@@ -1630,7 +1627,7 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 
 #### 2.8.1 页面整体布局（Text UI）
 
-路由：`/me`。未登录访问时保存目标路由并跳转登录，登录成功后返回本页。
+路由：`/me`。未登录访问时保留目标路由并在当前商城页打开认证弹窗，登录成功后返回本页。
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -1647,14 +1644,17 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 │  │ [待支付 1]   [待发货 2]   [运输中 1]   [待评价 3]   [售后 1]                         │  │
 │  └────────────────────────────────────────────────────────────────────────────────────────┘  │
 │                                                                                              │
-│  ┌─────────────────────────────────────────┐  ┌──────────────────────────────────────────┐   │
-│  │ 我的收货地址                    [管理 >] │  │ 我的评价                       [查看 >] │   │
-│  │ 张三 138****8888（默认）                │  │ 待评价 3 条 / 已评价 12 条              │   │
-│  │ 上海市浦东新区……                        │  │ 最近评价：iPhone 15 Pro ★★★★★          │   │
-│  │ [+ 新增收货地址]                        │  │                                          │   │
-│  └─────────────────────────────────────────┘  └──────────────────────────────────────────┘   │
-│                                                                                              │
-│  [我的收藏]  [收藏店铺]  [帮助中心]  [关于我们]  [设置]                    [退出登录]       │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ 默认收货地址                                                            [管理地址 >]   │  │
+│  │ 张三 · 上海市浦东新区……                                                               │  │
+│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ 我的收藏                                      [商品收藏] [店铺收藏]                    │  │
+│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │ 账号与安全                                                            [进入安全设置]   │  │
+│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                               [退出登录]                    │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1685,9 +1685,9 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 
 #### 2.8.3 我的收货地址
 
-“我的”首页显示默认地址摘要，点击 [管理] 进入地址管理页 `/me/addresses`；点击 [新增收货地址] 直接打开新增弹窗。
+“我的”首页显示默认地址摘要，点击 [管理] 进入地址管理页 `/me/addresses`；点击 [新增收货地址] 在地址列表页展开新增表单。
 
-地址表单字段包含：收货人、手机号、所在地区（省/市/区三级联动）、详细地址、邮政编码（选填）、地址标签（家/公司/学校/自定义）、设为默认地址。
+当前用户端地址表单只展示：收货人、手机号、地区（省/市/区县三级联动）、详细地址、设为默认地址。省级选择首版提供大陆 31 个省级地区及台湾地区，共 32 项，不提供香港、澳门配送选项；选择省后加载所属城市，选择城市后加载所属区/县。前端以中文名称展示，但向既有 API 提交标准 `province_code/city_code/district_code`。`postal_code、label` 作为后端兼容字段保留并提交 `null`，不在新增地址界面展示。
 
 | 操作 | 交互规则 |
 | :--- | :------- |
@@ -1713,7 +1713,7 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 
 #### 2.8.5 其他入口与退出登录
 
-保留我的收藏、收藏店铺、帮助中心、关于我们、设置等入口。点击 [退出登录] 必须二次确认；确认后清除本地登录凭证和用户敏感缓存，跳转首页，但不清空服务端购物车、订单或收藏数据。
+“我的订单、默认收货地址、我的收藏、账号与安全”使用从上到下的单列等宽横向卡片，不允许在桌面端排成多列。卡片宽度一致，高度按信息量设置：订单卡最高，收藏和地址居中，安全卡较短但保持足够留白。保留我的收藏、收藏店铺、帮助中心、关于我们、设置等入口。页面头部和账户下拉菜单均提供 [退出登录]；执行后清除本地登录凭证和用户敏感缓存并跳转首页，但不清空服务端购物车、订单或收藏数据。
 
 ### 2.9 我的订单界面
 
@@ -2064,13 +2064,13 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 页面 | Vue Route / Component | 登录 | 参数与 Query | 主要 API | 页面标题 / 状态 / Guard |
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | 首页 | `/` / `HomePage.vue` | 否 | 区块 Cursor 仅保存在恢复状态 | `GET /homepage` | 在线商城；L/E/N；none |
-| 登录 | `/login` / `LoginPage.vue` | 否 | `redirect` 仅允许 User Audience 站内白名单路径 | `POST /auth/login` | 登录；认证失败/挑战/限流/网络未知；form |
-| 注册 | `/register` / `RegisterPage.vue` | 否 | 可选安全 `redirect`，规则同登录 | `GET /auth/registration-config`、`POST /auth/verification-codes`、`POST /auth/registrations` | 注册；配置/验证码/协议变化/冲突/限流；form |
+| 登录弹窗 | 全局 `AuthModal.vue`；兼容 `/login` 重定向为 `/?auth=login` | 否 | `redirect` 仅允许 User Audience 站内白名单路径 | `POST /auth/login` | 登录；认证失败/挑战/限流/网络未知；form |
+| 注册弹窗 | 全局 `AuthModal.vue`；兼容 `/register` 重定向为 `/?auth=register` | 否 | 可选安全 `redirect`，规则同登录 | `GET /auth/registration-config`、`POST /auth/verification-codes`、`POST /auth/registrations` | 注册；配置/验证码/协议变化/冲突/限流；form |
 | 验证码登录 | `/login/code` / `CodeLoginPage.vue` | 否 | `redirect` 规则同密码登录 | `POST /auth/verification-codes`、`POST /auth/login` | 验证码登录；倒计时/挑战/限流；form |
 | 找回密码 | `/forgot-password` / `ForgotPasswordPage.vue` | 否 | 无 | `AuthVerificationCode_Create / POST /api/v1/auth/verification-codes`、`PasswordResetTicket_Create / POST /api/v1/auth/password-reset-tickets` | 找回密码；统一模糊结果；form |
 | 重置密码 | `/reset-password` / `ResetPasswordPage.vue` | 否 | 一次性 `ticket` 仅由上一步写入内存或受限 `history.state`，不进 URL/日志/持久存储 | `POST /auth/password-resets` | 重置密码；410/已使用；form |
 | 法务文档 | `/legal/:documentType` / `LegalDocumentPage.vue` | 否 | `documentType` 仅允许注册表值；`version、locale、region_code` | `GET /content/legal-documents/{document_type}` | 用户协议/隐私政策；L/404/410/N；none |
-| 商品搜索 | `/search` / `ProductSearchPage.vue` | 否 | `q、category_id、brand_id、price_min、price_max、sort、cursor` | `Product_Search / GET /api/v1/products`、`SearchSuggestion_List / GET /api/v1/search/suggestions` | 搜索商品；L/E/410/N；none |
+| 商品搜索 | `/search` / `ProductSearchPage.vue` | 否 | 用户界面只生成 `q、sort、cursor`；`sort` 为五种固定值 | `Product_Search / GET /api/v1/products`、`SearchSuggestion_List / GET /api/v1/search/suggestions` | 搜索商品；L/E/410/N；none |
 | 商品详情 | `/products/:productId` / `ProductDetailPage.vue` | 否 | `productId`，可选 `sku_id` | `Product_Get / GET /api/v1/products/{product_id}`、`ProductSku_List / GET /api/v1/products/{product_id}/skus`、`ProductFaq_List / GET /api/v1/products/{product_id}/faqs` | 商品名称；L/404/N；none |
 | 商品全部评价 | `/products/:productId/reviews` / `ProductReviewsPage.vue` | 否 | `rating、has_image、sku_id、sort、cursor` | `GET /products/{product_id}/reviews` | 商品评价；L/E/410/N；none |
 | 店铺 | `/stores/:storeId` / `StorePage.vue` | 否 | `q、group_id、sort、cursor` | `Store_Get / GET /api/v1/stores/{store_id}`、`StoreProduct_List / GET /api/v1/stores/{store_id}/products`、`StoreHomeContent_Get / GET /api/v1/stores/{store_id}/home-content`、`StorePolicy_ListPublic / GET /api/v1/stores/{store_id}/service-policies` | 店铺名称；L/E/404/N；none |
@@ -2114,11 +2114,11 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 #### 2.12.3 登录、注册及其他补充页面 UI 与交互规格
 
-认证页面使用独立的 `AuthLayout.vue`，不显示购物车数量、消息未读数、用户菜单或任何登录后数据。桌面端为“品牌说明区 + 认证卡片”双栏，平板和手机折叠为单栏认证卡片；品牌说明只展示商城服务价值和安全提示，不自动播放轮播图。认证卡片最大宽度建议 440px，页面主体在常见屏幕高度下垂直居中，内容超过高度时允许整页自然滚动，不能让软键盘或浏览器缩放遮挡提交按钮和错误摘要。
+密码登录和注册统一使用 `StorefrontLayout` 根节点挂载的 `AuthModal.vue`。弹窗浮于当前页面上方，底层使用半透明遮罩变暗并停止滚动；支持关闭按钮、点击遮罩关闭、Esc 关闭、焦点可见与 `aria-modal`。弹窗内部使用“登录/注册”Tab 切换，不再提供独立 `LoginPage.vue` 或 `RegisterPage.vue`。验证码登录、找回密码和重置密码仍使用不读取登录态角标的独立 `AuthLayout.vue`。认证弹窗最大宽度建议 520px，内容超过视口时弹窗内部自然滚动，不能让软键盘或浏览器缩放遮挡提交按钮和错误摘要。
 
-##### 2.12.3.1 用户登录页面
+##### 2.12.3.1 用户登录弹窗
 
-页面覆盖账号密码登录与验证码登录两种方式。`/login` 默认使用账号密码，`/login/code` 使用验证码；二者复用同一页面外壳和字段组件，但保持独立路由，便于浏览器返回、埋点、限流与错误恢复。用户已登录时访问这两个路由，不重复创建 Session，直接跳转到通过安全校验的 `redirect`，没有有效目标则返回首页。
+认证弹窗默认展示账号密码登录，并可直接切换到注册；历史 `/login` 地址仅重定向到 `/?auth=login` 后打开弹窗。`/login/code` 保留为验证码登录恢复路由。用户已登录时访问这些入口不重复创建 Session，直接跳转到通过安全校验的 `redirect`，没有有效目标则返回首页。
 
 账号密码登录 Text UI：
 
@@ -2201,9 +2201,9 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 网络异常 | 显示重试和返回首页；不显示“账号不存在” | 用户主动重试 |
 | 登录成功 | 按钮显示“登录成功，正在跳转”，忽略迟到重复响应 | 安全跳转目标页 |
 
-##### 2.12.3.2 用户注册页面
+##### 2.12.3.2 用户注册弹窗
 
-路由为 `/register`，首版支持手机号或邮箱二选一完成所有权验证，同时必须设置唯一用户名和密码。注册成功后创建普通用户、User Audience Session 和固定专属客服会话，并自动登录；若原请求来自受保护页面，可按登录页相同的安全 `redirect` 规则返回，否则进入首页。注册不是创建店铺或管理员身份的入口。
+注册作为全局认证弹窗的第二个 Tab，历史 `/register` 仅重定向为 `/?auth=register`。首版支持手机号或邮箱二选一完成所有权验证，同时必须设置唯一用户名和密码。注册成功后创建普通用户、User Audience Session 和固定专属客服会话并自动登录；若原请求来自受保护页面，可按登录相同的安全 `redirect` 规则返回，否则关闭弹窗并留在当前公开页面。注册不是创建店铺或管理员身份的入口。
 
 注册页面 Text UI：
 
@@ -2354,14 +2354,14 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 | 页面 | 桌面 | 平板 | 手机 |
 | :--- | :--- | :--- | :--- |
-| 登录/注册 | 品牌说明 + 440px 认证卡片双栏；错误摘要不改变卡片宽度 | 隐藏非必要品牌说明，认证卡片居中 | 单列全宽、安全边距；软键盘下主按钮可滚动到达，不做遮挡式底栏 |
-| 首页 | Banner+分类并排，商品 4～6 列 | 分类横向，商品 3～4 列 | 单列模块，商品 2 列 |
+| 登录/注册 | 当前商城上方居中认证弹窗，底层变暗；弹窗内登录/注册 Tab 切换 | 弹窗保持安全边距并可纵向滚动 | 接近单列全宽、保留关闭按钮；软键盘下主按钮可滚动到达 |
+| 首页 | Banner 全宽，推荐商品 4～6 列 | 推荐商品 3～4 列 | 单列模块，推荐商品 2 列 |
 | 商品详情 | 图片/内容 + Sticky 购买区 | 购买区进入正常流，图库双列 | 全部单列 + 安全底部购买栏 |
 | 购物车 | 店铺分组表格 + 底部汇总 | 商品行压缩、操作换行 | 卡片列表 + 安全底部结算栏 |
 | 消息 | 会话列表/聊天双栏 | 可折叠双栏 | `/messages` 列表 → 单会话路由 |
 | 结算 | 地址、店铺组、金额分区 | 单列内容、汇总 Sticky | 单列 + “金额/提交订单”底栏 |
 | 店铺 | 店铺头部、侧/顶分类、商品网格 | 分类横向、3～4 列 | 头部压缩、分类横向、2 列 |
-| 我的 | 左导航 + 右内容 | 顶部 Tab + 内容 | 卡片入口单列，子页面独立路由 |
+| 我的 | 四张等宽横向卡片从上到下排列，高度随内容变化 | 保持单列卡片 | 单列卡片，头部操作允许换行 |
 | 订单/物流 | 筛选栏 + 宽订单卡片/时间轴 | 操作按钮可换行 | 单列卡片，操作区横向滚动或两列 |
 | 售后/评价 | 左摘要 + 右表单/时间轴 | 单列分区 | 单列，主操作底栏且不遮挡错误 |
 
@@ -2371,7 +2371,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 - 每个页面分别实现首屏 Loading、局部 Refresh、Empty、403、404、410、Network Error；局部失败不得抹掉已成功区域。Skeleton 不参与 Read Cursor、埋点曝光或可用按钮判断。
 - Access Token 失效先执行单次受控 Refresh；Refresh 失败弹出 Session 过期 Dialog，保存当前 URL、公开筛选、表单中非敏感草稿和滚动锚点，登录后回到原目标。密码、验证码、完整地址、支付参数、上传二进制和 Approval Token 不保存。
-- 登录/注册页面只可短期恢复用户名、验证方式、协议版本和安全 `redirect`；不得恢复密码、确认密码、验证码、完整手机/邮箱、Challenge/CSRF/Access/Refresh Token。认证响应为 `no-store`，Service Worker 不缓存 `/auth/*`。
+- 登录/注册弹窗只可在当前挂载周期内恢复用户名、验证方式、协议版本和安全 `redirect`；不得恢复密码、确认密码、验证码、完整手机/邮箱、Challenge/CSRF/Access/Refresh Token。认证响应为 `no-store`，Service Worker 不缓存 `/auth/*`。
 - 写操作返回 412 时停止提交、获取服务端最新资源/ETag、展示“内容已被更新”及字段级差异；用户确认后基于新版本重新编辑，不静默覆盖，也不自动复用旧确认。
 - 429 必须读取 `Retry-After`，在倒计时结束前禁用对应动作；仅 GET 可按策略有界自动重试，写操作不得无限重试或换 Idempotency Key。
 - 410 `CHECKOUT_SESSION_EXPIRED` 提供 [按原来源重新结算]，但重新读取当前商品/购物车；`CURSOR_EXPIRED` 保留筛选并从第一页重新加载，再尽量恢复锚点；过期重置/上传/授权 Ticket 必须重新发起对应流程。
@@ -2390,7 +2390,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 #### 2.12.7 用户端开发验收要点
 
 1. 完整路由表中的每一页面均能映射到 Vue Component、OpenAPI Operation、鉴权条件、状态集合和至少一个 E2E Case；不存在只有入口没有目标页或只有 API 没有恢复 UI 的孤儿项。
-2. `/login`、`/login/code` 与 `/register` 的 AuthLayout、Text UI、字段、校验、错误摘要、挑战、倒计时和安全 `redirect` 均按 2.12.3 实现；注册配置、验证码 Purpose/Target、协议版本、幂等结果和 User Audience Session 与 3.12.1 契约一致，不保存或回显密码、确认密码、验证码和 Token。
+2. 密码登录/注册使用全局 AuthModal，`/login/code` 使用 AuthLayout；其 Text UI、字段、校验、错误摘要、挑战、倒计时和安全 `redirect` 均按 2.12.3 实现。注册配置、验证码 Purpose/Target、协议版本、幂等结果和 User Audience Session 与 3.12.1 契约一致，不保存或回显密码、确认密码、验证码和 Token。
 3. 首页模块可独立降级，搜索进入独立 `/search`；商品详情首次停留顶部，SKU 图片集回退、Sticky 与移动购买栏正确且不产生嵌套整页滚动。
 4. 订单创建与 Payment 创建使用两个独立幂等步骤；Payment 创建失败、渠道返回、结果未知、取消和明确失败均不重复创建订单或误判成功。
 5. 结算联系客服只建立本店 `checkout_store_group` 上下文；跨店、旧 Checkout Version、已过期/已消费 Checkout 和完整地址/优惠信息均不能进入店铺客服。
@@ -8541,8 +8541,8 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 
 | 方法 | 路径 | 访问者 | 用途与关键规则 |
 | --- | --- | --- | --- |
-| `GET` | `/homepage` | 公开/用户 | 首页专用聚合 Read Model：返回有效 Banner/公告、分类摘要及 `recommended/hot/new_arrival` 商品区块、各区块 opaque Cursor、`feed_version` 和局部降级状态；未授权个性化时使用通用推荐 |
-| `GET` | `/products` | 公开 | 搜索/浏览商品；支持 `q、category_id、brand_id、store_id、price_min、price_max、sort、cursor` |
+| `GET` | `/homepage` | 公开/用户 | 首页专用聚合 Read Model：只返回有效 Banner/公告及唯一 `recommended` 商品区块、opaque Cursor、`feed_version` 和局部降级状态；不返回分类、热门或新品区块；未授权个性化时使用通用推荐 |
+| `GET` | `/products` | 公开 | 搜索/浏览商品；API 为店铺页、管理能力和未来扩展保留 `category_id、brand_id、store_id、price_min、price_max`，当前公共搜索页只发送 `q、sort、cursor` |
 | `GET` | `/products/{product_id}` | 公开 | 商品详情、店铺摘要、规格模型、结构化履约资料、服务承诺、销量展示值和当前用户关系；下架/删除按可见性返回 404 或受限状态 |
 | `GET` | `/products/{product_id}/skus` | 公开 | SKU 组合、可售状态、Money、`stock_status`、可选 `low_stock_remaining` 和 `max_purchase_quantity`；不返回真实仓库库存、安全库存或预占量 |
 | `GET` | `/products/{product_id}/faqs` | 公开 | 商品常见问题；可作为进入店铺客服前的快捷问题 |
@@ -8551,7 +8551,7 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | `GET` | `/brands` | 公开 | 品牌列表和搜索 |
 | `GET` | `/search/suggestions` | 公开 | 输入联想；最小字符数、敏感词与高频限流 |
 
-`GET /homepage` 由单个查询服务并行读取/预计算首页投影，禁止 Router 在请求内串行调用 Banner、分类和每个商品详情形成 N+1；局部失败以 `sections[].status=available/unavailable` 表示，公共 `ProductCard` DTO 不含后台字段。Cursor 绑定 `feed_version、section、identity/consent_scope`，失效返回 410 `CURSOR_EXPIRED`，前端保留区块并从首 Cursor 重载。
+`GET /homepage` 由单个查询服务读取/预计算首页投影，禁止 Router 在请求内串行调用 Banner 和每个商品详情形成 N+1；`sections` 必须且只能包含一个 `section=recommended` 项，局部失败以该项 `status=available/unavailable` 表示，公共 `ProductCard` DTO 不含后台字段。Cursor 绑定 `feed_version、section、identity/consent_scope`，失效返回 410 `CURSOR_EXPIRED`，前端保留推荐区并从首 Cursor 重载。
 
 搜索结果是可变快照，不能作为下单价格依据。详情响应中的 `selected_sku` 只可作为前端初始选择；创建结算会话必须提交明确 `sku_id` 与数量，由结算服务重新校验商品、SKU、店铺、区域和库存。履约资料至少返回城市级发货地、`dispatch_estimate: ServiceEstimate`、购买注意事项和资料版本；商品页面与 AI 客服均读取同一 DTO/Tool Result，不从富文本或模型常识重复推断。
 
@@ -13160,7 +13160,7 @@ AI 隐私/反馈 Release Gate 另要求：用户不经聊天即可在 `/me/setti
 
 以 2.12.2 每行路由生成 Route Contract Test，校验 Component、Auth Meta、参数到生成 Client 的 snake_case 映射、页面标题、Loading/Empty/403/404/410/Network 状态及离开 Guard。Mock Service Worker 只模拟 OpenAPI 已定义响应；前端不得通过手写字段适配隐藏契约漂移。覆盖刷新、深链、前进/后退、Session 过期登录返回、Cursor 过期、412 Diff、429 `Retry-After` 和写结果未知。
 
-组件测试覆盖：AuthLayout、密码登录、验证码登录、注册配置、协议链接/勾选、验证码倒计时、密码可见切换、Caps Lock、错误摘要、挑战和安全 Redirect；首页局部错误与 Feed 恢复；商品 Scroll Spy、SKU 图片回退和 Sticky 边界；消息 `…` 菜单、移动两级路由、草稿 TTL、新消息不抢滚动、同 `client_message_id` 重试、重连去重及完整消息 Live Region；订单/支付两阶段；结算 Context；评价、物流、售后、收藏、设置和错误页。使用真实布局引擎的 Playwright 在 `<768、768～1199、≥1200`、横竖屏与 200% 缩放运行截图和遮挡断言，检查顶部/底部固定栏、Safe Area、焦点可见性和无意横向溢出。
+组件测试覆盖：AuthModal、AuthLayout、密码登录、验证码登录、注册配置、协议链接/勾选、验证码倒计时、密码可见切换、Caps Lock、错误摘要、挑战和安全 Redirect；首页唯一推荐区与 Feed 恢复；搜索即时排序按钮；省市区县级联；商品 Scroll Spy、SKU 图片回退和 Sticky 边界；消息 `…` 菜单、移动两级路由、草稿 TTL、新消息不抢滚动、同 `client_message_id` 重试、重连去重及完整消息 Live Region；订单/支付两阶段；结算 Context；评价、物流、售后、收藏、设置和错误页。使用真实布局引擎的 Playwright 在 `<768、768～1199、≥1200`、横竖屏与 200% 缩放运行截图和遮挡断言，检查顶部/底部固定栏、Safe Area、焦点可见性和无意横向溢出。
 
 可访问性采用自动扫描加人工键盘/屏幕阅读器抽查：原生语义、Enter/Space、跳过导航、Landmark、标题层级、可见焦点、错误关联、Live Region、对比度、44×44 目标、Reduced Motion、Dialog Focus Trap/Esc/焦点恢复必须通过。自动扫描为零严重问题仍不能替代人工验证；AI 流式消息逐 Token 播报、右键唯一功能、颜色唯一状态或被 Sticky 遮挡的焦点均直接阻断用户端发布。
 
@@ -13183,7 +13183,7 @@ AI 隐私/反馈 Release Gate 另要求：用户不经聊天即可在 `/me/setti
 
 | 测试层 | 必测内容 |
 | :--- | :--- |
-| Vue 组件与可访问性 | `/login`、`/login/code`、`/register` 两列/单列布局；Label、Autocomplete、密码管理器、显示密码、Caps Lock、Enter 提交、字段错误和错误摘要焦点；验证码倒计时以服务端时间为准；协议链接在明确的新窗口打开且不丢失当前表单，`/legal/:documentType` 精确展示版本/生效时间/地区/安全正文；Challenge 有非图形替代；键盘、屏幕阅读器、Reduced Motion、200% 缩放和窄屏通过 |
+| Vue 组件与可访问性 | 全局 AuthModal 的遮罩、关闭、焦点和登录/注册 Tab，以及 `/login/code` 的独立恢复布局；Label、Autocomplete、密码管理器、显示密码、Caps Lock、Enter 提交、字段错误和错误摘要焦点；验证码倒计时以服务端时间为准；协议链接在明确的新窗口打开且不丢失当前表单，`/legal/:documentType` 精确展示版本/生效时间/地区/安全正文；Challenge 有非图形替代；键盘、屏幕阅读器、Reduced Motion、200% 缩放和窄屏通过 |
 | OpenAPI Contract | Registration Config 判别策略；Verification Code 的 Purpose/Target/ID/TTL；Registration 严格 Schema 与 `extra=forbid`；Login 的 Password/Code 判别联合；Required Agreement 精确覆盖；201/202/400/401/409/410/422/429/503、Problem Details、`Retry-After`、`Cache-Control: no-store`、Refresh Cookie 和 CSRF 字段均与 3.12.1 一致 |
 | Repository/事务 | User、两类 Credential、Agreement Acceptance、默认 User Role、Exclusive Conversation、Verification Consume、Session、Idempotency Record 和 Outbox 要么全部提交，要么全部回滚；协议/验证码/用户名/Target 唯一约束与索引由真实数据库验证 |
 | 并发与幂等 | 同 Username、同 Target、同验证码、相同/不同 Payload 的同 Idempotency Key、协议版本切换、验证码到期边界、Provider 接受后失败、Commit 前失败、Commit 成功响应丢失；断言最多一个用户、无重复角色/会话初始化/协议记录，旧 Bootstrap Session 不泄漏且恢复策略确定 |
@@ -13580,7 +13580,7 @@ API 的 Pool Size 从每实例 5–10、有限 Overflow 起压测，Worker/Agent
 
 #### 3.34.2 第二阶段：用户与权限
 
-实现 Registration Config、注册、密码/验证码登录、Refresh Rotation/Reuse Detection、退出/强制下线、找回/重置/修改密码、个人信息、地址、账号安全会话与注销申请、RBAC、管理员账号/MFA/近期认证/操作日志、管理员审批聚合与 Executor 骨架、Cookie/CSRF/CORS/限流和字段加密。数据层交付 `users、user_credentials、auth_sessions、verification_codes、password_reset_records、user_addresses、user_agreement_acceptances、auth_attempts` 及法务 Content Version 的迁移/Repository。Vue3 用户端完成 2.12.2、2.12.3.1～2.12.3.3 的 AuthLayout、密码登录、验证码登录、注册、找回/重置密码、我的资料、密码、会话、地址和账号注销页面联调；独立管理端完成密码 + MFA 登录、Admin Audience Session、后台 Shell、权限菜单、Scope 切换、用户治理、角色权限、安全会话和审批中心页面。
+实现 Registration Config、注册、密码/验证码登录、Refresh Rotation/Reuse Detection、退出/强制下线、找回/重置/修改密码、个人信息、地址、账号安全会话与注销申请、RBAC、管理员账号/MFA/近期认证/操作日志、管理员审批聚合与 Executor 骨架、Cookie/CSRF/CORS/限流和字段加密。数据层交付 `users、user_credentials、auth_sessions、verification_codes、password_reset_records、user_addresses、user_agreement_acceptances、auth_attempts` 及法务 Content Version 的迁移/Repository。Vue3 用户端完成 2.12.2、2.12.3.1～2.12.3.3 的 AuthModal、验证码/找回/重置 AuthLayout、登录注册、我的资料、密码、会话、三级地区地址和账号注销联调；独立管理端完成密码 + MFA 登录、Admin Audience Session、后台 Shell、权限菜单、Scope 切换、用户治理、角色权限、安全会话和审批中心页面。
 
 验收：2.12.3 的 Text UI、响应式、键盘和错误状态通过 3.30.24；Registration Config、精确协议版本、验证码 Purpose/Target、严格 Registration Schema、User Audience Session 与安全 Redirect 的前后端契约一致。注册核心资源全成或全败；并发同 Username/Target 仅一人成功；相同幂等 Key 不重复创建用户、协议、角色、专属客服会话或 Session，Commit 成功响应丢失按固定 Bootstrap Session Replacement 策略恢复。认证/API/数据库并发测试通过；密码哈希/验证码/Token/MFA Secret 不入日志、Trace、截图或浏览器持久存储；账号枚举、Refresh/恢复码重放被阻断并撤销相应会话；用户 Token 与 Admin Token Audience 不能混用；同一自然人持有多种身份时仍使用独立入口、Cookie Path、CSRF 上下文与 Session，交换 `aud/client_type` 的负向测试全部拒绝。生产 Admin Audience 无购物车、下单或支付能力，业务演练只允许隔离环境的独立 Sandbox 用户且生产镜像/配置不含 Sandbox 凭据。IDOR、横向/纵向越权、安全错误信息测试为零泄漏；权限自提升、删除最后安全管理员、近期认证绕过、发起人自批、重复审批席位和跨店 Scope 测试全部拒绝且管理员高危操作审计完整。角色撤销/过期后重新授权生成新 Grant，历史事件不可改写且任意时刻仅有一条 Active Grant；用户业务冻结与登录失败锁定严格分离，到期或提前解冻不恢复已撤销 Session；敏感字段临时 Grant 完成绑定、一次性消费、撤销、过期与全程脱敏测试。Redis 全丢最多导致重新认证或回源 MySQL，不得恢复已撤销 Session/Grant。
 
@@ -13705,8 +13705,8 @@ Go/No-Go Meeting 逐项确认并保存签字证据：
 
 | Requirement ID / 页面操作 | Vue Route | OpenAPI Operation / 路径 | 授权与领域规则 | Audit / Test / Evidence |
 | :--- | :--- | :--- | :--- | :--- |
-| `USR-AUTH-01` 密码登录 | `/login` | `UserAuth_Login` / `POST /auth/login` | Anonymous；Password 判别分支、凭证锁定、Dummy Hash、限流、安全 Redirect、User Audience 新 Session | Security+E2E `AUTH-LOGIN-*` |
-| `USR-AUTH-02` 用户注册/查阅协议 | `/register`、`/legal/:documentType` | `RegistrationConfig_Get`、`LegalDocument_Get`、`VerificationCode_Create`、`UserRegistration_Create` / `GET /auth/registration-config`、`GET /content/legal-documents/{document_type}`、`POST /auth/verification-codes`、`POST /auth/registrations` | Anonymous；配置/协议精确版本、Purpose/Target、严格 Schema、幂等、普通 User 固定角色、核心事务全成或全败 | Contract+Concurrency+E2E `AUTH-REGISTER-*` |
+| `USR-AUTH-01` 密码登录 | 全局 AuthModal；`/login → /?auth=login` | `UserAuth_Login` / `POST /auth/login` | Anonymous；Password 判别分支、凭证锁定、Dummy Hash、限流、安全 Redirect、User Audience 新 Session | Security+E2E `AUTH-LOGIN-*` |
+| `USR-AUTH-02` 用户注册/查阅协议 | 全局 AuthModal；`/register → /?auth=register`；`/legal/:documentType` | `RegistrationConfig_Get`、`LegalDocument_Get`、`VerificationCode_Create`、`UserRegistration_Create` / `GET /auth/registration-config`、`GET /content/legal-documents/{document_type}`、`POST /auth/verification-codes`、`POST /auth/registrations` | Anonymous；配置/协议精确版本、Purpose/Target、严格 Schema、幂等、普通 User 固定角色、核心事务全成或全败 | Contract+Concurrency+E2E `AUTH-REGISTER-*` |
 | `USR-AUTH-03` 验证码登录 | `/login/code` | `VerificationCode_Create`、`UserAuth_Login` / `POST /auth/verification-codes`、`POST /auth/login` | Anonymous；Login Purpose、已绑定 Active Credential、原子消费、不得隐式注册、User Audience 新 Session | Security+E2E `AUTH-CODE-LOGIN-*` |
 | `USR-AUTH-04` 找回与重置密码 | `/forgot-password`、`/reset-password` | `VerificationCode_Create`、`PasswordResetTicket_Create`、`PasswordReset_Execute` | Anonymous/受限 Ticket；Reset Purpose、限流、模糊响应、一次性消费、撤销旧 Session | Security+E2E `AUTH-RECOVERY-*` |
 | `USR-HOME-01` 首页聚合 | `/` | `Homepage_Get` / `GET /homepage` | Public/Current User；Consent-aware 通用/个性推荐；局部降级 | Query Count+Cursor+UI `HOME-*` |

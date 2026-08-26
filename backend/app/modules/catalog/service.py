@@ -307,26 +307,6 @@ class CatalogService:
             )
         return items
 
-    async def homepage_categories(self, limit: int = 10) -> list[CategoryView]:
-        rows = await self.repository.homepage_categories(limit)
-        icons = await self.repository.public_files_by_object_keys(
-            [row.icon_object_key for row in rows]
-        )
-        items: list[CategoryView] = []
-        for row in rows:
-            items.append(
-                CategoryView(
-                    category_id=row.category_no,
-                    parent_id=None,
-                    category_name=row.category_name,
-                    category_code=row.category_code,
-                    level=row.level,
-                    sort_order=row.sort_order,
-                    icon_url=_file_url(icons.get(row.icon_object_key or "")),
-                )
-            )
-        return items
-
     async def suggestions(self, q: str, limit: int) -> SearchSuggestionList:
         normalized = q.strip()
         if not normalized:
@@ -337,41 +317,32 @@ class CatalogService:
         content = ContentService(self.session)
         announcements = await content.published("announcement")
         banners = await content.published("banner")
-        sections: list[HomepageSection] = []
-        source: tuple[tuple[str, str, ProductSort], ...] = (
-            ("recommended", "为你推荐", "relevance"),
-            ("hot", "热门商品", "sales"),
-            ("new_arrival", "新品上架", "newest"),
+        products, pagination = await self.search(
+            user_id=user_id,
+            q=None,
+            category_no=None,
+            brand_no=None,
+            store_no=None,
+            group_no=None,
+            price_min=None,
+            price_max=None,
+            sort="relevance",
+            cursor=None,
+            limit=12,
         )
-        for section, title, sort in source:
-            products, pagination = await self.search(
-                user_id=user_id,
-                q=None,
-                category_no=None,
-                brand_no=None,
-                store_no=None,
-                group_no=None,
-                price_min=None,
-                price_max=None,
-                sort=sort,
-                cursor=None,
-                limit=12,
-            )
-            sections.append(
-                HomepageSection(
-                    section=cast(Literal["recommended", "hot", "new_arrival"], section),
-                    title=title,
-                    status="available",
-                    items=products.items,
-                    next_cursor=pagination.next_cursor,
-                )
-            )
         return HomepageView(
             feed_version="catalog-v1",
             announcements=[item.model_dump(mode="json") for item in announcements.items],
             banners=[item.model_dump(mode="json") for item in banners.items],
-            categories=await self.homepage_categories(),
-            sections=sections,
+            sections=[
+                HomepageSection(
+                    section="recommended",
+                    title="为你推荐",
+                    status="available",
+                    items=products.items,
+                    next_cursor=pagination.next_cursor,
+                )
+            ],
         )
 
     async def set_favorite(self, user_id: int, product_no: str, enabled: bool) -> None:

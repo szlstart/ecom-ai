@@ -44,9 +44,9 @@ const routes: RouteRecordRaw[] = [
     { path: 'me/favorites/products', component: () => import('@/pages/me/FavoriteProductsPage.vue'), meta: { ...userMeta, title: '商品收藏', requirementId: 'USR-FAVORITE-PRODUCT-01' } },
     { path: 'me/favorites/stores', component: () => import('@/pages/me/FollowedStoresPage.vue'), meta: { ...userMeta, title: '店铺收藏', requirementId: 'USR-FAVORITE-STORE-01' } },
   ] },
-  { path: '/login', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '登录', requirementId: 'USR-AUTH-LOGIN-01' }, children: [{ path: '', component: () => import('@/pages/LoginPage.vue') }] },
+  { path: '/login', redirect: (to) => ({ path: '/', query: { ...to.query, auth: 'login' } }), meta: { ...authMeta, title: '登录', requirementId: 'USR-AUTH-LOGIN-01' } },
   { path: '/login/code', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '验证码登录', requirementId: 'USR-AUTH-CODE-01' }, children: [{ path: '', component: () => import('@/pages/CodeLoginPage.vue') }] },
-  { path: '/register', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '注册', requirementId: 'USR-AUTH-REGISTER-01' }, children: [{ path: '', component: () => import('@/pages/RegisterPage.vue') }] },
+  { path: '/register', redirect: (to) => ({ path: '/', query: { ...to.query, auth: 'register' } }), meta: { ...authMeta, title: '注册', requirementId: 'USR-AUTH-REGISTER-01' } },
   { path: '/forgot-password', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '找回密码', requirementId: 'USR-AUTH-FORGOT-01' }, children: [{ path: '', component: () => import('@/pages/ForgotPasswordPage.vue') }] },
   { path: '/reset-password', component: () => import('@/layouts/AuthLayout.vue'), meta: { ...authMeta, title: '重置密码', requirementId: 'USR-AUTH-RESET-01' }, children: [{ path: '', component: () => import('@/pages/ResetPasswordPage.vue') }] },
   { path: '/legal/:documentType', component: () => import('@/layouts/LegalLayout.vue'), meta: { layout: 'legal', audience: 'public', requiresAuth: false, title: '协议文档', requirementId: 'USR-LEGAL-01' }, children: [{ path: '', component: () => import('@/pages/LegalDocumentPage.vue') }] },
@@ -127,7 +127,7 @@ router.beforeEach(async (to) => {
   if (!to.meta.requiresAuth) return true
   if (to.meta.audience === 'user') {
     const auth = useUserAuthStore()
-    if (!auth.isAuthenticated && !(await auth.refresh())) return { path: '/login', query: { redirect: to.fullPath } }
+    if (!auth.isAuthenticated && !(await auth.refresh())) return { path: '/', query: { auth: 'login', redirect: to.fullPath } }
   }
   if (to.meta.audience === 'admin') {
     const auth = useAdminAuthStore()

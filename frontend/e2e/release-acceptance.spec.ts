@@ -40,18 +40,6 @@ async function installPublicApi(page: Page) {
         feed_version: 'browser-fixture-v1',
         announcements: [{ title: '平台公告：测试环境不会触达真实用户' }],
         banners: [{ title: '可信商品', subtitle: '浏览器验收固定数据' }],
-        categories: [
-          {
-            category_id: 'cat_01BROWSERACCEPTANCE',
-            parent_id: null,
-            category_name: '数码设备',
-            category_code: 'digital',
-            level: 1,
-            sort_order: 1,
-            icon_url: null,
-            children: [],
-          },
-        ],
         sections: [
           {
             section: 'recommended',
@@ -62,6 +50,14 @@ async function installPublicApi(page: Page) {
             error_code: null,
           },
         ],
+      })
+      return
+    }
+    if (url.pathname.endsWith('/auth/registration-config')) {
+      await json(route, {
+        config_version: 'browser-v1',
+        password_policy: { min_length: 15, max_length: 128 },
+        required_agreements: [],
       })
       return
     }
@@ -105,6 +101,10 @@ test('HOME-BROWSER renders deterministic loading-complete content without seriou
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '找到真正适合你的商品' })).toBeVisible()
   await expect(page.getByText('平台公告：测试环境不会触达真实用户')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '为你推荐' })).toBeVisible()
+  await expect(page.getByText('分类导航')).toHaveCount(0)
+  await expect(page.getByText('热门商品')).toHaveCount(0)
+  await expect(page.getByText('新品上架')).toHaveCount(0)
   await assertBaselineAccessibility(page)
   await page.keyboard.press('Tab')
   await expect.poll(() => page.evaluate(() => document.activeElement?.tagName)).not.toBe('BODY')
@@ -115,14 +115,72 @@ test('SEARCH-BROWSER preserves URL filters and exposes an empty recovery state',
   await page.goto('/search?q=keyboard&sort=price_asc')
   await expect(page.getByRole('heading', { name: '搜索商品' })).toBeVisible()
   await expect(page.getByLabel('关键词')).toHaveValue('keyboard')
-  await expect(page.getByLabel('排序')).toHaveValue('price_asc')
+  await expect(page.getByRole('button', { name: '价格从低到高' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: '销量排序' }).click()
+  await expect(page).toHaveURL(/sort=sales/)
+  await expect(page.getByRole('button', { name: '销量排序' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('没有找到匹配商品')).toBeVisible()
   await assertBaselineAccessibility(page)
   await page.screenshot({ path: testInfo.outputPath('search-empty.png'), fullPage: true })
 })
 
+test('NAV-BROWSER opens the same authentication modal for every protected navigation entry', async ({ page }) => {
+  await page.goto('/')
+  for (const name of ['购物车', '消息', '收藏', '地址', '我的']) {
+    await page.getByRole('button', { name, exact: true }).click()
+    await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible()
+    await page.getByRole('button', { name: '关闭注册登录弹窗' }).click()
+    await expect(page.getByRole('heading', { name: '欢迎回来' })).toHaveCount(0)
+  }
+  await page.getByRole('button', { name: '注册/登录' }).click()
+  await page.getByRole('tab', { name: '注册' }).click()
+  await expect(page.getByRole('heading', { name: '注册账号' })).toBeVisible()
+  await assertBaselineAccessibility(page)
+})
+
+test('ACCOUNT-ADDRESS-BROWSER keeps messaging active and exposes the three-level region selector', async ({ page }) => {
+  await page.unroute('**/api/v1/**')
+  await page.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname.endsWith('/auth/token-refresh')) {
+      await json(route, {
+        user: { user_id: 'usr_BROWSER', username: 'browser_user', nickname: '验收用户', avatar_url: null, account_status: 'active' },
+        session: {
+          session_id: 'ses_BROWSER', client_type: 'web', device_name: 'Playwright', audience: 'user',
+          authenticated_at: '2026-08-26T00:00:00Z', last_seen_at: '2026-08-26T00:00:00Z',
+          expires_at: '2026-08-27T00:00:00Z', is_current: true,
+        },
+        access_token: 'browser-access-token', token_type: 'Bearer', expires_in: 900, csrf_token: 'browser-csrf',
+      })
+      return
+    }
+    if (url.pathname.endsWith('/users/me/addresses')) {
+      await json(route, { items: [], active_count: 0, max_count: 20, can_create: true })
+      return
+    }
+    await json(route, {
+      title: 'Fixture not registered', status: 503, detail: '未配置接口。', code: 'BROWSER_FIXTURE_MISSING',
+      request_id: 'req_browser_acceptance', retryable: false,
+    }, 503)
+  })
+
+  await page.goto('/me/addresses')
+  await expect(page.getByRole('link', { name: '消息' })).toBeVisible()
+  await expect(page.getByText(/(早上|中午|下午|晚上)好，验收用户/)).toBeVisible()
+  await page.getByRole('button', { name: '新增地址' }).click()
+  await expect(page.getByLabel('省份').locator('option')).toHaveCount(33)
+  await page.getByLabel('省份').selectOption('440000')
+  await page.getByLabel('城市').selectOption('440300')
+  await expect(page.getByLabel('区 / 县')).toBeEnabled()
+  await expect(page.getByText('省代码')).toHaveCount(0)
+  await expect(page.getByText('邮编')).toHaveCount(0)
+  await expect(page.getByText('标签')).toHaveCount(0)
+  await assertBaselineAccessibility(page)
+})
+
 test('AUTH-BROWSER keeps user and admin authentication entry points keyboard reachable', async ({ page }, testInfo) => {
   await page.goto('/login')
+  await expect(page).toHaveURL(/\/?auth=login$/)
   await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible()
   await page.getByLabel('账号').focus()
   await expect(page.getByLabel('账号')).toBeFocused()
@@ -136,7 +194,7 @@ test('AUTH-BROWSER keeps user and admin authentication entry points keyboard rea
 
 test('AUTH-GUARD-BROWSER fails closed for protected user and admin routes', async ({ page }) => {
   await page.goto('/cart')
-  await expect(page).toHaveURL(/\/login\?redirect=(?:%2F|\/)cart$/)
+  await expect(page).toHaveURL(/\/?auth=login&redirect=(?:%2F|\/)cart$/)
   await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible()
 
   await page.goto('/admin/dashboard')

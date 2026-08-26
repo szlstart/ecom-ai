@@ -1,17 +1,168 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import areaData from 'china-area-data'
+
 import { apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
 import { useUserAuthStore } from '@/stores/user-auth'
-interface Address { address_id: string; recipient_name: string; phone: string; province_code: string; city_code: string; district_code: string; address: string; label: string | null; is_default: boolean; version: number }
-const auth = useUserAuthStore(), items = ref<Address[]>([]), error = ref(''), showForm = ref(false)
-const form = reactive({ recipient_name: '', phone: '', country_code: 'CN', province_code: '', city_code: '', district_code: '', address: '', postal_code: '', label: '', is_default: false })
-async function load() { items.value = (await apiRequest<{ items: Address[] }>('/users/me/addresses', {}, auth.accessToken)).data.items }
+
+interface Address {
+  address_id: string
+  recipient_name: string
+  phone: string
+  province_code: string
+  city_code: string
+  district_code: string
+  address: string
+  is_default: boolean
+  version: number
+}
+
+interface RegionOption { code: string; name: string }
+
+const excludedProvinceCodes = new Set(['810000', '820000'])
+const provinces = Object.entries(areaData['86'] ?? {})
+  .filter(([code]) => !excludedProvinceCodes.has(code))
+  .map(([code, name]) => ({ code, name }))
+
+const auth = useUserAuthStore()
+const items = ref<Address[]>([])
+const error = ref('')
+const showForm = ref(false)
+const pending = ref(false)
+const form = reactive({
+  recipient_name: '',
+  phone: '',
+  country_code: 'CN',
+  province_code: '',
+  city_code: '',
+  district_code: '',
+  address: '',
+  is_default: false,
+})
+
+const cities = computed(() => optionsFor(form.province_code))
+const districts = computed(() => optionsFor(form.city_code))
+
+function optionsFor(parentCode: string): RegionOption[] {
+  return Object.entries(areaData[parentCode] ?? {}).map(([code, name]) => ({ code, name }))
+}
+
+function selectProvince() {
+  form.city_code = ''
+  form.district_code = ''
+}
+
+function selectCity() {
+  form.district_code = ''
+}
+
+function regionName(code: string): string {
+  for (const regions of Object.values(areaData)) {
+    if (regions[code]) return regions[code]
+  }
+  return code
+}
+
+function displayRegion(item: Address): string {
+  return [regionName(item.province_code), regionName(item.city_code), regionName(item.district_code)]
+    .filter((name, index, values) => name !== '市辖区' && values.indexOf(name) === index)
+    .join(' ')
+}
+
+function resetForm() {
+  Object.assign(form, {
+    recipient_name: '',
+    phone: '',
+    country_code: 'CN',
+    province_code: '',
+    city_code: '',
+    district_code: '',
+    address: '',
+    is_default: false,
+  })
+}
+
+async function load() {
+  items.value = (await apiRequest<{ items: Address[] }>('/users/me/addresses', {}, auth.accessToken)).data.items
+}
+
+async function create() {
+  pending.value = true
+  error.value = ''
+  try {
+    await apiRequest('/users/me/addresses', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': createIdempotencyKey('address') },
+      body: JSON.stringify({ ...form, postal_code: null, label: null }),
+    }, auth.accessToken)
+    showForm.value = false
+    resetForm()
+    await load()
+  } catch (reason) {
+    error.value = errorMessage(reason)
+  } finally {
+    pending.value = false
+  }
+}
+
+async function remove(item: Address) {
+  if (!confirm('确定删除这个地址吗？')) return
+  try {
+    await apiRequest(`/users/me/addresses/${item.address_id}`, {
+      method: 'DELETE',
+      headers: { 'If-Match': `"v${item.version}"` },
+    }, auth.accessToken)
+    await load()
+  } catch (reason) {
+    error.value = errorMessage(reason)
+  }
+}
+
+async function setDefault(item: Address) {
+  try {
+    await apiRequest('/users/me/default-address', {
+      method: 'PUT',
+      body: JSON.stringify({ address_id: item.address_id }),
+    }, auth.accessToken)
+    await load()
+  } catch (reason) {
+    error.value = errorMessage(reason)
+  }
+}
+
 onMounted(() => load().catch((reason) => { error.value = errorMessage(reason) }))
-async function create() { try { await apiRequest('/users/me/addresses', { method: 'POST', headers: { 'Idempotency-Key': createIdempotencyKey('address') }, body: JSON.stringify(form) }, auth.accessToken); showForm.value = false; Object.assign(form, { recipient_name: '', phone: '', province_code: '', city_code: '', district_code: '', address: '', postal_code: '', label: '', is_default: false }); await load() } catch (reason) { error.value = errorMessage(reason) } }
-async function remove(item: Address) { if (!confirm('确定删除这个地址吗？')) return; try { await apiRequest(`/users/me/addresses/${item.address_id}`, { method: 'DELETE', headers: { 'If-Match': `"v${item.version}"` } }, auth.accessToken); await load() } catch (reason) { error.value = errorMessage(reason) } }
-async function setDefault(item: Address) { try { await apiRequest('/users/me/default-address', { method: 'PUT', body: JSON.stringify({ address_id: item.address_id }) }, auth.accessToken); await load() } catch (reason) { error.value = errorMessage(reason) } }
 </script>
-<template><section><div class="page-heading"><div><p class="eyebrow">我的</p><h1>收货地址</h1></div><button @click="showForm = !showForm">{{ showForm ? '取消' : '新增地址' }}</button></div><p v-if="error" class="alert error">{{ error }}</p>
-  <form v-if="showForm" class="card address-form" @submit.prevent="create"><label>收货人<input v-model="form.recipient_name" required /></label><label>联系电话<input v-model="form.phone" required /></label><div class="field-row"><label>省代码<input v-model="form.province_code" required /></label><label>市代码<input v-model="form.city_code" required /></label><label>区代码<input v-model="form.district_code" required /></label></div><label>详细地址<input v-model="form.address" required /></label><div class="field-row"><label>邮编<input v-model="form.postal_code" /></label><label>标签<input v-model="form.label" placeholder="家 / 公司" /></label></div><label class="check-row"><input v-model="form.is_default" type="checkbox" />设为默认地址</label><button>保存地址</button></form>
-  <div class="stack"><article v-for="item in items" :key="item.address_id" class="card address-card"><div><span v-if="item.is_default" class="badge">默认</span><strong>{{ item.recipient_name }}</strong> · {{ item.phone }}<p>{{ item.province_code }} {{ item.city_code }} {{ item.district_code }} {{ item.address }}</p></div><div class="actions"><button v-if="!item.is_default" class="secondary small" @click="setDefault(item)">设为默认</button><button class="danger small" @click="remove(item)">删除</button></div></article><p v-if="!items.length" class="empty-state card">暂无收货地址</p></div>
-</section></template>
+
+<template>
+  <section>
+    <div class="page-heading">
+      <div><p class="eyebrow">我的</p><h1>收货地址</h1></div>
+      <button type="button" @click="showForm = !showForm">{{ showForm ? '取消' : '新增地址' }}</button>
+    </div>
+    <p v-if="error" class="alert error">{{ error }}</p>
+
+    <form v-if="showForm" class="card address-form" @submit.prevent="create">
+      <label>收货人<input v-model="form.recipient_name" autocomplete="name" required /></label>
+      <label>联系电话<input v-model="form.phone" autocomplete="tel" required /></label>
+      <fieldset class="region-selector">
+        <legend>地区</legend>
+        <div class="field-row">
+          <label>省份<select v-model="form.province_code" required @change="selectProvince"><option value="" disabled>请选择省份</option><option v-for="item in provinces" :key="item.code" :value="item.code">{{ item.name }}</option></select></label>
+          <label>城市<select v-model="form.city_code" required :disabled="!form.province_code" @change="selectCity"><option value="" disabled>请选择城市</option><option v-for="item in cities" :key="item.code" :value="item.code">{{ item.name }}</option></select></label>
+          <label>区 / 县<select v-model="form.district_code" required :disabled="!form.city_code"><option value="" disabled>请选择区或县</option><option v-for="item in districts" :key="item.code" :value="item.code">{{ item.name }}</option></select></label>
+        </div>
+      </fieldset>
+      <label>详细地址<textarea v-model="form.address" autocomplete="street-address" maxlength="500" placeholder="请输入街道、门牌号、小区、楼栋及房间号" required /></label>
+      <label class="check-row"><input v-model="form.is_default" type="checkbox" />设为默认地址</label>
+      <button :disabled="pending" type="submit">{{ pending ? '正在保存…' : '保存地址' }}</button>
+    </form>
+
+    <div class="stack">
+      <article v-for="item in items" :key="item.address_id" class="card address-card">
+        <div><span v-if="item.is_default" class="badge">默认</span><strong>{{ item.recipient_name }}</strong> · {{ item.phone }}<p>{{ displayRegion(item) }} {{ item.address }}</p></div>
+        <div class="actions"><button v-if="!item.is_default" class="secondary small" type="button" @click="setDefault(item)">设为默认</button><button class="danger small" type="button" @click="remove(item)">删除</button></div>
+      </article>
+      <p v-if="!items.length" class="empty-state card">暂无收货地址</p>
+    </div>
+  </section>
+</template>

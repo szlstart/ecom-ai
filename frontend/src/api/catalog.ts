@@ -123,7 +123,7 @@ export interface ProductFaq {
 }
 
 export interface HomepageSection {
-  section: 'recommended' | 'hot' | 'new_arrival'
+  section: 'recommended'
   title: string
   status: 'available' | 'unavailable'
   items: ProductCardData[]
@@ -135,7 +135,6 @@ export interface HomepageData {
   feed_version: string
   announcements: Array<Record<string, string>>
   banners: Array<Record<string, unknown>>
-  categories: Category[]
   sections: HomepageSection[]
 }
 

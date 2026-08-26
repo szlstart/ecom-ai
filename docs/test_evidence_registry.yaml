@@ -63,7 +63,7 @@ families:
   FILE-UPLOAD: {layers: [integration, security], selectors: [backend/tests/test_file_upload_api_integration.py::test_presigned_upload_scan_derivation_and_store_logo_binding]}
   FOLLOW: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}
   HEALTH: {layers: [unit, contract], selectors: [backend/tests/test_health.py::test_liveness_returns_request_id]}
-  HOME: {layers: [contract, integration], selectors: [backend/tests/test_catalog_contract.py::test_homepage_category_summary_has_a_bounded_default]}
+  HOME: {layers: [contract, integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}
   ME: {layers: [integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   MSG-USER: {layers: [contract, integration, security], selectors: [backend/tests/test_messaging_api_integration.py::test_conversation_uniqueness_message_replay_moderation_and_human_handoff]}
   ORDER-DOMAIN: {layers: [unit], selectors: [backend/tests/test_order_domain.py::test_every_illegal_order_transition_is_rejected_without_target]}

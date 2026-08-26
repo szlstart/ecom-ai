@@ -5,11 +5,6 @@ import pytest
 from app.core.exceptions import ApplicationError
 from app.core.pagination import CursorCodec
 from app.main import create_app
-from app.modules.catalog.service import CatalogService
-
-
-def test_homepage_category_summary_has_a_bounded_default() -> None:
-    assert CatalogService.homepage_categories.__defaults__ == (10,)
 
 
 def test_catalog_and_store_openapi_operations_are_stable() -> None:

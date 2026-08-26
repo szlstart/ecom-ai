@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "ac4861725aeb207c5f52a85bb1fae1d452b6b17326fec8c86c846fff4e313b31"
+SOURCE_SHA256 = "17ecd77b10a9fe65b60b77471fb699abb6ff90160cfb703ee3e723d20db0a586"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -750,6 +750,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -765,6 +766,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -780,6 +782,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -795,6 +798,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -810,6 +814,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -825,6 +830,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -840,6 +846,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -855,6 +862,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:publish"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -870,6 +878,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -885,6 +894,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -900,6 +910,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -915,6 +926,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -950,6 +962,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -965,6 +978,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -980,6 +994,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -995,6 +1010,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -1020,6 +1036,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -1045,6 +1062,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:review"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -1060,6 +1078,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:publish"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -1075,6 +1094,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:publish"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -1090,6 +1110,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -1105,6 +1126,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
+            "public_reference_projection",
             "products:read",
             "products:update",
             "products:review",
@@ -2244,9 +2266,15 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
-        "x-requirement-id": ["USR-HOME-01"],
-        "x-scope-policy": ["public_projection"],
-        "x-test-case-ids": ["BROWSER-HOME-*", "HOME-*"],
+        "x-requirement-id": ["ADM-PRODUCT-01"],
+        "x-scope-policy": [
+            "public_reference_projection",
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
+        ],
+        "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
     "CartInvalidItem_Clear": {
         "x-audit-event": "command.CartInvalidItem_Clear",
@@ -2314,9 +2342,15 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
-        "x-requirement-id": ["USR-HOME-01"],
-        "x-scope-policy": ["public_projection"],
-        "x-test-case-ids": ["BROWSER-HOME-*", "HOME-*"],
+        "x-requirement-id": ["ADM-PRODUCT-01"],
+        "x-scope-policy": [
+            "public_reference_projection",
+            "products:read",
+            "products:update",
+            "products:review",
+            "products:publish",
+        ],
+        "x-test-case-ids": ["ADM-PRODUCT-*"],
     },
     "CheckoutRepricing_Create": {
         "x-audit-event": "command.CheckoutRepricing_Create",

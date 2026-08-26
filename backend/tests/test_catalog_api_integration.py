@@ -371,6 +371,13 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
     )
     auth = {"Authorization": f"Bearer {token}"}
 
+    homepage = await client.get("/api/v1/homepage", headers=auth)
+    assert homepage.status_code == 200, homepage.text
+    homepage_data = homepage.json()["data"]
+    assert "categories" not in homepage_data
+    assert [section["section"] for section in homepage_data["sections"]] == ["recommended"]
+    assert homepage_data["sections"][0]["title"] == "为你推荐"
+
     first_page = await client.get("/api/v1/products", params={"sort": "sales", "limit": 2})
     assert first_page.status_code == 200, first_page.text
     first_payload = first_page.json()

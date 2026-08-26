@@ -90,7 +90,7 @@ async function loadProducts() {
 async function contactStore() {
   if (!store.value) return
   if (!auth.accessToken) {
-    await router.push({ path: '/login', query: { redirect: route.fullPath } })
+    await router.push({ path: route.path, query: { ...route.query, auth: 'login', redirect: route.fullPath } })
     return
   }
   contactBusy.value = true
@@ -122,7 +122,7 @@ function changeCursor(cursor: string | null | undefined) {
 async function toggleFollow() {
   if (!store.value) return
   if (!auth.accessToken) {
-    await router.push({ path: '/login', query: { redirect: route.fullPath } })
+    await router.push({ path: route.path, query: { ...route.query, auth: 'login', redirect: route.fullPath } })
     return
   }
   followBusy.value = true

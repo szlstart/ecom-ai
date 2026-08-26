@@ -8793,9 +8793,9 @@ export interface components {
         HomepageSection: {
             /**
              * Section
-             * @enum {string}
+             * @constant
              */
-            section: "recommended" | "hot" | "new_arrival";
+            section: "recommended";
             /** Title */
             title: string;
             /**
@@ -8822,8 +8822,6 @@ export interface components {
             banners: {
                 [key: string]: unknown;
             }[];
-            /** Categories */
-            categories: components["schemas"]["CategoryView"][];
             /** Sections */
             sections: components["schemas"]["HomepageSection"][];
         };

@@ -3,7 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { getHomepage, type HomepageData } from '@/api/catalog'
-import { errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
@@ -56,24 +56,6 @@ watch(() => auth.accessToken, (current, previous) => {
         <strong>公告</strong>
         <span>{{ text(homepage.announcements[0]!, 'title') || text(homepage.announcements[0]!, 'content') }}</span>
       </aside>
-
-      <section v-if="homepage.categories.length" aria-labelledby="home-categories-title">
-        <div class="section-heading">
-          <div><p class="eyebrow">分类导航</p><h2 id="home-categories-title">按分类浏览</h2></div>
-          <RouterLink to="/search">查看全部</RouterLink>
-        </div>
-        <div class="category-row">
-          <RouterLink
-            v-for="category in homepage.categories"
-            :key="category.category_id"
-            :to="{ path: '/search', query: { category_id: category.category_id } }"
-            class="category-chip"
-          >
-            <img v-if="category.icon_url" :src="resolveApiAssetUrl(category.icon_url) || undefined" alt="" width="36" height="36" />
-            <span>{{ category.category_name }}</span>
-          </RouterLink>
-        </div>
-      </section>
 
       <section v-for="section in homepage.sections" :key="section.section" :aria-labelledby="`section-${section.section}`">
         <div class="section-heading">

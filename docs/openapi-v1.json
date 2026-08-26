@@ -6437,14 +6437,17 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "USR-HOME-01"
+          "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          "public_projection"
+          "public_reference_projection",
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
-          "BROWSER-HOME-*",
-          "HOME-*"
+          "ADM-PRODUCT-*"
         ]
       }
     },
@@ -6526,14 +6529,17 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "USR-HOME-01"
+          "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
-          "public_projection"
+          "public_reference_projection",
+          "products:read",
+          "products:update",
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
-          "BROWSER-HOME-*",
-          "HOME-*"
+          "ADM-PRODUCT-*"
         ]
       }
     },
@@ -22073,6 +22079,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -22192,6 +22199,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -22329,6 +22337,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -22466,6 +22475,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -22603,6 +22613,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -22740,6 +22751,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -22826,6 +22838,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -22939,6 +22952,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -23069,6 +23083,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -23215,6 +23230,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -23301,6 +23317,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -23420,6 +23437,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -23506,6 +23524,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -23625,6 +23644,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -23711,6 +23731,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -23830,6 +23851,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -23945,6 +23967,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -24040,6 +24063,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -24126,6 +24150,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -24239,6 +24264,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -24363,6 +24389,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -24487,6 +24514,7 @@
           "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "products:read",
           "products:update",
           "products:review",
@@ -44078,11 +44106,7 @@
         "properties": {
           "section": {
             "type": "string",
-            "enum": [
-              "recommended",
-              "hot",
-              "new_arrival"
-            ],
+            "const": "recommended",
             "title": "Section"
           },
           "title": {
@@ -44160,13 +44184,6 @@
             "type": "array",
             "title": "Banners"
           },
-          "categories": {
-            "items": {
-              "$ref": "#/components/schemas/CategoryView"
-            },
-            "type": "array",
-            "title": "Categories"
-          },
           "sections": {
             "items": {
               "$ref": "#/components/schemas/HomepageSection"
@@ -44180,7 +44197,6 @@
           "feed_version",
           "announcements",
           "banners",
-          "categories",
           "sections"
         ],
         "title": "HomepageView"

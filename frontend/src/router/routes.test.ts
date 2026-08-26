@@ -60,7 +60,6 @@ describe('phase two route contract', () => {
   it('keeps the merchant portal isolated from platform administration', () => {
     const expected = new Map([
       ['/merchant/login', 'MCH-AUTH-01'],
-      ['/merchant/login/mfa', 'MCH-AUTH-02'],
       ['/merchant/reauthenticate', 'MCH-AUTH-03'],
       ['/merchant', 'MCH-SHELL-01'],
       ['/merchant/dashboard', 'MCH-DASH-01'],

@@ -2754,7 +2754,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 #### 2.14.1 定位、入口与权限边界
 
-商家中心入口固定为 `/merchant/login`，登录后进入 `/merchant/dashboard`。商家账号必须具有 `store_operator` 角色、至少一个有效 Store Scope，并完成账号密码与 MFA 两步验证；没有 Store Scope 的平台管理员账号、普通用户账号均不得进入。首版复用 Admin Audience 的安全会话、刷新 Cookie、近期认证和审计基础设施，但 Vue 使用独立 `MerchantAuthLayout/MerchantLayout`，不复用平台管理端菜单。
+商家中心入口固定为 `/merchant/login`，账号密码校验成功后直接进入 `/merchant/dashboard`，不要求 TOTP、恢复码或其他二次验证。商家账号必须具有 `store_operator` 角色和至少一个有效 Store Scope；没有 Store Scope 的平台管理员账号、普通用户账号均不得进入。商家登录使用独立的 `/merchant/auth/login` 准入接口，在服务端完成角色和 Store Scope 校验；会话仍复用 Admin Audience 的刷新 Cookie、权限、近期认证和审计基础设施，但标记为 `client_type=merchant`。Vue 使用独立 `MerchantAuthLayout/MerchantLayout`，不复用平台管理端菜单，平台管理端原有 MFA 不受影响。
 
 商家端只能处理当前店铺商品、库存、店铺人工客服、店铺评价回复和公开店铺资料。商家不得审核自己提交的商品，不得屏蔽/恢复用户评价，不得访问其他店铺、平台用户治理、支付对账、AI 治理、系统任务或全平台指标。公开商品遵循“草稿 → 提交审核 → 平台审核通过 → 商家上架”的状态机；商家拥有上架/下架命令，但没有 `products:review`。
 
@@ -2771,7 +2771,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 │ ◌ 客户咨询                      │ Loading / Empty / Error / 412 / 428       │
 │ ☆ 评价回复                      │                                           │
 │ ◇ 店铺资料                      │                                           │
-│ 查看用户端店铺 / 安全验证 / 退出│                                           │
+│ 查看用户端店铺 / 退出商家中心   │                                           │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -2781,8 +2781,8 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 | 页面 | Vue Route / Component | 主要能力 | Permission / Scope |
 | :--- | :--- | :--- | :--- |
-| 商家登录 | `/merchant/login` / `MerchantLoginPage.vue` | 账号密码登录 | 店铺运营身份准入 |
-| MFA/重新认证 | `/merchant/login/mfa`、`/merchant/reauthenticate` / `MerchantMfaPage.vue` | MFA、恢复码、近期认证 | 当前 Merchant Session |
+| 商家登录 | `/merchant/login` / `MerchantLoginPage.vue` | 账号密码登录成功后直接进入工作台，不显示二次验证 | `store_operator` + Store Scope，拒绝平台管理身份 |
+| 敏感操作密码确认 | `/merchant/reauthenticate` / `MerchantReauthenticatePage.vue` | 登录超过近期认证窗口后，仅重新输入当前密码 | 当前 Merchant Session |
 | 工作台 | `/merchant/dashboard` / `MerchantDashboardPage.vue` | 在售/待完善商品、待处理咨询、待回复评价；可直接修改当前店铺名称 | `stores:read/manage` + Store；不授予平台仪表盘权限 |
 | 商品列表 | `/merchant/products` / `MerchantProductListPage.vue` | 按名称和状态筛选本店商品 | `products:read` + Store |
 | 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `AdminProductEditPage.vue(portal=merchant)` | 基础资料、SKU、图片、参数、履约、详情、FAQ、提交审核、上架/下架 | `products:create/update/publish` + Store |
@@ -9432,11 +9432,11 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 #### 3.12.26 商家中心接口投影
 
-商家中心首版不复制一套领域实现。它复用 `/admin/auth/*`、`/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API，但 Token 必须含 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。`/merchant` 是独立 Vue 路由空间，不是新的不受控 API 前缀；未来只有在商家与平台 DTO 或生命周期确实分化时，才可增加 `/merchant/*` Facade，且仍调用相同 Domain Service。
+商家中心首版不复制一套领域实现。身份准入使用专用 `/merchant/auth/login` 与 `/merchant/auth/reauthentications` Facade，以实现密码直登、商家身份限制和 Store Scope 服务端校验；登录后的店铺、商品、库存、评价与客服能力仍复用 `/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API。Token 必须来自 `client_type=merchant` 会话并关联 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。除身份准入确有差异外，不为商家复制领域 Service；后续新增 `/merchant/*` Facade 也必须调用相同 Domain Service 和授权组件。
 
 `store_operator` 首版权限集合固定为：`stores:read/manage`、`store_policies:read/create/update/publish`、`products:read/create/update/publish`、`inventories:read/adjust`、`reviews:read/reply`、`support:queue_read/claim/reply/wait/resume/resolve`。明确排除平台仪表盘 `dashboard:read`、`products:review`、`reviews:moderate`、跨店/平台权限、客服转派与内部高敏备注。角色 Permission Binding 由可信商家开户流程或本地 `merchant-bootstrap` 建立，不能由商家自行扩权。
 
-商家登录仍执行 `AdminAuth_Login → AdminAuth_MfaVerify → AdminMe_Get`，前端在 MFA 后额外要求至少一个 `scope_type=store`；后端 API 不依赖这次前端检查，仍由 `require_admin_permission + AdminAccess.require_scope` 执行真正授权。商家端共享的管理 Operation 在追踪矩阵中同时列出 Admin 与 Merchant Route Owner，测试必须覆盖 Store Scope 列表过滤、跨店 404、缺权限 403、MFA/近期认证和审计记录。
+商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有平台管理范围的身份；登录成功直接返回权限与 Store Scope 投影，不创建 MFA Challenge。平台管理登录仍执行 `AdminAuth_Login → AdminAuth_MfaVerify`，两条准入链路不得混用。商家高风险操作超过近期认证窗口后执行 `MerchantAuth_Reauthenticate`，只校验当前密码，不要求 TOTP 或恢复码。后续资源授权仍由 `require_admin_permission + AdminAccess.require_scope` 逐次执行。测试必须覆盖密码直登、平台身份拒绝、Store Scope 列表过滤、跨店 404、缺权限 403、密码近期认证和审计记录。
 
 ---
 

@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "f10ff0f55e2f062c7f38f1efe50a49c3f05fe83b17702eb2e7e2b314b2b07ded"
+SOURCE_SHA256 = "1902effb355760386277b10f74bb12f2c2ae771935e2c9db215e0a7d8a1d5275"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -258,9 +258,9 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
-        "x-requirement-id": ["ADM-AUTH-01", "MCH-AUTH-01"],
-        "x-scope-policy": ["store_operator_audience", "admin_audience"],
-        "x-test-case-ids": ["ADM-AUTH-*", "BROWSER-AUTH-*", "MCH-PORTAL-*"],
+        "x-requirement-id": ["ADM-AUTH-01"],
+        "x-scope-policy": ["admin_audience"],
+        "x-test-case-ids": ["ADM-AUTH-*", "BROWSER-AUTH-*"],
     },
     "AdminAuth_Logout": {
         "x-audit-event": "command.AdminAuth_Logout",
@@ -278,9 +278,9 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
-        "x-requirement-id": ["ADM-AUTH-02", "MCH-AUTH-02"],
-        "x-scope-policy": ["store_operator_audience", "admin_session"],
-        "x-test-case-ids": ["ADM-AUTH-*", "MCH-PORTAL-*"],
+        "x-requirement-id": ["ADM-AUTH-02"],
+        "x-scope-policy": ["admin_session"],
+        "x-test-case-ids": ["ADM-AUTH-*"],
     },
     "AdminAuth_Reauthenticate": {
         "x-audit-event": "command.AdminAuth_Reauthenticate",
@@ -288,9 +288,9 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
-        "x-requirement-id": ["ADM-AUTH-02", "ADM-AUTH-03", "MCH-AUTH-03"],
-        "x-scope-policy": ["store_operator_audience", "admin_session"],
-        "x-test-case-ids": ["ADM-AUTH-*", "MCH-PORTAL-*"],
+        "x-requirement-id": ["ADM-AUTH-02", "ADM-AUTH-03"],
+        "x-scope-policy": ["admin_session"],
+        "x-test-case-ids": ["ADM-AUTH-*"],
     },
     "AdminBatchJobItem_List": {
         "x-audit-event": "access.AdminBatchJobItem_List",
@@ -2726,6 +2726,26 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["WEBHOOK-LOGISTICS-01"],
         "x-scope-policy": ["provider_signature"],
         "x-test-case-ids": ["SHIP-WEBHOOK-*"],
+    },
+    "MerchantAuth_Login": {
+        "x-audit-event": "command.MerchantAuth_Login",
+        "x-domain-command": "MerchantAuth_Login",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["MCH-AUTH-01"],
+        "x-scope-policy": ["store_operator_with_store_scope"],
+        "x-test-case-ids": ["MCH-PORTAL-*"],
+    },
+    "MerchantAuth_Reauthenticate": {
+        "x-audit-event": "command.MerchantAuth_Reauthenticate",
+        "x-domain-command": "MerchantAuth_Reauthenticate",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["MCH-AUTH-03"],
+        "x-scope-policy": ["store_operator_with_store_scope"],
+        "x-test-case-ids": ["MCH-PORTAL-*"],
     },
     "MessageReadCursor_PutMine": {
         "x-audit-event": "command.MessageReadCursor_PutMine",

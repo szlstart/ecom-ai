@@ -44,6 +44,20 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     challenge.value = response.data
   }
 
+  async function merchantPasswordLogin(identifier: string, password: string, deviceName: string) {
+    const response = await apiRequest<AdminBootstrap>('/merchant/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        identifier,
+        password,
+        client: { client_type: 'web', device_name: deviceName },
+      }),
+    })
+    accept(response.data)
+    userId.value = response.data.session.user.user_id
+    challenge.value = null
+  }
+
   async function verifyMfa(method: 'totp' | 'recovery_code', code: string, key: string) {
     if (!challenge.value) throw new Error('MFA challenge is missing')
     const response = await apiRequest<AdminBootstrap>('/admin/auth/mfa-verifications', {
@@ -110,6 +124,16 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     return response.data
   }
 
+  async function reauthenticateMerchant(password: string) {
+    const response = await apiRequest<ReauthenticationResult>(
+      '/merchant/auth/reauthentications',
+      { method: 'POST', body: JSON.stringify({ password }) },
+      accessToken.value,
+    )
+    reauthExpiresAt.value = response.data.reauth_expires_at
+    return response.data
+  }
+
   function has(permission: string): boolean {
     return permissions.value.includes(permission)
   }
@@ -144,10 +168,12 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     reauthExpiresAt,
     isAuthenticated,
     passwordLogin,
+    merchantPasswordLogin,
     verifyMfa,
     refresh,
     loadAuthorization,
     reauthenticate,
+    reauthenticateMerchant,
     has,
     logout,
     clear,

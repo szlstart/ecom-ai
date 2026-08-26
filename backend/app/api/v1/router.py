@@ -28,6 +28,7 @@ from app.modules.orders.admin_router import router as admin_orders_router
 from app.modules.orders.router import router as orders_router
 from app.modules.payments.admin_router import router as admin_payments_router
 from app.modules.payments.router import router as payments_router
+from app.modules.rbac.auth_router import merchant_router as merchant_auth_router
 from app.modules.rbac.auth_router import router as admin_auth_router
 from app.modules.rbac.router import router as admin_router
 from app.modules.realtime.router import router as realtime_router
@@ -77,5 +78,6 @@ api_router.include_router(product_admin_router)
 api_router.include_router(admin_store_router)
 api_router.include_router(store_operations_router)
 api_router.include_router(batch_jobs_router)
+api_router.include_router(merchant_auth_router)
 api_router.include_router(admin_auth_router)
 api_router.include_router(admin_router)

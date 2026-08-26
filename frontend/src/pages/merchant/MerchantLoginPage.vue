@@ -16,9 +16,13 @@ async function submit() {
   pending.value = true
   error.value = ''
   try {
-    await auth.passwordLogin(identifier.value, password.value, navigator.userAgent.slice(0, 80))
+    await auth.merchantPasswordLogin(identifier.value, password.value, navigator.userAgent.slice(0, 80))
     password.value = ''
-    await router.push('/merchant/login/mfa')
+    const redirect = typeof router.currentRoute.value.query.redirect === 'string'
+      && router.currentRoute.value.query.redirect.startsWith('/merchant/')
+      ? router.currentRoute.value.query.redirect
+      : '/merchant/dashboard'
+    await router.replace(redirect)
   } catch (cause) {
     error.value = errorMessage(cause)
   } finally {
@@ -33,7 +37,7 @@ async function submit() {
     <p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <label>商家账号<input v-model.trim="identifier" autocomplete="username" required autofocus /></label>
     <label>密码<input v-model="password" autocomplete="current-password" type="password" required /></label>
-    <button :disabled="pending">{{ pending ? '正在验证…' : '下一步：安全验证' }}</button>
+    <button :disabled="pending">{{ pending ? '正在登录…' : '登录商家中心' }}</button>
     <p class="merchant-login-help">消费者请前往 <RouterLink to="/">商城首页</RouterLink>，平台人员请前往 <RouterLink to="/admin/login">平台管理端</RouterLink>。</p>
   </form>
 </template>

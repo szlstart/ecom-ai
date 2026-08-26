@@ -1,7 +1,6 @@
 import os
 import secrets
 
-import pyotp
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -52,7 +51,7 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
         foreign_store_no = foreign_store.store_no
 
     login = await client.post(
-        "/api/v1/admin/auth/login",
+        "/api/v1/merchant/auth/login",
         json={
             "identifier": username,
             "password": password,
@@ -60,22 +59,26 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
         },
     )
     assert login.status_code == 200, login.text
-    mfa = await client.post(
-        "/api/v1/admin/auth/mfa-verifications",
-        headers={"Idempotency-Key": f"merchant-mfa-{suffix}"},
-        json={
-            "challenge_id": login.json()["data"]["challenge_id"],
-            "method": "totp",
-            "code": pyotp.TOTP(provisioning.totp_secret).now(),
-        },
-    )
-    assert mfa.status_code == 200, mfa.text
-    bootstrap = mfa.json()["data"]
+    bootstrap = login.json()["data"]
+    assert bootstrap["session"]["session"]["client_type"] == "merchant"
+    assert "challenge_id" not in bootstrap
     permissions = set(bootstrap["permission_codes"])
     assert permissions == set(STORE_OPERATOR_PERMISSIONS)
     assert "users:read" not in permissions
     assert bootstrap["scopes"] == [{"scope_type": "store", "scope_id": own_store_id}]
     headers = {"Authorization": f"Bearer {bootstrap['session']['access_token']}"}
+
+    me = await client.get("/api/v1/admin/me", headers=headers)
+    assert me.status_code == 200, me.text
+    assert me.json()["data"]["assurance_level"] == "aal1"
+
+    reauthenticated = await client.post(
+        "/api/v1/merchant/auth/reauthentications",
+        headers=headers,
+        json={"password": password},
+    )
+    assert reauthenticated.status_code == 200, reauthenticated.text
+    assert reauthenticated.json()["data"]["assurance_level"] == "aal1"
 
     stores = await client.get("/api/v1/admin/stores", headers=headers)
     assert stores.status_code == 200, stores.text

@@ -52,7 +52,6 @@ onMounted(() => void loadStore())
       </nav>
       <div class="merchant-sidebar-footer">
         <RouterLink v-if="currentStore" :to="`/stores/${currentStore.store_id}`" target="_blank">查看用户端店铺</RouterLink>
-        <RouterLink to="/merchant/reauthenticate">重新安全验证</RouterLink>
         <button class="merchant-logout" type="button" @click="logout">退出商家中心</button>
       </div>
     </aside>

@@ -28478,6 +28478,152 @@
         ]
       }
     },
+    "/api/v1/merchant/auth/login": {
+      "post": {
+        "tags": [
+          "merchant-authentication"
+        ],
+        "summary": "Merchant Login",
+        "operationId": "MerchantAuth_Login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminBootstrap_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantAuth_Login",
+        "x-domain-command": "MerchantAuth_Login",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-AUTH-01"
+        ],
+        "x-scope-policy": [
+          "store_operator_with_store_scope"
+        ],
+        "x-test-case-ids": [
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/auth/reauthentications": {
+      "post": {
+        "tags": [
+          "merchant-authentication"
+        ],
+        "summary": "Reauthenticate Merchant",
+        "operationId": "MerchantAuth_Reauthenticate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantReauthenticationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ReauthenticationResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "command.MerchantAuth_Reauthenticate",
+        "x-domain-command": "MerchantAuth_Reauthenticate",
+        "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-AUTH-03"
+        ],
+        "x-scope-policy": [
+          "store_operator_with_store_scope"
+        ],
+        "x-test-case-ids": [
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
     "/api/v1/admin/auth/login": {
       "post": {
         "tags": [
@@ -28537,17 +28683,14 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "ADM-AUTH-01",
-          "MCH-AUTH-01"
+          "ADM-AUTH-01"
         ],
         "x-scope-policy": [
-          "store_operator_audience",
           "admin_audience"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
-          "BROWSER-AUTH-*",
-          "MCH-PORTAL-*"
+          "BROWSER-AUTH-*"
         ]
       }
     },
@@ -28628,16 +28771,13 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "ADM-AUTH-02",
-          "MCH-AUTH-02"
+          "ADM-AUTH-02"
         ],
         "x-scope-policy": [
-          "store_operator_audience",
           "admin_session"
         ],
         "x-test-case-ids": [
-          "ADM-AUTH-*",
-          "MCH-PORTAL-*"
+          "ADM-AUTH-*"
         ]
       }
     },
@@ -28802,16 +28942,13 @@
         "x-permission-codes": [],
         "x-requirement-id": [
           "ADM-AUTH-02",
-          "ADM-AUTH-03",
-          "MCH-AUTH-03"
+          "ADM-AUTH-03"
         ],
         "x-scope-policy": [
-          "store_operator_audience",
           "admin_session"
         ],
         "x-test-case-ids": [
-          "ADM-AUTH-*",
-          "MCH-PORTAL-*"
+          "ADM-AUTH-*"
         ]
       }
     },
@@ -44596,6 +44733,22 @@
           "timeout_seconds"
         ],
         "title": "McpServerView"
+      },
+      "MerchantReauthenticationRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "MerchantReauthenticationRequest"
       },
       "MessageCreateRequest": {
         "properties": {

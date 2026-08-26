@@ -35,6 +35,7 @@ from app.modules.rbac.schemas import (
     AdminMfaVerificationRequest,
     AdminNavigation,
     AdminReauthenticationRequest,
+    MerchantReauthenticationRequest,
     NavigationItem,
     ReauthenticationResult,
 )
@@ -137,6 +138,65 @@ class AdminAuthService:
             challenge_id=challenge,
             allowed_methods=methods,
             expires_at=expires_at,
+        )
+
+    async def login_merchant(
+        self,
+        request: AdminLoginRequest,
+        ip_address: str,
+        user_agent: str,
+    ) -> tuple[AdminBootstrap, str]:
+        await self._rate_limit(
+            f"merchant-login-ip:{self.security.keyed_hash('merchant-login-ip', ip_address).hex()}",
+            10,
+            600,
+        )
+        user, credential = await self._resolve_identity(request.identifier)
+        valid = self.security.verify_password(
+            credential.secret_hash if credential is not None else None,
+            request.password,
+        )
+        if (
+            user is None
+            or credential is None
+            or not valid
+            or user.user_status != "active"
+            or credential.must_change_password
+        ):
+            raise _invalid_merchant_credentials()
+        grants = await self.rbac.active_grants(user.id, utc_now())
+        has_store_operator_scope = any(
+            role.role_code == "store_operator" and grant.scope_type == "store"
+            for grant, role in grants
+        )
+        has_platform_admin_scope = any(
+            grant.scope_type == "platform" and role.role_code != "user"
+            for grant, role in grants
+        )
+        if not has_store_operator_scope or has_platform_admin_scope:
+            raise _invalid_merchant_credentials()
+
+        user.last_login_at = utc_now()
+        result = await self.identity_service.issue_session(
+            user,
+            audience="admin",
+            client_type="merchant",
+            device_name=request.client.device_name,
+            auth_methods=["password"],
+            assurance_level="aal1",
+            ip_address=ip_address,
+            user_agent=user_agent,
+            commit=False,
+        )
+        permissions, scopes = await self._merchant_authorization_projection(user.id)
+        await self.session.commit()
+        return (
+            AdminBootstrap(
+                session=result.payload,
+                permission_codes=permissions,
+                scopes=scopes,
+            ),
+            result.refresh_token,
         )
 
     async def verify_mfa(
@@ -272,6 +332,42 @@ class AdminAuthService:
             assurance_level="aal2",
         )
 
+    async def reauthenticate_merchant(
+        self,
+        user: User,
+        auth_session: AuthSession,
+        request: MerchantReauthenticationRequest,
+        ip_address: str,
+    ) -> ReauthenticationResult:
+        await self._rate_limit(
+            f"merchant-reauth:{user.user_no}:"
+            f"{self.security.keyed_hash('merchant-reauth-ip', ip_address).hex()}",
+            10,
+            600,
+        )
+        if auth_session.client_type != "merchant":
+            raise _invalid_merchant_credentials()
+        credential = await self.identity.password_credential(user.id, for_update=True)
+        grants = await self.rbac.active_grants(user.id, utc_now())
+        if (
+            credential is None
+            or not self.security.verify_password(credential.secret_hash, request.password)
+            or not any(
+                role.role_code == "store_operator" and grant.scope_type == "store"
+                for grant, role in grants
+            )
+        ):
+            raise _invalid_merchant_credentials()
+        now = utc_now()
+        auth_session.authenticated_at = now
+        auth_session.assurance_level = "aal1"
+        auth_session.authentication_methods = ["password"]
+        await self.session.commit()
+        return ReauthenticationResult(
+            reauth_expires_at=now + timedelta(seconds=self.settings.admin_recent_auth_seconds),
+            assurance_level="aal1",
+        )
+
     async def me(self, user: User, auth_session: AuthSession) -> AdminMe:
         permissions, scopes = await self._authorization_projection(user.id)
         return AdminMe(
@@ -366,6 +462,22 @@ class AdminAuthService:
         ]
         return permissions, scopes
 
+    async def _merchant_authorization_projection(
+        self, user_id: int
+    ) -> tuple[list[str], list[dict[str, str | int]]]:
+        rows = await self.rbac.permissions_for_user(user_id, utc_now())
+        merchant_rows = [
+            (permission, grant)
+            for permission, grant, role in rows
+            if role.role_code == "store_operator" and grant.scope_type == "store"
+        ]
+        permissions = sorted({permission.permission_code for permission, _ in merchant_rows})
+        scopes: list[dict[str, str | int]] = [
+            {"scope_type": "store", "scope_id": scope_id}
+            for scope_id in sorted({grant.scope_id for _, grant in merchant_rows})
+        ]
+        return permissions, scopes
+
     async def _rate_limit(self, key: str, limit: int, window: int) -> None:
         redis_key = f"ecom:rl:admin-auth:{key}"
         current = await self.redis.incr(redis_key)
@@ -392,6 +504,16 @@ def _invalid_admin_credentials() -> ApplicationError:
         code="ADMIN_AUTH_INVALID_CREDENTIALS",
         title="Invalid credentials",
         detail="账号、安全凭证或验证流程无效。",
+    )
+
+
+def _invalid_merchant_credentials() -> ApplicationError:
+    hashlib.sha256(b"constant-work-marker").digest()
+    return ApplicationError(
+        status=401,
+        code="MERCHANT_AUTH_INVALID_CREDENTIALS",
+        title="Invalid merchant credentials",
+        detail="商家账号或密码错误，或者该账号没有绑定可管理的店铺。",
     )
 
 

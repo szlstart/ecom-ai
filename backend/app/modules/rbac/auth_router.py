@@ -19,14 +19,60 @@ from app.modules.rbac.schemas import (
     AdminMfaVerificationRequest,
     AdminNavigation,
     AdminReauthenticationRequest,
+    MerchantReauthenticationRequest,
     ReauthenticationResult,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin-authentication"])
+merchant_router = APIRouter(prefix="/merchant", tags=["merchant-authentication"])
 
 ADMIN_REFRESH_COOKIE = "ecom_admin_refresh"
 ADMIN_REFRESH_COOKIE_PATH = "/api/v1/admin/auth"
 ADMIN_CSRF_COOKIE = "ecom_admin_csrf"
+
+
+@merchant_router.post(
+    "/auth/login",
+    response_model=Envelope[AdminBootstrap],
+    operation_id="MerchantAuth_Login",
+)
+async def merchant_login(
+    payload: AdminLoginRequest,
+    request: Request,
+    response: Response,
+    service: AdminAuthServiceDependency,
+) -> Envelope[AdminBootstrap]:
+    bootstrap, refresh_token = await service.login_merchant(
+        payload,
+        _client_ip(request),
+        request.headers.get("user-agent", "unknown")[:512],
+    )
+    _set_admin_refresh_cookie(response, refresh_token, bootstrap.session.csrf_token)
+    _no_store(response)
+    return Envelope(data=bootstrap)
+
+
+@merchant_router.post(
+    "/auth/reauthentications",
+    response_model=Envelope[ReauthenticationResult],
+    operation_id="MerchantAuth_Reauthenticate",
+)
+async def reauthenticate_merchant(
+    payload: MerchantReauthenticationRequest,
+    request: Request,
+    response: Response,
+    context: AdminContext,
+    service: AdminAuthServiceDependency,
+) -> Envelope[ReauthenticationResult]:
+    _no_store(response)
+    return Envelope(
+        data=await service.reauthenticate_merchant(
+            context.user,
+            context.session,
+            payload,
+            _client_ip(request),
+        )
+    )
 
 
 @router.post(

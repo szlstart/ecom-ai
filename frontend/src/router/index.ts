@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw, type RouterScrollBehavior } from 'vue-router'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import { useUserAuthStore } from '@/stores/user-auth'
 
@@ -129,14 +129,19 @@ const routes: RouteRecordRaw[] = [
   { path: '/:pathMatch(.*)*', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '页面不存在', requirementId: 'USR-SYSTEM-404' }, children: [{ path: '', component: () => import('@/pages/NotFoundPage.vue') }] },
 ]
 
+export const appScrollBehavior: RouterScrollBehavior = (to, from, savedPosition) => {
+  if (savedPosition) return savedPosition
+  if (to.hash) return { el: to.hash, top: 88, behavior: 'smooth' }
+  // Query-only updates select a SKU, apply an in-page filter or open an auth
+  // modal. They are not page navigation and must not reset the user's viewport.
+  if (to.path === from.path) return false
+  return { top: 0 }
+}
+
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior(to, _from, savedPosition) {
-    if (savedPosition) return savedPosition
-    if (to.hash) return { el: to.hash, top: 88, behavior: 'smooth' }
-    return { top: 0 }
-  },
+  scrollBehavior: appScrollBehavior,
 })
 router.beforeEach(async (to) => {
   if (to.path === '/merchant' || to.path === '/merchant/') return { path: '/merchant/products' }

@@ -154,6 +154,8 @@ pre { max-width: 100%; overflow: auto; padding: 12px; border-radius: 8px; backgr
 .page-state { min-height: 280px; padding: 48px 24px; display: grid; place-items: center; align-content: center; gap: 10px; text-align: center; }
 .page-state h2, .page-state p { margin: 0; }
 .spinner { width: 36px; height: 36px; border: 3px solid #dce3f6; border-top-color: #3158d8; border-radius: 50%; animation: spin .8s linear infinite; }
+.page-refresh-status { position: fixed; z-index: 90; top: 82px; right: 24px; display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid #dce3f6; border-radius: 999px; background: rgba(255, 255, 255, .96); box-shadow: 0 8px 24px rgba(30, 47, 86, .12); color: #53617e; font-size: 13px; pointer-events: none; }
+.page-refresh-status .spinner { width: 16px; height: 16px; border-width: 2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .search-panel, .store-filter { padding: 18px; display: grid; grid-template-columns: minmax(210px, 1fr) auto; align-items: end; gap: 12px; border: 1px solid #e3e7ef; border-radius: 16px; background: #fff; }
 .store-filter { grid-template-columns: minmax(220px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto; margin-bottom: 22px; }

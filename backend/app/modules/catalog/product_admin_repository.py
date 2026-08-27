@@ -44,6 +44,7 @@ class ProductAdminRepository:
             .join(Store, Store.id == Product.store_id)
             .join(Category, Category.id == Product.category_id)
             .outerjoin(Brand, Brand.id == Product.brand_id)
+            .where(Product.deleted_at.is_(None))
         )
         if ("platform", 0) not in scopes:
             store_ids = [scope_id for scope_type, scope_id in scopes if scope_type == "store"]
@@ -127,7 +128,11 @@ class ProductAdminRepository:
         return result
 
     async def product_by_no(
-        self, product_no: str, *, for_update: bool = False
+        self,
+        product_no: str,
+        *,
+        for_update: bool = False,
+        include_deleted: bool = False,
     ) -> ProductRow | None:
         statement = (
             select(Product, Store, Category, Brand)
@@ -136,6 +141,8 @@ class ProductAdminRepository:
             .outerjoin(Brand, Brand.id == Product.brand_id)
             .where(Product.product_no == product_no)
         )
+        if not include_deleted:
+            statement = statement.where(Product.deleted_at.is_(None))
         if for_update:
             statement = statement.with_for_update(of=Product)
         row = (await self.session.execute(statement)).one_or_none()

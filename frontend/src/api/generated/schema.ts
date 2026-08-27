@@ -3596,7 +3596,8 @@ export interface paths {
         get: operations["AdminProduct_Get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Product */
+        delete: operations["AdminProduct_Delete"];
         options?: never;
         head?: never;
         /** Update Product */
@@ -5696,6 +5697,20 @@ export interface components {
             /** Description */
             description?: string | null;
         };
+        /** AdminProductDeletionView */
+        AdminProductDeletionView: {
+            /** Product Id */
+            product_id: string;
+            /**
+             * Deleted At
+             * Format: date-time
+             */
+            deleted_at: string;
+            /** Previous Status */
+            previous_status: string;
+            /** Version */
+            version: number;
+        };
         /** AdminProductDetail */
         AdminProductDetail: {
             /** Product Id */
@@ -5741,6 +5756,16 @@ export interface components {
              * @default 0
              */
             sales_count: number;
+            /**
+             * Review Count
+             * @default 0
+             */
+            review_count: number;
+            /**
+             * Rating Score
+             * @default 0.00
+             */
+            rating_score: string;
             /**
              * Updated At
              * Format: date-time
@@ -5903,6 +5928,16 @@ export interface components {
              * @default 0
              */
             sales_count: number;
+            /**
+             * Review Count
+             * @default 0
+             */
+            review_count: number;
+            /**
+             * Rating Score
+             * @default 0.00
+             */
+            rating_score: string;
             /**
              * Updated At
              * Format: date-time
@@ -7788,6 +7823,11 @@ export interface components {
         /** Envelope[AdminPaymentView] */
         Envelope_AdminPaymentView_: {
             data: components["schemas"]["AdminPaymentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductDeletionView] */
+        Envelope_AdminProductDeletionView_: {
+            data: components["schemas"]["AdminProductDeletionView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminProductDetail] */
@@ -14677,6 +14717,7 @@ export interface operations {
         parameters: {
             query?: {
                 review_status?: ("pending" | "published" | "hidden" | "rejected") | null;
+                product_id?: string | null;
                 limit?: number;
             };
             header?: never;
@@ -20655,6 +20696,49 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDeletionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
             429: components["responses"]["Problem429"];
             500: components["responses"]["Problem500"];
             503: components["responses"]["Problem503"];

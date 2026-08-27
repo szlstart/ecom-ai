@@ -318,22 +318,41 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
     edit_on_sale = await client.patch(
         f"/api/v1/admin/products/{product_id}",
         headers={**auth, "If-Match": published.headers["etag"]},
-        json={"product_name": "不允许直接修改在售商品"},
+        json={"product_name": f"在售商品就地编辑 {suffix}"},
     )
-    assert edit_on_sale.status_code == 409
-    assert edit_on_sale.json()["code"] == "PRODUCT_NOT_EDITABLE"
+    assert edit_on_sale.status_code == 200, edit_on_sale.text
+    assert edit_on_sale.json()["data"]["status"] == "on_sale"
+    edited_public_detail = await client.get(f"/api/v1/products/{product_id}")
+    assert edited_public_detail.status_code == 200, edited_public_detail.text
+    assert edited_public_detail.json()["data"]["product_name"] == f"在售商品就地编辑 {suffix}"
 
     off_shelf = await client.post(
         f"/api/v1/admin/products/{product_id}/off-shelf-commands",
         headers={
             **auth,
-            "If-Match": published.headers["etag"],
+            "If-Match": edit_on_sale.headers["etag"],
             "Idempotency-Key": f"product-off-shelf-{suffix}",
         },
         json={"reason_code": "MERCHANT_REQUEST", "reason": "商家主动下架商品。"},
     )
     assert off_shelf.status_code == 200, off_shelf.text
     assert off_shelf.json()["data"]["status"] == "off_shelf"
+
+    deleted = await client.delete(
+        f"/api/v1/admin/products/{product_id}",
+        headers={
+            **auth,
+            "If-Match": off_shelf.headers["etag"],
+            "Idempotency-Key": f"product-delete-{suffix}",
+        },
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["data"]["previous_status"] == "off_shelf"
+    assert deleted.json()["data"]["deleted_at"]
+    assert (await client.get(f"/api/v1/products/{product_id}")).status_code == 404
+    assert (
+        await client.get(f"/api/v1/admin/products/{product_id}", headers=auth)
+    ).status_code == 404
 
     async for session in mysql_session():
         status_count = await session.scalar(
@@ -349,3 +368,7 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
         )
         assert status_count is not None and status_count >= 5
         assert product_event_count is not None and product_event_count >= 10
+        deleted_product = await session.scalar(
+            select(Product).where(Product.product_no == product_id)
+        )
+        assert deleted_product is not None and deleted_product.deleted_at is not None

@@ -26,11 +26,13 @@ async def list_reviews(
         Literal["pending", "published", "hidden", "rejected"] | None,
         Query(),
     ] = None,
+    product_id: Annotated[str | None, Query(min_length=5, max_length=40)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> Envelope[AdminReviewList]:
     result = await service.admin_list(
         access,
         review_status=review_status,
+        product_no=product_id,
         limit=limit,
     )
     _no_store(response)

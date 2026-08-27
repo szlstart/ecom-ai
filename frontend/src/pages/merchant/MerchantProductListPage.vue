@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import { adminGet, adminQuery, requireAdminToken, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
+import { adminDelete, adminGet, adminQuery, requireAdminToken, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
@@ -17,6 +17,8 @@ const loading = ref(true)
 const error = ref('')
 const q = ref('')
 const status = ref('')
+const deletingItem = ref<AdminProductSummary | null>(null)
+const deleting = ref(false)
 const statusOptions = [
   ['', '全部'], ['on_sale', '销售中'], ['draft', '草稿'], ['pending_review', '审核中'], ['rejected', '需修改'], ['off_shelf', '已下架'],
 ] as const
@@ -49,6 +51,16 @@ function applySearch() {
 }
 function chooseStatus(value: string) { status.value = value; applySearch() }
 function next() { if (nextCursor.value) void router.push({ path: '/merchant/products', query: { ...route.query, cursor: nextCursor.value } }) }
+async function confirmDelete() {
+  if (!deletingItem.value) return
+  deleting.value = true; error.value = ''
+  try {
+    await adminDelete(`/admin/products/${encodeURIComponent(deletingItem.value.product_id)}`, requireAdminToken(auth.accessToken), deletingItem.value.version, 'merchant-product-delete')
+    deletingItem.value = null
+    await load()
+  } catch (cause) { error.value = errorMessage(cause); deletingItem.value = null }
+  finally { deleting.value = false }
+}
 
 onMounted(() => { sync(); void load() })
 watch(() => route.fullPath, () => { sync(); void load() })
@@ -69,14 +81,15 @@ watch(() => route.fullPath, () => { sync(); void load() })
 
     <PageState :loading="loading" :error="error" :empty="false" @retry="load">
       <div class="merchant-product-grid">
-        <RouterLink class="merchant-product-card merchant-add-product" to="/merchant/products/new"><span>＋</span><strong>新增商品</strong><small>从一张空白商品卡片开始</small></RouterLink>
-        <RouterLink v-for="item in items" :key="item.product_id" class="merchant-product-card" :to="`/merchant/products/${item.product_id}`">
-          <div class="merchant-product-cover"><img v-if="item.cover_image_url" :src="resolveApiAssetUrl(item.cover_image_url) || undefined" :alt="item.product_name" /><div v-else><span>暂无图片</span><small>点击进入上传商品图</small></div><em :class="`status-${item.status}`">{{ statusLabel(item.status) }}</em><b>编辑商品</b></div>
-          <div class="merchant-product-card-body"><h2>{{ item.product_name }}</h2><p>{{ item.subtitle || `${item.category_name}${item.brand_name ? ` · ${item.brand_name}` : ''}` }}</p><div class="merchant-product-price"><strong>¥{{ item.min_price }}</strong><span v-if="item.min_price !== item.max_price">起</span></div><dl><div><dt>款式</dt><dd>{{ item.sku_count }}</dd></div><div><dt>可售</dt><dd>{{ item.available_quantity }}</dd></div><div><dt>销量</dt><dd>{{ item.sales_count }}</dd></div></dl></div>
-        </RouterLink>
+        <RouterLink v-if="status === ''" class="merchant-product-card merchant-add-product" to="/merchant/products/new"><span>＋</span><strong>新增商品</strong><small>直接进入可编辑的商品详情</small></RouterLink>
+        <article v-for="item in items" :key="item.product_id" class="merchant-product-card merchant-manage-card">
+          <RouterLink class="merchant-product-card-link" :to="`/merchant/products/${item.product_id}`"><div class="merchant-product-cover"><img v-if="item.cover_image_url" :src="resolveApiAssetUrl(item.cover_image_url) || undefined" :alt="item.product_name" /><div v-else><span>暂无图片</span><small>点击进入上传商品图</small></div><em :class="`status-${item.status}`">{{ statusLabel(item.status) }}</em><span class="merchant-card-edit-action">编辑商品</span></div><div class="merchant-product-card-body"><h2>{{ item.product_name }}</h2><p>{{ item.subtitle || '暂未填写商品卖点' }}</p><div class="merchant-product-price"><strong>¥{{ item.min_price }}</strong><span v-if="item.min_price !== item.max_price">起</span></div><dl><div><dt>款式</dt><dd>{{ item.sku_count }}</dd></div><div><dt>可售</dt><dd>{{ item.available_quantity }}</dd></div><div><dt>销量</dt><dd>{{ item.sales_count }}</dd></div><div><dt>评价</dt><dd>★ {{ item.rating_score }} · {{ item.review_count }}</dd></div></dl></div></RouterLink>
+          <button class="merchant-card-delete-action" type="button" @click="deletingItem = item">删除商品</button>
+        </article>
       </div>
-      <p v-if="!loading && !error && items.length === 0" class="merchant-first-product-tip">还没有商品。点击左上角的“新增商品”，发布你的第一件商品吧。</p>
+      <p v-if="!loading && !error && items.length === 0" class="merchant-first-product-tip">{{ status === '' ? '还没有商品。点击左上角的“新增商品”，发布你的第一件商品吧。' : `当前没有“${statusOptions.find((entry) => entry[0] === status)?.[1] || '该状态'}”商品。` }}</p>
       <nav v-if="route.query.cursor || nextCursor" class="pagination"><button type="button" class="secondary" :disabled="!route.query.cursor" @click="router.back()">上一页</button><button type="button" class="secondary" :disabled="!nextCursor" @click="next">下一页</button></nav>
     </PageState>
+    <Teleport to="body"><div v-if="deletingItem" class="merchant-delete-overlay" @mousedown.self="deletingItem = null"><section class="merchant-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="merchant-delete-title"><span>!</span><h2 id="merchant-delete-title">永久删除“{{ deletingItem.product_name }}”？</h2><p>删除后商品会立即从顾客端和商家商品列表消失，不能像“下架”一样重新上架。历史订单、评价和库存流水会继续保留用于售后与审计。</p><div class="actions"><button type="button" class="secondary" @click="deletingItem = null">取消</button><button type="button" class="danger" :disabled="deleting" @click="confirmDelete">{{ deleting ? '正在删除…' : '确认永久删除' }}</button></div></section></div></Teleport>
   </section>
 </template>

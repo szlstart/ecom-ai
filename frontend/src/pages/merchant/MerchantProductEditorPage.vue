@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import {
@@ -9,7 +9,6 @@ import {
   adminReplace,
   adminUpdate,
   requireAdminToken,
-  type AdminBrand,
   type AdminContentVersion,
   type AdminInventory,
   type AdminProduct,
@@ -20,7 +19,8 @@ import {
   type AdminSku,
   type AdminStore,
 } from '@/api/admin-catalog'
-import { getBrands, getCategories, type Brand, type Category } from '@/api/catalog'
+import { getCategories, type Category } from '@/api/catalog'
+import { listAdminReviews, replyAdminReview, type AdminReview } from '@/api/admin-reviews'
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import PageState from '@/components/PageState.vue'
@@ -39,12 +39,16 @@ const inventories = ref<AdminInventory[]>([])
 const images = ref<AdminProductImage[]>([])
 const attributes = ref<AdminProductAttribute[]>([])
 const faqs = ref<AdminProductFaq[]>([])
+const reviews = ref<AdminReview[]>([])
 const categories = ref<Category[]>([])
-const brands = ref<Array<Brand | AdminBrand>>([])
 const shippingTemplates = ref<AdminShippingTemplate[]>([])
 const loading = ref(true); const saving = ref(false); const error = ref(''); const notice = ref('')
 const selectedImage = ref(0); const selectedSkuId = ref(''); const skuEditing = ref<AdminSku | null>(null)
+const showSkuEditor = ref(false)
 const newStock = ref<number | null>(null)
+const skuNameInput = ref<HTMLInputElement | null>(null)
+const replyDrafts = reactive<Record<string, string>>({})
+const replyingReviewId = ref('')
 const basic = reactive({ store_id: '', category_id: '', brand_id: '', product_name: '', subtitle: '', description: '' })
 const skuForm = reactive({ code: '', name: '', sale_price: '', market_price: '', weight_grams: '', barcode: '' })
 const specs = ref<SpecRow[]>([{ name: '款式', value: '标准款' }])
@@ -61,7 +65,7 @@ const activeImages = computed(() => {
   return matching.length ? matching : images.value.filter((item) => item.sku_id === null)
 })
 const displayImage = computed(() => activeImages.value[selectedImage.value] ?? activeImages.value[0] ?? null)
-const canEdit = computed(() => !product.value || ['draft', 'rejected', 'off_shelf'].includes(product.value.status))
+const canEdit = computed(() => !product.value || ['draft', 'rejected', 'off_shelf', 'on_sale'].includes(product.value.status))
 
 function token() { return requireAdminToken(auth.accessToken) }
 function path(suffix = '') { return `/admin/products/${encodeURIComponent(productId.value)}${suffix}` }
@@ -71,10 +75,10 @@ function statusLabel(value?: string) { return ({ draft: '草稿', pending_review
 function inventoryFor(skuId: string) { return inventories.value.find((item) => item.sku_id === skuId) }
 
 async function loadReferences() {
-  const [categoryResult, brandResult, storeResult] = await Promise.all([
-    getCategories(), getBrands(), adminGet<{ items: AdminStore[]; next_cursor: string | null }>('/admin/stores?limit=20', token()),
+  const [categoryResult, storeResult] = await Promise.all([
+    getCategories(), adminGet<{ items: AdminStore[]; next_cursor: string | null }>('/admin/stores?limit=20', token()),
   ])
-  categories.value = categoryResult.data; brands.value = brandResult.data; store.value = storeResult.data.items[0] ?? null
+  categories.value = categoryResult.data; store.value = storeResult.data.items[0] ?? null
   if (store.value) basic.store_id = store.value.store_id
 }
 
@@ -82,8 +86,14 @@ async function load() {
   loading.value = true; error.value = ''; notice.value = ''
   try {
     await loadReferences()
-    if (isNew.value) { product.value = null; return }
-    const [detailResult, skuResult, imageResult, attributeResult, faqResult, inventoryResult, fulfillmentResult] = await Promise.all([
+    if (isNew.value) {
+      const defaultCategory = flatCategories.value.find((item) => item.category_name.includes('其他')) ?? flatCategories.value.at(-1)
+      if (!store.value || !defaultCategory) throw new Error('当前没有可用的店铺或商品基础归类，请联系平台管理员。')
+      const created = (await adminCreate<AdminProduct>('/admin/products', { store_id: store.value.store_id, category_id: defaultCategory.category_id, brand_id: null, product_name: '未命名商品', subtitle: null, description: null }, token(), 'merchant-product-create')).data
+      await router.replace(`/merchant/products/${created.product_id}`)
+      return
+    }
+    const [detailResult, skuResult, imageResult, attributeResult, faqResult, inventoryResult, fulfillmentResult, reviewResult] = await Promise.all([
       adminGet<AdminProduct>(path(), token()),
       adminGet<AdminSku[]>(path('/skus'), token()),
       adminGet<AdminProductImage[]>(path('/images'), token()),
@@ -91,8 +101,9 @@ async function load() {
       adminGet<AdminProductFaq[]>(path('/faqs'), token()),
       adminGet<{ items: AdminInventory[] }>(`/admin/inventories?product_id=${encodeURIComponent(productId.value)}&limit=100`, token()),
       adminGet<Fulfillment | null>(path('/fulfillment-profile'), token()),
+      listAdminReviews(token(), 'published', productId.value),
     ])
-    product.value = detailResult.data; skus.value = skuResult.data; images.value = imageResult.data; attributes.value = attributeResult.data; faqs.value = faqResult.data; inventories.value = inventoryResult.data.items
+    product.value = detailResult.data; skus.value = skuResult.data; images.value = imageResult.data; attributes.value = attributeResult.data; faqs.value = faqResult.data; inventories.value = inventoryResult.data.items; reviews.value = reviewResult.data.items
     Object.assign(basic, { store_id: product.value.store_id, category_id: product.value.category_id, brand_id: product.value.brand_id ?? '', product_name: product.value.product_name, subtitle: product.value.subtitle ?? '', description: product.value.description ?? '' })
     const firstSku = skus.value[0]
     if (firstSku && !skus.value.some((item) => item.sku_id === selectedSkuId.value)) selectedSkuId.value = firstSku.sku_id
@@ -126,8 +137,10 @@ async function saveBasic() {
   await perform(() => adminUpdate(path(), { category_id: basic.category_id, brand_id: basic.brand_id || null, product_name: basic.product_name, subtitle: basic.subtitle || null, description: basic.description || null }, token(), product.value!.version), '商品信息已保存。')
 }
 
-function resetSku() { skuEditing.value = null; Object.assign(skuForm, { code: '', name: '', sale_price: '', market_price: '', weight_grams: '', barcode: '' }); specs.value = [{ name: '款式', value: '标准款' }]; newStock.value = null }
-function editSku(item: AdminSku) { skuEditing.value = item; selectedSkuId.value = item.sku_id; Object.assign(skuForm, { code: item.merchant_sku_code ?? '', name: item.sku_name, sale_price: item.sale_price, market_price: item.market_price, weight_grams: item.weight_grams == null ? '' : String(item.weight_grams), barcode: item.barcode ?? '' }); specs.value = item.spec_values.map((spec) => ({ ...spec })); newStock.value = inventoryFor(item.sku_id)?.on_hand_quantity ?? 0 }
+function resetSku() { skuEditing.value = null; Object.assign(skuForm, { code: '', name: '', sale_price: '', market_price: '', weight_grams: '', barcode: '' }); specs.value = [{ name: '款式', value: '标准款' }] }
+function closeSkuEditor() { resetSku(); showSkuEditor.value = false }
+async function startNewSku() { resetSku(); showSkuEditor.value = true; await nextTick(); skuNameInput.value?.focus(); skuNameInput.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
+function editSku(item: AdminSku) { skuEditing.value = item; showSkuEditor.value = true; selectedSkuId.value = item.sku_id; Object.assign(skuForm, { code: item.merchant_sku_code ?? '', name: item.sku_name, sale_price: item.sale_price, market_price: item.market_price, weight_grams: item.weight_grams == null ? '' : String(item.weight_grams), barcode: item.barcode ?? '' }); specs.value = item.spec_values.map((spec) => ({ ...spec })); newStock.value = inventoryFor(item.sku_id)?.on_hand_quantity ?? 0 }
 function addSpec() { specs.value.push({ name: '', value: '' }) }
 function removeSpec(index: number) { if (specs.value.length > 1) specs.value.splice(index, 1) }
 async function saveSku() {
@@ -138,7 +151,7 @@ async function saveSku() {
   await perform(async () => {
     if (skuEditing.value) await adminUpdate(path(`/skus/${encodeURIComponent(skuEditing.value.sku_id)}`), payload, token(), skuEditing.value.version)
     else await adminCreate(path('/skus'), { ...payload, currency: 'CNY' }, token(), 'merchant-sku-create')
-    resetSku()
+    closeSkuEditor()
   }, skuEditing.value ? '款式已更新。' : '新款式已添加。')
 }
 
@@ -149,7 +162,12 @@ async function saveStock() {
   await perform(() => adminCreate('/admin/inventory-adjustments', { sku_id: activeInventory.value!.sku_id, on_hand_delta: delta, reason_code: 'MERCHANT_DIRECT_EDIT', reason: '商家在商品详情模板中直接修改库存', reference_no: `merchant-ui-${Date.now()}`, expected_version: activeInventory.value!.version }, token(), 'merchant-stock-adjust'), '库存已更新。')
 }
 
-function addImage(fileId: string) { images.value.push({ file_id: fileId, sku_id: selectedSkuId.value || null, image_type: images.value.length ? 'gallery' : 'main', alt_text: basic.product_name, sort_order: images.value.length, image_url: `/api/v1/files/${fileId}`, width: 0, height: 0, status: 'active' }); selectedImage.value = activeImages.value.length - 1 }
+function addImage(fileId: string) {
+  const skuId = selectedSkuId.value || null
+  const hasMainImage = images.value.some((item) => item.sku_id === null && item.image_type === 'main')
+  images.value.push({ file_id: fileId, sku_id: skuId, image_type: skuId ? 'spec' : (hasMainImage ? 'gallery' : 'main'), alt_text: basic.product_name, sort_order: images.value.length, image_url: `/api/v1/files/${fileId}`, width: 0, height: 0, status: 'active' })
+  selectedImage.value = activeImages.value.length - 1
+}
 function removeImage(index: number) { const item = activeImages.value[index]; if (!item) return; const actualIndex = images.value.indexOf(item); if (actualIndex >= 0) images.value.splice(actualIndex, 1) }
 async function saveImages() {
   if (!images.value.length) { error.value = '请至少保留一张商品图片。'; return }
@@ -175,6 +193,24 @@ async function saveFaq() {
   }, faqEditing.value ? '常见问题已更新并发布。' : '常见问题已新增并发布。')
 }
 async function saveFulfillment() { if (!fulfillment.shipping_template_id) { error.value = '请先选择运费模板。'; return }; await perform(() => adminReplace(path('/fulfillment-profile'), { shipping_template_id: fulfillment.shipping_template_id, origin_region_code: fulfillment.origin_region_code, dispatch_min_hours: fulfillment.dispatch_min_hours, dispatch_max_hours: fulfillment.dispatch_max_hours, purchase_notice: fulfillment.purchase_notice || null }, token(), product.value!.version), '发货设置已保存。') }
+async function replyReview(item: AdminReview) {
+  const text = replyDrafts[item.review_id]?.trim() ?? ''
+  if (text.length < 2) { error.value = '评价回复至少需要填写 2 个字符。'; return }
+  replyingReviewId.value = item.review_id; error.value = ''
+  try { await replyAdminReview(item.review_id, `"v${item.version}"`, text, token()); replyDrafts[item.review_id] = ''; await load() }
+  catch (cause) { error.value = errorMessage(cause) }
+  finally { replyingReviewId.value = '' }
+}
+async function finishEditing(label: string) {
+  if (!product.value || !basic.product_name.trim()) { error.value = '请填写商品名称。'; return }
+  saving.value = true; error.value = ''; notice.value = ''
+  try {
+    await adminUpdate(path(), { product_name: basic.product_name, subtitle: basic.subtitle || null, description: basic.description || null }, token(), product.value.version)
+    notice.value = label
+    await router.push('/merchant/products')
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { saving.value = false }
+}
 async function productCommand(action: 'submit_review' | 'publish' | 'off_shelf') {
   const endpoint = { submit_review: '/review-submissions', publish: '/publications', off_shelf: '/off-shelf-commands' }[action]
   const reason = { submit_review: '商家完成商品资料并提交审核', publish: '商家确认商品开始销售', off_shelf: '商家主动停止商品销售' }[action]
@@ -190,10 +226,8 @@ onMounted(() => { resetSku(); void load() })
   <section class="merchant-page-stack merchant-product-editor">
     <header class="merchant-editor-header"><RouterLink to="/merchant/products">← 返回我的商品</RouterLink><div v-if="product" class="merchant-editor-status"><span :class="`status-${product.status}`">{{ statusLabel(product.status) }}</span><small v-if="!canEdit">当前状态下资料只读；下架或审核退回后可继续编辑。</small></div></header>
     <p v-if="notice" class="alert success" aria-live="polite">{{ notice }}</p>
-    <PageState :loading="loading" :error="error" :empty="!loading && !isNew && !product" empty-title="商品不存在" @retry="load">
-      <form v-if="isNew" class="merchant-new-product card" @submit.prevent="saveBasic"><span>＋</span><div><p class="eyebrow">创建第一张商品卡片</p><h1>先填写商品最基本的信息</h1><p>创建草稿后，你会进入和顾客商品详情页相似的编辑模板，再添加图片、款式、库存、详情与常见问题。</p></div><label>商品名称<input v-model.trim="basic.product_name" required maxlength="255" placeholder="例如：轻量透气跑步鞋" /></label><div class="field-grid"><label>商品分类<select v-model="basic.category_id" required><option value="">请选择分类</option><option v-for="item in flatCategories" :key="item.category_id" :value="item.category_id">{{ '—'.repeat(Math.max(0, item.level - 1)) }} {{ item.category_name }}</option></select></label><label>品牌<select v-model="basic.brand_id"><option value="">无品牌</option><option v-for="item in brands" :key="item.brand_id" :value="item.brand_id">{{ item.brand_name }}</option></select></label></div><label>一句话卖点<input v-model.trim="basic.subtitle" maxlength="500" placeholder="顾客在商品卡片上首先看到的介绍" /></label><label>简短描述<textarea v-model.trim="basic.description" rows="4" maxlength="2000" /></label><button :disabled="saving || !basic.store_id">{{ saving ? '正在创建…' : '创建商品草稿，继续完善' }}</button></form>
-
-      <template v-else-if="product">
+    <PageState :loading="loading" :error="error" :empty="!loading && !product" empty-title="商品不存在" @retry="load">
+      <template v-if="product">
         <div class="merchant-live-editor">
           <section class="merchant-gallery-editor">
             <div class="merchant-main-image"><img v-if="displayImage" :src="resolveApiAssetUrl(displayImage.image_url) || undefined" :alt="displayImage.alt_text || basic.product_name" /><div v-else><b>上传这件商品的第一张图片</b><p>选择款式后上传，图片会自动关联到该款式。</p></div></div>
@@ -201,14 +235,12 @@ onMounted(() => { resetSku(); void load() })
             <div v-if="canEdit" class="merchant-image-actions"><label>图片属于<select v-model="selectedSkuId"><option value="">全部款式</option><option v-for="sku in skus" :key="sku.sku_id" :value="sku.sku_id">{{ sku.sku_name }}</option></select></label><AdminFileUpload purpose="product" :business-context-id="product.store_id" label="选择图片" @uploaded="addImage" /><div class="actions"><button type="button" :disabled="!images.length || saving" @click="saveImages">保存图片</button><button v-if="displayImage" type="button" class="danger small" @click="removeImage(selectedImage)">移除当前图片</button></div></div>
           </section>
 
-          <form class="merchant-product-info-editor" @submit.prevent="saveBasic"><p class="eyebrow">顾客看到的商品信息</p><label class="merchant-title-input">商品名称<input v-model.trim="basic.product_name" required maxlength="255" :disabled="!canEdit" /></label><label>一句话卖点<input v-model.trim="basic.subtitle" maxlength="500" :disabled="!canEdit" /></label><label>商品简介<textarea v-model.trim="basic.description" rows="4" maxlength="2000" :disabled="!canEdit" /></label><div class="field-grid"><label>分类<select v-model="basic.category_id" :disabled="!canEdit"><option v-for="item in flatCategories" :key="item.category_id" :value="item.category_id">{{ item.category_name }}</option></select></label><label>品牌<select v-model="basic.brand_id" :disabled="!canEdit"><option value="">无品牌</option><option v-for="item in brands" :key="item.brand_id" :value="item.brand_id">{{ item.brand_name }}</option></select></label></div><button v-if="canEdit" :disabled="saving">保存商品信息</button>
-            <div class="merchant-style-picker"><header><div><span>选择款式</span><small>点一张款式卡就能编辑</small></div><button v-if="canEdit" type="button" class="secondary small" @click="resetSku">＋ 新增款式</button></header><div><button v-for="sku in skus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id; editSku(sku)"><strong>{{ sku.sku_name }}</strong><small>{{ sku.spec_values.map((spec) => spec.value).join(' · ') }}</small><b>¥{{ sku.sale_price }}</b></button></div><p v-if="!skus.length">还没有款式，请点击“新增款式”。</p></div>
-          </form>
+          <section class="merchant-product-info-editor"><p class="eyebrow">顾客看到的商品信息 · 可直接编辑</p><label class="merchant-title-input">商品名称<input v-model.trim="basic.product_name" required maxlength="255" :disabled="!canEdit" /></label><label>一句话卖点<input v-model.trim="basic.subtitle" maxlength="500" :disabled="!canEdit" /></label><label>商品简介<textarea v-model.trim="basic.description" rows="3" maxlength="2000" :disabled="!canEdit" /></label><button v-if="canEdit" type="button" :disabled="saving" @click="saveBasic">完成商品信息</button>
+            <div class="merchant-style-picker"><header><div><span>款式与价格</span><small>选择已有款式直接改，或在最后新增一款</small></div><button v-if="canEdit" type="button" class="secondary small" @click="startNewSku">＋ 新增款式</button></header><div><button v-for="sku in skus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id; editSku(sku)"><strong>{{ sku.sku_name }}</strong><small>{{ sku.spec_values.map((spec) => spec.value).join(' · ') }}</small><b>¥{{ sku.sale_price }}</b></button></div><p v-if="!skus.length">还没有款式，点击“新增款式”后直接在这里填写。</p></div>
+            <form v-if="canEdit && showSkuEditor" class="merchant-inline-sku-form" @submit.prevent="saveSku"><header><strong>{{ skuEditing ? `正在编辑：${skuEditing.sku_name}` : '新增一个款式' }}</strong><button type="button" class="secondary small" @click="closeSkuEditor">取消</button></header><label>款式名称<input ref="skuNameInput" v-model.trim="skuForm.name" required placeholder="例如：曜石黑 / 42 码" /></label><div class="field-grid"><label>销售价（元）<input v-model="skuForm.sale_price" type="number" min="0" step="0.01" required /></label><label>划线价（元）<input v-model="skuForm.market_price" type="number" min="0" step="0.01" required /></label></div><div class="merchant-spec-editor"><div v-for="(spec, index) in specs" :key="index"><input v-model.trim="spec.name" placeholder="规格名，如颜色" maxlength="64" /><input v-model.trim="spec.value" placeholder="规格值，如曜石黑" maxlength="128" /><button type="button" class="secondary small" @click="removeSpec(index)">移除</button></div><button type="button" class="secondary small" @click="addSpec">＋ 增加规格</button></div><details><summary>选填信息</summary><div class="field-grid"><label>店内编码<input v-model.trim="skuForm.code" maxlength="64" /></label><label>重量（克）<input v-model="skuForm.weight_grams" type="number" min="0" /></label><label>条形码<input v-model.trim="skuForm.barcode" maxlength="64" /></label></div></details><button :disabled="saving">完成</button></form>
+            <section class="merchant-inline-stock"><header><div><strong>库存</strong><small>顾客购买后可售数量会自动减少</small></div></header><div class="merchant-stock-grid"><button v-for="sku in skus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id"><span>{{ sku.sku_name }}</span><strong>{{ inventoryFor(sku.sku_id)?.available_quantity ?? 0 }}</strong><small>可售 / 账面 {{ inventoryFor(sku.sku_id)?.on_hand_quantity ?? 0 }}</small></button></div><form v-if="activeInventory && canEdit" class="merchant-direct-stock" @submit.prevent="saveStock"><label>把「{{ activeSku?.sku_name }}」账面库存改为<input v-model.number="newStock" type="number" min="0" step="1" /></label><button :disabled="saving || newStock === null">完成</button><small>其中 {{ activeInventory.reserved_quantity }} 件已被订单预占，不会被覆盖。</small></form></section>
+          </section>
         </div>
-
-        <section v-if="canEdit" class="merchant-inline-editor card"><header><div><p class="eyebrow">{{ skuEditing ? '编辑当前款式' : '新增款式' }}</p><h2>{{ skuEditing?.sku_name || '设置新款式与价格' }}</h2></div><button v-if="skuEditing" type="button" class="secondary" @click="resetSku">取消编辑</button></header><form @submit.prevent="saveSku"><div class="field-grid"><label>款式名称<input v-model.trim="skuForm.name" required placeholder="例如：曜石黑 / 42 码" /></label><label>店内编码（可选）<input v-model.trim="skuForm.code" maxlength="64" /></label><label>销售价（元）<input v-model="skuForm.sale_price" type="number" min="0" step="0.01" required /></label><label>市场价（元）<input v-model="skuForm.market_price" type="number" min="0" step="0.01" required /></label></div><div class="merchant-spec-editor"><div v-for="(spec, index) in specs" :key="index"><input v-model.trim="spec.name" placeholder="规格名，如颜色" maxlength="64" /><input v-model.trim="spec.value" placeholder="规格值，如曜石黑" maxlength="128" /><button type="button" class="secondary small" @click="removeSpec(index)">移除</button></div><button type="button" class="secondary small" @click="addSpec">＋ 增加一项规格</button></div><div class="field-grid"><label>重量（克，可选）<input v-model="skuForm.weight_grams" type="number" min="0" /></label><label>条形码（可选）<input v-model.trim="skuForm.barcode" maxlength="64" /></label></div><button :disabled="saving">{{ skuEditing ? '保存这款' : '新增这款' }}</button></form></section>
-
-        <section class="merchant-stock-board card"><header><div><p class="eyebrow">实时库存</p><h2>每个款式还剩多少</h2><p>顾客成功购买后库存会自动减少，不需要手动记账。</p></div></header><div class="merchant-stock-grid"><button v-for="sku in skus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id"><span>{{ sku.sku_name }}</span><strong>{{ inventoryFor(sku.sku_id)?.available_quantity ?? 0 }}</strong><small>可售 / 账面 {{ inventoryFor(sku.sku_id)?.on_hand_quantity ?? 0 }}</small></button></div><form v-if="activeInventory && canEdit" class="merchant-direct-stock" @submit.prevent="saveStock"><label>直接把「{{ activeSku?.sku_name }}」账面库存改为<input v-model.number="newStock" type="number" min="0" step="1" /></label><button :disabled="saving || newStock === null">确认修改</button><small>已被订单预占的 {{ activeInventory.reserved_quantity }} 件不会被覆盖；页面展示的可售数会自动扣除预占和安全库存。</small></form></section>
 
         <section class="merchant-detail-editors">
           <form class="card" @submit.prevent="saveAttributes"><header><div><p class="eyebrow">商品参数</p><h2>顾客对比商品时会看这里</h2></div><button v-if="canEdit" type="button" class="secondary small" @click="addAttribute">＋ 新增参数</button></header><div class="merchant-attribute-rows"><div v-for="(item, index) in attributes" :key="index"><input v-model.trim="item.attribute_name" placeholder="参数名" :disabled="!canEdit" /><input v-model.trim="item.value_text" placeholder="参数值" :disabled="!canEdit" /><button v-if="canEdit" type="button" class="danger small" @click="attributes.splice(index, 1)">删除</button></div></div><button v-if="canEdit" :disabled="saving">保存商品参数</button></form>
@@ -219,7 +251,9 @@ onMounted(() => { resetSku(); void load() })
 
         <section class="merchant-faq-editor card"><header><div><p class="eyebrow">常见问题</p><h2>提前回答顾客最常问的问题</h2></div><button v-if="canEdit" type="button" class="secondary" @click="resetFaq">＋ 新增问题</button></header><div class="merchant-faq-list"><button v-for="item in faqs" :key="item.faq_id" type="button" @click="editFaq(item)"><strong>{{ item.question }}</strong><p>{{ item.current_answer_text || '尚未填写答案' }}</p><small>{{ item.status === 'published' ? '已对顾客展示' : '草稿' }} · 点击编辑</small></button></div><form v-if="canEdit" @submit.prevent="saveFaq"><label>问题<input v-model.trim="faqForm.question" required maxlength="1000" placeholder="例如：尺码偏大还是偏小？" :disabled="Boolean(faqEditing)" /></label><label>回答<textarea v-model.trim="faqForm.answer" required rows="5" maxlength="100000" /></label><div class="actions"><button :disabled="saving">{{ faqEditing ? '更新并发布回答' : '新增并发布问题' }}</button><button v-if="faqEditing" type="button" class="secondary" @click="resetFaq">取消</button></div></form></section>
 
-        <footer class="merchant-publication-bar"><div><strong>{{ statusLabel(product.status) }}</strong><span v-if="product.completeness.missing_requirements.length">还需补充：{{ product.completeness.missing_requirements.join('、') }}</span><span v-else>商品资料已完整</span></div><div class="actions"><RouterLink v-if="product.status === 'on_sale'" :to="`/products/${product.product_id}`" target="_blank">预览商品 ↗</RouterLink><button v-if="product.available_actions.includes('submit_review')" :disabled="saving" @click="productCommand('submit_review')">提交平台审核</button><button v-if="product.available_actions.includes('publish')" :disabled="saving" @click="productCommand('publish')">立即上架</button><button v-if="product.available_actions.includes('off_shelf')" class="danger" :disabled="saving" @click="productCommand('off_shelf')">下架商品</button></div></footer>
+        <section class="merchant-product-reviews card"><header><div><p class="eyebrow">商品评价</p><h2>顾客在这件商品下看到的评价</h2><p>平均 {{ product.rating_score }} 分 · 共 {{ product.review_count }} 条</p></div></header><p v-if="!reviews.length" class="merchant-review-empty">这件商品暂时还没有顾客评价。</p><article v-for="item in reviews" :key="item.review_id"><header><span class="merchant-stars">{{ '★'.repeat(item.rating) }}{{ '☆'.repeat(5 - item.rating) }}</span><strong>{{ item.is_anonymous ? '匿名顾客' : item.user_name }}</strong><time>{{ new Date(item.submitted_at).toLocaleString('zh-CN') }}</time></header><p>{{ item.content || '顾客只留下了星级评分。' }}</p><small>购买款式：{{ item.sku_name }}</small><div v-if="item.merchant_reply" class="merchant-existing-reply"><strong>店铺回复</strong><p>{{ item.merchant_reply.content }}</p></div><form v-else @submit.prevent="replyReview(item)"><label>回复这条评价<textarea v-model="replyDrafts[item.review_id]" rows="3" minlength="2" maxlength="500" placeholder="感谢您的反馈……" /></label><div class="actions"><button type="button" class="secondary small" @click="replyDrafts[item.review_id] = '感谢您的支持与认可，我们会继续认真做好商品和服务。'">感谢好评</button><button :disabled="replyingReviewId === item.review_id || (replyDrafts[item.review_id]?.trim().length ?? 0) < 2">{{ replyingReviewId === item.review_id ? '正在回复…' : '发布回复' }}</button></div></form></article></section>
+
+        <footer class="merchant-publication-bar"><div><strong>{{ statusLabel(product.status) }}</strong><span v-if="product.completeness.missing_requirements.length">还可以继续补充：{{ product.completeness.missing_requirements.join('、') }}</span><span v-else>商品资料已完整</span></div><div class="actions"><button v-if="product.status === 'draft'" type="button" class="secondary" :disabled="saving" @click="finishEditing('商品已暂存为草稿。')">暂存为草稿</button><button v-if="canEdit" type="button" :disabled="saving" @click="finishEditing('商品编辑已完成。')">完成编辑</button><RouterLink v-if="product.status === 'on_sale'" :to="`/products/${product.product_id}`" target="_blank">查看顾客页面 ↗</RouterLink><button v-if="product.available_actions.includes('submit_review')" :disabled="saving" @click="productCommand('submit_review')">提交平台审核</button><button v-if="product.available_actions.includes('publish')" :disabled="saving" @click="productCommand('publish')">立即上架</button><button v-if="product.available_actions.includes('off_shelf')" class="danger" :disabled="saving" @click="productCommand('off_shelf')">下架商品</button></div></footer>
       </template>
     </PageState>
   </section>

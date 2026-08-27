@@ -13,7 +13,6 @@ const stores = ref<AdminStore[]>([])
 const currentStore = computed(() => stores.value[0] ?? null)
 const navigation = [
   { to: '/merchant/products', label: '我的商品', icon: '▦', hint: '上架与编辑' },
-  { to: '/merchant/reviews', label: '评价回复', icon: '☆', hint: '维护店铺口碑' },
   { to: '/merchant/store', label: '店铺资料', icon: '◇', hint: '顾客看到的信息' },
 ]
 

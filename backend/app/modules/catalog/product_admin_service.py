@@ -41,6 +41,7 @@ from app.modules.catalog.product_admin_schemas import (
     AdminProductCommandRequest,
     AdminProductCompleteness,
     AdminProductCreateRequest,
+    AdminProductDeletionView,
     AdminProductDetail,
     AdminProductFulfillmentRequest,
     AdminProductFulfillmentView,
@@ -63,7 +64,7 @@ from app.modules.rbac.dependencies import AdminAccess
 from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
 
-EDITABLE_STATUSES = {"draft", "rejected", "off_shelf"}
+EDITABLE_STATUSES = {"draft", "rejected", "off_shelf", "on_sale"}
 
 
 class ProductAdminService:
@@ -205,6 +206,77 @@ class ProductAdminService:
         )
         await self.session.commit()
         return await self._fresh_detail(access, product.product_no)
+
+    async def delete_product(
+        self,
+        access: AdminAccess,
+        product_no: str,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminProductDeletionView:
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:product-delete:{product_no}",
+            idempotency_key=idempotency_key,
+            payload={"expected_version": expected_version},
+            resource_type="product_deletion",
+        )
+        row = await self.repository.product_by_no(
+            product_no, for_update=True, include_deleted=True
+        )
+        if row is None:
+            raise _not_found()
+        product, store, _, _ = row
+        access.require_scope("store", store.id)
+        if claim.replayed and product.deleted_at is not None:
+            return AdminProductDeletionView(
+                product_id=product.product_no,
+                deleted_at=product.deleted_at,
+                previous_status="deleted",
+                version=product.version,
+            )
+        if product.deleted_at is not None:
+            raise _not_found()
+        _version(product.version, expected_version)
+        previous = product.product_status
+        deleted_at = utc_now()
+        for sku in await self.repository.skus(product.id, for_update=True):
+            sku.sku_status = "disabled"
+            sku.version += 1
+        product.product_status = "deleted"
+        product.deleted_at = deleted_at
+        product.off_shelf_at = deleted_at if previous == "on_sale" else product.off_shelf_at
+        product.version += 1
+        _status_log(
+            self.session,
+            product,
+            access,
+            previous,
+            "deleted",
+            "deleted",
+            "MERCHANT_PERMANENT_DELETE",
+            "商家永久删除商品",
+        )
+        _change_event(self.session, product, store, "product.deleted.v1")
+        record_admin_operation(
+            self.session,
+            access,
+            action="delete_product",
+            target_type="product",
+            target_no=product.product_no,
+            before={"status": previous},
+            after={"status": "deleted", "deleted_at": deleted_at.isoformat()},
+            reason="商家永久删除商品",
+            scope_type="store",
+            scope_id=store.id,
+        )
+        self.idempotency.complete(claim, response_status=200, resource_no=product.product_no)
+        await self.session.commit()
+        return AdminProductDeletionView(
+            product_id=product.product_no,
+            deleted_at=deleted_at,
+            previous_status=previous,
+            version=product.version,
+        )
 
     async def skus(self, access: AdminAccess, product_no: str) -> list[AdminSkuView]:
         row = await self._product(access, product_no)
@@ -584,6 +656,17 @@ class ProductAdminService:
         self.session.add(version)
         await self.session.flush()
         product.current_detail_content_version_id = version.id
+        if product.product_status == "on_sale":
+            previous = await self.repository.content_version_by_id(
+                product.id, product.published_detail_content_version_id
+            )
+            if previous is not None and previous.id != version.id:
+                previous.version_status = "superseded"
+                previous.version += 1
+            version.version_status = "published"
+            version.published_at = utc_now()
+            version.version += 1
+            product.published_detail_content_version_id = version.id
         product.version += 1
         _change_event(self.session, product, store, "product.content_version_created.v1")
         self.idempotency.complete(
@@ -1025,7 +1108,9 @@ class ProductAdminService:
         latest = await self.repository.latest_status_log(product.id)
         actions: list[str] = []
         if product.product_status in EDITABLE_STATUSES:
-            actions.extend(["update", "submit_review"])
+            actions.append("update")
+        if product.product_status in {"draft", "rejected", "off_shelf"}:
+            actions.append("submit_review")
         if product.product_status == "pending_review" and not (
             latest and latest.event_type == "approved"
         ):
@@ -1138,6 +1223,8 @@ def _summary(
         sku_count=sku_count,
         available_quantity=available_quantity,
         sales_count=product.sales_count,
+        review_count=product.review_count,
+        rating_score=f"{product.rating_score:.2f}",
         updated_at=product.updated_at,
         version=product.version,
     )

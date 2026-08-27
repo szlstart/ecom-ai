@@ -176,6 +176,8 @@ export interface AdminProductSummary extends AdminVersioned {
   sku_count: number
   available_quantity: number
   sales_count: number
+  review_count: number
+  rating_score: string
   updated_at: string
 }
 
@@ -361,6 +363,25 @@ export function adminUpdate<T>(
       method: 'PATCH',
       headers: { 'If-Match': versionEtag(version) },
       body: JSON.stringify(payload),
+    },
+    token,
+  )
+}
+
+export function adminDelete<T>(
+  path: string,
+  token: string,
+  version: number,
+  keyPrefix: string,
+): Promise<ApiResult<T>> {
+  return apiRequest(
+    path,
+    {
+      method: 'DELETE',
+      headers: {
+        'If-Match': versionEtag(version),
+        'Idempotency-Key': createIdempotencyKey(keyPrefix),
+      },
     },
     token,
   )

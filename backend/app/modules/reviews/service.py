@@ -89,11 +89,13 @@ class ReviewService:
         access: AdminAccess,
         *,
         review_status: str | None,
+        product_no: str | None,
         limit: int,
     ) -> AdminReviewList:
         rows = await self.repository.admin_reviews(
             scopes=access.scopes,
             review_status=review_status,
+            product_no=product_no,
             limit=limit,
         )
         return AdminReviewList(items=await self._admin_views(rows))

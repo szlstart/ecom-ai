@@ -112,6 +112,7 @@ class ReviewRepository:
         *,
         scopes: Sequence[tuple[str, int]],
         review_status: str | None,
+        product_no: str | None,
         limit: int,
     ) -> list[tuple[Review, Order, OrderItem, User, Product, ProductSku, Store]]:
         statement = (
@@ -130,6 +131,8 @@ class ReviewRepository:
             statement = statement.where(Review.store_id.in_(store_ids))
         if review_status is not None:
             statement = statement.where(Review.review_status == review_status)
+        if product_no is not None:
+            statement = statement.where(Product.product_no == product_no)
         rows = (
             await self.session.execute(
                 statement.order_by(Review.created_at.desc(), Review.id.desc()).limit(limit)

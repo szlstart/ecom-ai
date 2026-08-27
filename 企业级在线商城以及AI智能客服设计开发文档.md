@@ -2817,7 +2817,7 @@ SKU 价格在界面使用元，提交时转换为整数分；市场价不得低�
 
 本节是 2.14.2～2.14.6 的新版实施基线；如前述深绿色侧栏、独立仪表盘、商品表格、多页签编辑器、一级库存或一级客户咨询描述与本节冲突，以本节为准。商家登录后进入 `/merchant/products`；访问 `/merchant`、`/merchant/` 或兼容路由 `/merchant/dashboard` 均进入同一商品工作台。
 
-一级导航只保留“我的商品、评价回复、店铺资料”。顶栏固定显示当前店铺、“消息”和店铺资料入口；库存合并到商品款式内，顾客咨询合并到消息中心。整体采用白色轻量侧栏、浅色工作区和用户店铺页风格商品卡片，不复用平台管理端的高密度表格。
+一级导航只保留“我的商品、店铺资料”。顶栏固定显示当前店铺、“消息”和店铺资料入口；库存与评价回复均合并到对应商品内，顾客咨询合并到消息中心。整体采用白色轻量侧栏、浅色工作区和用户店铺页风格商品卡片，不复用平台管理端的高密度表格。
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -2825,16 +2825,16 @@ SKU 价格在界面使用元，提交时转换为整数分；市场价不得低�
 │ Ecom AI 商家中心                ├───────────────────────────────────────────┤
 │ [店铺 Logo] 当前店铺 / 营业中   │ [店铺名、简介、商品/库存/销量/评分]         │
 │ ▦ 我的商品 / 上架与编辑         │ [全部][销售中][草稿][审核中][需修改][下架] │
-│ ☆ 评价回复 / 维护店铺口碑       │ ┌────────┐ ┌────────┐ ┌────────┐          │
-│ ◇ 店铺资料 / 顾客看到的信息     │ │＋新增商品│ │商品卡片 │ │商品卡片 │          │
+│ ◇ 店铺资料 / 顾客看到的信息     │ ┌────────┐ ┌────────┐ ┌────────┐          │
+│                                 │ │＋新增商品│ │商品卡片 │ │商品卡片 │          │
 │                                 │ └────────┘ └────────┘ └────────┘          │
 │ 查看用户端店铺 / 退出商家中心   │                                           │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-商品工作台以顾客店铺页的方式展示商品。第一张卡片固定为空白“新增商品”，其余卡片显示封面、中文状态、商品名、卖点、价格、款式数、可售库存和销量。卡片点击进入 `MerchantProductEditorPage.vue`；没有商品时仍保留新增卡片。商品列表统计必须由 Store Scope 接口直接返回，不能在全平台数据上前端过滤。
+商品工作台以顾客店铺页的方式展示商品。“全部”分段的第一张卡片固定为空白“新增商品”；销售中、草稿、审核中、需修改和已下架分段只显示对应商品，不显示新增卡片。其余卡片显示封面、中文状态、商品名、卖点、价格、款式数、可售库存、销量、评分和评价数。鼠标悬停在任意状态的商品卡片时同时出现“编辑商品”和“删除商品”：编辑进入 `MerchantProductEditorPage.vue`；删除是经确认的逻辑永久删除，并与可恢复上架的“下架”严格区分。逻辑删除后商品立即从顾客端与商家列表消失，商品、SKU 不再参与销售，但历史订单、评价、库存流水、状态流水和操作审计按法定及售后期限保留。没有商品时，“全部”仍保留新增卡片；筛选分段仅显示相应空状态。商品列表统计必须由 Store Scope 接口直接返回，不能在全平台数据上前端过滤。
 
-商品编辑不使用后台多页签，而按顾客商品详情页的阅读顺序组织：左侧图片与缩略图，右侧名称、卖点、简介、分类、品牌和款式；下方依次为款式编辑、实时库存、商品参数、发货与购买须知、商品详情、常见问题和底部上架状态栏。新增商品先提交名称、分类等最小信息创建草稿，再进入同一详情模板。每个款式使用普通“规格名/规格值”行，不要求商家填写 JSON；图片默认关联当前选择的款式，也可设为全部款式共用。
+商品编辑不使用后台多页签，而按顾客商品详情页的阅读顺序组织：左侧图片与缩略图；右侧直接编辑名称、卖点、简介、款式、价格和库存；下方依次为商品参数、发货与购买须知、商品详情、常见问题、本商品评价与底部上架状态栏。平台分类和品牌属于后台治理字段，商家页面不展示、不要求填写；新商品由后端赋予可用的默认内部归类。点击“新增商品”后系统在后台创建未命名草稿并直接进入商品详情编辑，不展示独立“创建商品草稿”步骤；编辑期间可明确点击“暂存为草稿”。点击“新增款式”后，新款式表单紧接现有款式显示在右侧，填写款式名、价格、规格与库存并点击“完成”即可成为新的款式卡片。销售中的商品也使用完全相同的就地编辑形式，保存的公开字段通过受控内容版本立即更新，状态机命令仍独立执行。每个款式使用普通“规格名/规格值”行，不要求商家填写 JSON；图片默认关联当前选择的款式，也可设为全部款式共用。
 
 库存按 SKU 显示账面、预占和可售数量。商家输入目标账面库存，前端计算 Delta 后调用受审计库存调整命令；顾客成交由领域库存流水自动扣减，刷新商家页即可看到更新后的可售数。前端不得直接覆盖预占量、已售量或安全库存，也不得绕过 If-Match、原因、幂等和 Store Scope 校验。
 
@@ -2842,12 +2842,11 @@ SKU 价格在界面使用元，提交时转换为整数分；市场价不得低�
 
 | 页面/全局组件 | Vue Route / Component | 主要能力 | Permission / Scope |
 | :--- | :--- | :--- | :--- |
-| 商品工作台 | `/merchant/products`、兼容 `/merchant/dashboard` / `MerchantProductListPage.vue` | 店铺式商品卡片、第一张新增卡片、搜索与中文状态分段 | `stores:read`、`products:read` + Store |
-| 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 详情模板内就地编辑商品全部销售信息和库存 | `products:create/update/publish`、`inventories:read/adjust` + Store |
+| 商品工作台 | `/merchant/products`、兼容 `/merchant/dashboard` / `MerchantProductListPage.vue` | 店铺式商品卡片、仅“全部”首张新增卡片、悬浮编辑/删除、搜索与中文状态分段 | `stores:read`、`products:read/update` + Store |
+| 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 顾客商品详情同构布局内就地编辑商品、款式、库存、FAQ，并查看/回复本商品评价 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
 | 顶栏消息中心 | `MerchantMessageCenter.vue` | 置顶平台专属客服、顾客咨询列表和回复 | Conversation Owner、`support:*` + Store Queue |
-| 评价回复 | `/merchant/reviews/*` / `MerchantReview*Page.vue` | 查看本店已发布评价并公开回复 | `reviews:read/reply` + Store |
 | 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、修改冷却期和用户端预览 | `stores:read/manage` + Store |
-| 兼容高级路由 | `/merchant/inventory`、`/merchant/support/*` | 保留历史深链，不在一级导航展示 | `inventories:*`、`support:*` + Store/Queue |
+| 兼容高级路由 | `/merchant/inventory`、`/merchant/reviews/*`、`/merchant/support/*` | 保留历史深链，不在一级导航展示 | `inventories:*`、`reviews:*`、`support:*` + Store/Queue |
 
 ---
 
@@ -9470,7 +9469,9 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 #### 3.12.26 商家中心接口投影
 
-新版商家工作台在既有受控管理 API 之上增加最小投影：`AdminProductSummary` 返回 `cover_image_url、sku_count、available_quantity、sales_count`，使一条商品列表请求即可绘制店铺式商品卡片，禁止每张卡片触发 N+1 请求；`GET /admin/inventories` 支持 `product_id` 窄化参数，编辑器只读取目标商品 SKU。`product_id` 只能缩小 Store Scope，不能扩大授权。商家输入目标账面库存后，前端转换为 `on_hand_delta` 调用 `AdminInventory_Adjust`，服务端继续执行 If-Match、原因、幂等、预占保护和流水审计。
+新版商家工作台在既有受控管理 API 之上增加最小投影：`AdminProductSummary` 返回 `cover_image_url、sku_count、available_quantity、sales_count、review_count、rating_score`，使一条商品列表请求即可绘制店铺式商品卡片，禁止每张卡片触发 N+1 请求；`GET /admin/inventories` 和 `GET /admin/reviews` 分别支持 `product_id` 窄化参数，编辑器只读取目标商品的 SKU 与已发布评价。`product_id` 只能缩小 Store Scope，不能扩大授权。商家输入目标账面库存后，前端转换为 `on_hand_delta` 调用 `AdminInventory_Adjust`，服务端继续执行 If-Match、原因、幂等、预占保护和流水审计。
+
+`DELETE /admin/products/{product_id}`（`AdminProduct_Delete`）表示经确认的商品逻辑永久删除，不等同于 `POST /admin/products/{product_id}/off-shelf-commands`。删除命令要求 `products:update`、Store Scope、If-Match 和 Idempotency-Key；事务内禁用全部 SKU、写入 `products.deleted_at`、记录原状态、商品状态流水、管理员操作审计和 Outbox。所有公开商品查询、商家商品列表、商品详情与库存管理默认追加 `deleted_at IS NULL`；订单、评价、售后及审计链路仍可通过历史快照或受控内部查询访问必要事实。首版不提供商家恢复逻辑删除商品的接口。
 
 商家置顶“专属客服”使用 `/merchant/support/exclusive-conversation*` 薄 Facade，提供固定会话创建/读取、消息列表、消息发送和平台人工工单建立；Facade 内部继续调用统一 Messaging Service 与 Human Service Ticket 状态机，不复制消息表或领域服务。端点只接受 `client_type=merchant` 的 Merchant Context；消费者、平台管理员和其他商家身份均拒绝。消息用 `client_message_id` 去重，人工工单用 Idempotency-Key 建立或复用有效 Platform Queue Ticket；平台支持人员仍通过既有 `/support/*` 工作台回复。
 

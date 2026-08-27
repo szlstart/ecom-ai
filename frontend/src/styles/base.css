@@ -565,15 +565,20 @@ tr.selected td { background: #f0f4ff; }
 .merchant-product-cover em, .merchant-editor-status > span { position: absolute; top: 12px; left: 12px; padding: 5px 9px; color: #56635c; border-radius: 999px; background: rgb(255 255 255 / 90%); font-size: .7rem; font-style: normal; font-weight: 750; backdrop-filter: blur(6px); }
 .merchant-product-cover em.status-on_sale, .merchant-editor-status > .status-on_sale { color: #fff; background: #1b8b60; }
 .merchant-product-cover em.status-rejected, .merchant-editor-status > .status-rejected { color: #94372e; background: #fff0ed; }
-.merchant-product-cover > b { position: absolute; right: 12px; bottom: 12px; padding: 7px 10px; color: #fff; border-radius: 8px; background: rgb(24 45 35 / 78%); font-size: .75rem; opacity: 0; transform: translateY(5px); transition: .18s ease; }
-.merchant-product-card:hover .merchant-product-cover > b { opacity: 1; transform: translateY(0); }
+.merchant-manage-card { position: relative; }
+.merchant-product-card-link { display: block; color: inherit; }
+.merchant-product-card-link:hover { text-decoration: none; }
+.merchant-card-edit-action, .merchant-card-delete-action { position: absolute; bottom: 12px; padding: 7px 10px; color: #fff; border-radius: 8px; font-size: .75rem; font-weight: 750; opacity: 0; transform: translateY(5px); transition: .18s ease; }
+.merchant-card-edit-action { right: 104px; background: rgb(24 45 35 / 82%); }
+.merchant-card-delete-action { z-index: 2; right: 12px; border: 0; background: rgb(181 54 44 / 90%) !important; }
+.merchant-product-card:hover .merchant-card-edit-action, .merchant-product-card:hover .merchant-card-delete-action { opacity: 1; transform: translateY(0); }
 .merchant-product-card-body { padding: 15px; }
 .merchant-product-card-body h2 { margin: 0 0 6px; overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
 .merchant-product-card-body > p { min-height: 38px; margin: 0; display: -webkit-box; overflow: hidden; color: #7a867f; font-size: .78rem; line-height: 1.5; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .merchant-product-price { margin: 12px 0; color: #d94b3e; }
 .merchant-product-price strong { font-size: 1.3rem; }
 .merchant-product-price span { margin-left: 3px; font-size: .72rem; }
-.merchant-product-card-body dl { margin: 0; padding-top: 11px; display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid #edf0ed; }
+.merchant-product-card-body dl { margin: 0; padding-top: 11px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px 0; border-top: 1px solid #edf0ed; }
 .merchant-product-card-body dl div { text-align: center; }
 .merchant-product-card-body dt { color: #929b96; font-size: .66rem; }
 .merchant-product-card-body dd { margin: 3px 0 0; font-size: .82rem; font-weight: 750; }
@@ -612,6 +617,16 @@ tr.selected td { background: #f0f4ff; }
 .merchant-style-picker > div > button.active { color: #176f50; border-color: #399674; background: #eff9f4 !important; box-shadow: inset 0 0 0 1px #399674; }
 .merchant-style-picker button small { color: #87938d; }
 .merchant-style-picker button b { color: #d64d3f; }
+.merchant-inline-sku-form { margin-top: 14px; padding: 16px; display: grid; gap: 13px; border: 1px solid #dbe5df; border-radius: 13px; background: #f8faf8; }
+.merchant-inline-sku-form > header, .merchant-inline-stock > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.merchant-inline-sku-form details { padding: 9px 0; color: #64736b; }
+.merchant-inline-sku-form details > div { margin-top: 10px; }
+.merchant-inline-stock { margin-top: 16px; padding-top: 16px; display: grid; gap: 12px; border-top: 1px solid #e4e9e5; }
+.merchant-inline-stock header > div { display: grid; }
+.merchant-inline-stock header small { color: #849088; }
+.merchant-inline-stock .merchant-stock-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.merchant-inline-stock .merchant-direct-stock { grid-template-columns: 1fr auto; }
+.merchant-inline-stock .merchant-direct-stock label { grid-template-columns: 1fr 100px; }
 .merchant-inline-editor, .merchant-stock-board, .merchant-content-editor, .merchant-faq-editor { padding: 24px; }
 .merchant-inline-editor h2, .merchant-stock-board h2, .merchant-detail-editors h2, .merchant-content-editor h2, .merchant-faq-editor h2 { margin: 4px 0; }
 .merchant-inline-editor form, .merchant-faq-editor form, .merchant-detail-editors form { display: grid; gap: 16px; }
@@ -635,6 +650,25 @@ tr.selected td { background: #f0f4ff; }
 .merchant-faq-list > button { padding: 16px; display: grid; justify-items: start; gap: 6px; color: #27352e; border: 1px solid #e1e6e2; background: #f9faf9 !important; text-align: left; }
 .merchant-faq-list p { margin: 0; color: #64736b; line-height: 1.6; }
 .merchant-faq-list small { color: #29906b; }
+.merchant-product-reviews { padding: 24px; }
+.merchant-product-reviews > header { margin-bottom: 18px; display: flex; justify-content: space-between; }
+.merchant-product-reviews h2 { margin: 4px 0; }
+.merchant-product-reviews > header p:not(.eyebrow) { margin: 0; color: #748079; }
+.merchant-product-reviews > article { padding: 18px 0; border-top: 1px solid #e8ece9; }
+.merchant-product-reviews > article > header { display: flex; align-items: center; gap: 12px; }
+.merchant-product-reviews > article > header time { margin-left: auto; color: #87918b; font-size: .75rem; }
+.merchant-product-reviews > article > p { line-height: 1.7; }
+.merchant-product-reviews > article > small { color: #7d8881; }
+.merchant-product-reviews form { margin-top: 13px; padding: 14px; display: grid; gap: 10px; border-radius: 12px; background: #f6f8f6; }
+.merchant-existing-reply { margin-top: 12px; padding: 12px 14px; border-left: 3px solid #2a916b; background: #f0f8f4; }
+.merchant-existing-reply p { margin: 5px 0 0; }
+.merchant-review-empty { padding: 24px; color: #7d8982; border-radius: 12px; background: #f7f9f7; text-align: center; }
+.merchant-delete-overlay { position: fixed; z-index: 1100; inset: 0; padding: 24px; display: grid; place-items: center; background: rgb(22 27 24 / 52%); backdrop-filter: blur(3px); }
+.merchant-delete-dialog { width: min(480px, 94vw); padding: 30px; display: grid; justify-items: center; gap: 13px; border-radius: 18px; background: #fff; box-shadow: 0 28px 80px rgb(14 23 18 / 28%); text-align: center; }
+.merchant-delete-dialog > span { width: 54px; height: 54px; display: grid; place-items: center; color: #a33d34; border-radius: 50%; background: #fff0ed; font-size: 1.6rem; font-weight: 850; }
+.merchant-delete-dialog h2, .merchant-delete-dialog p { margin: 0; }
+.merchant-delete-dialog p { color: #68756e; line-height: 1.7; }
+.merchant-delete-dialog .actions { margin-top: 7px; }
 .merchant-publication-bar { position: sticky; z-index: 10; bottom: 14px; padding: 15px 18px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border: 1px solid #d9e3dd; border-radius: 14px; background: rgb(255 255 255 / 94%); box-shadow: 0 12px 40px rgb(36 61 49 / 15%); backdrop-filter: blur(12px); }
 .merchant-publication-bar > div:first-child { display: grid; gap: 3px; }
 .merchant-publication-bar span { color: #748179; font-size: .78rem; }
@@ -770,12 +804,18 @@ tr.selected td { background: #f0f4ff; }
   .merchant-product-search { width: 100%; }
   .merchant-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .merchant-add-product { min-height: 310px; }
+  .merchant-card-edit-action, .merchant-card-delete-action { opacity: 1; transform: none; }
+  .merchant-card-edit-action { right: 94px; }
   .merchant-live-editor, .merchant-detail-editors { grid-template-columns: 1fr; }
   .merchant-title-input input { font-size: 1.65rem; }
   .merchant-inline-editor, .merchant-stock-board, .merchant-content-editor, .merchant-faq-editor, .merchant-detail-editors > .card { padding: 18px; }
   .merchant-direct-stock { grid-template-columns: 1fr; }
   .merchant-direct-stock small { grid-column: auto; }
   .merchant-spec-editor > div, .merchant-attribute-rows > div { grid-template-columns: 1fr; }
+  .merchant-inline-stock .merchant-direct-stock { grid-template-columns: 1fr; }
+  .merchant-inline-stock .merchant-direct-stock small { grid-column: auto; }
+  .merchant-product-reviews > article > header { align-items: flex-start; flex-wrap: wrap; }
+  .merchant-product-reviews > article > header time { width: 100%; margin-left: 0; }
   .merchant-publication-bar { align-items: stretch; flex-direction: column; }
   .merchant-message-overlay { padding: 0; }
   .merchant-message-window { width: 100vw; height: 100vh; grid-template-columns: 112px minmax(0, 1fr); border-radius: 0; }

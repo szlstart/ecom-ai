@@ -6254,11 +6254,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -6341,25 +6344,17 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "ADM-PRODUCT-01",
-          "MCH-PRODUCT-EDIT-01",
-          "MCH-PRODUCT-NEW-01"
+          "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
-          "stores:read",
-          "products:create",
           "products:read",
           "products:update",
-          "products:publish",
-          "inventories:read",
-          "inventories:adjust",
-          "products:review"
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
-          "ADM-INV-*",
-          "ADM-PRODUCT-*",
-          "MCH-PORTAL-*"
+          "ADM-PRODUCT-*"
         ]
       }
     },
@@ -7241,6 +7236,24 @@
             }
           },
           {
+            "name": "product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -7301,12 +7314,23 @@
         ],
         "x-requirement-id": [
           "ADM-REVIEW-LIST-01",
+          "MCH-PRODUCT-EDIT-01",
           "MCH-REVIEW-LIST-01"
         ],
         "x-scope-policy": [
-          "reviews:read"
+          "public_reference_projection",
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
+          "inventories:read",
+          "inventories:adjust",
+          "reviews:read",
+          "reviews:reply"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
+          "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
@@ -7524,14 +7548,24 @@
         ],
         "x-requirement-id": [
           "ADM-REVIEW-01",
+          "MCH-PRODUCT-EDIT-01",
           "MCH-REVIEW-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "reviews:read",
           "reviews:reply",
           "reviews:moderate"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
+          "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
@@ -21766,11 +21800,14 @@
           "products:update",
           "products:publish",
           "inventories:read",
-          "inventories:adjust"
+          "inventories:adjust",
+          "reviews:read",
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -21962,11 +21999,14 @@
           "products:update",
           "products:publish",
           "inventories:read",
-          "inventories:adjust"
+          "inventories:adjust",
+          "reviews:read",
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -22120,7 +22160,8 @@
         "x-scope-policy": [
           "stores:read",
           "products:read",
-          "store_scope"
+          "store_scope",
+          "products:update"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
@@ -22314,11 +22355,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -22440,10 +22484,138 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
+          "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
+          "MCH-PORTAL-*"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "product-administration"
+        ],
+        "summary": "Delete Product",
+        "operationId": "AdminProduct_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminProductDeletionView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminProduct_Delete",
+        "x-domain-command": "AdminProduct_Delete",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "products:update"
+        ],
+        "x-requirement-id": [
+          "MCH-PRODUCT-LIST-01"
+        ],
+        "x-scope-policy": [
+          "stores:read",
+          "products:read",
+          "products:update"
+        ],
+        "x-test-case-ids": [
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -22584,11 +22756,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -22866,11 +23041,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -23010,11 +23188,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -23103,11 +23284,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -23223,11 +23407,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -23360,11 +23547,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -23600,11 +23790,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -23726,11 +23919,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -23819,11 +24015,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -23945,11 +24144,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24038,11 +24240,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -24164,11 +24369,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24286,11 +24494,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24388,11 +24599,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24481,11 +24695,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -24601,11 +24818,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24732,11 +24952,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24863,11 +25086,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "products:review"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -25008,17 +25234,20 @@
           "stores:read",
           "products:read",
           "store_scope",
+          "products:update",
           "public_reference_projection",
           "products:create",
-          "products:update",
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
@@ -27165,11 +27394,14 @@
           "products:publish",
           "inventories:read",
           "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
           "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
@@ -34883,6 +35115,36 @@
         ],
         "title": "AdminProductCreateRequest"
       },
+      "AdminProductDeletionView": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At"
+          },
+          "previous_status": {
+            "type": "string",
+            "title": "Previous Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "product_id",
+          "deleted_at",
+          "previous_status",
+          "version"
+        ],
+        "title": "AdminProductDeletionView"
+      },
       "AdminProductDetail": {
         "properties": {
           "product_id": {
@@ -34983,6 +35245,16 @@
             "type": "integer",
             "title": "Sales Count",
             "default": 0
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count",
+            "default": 0
+          },
+          "rating_score": {
+            "type": "string",
+            "title": "Rating Score",
+            "default": "0.00"
           },
           "updated_at": {
             "type": "string",
@@ -35525,6 +35797,16 @@
             "type": "integer",
             "title": "Sales Count",
             "default": 0
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count",
+            "default": 0
+          },
+          "rating_score": {
+            "type": "string",
+            "title": "Rating Score",
+            "default": "0.00"
           },
           "updated_at": {
             "type": "string",
@@ -41459,6 +41741,21 @@
           "data"
         ],
         "title": "Envelope[AdminPaymentView]"
+      },
+      "Envelope_AdminProductDeletionView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminProductDeletionView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminProductDeletionView]"
       },
       "Envelope_AdminProductDetail_": {
         "properties": {

@@ -62,11 +62,18 @@ class Brand(MutableMySQLModel, MySQLBase):
     brand_status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
 
 
-class Product(MutableMySQLModel, MySQLBase):
+class Product(SoftDeleteMySQLModel, MySQLBase):
     __tablename__ = "products"
     __table_args__ = (
         UniqueConstraint("product_no", name="uk_products_product_no"),
         Index("idx_products_store_status", "store_id", "product_status", "created_at", "id"),
+        Index(
+            "idx_products_store_deleted_status",
+            "store_id",
+            "deleted_at",
+            "product_status",
+            "id",
+        ),
         Index("idx_products_category_status", "category_id", "product_status", "id"),
     )
 

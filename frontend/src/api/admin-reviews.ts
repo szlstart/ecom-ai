@@ -24,9 +24,12 @@ export interface AdminReview {
   version: number
 }
 
-export function listAdminReviews(token: string, status?: string): Promise<ApiResult<{ items: AdminReview[] }>> {
-  const query = status ? `?review_status=${encodeURIComponent(status)}` : ''
-  return apiRequest(`/admin/reviews${query}`, {}, token)
+export function listAdminReviews(token: string, status?: string, productId?: string): Promise<ApiResult<{ items: AdminReview[] }>> {
+  const query = new URLSearchParams()
+  if (status) query.set('review_status', status)
+  if (productId) query.set('product_id', productId)
+  const suffix = query.size ? `?${query}` : ''
+  return apiRequest(`/admin/reviews${suffix}`, {}, token)
 }
 
 export function getAdminReview(reviewId: string, token: string): Promise<ApiResult<AdminReview>> {

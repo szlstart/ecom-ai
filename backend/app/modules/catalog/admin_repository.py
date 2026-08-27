@@ -99,6 +99,7 @@ class AdminCatalogRepository:
             .join(ProductSku, ProductSku.id == Inventory.sku_id)
             .join(Product, Product.id == ProductSku.product_id)
             .join(Store, Store.id == Product.store_id)
+            .where(Product.deleted_at.is_(None))
             .where(ProductSku.sku_no == sku_no)
         )
         if for_update:
@@ -120,6 +121,7 @@ class AdminCatalogRepository:
             .join(ProductSku, ProductSku.id == Inventory.sku_id)
             .join(Product, Product.id == ProductSku.product_id)
             .join(Store, Store.id == Product.store_id)
+            .where(Product.deleted_at.is_(None))
         )
         if ("platform", 0) not in scopes:
             store_ids = [scope_id for scope_type, scope_id in scopes if scope_type == "store"]

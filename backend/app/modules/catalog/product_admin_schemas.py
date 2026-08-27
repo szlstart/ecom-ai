@@ -36,6 +36,8 @@ class AdminProductSummary(StrictRequest):
     sku_count: int = 0
     available_quantity: int = 0
     sales_count: int = 0
+    review_count: int = 0
+    rating_score: str = "0.00"
     updated_at: datetime
     version: int
 
@@ -43,6 +45,13 @@ class AdminProductSummary(StrictRequest):
 class AdminProductList(StrictRequest):
     items: list[AdminProductSummary]
     next_cursor: str | None
+
+
+class AdminProductDeletionView(StrictRequest):
+    product_id: str
+    deleted_at: datetime
+    previous_status: str
+    version: int
 
 
 class AdminProductDetail(AdminProductSummary):

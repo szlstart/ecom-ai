@@ -110,6 +110,40 @@ const canEdit = computed(() => !product.value || ['draft', 'rejected', 'off_shel
 const editorBusy = computed(() => saving.value || pasteBusy.value || uploadBusy.value || imageSaving.value || detailPasteBusy.value || detailUploadBusy.value)
 let detailBlockSequence = 0
 
+function captureEditorDrafts() {
+  return {
+    basic: { ...basic },
+    skuForm: { ...skuForm },
+    skuEditingId: skuEditing.value?.sku_id ?? null,
+    showSkuEditor: showSkuEditor.value,
+    selectedSkuId: selectedSkuId.value,
+    selectedImage: selectedImage.value,
+    attributes: attributes.value.map((item) => ({ ...item })),
+    detailBlocks: detailBlocks.value.map((item) => ({ ...item, items: [...item.items] })),
+    faqForm: { ...faqForm },
+    faqEditingId: faqEditing.value?.faq_id ?? null,
+    fulfillment: { ...fulfillment },
+    originProvinceCode: originProvinceCode.value,
+    originCityCode: originCityCode.value,
+  }
+}
+
+function restoreEditorDrafts(snapshot: ReturnType<typeof captureEditorDrafts>) {
+  Object.assign(basic, snapshot.basic)
+  Object.assign(skuForm, snapshot.skuForm)
+  skuEditing.value = snapshot.skuEditingId ? (skus.value.find((item) => item.sku_id === snapshot.skuEditingId) ?? null) : null
+  showSkuEditor.value = snapshot.showSkuEditor
+  selectedSkuId.value = activeSkus.value.some((item) => item.sku_id === snapshot.selectedSkuId) ? snapshot.selectedSkuId : (activeSkus.value[0]?.sku_id ?? '')
+  selectedImage.value = Math.max(0, Math.min(snapshot.selectedImage, activeImages.value.length - 1))
+  attributes.value = snapshot.attributes
+  detailBlocks.value = snapshot.detailBlocks
+  Object.assign(faqForm, snapshot.faqForm)
+  faqEditing.value = snapshot.faqEditingId ? (faqs.value.find((item) => item.faq_id === snapshot.faqEditingId) ?? null) : null
+  Object.assign(fulfillment, snapshot.fulfillment)
+  originProvinceCode.value = snapshot.originProvinceCode
+  originCityCode.value = snapshot.originCityCode
+}
+
 function token() { return requireAdminToken(auth.accessToken) }
 function path(suffix = '') { return `/admin/products/${encodeURIComponent(productId.value)}${suffix}` }
 function flatten(nodes: Category[]): Category[] { return nodes.flatMap((item) => [item, ...flatten(item.children)]) }
@@ -166,8 +200,11 @@ async function loadReferences() {
   if (store.value) basic.store_id = store.value.store_id
 }
 
-async function load() {
-  loading.value = true; error.value = ''; notice.value = ''
+async function load(options: { preserveDrafts?: boolean } = {}) {
+  const draftSnapshot = options.preserveDrafts ? captureEditorDrafts() : null
+  let loaded = false
+  loading.value = true; error.value = ''
+  if (!options.preserveDrafts) notice.value = ''
   try {
     await loadReferences()
     if (isNew.value) {
@@ -200,13 +237,17 @@ async function load() {
     if (fulfillmentResult.data) Object.assign(fulfillment, { ...fulfillmentResult.data, purchase_notice: fulfillmentResult.data.purchase_notice ?? '' })
     if (!fulfillment.shipping_template_id) fulfillment.shipping_template_id = shippingTemplates.value.find((item) => item.status === 'effective')?.template_id ?? ''
     restoreOriginSelection(fulfillment.origin_region_code)
+    loaded = true
   } catch (cause) { error.value = errorMessage(cause) }
-  finally { loading.value = false }
+  finally {
+    if (draftSnapshot && loaded) restoreEditorDrafts(draftSnapshot)
+    loading.value = false
+  }
 }
 
 async function perform(action: () => Promise<unknown>, success: string, reload = true) {
   saving.value = true; error.value = ''; notice.value = ''
-  try { await action(); notice.value = success; if (reload) await load() }
+  try { await action(); notice.value = success; if (reload) await load({ preserveDrafts: true }) }
   catch (cause) { error.value = errorMessage(cause) }
   finally { saving.value = false }
 }
@@ -294,7 +335,7 @@ async function saveSku() {
     if (delta) await adminCreate('/admin/inventory-adjustments', { sku_id: targetSku.sku_id, on_hand_delta: delta, reason_code: 'MERCHANT_DIRECT_EDIT', reason: '商家在商品款式中直接修改库存', reference_no: `merchant-ui-${Date.now()}`, expected_version: inventory.version }, token(), 'merchant-stock-adjust')
     selectedSkuId.value = targetSku.sku_id
     closeSkuEditor()
-    await load()
+    await load({ preserveDrafts: true })
     notice.value = editing ? '款式、价格和库存已更新。' : '新款式、价格和库存已添加。'
   } catch (cause) { error.value = errorMessage(cause) }
   finally { saving.value = false }
@@ -398,7 +439,7 @@ async function saveContent() {
   saving.value = true; error.value = ''; notice.value = ''
   try {
     await adminCreate(path('/detail-content-versions'), { source_format: 'structured', source_content: JSON.stringify(blocks) }, token(), 'merchant-detail-create')
-    await load()
+    await load({ preserveDrafts: true })
     detailUploadNotice.value = ''
     notice.value = '商品详情已按当前图文顺序保存。'
   } catch (cause) { error.value = errorMessage(cause) }
@@ -447,7 +488,7 @@ async function replyReview(item: AdminReview) {
   const text = replyDrafts[item.review_id]?.trim() ?? ''
   if (text.length < 2) { error.value = '评价回复至少需要填写 2 个字符。'; return }
   replyingReviewId.value = item.review_id; error.value = ''
-  try { await replyAdminReview(item.review_id, `"v${item.version}"`, text, token()); replyDrafts[item.review_id] = ''; await load() }
+  try { await replyAdminReview(item.review_id, `"v${item.version}"`, text, token()); replyDrafts[item.review_id] = ''; await load({ preserveDrafts: true }) }
   catch (cause) { error.value = errorMessage(cause) }
   finally { replyingReviewId.value = '' }
 }

@@ -328,6 +328,23 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     expect(wrapper.text()).toContain('款式已删除，不再向顾客展示')
   })
 
+  it('preserves drafts in other sections while refreshing data after a save', async () => {
+    const wrapper = await mountPage()
+    const productName = wrapper.get<HTMLInputElement>('.merchant-product-info-editor input')
+    await productName.setValue('尚未保存的跨区域商品名称')
+    await wrapper.get('.merchant-detail-editors form:first-child header button').trigger('click')
+    const attributeInputs = wrapper.findAll<HTMLInputElement>('.merchant-attribute-rows input')
+    await attributeInputs[0]!.setValue('材质')
+    await attributeInputs[1]!.setValue('纯棉')
+
+    await wrapper.get('.merchant-detail-editors form:first-child').trigger('submit')
+    await flushPromises()
+
+    expect(productName.element.value).toBe('尚未保存的跨区域商品名称')
+    expect(wrapper.findAll<HTMLInputElement>('.merchant-attribute-rows input')[0]!.element.value).toBe('材质')
+    expect(wrapper.text()).toContain('商品参数已保存')
+  })
+
   it('protects the final active style while an item is on sale', async () => {
     mocks.adminGet.mockImplementation(async (requestPath: string) => {
       if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }

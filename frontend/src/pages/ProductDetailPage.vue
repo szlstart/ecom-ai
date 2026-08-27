@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import areaData from 'china-area-data'
 
 import {
   formatMoney,
@@ -165,6 +166,17 @@ function estimateText(): string {
   return `预计 ${format(estimate.min_at)} 至 ${format(estimate.max_at)} 发货（仅供参考）`
 }
 
+function originText(regionCode: string | null): string {
+  if (!regionCode) return ''
+  const code = regionCode.replace(/^CN[_-]/, '')
+  if (!/^\d{2}(?:\d{2})?(?:\d{2})?$/.test(code)) return regionCode
+  const normalizedCode = code.length === 2 ? `${code}0000` : code.length === 4 ? `${code}00` : code
+  const provinceCode = `${normalizedCode.slice(0, 2)}0000`
+  const province = areaData['86']?.[provinceCode] ?? ''
+  const city = normalizedCode.endsWith('0000') ? '' : areaData[provinceCode]?.[normalizedCode] ?? ''
+  return [province, city && city !== province ? city : ''].filter(Boolean).join(' ') || regionCode
+}
+
 onMounted(load)
 watch(() => route.params.productId, load)
 watch(() => auth.accessToken, () => void load())
@@ -222,20 +234,21 @@ watch(() => auth.accessToken, () => void load())
             <img v-if="product.store.logo_url" :src="resolveApiAssetUrl(product.store.logo_url) || undefined" alt="" width="44" height="44" />
             <span><strong>{{ product.store.store_name }}</strong><small>店铺评分 {{ product.store.rating_score }} · 进店逛逛 →</small></span>
           </RouterLink>
-          <div><p class="eyebrow">商品信息</p><h1>{{ product.product_name }}</h1><p v-if="product.subtitle" class="muted">{{ product.subtitle }}</p></div>
+          <div><p class="eyebrow">商品信息</p><h1>{{ product.product_name }}</h1></div>
           <p class="detail-price">{{ formatMoney(selectedSku?.sale_price ?? product.price_range[0]) }}</p>
           <p class="product-meta"><span>已售 {{ selectedSku?.sales_count ?? product.sales_count }}</span><span>评分 {{ product.rating_score }}</span></p>
 
           <fieldset v-if="skus.length" class="sku-fieldset">
-            <legend>选择规格</legend>
+            <legend>选择款式</legend>
             <button v-for="sku in skus" :key="sku.sku_id" type="button" class="sku-option" :class="{ selected: sku.sku_id === selectedSkuId }" :aria-pressed="sku.sku_id === selectedSkuId" :disabled="sku.sku_status !== 'active'" @click="selectSku(sku)">
               <span>{{ sku.sku_name }}</span><small>{{ formatMoney(sku.sale_price) }} · {{ sku.stock_status === 'out_of_stock' ? '缺货' : '可选' }}</small>
             </button>
           </fieldset>
 
           <p :class="['stock-line', { warning: selectedSku?.stock_status === 'low_stock' }]">
-            {{ selectedSku?.stock_status === 'out_of_stock' ? '当前规格暂时缺货' : selectedSku?.stock_status === 'low_stock' ? `库存紧张，最多可购 ${maxQuantity} 件` : '当前规格有货' }}
+            {{ selectedSku?.stock_status === 'out_of_stock' ? '当前款式暂时缺货' : selectedSku?.stock_status === 'low_stock' ? `库存紧张，最多可购 ${maxQuantity} 件` : '当前款式有货' }}
           </p>
+          <p v-if="originText(product.origin_region_code)" class="muted">发货地：{{ originText(product.origin_region_code) }}</p>
           <p class="muted">{{ estimateText() }}</p>
           <label class="quantity-control">数量
             <span><button type="button" class="secondary" :disabled="quantity <= 1" @click="setQuantity(quantity - 1)">−</button><input :value="quantity" inputmode="numeric" aria-label="购买数量" @change="setQuantity(Number(($event.target as HTMLInputElement).value))" /><button type="button" class="secondary" :disabled="quantity >= maxQuantity" @click="setQuantity(quantity + 1)">＋</button></span>
@@ -244,7 +257,7 @@ watch(() => auth.accessToken, () => void load())
           <div class="purchase-actions">
             <button type="button" class="secondary" :disabled="contactBusy" @click="contactStore">{{ contactBusy ? '进入客服…' : '联系客服' }}</button>
             <button type="button" class="secondary" :disabled="favoriteBusy" @click="toggleFavorite">{{ product.is_favorited ? '取消收藏' : '收藏商品' }}</button>
-            <button type="button" :disabled="cartBusy || !canPurchase" :title="canPurchase ? '加入购物车' : '当前规格不可购买'" @click="addToCart">{{ cartBusy ? '加入中…' : '加入购物车' }}</button>
+            <button type="button" :disabled="cartBusy || !canPurchase" :title="canPurchase ? '加入购物车' : '当前款式不可购买'" @click="addToCart">{{ cartBusy ? '加入中…' : '加入购物车' }}</button>
             <button type="button" :disabled="buyBusy || !canPurchase" @click="buyNow">{{ buyBusy ? '创建结算…' : '立即购买' }}</button>
           </div>
           <p v-if="cartNotice" class="notice success" aria-live="polite">{{ cartNotice }} <RouterLink to="/cart">查看购物车</RouterLink></p>

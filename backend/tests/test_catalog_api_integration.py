@@ -19,7 +19,7 @@ from app.modules.files.models import FileObject
 from app.modules.identity.models import AuthSession, User
 from app.modules.inventory.models import Inventory, InventoryLog
 from app.modules.orders.models import Order, OrderItem, TradeOrder
-from app.modules.rbac.models import AdminOperationLog
+from app.modules.rbac.models import AdminOperationLog, Role, UserRole
 from app.modules.reviews.models import Review, ReviewAppendRecord, ReviewReply
 from app.modules.stores.models import (
     Store,
@@ -61,6 +61,24 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
         )
         session.add(user)
         await session.flush()
+        consumer_role = await session.scalar(select(Role).where(Role.role_code == "user"))
+        assert consumer_role is not None
+        session.add(
+            UserRole(
+                user_id=user.id,
+                role_id=consumer_role.id,
+                grant_no=new_prefixed_ulid("grt_"),
+                scope_type="platform",
+                scope_id=0,
+                grant_status="active",
+                active_grant_key=security.keyed_hash(
+                    "active-role-grant", f"{user.id}:{consumer_role.id}:platform:0"
+                ),
+                granted_by=user.id,
+                granted_at=now,
+                grant_reason="catalog_integration_consumer",
+            )
+        )
 
         auth_session = AuthSession(
             session_no=new_prefixed_ulid("ses_"),
@@ -377,6 +395,8 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
     assert "categories" not in homepage_data
     assert [section["section"] for section in homepage_data["sections"]] == ["recommended"]
     assert homepage_data["sections"][0]["title"] == "为你推荐"
+    homepage_product = homepage_data["sections"][0]["items"][0]
+    assert "subtitle" not in homepage_product
 
     first_page = await client.get("/api/v1/products", params={"sort": "sales", "limit": 2})
     assert first_page.status_code == 200, first_page.text
@@ -408,12 +428,18 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
 
     detail = await client.get(f"/api/v1/products/{product_no}", headers=auth)
     assert detail.status_code == 200, detail.text
-    assert detail.json()["data"]["store"]["store_id"] == store_no
+    detail_data = detail.json()["data"]
+    assert detail_data["store"]["store_id"] == store_no
+    assert "subtitle" not in detail_data
+    assert "description" not in detail_data
     assert "source_content" not in detail.text
 
     skus = await client.get(f"/api/v1/products/{product_no}/skus")
     assert skus.status_code == 200, skus.text
-    assert skus.json()["data"]["items"][0]["max_purchase_quantity"] == 15
+    public_sku = skus.json()["data"]["items"][0]
+    assert public_sku["max_purchase_quantity"] == 15
+    assert "market_price" not in public_sku
+    assert "spec_values" not in public_sku
 
     reviews = await client.get(f"/api/v1/products/{product_no}/reviews", params={"limit": 1})
     assert reviews.status_code == 200, reviews.text

@@ -56,7 +56,7 @@ class CartService:
             or sku.sku_status != "active"
             or store.store_status != "active"
         ):
-            raise _conflict("SKU_NOT_PURCHASABLE", "当前商品规格不可加入购物车。")
+            raise _conflict("SKU_NOT_PURCHASABLE", "当前商品款式不可加入购物车。")
         cart = await self.repository.cart(user.id, for_update=True)
         if cart is None:
             cart = Cart(
@@ -71,7 +71,7 @@ class CartService:
         item = await self.repository.item_for_sku(cart.id, sku.id, for_update=True)
         next_quantity = payload.quantity + (item.quantity if item else 0)
         if next_quantity > 99:
-            raise _conflict("CART_SKU_QUANTITY_LIMIT", "同一规格最多购买 99 件。")
+            raise _conflict("CART_SKU_QUANTITY_LIMIT", "同一款式最多购买 99 件。")
         invalid_reason = _invalid_reason(
             product.product_status, sku.sku_status, store.store_status, inventory, next_quantity
         )
@@ -235,7 +235,6 @@ class CartService:
                     sku_id=sku.sku_no,
                     product_name=product.product_name,
                     sku_name=sku.sku_name,
-                    spec_values=sku.spec_values,
                     quantity=item.quantity,
                     is_selected=item.is_selected,
                     added_price=Money(

@@ -17,6 +17,7 @@ from app.modules.cart.models import Cart, CartItem
 from app.modules.catalog.models import Category, Product, ProductSku
 from app.modules.identity.models import AuthSession, User
 from app.modules.inventory.models import Inventory
+from app.modules.rbac.models import Role, UserRole
 from app.modules.stores.models import Store
 
 pytestmark = [
@@ -48,6 +49,24 @@ async def test_permanent_cart_idempotency_etag_and_invalid_cleanup(
         )
         session.add(user)
         await session.flush()
+        consumer_role = await session.scalar(select(Role).where(Role.role_code == "user"))
+        assert consumer_role is not None
+        session.add(
+            UserRole(
+                user_id=user.id,
+                role_id=consumer_role.id,
+                grant_no=new_prefixed_ulid("grt_"),
+                scope_type="platform",
+                scope_id=0,
+                grant_status="active",
+                active_grant_key=security.keyed_hash(
+                    "active-role-grant", f"{user.id}:{consumer_role.id}:platform:0"
+                ),
+                granted_by=user.id,
+                granted_at=now,
+                grant_reason="cart_integration_consumer",
+            )
+        )
         auth_session = AuthSession(
             session_no=new_prefixed_ulid("ses_"),
             user_id=user.id,
@@ -148,7 +167,9 @@ async def test_permanent_cart_idempotency_etag_and_invalid_cleanup(
     )
     assert added.status_code == 200, added.text
     assert added.json()["data"]["cart_total_quantity"] == 2
-    item_id = added.json()["data"]["groups"][0]["items"][0]["cart_item_id"]
+    public_item = added.json()["data"]["groups"][0]["items"][0]
+    assert "spec_values" not in public_item
+    item_id = public_item["cart_item_id"]
     assert item_id.startswith("ci_")
 
     replayed = await client.post(

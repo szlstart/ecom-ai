@@ -81,7 +81,7 @@ async function runAction(action: OrderAction) {
     } else if (action.code === 'repurchase') {
       const cart = await getCart(token())
       const result = (await repurchaseOrder(order.value.order_id, cart.data.version, token())).data
-      if (result.requires_reselection) message.value = `${result.added_items.length} 件已加入购物车，${result.unavailable_items.length} 件原规格当前不可购买。`
+      if (result.requires_reselection) message.value = `${result.added_items.length} 件已加入购物车，${result.unavailable_items.length} 件原款式当前不可购买。`
       else await router.push('/cart')
     }
   } catch (cause) { error.value = errorMessage(cause) }
@@ -129,7 +129,7 @@ onMounted(load)
               >
                 <img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) ?? ''" width="88" height="88" :alt="item.product_name" />
                 <div v-else class="order-image-placeholder">商品</div>
-                <span><strong>{{ item.product_name }}</strong><small>{{ item.sku_name }}</small><small>{{ item.spec_snapshot.map((spec) => `${spec.name}:${spec.value}`).join(' / ') }}</small><small v-if="!item.product_available" class="order-product-unavailable-badge">已下架</small></span>
+                <span><strong>{{ item.product_name }}</strong><small>款式：{{ item.sku_name }}</small><small v-if="!item.product_available" class="order-product-unavailable-badge">已下架</small></span>
                 <span class="item-price">{{ formatMoney(item.unit_price) }}<small>× {{ item.quantity }}</small></span>
               </OrderProductEntry>
             </article>

@@ -20,7 +20,6 @@ export interface ProductCardData {
   store_id: string
   store_name: string
   product_name: string
-  subtitle: string | null
   price: Money
   price_range: Money | null
   sales_count: number
@@ -80,8 +79,6 @@ export interface StoreSummary {
 export interface ProductDetailData {
   product_id: string
   product_name: string
-  subtitle: string | null
-  description: string | null
   product_status: string
   category_id: string
   brand_id: string | null
@@ -104,9 +101,7 @@ export interface ProductDetailData {
 export interface ProductSku {
   sku_id: string
   sku_name: string
-  spec_values: Array<Record<string, string>>
   sale_price: Money
-  market_price: Money
   sku_status: string
   stock_status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'frozen'
   low_stock_remaining: number | null

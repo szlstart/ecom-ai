@@ -26,7 +26,6 @@ class ProductCard(BaseModel):
     store_id: str
     store_name: str
     product_name: str
-    subtitle: str | None
     price: Money
     price_range: Money | None = None
     sales_count: int
@@ -81,8 +80,6 @@ class ServiceEstimate(BaseModel):
 class ProductDetail(BaseModel):
     product_id: str
     product_name: str
-    subtitle: str | None
-    description: str | None
     product_status: str
     category_id: str
     brand_id: str | None
@@ -105,9 +102,7 @@ class ProductDetail(BaseModel):
 class ProductSkuView(BaseModel):
     sku_id: str
     sku_name: str
-    spec_values: list[dict[str, str]]
     sale_price: Money
-    market_price: Money
     sku_status: str
     stock_status: Literal["in_stock", "low_stock", "out_of_stock", "frozen"]
     low_stock_remaining: int | None = None

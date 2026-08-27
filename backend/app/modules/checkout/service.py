@@ -304,7 +304,7 @@ class CheckoutService:
                 )
             elif sku.sku_status != "active":
                 blocking.append(
-                    _issue("SKU_UNAVAILABLE", "商品规格不可购买。", store.store_no, sku.sku_no)
+                    _issue("SKU_UNAVAILABLE", "商品款式不可购买。", store.store_no, sku.sku_no)
                 )
             elif available < quantity:
                 blocking.append(
@@ -332,7 +332,6 @@ class CheckoutService:
                     sku_id=sku.sku_no,
                     product_name=product.product_name,
                     sku_name=sku.sku_name,
-                    spec_values=sku.spec_values,
                     quantity=quantity,
                     unit_price=_money(sku.sale_price_amount),
                     subtotal=_money(subtotal),
@@ -399,7 +398,7 @@ class CheckoutService:
         if source["source_type"] == "buy_now":
             context = await self.repository.buy_now_context(source["sku_id"])
             if context is None:
-                raise _not_found("SKU_NOT_FOUND", "未找到该商品规格。")
+                raise _not_found("SKU_NOT_FOUND", "未找到该商品款式。")
             return [(context, int(source["quantity"]))]
         item_nos = cast(list[str], source["cart_item_ids"])
         rows = await self.repository.cart_contexts(user_id, item_nos)

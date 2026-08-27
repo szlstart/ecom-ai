@@ -43,7 +43,7 @@ watch(() => auth.accessToken, (current, previous) => {
         <div>
           <p class="eyebrow">可信商品 · 安全交易</p>
           <h1>找到真正适合你的商品</h1>
-          <p>浏览平台已发布商品，库存、规格与店铺政策均来自实时业务数据。</p>
+          <p>浏览平台已发布商品，库存、款式与店铺政策均来自实时业务数据。</p>
           <RouterLink class="button-link" to="/search">开始选购</RouterLink>
         </div>
         <div v-if="homepage.banners.length" class="banner-copy" aria-label="首页推荐">

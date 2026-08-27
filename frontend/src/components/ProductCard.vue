@@ -27,7 +27,6 @@ const detailTarget = computed(() => ({
     </RouterLink>
     <div class="product-card-body">
       <RouterLink :to="detailTarget" class="product-name">{{ product.product_name }}</RouterLink>
-      <p v-if="product.subtitle" class="product-subtitle">{{ product.subtitle }}</p>
       <p class="product-price">
         {{ formatMoney(product.price) }}
         <small v-if="product.price_range">起</small>

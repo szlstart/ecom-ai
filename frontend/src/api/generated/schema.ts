@@ -7223,10 +7223,6 @@ export interface components {
             product_name: string;
             /** Sku Name */
             sku_name: string;
-            /** Spec Values */
-            spec_values: {
-                [key: string]: string;
-            }[];
             /** Quantity */
             quantity: number;
             /** Is Selected */
@@ -7340,10 +7336,6 @@ export interface components {
             product_name: string;
             /** Sku Name */
             sku_name: string;
-            /** Spec Values */
-            spec_values: {
-                [key: string]: string;
-            }[];
             /** Quantity */
             quantity: number;
             unit_price: components["schemas"]["Money"];
@@ -9880,8 +9872,6 @@ export interface components {
             store_name: string;
             /** Product Name */
             product_name: string;
-            /** Subtitle */
-            subtitle: string | null;
             price: components["schemas"]["Money"];
             price_range?: components["schemas"]["Money"] | null;
             /** Sales Count */
@@ -9913,10 +9903,6 @@ export interface components {
             product_id: string;
             /** Product Name */
             product_name: string;
-            /** Subtitle */
-            subtitle: string | null;
-            /** Description */
-            description: string | null;
             /** Product Status */
             product_status: string;
             /** Category Id */
@@ -10070,12 +10056,7 @@ export interface components {
             sku_id: string;
             /** Sku Name */
             sku_name: string;
-            /** Spec Values */
-            spec_values: {
-                [key: string]: string;
-            }[];
             sale_price: components["schemas"]["Money"];
-            market_price: components["schemas"]["Money"];
             /** Sku Status */
             sku_status: string;
             /**

@@ -173,7 +173,7 @@ watch(() => route.fullPath, () => {
             >
               <img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) ?? ''" width="72" height="72" :alt="item.product_name" />
               <div v-else class="order-image-placeholder">商品</div>
-              <span><strong>{{ item.product_name }}</strong><small>{{ item.sku_name }} · × {{ item.quantity }}</small><small v-if="!item.product_available" class="order-product-unavailable-badge">已下架</small></span>
+              <span><strong>{{ item.product_name }}</strong><small>款式：{{ item.sku_name }} · × {{ item.quantity }}</small><small v-if="!item.product_available" class="order-product-unavailable-badge">已下架</small></span>
               <strong>{{ formatMoney(item.payable_amount) }}</strong>
             </OrderProductEntry>
             <RouterLink v-if="order.item_count > 3" :to="`/me/orders/${order.order_id}`">另有 {{ order.item_count - 3 }} 件商品，点击查看全部</RouterLink>

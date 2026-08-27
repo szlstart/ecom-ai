@@ -57,7 +57,6 @@ class CatalogRepository:
             statement = statement.where(
                 or_(
                     Product.product_name.like(term, escape="\\"),
-                    Product.subtitle.like(term, escape="\\"),
                     Brand.brand_name.like(term, escape="\\"),
                 )
             )

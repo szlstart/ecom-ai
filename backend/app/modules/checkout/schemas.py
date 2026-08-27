@@ -70,7 +70,6 @@ class CheckoutItemView(StrictRequest):
     sku_id: str
     product_name: str
     sku_name: str
-    spec_values: list[dict[str, str]]
     quantity: int
     unit_price: Money
     subtotal: Money

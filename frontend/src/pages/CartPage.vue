@@ -37,7 +37,7 @@ function invalidReasonText(reason: string | null): string {
   return ({
     STORE_UNAVAILABLE: '店铺当前不可用',
     PRODUCT_OFF_SHELF: '商品已下架',
-    SKU_UNAVAILABLE: '当前规格不可用',
+    SKU_UNAVAILABLE: '当前款式不可用',
     INVENTORY_UNAVAILABLE: '暂时无法确认库存',
     INSUFFICIENT_STOCK: '库存不足，请调整数量',
   } as Record<string, string>)[reason || ''] || '商品当前不可结算'
@@ -96,7 +96,7 @@ onMounted(load)
           <header><RouterLink :to="`/stores/${group.store_id}`"><strong>{{ group.store_name }}</strong> →</RouterLink><span>已选 {{ group.selected_quantity }} 件 · {{ formatMoney(group.selected_amount) }}</span></header>
           <div v-for="item in group.items" :key="item.cart_item_id" :class="['cart-item-row', { invalid: !item.is_valid }]">
             <input type="checkbox" :checked="item.is_selected" :disabled="busyItem !== '' || !item.is_valid" :aria-label="`选择 ${item.product_name}`" @change="toggleItem(item)" />
-            <div class="cart-item-copy"><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>{{ item.sku_name }} · {{ item.spec_values.map((spec) => `${spec.name}:${spec.value}`).join(' / ') }}</small><small v-if="!item.is_valid" class="error-text">{{ invalidReasonText(item.invalid_reason) }}</small><small v-else-if="item.price_changed" class="warning-text">价格已由 {{ formatMoney(item.added_price) }} 变为 {{ formatMoney(item.current_price) }}</small></div>
+            <div class="cart-item-copy"><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>款式：{{ item.sku_name }}</small><small v-if="!item.is_valid" class="error-text">{{ invalidReasonText(item.invalid_reason) }}</small><small v-else-if="item.price_changed" class="warning-text">价格已由 {{ formatMoney(item.added_price) }} 变为 {{ formatMoney(item.current_price) }}</small></div>
             <strong>{{ formatMoney(item.current_price) }}</strong>
             <label>数量<input :value="item.quantity" type="number" min="1" max="99" :disabled="busyItem !== ''" @change="changeQuantity(item, Number(($event.target as HTMLInputElement).value))" /></label>
             <button type="button" class="link-button danger" :disabled="busyItem !== ''" @click="remove(item)">删除</button>

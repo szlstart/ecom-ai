@@ -6249,6 +6249,7 @@
           "public_reference_projection",
           "stores:read",
           "products:create",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -7320,6 +7321,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -7554,6 +7556,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -21880,6 +21883,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -22079,6 +22083,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -22435,6 +22440,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -22564,6 +22570,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -22924,6 +22931,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -23209,6 +23217,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -23360,6 +23369,7 @@
           "products:update",
           "products:publish",
           "public_reference_projection",
+          "stores:manage",
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
@@ -23453,6 +23463,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -23576,6 +23587,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -23716,6 +23728,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -23959,6 +23972,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -24088,6 +24102,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -24184,6 +24199,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -24313,6 +24329,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -24409,6 +24426,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -24538,6 +24556,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -24663,6 +24682,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -24768,6 +24788,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -24864,6 +24885,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -24987,6 +25009,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -25121,6 +25144,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -25255,6 +25279,7 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
@@ -25412,11 +25437,11 @@
           "products:publish",
           "public_reference_projection",
           "products:create",
+          "stores:manage",
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "stores:manage"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
@@ -27563,14 +27588,14 @@
         "x-scope-policy": [
           "public_reference_projection",
           "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
           "products:publish",
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "stores:manage"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
@@ -27681,14 +27706,27 @@
           "stores:manage"
         ],
         "x-requirement-id": [
-          "ADM-STORE-DETAIL-01"
+          "ADM-STORE-DETAIL-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "stores:read",
-          "stores:manage"
+          "stores:manage",
+          "products:read",
+          "products:update",
+          "products:publish",
+          "inventories:read",
+          "inventories:adjust",
+          "reviews:read",
+          "reviews:reply"
         ],
         "x-test-case-ids": [
-          "ADM-STORE-*"
+          "ADM-INV-*",
+          "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
+          "ADM-STORE-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -27953,14 +27991,27 @@
           "stores:manage"
         ],
         "x-requirement-id": [
-          "ADM-STORE-DETAIL-01"
+          "ADM-STORE-DETAIL-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "stores:read",
-          "stores:manage"
+          "stores:manage",
+          "products:read",
+          "products:update",
+          "products:publish",
+          "inventories:read",
+          "inventories:adjust",
+          "reviews:read",
+          "reviews:reply"
         ],
         "x-test-case-ids": [
-          "ADM-STORE-*"
+          "ADM-INV-*",
+          "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
+          "ADM-STORE-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -40003,16 +40054,6 @@
             "type": "string",
             "title": "Sku Name"
           },
-          "spec_values": {
-            "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Spec Values"
-          },
           "quantity": {
             "type": "integer",
             "title": "Quantity"
@@ -40059,7 +40100,6 @@
           "sku_id",
           "product_name",
           "sku_name",
-          "spec_values",
           "quantity",
           "is_selected",
           "added_price",
@@ -40398,16 +40438,6 @@
             "type": "string",
             "title": "Sku Name"
           },
-          "spec_values": {
-            "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Spec Values"
-          },
           "quantity": {
             "type": "integer",
             "title": "Quantity"
@@ -40430,7 +40460,6 @@
           "sku_id",
           "product_name",
           "sku_name",
-          "spec_values",
           "quantity",
           "unit_price",
           "subtotal",
@@ -47794,17 +47823,6 @@
             "type": "string",
             "title": "Product Name"
           },
-          "subtitle": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Subtitle"
-          },
           "price": {
             "$ref": "#/components/schemas/Money"
           },
@@ -47848,7 +47866,6 @@
           "store_id",
           "store_name",
           "product_name",
-          "subtitle",
           "price",
           "sales_count",
           "rating_score",
@@ -47900,28 +47917,6 @@
           "product_name": {
             "type": "string",
             "title": "Product Name"
-          },
-          "subtitle": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Subtitle"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
           },
           "product_status": {
             "type": "string",
@@ -48065,8 +48060,6 @@
         "required": [
           "product_id",
           "product_name",
-          "subtitle",
-          "description",
           "product_status",
           "category_id",
           "brand_id",
@@ -48402,20 +48395,7 @@
             "type": "string",
             "title": "Sku Name"
           },
-          "spec_values": {
-            "items": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Spec Values"
-          },
           "sale_price": {
-            "$ref": "#/components/schemas/Money"
-          },
-          "market_price": {
             "$ref": "#/components/schemas/Money"
           },
           "sku_status": {
@@ -48471,9 +48451,7 @@
         "required": [
           "sku_id",
           "sku_name",
-          "spec_values",
           "sale_price",
-          "market_price",
           "sku_status",
           "stock_status",
           "max_purchase_quantity",

@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "c540de7159ba0ed804bd34a32248c53b7fe16621352f28aa9e32b381f6e5c7c7"
+SOURCE_SHA256 = "de981a5571324b2418ed98c19748e48a07d7a69ef4f16ecae1fe78e291f91374"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -522,6 +522,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -552,6 +553,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -762,6 +764,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -783,6 +786,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -804,6 +808,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -825,6 +830,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -856,6 +862,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -877,6 +884,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -898,6 +906,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -919,6 +928,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -940,6 +950,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -961,6 +972,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -982,6 +994,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1003,6 +1016,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1060,6 +1074,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1081,6 +1096,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1102,6 +1118,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1143,6 +1160,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1199,6 +1217,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "products:update",
             "products:publish",
             "public_reference_projection",
+            "stores:manage",
             "inventories:read",
             "inventories:adjust",
             "reviews:read",
@@ -1217,6 +1236,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1238,6 +1258,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1259,6 +1280,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1370,6 +1392,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1400,6 +1423,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1663,9 +1687,26 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
-        "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": ["stores:read", "stores:manage"],
-        "x-test-case-ids": ["ADM-STORE-*"],
+        "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-PRODUCT-EDIT-01"],
+        "x-scope-policy": [
+            "public_reference_projection",
+            "stores:read",
+            "stores:manage",
+            "products:read",
+            "products:update",
+            "products:publish",
+            "inventories:read",
+            "inventories:adjust",
+            "reviews:read",
+            "reviews:reply",
+        ],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminShippingTemplate_List": {
         "x-audit-event": "access.AdminShippingTemplate_List",
@@ -1677,6 +1718,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",
@@ -1684,7 +1726,6 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "stores:manage",
         ],
         "x-test-case-ids": [
             "ADM-INV-*",
@@ -1700,9 +1741,26 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
-        "x-requirement-id": ["ADM-STORE-DETAIL-01"],
-        "x-scope-policy": ["stores:read", "stores:manage"],
-        "x-test-case-ids": ["ADM-STORE-*"],
+        "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-PRODUCT-EDIT-01"],
+        "x-scope-policy": [
+            "public_reference_projection",
+            "stores:read",
+            "stores:manage",
+            "products:read",
+            "products:update",
+            "products:publish",
+            "inventories:read",
+            "inventories:adjust",
+            "reviews:read",
+            "reviews:reply",
+        ],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminShippingTemplate_Update": {
         "x-audit-event": "command.AdminShippingTemplate_Update",
@@ -2036,11 +2094,11 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "products:publish",
             "public_reference_projection",
             "products:create",
+            "stores:manage",
             "inventories:read",
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "stores:manage",
         ],
         "x-test-case-ids": [
             "ADM-INV-*",
@@ -2537,6 +2595,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "public_reference_projection",
             "stores:read",
             "products:create",
+            "stores:manage",
             "products:read",
             "products:update",
             "products:publish",

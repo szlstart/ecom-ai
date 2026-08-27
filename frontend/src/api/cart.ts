@@ -7,7 +7,6 @@ export interface CartItem {
   sku_id: string
   product_name: string
   sku_name: string
-  spec_values: Array<Record<string, string>>
   quantity: number
   is_selected: boolean
   added_price: Money

@@ -61,7 +61,7 @@ onMounted(load)
           <p v-else class="notice warning">还没有收货地址。<RouterLink to="/me/addresses">新增地址</RouterLink></p>
         </section>
         <article v-for="group in checkout.store_groups" :key="group.store_id" class="checkout-card"><header><RouterLink :to="`/stores/${group.store_id}`"><strong>{{ group.store_name }}</strong> →</RouterLink><button type="button" class="secondary small" :disabled="busy" @click="contactStore(group.store_id)">联系商家</button></header>
-          <div v-for="item in group.items" :key="item.sku_id" class="checkout-item-row"><div><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>{{ item.sku_name }} · × {{ item.quantity }}</small></div><strong>{{ formatMoney(item.subtotal) }}</strong></div>
+          <div v-for="item in group.items" :key="item.sku_id" class="checkout-item-row"><div><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>款式：{{ item.sku_name }} · × {{ item.quantity }}</small></div><strong>{{ formatMoney(item.subtotal) }}</strong></div>
           <div class="delivery-summary"><span>配送方式：{{ group.delivery_options[0]?.name || '暂无可用配送' }}</span><strong>{{ formatMoney(group.freight_amount) }}</strong></div>
           <label class="remark-field">给商家留言（最多 200 字）<textarea maxlength="200" :value="group.buyer_remark || ''" :disabled="busy" @change="saveRemark(group.store_id, ($event.target as HTMLTextAreaElement).value)" /></label>
         </article>

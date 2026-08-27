@@ -75,7 +75,7 @@ onMounted(load)
         <h2>选择商品和数量</h2>
         <label v-for="item in order.items" :key="item.order_item_id">
           <input v-model="selected[item.order_item_id]" type="checkbox" />
-          {{ item.product_name }} · {{ item.sku_name }}
+          {{ item.product_name }} · 款式：{{ item.sku_name }}
           <input v-model.number="quantities[item.order_item_id]" type="number" min="1" :max="item.quantity - item.refunded_quantity" :disabled="!selected[item.order_item_id]" />
         </label>
       </section>

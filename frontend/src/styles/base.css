@@ -146,7 +146,6 @@ pre { max-width: 100%; overflow: auto; padding: 12px; border-radius: 8px; backgr
 .product-card-image img { width: 100%; height: 100%; object-fit: cover; }
 .product-card-body { padding: 16px; display: grid; gap: 8px; }
 .product-name { min-height: 2.6em; overflow: hidden; color: #172033; font-weight: 720; line-height: 1.3; }
-.product-subtitle { margin: 0; overflow: hidden; color: #687287; font-size: .88rem; text-overflow: ellipsis; white-space: nowrap; }
 .product-price, .detail-price { margin: 2px 0; color: #d43b36; font-size: 1.3rem; font-weight: 800; }
 .product-price small { display: inline; margin-left: 4px; }
 .product-meta { margin: 0; display: flex; justify-content: space-between; gap: 10px; color: #687287; font-size: .82rem; }

@@ -48,7 +48,7 @@ from app.modules.orders.service import OrderService
 from app.modules.payments.models import Payment, PaymentCallback
 from app.modules.payments.service import PaymentService
 from app.modules.rbac.dependencies import AdminAccess
-from app.modules.rbac.models import AdminApprovalRequest, Permission
+from app.modules.rbac.models import AdminApprovalRequest, Permission, Role, UserRole
 from app.modules.rbac.schemas import ApprovalDecisionRequest, ApprovalRequiredView
 from app.modules.rbac.service import RbacService
 from app.modules.reviews.models import (
@@ -141,6 +141,26 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         )
         session.add_all([user, other_user])
         await session.flush()
+        consumer_role = await session.scalar(select(Role).where(Role.role_code == "user"))
+        assert consumer_role is not None
+        for consumer in (user, other_user):
+            session.add(
+                UserRole(
+                    user_id=consumer.id,
+                    role_id=consumer_role.id,
+                    grant_no=new_prefixed_ulid("grt_"),
+                    scope_type="platform",
+                    scope_id=0,
+                    grant_status="active",
+                    active_grant_key=security.keyed_hash(
+                        "active-role-grant",
+                        f"{consumer.id}:{consumer_role.id}:platform:0",
+                    ),
+                    granted_by=consumer.id,
+                    granted_at=now,
+                    grant_reason="checkout_integration_consumer",
+                )
+            )
         auth_session = AuthSession(
             session_no=new_prefixed_ulid("ses_"),
             user_id=user.id,
@@ -423,6 +443,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         "payable_amount": {"minor_units": "6000", "currency": "CNY"},
     }
     assert data["blocking_issues"] == []
+    assert "spec_values" not in data["store_groups"][0]["items"][0]
     replay = await client.post(
         "/api/v1/checkout-sessions",
         headers={**auth, "Idempotency-Key": f"checkout-{suffix}"},

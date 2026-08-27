@@ -175,8 +175,6 @@ class CatalogService:
         return ProductDetail(
             product_id=product.product_no,
             product_name=product.product_name,
-            subtitle=product.subtitle,
-            description=product.description,
             product_status=product.product_status,
             category_id=category.category_no,
             brand_id=(await self._brand_no(product.brand_id)),
@@ -235,9 +233,7 @@ class CatalogService:
                 ProductSkuView(
                     sku_id=sku.sku_no,
                     sku_name=sku.sku_name,
-                    spec_values=sku.spec_values,
                     sale_price=_money(sku.sale_price_amount, sku.currency),
-                    market_price=_money(sku.market_price_amount, sku.currency),
                     sku_status=sku.sku_status,
                     stock_status=stock_status,
                     low_stock_remaining=available if stock_status == "low_stock" else None,
@@ -441,7 +437,6 @@ def _product_card(
         store_id=store.store_no,
         store_name=store.store_name,
         product_name=product.product_name,
-        subtitle=product.subtitle,
         price=_money(product.min_price_amount, product.currency),
         price_range=_money(product.max_price_amount, product.currency)
         if product.max_price_amount != product.min_price_amount

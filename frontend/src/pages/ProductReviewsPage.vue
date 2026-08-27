@@ -120,16 +120,16 @@ watch(() => route.fullPath, () => { syncFilters(); void load() })
       <form class="review-filters" @submit.prevent="applyFilters">
         <label>评分<select v-model="rating"><option value="">全部评分</option><option v-for="score in [5, 4, 3, 2, 1]" :key="score" :value="score">{{ score }} 星</option></select></label>
         <label>图片<select v-model="hasImage"><option value="">全部评价</option><option value="true">仅看有图</option><option value="false">仅看无图</option></select></label>
-        <label>规格<select v-model="skuId"><option value="">全部规格</option><option v-for="sku in skus" :key="sku.sku_id" :value="sku.sku_id">{{ sku.sku_name }}</option></select></label>
+        <label>款式<select v-model="skuId"><option value="">全部款式</option><option v-for="sku in skus" :key="sku.sku_id" :value="sku.sku_id">{{ sku.sku_name }}</option></select></label>
         <label>排序<select v-model="sort"><option value="newest">最新优先</option><option value="oldest">最早优先</option></select></label>
         <button type="submit">应用筛选</button>
       </form>
 
       <div id="review-list" class="review-list" tabindex="-1">
-        <PageState :empty="reviews.items.length === 0" empty-title="当前筛选下暂无评价" empty-detail="可以切换评分、规格或图片条件。">
+        <PageState :empty="reviews.items.length === 0" empty-title="当前筛选下暂无评价" empty-detail="可以切换评分、款式或图片条件。">
           <article v-for="review in reviews.items" :key="review.review_id" class="review-card">
             <header><strong>{{ review.user_display_name }}</strong><span class="review-stars" :aria-label="`${review.rating} 星`">{{ stars(review.rating) }}</span><time :datetime="review.published_at">{{ date(review.published_at) }}</time></header>
-            <small>购买规格：{{ review.sku_name }}</small>
+            <small>购买款式：{{ review.sku_name }}</small>
             <p v-if="review.content" class="review-content">{{ review.content }}</p>
             <div v-if="review.images.length" class="review-images">
               <button v-for="(image, index) in review.images" :key="image.file_id" type="button" @click="openPreview(review.images, index)"><img :src="resolveApiAssetUrl(image.thumbnail_url) || undefined" alt="查看评价图片大图" width="96" height="96" loading="lazy" /></button>

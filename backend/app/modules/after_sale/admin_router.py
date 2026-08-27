@@ -30,9 +30,10 @@ async def list_refunds(
     response: Response,
     service: AfterSaleServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("refunds:read")],
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> Envelope[AdminRefundList]:
-    result = await service.admin_list(access, limit)
+    result = await service.admin_list(access, limit, cursor)
     _no_store(response)
     return Envelope(data=result)
 

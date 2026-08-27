@@ -455,27 +455,52 @@ class OrderService:
         payment_status: str | None,
         fulfillment_status: str | None,
         after_sale_status: str | None,
+        cursor: str | None,
         limit: int,
     ) -> AdminOrderList:
         normalized_query = query.strip() if query else None
-        rows = await self.repository.admin_orders(
+        filter_key = json.dumps(
+            {
+                "scopes": access.scopes,
+                "q": normalized_query or None,
+                "order_status": order_status,
+                "payment_status": payment_status,
+                "fulfillment_status": fulfillment_status,
+                "after_sale_status": after_sale_status,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        position = self.cursor.decode(cursor, filter_key=filter_key)
+        rows, has_more = await self.repository.admin_orders(
             scopes=access.scopes,
             query=normalized_query or None,
             order_status=order_status,
             payment_status=payment_status,
             fulfillment_status=fulfillment_status,
             after_sale_status=after_sale_status,
+            position=position,
             limit=limit,
         )
+        allocations = await self.repository.shipment_allocations([row[0].id for row in rows])
         order_views = await self._order_views(
             [(row[0], row[1], row[2]) for row in rows],
             include_contact_store=False,
         )
         return AdminOrderList(
             items=[
-                _admin_order_summary(view, row[3])
+                _admin_order_summary(view, row[3], allocations.get(row[0].id, {}))
                 for view, row in zip(order_views, rows, strict=True)
-            ]
+            ],
+            next_cursor=(
+                self.cursor.encode(
+                    filter_key=filter_key,
+                    values=(rows[-1][0].created_at.isoformat(), str(rows[-1][0].id)),
+                )
+                if rows and has_more
+                else None
+            ),
         )
 
     async def admin_detail(self, access: AdminAccess, order_no: str) -> AdminOrderDetail:
@@ -490,8 +515,9 @@ class OrderService:
                 include_contact_store=False,
             )
         )[0]
+        allocations = await self.repository.shipment_allocations([order.id])
         return AdminOrderDetail(
-            **_admin_order_summary(view, user).model_dump(),
+            **_admin_order_summary(view, user, allocations.get(order.id, {})).model_dump(),
             events=[_event_view(event) for event in await self.repository.order_events(order.id)],
         )
 
@@ -1515,7 +1541,9 @@ def _item_view(
     )
 
 
-def _admin_order_summary(view: OrderListItem, user: User) -> AdminOrderSummary:
+def _admin_order_summary(
+    view: OrderListItem, user: User, allocations: dict[str, int]
+) -> AdminOrderSummary:
     actions: list[str] = []
     if view.order_status == "pending_payment" and view.payment_status == "unpaid":
         actions.extend(("adjust_amount", "cancel"))
@@ -1530,6 +1558,15 @@ def _admin_order_summary(view: OrderListItem, user: User) -> AdminOrderSummary:
         order=view,
         user_id=user.user_no,
         user_name_masked=_mask_username(user.username),
+        shippable_quantities={
+            item.order_item_id: max(
+                0,
+                item.quantity
+                - item.refunded_quantity
+                - allocations.get(item.order_item_id, 0),
+            )
+            for item in view.items
+        },
         available_admin_actions=cast(Any, actions),
     )
 

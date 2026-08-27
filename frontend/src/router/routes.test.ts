@@ -60,12 +60,13 @@ describe('phase two route contract', () => {
   it('keeps the merchant portal isolated from platform administration', () => {
     const expected = new Map([
       ['/merchant', 'MCH-AUTH-01'],
-      ['/merchant/reauthenticate', 'MCH-AUTH-03'],
       ['/merchant/dashboard', 'MCH-DASH-01'],
       ['/merchant/products', 'MCH-PRODUCT-LIST-01'],
       ['/merchant/products/new', 'MCH-PRODUCT-NEW-01'],
       ['/merchant/products/:productId', 'MCH-PRODUCT-EDIT-01'],
       ['/merchant/orders', 'MCH-ORDER-01'],
+      ['/merchant/after-sales', 'MCH-REFUND-LIST-01'],
+      ['/merchant/after-sales/:refundId', 'MCH-REFUND-01'],
       ['/merchant/inventory', 'MCH-INVENTORY-01'],
       ['/merchant/support', 'MCH-SUPPORT-LIST-01'],
       ['/merchant/support/:ticketId', 'MCH-SUPPORT-01'],

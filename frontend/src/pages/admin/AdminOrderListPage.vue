@@ -11,15 +11,32 @@ import { useAdminAuthStore } from '@/stores/admin-auth'
 const auth = useAdminAuthStore()
 const items = ref<AdminOrderSummary[]>([])
 const loading = ref(true)
+const loadingMore = ref(false)
+const nextCursor = ref<string | null>(null)
 const error = ref('')
 const filters = reactive({ q: '', order_status: '', payment_status: '', fulfillment_status: '', after_sale_status: '' })
 
 async function load() {
   loading.value = true
   error.value = ''
-  try { items.value = (await listAdminOrders(filters, auth.accessToken!)).data.items }
+  try {
+    const response = await listAdminOrders(filters, auth.accessToken!)
+    items.value = response.data.items
+    nextCursor.value = response.data.next_cursor
+  }
   catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
+}
+
+async function loadMore() {
+  if (!nextCursor.value || loadingMore.value) return
+  loadingMore.value = true; error.value = ''
+  try {
+    const response = await listAdminOrders(filters, auth.accessToken!, nextCursor.value)
+    items.value.push(...response.data.items)
+    nextCursor.value = response.data.next_cursor
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { loadingMore.value = false }
 }
 
 function dateTime(value: string): string {
@@ -50,7 +67,7 @@ onMounted(load)
           <td>{{ dateTime(item.order.created_at) }}</td>
           <td><RouterLink :to="`/admin/orders/${item.order.order_id}`">查看详情</RouterLink></td>
         </tr>
-      </tbody></table></div>
+      </tbody></table></div><button v-if="nextCursor" type="button" class="secondary" :disabled="loadingMore" @click="loadMore">{{ loadingMore ? '正在加载…' : '加载更多订单' }}</button>
     </PageState>
   </section>
 </template>

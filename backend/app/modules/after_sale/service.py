@@ -16,6 +16,7 @@ from app.core.context import request_id_context
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
+from app.core.pagination import CursorCodec
 from app.core.security import SecurityService, utc_now
 from app.modules.after_sale.models import (
     RefundAppeal,
@@ -72,6 +73,7 @@ class AfterSaleService:
         self.security = security
         self.repository = AfterSaleRepository(session)
         self.idempotency = IdempotencyService(session)
+        self.cursor = CursorCodec(settings.security_hmac_secret.get_secret_value())
 
     async def eligibility(
         self, user: User, payload: RefundEligibilityRequest
@@ -446,9 +448,27 @@ class AfterSaleService:
         await self.session.commit()
         return result
 
-    async def admin_list(self, access: AdminAccess, limit: int) -> AdminRefundList:
-        rows = await self.repository.admin_applications(limit, access.scopes)
-        return AdminRefundList(items=await self._views(rows))
+    async def admin_list(
+        self, access: AdminAccess, limit: int, cursor: str | None
+    ) -> AdminRefundList:
+        filter_key = json.dumps(
+            {"scopes": access.scopes}, separators=(",", ":"), sort_keys=True
+        )
+        position = self.cursor.decode(cursor, filter_key=filter_key)
+        rows, has_more = await self.repository.admin_applications(
+            limit, access.scopes, position
+        )
+        return AdminRefundList(
+            items=await self._views(rows),
+            next_cursor=(
+                self.cursor.encode(
+                    filter_key=filter_key,
+                    values=(rows[-1].created_at.isoformat(), str(rows[-1].id)),
+                )
+                if rows and has_more
+                else None
+            ),
+        )
 
     async def admin_appeal_list(self, access: AdminAccess, limit: int) -> AdminRefundAppealList:
         if ("platform", 0) not in access.scopes:

@@ -215,11 +215,13 @@ class AdminOrderSummary(StrictRequest):
     order: OrderListItem
     user_id: str
     user_name_masked: str
+    shippable_quantities: dict[str, int]
     available_admin_actions: list[Literal["adjust_amount", "cancel", "create_shipment"]]
 
 
 class AdminOrderList(StrictRequest):
     items: list[AdminOrderSummary]
+    next_cursor: str | None = None
 
 
 class AdminOrderDetail(AdminOrderSummary):

@@ -120,6 +120,7 @@ export interface AdminOrderSummary {
   order: OrderSummary
   user_id: string
   user_name_masked: string
+  shippable_quantities: Record<string, number>
   available_admin_actions: Array<'adjust_amount' | 'cancel' | 'create_shipment'>
 }
 export interface AdminOrderDetail extends AdminOrderSummary { events: OrderEvent[] }
@@ -162,9 +163,10 @@ export function repurchaseOrder(orderId: string, cartVersion: number, token: str
   return apiRequest(`/orders/${encodeURIComponent(orderId)}/repurchases`, { method: 'POST', headers: { 'If-Match': `"v${cartVersion}"`, 'Idempotency-Key': createIdempotencyKey('order-repurchase') } }, token)
 }
 
-export function listAdminOrders(filters: Record<string, string>, token: string): Promise<ApiResult<{ items: AdminOrderSummary[] }>> {
+export function listAdminOrders(filters: Record<string, string>, token: string, cursor?: string): Promise<ApiResult<{ items: AdminOrderSummary[]; next_cursor: string | null }>> {
   const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value))
   query.set('limit', '100')
+  if (cursor) query.set('cursor', cursor)
   return apiRequest(`/admin/orders?${query.toString()}`, {}, token)
 }
 

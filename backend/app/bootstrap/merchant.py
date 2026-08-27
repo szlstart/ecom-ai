@@ -30,6 +30,7 @@ STORE_OPERATOR_PERMISSIONS = (
     "shipments:read",
     "shipments:create",
     "refunds:read",
+    "refunds:review",
     "reviews:read",
     "reviews:reply",
     "support:queue_read",

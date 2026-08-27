@@ -121,6 +121,7 @@ class RefundApplicationList(StrictRequest):
 
 class AdminRefundList(StrictRequest):
     items: list[RefundApplicationView]
+    next_cursor: str | None = None
 
 
 class RefundEventView(StrictRequest):

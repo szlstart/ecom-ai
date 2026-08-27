@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.pagination import CursorPosition
 from app.modules.after_sale.models import (
     RefundAppeal,
     RefundAppealEvent,
@@ -134,22 +136,39 @@ class AfterSaleRepository:
         self,
         limit: int,
         scopes: Sequence[tuple[str, int]],
-    ) -> list[RefundApplication]:
+        position: CursorPosition | None,
+    ) -> tuple[list[RefundApplication], bool]:
         statement = select(RefundApplication)
         if ("platform", 0) not in scopes:
             store_ids = [scope_id for scope_type, scope_id in scopes if scope_type == "store"]
             if not store_ids:
-                return []
+                return [], False
             statement = statement.where(RefundApplication.store_id.in_(store_ids))
-        return list(
+        if position is not None:
+            if position.direction != "next" or len(position.values) != 2:
+                raise ValueError("unsupported refund cursor")
+            created_at = datetime.fromisoformat(position.values[0])
+            refund_id = int(position.values[1])
+            statement = statement.where(
+                or_(
+                    RefundApplication.created_at < created_at,
+                    and_(
+                        RefundApplication.created_at == created_at,
+                        RefundApplication.id < refund_id,
+                    ),
+                )
+            )
+        rows = list(
             (
                 await self.session.scalars(
                     statement.order_by(
                         RefundApplication.created_at.desc(), RefundApplication.id.desc()
-                    ).limit(limit)
+                    ).limit(limit + 1)
                 )
             ).all()
         )
+        has_more = len(rows) > limit
+        return rows[:limit], has_more
 
     async def admin_appeals(self, limit: int) -> list[tuple[RefundAppeal, RefundApplication]]:
         rows = (

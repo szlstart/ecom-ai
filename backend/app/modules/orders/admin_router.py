@@ -27,6 +27,7 @@ async def list_orders(
     payment_status: Annotated[str | None, Query(max_length=32)] = None,
     fulfillment_status: Annotated[str | None, Query(max_length=32)] = None,
     after_sale_status: Annotated[str | None, Query(max_length=32)] = None,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> Envelope[AdminOrderList]:
     result = await service.admin_list(
@@ -36,6 +37,7 @@ async def list_orders(
         payment_status=payment_status,
         fulfillment_status=fulfillment_status,
         after_sale_status=after_sale_status,
+        cursor=cursor,
         limit=limit,
     )
     _no_store(response)

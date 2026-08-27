@@ -13,8 +13,10 @@ export function isApprovalRequired(value: RefundApplication | RefundAppeal | App
   return 'command_status' in value && value.command_status === 'approval_required'
 }
 
-export function listAdminRefunds(token: string): Promise<ApiResult<{ items: RefundApplication[] }>> {
-  return apiRequest('/admin/refund-applications', {}, token)
+export function listAdminRefunds(token: string, cursor?: string): Promise<ApiResult<{ items: RefundApplication[]; next_cursor: string | null }>> {
+  const query = new URLSearchParams({ limit: '100' })
+  if (cursor) query.set('cursor', cursor)
+  return apiRequest(`/admin/refund-applications?${query.toString()}`, {}, token)
 }
 
 export function getAdminRefund(refundId: string, token: string): Promise<ApiResult<RefundApplication>> {
@@ -22,13 +24,13 @@ export function getAdminRefund(refundId: string, token: string): Promise<ApiResu
 }
 
 export function claimAdminRefund(refundId: string, etag: string, token: string): Promise<ApiResult<RefundApplication>> {
-  return apiRequest(`/admin/refund-applications/${encodeURIComponent(refundId)}/claims`, { method: 'POST', headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey('refund-claim') } }, token)
+  return apiRequest(`/admin/refund-applications/${encodeURIComponent(refundId)}/claims`, { method: 'POST', headers: { 'If-Match': etag, 'Idempotency-Key': `refund-claim:${refundId}:${etag}` } }, token)
 }
 
 export function decideAdminRefund(refundId: string, etag: string, decision: 'approve' | 'reject', reasonCode: string, reason: string, token: string): Promise<ApiResult<RefundApplication | ApprovalRequired>> {
   return apiRequest(`/admin/refund-applications/${encodeURIComponent(refundId)}/decisions`, {
     method: 'POST',
-    headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey('refund-decision') },
+    headers: { 'If-Match': etag, 'Idempotency-Key': `refund-decision:${refundId}:${etag}:${decision}` },
     body: JSON.stringify({ decision, reason_code: reasonCode, reason }),
   }, token)
 }

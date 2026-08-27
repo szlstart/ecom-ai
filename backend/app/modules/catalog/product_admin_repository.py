@@ -109,6 +109,7 @@ class ProductAdminRepository:
             await self.session.execute(
                 select(ProductImage.product_id, FileObject.file_no)
                 .join(FileObject, FileObject.id == ProductImage.file_id)
+                .join(Product, Product.id == ProductImage.product_id)
                 .where(
                     ProductImage.product_id.in_(product_ids),
                     ProductImage.image_type == "spec",
@@ -116,7 +117,7 @@ class ProductAdminRepository:
                 )
                 .order_by(
                     ProductImage.product_id,
-                    ProductImage.sku_id,
+                    case((ProductImage.sku_id == Product.default_sku_id, 0), else_=1),
                     ProductImage.sort_order,
                     ProductImage.id,
                 )

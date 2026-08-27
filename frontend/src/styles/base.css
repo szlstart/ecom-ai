@@ -568,6 +568,11 @@ tr.selected td { background: #f0f4ff; }
 .merchant-order-lines img { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; }
 .merchant-order-lines span { display: grid; gap: 4px; }
 .merchant-after-sale-chip { padding: 7px 11px; color: #a33a2d; border-radius: 999px; background: #fff0ed; font-size: .85rem; font-weight: 750; }
+.merchant-after-sale-link { color: inherit; text-decoration: none; }
+.merchant-after-sale-link:hover { border-color: #d68c80; transform: translateY(-1px); }
+.merchant-refund-line { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #eee5d9; }
+.merchant-refund-decision { display: grid; gap: 14px; }
+.merchant-load-more { justify-self: center; margin: 8px auto; }
 .merchant-shipment-dialog { width: min(680px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 26px; display: grid; gap: 18px; overflow: auto; border-radius: 20px; background: #fff; box-shadow: 0 28px 90px rgb(13 48 36 / 28%); }
 .merchant-shipment-dialog > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .merchant-shipment-dialog fieldset { max-height: 250px; overflow: auto; }

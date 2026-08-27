@@ -5690,6 +5690,10 @@ export interface components {
             user_id: string;
             /** User Name Masked */
             user_name_masked: string;
+            /** Shippable Quantities */
+            shippable_quantities: {
+                [key: string]: number;
+            };
             /** Available Admin Actions */
             available_admin_actions: ("adjust_amount" | "cancel" | "create_shipment")[];
             /** Events */
@@ -5699,6 +5703,8 @@ export interface components {
         AdminOrderList: {
             /** Items */
             items: components["schemas"]["AdminOrderSummary"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** AdminOrderSummary */
         AdminOrderSummary: {
@@ -5707,6 +5713,10 @@ export interface components {
             user_id: string;
             /** User Name Masked */
             user_name_masked: string;
+            /** Shippable Quantities */
+            shippable_quantities: {
+                [key: string]: number;
+            };
             /** Available Admin Actions */
             available_admin_actions: ("adjust_amount" | "cancel" | "create_shipment")[];
         };
@@ -6144,6 +6154,8 @@ export interface components {
         AdminRefundList: {
             /** Items */
             items: components["schemas"]["RefundApplicationView"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
         };
         /** AdminReviewGovernanceView */
         AdminReviewGovernanceView: {
@@ -15808,6 +15820,7 @@ export interface operations {
     AdminRefund_List: {
         parameters: {
             query?: {
+                cursor?: string | null;
                 limit?: number;
             };
             header?: never;
@@ -18422,6 +18435,7 @@ export interface operations {
                 payment_status?: string | null;
                 fulfillment_status?: string | null;
                 after_sale_status?: string | null;
+                cursor?: string | null;
                 limit?: number;
             };
             header?: never;

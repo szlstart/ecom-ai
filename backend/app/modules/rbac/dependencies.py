@@ -36,6 +36,11 @@ def requires_recent_auth_for_session(policy_requires_recent_auth: bool, client_t
     return policy_requires_recent_auth and client_type != "merchant"
 
 
+def requires_mfa_for_session(policy_requires_mfa: bool, client_type: str) -> bool:
+    """The password-only merchant portal has no MFA step-up route by product design."""
+    return policy_requires_mfa and client_type != "merchant"
+
+
 def require_admin_permission(permission_code: str) -> object:
     return require_any_admin_permission(permission_code)
 
@@ -66,7 +71,9 @@ def require_any_admin_permission(*permission_codes: str) -> object:
                 detail=f"当前管理身份缺少所需权限: {'、'.join(permission_codes)}。",
             )
         permission = matching[0][0]
-        if permission.requires_mfa and context.session.assurance_level not in {
+        if requires_mfa_for_session(
+            permission.requires_mfa, context.session.client_type
+        ) and context.session.assurance_level not in {
             "aal2",
             "aal3",
             "password_admin",

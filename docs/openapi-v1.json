@@ -6095,12 +6095,14 @@
           "stores:read",
           "orders:read",
           "shipments:create",
+          "refunds:read",
           "store_scope",
           "stores:manage",
           "store_owner"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
+          "ADM-REFUND-*",
           "ADM-SHIP-CREATE-*",
           "ADM-STORE-*",
           "FILE-UPLOAD-*",
@@ -9219,6 +9221,23 @@
         ],
         "parameters": [
           {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -9278,13 +9297,26 @@
           "refunds:read"
         ],
         "x-requirement-id": [
-          "ADM-REFUND-LIST-01"
+          "ADM-REFUND-LIST-01",
+          "MCH-ORDER-01",
+          "MCH-REFUND-LIST-01"
         ],
         "x-scope-policy": [
-          "refunds:read"
+          "stores:read",
+          "orders:read",
+          "shipments:create",
+          "refunds:read",
+          "store_scope"
         ],
         "x-test-case-ids": [
-          "ADM-REFUND-*"
+          "ADM-ORDER-*",
+          "ADM-REFUND-*",
+          "ADM-SHIP-CREATE-*",
+          "FINANCE-*",
+          "MCH-ORDER-*",
+          "MCH-PORTAL-*",
+          "ORDER-AUTO-CONFIRM-*",
+          "ORDER-DOMAIN-*"
         ]
       }
     },
@@ -9788,14 +9820,17 @@
           "refunds:read"
         ],
         "x-requirement-id": [
-          "ADM-REFUND-01"
+          "ADM-REFUND-01",
+          "MCH-REFUND-01"
         ],
         "x-scope-policy": [
           "refunds:read",
-          "refunds:review"
+          "refunds:review",
+          "store_scope"
         ],
         "x-test-case-ids": [
-          "ADM-REFUND-*"
+          "ADM-REFUND-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -9908,14 +9943,17 @@
           "refunds:review"
         ],
         "x-requirement-id": [
-          "ADM-REFUND-01"
+          "ADM-REFUND-01",
+          "MCH-REFUND-01"
         ],
         "x-scope-policy": [
           "refunds:read",
-          "refunds:review"
+          "refunds:review",
+          "store_scope"
         ],
         "x-test-case-ids": [
-          "ADM-REFUND-*"
+          "ADM-REFUND-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -10048,14 +10086,17 @@
           "refunds:review"
         ],
         "x-requirement-id": [
-          "ADM-REFUND-01"
+          "ADM-REFUND-01",
+          "MCH-REFUND-01"
         ],
         "x-scope-policy": [
           "refunds:read",
-          "refunds:review"
+          "refunds:review",
+          "store_scope"
         ],
         "x-test-case-ids": [
-          "ADM-REFUND-*"
+          "ADM-REFUND-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -15895,6 +15936,23 @@
             }
           },
           {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2048
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -15961,10 +16019,12 @@
           "stores:read",
           "orders:read",
           "shipments:create",
+          "refunds:read",
           "store_scope"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
+          "ADM-REFUND-*",
           "ADM-SHIP-CREATE-*",
           "FINANCE-*",
           "MCH-ORDER-*",
@@ -16054,12 +16114,14 @@
           "stores:read",
           "orders:read",
           "shipments:create",
+          "refunds:read",
           "store_scope",
           "orders:adjust",
           "orders:cancel"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
+          "ADM-REFUND-*",
           "ADM-SHIP-CREATE-*",
           "FINANCE-*",
           "MCH-ORDER-*",
@@ -20234,12 +20296,14 @@
           "stores:read",
           "orders:read",
           "shipments:create",
+          "refunds:read",
           "store_scope",
           "orders:adjust",
           "orders:cancel"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
+          "ADM-REFUND-*",
           "ADM-SHIP-CREATE-*",
           "FINANCE-*",
           "MCH-ORDER-*",
@@ -26012,12 +26076,14 @@
           "reviews:reply",
           "orders:read",
           "shipments:create",
+          "refunds:read",
           "store_owner"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-ORDER-*",
           "ADM-PRODUCT-*",
+          "ADM-REFUND-*",
           "ADM-REVIEW-*",
           "ADM-SHIP-CREATE-*",
           "ADM-STORE-*",
@@ -30169,14 +30235,14 @@
         "x-domain-command": "MerchantAuth_Reauthenticate",
         "x-idempotency-policy": "rate_limited_security_command_no_automatic_retry",
         "x-owner-kind": [
-          "vue_route"
+          "internal_only"
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "MCH-AUTH-03"
+          "MCH-AUTH-COMPAT-01"
         ],
         "x-scope-policy": [
-          "store_operator_with_store_scope"
+          "merchant_session"
         ],
         "x-test-case-ids": [
           "MCH-PORTAL-*"
@@ -35569,6 +35635,13 @@
             "type": "string",
             "title": "User Name Masked"
           },
+          "shippable_quantities": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Shippable Quantities"
+          },
           "available_admin_actions": {
             "items": {
               "type": "string",
@@ -35595,6 +35668,7 @@
           "order",
           "user_id",
           "user_name_masked",
+          "shippable_quantities",
           "available_admin_actions",
           "events"
         ],
@@ -35608,6 +35682,17 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
         "additionalProperties": false,
@@ -35630,6 +35715,13 @@
             "type": "string",
             "title": "User Name Masked"
           },
+          "shippable_quantities": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Shippable Quantities"
+          },
           "available_admin_actions": {
             "items": {
               "type": "string",
@@ -35649,6 +35741,7 @@
           "order",
           "user_id",
           "user_name_masked",
+          "shippable_quantities",
           "available_admin_actions"
         ],
         "title": "AdminOrderSummary"
@@ -36940,6 +37033,17 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
           }
         },
         "additionalProperties": false,

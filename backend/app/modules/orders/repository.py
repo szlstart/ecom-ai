@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import cast
 
-from sqlalchemy import Select, case, exists, func, or_, select, tuple_
+from sqlalchemy import Select, and_, case, exists, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.pagination import CursorPosition
@@ -14,7 +14,7 @@ from app.modules.catalog.models import Product, ProductImage, ProductSku
 from app.modules.files.models import FileObject
 from app.modules.identity.models import User
 from app.modules.inventory.models import Inventory, InventoryReservation
-from app.modules.logistics.models import Shipment
+from app.modules.logistics.models import Shipment, ShipmentItem
 from app.modules.orders.models import Order, OrderAddress, OrderItem, OrderStatusLog, TradeOrder
 from app.modules.stores.models import Store
 
@@ -150,8 +150,9 @@ class OrderRepository:
         payment_status: str | None,
         fulfillment_status: str | None,
         after_sale_status: str | None,
+        position: CursorPosition | None,
         limit: int,
-    ) -> list[tuple[Order, Store, TradeOrder, User]]:
+    ) -> tuple[list[tuple[Order, Store, TradeOrder, User]], bool]:
         statement = (
             select(Order, Store, TradeOrder, User)
             .join(Store, Store.id == Order.store_id)
@@ -161,7 +162,7 @@ class OrderRepository:
         if ("platform", 0) not in scopes:
             store_ids = [scope_id for scope_type, scope_id in scopes if scope_type == "store"]
             if not store_ids:
-                return []
+                return [], False
             statement = statement.where(Order.store_id.in_(store_ids))
         if query:
             pattern = f"%{query}%"
@@ -181,12 +182,54 @@ class OrderRepository:
             statement = statement.where(Order.fulfillment_status == fulfillment_status)
         if after_sale_status:
             statement = statement.where(Order.after_sale_status == after_sale_status)
+        if position is not None:
+            if position.direction != "next" or len(position.values) != 2:
+                raise ValueError("unsupported admin order cursor")
+            created_at = datetime.fromisoformat(position.values[0])
+            order_id = int(position.values[1])
+            statement = statement.where(
+                or_(
+                    Order.created_at < created_at,
+                    and_(Order.created_at == created_at, Order.id < order_id),
+                )
+            )
+        rows = list(
+            (
+                await self.session.execute(
+                    statement.order_by(Order.created_at.desc(), Order.id.desc()).limit(limit + 1)
+                )
+            ).all()
+        )
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        return [(row[0], row[1], row[2], row[3]) for row in rows], has_more
+
+    async def shipment_allocations(
+        self, order_ids: Sequence[int]
+    ) -> dict[int, dict[str, int]]:
+        """Return non-voided shipment quantities keyed by order and public order-item ID."""
+        if not order_ids:
+            return {}
         rows = (
             await self.session.execute(
-                statement.order_by(Order.created_at.desc(), Order.id.desc()).limit(limit)
+                select(
+                    OrderItem.order_id,
+                    OrderItem.order_item_no,
+                    func.coalesce(func.sum(ShipmentItem.quantity), 0),
+                )
+                .join(ShipmentItem, ShipmentItem.order_item_id == OrderItem.id)
+                .join(Shipment, Shipment.id == ShipmentItem.shipment_id)
+                .where(
+                    OrderItem.order_id.in_(order_ids),
+                    Shipment.shipment_status != "voided",
+                )
+                .group_by(OrderItem.order_id, OrderItem.order_item_no)
             )
         ).all()
-        return [(row[0], row[1], row[2], row[3]) for row in rows]
+        result: dict[int, dict[str, int]] = {}
+        for order_id, order_item_no, quantity in rows:
+            result.setdefault(order_id, {})[order_item_no] = int(quantity)
+        return result
 
     async def admin_order(
         self, order_no: str, *, for_update: bool = False

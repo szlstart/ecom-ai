@@ -25,7 +25,7 @@ interface UploadSession {
   bindable_file: FileVariant | null
 }
 
-const props = defineProps<{ purpose: string; businessContextId?: string | null; label?: string }>()
+const props = withDefaults(defineProps<{ purpose: string; businessContextId?: string | null; label?: string; disabled?: boolean }>(), { disabled: false })
 const emit = defineEmits<{ uploaded: [fileId: string]; busyChanged: [busy: boolean] }>()
 const auth = useAdminAuthStore()
 const policy = ref<UploadPolicy | null>(null)
@@ -36,6 +36,7 @@ const error = ref('')
 const accept = computed(() => policy.value?.allowed_mime_types.join(',') || undefined)
 
 async function choose(event: Event) {
+  if (props.disabled) return
   selected.value = (event.target as HTMLInputElement).files?.[0] ?? null
   error.value = ''
   if (!policy.value) {
@@ -50,7 +51,7 @@ async function loadPolicy() {
 }
 
 async function upload(throwOnError = false) {
-  if (!selected.value || !auth.accessToken) return
+  if (!selected.value || !auth.accessToken || props.disabled) return
   busy.value = true; emit('busyChanged', true); error.value = ''; status.value = '正在计算文件校验值…'
   try {
     const sha256 = await digest(selected.value)
@@ -84,7 +85,7 @@ async function upload(throwOnError = false) {
 }
 
 async function uploadFile(file: File) {
-  if (busy.value) throw new Error('当前文件正在处理中，请稍候。')
+  if (busy.value || props.disabled) throw new Error('当前编辑区正在处理中，请稍候。')
   selected.value = file
   await upload(true)
 }
@@ -111,8 +112,8 @@ defineExpose({ uploadFile })
 
 <template>
   <div class="file-upload-control">
-    <label>{{ label || '上传文件' }}<input type="file" :accept="accept" :disabled="busy" @change="choose" /></label>
-    <button type="button" class="secondary small" :disabled="!selected || busy" @click="upload(false)">{{ busy ? '处理中…' : '上传并扫描' }}</button>
+    <label>{{ label || '上传文件' }}<input type="file" :accept="accept" :disabled="busy || disabled" @change="choose" /></label>
+    <button type="button" class="secondary small" :disabled="!selected || busy || disabled" @click="upload(false)">{{ busy ? '处理中…' : '上传并扫描' }}</button>
     <small v-if="status" class="success-text" aria-live="polite">{{ status }}</small>
     <small v-if="error" class="error-text" role="alert">{{ error }}</small>
   </div>

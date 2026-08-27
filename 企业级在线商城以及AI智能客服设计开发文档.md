@@ -2796,11 +2796,11 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 页面 | Vue Route / Component | 主要能力 | Permission / Scope |
 | :--- | :--- | :--- | :--- |
 | 商家登录与注册 | `/merchant` / `MerchantLoginPage.vue` | 页签切换登录/注册；注册填写唯一用户名、密码和唯一店铺名，成功后直接进入商品工作台；`/merchant/login` 仅兼容跳转 | 匿名创建纯 `store_operator` + Store Scope；拒绝消费者/平台身份混用 |
-| 兼容密码确认入口 | `/merchant/reauthenticate` / `MerchantReauthenticatePage.vue` | 仅保留兼容能力，不作为店铺资料、商品、款式、库存、评价或客服操作的前置步骤，商家界面不自动跳转到此页 | 当前 Merchant Session |
 | 工作台 | `/merchant/dashboard` / `MerchantDashboardPage.vue` | 在售/待完善商品、待处理咨询、待回复评价；可直接修改当前店铺名称 | `stores:read/manage` + Store；不授予平台仪表盘权限 |
 | 商品列表 | `/merchant/products` / `MerchantProductListPage.vue` | 按名称和状态筛选本店商品 | `products:read` + Store |
 | 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 商品名称、款式价格库存、图片、参数、发货地、详情、FAQ、评价回复、提交审核、上架/下架 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
-| 我的订单 | `/merchant/orders` / `MerchantOrderListPage.vue` | 总/今日/昨日/近 30 日收益，订单状态分段、售后待处理自动刷新和创建包裹发货 | `orders:read`、`shipments:create`、`refunds:read` + Store |
+| 我的订单 | `/merchant/orders` / `MerchantOrderListPage.vue` | 总/今日/昨日/近 30 日收益，订单状态分段、游标加载全部历史订单、售后入口和按剩余可发数量创建包裹 | `orders:read`、`shipments:create`、`refunds:read` + Store |
+| 售后处理 | `/merchant/after-sales`、`/merchant/after-sales/:refundId` / `MerchantAfterSaleListPage.vue`、`MerchantAfterSaleDetailPage.vue` | 查看本店售后、领取申请、批准或拒绝；大额退款自动进入平台复核 | `refunds:read/review` + Store；金额审批规则不放宽 |
 | 库存 | `/merchant/inventory` / `AdminInventoryPage.vue(portal=merchant)` | 本店 SKU 库存查询和有据可查的增减调整 | `inventories:read/adjust` + Store |
 | 客户咨询 | `/merchant/support`、`/merchant/support/:ticketId` / `MerchantSupportListPage.vue`、`AdminSupportWorkspacePage.vue(portal=merchant)` | 店铺人工工单领取、回复、等待、恢复和解决 | `support:*` + Store Queue |
 | 评价回复 | `/merchant/reviews`、`/merchant/reviews/:reviewId` / `MerchantReview*Page.vue` | 查看本店已发布评价、发布一次商家回复 | `reviews:read/reply` + Store |
@@ -2861,7 +2861,8 @@ SKU 价格在商家界面使用元，提交时转换为整数分。首版商家�
 | :--- | :--- | :--- | :--- |
 | 商品工作台 | `/merchant/products`、兼容 `/merchant/dashboard` / `MerchantProductListPage.vue` | 店铺式商品卡片、仅“全部”首张新增卡片、悬浮编辑/删除、搜索与中文状态分段 | `stores:read`、`products:read/update` + Store |
 | 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 顾客商品详情同构布局内就地编辑商品、款式、库存、FAQ，并查看/回复本商品评价 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
-| 我的订单 | `/merchant/orders` / `MerchantOrderListPage.vue` | 确认收货口径收益、订单状态分段、待处理售后和创建包裹发货；可见时每 15 秒静默刷新 | `orders:read`、`shipments:create`、`refunds:read` + Store |
+| 我的订单 | `/merchant/orders` / `MerchantOrderListPage.vue` | 确认收货口径收益、订单状态分段、游标加载更多、售后详情入口和按剩余数量创建包裹；可见时每 15 秒静默刷新 | `orders:read`、`shipments:create`、`refunds:read` + Store |
+| 售后处理 | `/merchant/after-sales`、`/merchant/after-sales/:refundId` | 本店申请列表、领取、批准或拒绝；大额批准进入平台复核 | `refunds:read/review` + Store |
 | 顶栏消息中心 | `MerchantMessageCenter.vue` | 置顶平台专属客服、顾客咨询列表和回复；真实未读总数/分会话角标、实时更新、断线轮询与轻微新消息抖动 | Conversation Owner、`support:*` + Store Queue |
 | 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、营业额、商家账号注销和用户端预览；店名可随时修改且全局唯一 | `stores:read/manage` + Store Owner |
 | 兼容高级路由 | `/merchant/inventory`、`/merchant/reviews/*`、`/merchant/support/*` | 保留历史深链，不在一级导航展示 | `inventories:*`、`reviews:*`、`support:*` + Store/Queue |
@@ -9544,13 +9545,13 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 商家置顶“专属客服”使用 `/merchant/support/exclusive-conversation*` 薄 Facade，提供固定会话创建/读取、消息列表、消息发送、`PUT /merchant/support/exclusive-conversation/read-cursor` 已读位点推进和平台人工工单建立；Facade 内部继续调用统一 Messaging Service 与 Human Service Ticket 状态机，不复制消息表或领域服务。端点只接受 `client_type=merchant` 的 Merchant Context；消费者、平台管理员和其他商家身份均拒绝。消息用 `client_message_id` 去重，Read Cursor 只能单调前进，人工工单用 Idempotency-Key 建立或复用有效 Platform Queue Ticket；平台支持人员仍通过既有 `/support/*` 工作台回复。商家读取顾客会话后使用 `PUT /support/conversations/{conversation_id}/read-cursor` 推进当前客服主体的已读位点，两个入口共同驱动商家顶栏和左栏真实未读数。
 
-商家中心首版不复制一套领域实现。匿名准入使用专用 `/merchant/auth/registrations` 与 `/merchant/auth/login`，会话续期和退出使用 `/merchant/auth/token-refresh`、`/merchant/auth/logout` 与兼容的 `/merchant/auth/reauthentications` Facade，以实现原子注册、密码直登、独立 Cookie Namespace、商家身份限制和 Store Scope 服务端校验；登录后的店铺、商品、库存、评价与客服能力仍复用 `/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API。Token 必须来自 `client_type=merchant` 会话并关联 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。除身份准入确有差异外，不为商家复制领域 Service；后续新增 `/merchant/*` Facade 也必须调用相同 Domain Service 和授权组件。
+商家中心首版不复制一套领域实现。匿名准入使用专用 `/merchant/auth/registrations` 与 `/merchant/auth/login`，会话续期和退出使用 `/merchant/auth/token-refresh`、`/merchant/auth/logout`，以实现原子注册、密码直登、独立 Cookie Namespace、商家身份限制和 Store Scope 服务端校验；`/merchant/reauthenticate` 仅兼容重定向到商品工作台，不再提供密码确认页面。登录后的店铺、商品、库存、订单、售后、评价与客服能力仍复用受控领域 API。Token 必须来自 `client_type=merchant` 会话并关联 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。除身份准入确有差异外，不为商家复制领域 Service；后续新增 `/merchant/*` Facade 也必须调用相同 Domain Service 和授权组件。
 
 `store_operator` 的 RolePermission 属于全局安全配置，不能归属于某个可注销商家。注册服务发现固定权限绑定缺失时，只能使用当前有效 Platform Super Admin 作为审计授予人补齐白名单；没有平台管理员则返回 503，不能把新商家设为全局权限授予人。账号物理注销的外键图必须排除 `role_permissions.granted_by` 的所有权级联；若被注销账号历史上仍是授予人，先把审计授予人受控移交给另一名有效 Platform Super Admin，否则阻断注销，严禁删除全局 RolePermission。
 
-`store_operator` 首版权限集合固定为：`stores:read/manage`、`store_policies:read/create/update/publish`、`products:read/create/update/publish`、`inventories:read/adjust`、`reviews:read/reply`、`support:queue_read/claim/reply/wait/resume/resolve`。明确排除平台仪表盘 `dashboard:read`、`products:review`、`reviews:moderate`、跨店/平台权限、客服转派与内部高敏备注。角色 Permission Binding 只能由服务端种子预置；自助注册只引用既有 `store_operator` 角色并固定创建当前 Store Scope Grant，请求 Schema 不接受 Role、Permission 或 Scope，因此商家不能自行选权或扩权。本地仍可用 `merchant-bootstrap` 建立开发账号。
+`store_operator` 首版权限集合固定为：`stores:read/manage`、`store_policies:read/create/update/publish`、`products:read/create/update/publish`、`inventories:read/adjust`、`orders:read`、`shipments:read/create`、`refunds:read/review`、`reviews:read/reply`、`support:queue_read/claim/reply/wait/resume/resolve`。退款审核仍受 Store Scope、领取人、ETag、幂等、状态机、金额阈值和平台复核约束。明确排除平台仪表盘 `dashboard:read`、`products:review`、`reviews:moderate`、跨店/平台权限、客服转派与内部高敏备注。角色 Permission Binding 只能由服务端种子预置；自助注册只引用既有 `store_operator` 角色并固定创建当前 Store Scope Grant，请求 Schema 不接受 Role、Permission 或 Scope，因此商家不能自行选权或扩权。本地仍可用 `merchant-bootstrap` 建立开发账号。
 
-商家注册执行 `MerchantAuth_Register`，仅创建固定的纯商家身份；商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有普通用户或平台管理身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受纯 Platform Scope 管理身份并拒绝普通用户和店铺身份。用户登录同样只接受纯消费者身份。三条登录链路均为密码认证，但使用不同 Operation、Cookie Namespace、`aud/client_type` 和权限投影，不创建 MFA Challenge，也不得混用。Refresh、Bearer 请求与 WebSocket Principal 必须重新检查角色有效期和身份类别；类别不再匹配时撤销 Session Family。平台管理员超过近期认证窗口后仍按权限策略执行密码确认；Merchant Session 的店铺经营命令不执行密码 Step-up，兼容确认 Operation 不进入正常工作流。后续资源授权仍由 `require_admin_permission + AdminAccess.require_scope` 逐次执行，商家例外不放宽 Permission、Store Scope、MFA、幂等、ETag、业务规则和审计。测试必须覆盖商家注册唯一性、三入口全排列拒绝、Cookie 交叉刷新拒绝、混合角色 Fail Closed、Store Scope 列表过滤、跨店 404、缺权限 403、商家无密码 Step-up、平台近期认证和审计记录。
+商家注册执行 `MerchantAuth_Register`，仅创建固定的纯商家身份；商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有普通用户或平台管理身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受纯 Platform Scope 管理身份并拒绝普通用户和店铺身份。用户登录同样只接受纯消费者身份。三条登录链路均为密码认证，但使用不同 Operation、Cookie Namespace、`aud/client_type` 和权限投影，不创建 MFA Challenge，也不得混用。Refresh、Bearer 请求与 WebSocket Principal 必须重新检查角色有效期和身份类别；类别不再匹配时撤销 Session Family。平台管理员超过近期认证窗口后仍按权限策略执行密码确认；Merchant Session 的店铺经营命令不执行密码或 MFA Step-up，且不提供确认页面。后续资源授权仍由 `require_admin_permission + AdminAccess.require_scope` 逐次执行；商家例外不放宽 Permission、Store Scope、金额审批、幂等、ETag、业务规则和审计。测试必须覆盖商家注册唯一性、三入口全排列拒绝、Cookie 交叉刷新拒绝、混合角色 Fail Closed、Store Scope 列表过滤、跨店 404、缺权限 403、商家无 Step-up、平台近期认证和审计记录。
 
 ---
 

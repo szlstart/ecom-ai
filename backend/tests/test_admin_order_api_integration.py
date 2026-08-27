@@ -194,6 +194,7 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
         trade_id = trade.id
         order_id = order.id
         item_id = order_item.id
+        order_item_no = order_item.order_item_no
         inventory_id = inventory.id
 
     login = await client.post(
@@ -219,11 +220,16 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
 
     order_list = await client.get("/api/v1/admin/orders", headers=headers)
     assert order_list.status_code == 200, order_list.text
-    assert any(item["order"]["order_id"] == order_no for item in order_list.json()["data"]["items"])
+    assert "next_cursor" in order_list.json()["data"]
+    listed_order = next(
+        item for item in order_list.json()["data"]["items"] if item["order"]["order_id"] == order_no
+    )
+    assert listed_order["shippable_quantities"] == {order_item_no: 2}
 
     detail = await client.get(f"/api/v1/admin/orders/{order_no}", headers=headers)
     assert detail.status_code == 200, detail.text
     assert "address" not in detail.text
+    assert detail.json()["data"]["shippable_quantities"] == {order_item_no: 2}
     adjusted = await client.post(
         f"/api/v1/admin/orders/{order_no}/amount-adjustments",
         headers={

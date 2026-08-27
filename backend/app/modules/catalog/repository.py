@@ -4,7 +4,7 @@ from collections.abc import Callable, Sequence
 from datetime import datetime
 from typing import Any, cast
 
-from sqlalchemy import Select, func, or_, select, tuple_
+from sqlalchemy import Select, case, func, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -115,6 +115,7 @@ class CatalogRepository:
             await self.session.execute(
                 select(ProductImage, FileObject)
                 .join(FileObject, FileObject.id == ProductImage.file_id)
+                .join(Product, Product.id == ProductImage.product_id)
                 .where(
                     ProductImage.product_id.in_(product_ids),
                     ProductImage.sku_id.is_not(None),
@@ -123,7 +124,12 @@ class CatalogRepository:
                     FileObject.file_status == "active",
                     FileObject.scan_status == "safe",
                 )
-                .order_by(ProductImage.product_id, ProductImage.sort_order, ProductImage.id)
+                .order_by(
+                    ProductImage.product_id,
+                    case((ProductImage.sku_id == Product.default_sku_id, 0), else_=1),
+                    ProductImage.sort_order,
+                    ProductImage.id,
+                )
             )
         ).all()
         result: dict[int, tuple[ProductImage, FileObject]] = {}

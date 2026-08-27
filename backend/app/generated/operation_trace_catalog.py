@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "cd304609f1518caac0fff3b17a1b055c21b50bf07250243fd5a117d0c7a2e20d"
+SOURCE_SHA256 = "81196bafbf6458bbd1ae52a5ab2bbb4a6c6ddc8fb86dd72964bcd5aee347da39"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -1054,15 +1054,21 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
+            "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
-            "products:review",
             "products:publish",
+            "inventories:read",
+            "inventories:adjust",
+            "reviews:read",
+            "reviews:reply",
+            "products:review",
         ],
-        "x-test-case-ids": ["ADM-PRODUCT-*"],
+        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
     },
     "AdminProductSku_Create": {
         "x-audit-event": "command.AdminProductSku_Create",

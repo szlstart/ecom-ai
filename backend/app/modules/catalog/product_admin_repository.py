@@ -95,7 +95,10 @@ class ProductAdminRepository:
                     ),
                 )
                 .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
-                .where(ProductSku.product_id.in_(product_ids))
+                .where(
+                    ProductSku.product_id.in_(product_ids),
+                    ProductSku.sku_status == "active",
+                )
                 .group_by(ProductSku.product_id)
             )
         ).all()

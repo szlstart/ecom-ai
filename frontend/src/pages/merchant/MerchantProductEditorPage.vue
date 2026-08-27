@@ -48,6 +48,9 @@ const shippingTemplates = ref<AdminShippingTemplate[]>([])
 const loading = ref(true); const saving = ref(false); const error = ref(''); const notice = ref('')
 const selectedImage = ref(0); const selectedSkuId = ref(''); const skuEditing = ref<AdminSku | null>(null)
 const showSkuEditor = ref(false)
+const deletingSku = ref<AdminSku | null>(null)
+const skuDeleting = ref(false)
+const skuDeleteError = ref('')
 const skuNameInput = ref<HTMLInputElement | null>(null)
 const mainImageArea = ref<HTMLElement | null>(null)
 const imageUpload = ref<FileUploadHandle | null>(null)
@@ -75,10 +78,12 @@ const originProvinces = Object.entries(areaData['86'] ?? {})
   .map(([code, name]) => ({ code, name }))
 const originCities = computed<RegionOption[]>(() => Object.entries(areaData[originProvinceCode.value] ?? {}).map(([code, name]) => ({ code, name })))
 const flatCategories = computed(() => flatten(categories.value))
+const activeSkus = computed(() => skus.value.filter((item) => item.status === 'active'))
 const activeSku = computed(() => {
   if (showSkuEditor.value && !skuEditing.value) return null
-  return skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? skus.value[0] ?? null
+  return activeSkus.value.find((item) => item.sku_id === selectedSkuId.value) ?? activeSkus.value[0] ?? null
 })
+const deletingLastActiveSku = computed(() => product.value?.status === 'on_sale' && activeSkus.value.length <= 1)
 const activeImages = computed(() => {
   const skuId = activeSku.value?.sku_id
   const matching = images.value.filter((item) => item.sku_id === skuId)
@@ -135,8 +140,9 @@ async function load() {
     ])
     product.value = detailResult.data; skus.value = skuResult.data; images.value = imageResult.data; attributes.value = attributeResult.data; faqs.value = faqResult.data; inventories.value = inventoryResult.data.items; reviews.value = reviewResult.data.items
     Object.assign(basic, { store_id: product.value.store_id, category_id: product.value.category_id, brand_id: product.value.brand_id ?? '', product_name: product.value.product_name })
-    const firstSku = skus.value[0]
-    if (firstSku && !skus.value.some((item) => item.sku_id === selectedSkuId.value)) selectedSkuId.value = firstSku.sku_id
+    const firstSku = activeSkus.value[0]
+    if (firstSku && !activeSkus.value.some((item) => item.sku_id === selectedSkuId.value)) selectedSkuId.value = firstSku.sku_id
+    if (!firstSku) selectedSkuId.value = ''
     if (detailResult.data.current_detail_content_version_id) {
       content.value = (await adminGet<AdminContentVersion>(path(`/detail-content-versions/${encodeURIComponent(detailResult.data.current_detail_content_version_id)}`), token())).data.source_content
     }
@@ -173,6 +179,19 @@ function resetSku() { skuEditing.value = null; Object.assign(skuForm, { name: ''
 function closeSkuEditor() { resetSku(); showSkuEditor.value = false }
 async function startNewSku() { resetSku(); selectedSkuId.value = ''; showSkuEditor.value = true; await nextTick(); skuNameInput.value?.focus(); skuNameInput.value?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) }
 function editSku(item: AdminSku) { skuEditing.value = item; showSkuEditor.value = true; selectedSkuId.value = item.sku_id; Object.assign(skuForm, { name: item.sku_name, sale_price: item.sale_price, stock: inventoryFor(item.sku_id)?.on_hand_quantity ?? 0 }) }
+function beginSkuDelete(item: AdminSku) { deletingSku.value = item; skuDeleteError.value = '' }
+function closeSkuDelete() { if (!skuDeleting.value) { deletingSku.value = null; skuDeleteError.value = '' } }
+async function confirmSkuDelete() {
+  if (!deletingSku.value || deletingLastActiveSku.value) return
+  skuDeleting.value = true; skuDeleteError.value = ''; error.value = ''; notice.value = ''
+  try {
+    await adminCommand(path(`/skus/${encodeURIComponent(deletingSku.value.sku_id)}/status-changes`), { action: 'disable', reason_code: 'MERCHANT_STYLE_REMOVE', reason: '商家从商品编辑器删除款式；保留历史交易与审计记录。' }, token(), deletingSku.value.version, 'merchant-style-delete')
+    selectedSkuId.value = ''; closeSkuEditor(); deletingSku.value = null
+    await load()
+    notice.value = '款式已删除，不再向顾客展示；历史订单记录仍会保留。'
+  } catch (cause) { skuDeleteError.value = errorMessage(cause) }
+  finally { skuDeleting.value = false }
+}
 async function saveSku() {
   const styleName = skuForm.name.trim()
   const stock = Number(skuForm.stock)
@@ -347,12 +366,12 @@ onMounted(() => { resetSku(); void load() })
             <div ref="mainImageArea" class="merchant-main-image merchant-paste-image-zone" :class="{ focused: pasteFocused, busy: pasteBusy }" :tabindex="canEdit ? 0 : -1" :role="canEdit ? 'button' : undefined" :aria-label="canEdit ? '商品大图粘贴上传区，点击后按 Command 加 V 或 Control 加 V 粘贴图片' : undefined" @click="mainImageArea?.focus()" @focus="pasteFocused = true" @blur="pasteFocused = false" @paste="pasteImage"><img v-if="displayImage" :src="resolveApiAssetUrl(displayImage.image_url) || undefined" :alt="displayImage.alt_text || basic.product_name" /><div v-else><b>上传这件商品的第一张图片</b><p>第一张自动作为商品主图，后续图片可关联到具体款式。</p></div><span v-if="canEdit" class="merchant-paste-image-hint" aria-live="polite">{{ pasteBusy ? '正在读取、扫描并上传剪贴板图片…' : '点击大图后，按 Command + V（macOS）或 Ctrl + V（Windows）粘贴图片' }}</span></div>
             <p v-if="pasteNotice" class="success-text merchant-paste-feedback" role="status">{{ pasteNotice }}</p><p v-if="pasteError" class="error-text merchant-paste-feedback" role="alert">{{ pasteError }}</p>
             <div v-if="activeImages.length" class="merchant-thumbnails"><button v-for="(item, index) in activeImages" :key="`${item.file_id}-${index}`" type="button" :class="{ active: selectedImage === index }" @click="selectedImage = index"><img :src="resolveApiAssetUrl(item.image_url) || undefined" alt="" /></button></div>
-            <div v-if="canEdit" class="merchant-image-actions"><label>图片属于<select v-model="selectedSkuId"><option value="">全部款式</option><option v-for="sku in skus" :key="sku.sku_id" :value="sku.sku_id">{{ sku.sku_name }}</option></select></label><AdminFileUpload ref="imageUpload" purpose="product" :business-context-id="product.store_id" label="从本地选择图片" @uploaded="addImage" @busy-changed="uploadBusy = $event" /><small>上传或粘贴成功后会自动保存，无需再次确认。</small><div class="actions"><button v-if="displayImage" type="button" class="danger small" :disabled="editorBusy" @click="removeImage(selectedImage)">移除当前图片</button></div></div>
+            <div v-if="canEdit" class="merchant-image-actions"><label>图片属于<select v-model="selectedSkuId"><option value="">全部款式</option><option v-for="sku in activeSkus" :key="sku.sku_id" :value="sku.sku_id">{{ sku.sku_name }}</option></select></label><AdminFileUpload ref="imageUpload" purpose="product" :business-context-id="product.store_id" label="从本地选择图片" @uploaded="addImage" @busy-changed="uploadBusy = $event" /><small>上传或粘贴成功后会自动保存，无需再次确认。</small><div class="actions"><button v-if="displayImage" type="button" class="danger small" :disabled="editorBusy" @click="removeImage(selectedImage)">移除当前图片</button></div></div>
           </section>
 
           <section class="merchant-product-info-editor"><p class="eyebrow">顾客看到的商品信息 · 可直接编辑</p><label class="merchant-title-input">商品名称<input v-model.trim="basic.product_name" required maxlength="255" :disabled="!canEdit" /></label><button v-if="canEdit" type="button" :disabled="editorBusy" @click="saveBasic">完成商品信息</button>
-            <div class="merchant-style-picker"><header><div><span>款式与价格</span><small>每个款式直接设置名称、价格和库存；顾客购买后库存会自动减少</small></div><button v-if="canEdit" type="button" class="secondary small" @click="startNewSku">＋ 新增款式</button></header><div><button v-for="sku in skus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id; editSku(sku)"><strong>{{ sku.sku_name }}</strong><b>¥{{ sku.sale_price }}</b><small>库存 {{ inventoryFor(sku.sku_id)?.on_hand_quantity ?? 0 }} · 可售 {{ inventoryFor(sku.sku_id)?.available_quantity ?? 0 }}</small></button></div><p v-if="!skus.length">还没有款式，点击“新增款式”后直接填写名称、价格和库存。</p></div>
-            <form v-if="canEdit && showSkuEditor" class="merchant-inline-sku-form" :class="{ active: !skuEditing }" @submit.prevent="saveSku"><header><strong>{{ skuEditing ? `正在编辑：${skuEditing.sku_name}` : '新增一个款式' }}</strong><button type="button" class="secondary small" @click="closeSkuEditor">取消</button></header><div class="merchant-simple-sku-fields"><label>款式名称<input ref="skuNameInput" v-model.trim="skuForm.name" required maxlength="255" placeholder="例如：曜石黑 / 42 码" /></label><label>价格（元）<input v-model="skuForm.sale_price" type="number" min="0" step="0.01" required /></label><label>库存<input v-model.number="skuForm.stock" type="number" min="0" step="1" required /></label></div><small v-if="skuEditing && (inventoryFor(skuEditing.sku_id)?.reserved_quantity ?? 0) > 0">其中 {{ inventoryFor(skuEditing.sku_id)?.reserved_quantity }} 件已被订单预占；修改账面库存不会取消已有订单。</small><button :disabled="editorBusy">完成</button></form>
+            <div class="merchant-style-picker"><header><div><span>款式与价格</span><small>每个款式直接设置名称、价格和库存；顾客购买后库存会自动减少</small></div><button v-if="canEdit" type="button" class="secondary small" @click="startNewSku">＋ 新增款式</button></header><div><button v-for="sku in activeSkus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id; editSku(sku)"><strong>{{ sku.sku_name }}</strong><b>¥{{ sku.sale_price }}</b><small>库存 {{ inventoryFor(sku.sku_id)?.on_hand_quantity ?? 0 }} · 可售 {{ inventoryFor(sku.sku_id)?.available_quantity ?? 0 }}</small></button></div><p v-if="!activeSkus.length">还没有款式，点击“新增款式”后直接填写名称、价格和库存。</p></div>
+            <form v-if="canEdit && showSkuEditor" class="merchant-inline-sku-form" :class="{ active: !skuEditing }" @submit.prevent="saveSku"><header><strong>{{ skuEditing ? `正在编辑：${skuEditing.sku_name}` : '新增一个款式' }}</strong><div class="actions"><button v-if="skuEditing" type="button" class="danger small" :disabled="editorBusy" @click="beginSkuDelete(skuEditing)">删除款式</button><button type="button" class="secondary small" @click="closeSkuEditor">取消</button></div></header><div class="merchant-simple-sku-fields"><label>款式名称<input ref="skuNameInput" v-model.trim="skuForm.name" required maxlength="255" placeholder="例如：曜石黑 / 42 码" /></label><label>价格（元）<input v-model="skuForm.sale_price" type="number" min="0" step="0.01" required /></label><label>库存<input v-model.number="skuForm.stock" type="number" min="0" step="1" required /></label></div><small v-if="skuEditing && (inventoryFor(skuEditing.sku_id)?.reserved_quantity ?? 0) > 0">其中 {{ inventoryFor(skuEditing.sku_id)?.reserved_quantity }} 件已被订单预占；修改账面库存不会取消已有订单。</small><button :disabled="editorBusy">完成</button></form>
           </section>
         </div>
 
@@ -370,5 +389,6 @@ onMounted(() => { resetSku(); void load() })
         <footer class="merchant-publication-bar"><div><strong>{{ statusLabel(product.status) }}</strong><span v-if="product.completeness.missing_requirements.length">还可以继续补充：{{ product.completeness.missing_requirements.join('、') }}</span><span v-else>商品资料已完整</span></div><div class="actions"><button v-if="product.status === 'draft'" type="button" class="secondary" :disabled="editorBusy" @click="finishEditing('商品已暂存为草稿。')">暂存为草稿</button><button v-if="canEdit" type="button" :disabled="editorBusy" @click="finishEditing('商品编辑已完成。')">完成编辑</button><RouterLink v-if="product.status === 'on_sale'" :to="`/products/${product.product_id}`" target="_blank">查看顾客页面 ↗</RouterLink><button v-if="product.available_actions.includes('submit_review')" :disabled="editorBusy" @click="productCommand('submit_review')">提交平台审核</button><button v-if="product.available_actions.includes('publish')" :disabled="editorBusy" @click="productCommand('publish')">立即上架</button><button v-if="product.available_actions.includes('off_shelf')" class="danger" :disabled="editorBusy" @click="productCommand('off_shelf')">下架商品</button></div></footer>
       </template>
     </PageState>
+    <Teleport to="body"><div v-if="deletingSku" class="merchant-delete-overlay" @mousedown.self="closeSkuDelete"><section class="merchant-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="merchant-sku-delete-title"><span>!</span><template v-if="deletingLastActiveSku"><h2 id="merchant-sku-delete-title">当前不能删除最后一个在售款式</h2><p>在售商品必须至少保留一个顾客可以购买的款式。请先新增另一个款式，或者先将整个商品下架。</p><div class="actions"><button type="button" class="secondary" @click="closeSkuDelete">知道了</button></div></template><template v-else><h2 id="merchant-sku-delete-title">删除“{{ deletingSku.sku_name }}”款式？</h2><p>删除后，该款式会立即从商家编辑区和顾客购买选项中消失。为了保证订单、评价、库存流水和审计记录完整，历史数据仍会安全保留。</p><p v-if="(inventoryFor(deletingSku.sku_id)?.sold_quantity ?? 0) > 0">这个款式已有 {{ inventoryFor(deletingSku.sku_id)?.sold_quantity }} 件销量，历史订单中的款式名称不会受影响。</p><p v-if="skuDeleteError" class="error-text" role="alert">{{ skuDeleteError }}</p><div class="actions"><button type="button" class="secondary" :disabled="skuDeleting" @click="closeSkuDelete">取消</button><button type="button" class="danger" :disabled="skuDeleting" @click="confirmSkuDelete">{{ skuDeleting ? '正在删除…' : '删除款式' }}</button></div></template></section></div></Teleport>
   </section>
 </template>

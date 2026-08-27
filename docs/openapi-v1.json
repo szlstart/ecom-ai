@@ -23879,17 +23879,27 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01"
+          "ADM-PRODUCT-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "inventories:read",
+          "inventories:adjust",
+          "reviews:read",
+          "reviews:reply",
+          "products:review"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-INV-*",
+          "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
+          "MCH-PORTAL-*"
         ]
       }
     },

@@ -105,6 +105,7 @@ function pasteEvent(items: Array<{ kind: string; type: string; getAsFile: () => 
 describe('MerchantProductEditorPage clipboard image upload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    document.body.innerHTML = ''
     mocks.pastedFile = null
     mocks.persistedImages = []
     mocks.adminCreate.mockImplementation(async (path: string) => {
@@ -235,6 +236,56 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
 
     expect(wrapper.get('.merchant-style-picker > div > button.active').text()).toContain('新增款式')
     expect(wrapper.text()).toContain('新款式、价格和库存已添加')
+  })
+
+  it('removes an existing style from the merchant editor through the audited status command', async () => {
+    const wrapper = await mountPage()
+    await wrapper.get('.merchant-style-picker > div > button').trigger('click')
+    expect(wrapper.get('.merchant-inline-sku-form').text()).toContain('删除款式')
+
+    await wrapper.get('.merchant-inline-sku-form button.danger').trigger('click')
+    expect(document.body.querySelector('.merchant-delete-dialog')?.textContent).toContain('删除“黑色款”款式')
+    mocks.adminGet.mockImplementation(async (requestPath: string) => {
+      if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
+      if (requestPath === '/admin/products/prd_test') return { data: product }
+      if (requestPath.endsWith('/skus')) return { data: [{ ...sku, status: 'disabled', version: 2 }] }
+      if (requestPath.endsWith('/images') || requestPath.endsWith('/attributes') || requestPath.endsWith('/faqs')) return { data: [] }
+      if (requestPath.startsWith('/admin/inventories?')) return { data: { items: [inventory] } }
+      if (requestPath.endsWith('/fulfillment-profile')) return { data: null }
+      if (requestPath.endsWith('/shipping-templates')) return { data: [] }
+      throw new Error(`unexpected path: ${requestPath}`)
+    })
+    document.body.querySelector<HTMLButtonElement>('.merchant-delete-dialog button.danger')?.click()
+    await flushPromises()
+
+    expect(mocks.adminCommand).toHaveBeenCalledWith(
+      '/admin/products/prd_test/skus/sku_test/status-changes',
+      expect.objectContaining({ action: 'disable', reason_code: 'MERCHANT_STYLE_REMOVE' }),
+      'merchant-token',
+      1,
+      'merchant-style-delete',
+    )
+    expect(wrapper.find('.merchant-style-picker > div > button').exists()).toBe(false)
+    expect(wrapper.text()).toContain('款式已删除，不再向顾客展示')
+  })
+
+  it('protects the final active style while an item is on sale', async () => {
+    mocks.adminGet.mockImplementation(async (requestPath: string) => {
+      if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
+      if (requestPath === '/admin/products/prd_test') return { data: { ...product, status: 'on_sale' } }
+      if (requestPath.endsWith('/skus')) return { data: [sku] }
+      if (requestPath.endsWith('/images') || requestPath.endsWith('/attributes') || requestPath.endsWith('/faqs')) return { data: [] }
+      if (requestPath.startsWith('/admin/inventories?')) return { data: { items: [inventory] } }
+      if (requestPath.endsWith('/fulfillment-profile')) return { data: null }
+      if (requestPath.endsWith('/shipping-templates')) return { data: [] }
+      throw new Error(`unexpected path: ${requestPath}`)
+    })
+    const wrapper = await mountPage()
+    await wrapper.get('.merchant-style-picker > div > button').trigger('click')
+    await wrapper.get('.merchant-inline-sku-form button.danger').trigger('click')
+
+    expect(document.body.querySelector('.merchant-delete-dialog')?.textContent).toContain('当前不能删除最后一个在售款式')
+    expect(document.body.querySelector('.merchant-delete-dialog button.danger')).toBeNull()
   })
 
   it('saves style name, price and stock from the same form', async () => {

@@ -527,6 +527,21 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     password_bootstrap = password_login.json()["data"]
     assert password_bootstrap["session"]["session"]["client_type"] == "admin_password"
     assert password_bootstrap["scopes"] == [{"scope_type": "platform", "scope_id": 0}]
+    assert "ecom_admin_refresh" in client.cookies
+    assert "ecom_admin_csrf" in client.cookies
+    assert "ecom_merchant_refresh" not in client.cookies
+
+    user_login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "auth_method": "password",
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Wrong user portal test"},
+        },
+    )
+    assert user_login.status_code == 401
+    assert user_login.json()["code"] == "AUTH_INVALID_CREDENTIALS"
 
     merchant_login = await client.post(
         "/api/v1/merchant/auth/login",
@@ -818,6 +833,12 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     assert refresh_response.status_code == 200, refresh_response.text
     refreshed = refresh_response.json()["data"]
     refreshed_headers = {"Authorization": f"Bearer {refreshed['access_token']}"}
+
+    wrong_portal_refresh = await client.post(
+        "/api/v1/merchant/auth/token-refresh",
+        headers={"X-CSRF-Token": refreshed["csrf_token"]},
+    )
+    assert wrong_portal_refresh.status_code == 401
 
     old_session = await client.get("/api/v1/admin/me", headers=admin_headers)
     assert old_session.status_code == 401

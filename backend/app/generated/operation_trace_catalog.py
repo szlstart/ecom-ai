@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "7f2dabe02b9a5bc6f439ff0f419e863be73a1993eb9e5598adf784f3a7f66724"
+SOURCE_SHA256 = "74e6375ce2687d0b7f6b9fc2bc50c0c919f057c8ccaf7572241edefaa49cd327"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -249,7 +249,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-ADMIN-SHELL-01"],
-        "x-scope-policy": ["admin_refresh_cookie"],
+        "x-scope-policy": ["platform_admin_refresh_cookie"],
         "x-test-case-ids": ["ADM-AUTH-*"],
     },
     "AdminAuth_Logout": {
@@ -259,7 +259,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-ADMIN-SHELL-02"],
-        "x-scope-policy": ["admin_session"],
+        "x-scope-policy": ["platform_admin_session"],
         "x-test-case-ids": ["ADM-AUTH-*"],
     },
     "AdminAuth_PasswordLogin": {
@@ -649,7 +649,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-ADMIN-SHELL-04"],
-        "x-scope-policy": ["admin_session"],
+        "x-scope-policy": ["platform_admin_session"],
         "x-test-case-ids": ["ADM-AUTH-*"],
     },
     "AdminObservability_Query": {
@@ -2228,7 +2228,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["global_ui"],
         "x-permission-codes": [],
         "x-requirement-id": ["GLOBAL-USER-AUTH-01"],
-        "x-scope-policy": ["user_refresh_cookie"],
+        "x-scope-policy": ["consumer_refresh_cookie"],
         "x-test-case-ids": ["AUTH-REFRESH-*"],
     },
     "Auth_Login": {
@@ -2238,7 +2238,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-AUTH-LOGIN-01"],
-        "x-scope-policy": ["user_audience"],
+        "x-scope-policy": ["active_consumer_role_only"],
         "x-test-case-ids": ["AUTH-LOGIN-*", "BROWSER-AUTH-*"],
     },
     "Auth_Logout": {
@@ -2717,6 +2717,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["provider_signature"],
         "x-test-case-ids": ["SHIP-WEBHOOK-*"],
     },
+    "MerchantAuthToken_Refresh": {
+        "x-audit-event": "command.MerchantAuthToken_Refresh",
+        "x-domain-command": "MerchantAuthToken_Refresh",
+        "x-idempotency-policy": "refresh_token_rotation_replay_detection",
+        "x-owner-kind": ["global_ui"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["GLOBAL-MERCHANT-SHELL-01"],
+        "x-scope-policy": ["merchant_refresh_cookie"],
+        "x-test-case-ids": ["MCH-PORTAL-*"],
+    },
     "MerchantAuth_Login": {
         "x-audit-event": "command.MerchantAuth_Login",
         "x-domain-command": "MerchantAuth_Login",
@@ -2725,6 +2735,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["MCH-AUTH-01"],
         "x-scope-policy": ["store_operator_with_store_scope"],
+        "x-test-case-ids": ["MCH-PORTAL-*"],
+    },
+    "MerchantAuth_Logout": {
+        "x-audit-event": "command.MerchantAuth_Logout",
+        "x-domain-command": "MerchantAuth_Logout",
+        "x-idempotency-policy": "session_terminal_state_convergence",
+        "x-owner-kind": ["global_ui"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["GLOBAL-MERCHANT-SHELL-02"],
+        "x-scope-policy": ["merchant_session"],
         "x-test-case-ids": ["MCH-PORTAL-*"],
     },
     "MerchantAuth_Reauthenticate": {

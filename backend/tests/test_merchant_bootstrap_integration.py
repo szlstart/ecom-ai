@@ -70,6 +70,17 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
     )
     assert platform_login.status_code == 401
     assert platform_login.json()["code"] == "ADMIN_AUTH_INVALID_CREDENTIALS"
+    user_login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "auth_method": "password",
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Wrong user portal test"},
+        },
+    )
+    assert user_login.status_code == 401
+    assert user_login.json()["code"] == "AUTH_INVALID_CREDENTIALS"
     bootstrap = login.json()["data"]
     assert bootstrap["session"]["session"]["client_type"] == "merchant"
     assert "challenge_id" not in bootstrap
@@ -82,6 +93,27 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
     me = await client.get("/api/v1/admin/me", headers=headers)
     assert me.status_code == 200, me.text
     assert me.json()["data"]["assurance_level"] == "aal1"
+    assert "ecom_merchant_refresh" in client.cookies
+    assert "ecom_merchant_csrf" in client.cookies
+    assert "ecom_admin_refresh" not in client.cookies
+
+    platform_navigation = await client.get("/api/v1/admin/navigation", headers=headers)
+    assert platform_navigation.status_code == 403
+    assert platform_navigation.json()["code"] == "AUTH_PORTAL_MISMATCH"
+
+    wrong_refresh = await client.post(
+        "/api/v1/admin/auth/token-refresh",
+        headers={"X-CSRF-Token": bootstrap["session"]["csrf_token"]},
+    )
+    assert wrong_refresh.status_code == 401
+    refreshed_response = await client.post(
+        "/api/v1/merchant/auth/token-refresh",
+        headers={"X-CSRF-Token": bootstrap["session"]["csrf_token"]},
+    )
+    assert refreshed_response.status_code == 200, refreshed_response.text
+    refreshed = refreshed_response.json()["data"]
+    assert refreshed["session"]["client_type"] == "merchant"
+    headers = {"Authorization": f"Bearer {refreshed['access_token']}"}
 
     reauthenticated = await client.post(
         "/api/v1/merchant/auth/reauthentications",
@@ -127,3 +159,9 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
 
     forbidden = await client.get(f"/api/v1/admin/stores/{foreign_store_no}", headers=headers)
     assert forbidden.status_code == 404
+
+    logout = await client.post(
+        "/api/v1/merchant/auth/logout",
+        headers={**headers, "X-CSRF-Token": refreshed["csrf_token"]},
+    )
+    assert logout.status_code == 204

@@ -33,6 +33,11 @@ def test_identity_openapi_contract_has_stable_operation_ids() -> None:
         ): "AdminAuth_PasswordReauthenticate",
         ("/api/v1/merchant/auth/login", "post"): "MerchantAuth_Login",
         (
+            "/api/v1/merchant/auth/token-refresh",
+            "post",
+        ): "MerchantAuthToken_Refresh",
+        ("/api/v1/merchant/auth/logout", "post"): "MerchantAuth_Logout",
+        (
             "/api/v1/merchant/auth/reauthentications",
             "post",
         ): "MerchantAuth_Reauthenticate",

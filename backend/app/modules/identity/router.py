@@ -118,6 +118,7 @@ async def refresh_token(
         "user",
         _client_ip(request),
         request.headers.get("user-agent", "unknown")[:512],
+        allowed_client_types=frozenset({"web"}),
     )
     _set_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
     _no_store(response)

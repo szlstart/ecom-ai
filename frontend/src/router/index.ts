@@ -146,17 +146,15 @@ router.beforeEach(async (to) => {
   }
   if (to.meta.audience === 'admin') {
     const auth = useAdminAuthStore()
-    if (!auth.isAuthenticated && !(await auth.refresh())) return { path: '/admin/login' }
-    if (auth.scopes.some((scope) => scope.scope_type === 'store') && !auth.scopes.some((scope) => scope.scope_type === 'platform')) return { path: '/merchant/dashboard' }
+    if (!auth.isAuthenticatedFor('admin') && !(await auth.refresh('admin'))) return { path: '/admin/login' }
     if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/admin/dashboard', query: { denied: to.meta.requiredAnyPermission.join('|') } }
     if (to.meta.requiredPermission && !auth.has(to.meta.requiredPermission)) return { path: '/admin/dashboard', query: { denied: to.meta.requiredPermission } }
   }
   if (to.meta.audience === 'merchant') {
     const auth = useAdminAuthStore()
-    if (!auth.isAuthenticated && !(await auth.refresh())) return { path: '/merchant/login' }
+    if (!auth.isAuthenticatedFor('merchant') && !(await auth.refresh('merchant'))) return { path: '/merchant/login' }
     if (!auth.scopes.some((scope) => scope.scope_type === 'store')) {
-      if (auth.scopes.some((scope) => scope.scope_type === 'platform')) return { path: '/admin/dashboard' }
-      await auth.logout()
+      await auth.logout('merchant')
       return { path: '/merchant/login', query: { denied: 'store_scope' } }
     }
     if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/merchant/dashboard', query: { denied: to.meta.requiredAnyPermission.join('|') } }

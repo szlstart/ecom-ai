@@ -15,15 +15,23 @@ interface ReauthenticationResult {
   assurance_level: string
 }
 
+type ManagementPortal = 'admin' | 'merchant'
+
 export const useAdminAuthStore = defineStore('admin-auth', () => {
   const accessToken = ref<string | null>(null)
-  const csrfToken = ref<string | null>(readCookie('ecom_admin_csrf'))
+  const csrfToken = ref<string | null>(null)
+  const portal = ref<ManagementPortal | null>(null)
   const permissions = ref<string[]>([])
   const scopes = ref<Array<{ scope_type: string; scope_id: number }>>([])
   const userId = ref<string | null>(null)
-  const refreshAttempted = ref(false)
+  const refreshAttempted = ref<Record<ManagementPortal, boolean>>({
+    admin: false,
+    merchant: false,
+  })
   const reauthExpiresAt = ref<string | null>(null)
   const isAuthenticated = computed(() => accessToken.value !== null)
+  const isAuthenticatedFor = (expectedPortal: ManagementPortal) =>
+    accessToken.value !== null && portal.value === expectedPortal
 
   async function merchantPasswordLogin(identifier: string, password: string, deviceName: string) {
     const response = await apiRequest<AdminBootstrap>('/merchant/auth/login', {
@@ -34,7 +42,7 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
         client: { client_type: 'web', device_name: deviceName },
       }),
     })
-    accept(response.data)
+    accept(response.data, 'merchant')
     userId.value = response.data.session.user.user_id
   }
 
@@ -47,31 +55,40 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
         client: { client_type: 'web', device_name: deviceName },
       }),
     })
-    accept(response.data)
+    accept(response.data, 'admin')
     userId.value = response.data.session.user.user_id
   }
 
-  function accept(bootstrap: AdminBootstrap) {
+  function accept(bootstrap: AdminBootstrap, acceptedPortal: ManagementPortal) {
     accessToken.value = bootstrap.session.access_token
     csrfToken.value = bootstrap.session.csrf_token
+    portal.value = acceptedPortal
+    refreshAttempted.value[acceptedPortal] = true
     permissions.value = bootstrap.permission_codes
     scopes.value = bootstrap.scopes
   }
 
-  async function refresh(): Promise<boolean> {
-    if (refreshAttempted.value && !accessToken.value) return false
-    refreshAttempted.value = true
+  async function refresh(expectedPortal: ManagementPortal): Promise<boolean> {
+    if (isAuthenticatedFor(expectedPortal)) return true
+    if (refreshAttempted.value[expectedPortal] && !accessToken.value) return false
+    refreshAttempted.value[expectedPortal] = true
+    const csrfCookie = expectedPortal === 'merchant' ? 'ecom_merchant_csrf' : 'ecom_admin_csrf'
+    csrfToken.value = readCookie(csrfCookie)
+    const refreshPath = expectedPortal === 'merchant'
+      ? '/merchant/auth/token-refresh'
+      : '/admin/auth/token-refresh'
     try {
-      const response = await apiRequest<SessionBootstrap>('/admin/auth/token-refresh', {
+      const response = await apiRequest<SessionBootstrap>(refreshPath, {
         method: 'POST',
         headers: csrfToken.value ? { 'X-CSRF-Token': csrfToken.value } : undefined,
       })
       accessToken.value = response.data.access_token
       csrfToken.value = response.data.csrf_token
+      portal.value = expectedPortal
       await loadAuthorization()
       return true
     } catch {
-      clear()
+      clear(false)
       return false
     }
   }
@@ -112,10 +129,13 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     return permissions.value.includes(permission)
   }
 
-  async function logout() {
+  async function logout(expectedPortal: ManagementPortal = portal.value ?? 'admin') {
     if (accessToken.value) {
+      const logoutPath = expectedPortal === 'merchant'
+        ? '/merchant/auth/logout'
+        : '/admin/auth/logout'
       await apiRequest<void>(
-        '/admin/auth/logout',
+        logoutPath,
         { method: 'POST', headers: { 'X-CSRF-Token': csrfToken.value ?? '' } },
         accessToken.value,
       ).catch(() => undefined)
@@ -123,23 +143,29 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     clear()
   }
 
-  function clear() {
+  function clear(resetRefreshAttempts = true) {
     accessToken.value = null
     csrfToken.value = null
+    portal.value = null
     permissions.value = []
     scopes.value = []
     userId.value = null
     reauthExpiresAt.value = null
+    if (resetRefreshAttempts) {
+      refreshAttempted.value = { admin: false, merchant: false }
+    }
   }
 
   return {
     accessToken,
     csrfToken,
+    portal,
     permissions,
     scopes,
     userId,
     reauthExpiresAt,
     isAuthenticated,
+    isAuthenticatedFor,
     merchantPasswordLogin,
     platformPasswordLogin,
     refresh,

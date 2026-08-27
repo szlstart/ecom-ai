@@ -6,7 +6,7 @@ import { useAdminAuthStore } from '@/stores/admin-auth'
 const auth = useAdminAuthStore(), router = useRouter()
 const navigation = ref<Array<{ code: string; title: string; route: string; required_permission: string }>>([])
 async function loadNavigation() { if (!auth.accessToken) return; try { navigation.value = (await apiRequest<{ items: typeof navigation.value }>('/admin/navigation', {}, auth.accessToken)).data.items } catch { navigation.value = [] } }
-async function logout() { await auth.logout(); await router.replace('/admin/login') }
+async function logout() { await auth.logout('admin'); await router.replace('/admin/login') }
 onMounted(loadNavigation)
 watch(() => auth.permissions.join(','), loadNavigation)
 </script>

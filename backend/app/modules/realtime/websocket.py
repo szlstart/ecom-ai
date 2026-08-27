@@ -18,6 +18,7 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
 from app.database.mysql import mysql_session
 from app.database.redis import get_redis
+from app.modules.identity.access_policy import load_identity_eligibility
 from app.modules.identity.models import AuthSession, User
 from app.modules.rbac.repository import RbacRepository
 from app.modules.realtime.channels import (
@@ -165,6 +166,9 @@ async def _principal(ticket: RealtimeTicket, settings: Settings) -> RealtimePrin
             or auth_session.revoked_at is not None
             or auth_session.expires_at <= now
         ):
+            return None
+        eligibility = await load_identity_eligibility(session, user.id, now)
+        if not eligibility.allows_session(ticket.audience, auth_session.client_type):
             return None
         try:
             access_expires_at = datetime.fromisoformat(ticket.access_expires_at)

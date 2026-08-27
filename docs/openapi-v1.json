@@ -1944,7 +1944,7 @@
           "USR-AUTH-LOGIN-01"
         ],
         "x-scope-policy": [
-          "user_audience"
+          "active_consumer_role_only"
         ],
         "x-test-case-ids": [
           "AUTH-LOGIN-*",
@@ -2038,7 +2038,7 @@
           "GLOBAL-USER-AUTH-01"
         ],
         "x-scope-policy": [
-          "user_refresh_cookie"
+          "consumer_refresh_cookie"
         ],
         "x-test-case-ids": [
           "AUTH-REFRESH-*"
@@ -28624,6 +28624,177 @@
         ]
       }
     },
+    "/api/v1/merchant/auth/token-refresh": {
+      "post": {
+        "tags": [
+          "merchant-authentication"
+        ],
+        "summary": "Refresh Merchant Token",
+        "operationId": "MerchantAuthToken_Refresh",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "ecom_merchant_refresh",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ecom Merchant Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SessionBootstrap_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantAuthToken_Refresh",
+        "x-domain-command": "MerchantAuthToken_Refresh",
+        "x-idempotency-policy": "refresh_token_rotation_replay_detection",
+        "x-owner-kind": [
+          "global_ui"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "GLOBAL-MERCHANT-SHELL-01"
+        ],
+        "x-scope-policy": [
+          "merchant_refresh_cookie"
+        ],
+        "x-test-case-ids": [
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/auth/logout": {
+      "post": {
+        "tags": [
+          "merchant-authentication"
+        ],
+        "summary": "Merchant Logout",
+        "operationId": "MerchantAuth_Logout",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantAuth_Logout",
+        "x-domain-command": "MerchantAuth_Logout",
+        "x-idempotency-policy": "session_terminal_state_convergence",
+        "x-owner-kind": [
+          "global_ui"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "GLOBAL-MERCHANT-SHELL-02"
+        ],
+        "x-scope-policy": [
+          "merchant_session"
+        ],
+        "x-test-case-ids": [
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
     "/api/v1/admin/auth/password-login": {
       "post": {
         "tags": [
@@ -28857,7 +29028,7 @@
           "GLOBAL-ADMIN-SHELL-01"
         ],
         "x-scope-policy": [
-          "admin_refresh_cookie"
+          "platform_admin_refresh_cookie"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*"
@@ -28935,7 +29106,7 @@
           "GLOBAL-ADMIN-SHELL-02"
         ],
         "x-scope-policy": [
-          "admin_session"
+          "platform_admin_session"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*"
@@ -29171,7 +29342,7 @@
           "GLOBAL-ADMIN-SHELL-04"
         ],
         "x-scope-policy": [
-          "admin_session"
+          "platform_admin_session"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*"

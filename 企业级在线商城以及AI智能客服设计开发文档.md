@@ -120,6 +120,7 @@
 #### 1.3.1 用户 (User)
 
 - **定义**：已完成用户名、密码、找回邮箱和一次性算术验证码注册的普通消费者；找回邮箱用于忘记密码时的本人核对。
+- **身份边界**：用户端只接受唯一的 `user@platform:0` 普通消费者身份；具有店铺运营或平台管理角色的账号不能签发或刷新 User Audience Session。一个账号同时出现消费者与管理类 Active Grant 时按配置异常 Fail Closed，必须拆分为不同账号后再登录。
 - **核心诉求**：流畅购物、订单追踪、收藏管理、售后保障、智能咨询。
 - **准入条件**：必须登录方可使用除商品浏览外的所有功能。
 - **核心权限**：
@@ -138,7 +139,7 @@
 #### 1.3.2 管理员 (Admin)
 
 - **定义**：拥有后台管理权限的运营或技术人员，采用 RBAC 细粒度权限控制，支持角色细分。
-- **身份边界**：管理员通过独立管理端以平台管理员账号和密码登录，并使用独立 Admin Audience Session；服务端必须拒绝 Store Scope 商家账号进入平台管理端。生产管理身份不用于用户商城购物，测试业务使用隔离的 Sandbox 用户账号。
+- **身份边界**：管理员通过独立管理端以平台管理员账号和密码登录，并使用独立 Admin Audience Session；服务端必须拒绝 Store Scope 商家账号和普通消费者账号进入平台管理端。生产管理身份不用于用户商城购物，测试业务使用隔离的 Sandbox 用户账号。
 - **角色细分**：
   - **超级管理员**：受控的平台级安全治理权限，包括角色权限恢复、紧急干预和审计查看；不代表可跳过数据范围、职责分离或业务状态机。
   - **商品管理员**：商品CRUD、上下架、库存调整、分类品牌管理。
@@ -2159,8 +2160,8 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 登录标识 | 一个字段接受用户名；为兼容后续已绑定联系方式的账号，后端仍可解析规范化手机号或邮箱，但界面不提供验证码登录 |
 | 凭证 | 密码允许粘贴、密码管理器和浏览器自动填充；默认隐藏，不截断用户输入 |
 | 提交条件 | 账号和密码非空；本地校验只改善体验，不代替服务端认证 |
-| 成功结果 | Access Token 只写内存，Refresh Cookie 由服务端设置；加载当前用户安全摘要后跳转 |
-| 失败结果 | 账号不存在、密码错误或凭证禁用统一显示“账号或密码不正确”；不指出账号是否存在 |
+| 成功结果 | 服务端确认唯一 Active 普通用户角色且不存在管理类角色后，Access Token 只写内存，Refresh Cookie 由服务端设置；加载当前用户安全摘要后跳转 |
+| 失败结果 | 账号不存在、密码错误、凭证禁用或账号属于商家/平台管理员，统一显示“账号或密码不正确”；不指出账号是否存在或账号类型 |
 
 页面行为：
 
@@ -2169,9 +2170,10 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 3. 返回 `AUTH_CHALLENGE_REQUIRED` 时，在原卡片内展示服务端批准的可访问挑战组件；挑战通过后以短时 `challenge_token` 重试原登录。不得让第三方挑战脚本读取密码或 Access Token。
 4. 返回 429 时显示“尝试过于频繁，请在 HH:mm 后重试”，按钮倒计时遵循 `Retry-After`；不得换接口、变更标识格式或自动循环请求规避限流。
 5. 凭证验证成功后若账号为业务冻结/关闭状态，展示经认证后才允许返回的安全状态说明和申诉/人工客服公开入口，不签发普通业务 Session。`must_change_password` 命中时导航到受限重置流程，不进入商城。
-6. 网络超时不能宣称登录成功或失败，也不自动重复提交密码。页面显示“暂未确认登录结果”，先检查是否已收到有效 Session；没有时允许用户明确重试。若服务端已创建多个同设备 Session，由安全会话页可见并可撤销。
-7. 登录成功后只接受相对站内白名单 `redirect`；拒绝 `//evil.example`、绝对 URL、编码绕过、管理端路径及不属于 User Audience 的目标。无效目标统一回首页。
-8. 从结算、订单、消息等受保护页面跳转登录时，可展示“登录后继续访问：确认订单”等安全、固定文案，不回显含敏感 Query 的完整 URL。成功返回后重新获取目标数据，不复用登录前的敏感缓存或过期资格。
+6. 凭证验证成功后服务端仍须验证 Active Grant：只允许 `user@platform:0` 且不得同时存在任何管理类 Active Grant。商家、平台管理员和混合角色账号统一按凭证失败处理，不签发 User Audience Session，也不允许通过旧 Refresh Token 恢复。
+7. 网络超时不能宣称登录成功或失败，也不自动重复提交密码。页面显示“暂未确认登录结果”，先检查是否已收到有效 Session；没有时允许用户明确重试。若服务端已创建多个同设备 Session，由安全会话页可见并可撤销。
+8. 登录成功后只接受相对站内白名单 `redirect`；拒绝 `//evil.example`、绝对 URL、编码绕过、管理端路径及不属于 User Audience 的目标。无效目标统一回首页。
+9. 从结算、订单、消息等受保护页面跳转登录时，可展示“登录后继续访问：确认订单”等安全、固定文案，不回显含敏感 Query 的完整 URL。成功返回后重新获取目标数据，不复用登录前的敏感缓存或过期资格。
 
 登录状态与反馈：
 
@@ -2618,7 +2620,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 | 页面 | Vue Route / Component | 主要 Operation（全部 `/api/v1`） | Permission / Scope | Guard / 领域规则 |
 | :--- | :--- | :--- | :--- | :--- |
-| 管理登录 | `/admin/login` / `AdminLoginPage.vue` | `AdminAuth_PasswordLogin`、`POST /admin/auth/password-login` | Platform Scope 管理身份准入 | 密码成功后直接进入；拒绝 Store Scope 商家身份；不加载 User Audience |
+| 管理登录 | `/admin/login` / `AdminLoginPage.vue` | `AdminAuth_PasswordLogin`、`POST /admin/auth/password-login` | 纯 Platform Scope 管理身份准入 | 密码成功后直接进入；拒绝 User/Store 身份和混合角色账号；不加载 User Audience |
 | 密码近期确认 | `/admin/reauthenticate` / `AdminReauthenticatePage.vue` | `AdminAuth_PasswordReauthenticate` | 当前平台管理员 Session | 仅重新输入当前密码；安全站内 Redirect |
 | 管理身份安全 | `/admin/security` / `AdminSecurityPage.vue` | `AdminAuthSession_ListMine/Revoke` | 当前 Admin Audience 身份 | 仅管理会话；不得读取 User Audience 会话 |
 | 仪表盘 | `/admin/dashboard` / `AdminDashboardPage.vue` | `AdminDashboard_Get`、`GET /admin/dashboard` | `dashboard:read` + Platform/Store | 指标口径、新鲜度和 Scope 一起返回 |
@@ -2754,7 +2756,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 #### 2.14.1 定位、入口与权限边界
 
-商家中心入口固定为 `/merchant/login`，账号密码校验成功后直接进入 `/merchant/dashboard`，不要求 TOTP、恢复码或其他二次验证。商家账号必须具有 `store_operator` 角色和至少一个有效 Store Scope；没有 Store Scope 的平台管理员账号、普通用户账号均不得进入。商家登录使用独立的 `/merchant/auth/login` 准入接口，在服务端完成角色和 Store Scope 校验；会话仍复用 Admin Audience 的刷新 Cookie、权限、近期认证和审计基础设施，但标记为 `client_type=merchant`。Vue 使用独立 `MerchantAuthLayout/MerchantLayout`，不复用平台管理端菜单；平台管理入口另由 Platform Scope 强校验，两类账号不能交叉登录。
+商家中心入口固定为 `/merchant/login`，账号密码校验成功后直接进入 `/merchant/dashboard`，不要求 TOTP、恢复码或其他二次验证。商家账号必须具有 `store_operator` 角色和至少一个有效 Store Scope，并且不得同时具有普通用户或平台管理角色；混合角色账号按配置异常 Fail Closed。商家登录使用独立的 `/merchant/auth/login` 准入接口，在服务端完成角色和 Store Scope 校验；会话使用 Admin Audience 但固定标记 `client_type=merchant`，并使用独立的 `ecom_merchant_refresh/ecom_merchant_csrf` Cookie、`/merchant/auth/token-refresh` 和 `/merchant/auth/logout`，不得与平台管理端 Cookie 相互覆盖。Vue 使用独立 `MerchantAuthLayout/MerchantLayout`，不复用平台管理端菜单；平台管理入口另由 Platform Scope 强校验，三类账号不能交叉登录。
 
 商家端只能处理当前店铺商品、库存、店铺人工客服、店铺评价回复和公开店铺资料。商家不得审核自己提交的商品，不得屏蔽/恢复用户评价，不得访问其他店铺、平台用户治理、支付对账、AI 治理、系统任务或全平台指标。公开商品遵循“草稿 → 提交审核 → 平台审核通过 → 商家上架”的状态机；商家拥有上架/下架命令，但没有 `products:review`。
 
@@ -9049,6 +9051,7 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | 方法 | 路径 | 用途与关键规则 |
 | --- | --- | --- |
 | `POST` | `/admin/auth/password-login` | 验证平台管理员账号密码和 Platform Scope，直接签发 `client_type=admin_password` Session；Store Scope 商家账号统一拒绝 |
+| `POST` | `/admin/auth/token-refresh` | 只轮换 `client_type=admin/admin_password` 的平台管理 Refresh Session；重新检查平台角色，不接受商家 Cookie |
 | `POST` | `/admin/auth/password-reauthentications` | 为当前平台管理员 Session 重新确认当前密码并更新近期认证时间；返回 `reauth_expires_at`，不返回可转移万能 Ticket |
 | `POST` | `/admin/auth/logout` | 撤销当前管理 Session；重复调用一致 |
 | `GET` | `/admin/me` | 返回管理员公开资料、Assurance、Permission/Scope 摘要和 Session 安全状态 |
@@ -9056,7 +9059,7 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `GET` | `/admin/auth/sessions` | 列出当前管理员自己的有效 Admin Audience 会话；不混入用户端会话 |
 | `DELETE` | `/admin/auth/sessions/{session_id}` | 撤销当前管理员自己的指定管理会话；跨 Audience 或跨用户统一按不存在处理 |
 
-平台管理登录、商家登录与用户 `/auth/login` 使用不同 Operation、服务端角色准入、限流、Cookie/Client Type 和审计事件。平台管理员必须具有 Platform Scope，商家必须具有 `store_operator` Store Scope；任一入口都不能只依赖前端菜单或跳转隔离。管理端 Token 调用用户购物接口返回 403 `AUTH_AUDIENCE_MISMATCH`。当前不启用 MFA，历史认证器接口不进入公开 OpenAPI 和 Vue 路由；3.7.2.6 仅作迁移兼容预留。
+平台管理登录、商家登录与用户 `/auth/login` 使用不同 Operation、服务端角色准入、限流、Cookie/Client Type 和审计事件。普通用户必须具有唯一消费者角色且不存在管理类 Active Grant；平台管理员必须具有 Platform Scope 且不存在 User/Store 身份；商家必须具有 `store_operator` Store Scope 且不存在 User/Platform 身份。任一入口都不能只依赖前端菜单或跳转隔离，登录、Refresh、每次受保护请求和 WebSocket 建连均重新应用同一身份分类策略。管理端 Token 调用用户购物接口返回 403 `AUTH_AUDIENCE_MISMATCH`。当前不启用 MFA，历史认证器接口不进入公开 OpenAPI 和 Vue 路由；3.7.2.6 仅作迁移兼容预留。
 
 ##### 3.12.22.2 管理仪表盘
 
@@ -9431,11 +9434,11 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 #### 3.12.26 商家中心接口投影
 
-商家中心首版不复制一套领域实现。身份准入使用专用 `/merchant/auth/login` 与 `/merchant/auth/reauthentications` Facade，以实现密码直登、商家身份限制和 Store Scope 服务端校验；登录后的店铺、商品、库存、评价与客服能力仍复用 `/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API。Token 必须来自 `client_type=merchant` 会话并关联 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。除身份准入确有差异外，不为商家复制领域 Service；后续新增 `/merchant/*` Facade 也必须调用相同 Domain Service 和授权组件。
+商家中心首版不复制一套领域实现。身份准入使用专用 `/merchant/auth/login`、`/merchant/auth/token-refresh`、`/merchant/auth/logout` 与 `/merchant/auth/reauthentications` Facade，以实现密码直登、独立 Cookie Namespace、商家身份限制和 Store Scope 服务端校验；登录后的店铺、商品、库存、评价与客服能力仍复用 `/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API。Token 必须来自 `client_type=merchant` 会话并关联 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。除身份准入确有差异外，不为商家复制领域 Service；后续新增 `/merchant/*` Facade 也必须调用相同 Domain Service 和授权组件。
 
 `store_operator` 首版权限集合固定为：`stores:read/manage`、`store_policies:read/create/update/publish`、`products:read/create/update/publish`、`inventories:read/adjust`、`reviews:read/reply`、`support:queue_read/claim/reply/wait/resume/resolve`。明确排除平台仪表盘 `dashboard:read`、`products:review`、`reviews:moderate`、跨店/平台权限、客服转派与内部高敏备注。角色 Permission Binding 由可信商家开户流程或本地 `merchant-bootstrap` 建立，不能由商家自行扩权。
 
-商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有平台管理范围的身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受 Platform Scope 管理身份并拒绝店铺账号。两条链路均为密码直登，但使用不同 Operation、`client_type` 和权限投影，不创建 MFA Challenge，也不得混用。超过近期认证窗口后分别执行密码确认 Operation，不要求 TOTP 或恢复码。后续资源授权仍由 `require_admin_permission + AdminAccess.require_scope` 逐次执行。测试必须覆盖双向入口拒绝、Store Scope 列表过滤、跨店 404、缺权限 403、密码近期认证和审计记录。
+商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有普通用户或平台管理身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受纯 Platform Scope 管理身份并拒绝普通用户和店铺身份。用户登录同样只接受纯消费者身份。三条链路均为密码登录，但使用不同 Operation、Cookie Namespace、`aud/client_type` 和权限投影，不创建 MFA Challenge，也不得混用。Refresh、Bearer 请求与 WebSocket Principal 必须重新检查角色有效期和身份类别；类别不再匹配时撤销 Session Family。超过近期认证窗口后管理类入口分别执行密码确认 Operation，不要求 TOTP 或恢复码。后续资源授权仍由 `require_admin_permission + AdminAccess.require_scope` 逐次执行。测试必须覆盖三入口全排列拒绝、Cookie 交叉刷新拒绝、混合角色 Fail Closed、Store Scope 列表过滤、跨店 404、缺权限 403、密码近期认证和审计记录。
 
 ---
 
@@ -9447,7 +9450,7 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 #### 3.13.1 登录认证方案
 
-首版用户端只支持“账号 + 密码”登录，不提供短信/邮件验证码登录；管理员也使用独立管理入口的账号密码登录，服务端必须验证 Platform Scope 并拒绝商家账号，当前不启用 MFA。第三方 OAuth/OIDC 登录作为可选扩展，使用 Authorization Code + PKCE、精确 Redirect URI 和 `state/nonce` 校验，不采用 Implicit Flow。
+首版用户端只支持“账号 + 密码”登录，不提供短信/邮件验证码登录；用户端必须验证纯消费者身份并拒绝商家、管理员和混合角色账号。管理员使用独立管理入口的账号密码登录，服务端必须验证纯 Platform Scope 管理身份；商家入口只接受纯 Store Scope 店铺运营身份。当前不启用 MFA。第三方 OAuth/OIDC 登录作为可选扩展，使用 Authorization Code + PKCE、精确 Redirect URI 和 `state/nonce` 校验，不采用 Implicit Flow。
 
 ##### 3.13.1.1 用户注册安全
 
@@ -9479,7 +9482,7 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 账号不存在、密码错误、凭证被禁用对匿名调用方统一返回 `AUTH_INVALID_CREDENTIALS`，避免账号枚举。密码路径即使账号不存在也执行成本受控的 Dummy Argon2id 验证，使响应时序不形成明显存在性旁路；Dummy Hash 参数与当前策略同步，但必须通过舱壁和限流防止被用作 CPU DoS。验证码发送接口也返回一致外观和近似耗时。风险判断可以增加验证步骤、拒绝高危登录或通知用户，但不能只依赖可伪造的 User-Agent/IP，也不能把“新设备”自动当作恶意。
 
-认证成功必须创建全新 Session ID、Token Family、CSRF Token 和 Refresh Cookie，忽略并撤销匿名预会话中可由攻击者固定的标识，防止 Session Fixation。登录响应设置 `Cache-Control: no-store`；Access Token 只返回 User Audience，不能根据账号拥有后台角色自动升级为 Admin Audience。管理身份必须重新经过独立管理端密码登录和 Platform Scope 校验。
+认证成功必须创建全新 Session ID、Token Family、CSRF Token 和 Refresh Cookie，忽略并撤销匿名预会话中可由攻击者固定的标识，防止 Session Fixation。登录响应设置 `Cache-Control: no-store`；Access Token 只返回 User Audience，但签发前必须确认账号只有 Active `user@platform:0` 消费者身份。拥有商家或平台管理 Active Grant 的账号统一拒绝，不能根据账号拥有后台角色自动升级或降级 Audience。管理身份必须重新经过对应独立入口；三类 Refresh Cookie 使用不同名称和 Path，Refresh 及每个受保护请求重新验证 `aud + client_type + Active Grant`。
 
 登录与注册页面的 `redirect` 由前端先做体验过滤，后端/网关仍必须使用同一站内 Route Allowlist 验证；只允许 User Audience 的相对路径。认证页面校验 HTTPS Origin/Fetch Metadata，并为登录、注册、验证码和挑战接口设置严格 CORS；这可降低 Login CSRF 和跨站滥用，但不以 Origin 代替凭证验证。认证失败只记录 3.7.1.10 的 HMAC/低基数安全事件，不把输入标识或错误细节写入普通日志。
 
@@ -13145,7 +13148,7 @@ Skill 单元测试固定输入 Context 和 Fake Node/Tool，覆盖 Router Trigge
 
 AI 专项覆盖 Prompt Injection（直接/间接/多模态）、敏感信息披露、供应链/知识投毒、不安全输出、Excessive Agency、System Prompt 探测、向量/Embedding 隔离和资源耗尽。模型视为不可信输入源，成功标准落到确定性 Gateway/Domain 无副作用。高危发现阻断发布；定期 Red Team、凭证轮换/撤销演练和备份恢复演练，结果转成永久回归 Case。
 
-管理端专项覆盖 Admin/User Token Audience 混用、Platform/Store 管理入口交叉登录、近期密码确认过期、权限自提升、删除最后安全管理员、跨店快速切换响应污染、批量任务在权限撤销后继续执行、敏感字段 Grant 越界、内部备注泄漏、恶意导入文件、CSV/公式注入、审计导出越权、内容富文本 XSS 和无 Preview 死信重放。所有资金、权限、库存和发布类越权副作用必须为零。
+管理端专项覆盖 User/Admin Audience 混用、用户/商家/平台管理员三入口全排列交叉登录、Admin/Merchant Refresh Cookie 交叉刷新、混合 Active Grant Fail Closed、角色撤销后 Bearer 请求与 WebSocket 重校验、近期密码确认过期、权限自提升、删除最后安全管理员、跨店快速切换响应污染、批量任务在权限撤销后继续执行、敏感字段 Grant 越界、内部备注泄漏、恶意导入文件、CSV/公式注入、审计导出越权、内容富文本 XSS 和无 Preview 死信重放。三类身份必须使用不同逻辑账号，任一入口、刷新端点、Cookie Namespace 或 `aud/client_type` 互换都必须拒绝且无副作用。所有资金、权限、库存和发布类越权副作用必须为零。
 
 敏感字段 Grant 必须逐项测试管理员、Admin Session、目标用户、允许字段、Purpose、TTL 和使用次数绑定；权限/Session 撤销、Grant 撤销、过期或已消费后再次访问一律拒绝，列表/日志/导出始终保持脱敏。相同业务对象分别使用 User 与 Admin 专用 Operation 做正向测试，再互换 Audience 做负向测试，确保不存在“同一路径由不同鉴权依赖各自解释”的旁路。
 
@@ -13209,10 +13212,10 @@ AI 隐私/反馈 Release Gate 另要求：用户不经聊天即可在 `/me/setti
 | 测试层 | 必测内容 |
 | :--- | :--- |
 | Vue 组件与可访问性 | 全局 AuthModal 的遮罩、关闭、焦点和登录/注册 Tab；Label、Autocomplete、密码管理器、Enter 提交、字段错误和错误摘要焦点；算术题以文字展示并有换题按钮；协议链接不丢失当前表单，`/legal/:documentType` 精确展示版本；键盘、屏幕阅读器、200% 缩放和窄屏通过 |
-| OpenAPI Contract | Registration Config 的 Captcha/Password Policy；Registration 严格 Schema 与 `extra=forbid`；Login 只接受 Password Schema；Required Agreement 精确覆盖；201/400/401/409/422/429/503、Problem Details、`Cache-Control: no-store`、Refresh Cookie 和 CSRF 字段均与 3.12.1 一致 |
+| OpenAPI Contract | Registration Config 的 Captcha/Password Policy；Registration 严格 Schema 与 `extra=forbid`；Login 只接受 Password Schema；Required Agreement 精确覆盖；201/400/401/403/409/422/429/503、Problem Details、`Cache-Control: no-store`、Refresh Cookie 和 CSRF 字段均与 3.12.1 一致；`Auth_Login` / `AdminAuth_PasswordLogin` / `MerchantAuth_Login` 及三组 Refresh/Logout Operation 不共用 Cookie Namespace |
 | Repository/事务 | User、Password Credential、Agreement Acceptance、默认 User Role、Exclusive Conversation、Session、Idempotency Record 和 Outbox 要么全部提交，要么全部回滚；协议和用户名唯一约束由真实数据库验证，Captcha 在 Redis 单次消费 |
 | 并发与幂等 | 同 Username、同 Captcha、相同/不同 Payload 的同 Idempotency Key、协议版本切换、Captcha 到期边界、Commit 前失败、Commit 成功响应丢失；断言最多一个用户、无重复角色/会话初始化/协议记录，旧 Bootstrap Session 不泄漏且恢复策略确定 |
-| 安全 | 账号存在/不存在响应形状与时序；Dummy Argon2id、IP/Captcha 多维限流、Captcha 单次使用、Session Fixation、Login CSRF、CORS/Origin、Open Redirect、Audience 交换、Mass Assignment、空白密码、敏感日志与浏览器持久化全部验证 |
+| 安全 | 账号存在/不存在响应形状与时序；Dummy Argon2id、IP/Captcha 多维限流、Captcha 单次使用、Session Fixation、Login CSRF、CORS/Origin、Open Redirect、Audience 交换、Mass Assignment、空白密码、敏感日志与浏览器持久化全部验证；用户/商家/平台管理员凭据进行三入口全排列，交叉刷新 Cookie/CSRF、混合角色、角色撤销后 Bearer/WebSocket 均必须 Fail Closed |
 | E2E | 受保护页跳转登录并安全返回；密码登录；注册读取配置/打开协议/计算算术题/提交/自动登录/访问唯一专属客服会话；账号不可用、算术题错误/过期、协议变化、429、网络结果未知、Refresh 恢复和 Session 过期路径均具有确定 UI |
 
 Release Gate 的 Case ID 分为 `AUTH-LOGIN-*`、`AUTH-REGISTER-*`、`AUTH-SESSION-*` 和 `AUTH-RECOVERY-*`。账号枚举形成可利用旁路、Captcha 可重复成功使用、注册产生半成品用户/重复身份、法务接受记录缺失、Admin/Store Scope 可被请求体注入、旧 Refresh Token 可被重放或认证秘密进入 Artifact，均按 P0 阻断发布。
@@ -13605,9 +13608,9 @@ API 的 Pool Size 从每实例 5–10、有限 Overflow 起压测，Worker/Agent
 
 #### 3.34.2 第二阶段：用户与权限
 
-实现 Registration Config、算术验证码 + 加密找回邮箱注册、密码登录、Refresh Rotation/Reuse Detection、退出/强制下线、脱敏邮箱提示 + 完整邮箱精确核对的找回/重置密码、修改密码、直接更换邮箱、个人信息、地址、账号安全会话与注销申请、RBAC、平台管理员密码直登/近期密码确认/操作日志、管理员审批聚合与 Executor 骨架、Cookie/CSRF/CORS/限流和字段加密。数据层交付 `users、user_credentials、auth_sessions、password_reset_records、user_addresses、user_agreement_acceptances、auth_attempts` 及法务 Content Version 的迁移/Repository；`verification_codes、credential_change_records、admin_mfa_authenticators` 仅作未启用的兼容预留表，注册算术题只在 Redis 短期保存 HMAC。Vue3 用户端完成 2.12.2、2.12.3.1～2.12.3.3 的 AuthModal、找回/重置 AuthLayout、登录注册、我的资料、密码、邮箱、会话、三级地区地址和账号注销联调；独立管理端完成密码直登、Admin Audience Session、后台 Shell、权限菜单、Scope 切换、用户治理、角色权限、安全会话和审批中心页面，并通过平台管理员/商家账号双向入口隔离测试。
+实现 Registration Config、算术验证码 + 加密找回邮箱注册、密码登录、Refresh Rotation/Reuse Detection、退出/强制下线、脱敏邮箱提示 + 完整邮箱精确核对的找回/重置密码、修改密码、直接更换邮箱、个人信息、地址、账号安全会话与注销申请、RBAC、平台管理员密码直登/近期密码确认/操作日志、管理员审批聚合与 Executor 骨架、Cookie/CSRF/CORS/限流和字段加密。数据层交付 `users、user_credentials、auth_sessions、password_reset_records、user_addresses、user_agreement_acceptances、auth_attempts` 及法务 Content Version 的迁移/Repository；`verification_codes、credential_change_records、admin_mfa_authenticators` 仅作未启用的兼容预留表，注册算术题只在 Redis 短期保存 HMAC。Vue3 用户端完成 2.12.2、2.12.3.1～2.12.3.3 的 AuthModal、找回/重置 AuthLayout、登录注册、我的资料、密码、邮箱、会话、三级地区地址和账号注销联调；独立管理端完成密码直登、Admin Audience Session、后台 Shell、权限菜单、Scope 切换、用户治理、角色权限、安全会话和审批中心页面。认证层同时交付纯消费者、纯 Store 商家与纯 Platform 管理员的统一身份分类器、三套独立 Cookie/CSRF/Refresh/Logout 链路和会话持续重校验，并通过三入口全排列隔离测试。
 
-验收：2.12.3 的 Text UI、响应式、键盘和错误状态通过 3.30.24；Registration Config、精确协议版本、一次性 Captcha、严格 Registration/Password-only Login Schema、User Audience Session 与安全 Redirect 的前后端契约一致。注册核心资源全成或全败；并发同 Username 或同 Captcha 仅一人成功；相同幂等 Key 不重复创建用户、协议、角色、专属客服会话或 Session，Commit 成功响应丢失按固定 Bootstrap Session Replacement 策略恢复。认证/API/数据库并发测试通过；密码哈希/算术答案/Token 不入日志、Trace、截图或浏览器持久存储；账号枚举和 Refresh 重放被阻断并撤销相应会话；用户 Token 与 Admin Token Audience 不能混用；平台管理员与商家账号在服务端双向拒绝交叉入口；同一自然人持有多种身份时仍使用独立入口、Cookie Path、CSRF 上下文与 Session，交换 `aud/client_type` 的负向测试全部拒绝。生产 Admin Audience 无购物车、下单或支付能力，业务演练只允许隔离环境的独立 Sandbox 用户且生产镜像/配置不含 Sandbox 凭据。IDOR、横向/纵向越权、安全错误信息测试为零泄漏；权限自提升、删除最后安全管理员、近期认证绕过、发起人自批、重复审批席位和跨店 Scope 测试全部拒绝且管理员高危操作审计完整。角色撤销/过期后重新授权生成新 Grant，历史事件不可改写且任意时刻仅有一条 Active Grant；用户业务冻结与登录失败锁定严格分离，到期或提前解冻不恢复已撤销 Session；敏感字段临时 Grant 完成绑定、一次性消费、撤销、过期与全程脱敏测试。Redis 全丢最多导致重新认证或回源 MySQL，不得恢复已撤销 Session/Grant；注册在 Redis 不可用时 Fail Closed。
+验收：2.12.3 的 Text UI、响应式、键盘和错误状态通过 3.30.24；Registration Config、精确协议版本、一次性 Captcha、严格 Registration/Password-only Login Schema、User Audience Session 与安全 Redirect 的前后端契约一致。注册核心资源全成或全败；并发同 Username 或同 Captcha 仅一人成功；相同幂等 Key 不重复创建用户、协议、角色、专属客服会话或 Session，Commit 成功响应丢失按固定 Bootstrap Session Replacement 策略恢复。认证/API/数据库并发测试通过；密码哈希/算术答案/Token 不入日志、Trace、截图或浏览器持久存储；账号枚举和 Refresh 重放被阻断并撤销相应会话；用户 Token 与 Admin Token Audience 不能混用。用户、商家、平台管理员凭据在服务端三入口全排列互斥；同一自然人如需多种身份，必须使用拥有单一身份类别的不同逻辑账号。三类账号的入口、Cookie Namespace/Path、CSRF 上下文、Refresh/Logout 端点与 Session 独立，交换 `aud/client_type`、Cookie 或 CSRF 的负向测试全部拒绝；Refresh、Bearer 请求和 WebSocket 建连在角色撤销或身份混合后 Fail Closed 并撤销失效会话。生产 Admin Audience 无购物车、下单或支付能力，业务演练只允许隔离环境的独立 Sandbox 用户且生产镜像/配置不含 Sandbox 凭据。IDOR、横向/纵向越权、安全错误信息测试为零泄漏；权限自提升、删除最后安全管理员、近期认证绕过、发起人自批、重复审批席位和跨店 Scope 测试全部拒绝且管理员高危操作审计完整。角色撤销/过期后重新授权生成新 Grant，历史事件不可改写且任意时刻仅有一条 Active Grant；用户业务冻结与登录失败锁定严格分离，到期或提前解冻不恢复已撤销 Session；敏感字段临时 Grant 完成绑定、一次性消费、撤销、过期与全程脱敏测试。Redis 全丢最多导致重新认证或回源 MySQL，不得恢复已撤销 Session/Grant；注册在 Redis 不可用时 Fail Closed。
 
 #### 3.34.3 第三阶段：店铺、商品与库存
 
@@ -13689,6 +13692,8 @@ MySQL/PostgreSQL Migration 能从空库安装、从上一生产版本升级并�
 
 全部公开接口位于 `/api/v1`，OpenAPI 通过 Lint/Breaking Change，生成的 TypeScript Client 可编译并完成前端契约测试。所有资源 ID 满足 3.6.2/`docs/id_registry.yaml` 的前缀、资源类型和容量约束：普通公开资源 ID 按注册表使用 `VARCHAR(40)`，已登记的 `trd_/ord_/pay_/ref_/tkt_` 核心业务号使用 `VARCHAR(32)`，不得用统一 40 字符的断言覆盖该例外。Cart Item、File、Upload、Conversation 等路径均无内部自增主键泄漏。请求/响应、时间、金额、分页、Cursor、Problem Details、错误码、Request ID、ETag/Version、Idempotency-Key 和上传遵循 3.11；无 ORM/内部主键/敏感字段泄漏。
 
+三类身份的会话 Contract 必须分别覆盖用户端 `AuthToken_Refresh/Auth_Logout`、平台管理端 `AdminAuthToken_Refresh/AdminAuth_Logout` 与商家端 `MerchantAuthToken_Refresh/MerchantAuth_Logout`。三组端点使用独立 Cookie Namespace/Path 和 CSRF 上下文；交叉发送 Cookie、Token 或 `client_type` 均拒绝。登录、Refresh、Bearer 请求与 WebSocket 建连都必须重新验证当前 Active Grant 的纯身份类别，不得只依赖 Token 创建时的投影。
+
 认证 Contract 必须覆盖 `RegistrationConfig_Get、LegalDocument_Get、Registration_Create、Auth_Login、AdminAuth_PasswordLogin、MerchantAuth_Login、PasswordResetHint_Get、PasswordResetTicket_Create、PasswordReset_Complete、AuthToken_Refresh、AuthSession_ListMine/Revoke`：Login 只接受 Password Schema，Registration 必须携一次性算术 Captcha 和找回邮箱且禁止 Role/Permission/Store/Phone 字段，协议版本精确匹配且法务接口不会静默替换版本；找回密码只允许“用户名 → 脱敏邮箱提示 → 完整邮箱精确匹配 → 一次性 Ticket”，不提供短信/邮件验证码发送 API；认证响应 `no-store`，Refresh 仅用安全 Cookie，Open Redirect 与幂等结果未知有确定行为。Admin/User Audience 隔离、Platform/Store 管理入口双向隔离、近期密码确认、RBAC、Resource Scope、职责分离、管理员审批、限流、CSRF/CORS、Webhook 签名和重放测试通过；同一业务对象的用户与管理操作使用独立 Operation ID、专用路径和响应投影，互换 Audience 或管理入口的负向测试全部拒绝。所有 JSON/Query 为 snake_case，Vue camelCase 仅限 Route Placeholder；公开 Schema 不出现内部自增 ID。P0 Contract 额外验证物流、Read Cursor、退款占用、Context 和安全富文本投影。P1 Contract 验证首页聚合、店铺 Query、200 字买家备注、完整页面读取/命令、订单/Payment 双幂等及错误分支，以及 `checkout_store_group` 的 Store/Version/Expiry 最小投影。成功/失败/重复/并发/超时有明确状态码与相同幂等结果。管理 API 必须通过用户冻结、角色 Grant、敏感字段 Grant、认证补件、政策版本发布、商品发布、库存调整、包裹创建/纠错/作废、退款决定、评价屏蔽/恢复、客服等待/恢复、内容/AI/Tool Version 发布、索引父子 Job、管理员审批和死信重放 Contract Test，且不存在通用状态/金额写接口。P95/P99 达 3.33.2，错误率/SLO 达标；SSE Resume、WebSocket 重连和 Graceful Shutdown 通过。弃用接口有 Sunset/兼容窗口，生产 Debug Docs 按策略受控。
 
 #### 3.34.16 AI 安全验收标准
@@ -13730,7 +13735,7 @@ Go/No-Go Meeting 逐项确认并保存签字证据：
 
 | Requirement ID / 页面操作 | Vue Route | OpenAPI Operation / 路径 | 授权与领域规则 | Audit / Test / Evidence |
 | :--- | :--- | :--- | :--- | :--- |
-| `USR-AUTH-01` 密码登录 | 全局 AuthModal；`/login → /?auth=login` | `UserAuth_Login` / `POST /auth/login` | Anonymous；Password 判别分支、凭证锁定、Dummy Hash、限流、安全 Redirect、User Audience 新 Session | Security+E2E `AUTH-LOGIN-*` |
+| `USR-AUTH-01` 密码登录 | 全局 AuthModal；`/login → /?auth=login` | `Auth_Login` / `POST /auth/login` | Anonymous；Password 判别分支、凭证锁定、Dummy Hash、限流、安全 Redirect；仅纯 `user@platform:0` 消费者可签发 User Audience Session，商家/平台管理员/混合角色统一按无效凭据拒绝 | Security+Contract+E2E `AUTH-LOGIN-*`；三入口全排列 |
 | `USR-AUTH-02` 用户注册/查阅协议 | 全局 AuthModal；`/register → /?auth=register`；`/legal/:documentType` | `RegistrationConfig_Get`、`LegalDocument_Get`、`Registration_Create` / `GET /auth/registration-config`、`GET /content/legal-documents/{document_type}`、`POST /auth/registrations` | Anonymous；配置/协议精确版本、一次性算术 Captcha、加密且唯一的找回邮箱、严格 Schema、幂等、普通 User 固定角色、核心事务全成或全败 | Contract+Concurrency+E2E `AUTH-REGISTER-*` |
 | `USR-AUTH-04` 找回与重置密码 | `/forgot-password`、`/reset-password` | `PasswordResetHint_Get`、`PasswordResetTicket_Create`、`PasswordReset_Complete` | Anonymous/受限 Ticket；脱敏邮箱提示、完整邮箱常量时间精确匹配、限流、一次性消费、撤销旧 Session | Security+E2E `AUTH-RECOVERY-*` |
 | `USR-HOME-01` 首页聚合 | `/` | `Homepage_Get` / `GET /homepage` | Public/Current User；Consent-aware 通用/个性推荐；局部降级 | Query Count+Cursor+UI `HOME-*` |

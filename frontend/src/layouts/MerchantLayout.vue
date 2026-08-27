@@ -32,7 +32,7 @@ async function loadStore() {
 }
 
 async function logout() {
-  await auth.logout()
+  await auth.logout('merchant')
   await router.replace('/merchant/login')
 }
 

@@ -16,6 +16,7 @@ from app.core.exceptions import ApplicationError
 from app.core.security import SecurityService, TokenClaims, utc_now
 from app.database.mysql import mysql_session
 from app.database.postgres import postgres_session
+from app.modules.identity.access_policy import load_identity_eligibility
 from app.modules.identity.models import AuthSession, User
 
 bearer = HTTPBearer(auto_error=False)
@@ -100,6 +101,17 @@ async def _authenticate(
             title="Account unavailable",
             detail="账号当前不可用。",
         )
+    eligibility = await load_identity_eligibility(session, user.id, now)
+    if not eligibility.allows_session(expected_audience, auth_session.client_type):
+        auth_session.revoked_at = now
+        auth_session.revoke_reason = "identity_scope_mismatch"
+        await session.commit()
+        raise ApplicationError(
+            status=401,
+            code="AUTH_SESSION_IDENTITY_MISMATCH",
+            title="Session identity mismatch",
+            detail="当前登录身份已失效，请使用正确入口重新登录。",
+        )
     if user.permission_version != claims.permission_version:
         raise ApplicationError(
             status=401,
@@ -139,8 +151,36 @@ async def optional_user(
     return await _authenticate("user", credentials, session, security)
 
 
+async def require_platform_admin(
+    context: Annotated[AuthContext, Depends(require_admin)],
+) -> AuthContext:
+    if context.session.client_type not in {"admin", "admin_password"}:
+        raise ApplicationError(
+            status=403,
+            code="AUTH_PORTAL_MISMATCH",
+            title="Portal mismatch",
+            detail="当前登录身份不能访问平台管理入口。",
+        )
+    return context
+
+
+async def require_merchant(
+    context: Annotated[AuthContext, Depends(require_admin)],
+) -> AuthContext:
+    if context.session.client_type != "merchant":
+        raise ApplicationError(
+            status=403,
+            code="AUTH_PORTAL_MISMATCH",
+            title="Portal mismatch",
+            detail="当前登录身份不能访问商家入口。",
+        )
+    return context
+
+
 UserContext = Annotated[AuthContext, Depends(require_user)]
 AdminContext = Annotated[AuthContext, Depends(require_admin)]
+PlatformAdminContext = Annotated[AuthContext, Depends(require_platform_admin)]
+MerchantContext = Annotated[AuthContext, Depends(require_merchant)]
 OptionalUserContext = Annotated[AuthContext | None, Depends(optional_user)]
 
 

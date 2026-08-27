@@ -22,6 +22,7 @@ from app.core.security import (
     normalize_username,
     utc_now,
 )
+from app.modules.identity.access_policy import classify_identity_grants
 from app.modules.identity.models import AuthSession, User, UserCredential
 from app.modules.identity.repository import IdentityRepository
 from app.modules.identity.service import IdentityService
@@ -110,10 +111,10 @@ class AdminAuthService:
         if user.user_status != "active":
             raise _invalid_admin_credentials()
         grants = await self.rbac.active_grants(user.id, utc_now())
-        if not any(
-            grant.scope_type == "platform" and role.role_code != "user"
-            for grant, role in grants
-        ):
+        eligibility = classify_identity_grants(
+            (role.role_code, grant.scope_type, grant.scope_id) for grant, role in grants
+        )
+        if not eligibility.platform_admin:
             raise _invalid_admin_credentials()
         authenticator = await self.rbac.active_admin_mfa(user.id)
         if authenticator is None:
@@ -170,10 +171,10 @@ class AdminAuthService:
         ):
             raise _invalid_admin_credentials()
         grants = await self.rbac.active_grants(user.id, utc_now())
-        if not any(
-            grant.scope_type == "platform" and role.role_code != "user"
-            for grant, role in grants
-        ):
+        eligibility = classify_identity_grants(
+            (role.role_code, grant.scope_type, grant.scope_id) for grant, role in grants
+        )
+        if not eligibility.platform_admin:
             raise _invalid_admin_credentials()
 
         user.last_login_at = utc_now()
@@ -224,15 +225,10 @@ class AdminAuthService:
         ):
             raise _invalid_merchant_credentials()
         grants = await self.rbac.active_grants(user.id, utc_now())
-        has_store_operator_scope = any(
-            role.role_code == "store_operator" and grant.scope_type == "store"
-            for grant, role in grants
+        eligibility = classify_identity_grants(
+            (role.role_code, grant.scope_type, grant.scope_id) for grant, role in grants
         )
-        has_platform_admin_scope = any(
-            grant.scope_type == "platform" and role.role_code != "user"
-            for grant, role in grants
-        )
-        if not has_store_operator_scope or has_platform_admin_scope:
+        if not eligibility.merchant:
             raise _invalid_merchant_credentials()
 
         user.last_login_at = utc_now()
@@ -408,13 +404,13 @@ class AdminAuthService:
             raise _invalid_merchant_credentials()
         credential = await self.identity.password_credential(user.id, for_update=True)
         grants = await self.rbac.active_grants(user.id, utc_now())
+        eligibility = classify_identity_grants(
+            (role.role_code, grant.scope_type, grant.scope_id) for grant, role in grants
+        )
         if (
             credential is None
             or not self.security.verify_password(credential.secret_hash, request.password)
-            or not any(
-                role.role_code == "store_operator" and grant.scope_type == "store"
-                for grant, role in grants
-            )
+            or not eligibility.merchant
         ):
             raise _invalid_merchant_credentials()
         now = utc_now()
@@ -444,13 +440,13 @@ class AdminAuthService:
             raise _invalid_admin_credentials()
         credential = await self.identity.password_credential(user.id, for_update=True)
         grants = await self.rbac.active_grants(user.id, utc_now())
+        eligibility = classify_identity_grants(
+            (role.role_code, grant.scope_type, grant.scope_id) for grant, role in grants
+        )
         if (
             credential is None
             or not self.security.verify_password(credential.secret_hash, request.password)
-            or not any(
-                grant.scope_type == "platform" and role.role_code != "user"
-                for grant, role in grants
-            )
+            or not eligibility.platform_admin
         ):
             raise _invalid_admin_credentials()
         now = utc_now()

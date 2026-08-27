@@ -29,6 +29,7 @@ from app.core.security import (
     utc_now,
 )
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
+from app.modules.identity.access_policy import load_identity_eligibility
 from app.modules.identity.models import (
     AuthAttempt,
     AuthSession,
@@ -75,6 +76,23 @@ from app.modules.system.models import IdempotencyRecord, OutboxEvent
 MAX_ACTIVE_ADDRESSES_PER_USER = 20
 REGISTRATION_CONFIG_VERSION = "regcfg_2026_08_26"
 REGISTRATION_CAPTCHA_TTL_SECONDS = 600
+RESERVED_USERNAMES = frozenset(
+    {
+        "admin",
+        "administrator",
+        "api",
+        "ecom_ai",
+        "merchant",
+        "operator",
+        "root",
+        "security",
+        "service",
+        "staff",
+        "support",
+        "system",
+        "www",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -258,6 +276,12 @@ class IdentityService:
         normalized_username = normalize_username(request.username)
         if not USERNAME_PATTERN.fullmatch(request.username):
             raise _field_error("/username", "INVALID_USERNAME", "用户名格式不正确。")
+        if normalized_username in RESERVED_USERNAMES:
+            raise _field_error(
+                "/username",
+                "REGISTRATION_USERNAME_RESERVED",
+                "该用户名属于系统保留名称，请更换后再注册。",
+            )
         username_hash = self.security.keyed_hash("username", normalized_username)
         try:
             normalized_email = normalize_target("email", request.email)
@@ -538,6 +562,22 @@ class IdentityService:
         credential.failed_attempts = 0
         credential.locked_until = None
 
+        eligibility = await load_identity_eligibility(self.session, user.id, now)
+        if not eligibility.consumer:
+            self.session.add(
+                self._auth_attempt(
+                    "password_login",
+                    "password",
+                    "invalid",
+                    "IDENTITY_SCOPE_MISMATCH",
+                    user_id=user.id,
+                    identifier_hash=monitoring_hash,
+                    ip_address=ip_address,
+                )
+            )
+            await self.session.commit()
+            raise _invalid_credentials()
+
         if user.user_status != "active":
             raise ApplicationError(
                 status=403,
@@ -585,6 +625,8 @@ class IdentityService:
         audience: Literal["user", "admin"],
         ip_address: str,
         user_agent: str,
+        *,
+        allowed_client_types: frozenset[str],
     ) -> BootstrapResult:
         if not refresh_token or not csrf_token:
             raise _invalid_refresh()
@@ -592,6 +634,8 @@ class IdentityService:
         current = await self.repository.session_by_refresh_hash(token_hash, for_update=True)
         now = utc_now()
         if current is None or current.audience != audience:
+            raise _invalid_refresh()
+        if current.client_type not in allowed_client_types:
             raise _invalid_refresh()
         if not hmac.compare_digest(
             current.csrf_token_hash, self.security.keyed_hash("csrf-token", csrf_token)
@@ -618,6 +662,15 @@ class IdentityService:
             raise _invalid_refresh()
         user = await self.session.get(User, current.user_id)
         if user is None or user.user_status != "active":
+            raise _invalid_refresh()
+        eligibility = await load_identity_eligibility(self.session, user.id, now)
+        if not eligibility.allows_session(audience, current.client_type):
+            await self.repository.revoke_family(
+                current.token_family_no,
+                now,
+                "identity_scope_mismatch",
+            )
+            await self.session.commit()
             raise _invalid_refresh()
         current.revoked_at = now
         current.revoke_reason = "rotated"
@@ -688,7 +741,14 @@ class IdentityService:
             window_seconds=600,
         )
         user = await self.repository.user_by_username(normalized_username)
-        email = await self._recovery_email_for_user(user.id) if user is not None else None
+        eligibility = (
+            await load_identity_eligibility(self.session, user.id) if user is not None else None
+        )
+        email = (
+            await self._recovery_email_for_user(user.id)
+            if user is not None and eligibility is not None and eligibility.consumer
+            else None
+        )
         if email is None:
             raise ApplicationError(
                 status=404,
@@ -712,8 +772,13 @@ class IdentityService:
             window_seconds=600,
         )
         user = await self.repository.user_by_username(normalized_username)
+        eligibility = (
+            await load_identity_eligibility(self.session, user.id) if user is not None else None
+        )
         registered_email = (
-            await self._recovery_email_for_user(user.id) if user is not None else None
+            await self._recovery_email_for_user(user.id)
+            if user is not None and eligibility is not None and eligibility.consumer
+            else None
         )
         matches = registered_email is not None and hmac.compare_digest(
             self.security.keyed_hash("credential-identifier", registered_email),
@@ -1379,6 +1444,14 @@ class IdentityService:
         commit: bool = True,
     ) -> BootstrapResult:
         now = utc_now()
+        eligibility = await load_identity_eligibility(self.session, user.id, now)
+        if not eligibility.allows_session(audience, client_type):
+            raise ApplicationError(
+                status=403,
+                code="AUTH_IDENTITY_SCOPE_MISMATCH",
+                title="Identity scope mismatch",
+                detail="当前账号类型不能创建此入口的登录会话。",
+            )
         refresh_token = self.security.new_opaque_token()
         csrf_token = self.security.new_opaque_token(24)
         ttl = (

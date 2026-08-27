@@ -2784,7 +2784,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 页面 | Vue Route / Component | 主要能力 | Permission / Scope |
 | :--- | :--- | :--- | :--- |
 | 商家登录 | `/merchant/login` / `MerchantLoginPage.vue` | 账号密码登录成功后直接进入工作台，不显示二次验证 | `store_operator` + Store Scope，拒绝平台管理身份 |
-| 敏感操作密码确认 | `/merchant/reauthenticate` / `MerchantReauthenticatePage.vue` | 登录超过近期认证窗口后，仅重新输入当前密码 | 当前 Merchant Session |
+| 兼容密码确认入口 | `/merchant/reauthenticate` / `MerchantReauthenticatePage.vue` | 仅保留兼容能力，不作为店铺资料、商品、款式、库存、评价或客服操作的前置步骤，商家界面不自动跳转到此页 | 当前 Merchant Session |
 | 工作台 | `/merchant/dashboard` / `MerchantDashboardPage.vue` | 在售/待完善商品、待处理咨询、待回复评价；可直接修改当前店铺名称 | `stores:read/manage` + Store；不授予平台仪表盘权限 |
 | 商品列表 | `/merchant/products` / `MerchantProductListPage.vue` | 按名称和状态筛选本店商品 | `products:read` + Store |
 | 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 商品名称、款式价格库存、图片、参数、发货地、详情、FAQ、评价回复、提交审核、上架/下架 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
@@ -2801,7 +2801,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 商品编辑按“基础信息、销售规格、商品图片、商品参数、发货设置、商品详情、常见问题、上架检查”顺序组织。新建页自动使用账号唯一绑定店铺，不要求商家输入 `sto_...`；存在多个授权店铺时必须显式选择，前端选择只缩小 Scope，服务端仍从 Grant 与目标资源重新校验。
 
-SKU 价格在商家界面使用元，提交时转换为整数分。首版商家编辑器只暴露款式名称、销售价和该款式库存，不暴露划线价、店内编码、重量、条形码或任意规格行；服务端兼容字段由 Merchant Adapter 按固定规则构造，其中内部市场价等于销售价，内部规格固定为 `{name: "款式", value: <款式名称>}`。图片必须通过受控上传、病毒扫描和安全衍生后绑定；恰好一张公共主图。上架检查由服务端返回完整性缺项和 `available_actions`，前端不得自行绕过 SKU、主图、参数、履约与详情版本要求。高风险上架、下架、库存调整或店铺资料修改如返回 428，应保留输入并引导 `/merchant/reauthenticate?redirect=<当前安全站内路由>`。
+SKU 价格在商家界面使用元，提交时转换为整数分。首版商家编辑器只暴露款式名称、销售价和该款式库存，不暴露划线价、店内编码、重量、条形码或任意规格行；服务端兼容字段由 Merchant Adapter 按固定规则构造，其中内部市场价等于销售价，内部规格固定为 `{name: "款式", value: <款式名称>}`。点击“新增款式”后，新增表单使用与已选款式一致的绿色激活边框，同时取消旧款式卡的激活态；保存成功后新款式卡自动成为当前选中项。图片必须通过受控上传、病毒扫描和安全衍生后绑定；恰好一张公共主图。上架检查由服务端返回完整性缺项和 `available_actions`，前端不得自行绕过 SKU、主图、参数、履约与详情版本要求。Merchant Session 的日常店铺经营操作不要求再次输入密码，但仍必须通过登录会话、Permission、Store Scope、业务状态、幂等、ETag 与审计校验；平台管理员的近期认证规则不受此例外影响。
 
 店铺名称使用 `store_name_normalized` 全局唯一约束，并在事务内进行重复预检与唯一键兜底。店铺范围账号成功改名时写入 `store_name_changed_at`，之后 7×24 小时内再次改名返回 `STORE_NAME_CHANGE_COOLDOWN`；查询投影同时返回 `store_name_change_available_at` 供界面禁用输入并显示准确时间。修改简介和 Logo 不受店名冷却期影响。Platform Scope 管理员可为纠错或治理目的覆盖冷却限制，但仍受名称唯一约束与审计约束。
 
@@ -2811,7 +2811,7 @@ SKU 价格在商家界面使用元，提交时转换为整数分。首版商家�
 
 #### 2.14.7 空状态、冲突与安全要求
 
-所有列表实现 Loading、Empty、Error 和 Retry。403 表示角色缺权限；跨店资源统一返回 404；412 保留本地输入并提示刷新资源版本；428 引导近期认证；429 遵循 `Retry-After`。创建和命令携带 Idempotency-Key，可变资源携带 If-Match。商家退出只撤销 Merchant/Admin Audience 管理会话，不影响同一自然人的消费者会话。浏览器不得持久化客户会话正文、评价敏感投影、Token 或其他店铺数据。
+所有列表实现 Loading、Empty、Error 和 Retry。403 表示角色缺权限；跨店资源统一返回 404；412 保留本地输入并提示刷新资源版本；Merchant Session 的日常经营操作不因登录时间返回近期认证 428；429 遵循 `Retry-After`。已加载编辑器中的保存错误必须显示为页内错误并保留表单、已选款式和用户输入，不能用整页“暂时无法加载”替换工作区。创建和命令携带 Idempotency-Key，可变资源携带 If-Match。商家退出只撤销 Merchant/Admin Audience 管理会话，不影响同一自然人的消费者会话。浏览器不得持久化客户会话正文、评价敏感投影、Token 或其他店铺数据。
 
 #### 2.14.8 商家端店铺式工作台实施基线
 
@@ -9485,7 +9485,7 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 `store_operator` 首版权限集合固定为：`stores:read/manage`、`store_policies:read/create/update/publish`、`products:read/create/update/publish`、`inventories:read/adjust`、`reviews:read/reply`、`support:queue_read/claim/reply/wait/resume/resolve`。明确排除平台仪表盘 `dashboard:read`、`products:review`、`reviews:moderate`、跨店/平台权限、客服转派与内部高敏备注。角色 Permission Binding 由可信商家开户流程或本地 `merchant-bootstrap` 建立，不能由商家自行扩权。
 
-商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有普通用户或平台管理身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受纯 Platform Scope 管理身份并拒绝普通用户和店铺身份。用户登录同样只接受纯消费者身份。三条链路均为密码登录，但使用不同 Operation、Cookie Namespace、`aud/client_type` 和权限投影，不创建 MFA Challenge，也不得混用。Refresh、Bearer 请求与 WebSocket Principal 必须重新检查角色有效期和身份类别；类别不再匹配时撤销 Session Family。超过近期认证窗口后管理类入口分别执行密码确认 Operation，不要求 TOTP 或恢复码。后续资源授权仍由 `require_admin_permission + AdminAccess.require_scope` 逐次执行。测试必须覆盖三入口全排列拒绝、Cookie 交叉刷新拒绝、混合角色 Fail Closed、Store Scope 列表过滤、跨店 404、缺权限 403、密码近期认证和审计记录。
+商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有普通用户或平台管理身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受纯 Platform Scope 管理身份并拒绝普通用户和店铺身份。用户登录同样只接受纯消费者身份。三条链路均为密码登录，但使用不同 Operation、Cookie Namespace、`aud/client_type` 和权限投影，不创建 MFA Challenge，也不得混用。Refresh、Bearer 请求与 WebSocket Principal 必须重新检查角色有效期和身份类别；类别不再匹配时撤销 Session Family。平台管理员超过近期认证窗口后仍按权限策略执行密码确认；Merchant Session 的店铺经营命令不执行密码 Step-up，兼容确认 Operation 不进入正常工作流。后续资源授权仍由 `require_admin_permission + AdminAccess.require_scope` 逐次执行，商家例外不放宽 Permission、Store Scope、MFA、幂等、ETag、业务规则和审计。测试必须覆盖三入口全排列拒绝、Cookie 交叉刷新拒绝、混合角色 Fail Closed、Store Scope 列表过滤、跨店 404、缺权限 403、商家无密码 Step-up、平台近期认证和审计记录。
 
 ---
 

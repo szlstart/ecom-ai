@@ -57,6 +57,10 @@ const sku = {
   sale_price: '10.00', market_price: '10.00', currency: 'CNY', weight_grams: null, barcode: null, status: 'active', version: 1,
 }
 
+const newSku = {
+  ...sku, sku_id: 'sku_new', sku_name: '新增款式', spec_values: [{ name: '款式', value: '新增款式' }], sale_price: '18.00', version: 1,
+}
+
 const inventory = {
   sku_id: 'sku_test', sku_name: '黑色款', product_id: 'prd_test', product_name: '剪贴板测试商品', store_id: 'sto_test', store_name: '测试店铺',
   on_hand_quantity: 8, reserved_quantity: 1, safety_stock_quantity: 0, available_quantity: 7, sold_quantity: 0, status: 'active', last_reconciled_at: null, version: 1,
@@ -178,11 +182,59 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     expect(wrapper.text()).toContain('发货地')
 
     await wrapper.get('.merchant-style-picker button[type="button"]').trigger('click')
+    expect(wrapper.get('.merchant-inline-sku-form').classes()).toContain('active')
+    expect(wrapper.find('.merchant-style-picker > div > button.active').exists()).toBe(false)
     expect(wrapper.get('.merchant-simple-sku-fields').text()).toContain('款式名称')
     expect(wrapper.get('.merchant-simple-sku-fields').text()).toContain('价格（元）')
     expect(wrapper.get('.merchant-simple-sku-fields').text()).toContain('库存')
     expect(wrapper.find('.merchant-inline-stock').exists()).toBe(false)
     expect(wrapper.find('.merchant-spec-editor').exists()).toBe(false)
+  })
+
+  it('keeps a save failure inside the editor instead of replacing the whole page', async () => {
+    const wrapper = await mountPage()
+    await wrapper.get('.merchant-style-picker > div > button').trigger('click')
+    const numberInputs = wrapper.findAll<HTMLInputElement>('.merchant-simple-sku-fields input[type="number"]')
+    await numberInputs[1]!.setValue('10')
+    mocks.adminCreate.mockRejectedValueOnce(new Error('inventory failed'))
+    await wrapper.get('.merchant-inline-sku-form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.find('.merchant-product-info-editor').exists()).toBe(true)
+    expect(wrapper.find('.merchant-inline-sku-form').exists()).toBe(true)
+    expect(wrapper.get('.alert.error').text()).toContain('网络异常')
+    expect(wrapper.text()).not.toContain('暂时无法加载')
+  })
+
+  it('selects a newly saved style after completing it', async () => {
+    const wrapper = await mountPage()
+    mocks.adminCreate.mockImplementation(async (requestPath: string) => {
+      if (requestPath.endsWith('/skus')) return { data: newSku }
+      if (requestPath === '/admin/inventory-adjustments') return { data: {} }
+      return { data: {} }
+    })
+    mocks.adminGet.mockImplementation(async (requestPath: string) => {
+      if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
+      if (requestPath === '/admin/products/prd_test') return { data: product }
+      if (requestPath.endsWith('/skus')) return { data: [sku, newSku] }
+      if (requestPath.endsWith('/images')) return { data: [] }
+      if (requestPath.endsWith('/attributes') || requestPath.endsWith('/faqs')) return { data: [] }
+      if (requestPath.startsWith('/admin/inventories?')) return { data: { items: [inventory, { ...inventory, sku_id: 'sku_new', sku_name: '新增款式', on_hand_quantity: 0, available_quantity: 0 }] } }
+      if (requestPath.endsWith('/fulfillment-profile')) return { data: null }
+      if (requestPath.endsWith('/shipping-templates')) return { data: [] }
+      throw new Error(`unexpected path: ${requestPath}`)
+    })
+
+    await wrapper.get('.merchant-style-picker > header button').trigger('click')
+    await wrapper.get('.merchant-simple-sku-fields input[placeholder]').setValue('新增款式')
+    const numberInputs = wrapper.findAll<HTMLInputElement>('.merchant-simple-sku-fields input[type="number"]')
+    await numberInputs[0]!.setValue('18')
+    await numberInputs[1]!.setValue('6')
+    await wrapper.get('.merchant-inline-sku-form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('.merchant-style-picker > div > button.active').text()).toContain('新增款式')
+    expect(wrapper.text()).toContain('新款式、价格和库存已添加')
   })
 
   it('saves style name, price and stock from the same form', async () => {

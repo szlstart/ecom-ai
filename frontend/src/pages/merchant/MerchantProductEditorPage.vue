@@ -75,7 +75,10 @@ const originProvinces = Object.entries(areaData['86'] ?? {})
   .map(([code, name]) => ({ code, name }))
 const originCities = computed<RegionOption[]>(() => Object.entries(areaData[originProvinceCode.value] ?? {}).map(([code, name]) => ({ code, name })))
 const flatCategories = computed(() => flatten(categories.value))
-const activeSku = computed(() => skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? skus.value[0] ?? null)
+const activeSku = computed(() => {
+  if (showSkuEditor.value && !skuEditing.value) return null
+  return skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? skus.value[0] ?? null
+})
 const activeImages = computed(() => {
   const skuId = activeSku.value?.sku_id
   const matching = images.value.filter((item) => item.sku_id === skuId)
@@ -168,7 +171,7 @@ async function saveBasic() {
 
 function resetSku() { skuEditing.value = null; Object.assign(skuForm, { name: '', sale_price: '', stock: 0 }) }
 function closeSkuEditor() { resetSku(); showSkuEditor.value = false }
-async function startNewSku() { resetSku(); showSkuEditor.value = true; await nextTick(); skuNameInput.value?.focus(); skuNameInput.value?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) }
+async function startNewSku() { resetSku(); selectedSkuId.value = ''; showSkuEditor.value = true; await nextTick(); skuNameInput.value?.focus(); skuNameInput.value?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) }
 function editSku(item: AdminSku) { skuEditing.value = item; showSkuEditor.value = true; selectedSkuId.value = item.sku_id; Object.assign(skuForm, { name: item.sku_name, sale_price: item.sale_price, stock: inventoryFor(item.sku_id)?.on_hand_quantity ?? 0 }) }
 async function saveSku() {
   const styleName = skuForm.name.trim()
@@ -193,6 +196,7 @@ async function saveSku() {
     if (!inventory) throw new Error('款式已保存，但库存记录尚未准备好，请刷新后重新设置库存。')
     const delta = stock - inventory.on_hand_quantity
     if (delta) await adminCreate('/admin/inventory-adjustments', { sku_id: targetSku.sku_id, on_hand_delta: delta, reason_code: 'MERCHANT_DIRECT_EDIT', reason: '商家在商品款式中直接修改库存', reference_no: `merchant-ui-${Date.now()}`, expected_version: inventory.version }, token(), 'merchant-stock-adjust')
+    selectedSkuId.value = targetSku.sku_id
     closeSkuEditor()
     await load()
     notice.value = editing ? '款式、价格和库存已更新。' : '新款式、价格和库存已添加。'
@@ -335,7 +339,8 @@ onMounted(() => { resetSku(); void load() })
   <section class="merchant-page-stack merchant-product-editor">
     <header class="merchant-editor-header"><RouterLink to="/merchant/products">← 返回我的商品</RouterLink><div v-if="product" class="merchant-editor-status"><span :class="`status-${product.status}`">{{ statusLabel(product.status) }}</span><small v-if="!canEdit">当前状态下资料只读；下架或审核退回后可继续编辑。</small></div></header>
     <p v-if="notice" class="alert success" aria-live="polite">{{ notice }}</p>
-    <PageState :loading="loading" :error="error" :empty="!loading && !product" empty-title="商品不存在" @retry="load">
+    <p v-if="error && product" class="alert error" role="alert">{{ error }}</p>
+    <PageState :loading="loading" :error="product ? '' : error" :empty="!loading && !product" empty-title="商品不存在" @retry="load">
       <template v-if="product">
         <div class="merchant-live-editor">
           <section class="merchant-gallery-editor">
@@ -347,7 +352,7 @@ onMounted(() => { resetSku(); void load() })
 
           <section class="merchant-product-info-editor"><p class="eyebrow">顾客看到的商品信息 · 可直接编辑</p><label class="merchant-title-input">商品名称<input v-model.trim="basic.product_name" required maxlength="255" :disabled="!canEdit" /></label><button v-if="canEdit" type="button" :disabled="editorBusy" @click="saveBasic">完成商品信息</button>
             <div class="merchant-style-picker"><header><div><span>款式与价格</span><small>每个款式直接设置名称、价格和库存；顾客购买后库存会自动减少</small></div><button v-if="canEdit" type="button" class="secondary small" @click="startNewSku">＋ 新增款式</button></header><div><button v-for="sku in skus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id; editSku(sku)"><strong>{{ sku.sku_name }}</strong><b>¥{{ sku.sale_price }}</b><small>库存 {{ inventoryFor(sku.sku_id)?.on_hand_quantity ?? 0 }} · 可售 {{ inventoryFor(sku.sku_id)?.available_quantity ?? 0 }}</small></button></div><p v-if="!skus.length">还没有款式，点击“新增款式”后直接填写名称、价格和库存。</p></div>
-            <form v-if="canEdit && showSkuEditor" class="merchant-inline-sku-form" @submit.prevent="saveSku"><header><strong>{{ skuEditing ? `正在编辑：${skuEditing.sku_name}` : '新增一个款式' }}</strong><button type="button" class="secondary small" @click="closeSkuEditor">取消</button></header><div class="merchant-simple-sku-fields"><label>款式名称<input ref="skuNameInput" v-model.trim="skuForm.name" required maxlength="255" placeholder="例如：曜石黑 / 42 码" /></label><label>价格（元）<input v-model="skuForm.sale_price" type="number" min="0" step="0.01" required /></label><label>库存<input v-model.number="skuForm.stock" type="number" min="0" step="1" required /></label></div><small v-if="skuEditing && (inventoryFor(skuEditing.sku_id)?.reserved_quantity ?? 0) > 0">其中 {{ inventoryFor(skuEditing.sku_id)?.reserved_quantity }} 件已被订单预占；修改账面库存不会取消已有订单。</small><button :disabled="editorBusy">完成</button></form>
+            <form v-if="canEdit && showSkuEditor" class="merchant-inline-sku-form" :class="{ active: !skuEditing }" @submit.prevent="saveSku"><header><strong>{{ skuEditing ? `正在编辑：${skuEditing.sku_name}` : '新增一个款式' }}</strong><button type="button" class="secondary small" @click="closeSkuEditor">取消</button></header><div class="merchant-simple-sku-fields"><label>款式名称<input ref="skuNameInput" v-model.trim="skuForm.name" required maxlength="255" placeholder="例如：曜石黑 / 42 码" /></label><label>价格（元）<input v-model="skuForm.sale_price" type="number" min="0" step="0.01" required /></label><label>库存<input v-model.number="skuForm.stock" type="number" min="0" step="1" required /></label></div><small v-if="skuEditing && (inventoryFor(skuEditing.sku_id)?.reserved_quantity ?? 0) > 0">其中 {{ inventoryFor(skuEditing.sku_id)?.reserved_quantity }} 件已被订单预占；修改账面库存不会取消已有订单。</small><button :disabled="editorBusy">完成</button></form>
           </section>
         </div>
 

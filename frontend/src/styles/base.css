@@ -639,6 +639,7 @@ tr.selected td { background: #f0f4ff; }
 .merchant-style-picker button small { color: #87938d; }
 .merchant-style-picker button b { color: #d64d3f; }
 .merchant-inline-sku-form { margin-top: 14px; padding: 16px; display: grid; gap: 13px; border: 1px solid #dbe5df; border-radius: 13px; background: #f8faf8; }
+.merchant-inline-sku-form.active { border-color: #399674; background: #eff9f4; box-shadow: inset 0 0 0 1px #399674; }
 .merchant-inline-sku-form > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .merchant-simple-sku-fields { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(130px, .75fr) minmax(110px, .6fr); gap: 10px; align-items: end; }
 .merchant-origin-field { margin: 0; padding: 14px; border: 1px solid #dce5df; border-radius: 12px; }

@@ -31,6 +31,11 @@ class AdminAccess:
             )
 
 
+def requires_recent_auth_for_session(policy_requires_recent_auth: bool, client_type: str) -> bool:
+    """Merchant sessions keep permission, scope and audit checks without password step-up."""
+    return policy_requires_recent_auth and client_type != "merchant"
+
+
 def require_admin_permission(permission_code: str) -> object:
     return require_any_admin_permission(permission_code)
 
@@ -73,10 +78,10 @@ def require_any_admin_permission(*permission_codes: str) -> object:
                 detail="该操作需要多因素认证。",
             )
         settings = get_settings()
-        if (
-            permission.requires_recent_auth
-            and context.session.authenticated_at
-            < utc_now() - timedelta(seconds=settings.admin_recent_auth_seconds)
+        if requires_recent_auth_for_session(
+            permission.requires_recent_auth, context.session.client_type
+        ) and context.session.authenticated_at < utc_now() - timedelta(
+            seconds=settings.admin_recent_auth_seconds
         ):
             raise ApplicationError(
                 status=428,

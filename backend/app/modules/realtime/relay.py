@@ -187,6 +187,10 @@ class RealtimeOutboxRelay:
             },
         )
         result = [(user_channel(self.settings.environment, user.user_no), frame)]
+        if conversation.store_id is not None:
+            result.append(
+                (admin_store_channel(self.settings.environment, conversation.store_id), frame)
+            )
         unread = await self._user_unread(user.id, conversation.id)
         result.append(
             (

@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "f6e70823d5d7ad7df616fd12bbdc5a60012031268d6020d9182c07979478dfd5"
+SOURCE_SHA256 = "e184cbe2e72ae24d025a8bb407e157ddcc3a258544e3fd91ad05546e637befda"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -3000,6 +3000,20 @@ OPERATIONS: dict[str, dict[str, object]] = {
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*", "MCH-PORTAL-*"],
     },
+    "MerchantExclusiveReadCursor_PutMine": {
+        "x-audit-event": "command.MerchantExclusiveReadCursor_PutMine",
+        "x-domain-command": "MerchantExclusiveReadCursor_PutMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["MCH-SHELL-01"],
+        "x-scope-policy": [
+            "store_operator_with_store_scope",
+            "merchant_exclusive_conversation_owner",
+            "store_queue_scope",
+        ],
+        "x-test-case-ids": ["ADM-SUPPORT-*", "MCH-PORTAL-*"],
+    },
     "MerchantHumanServiceRequest_CreateMine": {
         "x-audit-event": "command.MerchantHumanServiceRequest_CreateMine",
         "x-domain-command": "MerchantHumanServiceRequest_CreateMine",
@@ -3696,8 +3710,11 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["support:queue_read"],
-        "x-requirement-id": ["ADM-SUPPORT-01", "MCH-SUPPORT-01"],
+        "x-requirement-id": ["ADM-SUPPORT-01", "MCH-SHELL-01", "MCH-SUPPORT-01"],
         "x-scope-policy": [
+            "store_operator_with_store_scope",
+            "merchant_exclusive_conversation_owner",
+            "store_queue_scope",
             "support:queue_read",
             "support:claim",
             "support:reply",

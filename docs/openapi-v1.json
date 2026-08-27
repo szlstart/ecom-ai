@@ -11461,6 +11461,86 @@
         ]
       }
     },
+    "/api/v1/merchant/support/exclusive-conversation/read-cursor": {
+      "put": {
+        "tags": [
+          "merchant-support"
+        ],
+        "summary": "Put Merchant Exclusive Read Cursor",
+        "operationId": "MerchantExclusiveReadCursor_PutMine",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadCursorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ReadCursorView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "command.MerchantExclusiveReadCursor_PutMine",
+        "x-domain-command": "MerchantExclusiveReadCursor_PutMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-SHELL-01"
+        ],
+        "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
     "/api/v1/merchant/support/exclusive-conversation/human-service-tickets": {
       "post": {
         "tags": [
@@ -12173,9 +12253,13 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
+          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -51640,6 +51724,11 @@
             ],
             "title": "Waiting Reason Code"
           },
+          "unread_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unread Count"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -51669,6 +51758,7 @@
           "handoff_summary",
           "sla_due_at",
           "waiting_reason_code",
+          "unread_count",
           "created_at",
           "updated_at",
           "version"
@@ -51778,6 +51868,11 @@
             ],
             "title": "Waiting Reason Code"
           },
+          "unread_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unread Count"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -51830,6 +51925,7 @@
           "handoff_summary",
           "sla_due_at",
           "waiting_reason_code",
+          "unread_count",
           "created_at",
           "updated_at",
           "version",

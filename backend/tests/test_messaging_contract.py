@@ -57,6 +57,12 @@ def test_messaging_contract_is_published() -> None:
         == "MessageReadCursor_PutMine"
     )
     assert (
+        paths["/api/v1/merchant/support/exclusive-conversation/read-cursor"]["put"][
+            "operationId"
+        ]
+        == "MerchantExclusiveReadCursor_PutMine"
+    )
+    assert (
         paths["/api/v1/conversations/{conversation_id}/human-service-ticket"]["get"][
             "operationId"
         ]
@@ -113,6 +119,9 @@ def test_messaging_contract_is_published() -> None:
     }
     for path, (method, operation_id) in support.items():
         assert paths[path][method]["operationId"] == operation_id
+    ticket_schema = create_app().openapi()["components"]["schemas"]["SupportTicketItem"]
+    assert "unread_count" in ticket_schema["required"]
+    assert ticket_schema["properties"]["unread_count"]["minimum"] == 0
     for path in (
         "/api/v1/support/human-service-tickets/{ticket_id}/claims",
         "/api/v1/support/human-service-tickets/{ticket_id}/waits",

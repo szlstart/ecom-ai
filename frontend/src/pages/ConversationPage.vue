@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 
 import { ApiProblem, errorMessage } from '@/api/http'
 import {
@@ -30,13 +30,19 @@ import {
   type HumanServiceTicket,
 } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
+import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 type PendingMessage = { clientMessageId: string; text: string; status: 'sending' | 'failed' | 'blocked' }
 
+const props = withDefaults(defineProps<{ conversationId?: string; embedded?: boolean }>(), {
+  conversationId: undefined,
+  embedded: false,
+})
+
 const route = useRoute()
-const router = useRouter()
 const auth = useUserAuthStore()
+const messageCenter = useMessageCenterStore()
 const conversation = ref<Conversation | null>(null)
 const messages = ref<ChatMessage[]>([])
 const pending = ref<PendingMessage[]>([])
@@ -66,7 +72,7 @@ const feedbackComposer = ref<{
   reasonCode: string
   comment: string
 } | null>(null)
-const conversationId = computed(() => String(route.params.conversationId))
+const conversationId = computed(() => props.conversationId || String(route.params.conversationId))
 const activeContext = computed(() => conversation.value?.active_contexts.find((item) => item.status === 'active') ?? null)
 const activeAfterSaleConsent = computed(() => agentConsents.value.find((item) => (
   item.consent_type === 'after_sale_write'
@@ -86,6 +92,10 @@ let unreadCursorVersion = 0
 const visibleSequences = new Set<number>()
 const readTimers = new Map<number, number>()
 const elements = new Map<number, HTMLElement>()
+
+function closeEmbeddedNavigation() {
+  if (props.embedded) messageCenter.close()
+}
 
 function token(): string {
   if (!auth.accessToken) throw new Error('missing user token')
@@ -540,10 +550,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="conversation-page">
+  <section class="conversation-page" :class="{ embedded }">
     <header class="conversation-header">
-      <div><RouterLink to="/messages">← 返回会话</RouterLink><h1>{{ conversation?.title || '会话' }}</h1><p class="muted"><span class="connection-dot" :class="connectionState" />{{ connectionState === 'offline' ? '连接中断，恢复后自动补拉' : '已连接，消息按服务端顺序同步' }}</p></div>
-      <div class="actions"><RouterLink v-if="conversation?.store_id" :to="`/stores/${conversation.store_id}`">查看店铺</RouterLink><button v-if="!humanTicket || ['resolved','closed'].includes(humanTicket.ticket_status)" type="button" class="secondary" @click="humanOpen = !humanOpen">转人工客服</button></div>
+      <div><RouterLink v-if="!embedded" to="/messages">← 返回会话</RouterLink><h1 v-if="!embedded">{{ conversation?.title || '会话' }}</h1><strong v-else>{{ conversation?.title || '正在读取会话' }}</strong><p class="muted"><span class="connection-dot" :class="connectionState" />{{ connectionState === 'offline' ? '连接中断，恢复后自动补拉' : '消息实时同步' }}</p></div>
+      <div class="actions"><RouterLink v-if="conversation?.store_id" :to="`/stores/${conversation.store_id}`" @click="closeEmbeddedNavigation">查看店铺</RouterLink><button v-if="!humanTicket || ['resolved','closed'].includes(humanTicket.ticket_status)" type="button" class="secondary" @click="humanOpen = !humanOpen">转人工客服</button></div>
     </header>
     <p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <p v-if="humanNotice" class="alert success" role="status">{{ humanNotice }}</p>
@@ -578,8 +588,8 @@ onBeforeUnmount(() => {
         <article v-for="message in messages" :key="message.message_id" :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'user' ? 'mine' : 'theirs']">
           <strong>{{ senderLabel(message.sender_type) }}</strong>
           <p v-if="message.text">{{ message.text }}</p>
-          <RouterLink v-if="message.message_type === 'product_card' && message.content" class="message-card" :to="`/products/${message.content.product_id}`"><span>商品卡片</span><strong>{{ message.content.product_name }}</strong><small>{{ message.content.sku_name || '查看商品详情' }}</small></RouterLink>
-          <RouterLink v-if="message.message_type === 'order_card' && message.content" class="message-card" :to="`/me/orders/${message.content.order_id}`"><span>订单卡片</span><strong>{{ message.content.order_id }}</strong><small>状态：{{ message.content.order_status }}</small></RouterLink>
+          <RouterLink v-if="message.message_type === 'product_card' && message.content" class="message-card" :to="`/products/${message.content.product_id}`" @click="closeEmbeddedNavigation"><span>商品卡片</span><strong>{{ message.content.product_name }}</strong><small>{{ message.content.sku_name || '查看商品详情' }}</small></RouterLink>
+          <RouterLink v-if="message.message_type === 'order_card' && message.content" class="message-card" :to="`/me/orders/${message.content.order_id}`" @click="closeEmbeddedNavigation"><span>订单卡片</span><strong>{{ message.content.order_id }}</strong><small>状态：{{ message.content.order_status }}</small></RouterLink>
           <section v-if="message.message_type === 'refund_approval' && message.content" class="refund-approval-card" :aria-label="`退款申请确认：${approvalStatusLabel(message)}`">
             <header><strong>退款申请确认</strong><span class="badge">{{ approvalStatusLabel(message) }}</span></header>
             <dl>

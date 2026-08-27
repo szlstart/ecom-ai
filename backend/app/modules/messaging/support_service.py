@@ -89,6 +89,10 @@ class SupportService:
                 else []
             )
         }
+        unread_counts = await self.repository.support_unread_counts(
+            {conversation.id for _ticket, conversation in scoped},
+            access.context.user.id,
+        )
         return SupportTicketList(
             items=[
                 _ticket_item(
@@ -97,6 +101,7 @@ class SupportService:
                     assignees.get(ticket.current_assignee_user_id)
                     if ticket.current_assignee_user_id is not None
                     else None,
+                    unread_count=unread_counts.get(conversation.id, 0),
                 )
                 for ticket, conversation in scoped
             ]
@@ -694,7 +699,17 @@ class SupportService:
             if ticket.current_assignee_user_id is not None
             else None
         )
-        return _ticket_item(ticket, conversation, assignee)
+        cursor = await self.repository.support_read_cursor(
+            conversation.id, ticket.current_assignee_user_id or 0
+        )
+        return _ticket_item(
+            ticket,
+            conversation,
+            assignee,
+            unread_count=await self.repository.support_unread_count(
+                conversation.id, cursor.last_read_sequence_no if cursor else 0
+            ),
+        )
 
     async def _view(
         self, ticket: HumanServiceTicket, conversation: Conversation
@@ -861,7 +876,11 @@ def _support_message_view(message: Message) -> MessageView:
 
 
 def _ticket_item(
-    ticket: HumanServiceTicket, conversation: Conversation, assignee: User | None
+    ticket: HumanServiceTicket,
+    conversation: Conversation,
+    assignee: User | None,
+    *,
+    unread_count: int,
 ) -> SupportTicketItem:
     return SupportTicketItem(
         ticket_id=ticket.ticket_no,
@@ -878,6 +897,7 @@ def _ticket_item(
         handoff_summary=ticket.handoff_summary,
         sla_due_at=ticket.sla_due_at,
         waiting_reason_code=ticket.waiting_reason_code,
+        unread_count=unread_count,
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
         version=ticket.version,

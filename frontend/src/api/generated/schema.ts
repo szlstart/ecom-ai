@@ -1957,6 +1957,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/merchant/support/exclusive-conversation/read-cursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Merchant Exclusive Read Cursor */
+        put: operations["MerchantExclusiveReadCursor_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/merchant/support/exclusive-conversation/human-service-tickets": {
         parameters: {
             query?: never;
@@ -11226,6 +11243,8 @@ export interface components {
             sla_due_at: string | null;
             /** Waiting Reason Code */
             waiting_reason_code: string | null;
+            /** Unread Count */
+            unread_count: number;
             /**
              * Created At
              * Format: date-time
@@ -11277,6 +11296,8 @@ export interface components {
             sla_due_at: string | null;
             /** Waiting Reason Code */
             waiting_reason_code: string | null;
+            /** Unread Count */
+            unread_count: number;
             /**
              * Created At
              * Format: date-time
@@ -16478,6 +16499,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantExclusiveReadCursor_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCursorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReadCursorView_"];
                 };
             };
             401: components["responses"]["Problem401"];

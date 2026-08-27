@@ -23,6 +23,7 @@ class SupportTicketItem(StrictRequest):
     handoff_summary: str
     sla_due_at: datetime | None
     waiting_reason_code: str | None
+    unread_count: int = Field(ge=0)
     created_at: datetime
     updated_at: datetime
     version: int

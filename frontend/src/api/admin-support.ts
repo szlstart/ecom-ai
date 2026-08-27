@@ -15,6 +15,7 @@ export interface SupportTicket {
   handoff_summary: string
   sla_due_at: string | null
   waiting_reason_code: string | null
+  unread_count: number
   created_at: string
   updated_at: string
   version: number

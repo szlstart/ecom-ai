@@ -24,6 +24,8 @@ small { display: block; color: #687287; margin-top: 4px; }
 .header-search input { min-width: 0; padding: 9px 12px; }
 .header-search button { padding: 9px 14px; }
 .nav-link-button { padding: 0; color: #3158d8; border: 0; border-radius: 0; background: transparent; }
+.user-message-trigger { position: relative; padding: 0; color: #3158d8; border: 0; border-radius: 0; background: transparent; }
+.user-message-trigger > b { position: absolute; top: -13px; right: -13px; min-width: 19px; height: 19px; padding: 0 5px; display: grid; place-items: center; color: #fff; border: 2px solid #fff; border-radius: 999px; background: #d43b36; font-size: .64rem; line-height: 1; }
 .account-entry { padding: 8px 12px; color: #fff; background: #3158d8; }
 .user-menu { position: relative; }
 .user-menu summary { max-width: 220px; overflow: hidden; color: #172033; cursor: pointer; font-weight: 700; list-style: none; text-overflow: ellipsis; white-space: nowrap; }
@@ -543,6 +545,14 @@ tr.selected td { background: #f0f4ff; }
 .merchant-message-trigger, .merchant-profile-entry { position: relative; height: 40px; padding: 0 13px; display: flex; align-items: center; gap: 8px; color: #3f4d46; border: 1px solid #dfe4df; border-radius: 10px; background: #fff; font-size: .85rem; font-weight: 700; }
 .merchant-message-trigger:hover, .merchant-profile-entry:hover { color: #187657; text-decoration: none; border-color: #9ccab7; background: #f7fbf9; }
 .merchant-message-trigger b { position: absolute; top: -7px; right: -6px; min-width: 18px; height: 18px; padding: 0 5px; display: grid; place-items: center; color: #fff; border: 2px solid #fff; border-radius: 999px; background: #e24b42; font-size: .62rem; }
+@keyframes message-arrival-nudge {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  18% { transform: translateX(-2px) rotate(-1.5deg); }
+  36% { transform: translateX(2px) rotate(1.5deg); }
+  54% { transform: translateX(-1px) rotate(-.8deg); }
+  72% { transform: translateX(1px) rotate(.8deg); }
+}
+.message-arrival-shake { animation: message-arrival-nudge .58s ease-in-out 1; transform-origin: center; }
 .merchant-profile-entry > span { width: 26px; height: 26px; display: grid; place-items: center; color: #fff; border-radius: 8px; background: #218b63; }
 .merchant-content { max-width: 1540px; padding: 30px; }
 .merchant-shop-hero { position: relative; padding: 28px; display: grid; grid-template-columns: minmax(320px, 1.3fr) minmax(400px, 1fr); align-items: center; gap: 24px; overflow: hidden; border: 1px solid #e1e5df; border-radius: 20px; background: linear-gradient(135deg, #fff 30%, #edf7f1); }
@@ -698,6 +708,7 @@ tr.selected td { background: #f0f4ff; }
 .merchant-chat-item strong em { margin-left: 5px; padding: 2px 5px; color: #688177; border-radius: 4px; background: #f0f2f0; font-size: .58rem; font-style: normal; }
 .merchant-chat-item small { color: #858e88; font-size: .69rem; font-weight: 400; }
 .merchant-chat-item > i { width: 8px; height: 8px; border-radius: 50%; background: #ed5b50; }
+.merchant-chat-item > i.merchant-chat-unread, .merchant-chat-item > i.user-chat-unread { width: auto; min-width: 20px; height: 20px; padding: 0 5px; display: grid; place-items: center; color: #fff; border-radius: 999px; background: #e24b42; font-size: .62rem; font-style: normal; font-weight: 800; }
 .merchant-chat-avatar { width: 42px; height: 42px; display: grid; place-items: center; color: #fff; border-radius: 7px; background: #68a088; font-size: .85rem; font-style: normal; font-weight: 750; }
 .merchant-chat-avatar.platform { background: linear-gradient(145deg, #258a64, #52b48e); }
 .merchant-chat-empty { padding: 18px; color: #8a928d; font-size: .78rem; text-align: center; }
@@ -724,6 +735,21 @@ tr.selected td { background: #f0f4ff; }
 .merchant-chat-composer footer { display: flex; align-items: center; justify-content: space-between; }
 .merchant-chat-composer small { color: #9aa19c; }
 .merchant-chat-composer button { padding: 7px 19px; background: #22a16d; }
+
+/* User message center: same desktop-chat structure with storefront colors. */
+.user-message-overlay { background: rgb(10 15 28 / 58%); }
+.user-message-window { width: min(1120px, 96vw); height: min(780px, 92vh); background: #f5f7fb; box-shadow: 0 28px 90px rgb(8 15 34 / 34%); }
+.user-chat-list { background: #eef1f7; border-right-color: #d9deea; }
+.user-chat-list > header { background: #eef1f7; }
+.user-chat-list .merchant-chat-item:hover, .user-chat-list .merchant-chat-item.active { background: #dde5f7; }
+.user-chat-list .merchant-chat-avatar { background: #63708c; }
+.user-chat-list .merchant-chat-avatar.platform { background: linear-gradient(135deg, #3158d8, #6f46c1); }
+.user-chat-main { min-width: 0; height: 100%; overflow-y: auto; background: #f5f7fb; }
+.user-chat-main .conversation-page.embedded { min-height: 100%; padding: 18px; align-content: start; }
+.user-chat-main .conversation-page.embedded > .conversation-header { position: sticky; z-index: 4; top: -18px; margin: -18px -18px 0; padding: 15px 18px; background: rgb(255 255 255 / 96%); border-bottom: 1px solid #dde3ef; backdrop-filter: blur(10px); }
+.user-chat-main .conversation-page.embedded > .conversation-header h1 { font-size: 1.1rem; }
+.user-chat-main .conversation-page.embedded .message-timeline { height: min(48vh, 470px); min-height: 300px; }
+.user-chat-main .conversation-page.embedded .message-composer { position: sticky; z-index: 3; bottom: -18px; box-shadow: 0 -8px 24px rgb(27 49 101 / 8%); }
 
 @media (max-width: 720px) {
   .nav-links span { display: none; }
@@ -832,6 +858,10 @@ tr.selected td { background: #f0f4ff; }
   .merchant-chat-main { grid-template-rows: 72px auto minmax(0, 1fr) 160px; }
   .merchant-chat-timeline { padding: 16px 12px; }
   .merchant-chat-bubble-row > div { max-width: 82%; }
+  .user-message-window { grid-template-columns: 88px minmax(0, 1fr); }
+  .user-chat-main .conversation-page.embedded { padding: 12px; }
+  .user-chat-main .conversation-page.embedded > .conversation-header { top: -12px; margin: -12px -12px 0; padding: 12px; }
+  .user-chat-main .conversation-page.embedded .agent-consent-card { display: none; }
 }
 
 @media (min-width: 721px) and (max-width: 1100px) {

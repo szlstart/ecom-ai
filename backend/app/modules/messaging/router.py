@@ -82,6 +82,27 @@ async def send_merchant_exclusive_message(
     return Envelope(data=result)
 
 
+@merchant_router.put(
+    "/exclusive-conversation/read-cursor",
+    response_model=Envelope[ReadCursorView],
+    operation_id="MerchantExclusiveReadCursor_PutMine",
+)
+async def put_merchant_exclusive_read_cursor(
+    payload: ReadCursorRequest,
+    response: Response,
+    context: MerchantContext,
+    service: MessagingServiceDependency,
+) -> Envelope[ReadCursorView]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await service.read(
+        context.user,
+        conversation.conversation_id,
+        payload,
+    )
+    _no_store(response)
+    return Envelope(data=result)
+
+
 @merchant_router.post(
     "/exclusive-conversation/human-service-tickets",
     response_model=Envelope[HumanTicketView],

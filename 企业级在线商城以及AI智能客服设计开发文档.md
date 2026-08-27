@@ -311,7 +311,7 @@
 | :---------------- | :----------------------------------------------------------- |
 | Logo/首页         | 点击返回首页                                                 |
 | 购物车            | 未登录点击打开认证弹窗并保存 `/cart`；已登录点击进入购物车，可展示服务端返回的商品总件数角标 |
-| 消息              | 未登录点击打开认证弹窗并保存 `/messages`；已登录时必须是可点击链接，进入消息界面并可展示未读角标，禁止以灰色禁用文本代替 |
+| 消息              | 未登录点击打开认证弹窗并保存消息意图；已登录点击后在当前页面上方打开微信式消息弹窗，不跳转独立页面；角标实时展示全部会话未读总数，新消息到达且弹窗关闭时触发一次轻微抖动，禁止以灰色禁用文本代替 |
 | 收藏              | 未登录点击打开认证弹窗并保存收藏目标；已登录进入商品收藏页 |
 | 地址              | 未登录点击打开认证弹窗并保存地址目标；已登录进入收货地址页 |
 | 我的              | 未登录点击打开认证弹窗并保存 `/me`；已登录进入我的界面 |
@@ -598,11 +598,11 @@
 > | 点击 「评价」                   | 滚动定位至评价区域     | —                                |
 > | 点击「商品详情」                | 滚动定位至详情区域     | —                                |
 > | 点击 「常见问题」               | 滚动定位至 FAQ 区域    | —                                |
-> | 点击 「客服」                   | 获取店铺唯一会话并更新已验证商品上下文；默认导航到 `/messages/:conversationId`，桌面端可打开同一会话浮层 | — |
+> | 点击 「客服」                   | 获取店铺唯一会话并更新已验证商品上下文；在当前页面打开全局消息弹窗并选中该会话 | — |
 > | 修改数量                        | —                      | 数量显示更新                     |
 > | 点击「加入购物车」/「立即购买」 | —                      | 执行对应购买流程                 |
 
-客服入口只有一个领域会话：商品页、店铺页和订单页先调用 `PUT /stores/{store_id}/customer-service-conversation` 获取同一 `conversation_id`，再设置经过服务端验证的当前上下文。默认导航到 `/messages/:conversationId`。若桌面端为保持浏览位置使用客服浮层，它只是该路由会话的展示容器，必须复用同一 Conversation、REST/WebSocket、Read Cursor、草稿、AI Run 和人工接管状态；关闭浮层不关闭或新建会话。禁止创建“商品专属临时会话”“订单专属会话”或浮层私有消息历史。
+客服入口只有一个领域会话：商品页、店铺页和订单页先调用 `PUT /stores/{store_id}/customer-service-conversation` 获取同一 `conversation_id`，再设置经过服务端验证的当前上下文，并打开全局消息弹窗选中该会话。弹窗只是同一领域会话的展示容器，必须复用同一 Conversation、REST/WebSocket、Read Cursor、草稿、AI Run 和人工接管状态；关闭弹窗不关闭或新建会话。兼容地址 `/messages` 与 `/messages/:conversationId` 只负责恢复弹窗及选中项后回到安全背景页，不再渲染独立消息业务页面。禁止创建“商品专属临时会话”“订单专属会话”或弹窗私有消息历史。
 
 #### 2.3.4 评价、商品详情、常见问题区域（左侧栏下方内容区）
 
@@ -830,11 +830,11 @@ HTML 消毒只解决浏览器执行风险，不能消除自然语言中的间接
 
 ### 2.4 消息与客服界面
 
-用户点击顶部导航 **“消息”** 进入消息中心，也可以从商品详情、店铺、订单等页面的客服按钮进入。界面采用类似电脑版微信的双栏布局：左侧为会话列表，右侧为聊天窗口。
+用户点击顶部导航 **“消息”** 后，在当前页面上方打开消息中心弹窗，底层页面保留并由遮罩变暗，不导航到独立消息页面；也可以从商品详情、店铺、订单等页面的客服按钮打开并定位指定会话。弹窗采用类似电脑版微信的双栏布局：左侧为会话列表，右侧为聊天窗口。点击遮罩空白、关闭按钮或按 Esc 只关闭弹窗并把焦点还给触发入口，不结束会话、不丢失草稿。
 
 左栏第一项始终为平台级 **“专属客服”**，固定置顶且登录后自动存在；其下才按最近消息时间排列各店铺会话。首页和全局区域不再显示平台级 AI 悬浮入口。
 
-商品页、店铺页和订单页的店铺客服按钮都解析到“当前用户 + 当前店铺”的唯一会话并选中它，默认进入 `/messages/:conversationId`。桌面客服浮层仅为同一会话的可选 UI 容器；它与消息页共享 URL 可恢复的会话 ID、消息、草稿、已读位点、Agent Run 和人工接管状态，不具有独立会话或独立授权。
+商品页、店铺页和订单页的店铺客服按钮都解析到“当前用户 + 当前店铺”的唯一会话并在弹窗中选中它。顶部导航默认选中专属客服；弹窗复用统一的会话 ID、消息、草稿、已读位点、Agent Run 和人工接管状态，不具有独立会话或独立授权。
 
 #### 2.4.1 页面整体布局
 
@@ -984,7 +984,7 @@ HTML 消毒只解决浏览器执行风险，不能消除自然语言中的间接
 | **点击「删除会话」** | 弹出确认弹窗“确认从列表隐藏该会话吗？重新咨询或收到新消息时，该会话会恢复显示。”；确认后立即从用户会话列表隐藏；服务端按 3.5.10 保留唯一会话及必要记录，不级联删除支付、售后、人工客服和安全审计数据 |
 | **店铺会话空状态**   | 专属客服下方显示“暂无店铺会话，去商品页咨询吧~”；专属客服不受空状态影响 |
 
-左栏发生滚动时，只滚动“店铺会话”区域，专属客服卡片和“店铺会话”分隔标题保持可见。顶部导航“消息”角标等于专属客服未读数与全部店铺会话未读数之和；进入消息页不直接清零，只有打开对应会话并使消息进入已读状态后才扣减。
+左栏发生滚动时，只滚动“店铺会话”区域，专属客服卡片和“店铺会话”分隔标题保持可见。顶部导航“消息”角标等于专属客服未读数与全部店铺会话未读数之和，并以服务端绝对未读数动态更新；打开消息弹窗不直接清零，只有打开对应会话并使消息进入已读状态后才扣减。弹窗关闭时收到对方新消息，消息入口执行一次约 `0.6s` 的轻微左右抖动；同一刷新批次只触发一次，弹窗打开时不抖动，`prefers-reduced-motion` 下取消动画。WebSocket/SSE 负责实时更新，断线时每 10 秒有界轮询作为降级，重连后以服务端绝对值校准。
 
 已读可见条件统一为：当前会话处于激活态、`document.visibilityState=visible`、消息数据加载成功且目标消息气泡完成 DOM 渲染，并在会话滚动容器中至少 50% 可见持续 500 ms。前端只提交满足条件的最高 `message_id + sequence_no`；若用户仍停留在旧消息区，只推进到实际看到的位置，不把尚未滚入视口的新消息标记已读。浏览器切到后台、路由正在切换、消息骨架/加载失败、窗口被遮挡到不可见或目标消息尚未渲染时均不得推进。
 
@@ -1057,11 +1057,11 @@ HTML 消毒只解决浏览器执行风险，不能消除自然语言中的间接
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-消息路由是普通页面时，标题栏不显示无语义的最小化 `[−]` 或关闭 `[✕]`；桌面端“返回会话”可隐藏但保留语义标题，“查看店铺”只在店铺会话显示。仅当商品页采用 2.3.3.7 的同会话浮层容器时，浮层标题栏才显示“最小化/关闭”：最小化收起容器但保留草稿和连接状态，关闭只关闭容器并把焦点还给触发按钮，二者都不归档会话、不结束人工工单、不创建新 Conversation。
+消息中心是全局弹窗，标题栏提供语义明确的关闭按钮，不提供容易与结束会话混淆的最小化或结束按钮；“查看店铺”只在店铺会话显示。关闭按钮、遮罩空白和 Esc 的语义一致：仅收起容器、保留草稿和连接状态，并把焦点还给触发按钮；不得归档会话、结束人工工单或创建新 Conversation。
 
 ##### 2.4.4.2 桌面、移动端与消息状态
 
-桌面端采用“固定专属客服 + 可滚动店铺会话列表 + 当前会话”双栏；宽度小于 768px 时使用两级路由视图：`/messages` 只显示会话列表，`/messages/:conversationId` 只显示单会话并提供 [← 返回会话]。刷新或分享单会话 URL 可直接恢复目标会话；无权/不存在时回到列表并显示稳定错误，不短暂渲染其他会话。每个 `(user_id, conversation_id)` 的纯文本草稿保存在 Session 级存储并设 TTL，附件只保存已上传 `file_id`，不得持久化 Token、地址或未上传文件二进制；发送成功后清除对应草稿。
+桌面端弹窗采用“固定专属客服 + 可滚动店铺会话列表 + 当前会话”双栏；宽度小于 768px 时弹窗占满安全可视区域，以窄会话栏和当前会话区组合展示，并提供可访问的会话切换与关闭入口。兼容 URL 可恢复目标会话弹窗；无权/不存在时选中专属客服并显示稳定错误，不短暂渲染其他会话。每个 `(user_id, conversation_id)` 的纯文本草稿保存在 Session 级存储并设 TTL，附件只保存已上传 `file_id`，不得持久化 Token、地址或未上传文件二进制；发送成功后清除对应草稿。
 
 消息滚动与发送状态遵循以下规则：
 
@@ -1112,7 +1112,7 @@ HTML 消毒只解决浏览器执行风险，不能消除自然语言中的间接
 
 ##### 2.4.5.1 从商品详情页「客服」按钮进入
 
-用户点击商品详情页的「客服」按钮后，进入消息界面：
+用户点击商品详情页的「客服」按钮后，在当前页面打开消息弹窗：
 
 | 场景                   | 左栏行为                       | 右栏行为             | AI 欢迎语                      |
 | :--------------------- | :----------------------------- | :------------------- | :----------------------------- |
@@ -1125,7 +1125,7 @@ HTML 消毒只解决浏览器执行风险，不能消除自然语言中的间接
 
 ##### 2.4.5.2 从顶部导航「消息」进入
 
-用户点击顶部导航「消息」后，进入消息界面：
+用户点击顶部导航「消息」后，在当前页面打开消息弹窗：
 
 | 场景 | 左栏行为 | 右栏行为 |
 | :--- | :------- | :------- |
@@ -2084,8 +2084,8 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 结算 | `/checkout/:checkoutId` / `CheckoutPage.vue` | 是 | `checkoutId` | `CheckoutSession_Get`、`CheckoutSession_Patch`、`CheckoutRepricing_Create`、`Order_Create` | 确认订单；L/410/412/N；form |
 | 支付收银台 | `/pay/:tradeOrderId` / `PaymentCashierPage.vue` | 是 | `tradeOrderId` | `GET /trade-orders/{trade_order_id}`、`GET /trade-orders/{trade_order_id}/payments`、`POST /payments` | 支付订单；L/410/409/N；payment |
 | 支付结果 | `/payments/:paymentId/result` / `PaymentResultPage.vue` | 是 | `paymentId` | `GET /payments/{payment_id}`、`GET /trade-orders/{trade_order_id}` | 支付结果；确认中/成功/失败/超时；payment |
-| 消息列表 | `/messages` / `ConversationListPage.vue` | 是 | 无 | `GET /conversations`、`PUT /users/me/exclusive-conversation` | 消息；L/E/N；none |
-| 单会话 | `/messages/:conversationId` / `ConversationPage.vue` | 是 | `conversationId` | `GET /conversations/{conversation_id}`、`GET/POST /conversations/{conversation_id}/messages`、`PUT /conversations/{conversation_id}/read-cursor` | 会话名称；L/403/404/N；upload |
+| 全局消息弹窗 | 任意用户端页面 / `UserMessageCenter.vue`，`ConversationPage.vue` 作为右栏嵌入 | 是 | 可选选中 `conversationId` | `GET /conversations`、`PUT /users/me/exclusive-conversation`、`GET /conversations/{conversation_id}`、`GET/POST /conversations/{conversation_id}/messages`、`PUT /conversations/{conversation_id}/read-cursor` | 消息；L/E/403/404/N；upload；关闭后留在原页面 |
+| 消息兼容入口 | `/messages`、`/messages/:conversationId` / `MessagePopupRedirectPage.vue` | 是 | 可选 `conversationId` | 不新增 API；恢复全局消息弹窗后替换为安全背景路由 | 兼容旧深链，不渲染独立消息业务页面；none |
 | 我的 | `/me` / `MyDashboardPage.vue` | 是 | 无 | `GET /users/me/dashboard` | 我的；L/N；none |
 | 个人资料 | `/me/profile` / `ProfilePage.vue` | 是 | 无 | `GET/PATCH /users/me` | 个人资料；L/412/N；form |
 | 账号安全/设置 | `/me/settings/security` / `SecuritySettingsPage.vue` | 是 | 无 | `UserSecurity_Get`、`UserPassword_Replace`、`UserContactChange_Complete`、`AuthSession_ListMine/Revoke` | 账号与安全；L/字段错误/N；form |
@@ -2343,7 +2343,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 首页 | Banner 全宽，推荐商品 4～6 列 | 推荐商品 3～4 列 | 单列模块，推荐商品 2 列 |
 | 商品详情 | 图片/内容 + Sticky 购买区 | 购买区进入正常流，图库双列 | 全部单列 + 安全底部购买栏 |
 | 购物车 | 店铺分组表格 + 底部汇总 | 商品行压缩、操作换行 | 卡片列表 + 安全底部结算栏 |
-| 消息 | 会话列表/聊天双栏 | 可折叠双栏 | `/messages` 列表 → 单会话路由 |
+| 消息 | 当前页面上方微信式双栏弹窗 | 保持双栏并压缩左栏 | 全屏安全弹窗，以窄会话栏切换当前会话，不跳转独立页面 |
 | 结算 | 地址、店铺组、金额分区 | 单列内容、汇总 Sticky | 单列 + “金额/提交订单”底栏 |
 | 店铺 | 店铺头部、侧/顶分类、商品网格 | 分类横向、3～4 列 | 头部压缩、分类横向、2 列 |
 | 我的 | 四张等宽横向卡片从上到下排列，高度随内容变化 | 保持单列卡片 | 单列卡片，头部操作允许换行 |
@@ -2838,13 +2838,13 @@ SKU 价格在界面使用元，提交时转换为整数分；市场价不得低�
 
 库存按 SKU 显示账面、预占和可售数量。商家输入目标账面库存，前端计算 Delta 后调用受审计库存调整命令；顾客成交由领域库存流水自动扣减，刷新商家页即可看到更新后的可售数。前端不得直接覆盖预占量、已售量或安全库存，也不得绕过 If-Match、原因、幂等和 Store Scope 校验。
 
-顶栏“消息”打开桌面微信式双栏窗口。左栏第一项固定置顶“专属客服”，用于商家向平台商家支持队列留言；其后为当前店铺的顾客咨询。右栏显示会话正文和输入区。未领取顾客工单只展示必要交接摘要，领取后读取完整授权会话；专属客服只访问当前商家自己的固定平台会话，首次留言同时建立或复用平台人工支持工单。点击遮罩空白或关闭按钮退出消息窗口，不离开当前编辑页面。
+顶栏“消息”打开桌面微信式双栏窗口。左栏第一项固定置顶“专属客服”，用于商家向平台商家支持队列留言；其后为当前店铺的顾客咨询。右栏显示会话正文和输入区。未领取顾客工单只展示必要交接摘要，领取后读取完整授权会话；专属客服只访问当前商家自己的固定平台会话，首次留言同时建立或复用平台人工支持工单。顶栏角标和左栏条目展示当前客服主体的真实未读数，WebSocket 实时更新并以 10 秒轮询降级；窗口关闭时收到新消息，顶栏入口执行一次轻微抖动，窗口打开或系统启用减少动态效果时不抖动。点击遮罩空白、关闭按钮或 Esc 退出消息窗口，不离开当前编辑页面。
 
 | 页面/全局组件 | Vue Route / Component | 主要能力 | Permission / Scope |
 | :--- | :--- | :--- | :--- |
 | 商品工作台 | `/merchant/products`、兼容 `/merchant/dashboard` / `MerchantProductListPage.vue` | 店铺式商品卡片、仅“全部”首张新增卡片、悬浮编辑/删除、搜索与中文状态分段 | `stores:read`、`products:read/update` + Store |
 | 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 顾客商品详情同构布局内就地编辑商品、款式、库存、FAQ，并查看/回复本商品评价 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
-| 顶栏消息中心 | `MerchantMessageCenter.vue` | 置顶平台专属客服、顾客咨询列表和回复 | Conversation Owner、`support:*` + Store Queue |
+| 顶栏消息中心 | `MerchantMessageCenter.vue` | 置顶平台专属客服、顾客咨询列表和回复；真实未读总数/分会话角标、实时更新、断线轮询与轻微新消息抖动 | Conversation Owner、`support:*` + Store Queue |
 | 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、修改冷却期和用户端预览 | `stores:read/manage` + Store |
 | 兼容高级路由 | `/merchant/inventory`、`/merchant/reviews/*`、`/merchant/support/*` | 保留历史深链，不在一级导航展示 | `inventories:*`、`reviews:*`、`support:*` + Store/Queue |
 
@@ -9009,7 +9009,7 @@ Consent 不再使用含糊的 `{consent_type}` 路径定位店铺 Scope；外部
 | `POST` | `/conversations/{conversation_id}/human-service-tickets` | 会话所属用户 | 创建人工服务工单；幂等；原因、紧急度由规则校验；Agent 建议经内部 Command Bus 触发，不伪造 User API 请求 |
 | `GET` | `/conversations/{conversation_id}/human-service-ticket` | 会话所属用户 | 查询用户可见的当前未终结工单、队列位置/预计响应和接管状态 |
 | `POST` | `/human-service-tickets/{ticket_id}/cancellations` | 申请用户 | 取消仍在排队且允许取消的请求；幂等 |
-| `GET` | `/support/human-service-tickets` | 有权客服/主管 | 按店铺/平台队列、状态、技能和优先级领取列表；Cursor 分页与数据域隔离 |
+| `GET` | `/support/human-service-tickets` | 有权客服/主管 | 按店铺/平台队列、状态、技能和优先级领取列表；Cursor 分页与数据域隔离；每项返回相对当前客服主体 Read Cursor 计算的 `unread_count` |
 | `POST` | `/support/human-service-tickets/{ticket_id}/claims` | 有权客服 | 原子领取工单；幂等/并发唯一，避免多人同时接管 |
 | `POST` | `/support/human-service-tickets/{ticket_id}/transfers` | 当前客服/主管 | 转队列或转客服；原因必填并审计 |
 | `POST` | `/support/human-service-tickets/{ticket_id}/waits` | 当前客服 | 进入 `waiting_user`；原因、If-Match、幂等，暂停 SLA 并通知用户 |
@@ -9475,7 +9475,7 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 `DELETE /admin/products/{product_id}`（`AdminProduct_Delete`）只允许从未产生任何 `order_items` 的商品执行逻辑永久删除，不等同于 `POST /admin/products/{product_id}/off-shelf-commands`。删除命令要求 `products:update`、Store Scope、If-Match 和 Idempotency-Key，并在持有商品锁后重新检查交易记录；发现任何订单明细均返回 `409 PRODUCT_HAS_TRANSACTIONS`，前端转为下架分支。没有交易时，事务内禁用全部 SKU、写入 `products.deleted_at`、记录原状态、商品状态流水、管理员操作审计和 Outbox。为封闭“检查无交易后恰好并发下单”的竞态，订单创建事务必须按商品 ID 排序锁定全部 Product，在锁内重新校验 `on_sale + deleted_at IS NULL` 后才能锁库存并创建 `order_items`；删除与下单因此在 Product 锁上串行化。所有公开商品查询、商家商品列表、商品详情与库存管理默认追加 `deleted_at IS NULL`。首版不提供商家恢复逻辑删除商品的接口。
 
-商家置顶“专属客服”使用 `/merchant/support/exclusive-conversation*` 薄 Facade，提供固定会话创建/读取、消息列表、消息发送和平台人工工单建立；Facade 内部继续调用统一 Messaging Service 与 Human Service Ticket 状态机，不复制消息表或领域服务。端点只接受 `client_type=merchant` 的 Merchant Context；消费者、平台管理员和其他商家身份均拒绝。消息用 `client_message_id` 去重，人工工单用 Idempotency-Key 建立或复用有效 Platform Queue Ticket；平台支持人员仍通过既有 `/support/*` 工作台回复。
+商家置顶“专属客服”使用 `/merchant/support/exclusive-conversation*` 薄 Facade，提供固定会话创建/读取、消息列表、消息发送、`PUT /merchant/support/exclusive-conversation/read-cursor` 已读位点推进和平台人工工单建立；Facade 内部继续调用统一 Messaging Service 与 Human Service Ticket 状态机，不复制消息表或领域服务。端点只接受 `client_type=merchant` 的 Merchant Context；消费者、平台管理员和其他商家身份均拒绝。消息用 `client_message_id` 去重，Read Cursor 只能单调前进，人工工单用 Idempotency-Key 建立或复用有效 Platform Queue Ticket；平台支持人员仍通过既有 `/support/*` 工作台回复。商家读取顾客会话后使用 `PUT /support/conversations/{conversation_id}/read-cursor` 推进当前客服主体的已读位点，两个入口共同驱动商家顶栏和左栏真实未读数。
 
 商家中心首版不复制一套领域实现。身份准入使用专用 `/merchant/auth/login`、`/merchant/auth/token-refresh`、`/merchant/auth/logout` 与 `/merchant/auth/reauthentications` Facade，以实现密码直登、独立 Cookie Namespace、商家身份限制和 Store Scope 服务端校验；登录后的店铺、商品、库存、评价与客服能力仍复用 `/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API。Token 必须来自 `client_type=merchant` 会话并关联 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。除身份准入确有差异外，不为商家复制领域 Service；后续新增 `/merchant/*` Facade 也必须调用相同 Domain Service 和授权组件。
 

@@ -188,7 +188,10 @@ async def _principal(ticket: RealtimeTicket, settings: Settings) -> RealtimePrin
             }
             if not scopes:
                 return None
-            resolved = {admin_user_channel(settings.environment, user.user_no)}
+            resolved = {
+                admin_user_channel(settings.environment, user.user_no),
+                user_channel(settings.environment, user.user_no),
+            }
             if ("platform", 0) in scopes:
                 resolved.add(admin_platform_channel(settings.environment))
             resolved.update(
@@ -205,16 +208,12 @@ async def _principal(ticket: RealtimeTicket, settings: Settings) -> RealtimePrin
     return None
 
 
-async def _send_frames(
-    websocket: WebSocket, queue: asyncio.Queue[dict[str, object]]
-) -> None:
+async def _send_frames(websocket: WebSocket, queue: asyncio.Queue[dict[str, object]]) -> None:
     while True:
         await websocket.send_json(await queue.get())
 
 
-async def _receive_frames(
-    websocket: WebSocket, settings: Settings, last_pong: list[float]
-) -> None:
+async def _receive_frames(websocket: WebSocket, settings: Settings, last_pong: list[float]) -> None:
     while True:
         raw = await websocket.receive_text()
         if len(raw.encode()) > settings.realtime_max_client_frame_bytes:
@@ -230,9 +229,7 @@ async def _receive_frames(
             raise _ProtocolError
 
 
-async def _listen_pubsub(
-    pubsub: object, queue: asyncio.Queue[dict[str, object]]
-) -> None:
+async def _listen_pubsub(pubsub: object, queue: asyncio.Queue[dict[str, object]]) -> None:
     while True:
         try:
             message = await pubsub.get_message(timeout=1.0)  # type: ignore[attr-defined]

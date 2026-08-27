@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.messaging.models import (
@@ -229,6 +229,37 @@ class MessagingRepository:
             )
             or 0
         )
+
+    async def support_unread_counts(
+        self, conversation_ids: set[int], reader_id: int
+    ) -> dict[int, int]:
+        if not conversation_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(Conversation.id, func.count(Message.id))
+                .outerjoin(
+                    MessageRead,
+                    and_(
+                        MessageRead.conversation_id == Conversation.id,
+                        MessageRead.reader_type == "human",
+                        MessageRead.reader_id == reader_id,
+                    ),
+                )
+                .outerjoin(
+                    Message,
+                    and_(
+                        Message.conversation_id == Conversation.id,
+                        Message.sequence_no > func.coalesce(MessageRead.last_read_sequence_no, 0),
+                        Message.sender_type != "human",
+                        Message.message_status == "sent",
+                    ),
+                )
+                .where(Conversation.id.in_(conversation_ids))
+                .group_by(Conversation.id)
+            )
+        ).all()
+        return {conversation_id: int(count) for conversation_id, count in rows}
 
     async def unread_count(self, conversation_id: int, last_read: int) -> int:
         return int(

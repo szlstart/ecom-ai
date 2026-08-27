@@ -8,8 +8,10 @@ import { createIdempotencyKey, errorMessage } from '@/api/http'
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
+import { useMessageCenterStore } from '@/stores/message-center'
 
 const route = useRoute(), router = useRouter(), auth = useUserAuthStore()
+const messageCenter = useMessageCenterStore()
 const checkout = ref<CheckoutData | null>(null), addresses = ref<AddressSummary[]>([])
 const loading = ref(true), busy = ref(false), error = ref('')
 const pendingOrderKey = ref('')
@@ -41,7 +43,7 @@ async function contactStore(storeId: string) {
   try {
     const conversation = (await ensureStoreConversation(storeId, token())).data
     await setConversationContext(conversation.conversation_id, conversation.version, 'checkout_store_group', checkout.value.checkout_id, checkout.value.version, token())
-    await router.push(`/messages/${conversation.conversation_id}`)
+    messageCenter.show(conversation.conversation_id)
   } catch (cause) { error.value = errorMessage(cause) }
   finally { busy.value = false }
 }

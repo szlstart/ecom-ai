@@ -5,13 +5,17 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import type { LocationQueryRaw } from 'vue-router'
 
 import AuthModal from '@/components/AuthModal.vue'
+import UserMessageCenter from '@/components/UserMessageCenter.vue'
+import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const auth = useUserAuthStore()
+const messageCenter = useMessageCenterStore()
 const route = useRoute()
 const router = useRouter()
 const searchTerm = ref('')
 const userMenu = ref<HTMLDetailsElement | null>(null)
+const openMessagesAfterAuth = ref(false)
 const authMode = computed<'login' | 'register'>(() => route.query.auth === 'register' ? 'register' : 'login')
 const authModalOpen = computed(() => route.query.auth === 'login' || route.query.auth === 'register')
 const displayName = computed(() => auth.user?.nickname || auth.user?.username || '用户')
@@ -45,12 +49,23 @@ function closeAuth() {
 }
 
 async function finishAuth() {
+  if (openMessagesAfterAuth.value) {
+    openMessagesAfterAuth.value = false
+    closeAuth()
+    messageCenter.show()
+    return
+  }
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
   if (redirect?.startsWith('/') && !redirect.startsWith('//')) {
     await router.replace(redirect)
   } else {
     closeAuth()
   }
+}
+
+function requestMessages() {
+  openMessagesAfterAuth.value = true
+  openAuth('login')
 }
 
 async function logout() {
@@ -78,7 +93,7 @@ watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
         </form>
         <div class="nav-links">
           <RouterLink v-if="auth.isAuthenticated" to="/cart">购物车</RouterLink><button v-else class="nav-link-button" type="button" @click="openAuth('login', '/cart')">购物车</button>
-          <RouterLink v-if="auth.isAuthenticated" to="/messages">消息</RouterLink><button v-else class="nav-link-button" type="button" @click="openAuth('login', '/messages')">消息</button>
+          <UserMessageCenter v-if="auth.isAuthenticated" /><button v-else class="nav-link-button" type="button" @click="requestMessages">消息</button>
           <RouterLink v-if="auth.isAuthenticated" to="/me/favorites/products">收藏</RouterLink><button v-else class="nav-link-button" type="button" @click="openAuth('login', '/me/favorites/products')">收藏</button>
           <RouterLink v-if="auth.isAuthenticated" to="/me/addresses">地址</RouterLink><button v-else class="nav-link-button" type="button" @click="openAuth('login', '/me/addresses')">地址</button>
           <RouterLink v-if="auth.isAuthenticated" to="/me">我的</RouterLink><button v-else class="nav-link-button" type="button" @click="openAuth('login', '/me')">我的</button>

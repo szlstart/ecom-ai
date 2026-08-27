@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import {
   claimSupportTicket,
   getSupportWorkspace,
   listSupportMessages,
   listSupportTickets,
+  putSupportReadCursor,
   sendSupportMessage,
   type SupportTicket,
   type SupportWorkspace,
@@ -15,9 +16,11 @@ import {
   ensureMerchantHumanService,
   getMerchantExclusiveConversation,
   listMerchantExclusiveMessages,
+  putMerchantExclusiveReadCursor,
   sendMerchantExclusiveMessage,
 } from '@/api/merchant-support'
 import type { ChatMessage } from '@/api/messaging'
+import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
 defineProps<{ storeName?: string }>()
@@ -33,11 +36,21 @@ const selectedKey = ref('exclusive')
 const workspace = ref<SupportWorkspace | null>(null)
 const messages = ref<ChatMessage[]>([])
 const exclusiveMessages = ref<ChatMessage[]>([])
+const exclusiveConversationId = ref('')
+const exclusiveUnread = ref(0)
 const timeline = ref<HTMLElement | null>(null)
+const trigger = ref<HTMLButtonElement | null>(null)
+const connectionState = ref<RealtimeState>('polling')
+const shaking = ref(false)
+let realtime: RealtimeConnection | undefined
+let pollingTimer: number | undefined
+let refreshTimer: number | undefined
+let shakeTimer: number | undefined
+let initialized = false
 
 const activeTicket = computed(() => tickets.value.find((item) => item.ticket_id === selectedKey.value) ?? null)
 const activeMessages = computed(() => selectedKey.value === 'exclusive' ? exclusiveMessages.value : messages.value)
-const unresolvedCount = computed(() => tickets.value.filter((item) => !['resolved', 'closed'].includes(item.ticket_status)).length)
+const unreadCount = computed(() => exclusiveUnread.value + tickets.value.reduce((total, item) => total + item.unread_count, 0))
 const title = computed(() => selectedKey.value === 'exclusive' ? '专属客服' : workspace.value?.user.nickname || '顾客咨询')
 const subtitle = computed(() => {
   if (selectedKey.value === 'exclusive') return '平台商家支持 · 工作日优先响应'
@@ -55,15 +68,27 @@ function isMine(item: ChatMessage) {
 async function scrollBottom() { await nextTick(); timeline.value?.scrollTo({ top: timeline.value.scrollHeight }) }
 
 async function loadTickets() {
-  try { tickets.value = (await listSupportTickets({ queueType: 'store' }, token())).data.items }
+  const previousUnread = unreadCount.value
+  try {
+    tickets.value = (await listSupportTickets({ queueType: 'store' }, token())).data.items
+    if (initialized && unreadCount.value > previousUnread) shake()
+  }
   catch (cause) { error.value = errorMessage(cause) }
 }
 
-async function loadExclusive() {
+async function loadExclusive(markRead = open.value && selectedKey.value === 'exclusive') {
   loading.value = true; error.value = ''
   try {
-    await getMerchantExclusiveConversation(token())
+    const previousUnread = exclusiveUnread.value
+    const conversation = (await getMerchantExclusiveConversation(token())).data
+    exclusiveConversationId.value = conversation.conversation_id
+    exclusiveUnread.value = conversation.unread_count
+    if (initialized && exclusiveUnread.value > previousUnread) shake()
     exclusiveMessages.value = (await listMerchantExclusiveMessages(token())).data.items
+    const lastMessage = exclusiveMessages.value.at(-1)
+    if (markRead && lastMessage && exclusiveUnread.value) {
+      exclusiveUnread.value = (await putMerchantExclusiveReadCursor(lastMessage, token())).data.unread_count
+    }
     await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
@@ -86,6 +111,10 @@ async function selectConversation(key: string) {
     ])
     workspace.value = workspaceResult.data
     messages.value = messageResult.data.items
+    const lastMessage = messages.value.at(-1)
+    if (lastMessage && ticket.unread_count) {
+      ticket.unread_count = (await putSupportReadCursor(ticket.conversation_id, lastMessage, token())).data.unread_count
+    }
     await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
@@ -94,6 +123,39 @@ async function selectConversation(key: string) {
 async function show() {
   open.value = true
   await Promise.all([loadTickets(), loadExclusive()])
+}
+
+function close() {
+  open.value = false
+  void nextTick(() => trigger.value?.focus())
+}
+
+function shake() {
+  if (open.value) return
+  shaking.value = false
+  window.requestAnimationFrame(() => { shaking.value = true })
+  if (shakeTimer) window.clearTimeout(shakeTimer)
+  shakeTimer = window.setTimeout(() => { shaking.value = false }, 700)
+}
+
+function scheduleRefresh() {
+  if (refreshTimer) return
+  refreshTimer = window.setTimeout(() => {
+    refreshTimer = undefined
+    void Promise.all([loadTickets(), loadExclusive(false)])
+  }, 120)
+}
+
+function handleRealtime(event: RealtimeEvent) {
+  if (event.type === 'message.created') {
+    const conversationId = String(event.data.conversation_id ?? '')
+    const message = event.data.message as { sender_type?: string } | undefined
+    const incoming = conversationId === exclusiveConversationId.value
+      ? message?.sender_type !== 'user'
+      : message?.sender_type !== 'human'
+    if (incoming) shake()
+  }
+  if (['message.created', 'unread.updated', 'support.ticket.updated'].includes(event.type)) scheduleRefresh()
 }
 
 async function send() {
@@ -114,24 +176,40 @@ async function send() {
   finally { sending.value = false }
 }
 
-onMounted(loadTickets)
+onMounted(async () => {
+  await Promise.all([loadTickets(), loadExclusive(false)])
+  initialized = true
+  realtime = new RealtimeConnection({
+    audience: 'admin', token, onEvent: handleRealtime,
+    onState: (state) => { connectionState.value = state },
+    beforeReconnect: () => Promise.all([loadTickets(), loadExclusive(false)]).then(() => undefined),
+  })
+  realtime.start()
+  pollingTimer = window.setInterval(() => void Promise.all([loadTickets(), loadExclusive(false)]), 10_000)
+})
+onBeforeUnmount(() => {
+  realtime?.stop()
+  if (pollingTimer) window.clearInterval(pollingTimer)
+  if (refreshTimer) window.clearTimeout(refreshTimer)
+  if (shakeTimer) window.clearTimeout(shakeTimer)
+})
 </script>
 
 <template>
-  <button class="merchant-message-trigger" type="button" aria-haspopup="dialog" @click="show">
-    <span aria-hidden="true">💬</span><span>消息</span><b v-if="unresolvedCount">{{ unresolvedCount > 99 ? '99+' : unresolvedCount }}</b>
+  <button ref="trigger" class="merchant-message-trigger" :class="{ 'message-arrival-shake': shaking }" type="button" aria-haspopup="dialog" @click="show">
+    <span aria-hidden="true">💬</span><span>消息</span><b v-if="unreadCount" :aria-label="`${unreadCount} 条未读消息`">{{ unreadCount > 99 ? '99+' : unreadCount }}</b>
   </button>
   <Teleport to="body">
-    <div v-if="open" class="merchant-message-overlay" @mousedown.self="open = false">
-      <section class="merchant-message-window" role="dialog" aria-modal="true" aria-label="商家消息中心">
+    <div v-if="open" class="merchant-message-overlay" @mousedown.self="close" @keydown.esc="close">
+      <section class="merchant-message-window" role="dialog" aria-modal="true" aria-label="商家消息中心" tabindex="-1">
         <aside class="merchant-chat-list">
-          <header><div><strong>消息</strong><small>{{ tickets.length }} 位顾客</small></div><button type="button" aria-label="关闭消息中心" @click="open = false">×</button></header>
+          <header><div><strong>消息</strong><small><span class="connection-dot" :class="connectionState" />{{ unreadCount ? `${unreadCount} 条未读` : '消息已读' }}</small></div><button type="button" aria-label="关闭消息中心" @click="close">×</button></header>
           <button class="merchant-chat-item pinned" :class="{ active: selectedKey === 'exclusive' }" type="button" @click="selectConversation('exclusive')">
-            <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>平台商家支持</small></span>
+            <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>平台商家支持</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
           </button>
           <p v-if="!tickets.length" class="merchant-chat-empty">暂时没有顾客咨询</p>
           <button v-for="ticket in tickets" :key="ticket.ticket_id" class="merchant-chat-item" :class="{ active: selectedKey === ticket.ticket_id }" type="button" @click="selectConversation(ticket.ticket_id)">
-            <span class="merchant-chat-avatar">客</span><span><strong>{{ ticket.handoff_summary || '顾客咨询' }}</strong><small>{{ statusLabel(ticket.ticket_status) }} · {{ new Date(ticket.updated_at).toLocaleString('zh-CN') }}</small></span><i v-if="!['resolved','closed'].includes(ticket.ticket_status)"></i>
+            <span class="merchant-chat-avatar">客</span><span><strong>{{ ticket.handoff_summary || '顾客咨询' }}</strong><small>{{ statusLabel(ticket.ticket_status) }} · {{ new Date(ticket.updated_at).toLocaleString('zh-CN') }}</small></span><i v-if="ticket.unread_count" class="merchant-chat-unread">{{ ticket.unread_count > 99 ? '99+' : ticket.unread_count }}</i>
           </button>
         </aside>
         <main class="merchant-chat-main">

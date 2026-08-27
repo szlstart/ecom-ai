@@ -25,9 +25,11 @@ import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
+import { imageFileFromClipboard } from '@/utils/clipboard-image'
 
 interface Fulfillment { shipping_template_id: string; origin_region_code: string; dispatch_min_hours: number; dispatch_max_hours: number; purchase_notice: string | null; profile_version: number; version: number }
 interface SpecRow { name: string; value: string }
+interface FileUploadHandle { uploadFile: (file: File) => Promise<void> }
 
 const route = useRoute(); const router = useRouter(); const auth = useAdminAuthStore()
 const isNew = computed(() => route.path.endsWith('/new'))
@@ -47,6 +49,12 @@ const selectedImage = ref(0); const selectedSkuId = ref(''); const skuEditing = 
 const showSkuEditor = ref(false)
 const newStock = ref<number | null>(null)
 const skuNameInput = ref<HTMLInputElement | null>(null)
+const mainImageArea = ref<HTMLElement | null>(null)
+const imageUpload = ref<FileUploadHandle | null>(null)
+const pasteFocused = ref(false)
+const pasteBusy = ref(false)
+const pasteError = ref('')
+const pasteNotice = ref('')
 const replyDrafts = reactive<Record<string, string>>({})
 const replyingReviewId = ref('')
 const basic = reactive({ store_id: '', category_id: '', brand_id: '', product_name: '', subtitle: '', description: '' })
@@ -168,6 +176,27 @@ function addImage(fileId: string) {
   images.value.push({ file_id: fileId, sku_id: skuId, image_type: skuId ? 'spec' : (hasMainImage ? 'gallery' : 'main'), alt_text: basic.product_name, sort_order: images.value.length, image_url: `/api/v1/files/${fileId}`, width: 0, height: 0, status: 'active' })
   selectedImage.value = activeImages.value.length - 1
 }
+async function pasteImage(event: ClipboardEvent) {
+  if (!canEdit.value || pasteBusy.value) return
+  pasteError.value = ''
+  pasteNotice.value = ''
+  try {
+    const file = imageFileFromClipboard(event.clipboardData)
+    if (!file) {
+      pasteError.value = '剪贴板中没有图片。请先复制图片本身，再点击左侧大图并按 Command + V 或 Ctrl + V。'
+      return
+    }
+    event.preventDefault()
+    if (!imageUpload.value) throw new Error('图片上传组件尚未准备好，请稍后重试。')
+    pasteBusy.value = true
+    await imageUpload.value.uploadFile(file)
+    pasteNotice.value = '剪贴板图片已上传并通过安全扫描，请点击“保存图片”完成商品绑定。'
+  } catch (cause) {
+    pasteError.value = cause instanceof Error ? cause.message : errorMessage(cause)
+  } finally {
+    pasteBusy.value = false
+  }
+}
 function removeImage(index: number) { const item = activeImages.value[index]; if (!item) return; const actualIndex = images.value.indexOf(item); if (actualIndex >= 0) images.value.splice(actualIndex, 1) }
 async function saveImages() {
   if (!images.value.length) { error.value = '请至少保留一张商品图片。'; return }
@@ -230,9 +259,10 @@ onMounted(() => { resetSku(); void load() })
       <template v-if="product">
         <div class="merchant-live-editor">
           <section class="merchant-gallery-editor">
-            <div class="merchant-main-image"><img v-if="displayImage" :src="resolveApiAssetUrl(displayImage.image_url) || undefined" :alt="displayImage.alt_text || basic.product_name" /><div v-else><b>上传这件商品的第一张图片</b><p>选择款式后上传，图片会自动关联到该款式。</p></div></div>
+            <div ref="mainImageArea" class="merchant-main-image merchant-paste-image-zone" :class="{ focused: pasteFocused, busy: pasteBusy }" :tabindex="canEdit ? 0 : -1" :role="canEdit ? 'button' : undefined" :aria-label="canEdit ? '商品大图粘贴上传区，点击后按 Command 加 V 或 Control 加 V 粘贴图片' : undefined" @click="mainImageArea?.focus()" @focus="pasteFocused = true" @blur="pasteFocused = false" @paste="pasteImage"><img v-if="displayImage" :src="resolveApiAssetUrl(displayImage.image_url) || undefined" :alt="displayImage.alt_text || basic.product_name" /><div v-else><b>上传这件商品的第一张图片</b><p>选择款式后上传，图片会自动关联到该款式。</p></div><span v-if="canEdit" class="merchant-paste-image-hint" aria-live="polite">{{ pasteBusy ? '正在读取、扫描并上传剪贴板图片…' : '点击大图后，按 Command + V（macOS）或 Ctrl + V（Windows）粘贴图片' }}</span></div>
+            <p v-if="pasteNotice" class="success-text merchant-paste-feedback" role="status">{{ pasteNotice }}</p><p v-if="pasteError" class="error-text merchant-paste-feedback" role="alert">{{ pasteError }}</p>
             <div v-if="activeImages.length" class="merchant-thumbnails"><button v-for="(item, index) in activeImages" :key="`${item.file_id}-${index}`" type="button" :class="{ active: selectedImage === index }" @click="selectedImage = index"><img :src="resolveApiAssetUrl(item.image_url) || undefined" alt="" /></button></div>
-            <div v-if="canEdit" class="merchant-image-actions"><label>图片属于<select v-model="selectedSkuId"><option value="">全部款式</option><option v-for="sku in skus" :key="sku.sku_id" :value="sku.sku_id">{{ sku.sku_name }}</option></select></label><AdminFileUpload purpose="product" :business-context-id="product.store_id" label="选择图片" @uploaded="addImage" /><div class="actions"><button type="button" :disabled="!images.length || saving" @click="saveImages">保存图片</button><button v-if="displayImage" type="button" class="danger small" @click="removeImage(selectedImage)">移除当前图片</button></div></div>
+            <div v-if="canEdit" class="merchant-image-actions"><label>图片属于<select v-model="selectedSkuId"><option value="">全部款式</option><option v-for="sku in skus" :key="sku.sku_id" :value="sku.sku_id">{{ sku.sku_name }}</option></select></label><AdminFileUpload ref="imageUpload" purpose="product" :business-context-id="product.store_id" label="从本地选择图片" @uploaded="addImage" /><div class="actions"><button type="button" :disabled="!images.length || saving || pasteBusy" @click="saveImages">保存图片</button><button v-if="displayImage" type="button" class="danger small" :disabled="pasteBusy" @click="removeImage(selectedImage)">移除当前图片</button></div></div>
           </section>
 
           <section class="merchant-product-info-editor"><p class="eyebrow">顾客看到的商品信息 · 可直接编辑</p><label class="merchant-title-input">商品名称<input v-model.trim="basic.product_name" required maxlength="255" :disabled="!canEdit" /></label><label>一句话卖点<input v-model.trim="basic.subtitle" maxlength="500" :disabled="!canEdit" /></label><label>商品简介<textarea v-model.trim="basic.description" rows="3" maxlength="2000" :disabled="!canEdit" /></label><button v-if="canEdit" type="button" :disabled="saving" @click="saveBasic">完成商品信息</button>

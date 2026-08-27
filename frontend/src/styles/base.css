@@ -615,6 +615,11 @@ tr.selected td { background: #f0f4ff; }
 .merchant-main-image { aspect-ratio: 1 / .84; overflow: hidden; display: grid; place-items: center; border: 1px solid #e0e5e0; border-radius: 20px; background: #eef1ee; }
 .merchant-main-image img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
 .merchant-main-image > div { padding: 30px; color: #738078; text-align: center; }
+.merchant-paste-image-zone { position: relative; cursor: pointer; outline: 0; transition: border-color .18s ease, box-shadow .18s ease; }
+.merchant-paste-image-zone.focused { border-color: #248d67; box-shadow: 0 0 0 4px rgb(36 141 103 / 16%); }
+.merchant-paste-image-zone.busy { cursor: progress; }
+.merchant-paste-image-hint { position: absolute; right: 14px; bottom: 14px; left: 14px; padding: 9px 12px; color: #fff; border-radius: 10px; background: rgb(21 61 46 / 78%); box-shadow: 0 4px 16px rgb(16 45 34 / 16%); font-size: .75rem; font-weight: 700; text-align: center; backdrop-filter: blur(8px); }
+.merchant-paste-feedback { margin: 10px 4px 0; font-size: .82rem; }
 .merchant-thumbnails { margin-top: 12px; display: flex; gap: 10px; overflow-x: auto; }
 .merchant-thumbnails button { width: 72px; height: 72px; flex: 0 0 auto; padding: 0; overflow: hidden; border: 2px solid transparent; border-radius: 11px; background: #fff; }
 .merchant-thumbnails button.active { border-color: #248d67; }

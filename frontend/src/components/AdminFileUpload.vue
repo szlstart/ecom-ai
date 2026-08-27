@@ -49,7 +49,7 @@ async function loadPolicy() {
   catch (cause) { error.value = errorMessage(cause) }
 }
 
-async function upload() {
+async function upload(throwOnError = false) {
   if (!selected.value || !auth.accessToken) return
   busy.value = true; error.value = ''; status.value = '正在计算文件校验值…'
   try {
@@ -76,8 +76,17 @@ async function upload() {
     status.value = `文件已通过扫描：${fileId}`
     emit('uploaded', fileId)
     selected.value = null
-  } catch (cause) { error.value = cause instanceof Error && !(cause instanceof TypeError) ? cause.message : errorMessage(cause) }
+  } catch (cause) {
+    error.value = cause instanceof Error && !(cause instanceof TypeError) ? cause.message : errorMessage(cause)
+    if (throwOnError) throw new Error(error.value)
+  }
   finally { busy.value = false }
+}
+
+async function uploadFile(file: File) {
+  if (busy.value) throw new Error('当前文件正在处理中，请稍候。')
+  selected.value = file
+  await upload(true)
 }
 
 async function waitUntilBindable(uploadId: string): Promise<string> {
@@ -97,12 +106,13 @@ async function digest(file: File): Promise<string> {
 }
 
 onMounted(loadPolicy)
+defineExpose({ uploadFile })
 </script>
 
 <template>
   <div class="file-upload-control">
     <label>{{ label || '上传文件' }}<input type="file" :accept="accept" :disabled="busy" @change="choose" /></label>
-    <button type="button" class="secondary small" :disabled="!selected || busy" @click="upload">{{ busy ? '处理中…' : '上传并扫描' }}</button>
+    <button type="button" class="secondary small" :disabled="!selected || busy" @click="upload(false)">{{ busy ? '处理中…' : '上传并扫描' }}</button>
     <small v-if="status" class="success-text" aria-live="polite">{{ status }}</small>
     <small v-if="error" class="error-text" role="alert">{{ error }}</small>
   </div>

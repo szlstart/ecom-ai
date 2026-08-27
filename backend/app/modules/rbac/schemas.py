@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from app.api.schemas import StrictRequest
 from app.modules.identity.schemas import ClientDescriptor, SessionBootstrap
@@ -13,6 +13,28 @@ class AdminLoginRequest(StrictRequest):
     identifier: str = Field(min_length=1, max_length=254)
     password: str = Field(min_length=1, max_length=128)
     client: ClientDescriptor
+
+
+class MerchantRegistrationRequest(StrictRequest):
+    username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    password: str = Field(min_length=1, max_length=128)
+    store_name: str = Field(min_length=2, max_length=128)
+    client: ClientDescriptor
+
+    @field_validator("password")
+    @classmethod
+    def reject_password_whitespace(cls, value: str) -> str:
+        if any(character.isspace() for character in value):
+            raise ValueError("密码不能包含空白字符")
+        return value
+
+    @field_validator("store_name")
+    @classmethod
+    def normalize_store_name(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if len(normalized) < 2:
+            raise ValueError("店铺名称至少需要 2 个字符")
+        return normalized
 
 
 class AdminMfaChallenge(StrictRequest):

@@ -81,6 +81,14 @@ class AccountDeletionService:
             .tuples()
             .all()
         )
+        # RolePermission is global security configuration. Its grantor is audit
+        # metadata, not account-owned content, so deleting an account must never
+        # cascade into the platform's role-to-permission bindings.
+        relations = tuple(
+            relation
+            for relation in relations
+            if not (str(relation[0]) == "role_permissions" and str(relation[1]) == "granted_by")
+        )
         for names in relations:
             for name in names:
                 if name is not None and not _IDENTIFIER.fullmatch(str(name)):
@@ -127,6 +135,38 @@ class AccountDeletionService:
     ) -> None:
         store_nos = [store.store_no for store in stores]
         try:
+            role_permission_count = int(
+                await self.mysql.scalar(
+                    text("SELECT COUNT(*) FROM role_permissions WHERE granted_by=:user_id"),
+                    {"user_id": user.id},
+                )
+                or 0
+            )
+            if role_permission_count:
+                replacement_grantor = await self.mysql.scalar(
+                    text(
+                        """SELECT ur.user_id FROM user_roles ur
+                        JOIN roles r ON r.id=ur.role_id
+                        JOIN users u ON u.id=ur.user_id
+                        WHERE r.role_code='platform_super_admin'
+                        AND r.scope_type='platform' AND r.role_status='active'
+                        AND ur.scope_type='platform' AND ur.scope_id=0
+                        AND ur.grant_status='active' AND u.user_status='active'
+                        AND ur.user_id<>:user_id ORDER BY ur.id LIMIT 1"""
+                    ),
+                    {"user_id": user.id},
+                )
+                if replacement_grantor is None:
+                    raise _blocked(
+                        "该账号仍是全局权限配置的审计授予人，必须先由其他平台管理员接管。"
+                    )
+                await self.mysql.execute(
+                    text(
+                        "UPDATE role_permissions SET granted_by=:replacement "
+                        "WHERE granted_by=:user_id"
+                    ),
+                    {"replacement": int(replacement_grantor), "user_id": user.id},
+                )
             await self.mysql.execute(text("SET SESSION FOREIGN_KEY_CHECKS=0"))
             for table_name in sorted(selected, key=lambda name: name == "users"):
                 values = selected[table_name]

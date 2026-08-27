@@ -20,7 +20,7 @@ PaymentStatus = Literal[
 class PaymentCreateRequest(StrictRequest):
     trade_order_id: str = Field(min_length=5, max_length=32)
     provider: Literal["fake"]
-    payment_method: Literal["fake_balance"]
+    payment_method: Literal["fake_balance", "wallet_balance"]
     return_url_key: Literal["payment_result"]
 
 

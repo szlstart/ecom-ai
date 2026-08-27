@@ -30,7 +30,7 @@ async function loadStore() {
 
 async function logout() {
   await auth.logout('merchant')
-  await router.replace('/merchant/login')
+  await router.replace('/merchant')
 }
 
 onMounted(() => void loadStore())

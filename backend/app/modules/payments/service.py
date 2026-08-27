@@ -16,6 +16,8 @@ from app.core.idempotency import IdempotencyService
 from app.core.security import SecurityService, utc_now
 from app.integrations.payments import PaymentProviderRequest, payment_provider
 from app.modules.catalog.schemas import Money
+from app.modules.finance.models import UserWallet, WalletTransaction
+from app.modules.finance.repository import FinanceRepository
 from app.modules.identity.models import User
 from app.modules.inventory.models import InventoryLog
 from app.modules.orders.domain import ORDER_TRANSITIONS, require_transition
@@ -49,6 +51,7 @@ class PaymentService:
         self.security = security
         self.repository = PaymentRepository(session)
         self.order_repository = OrderRepository(session)
+        self.finance_repository = FinanceRepository(session)
         self.idempotency = IdempotencyService(session)
 
     async def create(
@@ -91,6 +94,18 @@ class PaymentService:
                 detail=f"已有支付尝试 {active.payment_no} 正在确认中。",
                 headers={"Location": f"/api/v1/payments/{active.payment_no}"},
             )
+
+        wallet: UserWallet | None = None
+        if payload.payment_method == "wallet_balance":
+            wallet = await self.finance_repository.wallet(user.id, for_update=True)
+            if wallet is None or wallet.wallet_status != "active":
+                raise _error(409, "WALLET_UNAVAILABLE", "余额账户当前不可用。")
+            if wallet.balance_amount < trade.payable_amount:
+                raise _error(
+                    409,
+                    "INSUFFICIENT_BALANCE",
+                    "账户余额不足，请先充值后再支付。",
+                )
 
         payment = Payment(
             payment_no=new_prefixed_ulid("pay_"),
@@ -171,10 +186,34 @@ class PaymentService:
             )
         )
         await self.session.flush()
+        if payload.payment_method == "wallet_balance":
+            await self._record_succeeded_callback(
+                payment,
+                trade,
+                None,
+                FakePaymentWebhook(
+                    provider_event_id=f"wallet:{payment.payment_no}",
+                    payment_id=payment.payment_no,
+                    provider_trade_no=payment.provider_trade_no,
+                    status="succeeded",
+                    amount_minor_units=str(payment.requested_amount),
+                    currency=payment.currency,
+                    occurred_at=now.replace(tzinfo=UTC),
+                ),
+                now,
+                request_id,
+                source_type="wallet",
+                wallet=wallet,
+            )
+            await self.session.flush()
         result = await self._view(
             payment,
             trade,
-            action=PaymentAction(type=acceptance.action_type, url=acceptance.action_url),
+            action=(
+                None
+                if payload.payment_method == "wallet_balance"
+                else PaymentAction(type=acceptance.action_type, url=acceptance.action_url)
+            ),
         )
         self.idempotency.complete(
             claim,
@@ -789,6 +828,7 @@ class PaymentService:
         request_id: str,
         *,
         source_type: str = "callback",
+        wallet: UserWallet | None = None,
     ) -> None:
         if trade.trade_status != "pending_payment":
             _reject_confirmation(
@@ -834,6 +874,42 @@ class PaymentService:
                     "reserved or on-hand quantity cannot be confirmed",
                 )
                 return
+        if payment.payment_method == "wallet_balance":
+            wallet = wallet or await self.finance_repository.wallet(
+                payment.user_id, for_update=True
+            )
+            if wallet is None or wallet.wallet_status != "active":
+                _reject_confirmation(callback, now, "WALLET_UNAVAILABLE", "wallet is unavailable")
+                return
+            if wallet.balance_amount < payment.requested_amount:
+                _reject_confirmation(
+                    callback,
+                    now,
+                    "INSUFFICIENT_BALANCE",
+                    "wallet balance is lower than requested payment amount",
+                )
+                return
+
+            balance_before = wallet.balance_amount
+            wallet.balance_amount -= payment.requested_amount
+            wallet.version += 1
+            self.session.add(
+                WalletTransaction(
+                    transaction_no=new_prefixed_ulid("wtx_"),
+                    wallet_id=wallet.id,
+                    transaction_type="order_payment",
+                    direction="debit",
+                    amount=payment.requested_amount,
+                    balance_before=balance_before,
+                    balance_after=wallet.balance_amount,
+                    currency=payment.currency,
+                    business_type="payment",
+                    business_no=payment.payment_no,
+                    channel="balance",
+                    description="订单余额支付",
+                    occurred_at=now,
+                )
+            )
         for reservation, inventory in reservations:
             on_hand_before = inventory.on_hand_quantity
             reserved_before = inventory.reserved_quantity

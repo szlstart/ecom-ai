@@ -39,7 +39,7 @@ export function createPayment(tradeOrderId: string, token: string): Promise<ApiR
   return apiRequest('/payments', {
     method: 'POST',
     headers: { 'Idempotency-Key': createIdempotencyKey('payment-create') },
-    body: JSON.stringify({ trade_order_id: tradeOrderId, provider: 'fake', payment_method: 'fake_balance', return_url_key: 'payment_result' }),
+    body: JSON.stringify({ trade_order_id: tradeOrderId, provider: 'fake', payment_method: 'wallet_balance', return_url_key: 'payment_result' }),
   }, token)
 }
 

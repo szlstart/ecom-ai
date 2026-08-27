@@ -5,7 +5,7 @@ import { RouterLink, RouterView } from 'vue-router'
 <template>
   <main class="merchant-auth-layout">
     <section class="merchant-auth-intro">
-      <RouterLink class="merchant-wordmark" to="/merchant/login">Ecom AI 商家中心</RouterLink>
+      <RouterLink class="merchant-wordmark" to="/merchant">Ecom AI 商家中心</RouterLink>
       <div>
         <p class="eyebrow">STORE CONSOLE</p>
         <h1>认真经营每一件商品，及时回应每一位顾客。</h1>

@@ -46,6 +46,20 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     userId.value = response.data.session.user.user_id
   }
 
+  async function merchantRegister(username: string, password: string, storeName: string, deviceName: string) {
+    const response = await apiRequest<AdminBootstrap>('/merchant/auth/registrations', {
+      method: 'POST',
+      body: JSON.stringify({
+        username,
+        password,
+        store_name: storeName,
+        client: { client_type: 'web', device_name: deviceName },
+      }),
+    })
+    accept(response.data, 'merchant')
+    userId.value = response.data.session.user.user_id
+  }
+
   async function platformPasswordLogin(identifier: string, password: string, deviceName: string) {
     const response = await apiRequest<AdminBootstrap>('/admin/auth/password-login', {
       method: 'POST',
@@ -167,6 +181,7 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     isAuthenticated,
     isAuthenticatedFor,
     merchantPasswordLogin,
+    merchantRegister,
     platformPasswordLogin,
     refresh,
     loadAuthorization,

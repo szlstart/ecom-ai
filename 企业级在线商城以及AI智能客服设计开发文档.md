@@ -2768,7 +2768,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 #### 2.14.1 定位、入口与权限边界
 
-商家中心入口固定为 `/merchant/login`，账号密码校验成功后直接进入 `/merchant/dashboard`，不要求 TOTP、恢复码或其他二次验证。商家账号必须具有 `store_operator` 角色和至少一个有效 Store Scope，并且不得同时具有普通用户或平台管理角色；混合角色账号按配置异常 Fail Closed。商家登录使用独立的 `/merchant/auth/login` 准入接口，在服务端完成角色和 Store Scope 校验；会话使用 Admin Audience 但固定标记 `client_type=merchant`，并使用独立的 `ecom_merchant_refresh/ecom_merchant_csrf` Cookie、`/merchant/auth/token-refresh` 和 `/merchant/auth/logout`，不得与平台管理端 Cookie 相互覆盖。Vue 使用独立 `MerchantAuthLayout/MerchantLayout`，不复用平台管理端菜单；平台管理入口另由 Platform Scope 强校验，三类账号不能交叉登录。
+商家中心匿名入口固定为 `/merchant`，在同一页面提供“登录 / 注册店铺”两个页签；旧 `/merchant/login` 只做保留 Query 的兼容重定向。登录或注册成功后直接进入 `/merchant/products`，不要求 TOTP、恢复码或其他二次验证。注册通过 `POST /merchant/auth/registrations` 在单事务内创建唯一商家用户名、唯一店铺、`store_operator` Store Scope Grant 和 Merchant Session；用户名或店铺名重复分别返回明确 409，不能注册普通用户角色或 Platform Scope。商家账号必须具有 `store_operator` 角色和至少一个有效 Store Scope，并且不得同时具有普通用户或平台管理角色；混合角色账号按配置异常 Fail Closed。商家登录使用独立的 `/merchant/auth/login` 准入接口，在服务端完成角色和 Store Scope 校验；会话使用 Admin Audience 但固定标记 `client_type=merchant`，并使用独立的 `ecom_merchant_refresh/ecom_merchant_csrf` Cookie、`/merchant/auth/token-refresh` 和 `/merchant/auth/logout`，不得与平台管理端 Cookie 相互覆盖。Vue 使用独立 `MerchantAuthLayout/MerchantLayout`，不复用平台管理端菜单；平台管理入口另由 Platform Scope 强校验，三类账号不能交叉登录。
 
 商家端只能处理当前店铺商品、库存、店铺人工客服、店铺评价回复和公开店铺资料。商家不得审核自己提交的商品，不得屏蔽/恢复用户评价，不得访问其他店铺、平台用户治理、支付对账、AI 治理、系统任务或全平台指标。公开商品遵循“草稿 → 提交审核 → 平台审核通过 → 商家上架”的状态机；商家拥有上架/下架命令，但没有 `products:review`。
 
@@ -2795,7 +2795,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 | 页面 | Vue Route / Component | 主要能力 | Permission / Scope |
 | :--- | :--- | :--- | :--- |
-| 商家登录 | `/merchant/login` / `MerchantLoginPage.vue` | 账号密码登录成功后直接进入工作台，不显示二次验证 | `store_operator` + Store Scope，拒绝平台管理身份 |
+| 商家登录与注册 | `/merchant` / `MerchantLoginPage.vue` | 页签切换登录/注册；注册填写唯一用户名、密码和唯一店铺名，成功后直接进入商品工作台；`/merchant/login` 仅兼容跳转 | 匿名创建纯 `store_operator` + Store Scope；拒绝消费者/平台身份混用 |
 | 兼容密码确认入口 | `/merchant/reauthenticate` / `MerchantReauthenticatePage.vue` | 仅保留兼容能力，不作为店铺资料、商品、款式、库存、评价或客服操作的前置步骤，商家界面不自动跳转到此页 | 当前 Merchant Session |
 | 工作台 | `/merchant/dashboard` / `MerchantDashboardPage.vue` | 在售/待完善商品、待处理咨询、待回复评价；可直接修改当前店铺名称 | `stores:read/manage` + Store；不授予平台仪表盘权限 |
 | 商品列表 | `/merchant/products` / `MerchantProductListPage.vue` | 按名称和状态筛选本店商品 | `products:read` + Store |
@@ -2803,7 +2803,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 库存 | `/merchant/inventory` / `AdminInventoryPage.vue(portal=merchant)` | 本店 SKU 库存查询和有据可查的增减调整 | `inventories:read/adjust` + Store |
 | 客户咨询 | `/merchant/support`、`/merchant/support/:ticketId` / `MerchantSupportListPage.vue`、`AdminSupportWorkspacePage.vue(portal=merchant)` | 店铺人工工单领取、回复、等待、恢复和解决 | `support:*` + Store Queue |
 | 评价回复 | `/merchant/reviews`、`/merchant/reviews/:reviewId` / `MerchantReview*Page.vue` | 查看本店已发布评价、发布一次商家回复 | `reviews:read/reply` + Store |
-| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、用户端预览、营业额和商家账号注销；店名可随时修改 | `stores:read/manage` + Store |
+| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、用户端预览、营业额和商家账号注销；店名可随时修改；Logo 同时支持本地选择与点击区域后 Command/Ctrl+V 粘贴，统一经过上传策略与安全扫描 | `stores:read/manage` + Store |
 
 #### 2.14.4 工作台与任务优先级
 
@@ -2827,7 +2827,7 @@ SKU 价格在商家界面使用元，提交时转换为整数分。首版商家�
 
 #### 2.14.8 商家端店铺式工作台实施基线
 
-本节是 2.14.2～2.14.6 的新版实施基线；如前述深绿色侧栏、独立仪表盘、商品表格、多页签编辑器、一级库存或一级客户咨询描述与本节冲突，以本节为准。商家登录后进入 `/merchant/products`；访问 `/merchant`、`/merchant/` 或兼容路由 `/merchant/dashboard` 均进入同一商品工作台。
+本节是 2.14.2～2.14.6 的新版实施基线；如前述深绿色侧栏、独立仪表盘、商品表格、多页签编辑器、一级库存或一级客户咨询描述与本节冲突，以本节为准。匿名访问 `/merchant` 或 `/merchant/` 显示登录/注册入口；已有有效 Merchant Session 访问该地址时自动进入 `/merchant/products`。商家登录或注册后进入 `/merchant/products`，兼容路由 `/merchant/dashboard` 进入同一商品工作台。
 
 一级导航只保留“我的商品、店铺资料”。顶栏固定显示当前店铺、“消息”和店铺资料入口；库存与评价回复均合并到对应商品内，顾客咨询合并到消息中心。整体采用白色轻量侧栏、浅色工作区和用户店铺页风格商品卡片，不复用平台管理端的高密度表格。
 
@@ -6236,7 +6236,7 @@ WHERE sku_id = :sku_id
 
 ##### 3.7.8.8 wallet_transactions 余额流水表
 
-该表只追加不修改。核心字段为 `transaction_no、wallet_id、transaction_type、direction、amount、balance_before、balance_after、currency、business_type、business_no、channel、description、occurred_at`。约束 `UNIQUE(business_type,business_no)`，并验证 `balance_after = balance_before ± amount`。首版只有 `simulated_recharge/credit`；未来若开放余额支付、退款或提现，必须新增明确交易类型和状态机，不能复用模拟充值语义。
+该表只追加不修改。核心字段为 `transaction_no、wallet_id、transaction_type、direction、amount、balance_before、balance_after、currency、business_type、business_no、channel、description、occurred_at`。约束 `UNIQUE(business_type,business_no)`，并验证 `balance_after = balance_before ± amount`。首版包含 `simulated_recharge/credit` 与 `order_payment/debit`：模拟充值到账写入 Credit；用户在收银台选择模拟余额支付时，锁定本人账户并以 `business_type=payment、business_no=payment_no` 写入唯一 Debit。退款或提现后续上线时必须新增明确交易类型和状态机，不能复用充值或支付语义。
 
 ##### 3.7.8.9 店铺营业额口径
 
@@ -8837,13 +8837,13 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 
 | 方法 | 路径 | 访问者 | 用途与关键规则 |
 | --- | --- | --- | --- |
-| `POST` | `/payments` | 用户 | 为待支付 Trade Order 创建支付单；幂等；返回渠道跳转参数/二维码信息和过期时间 |
+| `POST` | `/payments` | 用户 | 为待支付 Trade Order 创建支付单；幂等；首版页面提交 `payment_method=wallet_balance` 执行模拟余额支付，保留 `fake_balance` 供回调/对账测试 |
 | `GET` | `/payments/{payment_id}` | 用户 | 查询支付单状态、金额、渠道和关联交易单；不返回渠道密钥/原始敏感报文 |
 | `GET` | `/trade-orders/{trade_order_id}/payments` | 用户 | 查询该交易单的支付尝试记录，确定当前可继续的支付单 |
 | `POST` | `/payments/{payment_id}/closures` | 用户/系统 | 关闭尚未完成的支付单；幂等；不能关闭渠道已成功但本地尚未同步的支付 |
 | `POST` | `/webhooks/payments/{provider}` | 支付渠道 | 支付/退款异步通知；验签、去重、落原始摘要并快速应答，详见 3.12.25 |
 
-支付创建请求包含 `trade_order_id、provider、return_url_key` 等受控字段，不接受客户端传入支付金额。后端从订单快照读取金额并验证订单状态，再创建支付单。前端从渠道返回页不能把 URL 参数当作支付成功依据，必须轮询支付资源或接收实时事件；状态仍为 Processing 时展示“支付结果确认中”。
+支付创建请求包含 `trade_order_id、provider、payment_method、return_url_key` 等受控字段，不接受客户端传入支付金额。后端从订单快照读取金额并验证订单状态，再创建支付单。首版 `wallet_balance` 是明确标注的模拟余额支付：服务端按固定锁顺序锁定 Trade Order、用户余额、子订单与库存预占，余额不足返回 409 `INSUFFICIENT_BALANCE`；余额充足时在同一个 MySQL 事务中追加 Debit 流水、扣减余额、确认库存、把 Payment/Trade Order/Order 推进到已支付并写 Outbox。任何一步失败整笔回滚，不能出现已扣余额但订单未支付，或订单已支付但未扣余额。订单 `paid_amount` 成功更新后，店铺营业额查询投影会立即纳入累计实收与净营业额。`fake_balance` 仍用于签名回调、重放和对账测试，不作为用户页面默认按钮。前端从渠道返回页不能把 URL 参数当作支付成功依据，必须查询支付资源或接收实时事件；状态仍为 Processing 时展示“支付结果确认中”。
 
 Payment Idempotency Key 与订单 Key 分开保存，Scope 至少绑定当前用户、Trade Order、Provider 和本次逻辑支付尝试。相同 Key 重放返回同一 `payment_id`；同一 Trade Order 存在 `created/pending` 尝试（包括 Provider 结果未知、正在主动查询）时，换 Key 创建返回 409 `PAYMENT_ATTEMPT_IN_PROGRESS` 及现有 `payment_id`，前端只能进入结果确认页。只有旧尝试明确 `failed/closed` 且订单仍返回 `available_actions.pay=true`，才允许使用新 Key 创建下一次支付尝试。订单已支付返回 409 `TRADE_ORDER_ALREADY_PAID` 并返回安全成功摘要；支付窗口截止返回 410 `PAYMENT_WINDOW_EXPIRED`；Provider 暂不可用且未创建 Payment 返回 503 `PAYMENT_PROVIDER_UNAVAILABLE`，页面回订单详情显示“订单已创建，可继续支付”。
 
@@ -9523,6 +9523,15 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 #### 3.12.26 商家中心接口投影
 
+| 方法 | 路径 | 访问者 | 用途与关键规则 |
+| --- | --- | --- | --- |
+| `POST` | `/merchant/auth/registrations` | 匿名 | 注册纯商家身份；严格校验用户名/密码/店铺名，在单事务内创建 User、Password Credential、Store、`store_operator` Store Scope Grant 和 Merchant Session；不接受 Role/Permission/Scope 字段 |
+| `POST` | `/merchant/auth/login` | 匿名 | 商家密码登录；只接受纯 `store_operator` + Store Scope 身份 |
+| `POST` | `/merchant/auth/token-refresh` | Merchant Cookie | 轮换商家独立 Refresh Session 并重新校验身份类别与 Store Scope |
+| `POST` | `/merchant/auth/logout` | Merchant Session | 注销商家会话并清除商家独立 Cookie，不影响用户端和平台管理端 Cookie |
+| `GET` | `/merchant/stores/{store_id}/revenue` | 商家 | 查询本人店铺累计实收、退款、净营业额和已支付订单数 |
+| `DELETE` | `/merchant/account` | 商家 | 无任何店铺交易时物理注销商家身份与店铺；存在交易时阻断 |
+
 商家资金与注销使用两个专用 Facade：`GET /merchant/stores/{store_id}/revenue` 只接受当前 Merchant Context 且再次校验 `stores.owner_user_id`，返回累计实收、累计退款、净营业额和已支付订单数；`DELETE /merchant/account` 要求确认短语 `DELETE_MY_STORE_AND_ACCOUNT`，仅在该商家名下所有店铺均无任何历史订单时物理删除店铺、商品、商家账号和关联非交易数据，存在任意订单返回 409，不得为了完成注销而删除买家订单。余额和营业额接口都返回整数分 Money 对象，禁止前端浮点数作为账务事实。
 
 新版商家工作台在既有受控管理 API 之上增加最小投影：`AdminProductSummary` 返回 `cover_image_url、sku_count、available_quantity、sales_count、review_count、rating_score`，使一条商品列表请求即可绘制店铺式商品卡片，禁止每张卡片触发 N+1 请求；`GET /admin/inventories` 和 `GET /admin/reviews` 分别支持 `product_id` 窄化参数，编辑器只读取目标商品的 SKU 与已发布评价。`product_id` 只能缩小 Store Scope，不能扩大授权。商家输入目标账面库存后，前端转换为 `on_hand_delta` 调用 `AdminInventory_Adjust`，服务端继续执行 If-Match、原因、幂等、预占保护和流水审计。
@@ -9533,11 +9542,13 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 商家置顶“专属客服”使用 `/merchant/support/exclusive-conversation*` 薄 Facade，提供固定会话创建/读取、消息列表、消息发送、`PUT /merchant/support/exclusive-conversation/read-cursor` 已读位点推进和平台人工工单建立；Facade 内部继续调用统一 Messaging Service 与 Human Service Ticket 状态机，不复制消息表或领域服务。端点只接受 `client_type=merchant` 的 Merchant Context；消费者、平台管理员和其他商家身份均拒绝。消息用 `client_message_id` 去重，Read Cursor 只能单调前进，人工工单用 Idempotency-Key 建立或复用有效 Platform Queue Ticket；平台支持人员仍通过既有 `/support/*` 工作台回复。商家读取顾客会话后使用 `PUT /support/conversations/{conversation_id}/read-cursor` 推进当前客服主体的已读位点，两个入口共同驱动商家顶栏和左栏真实未读数。
 
-商家中心首版不复制一套领域实现。身份准入使用专用 `/merchant/auth/login`、`/merchant/auth/token-refresh`、`/merchant/auth/logout` 与 `/merchant/auth/reauthentications` Facade，以实现密码直登、独立 Cookie Namespace、商家身份限制和 Store Scope 服务端校验；登录后的店铺、商品、库存、评价与客服能力仍复用 `/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API。Token 必须来自 `client_type=merchant` 会话并关联 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。除身份准入确有差异外，不为商家复制领域 Service；后续新增 `/merchant/*` Facade 也必须调用相同 Domain Service 和授权组件。
+商家中心首版不复制一套领域实现。匿名准入使用专用 `/merchant/auth/registrations` 与 `/merchant/auth/login`，会话续期和退出使用 `/merchant/auth/token-refresh`、`/merchant/auth/logout` 与兼容的 `/merchant/auth/reauthentications` Facade，以实现原子注册、密码直登、独立 Cookie Namespace、商家身份限制和 Store Scope 服务端校验；登录后的店铺、商品、库存、评价与客服能力仍复用 `/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API。Token 必须来自 `client_type=merchant` 会话并关联 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。除身份准入确有差异外，不为商家复制领域 Service；后续新增 `/merchant/*` Facade 也必须调用相同 Domain Service 和授权组件。
 
-`store_operator` 首版权限集合固定为：`stores:read/manage`、`store_policies:read/create/update/publish`、`products:read/create/update/publish`、`inventories:read/adjust`、`reviews:read/reply`、`support:queue_read/claim/reply/wait/resume/resolve`。明确排除平台仪表盘 `dashboard:read`、`products:review`、`reviews:moderate`、跨店/平台权限、客服转派与内部高敏备注。角色 Permission Binding 由可信商家开户流程或本地 `merchant-bootstrap` 建立，不能由商家自行扩权。
+`store_operator` 的 RolePermission 属于全局安全配置，不能归属于某个可注销商家。注册服务发现固定权限绑定缺失时，只能使用当前有效 Platform Super Admin 作为审计授予人补齐白名单；没有平台管理员则返回 503，不能把新商家设为全局权限授予人。账号物理注销的外键图必须排除 `role_permissions.granted_by` 的所有权级联；若被注销账号历史上仍是授予人，先把审计授予人受控移交给另一名有效 Platform Super Admin，否则阻断注销，严禁删除全局 RolePermission。
 
-商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有普通用户或平台管理身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受纯 Platform Scope 管理身份并拒绝普通用户和店铺身份。用户登录同样只接受纯消费者身份。三条链路均为密码登录，但使用不同 Operation、Cookie Namespace、`aud/client_type` 和权限投影，不创建 MFA Challenge，也不得混用。Refresh、Bearer 请求与 WebSocket Principal 必须重新检查角色有效期和身份类别；类别不再匹配时撤销 Session Family。平台管理员超过近期认证窗口后仍按权限策略执行密码确认；Merchant Session 的店铺经营命令不执行密码 Step-up，兼容确认 Operation 不进入正常工作流。后续资源授权仍由 `require_admin_permission + AdminAccess.require_scope` 逐次执行，商家例外不放宽 Permission、Store Scope、MFA、幂等、ETag、业务规则和审计。测试必须覆盖三入口全排列拒绝、Cookie 交叉刷新拒绝、混合角色 Fail Closed、Store Scope 列表过滤、跨店 404、缺权限 403、商家无密码 Step-up、平台近期认证和审计记录。
+`store_operator` 首版权限集合固定为：`stores:read/manage`、`store_policies:read/create/update/publish`、`products:read/create/update/publish`、`inventories:read/adjust`、`reviews:read/reply`、`support:queue_read/claim/reply/wait/resume/resolve`。明确排除平台仪表盘 `dashboard:read`、`products:review`、`reviews:moderate`、跨店/平台权限、客服转派与内部高敏备注。角色 Permission Binding 只能由服务端种子预置；自助注册只引用既有 `store_operator` 角色并固定创建当前 Store Scope Grant，请求 Schema 不接受 Role、Permission 或 Scope，因此商家不能自行选权或扩权。本地仍可用 `merchant-bootstrap` 建立开发账号。
+
+商家注册执行 `MerchantAuth_Register`，仅创建固定的纯商家身份；商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有普通用户或平台管理身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受纯 Platform Scope 管理身份并拒绝普通用户和店铺身份。用户登录同样只接受纯消费者身份。三条登录链路均为密码认证，但使用不同 Operation、Cookie Namespace、`aud/client_type` 和权限投影，不创建 MFA Challenge，也不得混用。Refresh、Bearer 请求与 WebSocket Principal 必须重新检查角色有效期和身份类别；类别不再匹配时撤销 Session Family。平台管理员超过近期认证窗口后仍按权限策略执行密码确认；Merchant Session 的店铺经营命令不执行密码 Step-up，兼容确认 Operation 不进入正常工作流。后续资源授权仍由 `require_admin_permission + AdminAccess.require_scope` 逐次执行，商家例外不放宽 Permission、Store Scope、MFA、幂等、ETag、业务规则和审计。测试必须覆盖商家注册唯一性、三入口全排列拒绝、Cookie 交叉刷新拒绝、混合角色 Fail Closed、Store Scope 列表过滤、跨店 404、缺权限 403、商家无密码 Step-up、平台近期认证和审计记录。
 
 ---
 
@@ -13841,7 +13852,7 @@ Go/No-Go Meeting 逐项确认并保存签字证据：
 | `USR-SEARCH-01` 商品搜索 | `/search` | `Product_Search`、`SearchSuggestion_List` | Public；URL 筛选、opaque Cursor、限流 | Contract+Restore `SEARCH-*` |
 | `USR-PROFILE-01` 修改资料/密码 | `/me/profile` | `UserProfile_Update`、`UserPassword_Change` | Current User；ETag/近期认证；撤销旧 Session | Audit `user.security.*`；`PROFILE-*` |
 | `USR-SETTINGS-01` 安全会话/注销 | `/me/settings/*` | `UserSecurity_Get`、`AuthSession_List/Revoke`、`UserAccount_DeleteMine` | Current User；明确确认、历史交易阻断、无交易账号跨库物理删除 | Security+E2E `SETTINGS-*`、`FINANCE-*` |
-| `USR-WALLET-01` 余额与模拟充值 | `/me/wallet` | `UserWallet_GetMine`、`UserWalletTransaction_ListMine`、`UserWalletRecharge_Create` | Current User；整数分、1～50000 元、微信/支付宝仅模拟、幂等到账、账户行锁与不可变流水 | Integration+E2E `FINANCE-*` |
+| `USR-WALLET-01` 余额、模拟充值与支付流水 | `/me/wallet` | `UserWallet_GetMine`、`UserWalletTransaction_ListMine`、`UserWalletRecharge_Create` | Current User；整数分、1～50000 元、微信/支付宝仅模拟、幂等 Credit、余额支付唯一 Debit、账户行锁与不可变流水 | Integration+E2E `FINANCE-*` |
 | `USR-ADDR-01` 管理地址 | `/me/addresses` | `UserAddress_Create/Update/Delete/SetDefault` | Current User；唯一默认；不改历史快照 | Domain+E2E `ADDR-*` |
 | `USR-STORE-01` 店铺页/政策 | `/stores/:storeId` | `Store_Get`、`StorePolicy_ListPublic` | Public/历史关系投影；只读当前 Published | Contract `STORE-PUBLIC-*` |
 | `USR-FAVORITE-01` 商品/店铺收藏 | `/me/favorites/*` | `FavoriteProduct_List/Put/Delete`、`FollowedStore_List/Put/Delete` | Current User；失效资源受限摘要；幂等 | Contract+E2E `FAVORITE-*` |
@@ -13850,7 +13861,7 @@ Go/No-Go Meeting 逐项确认并保存签字证据：
 | `USR-CART-01` 购物车 | `/cart` | `CartItem_Add/Update/Delete` | Current User；增量添加幂等，最终值更新用 ETag | Concurrency `CART-*` |
 | `USR-CHECKOUT-01` 单品/购物车结算/联系商家 | `/checkout/:checkoutId` | `Checkout_Create/Update/Get/Reprice`、`StoreConversation_GetOrCreate` | Current User；备注 200 字；本店 `checkout_store_group` 绑定 Version/Expiry，跨店字段 Hard Deny | Domain+Context E2E `CHECKOUT-*` |
 | `USR-ORDER-01` 创建/查看订单 | `/me/orders*` | `Order_Create/ListMine/GetMine` | Current User；Checkout + Order Idempotency；只创建订单、不创建 Payment | Transaction+Unknown Outcome `ORDER-*` |
-| `USR-PAY-01` 收银台/支付结果 | `/pay/:tradeOrderId`、`/payments/:paymentId/result` | `Payment_Create/Get/ListForTradeOrder/Close` | Current User；独立 Payment Key；活动/Unknown 尝试阻断新建；渠道参数不判成功 | Audit+Provider E2E `PAY-*` |
+| `USR-PAY-01` 收银台/支付结果 | `/pay/:tradeOrderId`、`/payments/:paymentId/result` | `Payment_Create/Get/ListForTradeOrder/Close` | Current User；独立 Payment Key；默认模拟余额支付在单事务内完成 Debit、库存确认与订单支付；余额不足 Fail Closed；Fake 回调通道仍执行活动/Unknown 尝试保护 | Audit+Provider+Finance E2E `PAY-*`、`FINANCE-*` |
 | `USR-SHIP-01` 查物流 | `/me/orders/:orderId/logistics` | `Shipment_ListMine/GetMine/ListTracks/Refresh` | Order Owner；仅单包裹本人 Detail 含完整单号，概览/非本人/Agent 仅掩码；预计可空且不推断 | Projection+IDOR+E2E `SHIP-USER-*` |
 | `USR-REVIEW-01` 我的评价/创建/编辑/追评 | `/me/reviews`、`/me/order-items/:orderItemId/review`、`/me/reviews/:reviewId/*` | `ReviewEligibility_Get`、`Review_ListMine/Create/Get/Update/Append` | Order Item Owner；评价窗口/唯一性/文件归属/ETag | Domain+UI `REVIEW-*` |
 | `USR-REFUND-01` 售后列表/资格/申请/详情/退货/申诉 | `/me/after-sales*`、`/me/orders/:orderId/refund`、`/me/appeals/:appealId` | `RefundApplication_ListMine/Get/Create`、`RefundEligibility_Check`、`RefundReturnShipment_Upsert`、`RefundAppeal_Create/Get` | Order Owner；订单项占用；新申请/申诉分离；状态驱动动作 | State+Concurrency+E2E `REFUND-USER-*` |

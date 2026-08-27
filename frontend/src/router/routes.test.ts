@@ -59,9 +59,8 @@ describe('phase two route contract', () => {
 
   it('keeps the merchant portal isolated from platform administration', () => {
     const expected = new Map([
-      ['/merchant/login', 'MCH-AUTH-01'],
+      ['/merchant', 'MCH-AUTH-01'],
       ['/merchant/reauthenticate', 'MCH-AUTH-03'],
-      ['/merchant', 'MCH-SHELL-01'],
       ['/merchant/dashboard', 'MCH-DASH-01'],
       ['/merchant/products', 'MCH-PRODUCT-LIST-01'],
       ['/merchant/products/new', 'MCH-PRODUCT-NEW-01'],
@@ -78,7 +77,7 @@ describe('phase two route contract', () => {
       const route = routes.get(path)
       expect(route?.meta.requirementId).toBe(requirementId)
       expect(route?.meta.audience).toBe('merchant')
-      if (!path.startsWith('/merchant/login')) expect(route?.meta.requiresAuth).toBe(true)
+      if (path !== '/merchant') expect(route?.meta.requiresAuth).toBe(true)
     }
     const merchantPermissions = router
       .getRoutes()
@@ -90,6 +89,7 @@ describe('phase two route contract', () => {
     expect(merchantPermissions).not.toContain('dashboard:read')
     expect(merchantPermissions).not.toContain('reviews:moderate')
     expect(merchantPermissions).not.toContain('products:review')
+    expect(routes.get('/merchant/login')?.redirect).toBeTruthy()
   })
 
   it('registers every phase three administration route from the traceability matrix', () => {

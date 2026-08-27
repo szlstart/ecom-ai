@@ -13,6 +13,13 @@ def test_payment_create_request_rejects_client_amount_and_unregistered_provider(
         return_url_key="payment_result",
     )
     assert request.provider == "fake"
+    wallet_request = PaymentCreateRequest(
+        trade_order_id="trd_01WALLET",
+        provider="fake",
+        payment_method="wallet_balance",
+        return_url_key="payment_result",
+    )
+    assert wallet_request.payment_method == "wallet_balance"
     with pytest.raises(ValidationError):
         PaymentCreateRequest.model_validate(
             {**request.model_dump(), "requested_amount": {"minor_units": "1", "currency": "CNY"}}

@@ -43,8 +43,8 @@ onMounted(load)
         <p>合并交易单 <strong>{{ trade.trade_order_id }}</strong></p>
         <p class="payment-total">应付 <strong>{{ formatMoney(trade.amounts.payable_amount) }}</strong></p>
         <p class="muted">包含 {{ trade.order_count }} 个店铺订单。金额由服务端订单快照确定，页面不能修改。</p>
-        <div class="notice info">开发环境使用 Fake Provider。发起后进入支付结果确认页，不会仅凭渠道返回页面判定成功。</div>
-        <button type="button" :disabled="submitting || trade.trade_status !== 'pending_payment'" @click="pay">{{ submitting ? '正在创建支付单…' : '使用测试支付渠道' }}</button>
+        <div class="notice info">当前使用模拟账户余额支付。确认后会扣减你的商城余额，并在同一事务中更新订单、库存和店铺营业额；不会产生真实资金交易。</div>
+        <button type="button" :disabled="submitting || trade.trade_status !== 'pending_payment'" @click="pay">{{ submitting ? '正在扣减余额并支付…' : '使用账户余额支付' }}</button>
       </article>
     </PageState>
   </section>

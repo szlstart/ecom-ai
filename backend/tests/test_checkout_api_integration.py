@@ -33,6 +33,8 @@ from app.modules.cart.models import CartItem
 from app.modules.catalog.models import Category, Product, ProductFulfillmentProfile, ProductSku
 from app.modules.checkout.models import CheckoutSession
 from app.modules.files.models import FileObject
+from app.modules.finance.models import WalletTransaction
+from app.modules.finance.repository import FinanceRepository
 from app.modules.identity.models import AuthSession, User, UserAddress
 from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
 from app.modules.logistics.models import LogisticsSyncLog, Shipment
@@ -74,9 +76,7 @@ pytestmark = [
 ]
 
 
-async def _auth_context(
-    session: AsyncSession, user_no: str, session_no: str
-) -> AuthContext:
+async def _auth_context(session: AsyncSession, user_no: str, session_no: str) -> AuthContext:
     user = await session.scalar(select(User).where(User.user_no == user_no))
     auth_session = await session.scalar(
         select(AuthSession).where(AuthSession.session_no == session_no)
@@ -1965,9 +1965,10 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     updated_appeal_events = await client.get(
         f"/api/v1/refund-appeals/{cancellable_appeal_id}/events", headers=auth
     )
-    assert [
-        item["event_type"] for item in updated_appeal_events.json()["data"]["items"]
-    ] == ["appeal.created", "appeal.cancelled"]
+    assert [item["event_type"] for item in updated_appeal_events.json()["data"]["items"]] == [
+        "appeal.created",
+        "appeal.cancelled",
+    ]
 
     rejected_eligibility = await client.post(
         "/api/v1/refund-eligibility-checks", headers=auth, json=eligibility_payload
@@ -2533,3 +2534,61 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             ).all()
         )
         assert len(timeout_events) == 1
+
+    recharge = await client.post(
+        "/api/v1/users/me/wallet/recharges",
+        headers={**auth, "Idempotency-Key": f"wallet-payment-recharge-{suffix}"},
+        json={
+            "channel": "wechat",
+            "amount": {"minor_units": "10000", "currency": "CNY"},
+        },
+    )
+    assert recharge.status_code == 201, recharge.text
+    wallet_checkout = await client.post(
+        "/api/v1/checkout-sessions",
+        headers={**auth, "Idempotency-Key": f"wallet-payment-checkout-{suffix}"},
+        json={"source": {"source_type": "buy_now", "sku_id": sku_no, "quantity": 1}},
+    )
+    assert wallet_checkout.status_code == 201, wallet_checkout.text
+    wallet_checkout_data = wallet_checkout.json()["data"]
+    wallet_order = await client.post(
+        "/api/v1/orders",
+        headers={**auth, "Idempotency-Key": f"wallet-payment-order-{suffix}"},
+        json={
+            "checkout_id": wallet_checkout_data["checkout_id"],
+            "checkout_version": wallet_checkout_data["version"],
+        },
+    )
+    assert wallet_order.status_code == 201, wallet_order.text
+    wallet_trade_id = wallet_order.json()["data"]["trade_order_id"]
+    wallet_payment = await client.post(
+        "/api/v1/payments",
+        headers={**auth, "Idempotency-Key": f"wallet-payment-create-{suffix}"},
+        json={
+            "trade_order_id": wallet_trade_id,
+            "provider": "fake",
+            "payment_method": "wallet_balance",
+            "return_url_key": "payment_result",
+        },
+    )
+    assert wallet_payment.status_code == 201, wallet_payment.text
+    wallet_payment_data = wallet_payment.json()["data"]
+    assert wallet_payment_data["payment_status"] == "succeeded"
+    assert wallet_payment_data["action"] is None
+    paid_minor_units = int(wallet_payment_data["paid_amount"]["minor_units"])
+    wallet_view = await client.get("/api/v1/users/me/wallet", headers=auth)
+    assert wallet_view.status_code == 200
+    assert int(wallet_view.json()["data"]["balance"]["minor_units"]) == 10000 - paid_minor_units
+    async for session in mysql_session():
+        debit = await session.scalar(
+            select(WalletTransaction).where(
+                WalletTransaction.business_no == wallet_payment_data["payment_id"]
+            )
+        )
+        assert debit is not None
+        assert debit.direction == "debit" and debit.amount == paid_minor_units
+        store_row = await session.scalar(select(Store).where(Store.store_no == store_no))
+        assert store_row is not None
+        gross, _refunded, paid_order_count = await FinanceRepository(session).revenue(store_row.id)
+        assert gross >= paid_minor_units
+        assert paid_order_count >= 1

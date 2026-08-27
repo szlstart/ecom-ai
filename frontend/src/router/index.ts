@@ -55,10 +55,10 @@ const routes: RouteRecordRaw[] = [
   { path: '/gone', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '内容已失效', requirementId: 'USR-SYSTEM-GONE' }, children: [{ path: '', component: () => import('@/pages/GonePage.vue') }] },
   { path: '/error', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '系统异常', requirementId: 'USR-SYSTEM-ERROR' }, children: [{ path: '', component: () => import('@/pages/SystemErrorPage.vue') }] },
   { path: '/maintenance', component: () => import('@/layouts/SystemLayout.vue'), meta: { layout: 'system', audience: 'public', requiresAuth: false, title: '系统维护', requirementId: 'USR-SYSTEM-MAINT' }, children: [{ path: '', component: () => import('@/pages/MaintenancePage.vue') }] },
-  { path: '/merchant/login', component: () => import('@/layouts/MerchantAuthLayout.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: false, title: '商家登录', requirementId: 'MCH-AUTH-01' }, children: [{ path: '', component: () => import('@/pages/merchant/MerchantLoginPage.vue') }] },
+  { path: '/merchant/login', redirect: (to) => ({ path: '/merchant', query: to.query }) },
   { path: '/merchant/reauthenticate', component: () => import('@/layouts/MerchantAuthLayout.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: true, title: '确认商家密码', requirementId: 'MCH-AUTH-03' }, children: [{ path: '', component: () => import('@/pages/merchant/MerchantReauthenticatePage.vue') }] },
-  { path: '/merchant', component: () => import('@/layouts/MerchantLayout.vue'), meta: { ...merchantMeta, title: '商家中心', requirementId: 'MCH-SHELL-01' }, children: [
-    { path: '', redirect: '/merchant/products' },
+  { path: '/merchant', component: () => import('@/layouts/MerchantGatewayLayout.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: false, title: '商家登录与注册', requirementId: 'MCH-AUTH-01' }, children: [
+    { path: '', component: () => import('@/pages/merchant/MerchantLoginPage.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: false, title: '商家登录与注册', requirementId: 'MCH-AUTH-01' } },
     { path: 'dashboard', component: () => import('@/pages/merchant/MerchantProductListPage.vue'), meta: { ...merchantMeta, title: '我的商品', requirementId: 'MCH-DASH-01', requiredPermission: 'stores:read' } },
     { path: 'products', component: () => import('@/pages/merchant/MerchantProductListPage.vue'), meta: { ...merchantMeta, title: '商品管理', requirementId: 'MCH-PRODUCT-LIST-01', requiredPermission: 'products:read' } },
     { path: 'products/new', component: () => import('@/pages/merchant/MerchantProductEditorPage.vue'), meta: { ...merchantMeta, title: '新增商品', requirementId: 'MCH-PRODUCT-NEW-01', requiredPermission: 'products:create' } },
@@ -145,7 +145,11 @@ const router = createRouter({
   scrollBehavior: appScrollBehavior,
 })
 router.beforeEach(async (to) => {
-  if (to.path === '/merchant' || to.path === '/merchant/') return { path: '/merchant/products' }
+  if (to.path === '/merchant' || to.path === '/merchant/') {
+    const auth = useAdminAuthStore()
+    if (auth.isAuthenticatedFor('merchant') || await auth.refresh('merchant')) return { path: '/merchant/products' }
+    return true
+  }
   if (!to.meta.requiresAuth) return true
   if (to.meta.audience === 'user') {
     const auth = useUserAuthStore()
@@ -159,10 +163,10 @@ router.beforeEach(async (to) => {
   }
   if (to.meta.audience === 'merchant') {
     const auth = useAdminAuthStore()
-    if (!auth.isAuthenticatedFor('merchant') && !(await auth.refresh('merchant'))) return { path: '/merchant/login' }
+    if (!auth.isAuthenticatedFor('merchant') && !(await auth.refresh('merchant'))) return { path: '/merchant', query: { redirect: to.fullPath } }
     if (!auth.scopes.some((scope) => scope.scope_type === 'store')) {
       await auth.logout('merchant')
-      return { path: '/merchant/login', query: { denied: 'store_scope' } }
+      return { path: '/merchant', query: { denied: 'store_scope' } }
     }
     if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/merchant/dashboard', query: { denied: to.meta.requiredAnyPermission.join('|') } }
     if (to.meta.requiredPermission && !auth.has(to.meta.requiredPermission)) return { path: '/merchant/dashboard', query: { denied: to.meta.requiredPermission } }

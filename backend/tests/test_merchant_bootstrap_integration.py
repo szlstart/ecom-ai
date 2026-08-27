@@ -163,3 +163,67 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
         headers={**headers, "X-CSRF-Token": refreshed["csrf_token"]},
     )
     assert logout.status_code == 204
+
+
+async def test_merchant_self_registration_creates_isolated_store_identity(
+    client: AsyncClient,
+) -> None:
+    suffix = secrets.token_hex(5)
+    username = f"merchant_signup_{suffix}"
+    password = f"Merchant-{suffix}-Password!"
+    store_name = f"自主注册店铺 {suffix}"
+    payload = {
+        "username": username,
+        "password": password,
+        "store_name": store_name,
+        "client": {"client_type": "web", "device_name": "Merchant registration test"},
+    }
+
+    registered = await client.post("/api/v1/merchant/auth/registrations", json=payload)
+    assert registered.status_code == 201, registered.text
+    bootstrap = registered.json()["data"]
+    assert bootstrap["session"]["session"]["client_type"] == "merchant"
+    assert set(bootstrap["permission_codes"]) == set(STORE_OPERATOR_PERMISSIONS)
+    assert len(bootstrap["scopes"]) == 1
+    assert bootstrap["scopes"][0]["scope_type"] == "store"
+
+    headers = {"Authorization": f"Bearer {bootstrap['session']['access_token']}"}
+    stores = await client.get("/api/v1/admin/stores", headers=headers)
+    assert stores.status_code == 200, stores.text
+    assert [item["store_name"] for item in stores.json()["data"]["items"]] == [store_name]
+
+    consumer_login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "auth_method": "password",
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Wrong consumer portal"},
+        },
+    )
+    assert consumer_login.status_code == 401
+    assert consumer_login.json()["code"] == "AUTH_INVALID_CREDENTIALS"
+    platform_login = await client.post(
+        "/api/v1/admin/auth/password-login",
+        json={
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Wrong admin portal"},
+        },
+    )
+    assert platform_login.status_code == 401
+    assert platform_login.json()["code"] == "ADMIN_AUTH_INVALID_CREDENTIALS"
+
+    duplicate_username = await client.post(
+        "/api/v1/merchant/auth/registrations",
+        json={**payload, "store_name": f"另一个店铺 {suffix}"},
+    )
+    assert duplicate_username.status_code == 409
+    assert duplicate_username.json()["code"] == "MERCHANT_USERNAME_ALREADY_EXISTS"
+
+    duplicate_store = await client.post(
+        "/api/v1/merchant/auth/registrations",
+        json={**payload, "username": f"merchant_second_{suffix}"},
+    )
+    assert duplicate_store.status_code == 409
+    assert duplicate_store.json()["code"] == "STORE_NAME_ALREADY_EXISTS"

@@ -5166,17 +5166,25 @@
         "x-domain-command": "none",
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": [
-          "global_ui"
+          "global_ui",
+          "vue_route"
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "GLOBAL-FILE-UPLOAD-01"
+          "GLOBAL-FILE-UPLOAD-01",
+          "MCH-STORE-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "stores:manage",
+          "store_owner",
           "purpose_owner_status_and_scope"
         ],
         "x-test-case-ids": [
-          "FILE-UPLOAD-*"
+          "ADM-STORE-*",
+          "FILE-UPLOAD-*",
+          "FINANCE-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -5261,17 +5269,25 @@
         "x-domain-command": "FileUploadSession_Create",
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": [
-          "global_ui"
+          "global_ui",
+          "vue_route"
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "GLOBAL-FILE-UPLOAD-01"
+          "GLOBAL-FILE-UPLOAD-01",
+          "MCH-STORE-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "stores:manage",
+          "store_owner",
           "purpose_owner_status_and_scope"
         ],
         "x-test-case-ids": [
-          "FILE-UPLOAD-*"
+          "ADM-STORE-*",
+          "FILE-UPLOAD-*",
+          "FINANCE-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -5339,17 +5355,25 @@
         "x-domain-command": "none",
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": [
-          "global_ui"
+          "global_ui",
+          "vue_route"
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "GLOBAL-FILE-UPLOAD-01"
+          "GLOBAL-FILE-UPLOAD-01",
+          "MCH-STORE-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "stores:manage",
+          "store_owner",
           "purpose_owner_status_and_scope"
         ],
         "x-test-case-ids": [
-          "FILE-UPLOAD-*"
+          "ADM-STORE-*",
+          "FILE-UPLOAD-*",
+          "FINANCE-*",
+          "MCH-PORTAL-*"
         ]
       },
       "delete": {
@@ -5518,17 +5542,25 @@
         "x-domain-command": "FileUploadSession_Complete",
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": [
-          "global_ui"
+          "global_ui",
+          "vue_route"
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "GLOBAL-FILE-UPLOAD-01"
+          "GLOBAL-FILE-UPLOAD-01",
+          "MCH-STORE-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "stores:manage",
+          "store_owner",
           "purpose_owner_status_and_scope"
         ],
         "x-test-case-ids": [
-          "FILE-UPLOAD-*"
+          "ADM-STORE-*",
+          "FILE-UPLOAD-*",
+          "FINANCE-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -5982,6 +6014,7 @@
         ],
         "x-test-case-ids": [
           "ADM-STORE-*",
+          "FILE-UPLOAD-*",
           "FINANCE-*",
           "MCH-PORTAL-*"
         ]
@@ -6064,6 +6097,7 @@
         ],
         "x-test-case-ids": [
           "ADM-STORE-*",
+          "FILE-UPLOAD-*",
           "FINANCE-*",
           "MCH-PORTAL-*"
         ]
@@ -11648,15 +11682,18 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "MCH-SHELL-01"
+          "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope"
+          "merchant_exclusive_conversation_owner"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*",
+          "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -11729,15 +11766,18 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "MCH-SHELL-01"
+          "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope"
+          "merchant_exclusive_conversation_owner"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*",
+          "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -11807,15 +11847,18 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "MCH-SHELL-01"
+          "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope"
+          "merchant_exclusive_conversation_owner"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*",
+          "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -11887,15 +11930,18 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "MCH-SHELL-01"
+          "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope"
+          "merchant_exclusive_conversation_owner"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*",
+          "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -11980,15 +12026,18 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "MCH-SHELL-01"
+          "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope"
+          "merchant_exclusive_conversation_owner"
         ],
         "x-test-case-ids": [
-          "ADM-SUPPORT-*",
+          "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -12111,13 +12160,9 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-LIST-01",
-          "MCH-SHELL-01",
           "MCH-SUPPORT-LIST-01"
         ],
         "x-scope-policy": [
-          "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope",
           "support:queue_read"
         ],
         "x-test-case-ids": [
@@ -12291,13 +12336,9 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
-          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
-          "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -12398,13 +12439,9 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
-          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
-          "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -12504,13 +12541,9 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
-          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
-          "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -12612,13 +12645,9 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
-          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
-          "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -12736,13 +12765,9 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
-          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
-          "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner",
-          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -15157,6 +15182,7 @@
           "payment_owner"
         ],
         "x-test-case-ids": [
+          "FINANCE-*",
           "PAY-*"
         ]
       }
@@ -16383,6 +16409,7 @@
           "trade_owner"
         ],
         "x-test-case-ids": [
+          "FINANCE-*",
           "PAY-*"
         ]
       }
@@ -16658,6 +16685,7 @@
           "trade_owner"
         ],
         "x-test-case-ids": [
+          "FINANCE-*",
           "PAY-*"
         ]
       }
@@ -22607,7 +22635,9 @@
           "products:read",
           "store_scope",
           "products:update",
-          "products:publish"
+          "products:publish",
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
@@ -23062,7 +23092,9 @@
           "stores:read",
           "products:read",
           "products:update",
-          "products:publish"
+          "products:publish",
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
@@ -23149,7 +23181,9 @@
           "stores:read",
           "products:read",
           "products:update",
-          "products:publish"
+          "products:publish",
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
@@ -23724,6 +23758,8 @@
           "products:read",
           "products:update",
           "products:publish",
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
           "public_reference_projection",
           "stores:manage",
           "inventories:read",
@@ -25801,6 +25837,8 @@
           "store_scope",
           "products:update",
           "products:publish",
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
           "public_reference_projection",
           "products:create",
           "stores:manage",
@@ -25815,6 +25853,7 @@
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
           "ADM-STORE-*",
+          "FILE-UPLOAD-*",
           "FINANCE-*",
           "MCH-PORTAL-*"
         ]
@@ -26020,6 +26059,7 @@
         ],
         "x-test-case-ids": [
           "ADM-STORE-*",
+          "FILE-UPLOAD-*",
           "FINANCE-*",
           "MCH-PORTAL-*"
         ]
@@ -29754,6 +29794,75 @@
         ],
         "x-test-case-ids": [
           "ADM-BATCH-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/auth/registrations": {
+      "post": {
+        "tags": [
+          "merchant-authentication"
+        ],
+        "summary": "Merchant Register",
+        "operationId": "MerchantAuth_Register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminBootstrap_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantAuth_Register",
+        "x-domain-command": "MerchantAuth_Register",
+        "x-idempotency-policy": "resource_creation_no_automatic_retry",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-AUTH-01"
+        ],
+        "x-scope-policy": [
+          "store_operator_with_store_scope"
+        ],
+        "x-test-case-ids": [
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -46240,6 +46349,41 @@
         ],
         "title": "MerchantReauthenticationRequest"
       },
+      "MerchantRegistrationRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 4,
+            "pattern": "^[A-Za-z0-9_]+$",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password"
+          },
+          "store_name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 2,
+            "title": "Store Name"
+          },
+          "client": {
+            "$ref": "#/components/schemas/ClientDescriptor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "username",
+          "password",
+          "store_name",
+          "client"
+        ],
+        "title": "MerchantRegistrationRequest"
+      },
       "MerchantRevenueView": {
         "properties": {
           "store_id": {
@@ -48003,7 +48147,10 @@
           },
           "payment_method": {
             "type": "string",
-            "const": "fake_balance",
+            "enum": [
+              "fake_balance",
+              "wallet_balance"
+            ],
             "title": "Payment Method"
           },
           "return_url_key": {

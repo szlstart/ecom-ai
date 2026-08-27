@@ -87,8 +87,10 @@ fieldset { display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid
 .dashboard-card-address { min-height: 170px; }
 .dashboard-card-favorites { min-height: 185px; }
 .dashboard-card-security { min-height: 165px; }
-.dashboard-card-wallet { min-height: 175px; color: #fff; border-color: transparent; background: linear-gradient(135deg, #3158d8, #6b78e8); }
-.dashboard-card-wallet .eyebrow, .dashboard-card-wallet .muted, .dashboard-card-wallet a { color: #eef2ff; }
+.dashboard-card-wallet { min-height: 175px; color: #172033; border-color: #c5d1f3; background: linear-gradient(135deg, #eef3ff, #fafbff); }
+.dashboard-card-wallet h2, .dashboard-card-wallet .dashboard-balance { color: #172033; }
+.dashboard-card-wallet .eyebrow, .dashboard-card-wallet .muted { color: #596579; }
+.dashboard-card-wallet a { color: #3158d8; }
 .dashboard-balance { font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 850; letter-spacing: -.04em; }
 .dashboard-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .dashboard-actions { justify-content: flex-start; }
@@ -446,12 +448,17 @@ tr.selected td { background: #f0f4ff; }
 .merchant-auth-intro h1 { max-width: 680px; margin: 14px 0 22px; font-size: clamp(2.4rem, 5vw, 4.8rem); line-height: 1.03; }
 .merchant-auth-intro p:not(.eyebrow) { max-width: 620px; color: #d8f3e7; font-size: 1.08rem; line-height: 1.75; }
 .merchant-auth-intro .eyebrow { color: #9ee5c9; }
+.merchant-auth-intro > small { color: #c8eadc; }
 .merchant-wordmark { color: inherit; font-size: 1.12rem; font-weight: 850; letter-spacing: -.02em; }
 .merchant-wordmark:hover { text-decoration: none; }
 .merchant-auth-panel { padding: 40px; display: grid; place-items: center; }
 .merchant-login-form { width: min(430px, 100%); padding: 38px; border: 1px solid #dce5df; border-radius: 22px; background: #fff; box-shadow: 0 24px 70px rgb(28 65 51 / 12%); }
 .merchant-login-form h1 { margin: 8px 0; font-size: 2.25rem; }
 .merchant-login-form button { background: #167252; }
+.merchant-auth-tabs { padding: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; border-radius: 12px; background: #edf3ef; }
+.merchant-auth-tabs button { padding: 10px 12px; color: #53655d; background: transparent; }
+.merchant-auth-tabs button.active { color: #fff; background: #167252; box-shadow: 0 5px 14px rgb(22 114 82 / 20%); }
+.merchant-auth-fields { display: grid; gap: 15px; }
 .merchant-login-help { margin: 4px 0 0; color: #69776f; font-size: .86rem; line-height: 1.6; text-align: center; }
 .merchant-login-help a { color: #167252; }
 .merchant-shell { min-height: 100vh; display: grid; grid-template-columns: 248px minmax(0, 1fr); color: #173228; background: #f3f6f4; }
@@ -527,6 +534,10 @@ tr.selected td { background: #f0f4ff; }
 .merchant-ticket-card > div:last-child { justify-items: end; color: #75837b; font-size: .84rem; }
 .merchant-store-settings { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); align-items: start; gap: 20px; }
 .merchant-store-settings form { display: grid; gap: 18px; }
+.merchant-logo-paste-zone { padding: 18px; display: grid; gap: 8px; border: 2px dashed #a9cabb; border-radius: 14px; background: #f5fbf8; transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+.merchant-logo-paste-zone p { margin: 0; color: #60736a; font-size: .9rem; line-height: 1.6; }
+.merchant-logo-paste-zone.focused { border-color: #17805b; background: #eefaf4; box-shadow: 0 0 0 4px rgb(23 128 91 / 12%); }
+.merchant-logo-paste-zone.busy { opacity: .72; }
 .merchant-store-preview { text-align: center; }
 .merchant-preview-logo { width: 82px; height: 82px; margin: 10px auto 18px; display: grid; place-items: center; color: #fff; border-radius: 24px; background: linear-gradient(145deg, #187657, #31ab7c); font-size: 2rem; font-weight: 850; }
 .merchant-store-preview dl { margin-top: 24px; text-align: left; }
@@ -539,6 +550,8 @@ tr.selected td { background: #f0f4ff; }
 .wallet-balance-card { min-height: 310px; padding: 34px; display: flex; flex-direction: column; justify-content: center; gap: 10px; color: #fff; border-radius: 22px; background: linear-gradient(145deg, #243f9d, #6678ef); box-shadow: 0 20px 50px rgb(49 88 216 / 22%); }
 .wallet-balance-card strong { font-size: clamp(2.8rem, 7vw, 4.8rem); letter-spacing: -.06em; }
 .wallet-balance-card small { color: #e4e9ff; }
+.wallet-credit { color: #17633b; }
+.wallet-debit { color: #b42318; }
 .wallet-recharge-card { display: grid; gap: 15px; }
 .wallet-recharge-card fieldset { padding: 0; border: 0; }
 .wallet-recharge-card legend { margin-bottom: 7px; font-weight: 650; }

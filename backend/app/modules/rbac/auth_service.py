@@ -5,15 +5,19 @@ import hmac
 import json
 import time
 from datetime import timedelta
+from decimal import Decimal
 from typing import Literal
 
 import pyotp
 from redis.asyncio import Redis
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bootstrap.merchant import STORE_OPERATOR_PERMISSIONS
 from app.core.config import Settings
 from app.core.exceptions import ApplicationError
+from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.security import (
     SecurityService,
@@ -26,7 +30,13 @@ from app.modules.identity.access_policy import classify_identity_grants
 from app.modules.identity.models import AuthSession, User, UserCredential
 from app.modules.identity.repository import IdentityRepository
 from app.modules.identity.service import IdentityService
-from app.modules.rbac.models import AdminMfaAuthenticator
+from app.modules.rbac.models import (
+    AdminMfaAuthenticator,
+    Permission,
+    Role,
+    RolePermission,
+    UserRole,
+)
 from app.modules.rbac.repository import RbacRepository
 from app.modules.rbac.schemas import (
     AdminBootstrap,
@@ -38,9 +48,11 @@ from app.modules.rbac.schemas import (
     AdminPasswordReauthenticationRequest,
     AdminReauthenticationRequest,
     MerchantReauthenticationRequest,
+    MerchantRegistrationRequest,
     NavigationItem,
     ReauthenticationResult,
 )
+from app.modules.stores.models import Store
 
 ADMIN_NAVIGATION = (
     ("dashboard", "仪表盘", "/admin/dashboard", "dashboard:read"),
@@ -152,8 +164,7 @@ class AdminAuthService:
         user_agent: str,
     ) -> tuple[AdminBootstrap, str]:
         await self._rate_limit(
-            f"platform-login-ip:"
-            f"{self.security.keyed_hash('platform-login-ip', ip_address).hex()}",
+            f"platform-login-ip:{self.security.keyed_hash('platform-login-ip', ip_address).hex()}",
             10,
             600,
         )
@@ -253,6 +264,211 @@ class AdminAuthService:
             ),
             result.refresh_token,
         )
+
+    async def register_merchant(
+        self,
+        request: MerchantRegistrationRequest,
+        ip_address: str,
+        user_agent: str,
+    ) -> tuple[AdminBootstrap, str]:
+        await self._rate_limit(
+            f"merchant-register-ip:"
+            f"{self.security.keyed_hash('merchant-register-ip', ip_address).hex()}",
+            5,
+            3600,
+        )
+        normalized_username = normalize_username(request.username)
+        if await self.identity.user_by_username(normalized_username) is not None:
+            raise ApplicationError(
+                status=409,
+                code="MERCHANT_USERNAME_ALREADY_EXISTS",
+                title="Merchant username already exists",
+                detail=f"用户名“{request.username}”已被注册，请更换一个用户名。",
+            )
+        normalized_store_name = " ".join(request.store_name.casefold().split())
+        if (
+            await self.session.scalar(
+                select(Store.id).where(Store.store_name_normalized == normalized_store_name)
+            )
+            is not None
+        ):
+            raise ApplicationError(
+                status=409,
+                code="STORE_NAME_ALREADY_EXISTS",
+                title="Store name already exists",
+                detail=f"店铺名称“{request.store_name}”已存在，请更换一个店铺名称。",
+            )
+        role = await self.session.scalar(
+            select(Role).where(
+                Role.role_code == "store_operator",
+                Role.scope_type == "store",
+                Role.role_status == "active",
+            )
+        )
+        if role is None:
+            raise ApplicationError(
+                status=503,
+                code="MERCHANT_REGISTRATION_UNAVAILABLE",
+                title="Merchant registration unavailable",
+                detail="商家注册暂时不可用，请联系平台管理员初始化商家权限。",
+                retryable=True,
+            )
+        await self._ensure_store_operator_permissions(role)
+
+        now = utc_now()
+        user = User(
+            user_no=new_prefixed_ulid("usr_"),
+            username=request.username,
+            username_normalized=normalized_username,
+            nickname=request.username,
+            user_status="active",
+            locale="zh-CN",
+            timezone="Asia/Shanghai",
+            registered_at=now,
+            last_login_at=now,
+        )
+        self.session.add(user)
+        try:
+            await self.session.flush()
+            self.session.add(
+                UserCredential(
+                    user_id=user.id,
+                    credential_type="password",
+                    secret_hash=self.security.hash_password(request.password),
+                    algorithm="argon2id",
+                    is_primary=True,
+                    is_verified=True,
+                    verified_at=now,
+                    password_changed_at=now,
+                    credential_status="active",
+                )
+            )
+            store = Store(
+                store_no=new_prefixed_ulid("sto_"),
+                owner_user_id=user.id,
+                store_name=request.store_name,
+                store_name_normalized=normalized_store_name,
+                description="欢迎来到我们的店铺。",
+                store_status="active",
+                rating_score=Decimal("0.00"),
+                rating_count=0,
+                follower_count=0,
+                sales_count=0,
+                opened_at=now,
+            )
+            self.session.add(store)
+            await self.session.flush()
+            self.session.add(
+                UserRole(
+                    user_id=user.id,
+                    role_id=role.id,
+                    grant_no=new_prefixed_ulid("grt_"),
+                    scope_type="store",
+                    scope_id=store.id,
+                    grant_status="active",
+                    active_grant_key=self.security.keyed_hash(
+                        "active-role-grant", f"{user.id}:{role.id}:store:{store.id}"
+                    ),
+                    granted_by=user.id,
+                    granted_at=now,
+                    grant_reason="merchant_self_registration",
+                )
+            )
+            await self.session.flush()
+            result = await self.identity_service.issue_session(
+                user,
+                audience="admin",
+                client_type="merchant",
+                device_name=request.client.device_name,
+                auth_methods=["password"],
+                assurance_level="aal1",
+                ip_address=ip_address,
+                user_agent=user_agent,
+                commit=False,
+            )
+            permissions, scopes = await self._merchant_authorization_projection(user.id)
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise ApplicationError(
+                status=409,
+                code="MERCHANT_REGISTRATION_CONFLICT",
+                title="Merchant registration conflict",
+                detail="用户名或店铺名称刚刚被占用，请更换后重试。",
+            ) from exc
+        return (
+            AdminBootstrap(
+                session=result.payload,
+                permission_codes=permissions,
+                scopes=scopes,
+            ),
+            result.refresh_token,
+        )
+
+    async def _ensure_store_operator_permissions(self, role: Role) -> None:
+        permissions = list(
+            (
+                await self.session.scalars(
+                    select(Permission).where(
+                        Permission.permission_code.in_(STORE_OPERATOR_PERMISSIONS),
+                        Permission.permission_status == "active",
+                    )
+                )
+            ).all()
+        )
+        if {permission.permission_code for permission in permissions} != set(
+            STORE_OPERATOR_PERMISSIONS
+        ):
+            raise ApplicationError(
+                status=503,
+                code="MERCHANT_REGISTRATION_UNAVAILABLE",
+                title="Merchant registration unavailable",
+                detail="商家权限目录尚未初始化完成，请联系平台管理员。",
+                retryable=True,
+            )
+        existing_ids = set(
+            (
+                await self.session.scalars(
+                    select(RolePermission.permission_id).where(RolePermission.role_id == role.id)
+                )
+            ).all()
+        )
+        missing = [permission for permission in permissions if permission.id not in existing_ids]
+        if not missing:
+            return
+        platform_grantor_id = await self.session.scalar(
+            select(UserRole.user_id)
+            .join(Role, Role.id == UserRole.role_id)
+            .join(User, User.id == UserRole.user_id)
+            .where(
+                Role.role_code == "platform_super_admin",
+                Role.scope_type == "platform",
+                Role.role_status == "active",
+                UserRole.scope_type == "platform",
+                UserRole.scope_id == 0,
+                UserRole.grant_status == "active",
+                User.user_status == "active",
+            )
+            .order_by(UserRole.id)
+            .limit(1)
+        )
+        if platform_grantor_id is None:
+            raise ApplicationError(
+                status=503,
+                code="MERCHANT_REGISTRATION_UNAVAILABLE",
+                title="Merchant registration unavailable",
+                detail="请先初始化平台管理员，再开放商家注册。",
+                retryable=True,
+            )
+        for permission in missing:
+            self.session.add(
+                RolePermission(
+                    role_id=role.id,
+                    permission_id=permission.id,
+                    granted_by=platform_grantor_id,
+                )
+            )
+        await self.session.flush()
 
     async def verify_mfa(
         self,

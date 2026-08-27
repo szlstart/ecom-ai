@@ -26,6 +26,7 @@ from app.modules.rbac.schemas import (
     AdminPasswordReauthenticationRequest,
     AdminReauthenticationRequest,
     MerchantReauthenticationRequest,
+    MerchantRegistrationRequest,
     ReauthenticationResult,
 )
 
@@ -82,6 +83,28 @@ async def reauthenticate_admin_password(
             _client_ip(request),
         )
     )
+
+
+@merchant_router.post(
+    "/auth/registrations",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[AdminBootstrap],
+    operation_id="MerchantAuth_Register",
+)
+async def merchant_register(
+    payload: MerchantRegistrationRequest,
+    request: Request,
+    response: Response,
+    service: AdminAuthServiceDependency,
+) -> Envelope[AdminBootstrap]:
+    bootstrap, refresh_token = await service.register_merchant(
+        payload,
+        _client_ip(request),
+        request.headers.get("user-agent", "unknown")[:512],
+    )
+    _set_merchant_refresh_cookie(response, refresh_token, bootstrap.session.csrf_token)
+    _no_store(response)
+    return Envelope(data=bootstrap)
 
 
 @merchant_router.post(

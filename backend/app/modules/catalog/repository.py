@@ -117,15 +117,19 @@ class CatalogRepository:
                 .join(FileObject, FileObject.id == ProductImage.file_id)
                 .where(
                     ProductImage.product_id.in_(product_ids),
-                    ProductImage.sku_id.is_(None),
-                    ProductImage.image_type == "main",
+                    ProductImage.sku_id.is_not(None),
+                    ProductImage.image_type == "spec",
                     ProductImage.image_status == "active",
                     FileObject.file_status == "active",
                     FileObject.scan_status == "safe",
                 )
+                .order_by(ProductImage.product_id, ProductImage.sort_order, ProductImage.id)
             )
         ).all()
-        return {row[0].product_id: (row[0], row[1]) for row in rows}
+        result: dict[int, tuple[ProductImage, FileObject]] = {}
+        for image, file_object in rows:
+            result.setdefault(image.product_id, (image, file_object))
+        return result
 
     async def product_images(
         self, product_id: int

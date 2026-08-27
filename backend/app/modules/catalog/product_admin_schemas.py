@@ -165,14 +165,14 @@ class AdminSkuStatusRequest(AdminProductCommandRequest):
 
 class AdminProductImageInput(StrictRequest):
     file_id: str = Field(min_length=5, max_length=40)
-    sku_id: str | None = Field(default=None, min_length=5, max_length=40)
-    image_type: Literal["main", "gallery", "detail", "spec"]
+    sku_id: str = Field(min_length=5, max_length=40)
+    image_type: Literal["spec"]
     alt_text: str | None = Field(default=None, max_length=255)
     sort_order: int = Field(ge=0, le=10_000)
 
 
 class AdminProductImageSetRequest(StrictRequest):
-    items: list[AdminProductImageInput] = Field(min_length=1, max_length=100)
+    items: list[AdminProductImageInput] = Field(max_length=100)
 
 
 class AdminProductImageView(AdminProductImageInput):
@@ -246,6 +246,24 @@ class AdminFaqVersionCreateRequest(AdminContentVersionCreateRequest):
 class AdminFaqPublicationRequest(StrictRequest):
     version_id: str = Field(min_length=5, max_length=40)
     reason: str = Field(min_length=2, max_length=500)
+
+
+class AdminFaqReplaceItem(StrictRequest):
+    faq_id: str | None = Field(default=None, min_length=5, max_length=40)
+    question: str = Field(min_length=1, max_length=1000)
+    answer: str = Field(min_length=1, max_length=100_000)
+    sort_order: int = Field(default=0, ge=0, le=10_000)
+
+
+class AdminFaqReplaceRequest(StrictRequest):
+    items: list[AdminFaqReplaceItem] = Field(max_length=100)
+
+    @model_validator(mode="after")
+    def validate_existing_ids(self) -> AdminFaqReplaceRequest:
+        ids = [item.faq_id for item in self.items if item.faq_id is not None]
+        if len(ids) != len(set(ids)):
+            raise ValueError("faq_id must be unique")
+        return self
 
 
 class AdminFaqView(StrictRequest):

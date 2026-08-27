@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -133,13 +136,36 @@ class FinanceService:
                 title="Store not found",
                 detail="未找到该店铺。",
             )
-        gross, refunded, count = await self.repository.revenue(store.id)
+        shanghai = ZoneInfo("Asia/Shanghai")
+        local_today = datetime.now(shanghai).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        def utc_naive(value: datetime) -> datetime:
+            return value.astimezone(UTC).replace(tzinfo=None)
+
+        metrics = await self.repository.revenue_dashboard(
+            store.id,
+            yesterday_start=utc_naive(local_today - timedelta(days=1)),
+            today_start=utc_naive(local_today),
+            tomorrow_start=utc_naive(local_today + timedelta(days=1)),
+            last_30_days_start=utc_naive(local_today - timedelta(days=29)),
+        )
+        gross = metrics["gross_sales"]
+        refunded = metrics["refunded_amount"]
         return MerchantRevenueView(
             store_id=store.store_no,
             gross_sales=_money(gross),
             refunded_amount=_money(refunded),
             net_revenue=_money(gross - refunded),
-            paid_order_count=count,
+            today_revenue=_money(metrics["today_revenue"]),
+            yesterday_revenue=_money(metrics["yesterday_revenue"]),
+            last_30_days_revenue=_money(metrics["last_30_days_revenue"]),
+            all_order_count=metrics["all_order_count"],
+            completed_order_count=metrics["completed_order_count"],
+            pending_payment_count=metrics["pending_payment_count"],
+            pending_shipment_count=metrics["pending_shipment_count"],
+            in_transit_count=metrics["in_transit_count"],
+            after_sale_pending_count=metrics["after_sale_pending_count"],
+            cancelled_count=metrics["cancelled_count"],
         )
 
     async def _wallet(self, user_id: int) -> UserWallet:

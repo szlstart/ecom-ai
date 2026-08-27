@@ -122,6 +122,16 @@ def test_available_actions_share_the_hide_policy() -> None:
         "view_logistics",
         "confirm_receipt",
     ]
+    in_transit_after_sale = _snapshot(
+        order_status="shipped",
+        fulfillment_status="shipped",
+        after_sale_status="in_progress",
+        has_after_sale_history=True,
+    )
+    assert available_action_codes(in_transit_after_sale, utc_now()) == [
+        "view_logistics",
+        "view_after_sale",
+    ]
 
 
 def test_adjustment_allocator_preserves_minor_units_and_is_deterministic() -> None:

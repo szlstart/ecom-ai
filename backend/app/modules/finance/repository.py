@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import cast
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.finance.models import UserWallet, WalletRecharge, WalletTransaction
@@ -61,10 +62,116 @@ class FinanceRepository:
                     func.coalesce(func.sum(Order.paid_amount), 0),
                     func.coalesce(func.sum(Order.refunded_amount), 0),
                     func.count(Order.id),
-                ).where(Order.store_id == store_id, Order.paid_amount > 0)
+                ).where(
+                    Order.store_id == store_id,
+                    Order.order_status == "completed",
+                    Order.fulfillment_status == "received",
+                    Order.completed_at.is_not(None),
+                )
             )
         ).one()
         return int(row[0]), int(row[1]), int(row[2])
+
+    async def revenue_dashboard(
+        self,
+        store_id: int,
+        *,
+        yesterday_start: datetime,
+        today_start: datetime,
+        tomorrow_start: datetime,
+        last_30_days_start: datetime,
+    ) -> dict[str, int]:
+        settled = (Order.order_status == "completed") & (
+            Order.fulfillment_status == "received"
+        )
+        net_amount = Order.paid_amount - Order.refunded_amount
+        row = (
+            await self.session.execute(
+                select(
+                    func.coalesce(func.sum(case((settled, Order.paid_amount), else_=0)), 0),
+                    func.coalesce(func.sum(case((settled, Order.refunded_amount), else_=0)), 0),
+                    func.coalesce(func.sum(case((settled, 1), else_=0)), 0),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (
+                                    settled
+                                    & (Order.completed_at >= today_start)
+                                    & (Order.completed_at < tomorrow_start),
+                                    net_amount,
+                                ),
+                                else_=0,
+                            )
+                        ),
+                        0,
+                    ),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (
+                                    settled
+                                    & (Order.completed_at >= yesterday_start)
+                                    & (Order.completed_at < today_start),
+                                    net_amount,
+                                ),
+                                else_=0,
+                            )
+                        ),
+                        0,
+                    ),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (
+                                    settled & (Order.completed_at >= last_30_days_start),
+                                    net_amount,
+                                ),
+                                else_=0,
+                            )
+                        ),
+                        0,
+                    ),
+                    func.count(Order.id),
+                    func.coalesce(
+                        func.sum(
+                            case((Order.order_status == "pending_payment", 1), else_=0)
+                        ),
+                        0,
+                    ),
+                    func.coalesce(
+                        func.sum(
+                            case((Order.order_status == "pending_shipment", 1), else_=0)
+                        ),
+                        0,
+                    ),
+                    func.coalesce(
+                        func.sum(case((Order.order_status == "shipped", 1), else_=0)), 0
+                    ),
+                    func.coalesce(
+                        func.sum(
+                            case((Order.after_sale_status == "in_progress", 1), else_=0)
+                        ),
+                        0,
+                    ),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (Order.order_status.in_(("cancelled", "closed")), 1),
+                                else_=0,
+                            )
+                        ),
+                        0,
+                    ),
+                ).where(Order.store_id == store_id)
+            )
+        ).one()
+        keys = (
+            "gross_sales", "refunded_amount", "completed_order_count",
+            "today_revenue", "yesterday_revenue", "last_30_days_revenue",
+            "all_order_count", "pending_payment_count", "pending_shipment_count",
+            "in_transit_count", "after_sale_pending_count", "cancelled_count",
+        )
+        return {key: int(value or 0) for key, value in zip(keys, row, strict=True)}
 
     async def has_consumer_trade(self, user_id: int) -> bool:
         return bool(

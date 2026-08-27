@@ -179,7 +179,7 @@ watch(() => route.fullPath, () => {
             <RouterLink v-if="order.item_count > 3" :to="`/me/orders/${order.order_id}`">另有 {{ order.item_count - 3 }} 件商品，点击查看全部</RouterLink>
           </div>
           <footer>
-            <span>共 {{ order.total_quantity }} 件，应付 <strong>{{ formatMoney(order.amounts.payable_amount) }}</strong></span>
+            <span>共 {{ order.total_quantity }} 件，应付 <strong>{{ formatMoney(order.amounts.payable_amount) }}</strong><small v-if="order.order_status === 'shipped'">物流签收满 7 天后将自动确认收货</small></span>
             <div class="order-actions">
               <RouterLink class="order-action" :to="`/me/orders/${order.order_id}`">查看订单详情</RouterLink>
               <button v-for="action in order.available_actions" :key="action.code" type="button" :class="['order-action', { disabled: !action.enabled }]" :disabled="!action.enabled || busyOrder !== ''" :title="action.reason_message ?? undefined" @click="runAction(action, order)">{{ busyOrder === order.order_id ? '处理中…' : actionLabel(action.code) }}</button>

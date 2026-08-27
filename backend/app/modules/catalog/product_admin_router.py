@@ -12,6 +12,7 @@ from app.modules.catalog.product_admin_schemas import (
     AdminContentVersionView,
     AdminFaqCreateRequest,
     AdminFaqPublicationRequest,
+    AdminFaqReplaceRequest,
     AdminFaqVersionCreateRequest,
     AdminFaqView,
     AdminProductAttributeInput,
@@ -488,6 +489,26 @@ async def create_faq(
     item = await service.create_faq(access, product_id, payload, idempotency_key)
     latest = await service.get_product(access, product_id)
     return _resource(response, item, latest.version)
+
+
+@router.put(
+    "/{product_id}/faqs",
+    response_model=Envelope[list[AdminFaqView]],
+    operation_id="AdminProductFaq_Replace",
+)
+async def replace_faqs(
+    product_id: str,
+    payload: AdminFaqReplaceRequest,
+    response: Response,
+    service: ProductAdminServiceDependency,
+    access: Annotated[AdminAccess, require_admin_permission("products:update")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[list[AdminFaqView]]:
+    items = await service.replace_faqs(
+        access, product_id, payload, _expected_version(if_match)
+    )
+    latest = await service.get_product(access, product_id)
+    return _resource(response, items, latest.version)
 
 
 @router.post(

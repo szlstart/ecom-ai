@@ -86,7 +86,10 @@ async function mountPage() {
   useAdminAuthStore().accessToken = 'merchant-token'
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/merchant/products/:productId', component: MerchantProductEditorPage }],
+    routes: [
+      { path: '/merchant/products', component: defineComponent({ render: () => h('div', '商品列表') }) },
+      { path: '/merchant/products/:productId', component: MerchantProductEditorPage },
+    ],
   })
   await router.push('/merchant/products/prd_test')
   await router.isReady()
@@ -149,7 +152,7 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     expect(wrapper.text()).toContain('图片已上传并自动保存，刷新页面也不会丢失')
     expect(mocks.adminReplace).toHaveBeenCalledWith(
       '/admin/products/prd_test/images',
-      expect.objectContaining({ items: [expect.objectContaining({ file_id: uploadedFileId, image_type: 'main', sku_id: null })] }),
+      expect.objectContaining({ items: [expect.objectContaining({ file_id: uploadedFileId, image_type: 'spec', sku_id: 'sku_test' })] }),
       'merchant-token',
       1,
     )
@@ -172,6 +175,38 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     expect(wrapper.find('.merchant-product-info-editor').exists()).toBe(true)
   })
 
+  it('keeps image upload locked until a style has been created', async () => {
+    mocks.adminGet.mockImplementation(async (requestPath: string) => {
+      if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
+      if (requestPath === '/admin/products/prd_test') return { data: { ...product, default_sku_id: null, sku_count: 0 } }
+      if (requestPath.endsWith('/skus') || requestPath.endsWith('/images') || requestPath.endsWith('/attributes') || requestPath.endsWith('/faqs')) return { data: [] }
+      if (requestPath.startsWith('/admin/inventories?')) return { data: { items: [] } }
+      if (requestPath.endsWith('/fulfillment-profile')) return { data: null }
+      if (requestPath.endsWith('/shipping-templates')) return { data: [] }
+      throw new Error(`unexpected path: ${requestPath}`)
+    })
+    const wrapper = await mountPage()
+    expect(wrapper.get('.merchant-paste-image-zone').text()).toContain('请先新增并完成一个款式')
+    expect(wrapper.find('.merchant-image-actions .file-upload-stub').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('图片属于')
+  })
+
+  it('allows the last image of a style to be removed without a main-image guard', async () => {
+    mocks.persistedImages = [{ file_id: uploadedFileId, sku_id: 'sku_test', image_type: 'spec', alt_text: '黑色款', sort_order: 0, image_url: `/api/v1/files/${uploadedFileId}`, width: 100, height: 100, status: 'active' }]
+    const wrapper = await mountPage()
+    const remove = wrapper.findAll('button').find((button) => button.text() === '移除当前图片')
+    await remove!.trigger('click')
+    await flushPromises()
+    expect(mocks.adminReplace).toHaveBeenCalledWith(
+      '/admin/products/prd_test/images',
+      { items: [] },
+      'merchant-token',
+      1,
+    )
+    expect(wrapper.text()).toContain('图片已移除并自动保存')
+    expect(wrapper.text()).not.toContain('至少需要保留一张主图')
+  })
+
   it('keeps pasted detail images and text in the merchant-defined vertical order', async () => {
     const wrapper = await mountPage()
     await wrapper.get('.merchant-detail-block textarea').setValue('第一段文字')
@@ -190,8 +225,8 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     await addText!.trigger('click')
     const textareas = wrapper.findAll<HTMLTextAreaElement>('.merchant-detail-block textarea')
     await textareas[1]!.setValue('第二段文字')
-    const saveDetail = wrapper.findAll('button').find((button) => button.text() === '保存商品详情')
-    await saveDetail!.trigger('click')
+    const finishDraft = wrapper.findAll('button').find((button) => button.text() === '暂存为草稿')
+    await finishDraft!.trigger('click')
     await flushPromises()
 
     const detailCall = mocks.adminCreate.mock.calls.find(([requestPath]) => requestPath.endsWith('/detail-content-versions'))
@@ -201,7 +236,6 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
       { type: 'image', file_id: uploadedFileId, alt: '剪贴板测试商品' },
       { type: 'paragraph', text: '第二段文字' },
     ])
-    expect(wrapper.text()).toContain('商品详情已按当前图文顺序保存')
   })
 
   it('restores a previously saved structured detail version in the same order', async () => {
@@ -328,21 +362,58 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     expect(wrapper.text()).toContain('款式已删除，不再向顾客展示')
   })
 
-  it('preserves drafts in other sections while refreshing data after a save', async () => {
+  it('saves product fields together only from the bottom completion action', async () => {
     const wrapper = await mountPage()
     const productName = wrapper.get<HTMLInputElement>('.merchant-product-info-editor input')
     await productName.setValue('尚未保存的跨区域商品名称')
-    await wrapper.get('.merchant-detail-editors form:first-child header button').trigger('click')
+    await wrapper.get('.merchant-detail-editors > section:first-child header button').trigger('click')
     const attributeInputs = wrapper.findAll<HTMLInputElement>('.merchant-attribute-rows input')
     await attributeInputs[0]!.setValue('材质')
     await attributeInputs[1]!.setValue('纯棉')
 
-    await wrapper.get('.merchant-detail-editors form:first-child').trigger('submit')
+    const finishDraft = wrapper.findAll('button').find((button) => button.text() === '暂存为草稿')
+    await finishDraft!.trigger('click')
     await flushPromises()
 
-    expect(productName.element.value).toBe('尚未保存的跨区域商品名称')
-    expect(wrapper.findAll<HTMLInputElement>('.merchant-attribute-rows input')[0]!.element.value).toBe('材质')
-    expect(wrapper.text()).toContain('商品参数已保存')
+    expect(mocks.adminUpdate).toHaveBeenCalledWith(
+      '/admin/products/prd_test',
+      expect.objectContaining({ product_name: '尚未保存的跨区域商品名称' }),
+      'merchant-token',
+      1,
+    )
+    expect(mocks.adminReplace).toHaveBeenCalledWith(
+      '/admin/products/prd_test/attributes',
+      expect.objectContaining({ items: [expect.objectContaining({ attribute_name: '材质', value_text: '纯棉' })] }),
+      'merchant-token',
+      1,
+    )
+  })
+
+  it('stages FAQ deletion until the bottom save action', async () => {
+    mocks.adminGet.mockImplementation(async (requestPath: string) => {
+      if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
+      if (requestPath === '/admin/products/prd_test') return { data: product }
+      if (requestPath.endsWith('/skus')) return { data: [sku] }
+      if (requestPath.endsWith('/images') || requestPath.endsWith('/attributes')) return { data: [] }
+      if (requestPath.endsWith('/faqs')) return { data: [{ faq_id: 'faq_test', product_id: 'prd_test', question: '旧问题', current_answer_text: '旧回答', status: 'published', sort_order: 0, version: 1 }] }
+      if (requestPath.startsWith('/admin/inventories?')) return { data: { items: [inventory] } }
+      if (requestPath.endsWith('/fulfillment-profile')) return { data: null }
+      if (requestPath.endsWith('/shipping-templates')) return { data: [] }
+      throw new Error(`unexpected path: ${requestPath}`)
+    })
+    const wrapper = await mountPage()
+    await wrapper.get('.merchant-faq-draft-list button.danger').trigger('click')
+    expect(mocks.adminReplace).not.toHaveBeenCalledWith('/admin/products/prd_test/faqs', expect.anything(), expect.anything(), expect.anything())
+
+    const finishDraft = wrapper.findAll('button').find((button) => button.text() === '暂存为草稿')
+    await finishDraft!.trigger('click')
+    await flushPromises()
+    expect(mocks.adminReplace).toHaveBeenCalledWith(
+      '/admin/products/prd_test/faqs',
+      { items: [] },
+      'merchant-token',
+      1,
+    )
   })
 
   it('protects the final active style while an item is on sale', async () => {
@@ -396,7 +467,8 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
   it('creates the hidden default delivery configuration when only a shipping origin is entered', async () => {
     const wrapper = await mountPage()
     await wrapper.get('.merchant-origin-field select').setValue('110000')
-    await wrapper.findAll('.merchant-detail-editors > form')[1]!.trigger('submit')
+    const finishDraft = wrapper.findAll('button').find((button) => button.text() === '暂存为草稿')
+    await finishDraft!.trigger('click')
     await flushPromises()
 
     expect(mocks.adminCreate).toHaveBeenCalledWith(

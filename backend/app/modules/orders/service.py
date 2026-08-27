@@ -177,7 +177,7 @@ class OrderService:
         await self.session.flush()
 
         contexts_by_store = _contexts_by_store(checkout)
-        images = await self.repository.main_images(product_ids)
+        images = await self.repository.sku_images(set(quantity_by_sku))
         order_ids: list[str] = []
         order_items: list[tuple[Order, OrderItem, Inventory, int]] = []
         request_id = request_id_context.get() or new_prefixed_ulid("req_")
@@ -272,7 +272,7 @@ class OrderService:
                     product_name=product.product_name,
                     sku_name=sku.sku_name,
                     spec_snapshot=sku.spec_values,
-                    image_object_key=images.get(product.id),
+                    image_object_key=images.get(sku.id),
                     quantity=quantity,
                     unit_price_amount=sku.sale_price_amount,
                     market_price_amount=sku.market_price_amount,
@@ -980,68 +980,23 @@ class OrderService:
         _require_version(order, expected_version)
         require_transition(ORDER_TRANSITIONS, order.order_status, "ConfirmReceipt")
         require_transition(FULFILLMENT_TRANSITIONS, order.fulfillment_status, "ConfirmReceipt")
-        if order.order_status != "shipped" or order.fulfillment_status != "shipped":
+        if (
+            order.order_status != "shipped"
+            or order.fulfillment_status != "shipped"
+            or order.after_sale_status == "in_progress"
+        ):
             raise _state_conflict(order, "confirm_receipt")
         now = utc_now()
         request_id = request_id_context.get() or new_prefixed_ulid("req_")
-        order.order_status = "completed"
-        order.fulfillment_status = "received"
-        order.completed_at = now
-        order.version += 1
-        events = [
-            OrderStatusLog(
-                order_id=order.id,
-                state_dimension="fulfillment",
-                from_status="shipped",
-                to_status="received",
-                event_code="order.receipt_confirmed",
-                actor_type="user",
-                actor_id=user.id,
-                order_version=order.version,
-                request_id=request_id,
-                trace_id=request_id,
-                created_at=now,
-            ),
-            OrderStatusLog(
-                order_id=order.id,
-                state_dimension="order",
-                from_status="shipped",
-                to_status="completed",
-                event_code="order.receipt_confirmed",
-                actor_type="user",
-                actor_id=user.id,
-                order_version=order.version,
-                request_id=request_id,
-                trace_id=request_id,
-                created_at=now,
-            ),
-        ]
-        self.session.add_all(events)
-        self.session.add(
-            OrderOperationLog(
-                operation_no=new_prefixed_ulid("oop_"),
-                order_id=order.id,
-                operation_type="confirm_receipt",
-                actor_type="user",
-                actor_id=user.id,
-                result_status="success",
-                request_id=request_id,
-                trace_id=request_id,
-            )
-        )
-        self.session.add(
-            OutboxEvent(
-                event_no=new_prefixed_ulid("evt_"),
-                event_type="order.receipt_confirmed.v1",
-                aggregate_type="order",
-                aggregate_no=order.order_no,
-                aggregate_version=order.version,
-                payload={"order_id": order.order_no, "confirmed_at": now.isoformat()},
-                event_status="pending",
-                available_at=now,
-                attempt_count=0,
-                trace_id=request_id,
-            )
+        events = self._complete_receipt(
+            order,
+            command="ConfirmReceipt",
+            actor_type="user",
+            actor_id=user.id,
+            event_code="order.receipt_confirmed",
+            operation_type="confirm_receipt",
+            request_id=request_id,
+            now=now,
         )
         await self.session.flush()
         refreshed = await self.repository.user_order(user.id, order_no)
@@ -1059,6 +1014,105 @@ class OrderService:
         )
         await self.session.commit()
         return result
+
+    async def auto_confirm_due(self, *, days: int = 7, limit: int = 100) -> int:
+        now = utc_now()
+        orders = await self.repository.auto_confirmable_orders(
+            now - timedelta(days=days), limit
+        )
+        for order in orders:
+            request_id = new_prefixed_ulid("req_")
+            self._complete_receipt(
+                order,
+                command="AutoConfirmReceipt",
+                actor_type="system",
+                actor_id=None,
+                event_code="order.receipt_auto_confirmed",
+                operation_type="auto_confirm_receipt",
+                request_id=request_id,
+                now=now,
+            )
+        await self.session.commit()
+        return len(orders)
+
+    def _complete_receipt(
+        self,
+        order: Order,
+        *,
+        command: str,
+        actor_type: str,
+        actor_id: int | None,
+        event_code: str,
+        operation_type: str,
+        request_id: str,
+        now: datetime,
+    ) -> list[OrderStatusLog]:
+        order.order_status = require_transition(ORDER_TRANSITIONS, order.order_status, command)
+        order.fulfillment_status = require_transition(
+            FULFILLMENT_TRANSITIONS, order.fulfillment_status, command
+        )
+        order.completed_at = now
+        order.version += 1
+        events = [
+            OrderStatusLog(
+                order_id=order.id,
+                state_dimension="fulfillment",
+                from_status="shipped",
+                to_status="received",
+                event_code=event_code,
+                actor_type=actor_type,
+                actor_id=actor_id,
+                order_version=order.version,
+                request_id=request_id,
+                trace_id=request_id,
+                created_at=now,
+            ),
+            OrderStatusLog(
+                order_id=order.id,
+                state_dimension="order",
+                from_status="shipped",
+                to_status="completed",
+                event_code=event_code,
+                actor_type=actor_type,
+                actor_id=actor_id,
+                order_version=order.version,
+                request_id=request_id,
+                trace_id=request_id,
+                created_at=now,
+            ),
+        ]
+        self.session.add_all(events)
+        self.session.add(
+            OrderOperationLog(
+                operation_no=new_prefixed_ulid("oop_"),
+                order_id=order.id,
+                operation_type=operation_type,
+                actor_type=actor_type,
+                actor_id=actor_id,
+                result_status="success",
+                request_id=request_id,
+                trace_id=request_id,
+            )
+        )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="order.receipt_confirmed.v1",
+                aggregate_type="order",
+                aggregate_no=order.order_no,
+                aggregate_version=order.version,
+                payload={
+                    "order_id": order.order_no,
+                    "confirmed_at": now.isoformat(),
+                    "confirmation_type": "automatic" if actor_type == "system" else "user",
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        return events
 
     async def hide(self, user: User, order_no: str, expected_version: int) -> OrderHideResult:
         row = await self.repository.user_order(user.id, order_no, for_update=True)

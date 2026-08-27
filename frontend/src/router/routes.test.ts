@@ -65,6 +65,7 @@ describe('phase two route contract', () => {
       ['/merchant/products', 'MCH-PRODUCT-LIST-01'],
       ['/merchant/products/new', 'MCH-PRODUCT-NEW-01'],
       ['/merchant/products/:productId', 'MCH-PRODUCT-EDIT-01'],
+      ['/merchant/orders', 'MCH-ORDER-01'],
       ['/merchant/inventory', 'MCH-INVENTORY-01'],
       ['/merchant/support', 'MCH-SUPPORT-LIST-01'],
       ['/merchant/support/:ticketId', 'MCH-SUPPORT-01'],

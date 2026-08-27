@@ -226,8 +226,8 @@ export interface AdminSku extends AdminVersioned {
 
 export interface AdminProductImage {
   file_id: string
-  sku_id: string | null
-  image_type: 'main' | 'gallery' | 'detail' | 'spec'
+  sku_id: string
+  image_type: 'spec'
   alt_text: string | null
   sort_order: number
   image_url: string

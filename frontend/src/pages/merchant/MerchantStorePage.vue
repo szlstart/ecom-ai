@@ -10,7 +10,7 @@ import { useAdminAuthStore } from '@/stores/admin-auth'
 import { imageFileFromClipboard } from '@/utils/clipboard-image'
 
 interface Money { minor_units: string; currency: string }
-interface MerchantRevenue { gross_sales: Money; refunded_amount: Money; net_revenue: Money; paid_order_count: number }
+interface MerchantRevenue { gross_sales: Money; refunded_amount: Money; net_revenue: Money; completed_order_count: number }
 interface FileUploadHandle { uploadFile: (file: File) => Promise<void> }
 
 const auth = useAdminAuthStore()
@@ -112,7 +112,7 @@ onMounted(load)
       <template v-if="store">
         <div class="merchant-store-settings">
           <form class="card" @submit.prevent="save"><h2>基础资料</h2><label>店铺名称<input v-model.trim="profile.store_name" required minlength="2" maxlength="128" /></label><small>名称不能与其他店铺重复，可随时修改。保存后，用户端商品、收藏和历史订单中的店铺名会同步显示最新名称。</small><label>店铺简介<textarea v-model.trim="profile.description" maxlength="2000" rows="8" placeholder="介绍你的店铺、品牌理念和主营商品" /></label><div class="merchant-logo-paste-zone" :class="{ focused: logoPasteFocused, busy: logoPasteBusy }" tabindex="0" role="button" aria-label="店铺 Logo 粘贴上传区" @focus="logoPasteFocused = true" @blur="logoPasteFocused = false" @paste="pasteLogo"><strong>{{ logoPasteBusy ? '正在读取、扫描并上传 Logo…' : '更换店铺 Logo' }}</strong><p>可从本地选择文件；也可先复制图片，点击这里后按 Command + V（macOS）或 Ctrl + V（Windows）粘贴。</p><AdminFileUpload ref="logoUpload" purpose="store_logo" :business-context-id="store.store_id" label="从本地选择 Logo" @uploaded="logoUploaded" /></div><small v-if="logoPasteNotice" class="success-text" role="status">{{ logoPasteNotice }}</small><small v-if="logoPasteError" class="error-text" role="alert">{{ logoPasteError }}</small><button :disabled="saving || logoPasteBusy">{{ saving ? '正在保存…' : '保存店铺资料' }}</button></form>
-          <aside class="card merchant-store-preview"><p class="eyebrow">营业额</p><div class="merchant-revenue-value">{{ money(revenue?.net_revenue) }}</div><p>累计实收减累计退款</p><dl><dt>累计实收</dt><dd>{{ money(revenue?.gross_sales) }}</dd><dt>累计退款</dt><dd>{{ money(revenue?.refunded_amount) }}</dd><dt>已支付订单</dt><dd>{{ revenue?.paid_order_count ?? 0 }} 笔</dd><dt>营业状态</dt><dd>{{ store.status === 'active' ? '营业中' : store.status }}</dd></dl></aside>
+          <aside class="card merchant-store-preview"><p class="eyebrow merchant-revenue-heading">营业额</p><div class="merchant-revenue-value">{{ money(revenue?.net_revenue) }}</div><p>仅在顾客确认收货或系统自动确认后计入，累计确认收货金额减累计退款</p><dl><dt>累计确认收货</dt><dd>{{ money(revenue?.gross_sales) }}</dd><dt>累计退款</dt><dd>{{ money(revenue?.refunded_amount) }}</dd><dt>已完成订单</dt><dd>{{ revenue?.completed_order_count ?? 0 }} 笔</dd><dt>营业状态</dt><dd>{{ store.status === 'active' ? '营业中' : store.status }}</dd></dl></aside>
         </div>
         <article class="card danger-zone"><div><p class="eyebrow danger-text">不可恢复</p><h2>注销店铺账号</h2><p>仅未产生任何订单的店铺可以直接注销。确认后会永久删除店铺、商品、商家账号及其非交易数据。</p></div><button class="danger" type="button" :disabled="deleting" @click="deleteAccount">{{ deleting ? '正在注销…' : '注销店铺与账号' }}</button><p v-if="deleteError" class="alert error" role="alert">{{ deleteError }}</p></article>
       </template>

@@ -2589,6 +2589,8 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         assert debit.direction == "debit" and debit.amount == paid_minor_units
         store_row = await session.scalar(select(Store).where(Store.store_no == store_no))
         assert store_row is not None
-        gross, _refunded, paid_order_count = await FinanceRepository(session).revenue(store_row.id)
+        gross, _refunded, completed_order_count = await FinanceRepository(session).revenue(
+            store_row.id
+        )
         assert gross >= paid_minor_units
-        assert paid_order_count >= 1
+        assert completed_order_count >= 1

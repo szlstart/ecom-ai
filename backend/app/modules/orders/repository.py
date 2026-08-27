@@ -14,6 +14,7 @@ from app.modules.catalog.models import Product, ProductImage, ProductSku
 from app.modules.files.models import FileObject
 from app.modules.identity.models import User
 from app.modules.inventory.models import Inventory, InventoryReservation
+from app.modules.logistics.models import Shipment
 from app.modules.orders.models import Order, OrderAddress, OrderItem, OrderStatusLog, TradeOrder
 from app.modules.stores.models import Store
 
@@ -201,6 +202,43 @@ class OrderRepository:
             statement = statement.with_for_update(of=Order)
         row = (await self.session.execute(statement)).one_or_none()
         return (row[0], row[1], row[2], row[3]) if row else None
+
+    async def auto_confirmable_orders(
+        self, cutoff: datetime, limit: int
+    ) -> list[Order]:
+        delivered_in_time = exists().where(
+            Shipment.order_id == Order.id,
+            Shipment.shipment_status == "delivered",
+            Shipment.delivered_at.is_not(None),
+            Shipment.delivered_at <= cutoff,
+        )
+        unfinished_package = exists().where(
+            Shipment.order_id == Order.id,
+            Shipment.shipment_status.not_in(("delivered", "voided")),
+        )
+        recently_delivered_package = exists().where(
+            Shipment.order_id == Order.id,
+            Shipment.shipment_status == "delivered",
+            or_(Shipment.delivered_at.is_(None), Shipment.delivered_at > cutoff),
+        )
+        return list(
+            (
+                await self.session.scalars(
+                    select(Order)
+                    .where(
+                        Order.order_status == "shipped",
+                        Order.fulfillment_status == "shipped",
+                        Order.after_sale_status != "in_progress",
+                        delivered_in_time,
+                        ~unfinished_package,
+                        ~recently_delivered_package,
+                    )
+                    .order_by(Order.shipped_at, Order.id)
+                    .limit(limit)
+                    .with_for_update(skip_locked=True)
+                )
+            ).all()
+        )
 
     async def trade_for_update(self, trade_order_id: int) -> TradeOrder | None:
         return cast(
@@ -448,24 +486,23 @@ class OrderRepository:
         )
         return {row.id: row for row in rows}
 
-    async def main_images(self, product_ids: set[int]) -> dict[int, str]:
-        if not product_ids:
+    async def sku_images(self, sku_ids: set[int]) -> dict[int, str]:
+        if not sku_ids:
             return {}
         rows = (
             await self.session.execute(
-                select(ProductImage.product_id, ProductImage.object_key)
+                select(ProductImage.sku_id, ProductImage.object_key)
                 .where(
-                    ProductImage.product_id.in_(product_ids),
-                    ProductImage.sku_id.is_(None),
-                    ProductImage.image_type == "main",
+                    ProductImage.sku_id.in_(sku_ids),
+                    ProductImage.image_type == "spec",
                     ProductImage.image_status == "active",
                 )
-                .order_by(ProductImage.product_id, ProductImage.sort_order, ProductImage.id)
+                .order_by(ProductImage.sku_id, ProductImage.sort_order, ProductImage.id)
             )
         ).all()
         result: dict[int, str] = {}
-        for product_id, object_key in rows:
-            result.setdefault(product_id, object_key)
+        for sku_id, object_key in rows:
+            result.setdefault(sku_id, object_key)
         return result
 
     async def cart_items(self, user_id: int, item_nos: list[str]) -> list[CartItem]:

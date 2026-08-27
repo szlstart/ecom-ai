@@ -6088,18 +6088,27 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "MCH-ORDER-01",
           "MCH-STORE-01"
         ],
         "x-scope-policy": [
           "stores:read",
+          "orders:read",
+          "shipments:create",
+          "store_scope",
           "stores:manage",
           "store_owner"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-SHIP-CREATE-*",
           "ADM-STORE-*",
           "FILE-UPLOAD-*",
           "FINANCE-*",
-          "MCH-PORTAL-*"
+          "MCH-ORDER-*",
+          "MCH-PORTAL-*",
+          "ORDER-AUTO-CONFIRM-*",
+          "ORDER-DOMAIN-*"
         ]
       }
     },
@@ -15945,13 +15954,23 @@
           "orders:read"
         ],
         "x-requirement-id": [
-          "ADM-ORDER-LIST-01"
+          "ADM-ORDER-LIST-01",
+          "MCH-ORDER-01"
         ],
         "x-scope-policy": [
-          "orders:read"
+          "stores:read",
+          "orders:read",
+          "shipments:create",
+          "store_scope"
         ],
         "x-test-case-ids": [
-          "ADM-ORDER-*"
+          "ADM-ORDER-*",
+          "ADM-SHIP-CREATE-*",
+          "FINANCE-*",
+          "MCH-ORDER-*",
+          "MCH-PORTAL-*",
+          "ORDER-AUTO-CONFIRM-*",
+          "ORDER-DOMAIN-*"
         ]
       }
     },
@@ -16028,17 +16047,25 @@
           "orders:read"
         ],
         "x-requirement-id": [
-          "ADM-ORDER-01"
+          "ADM-ORDER-01",
+          "MCH-ORDER-01"
         ],
         "x-scope-policy": [
+          "stores:read",
           "orders:read",
+          "shipments:create",
+          "store_scope",
           "orders:adjust",
-          "orders:cancel",
-          "shipments:create"
+          "orders:cancel"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
-          "ADM-SHIP-CREATE-*"
+          "ADM-SHIP-CREATE-*",
+          "FINANCE-*",
+          "MCH-ORDER-*",
+          "MCH-PORTAL-*",
+          "ORDER-AUTO-CONFIRM-*",
+          "ORDER-DOMAIN-*"
         ]
       }
     },
@@ -20200,17 +20227,25 @@
           "shipments:create"
         ],
         "x-requirement-id": [
-          "ADM-ORDER-01"
+          "ADM-ORDER-01",
+          "MCH-ORDER-01"
         ],
         "x-scope-policy": [
+          "stores:read",
           "orders:read",
+          "shipments:create",
+          "store_scope",
           "orders:adjust",
-          "orders:cancel",
-          "shipments:create"
+          "orders:cancel"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
-          "ADM-SHIP-CREATE-*"
+          "ADM-SHIP-CREATE-*",
+          "FINANCE-*",
+          "MCH-ORDER-*",
+          "MCH-PORTAL-*",
+          "ORDER-AUTO-CONFIRM-*",
+          "ORDER-DOMAIN-*"
         ]
       }
     },
@@ -25427,6 +25462,134 @@
           "ADM-REVIEW-*",
           "MCH-PORTAL-*"
         ]
+      },
+      "put": {
+        "tags": [
+          "product-administration"
+        ],
+        "summary": "Replace Faqs",
+        "operationId": "AdminProductFaq_Replace",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminFaqReplaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_list_AdminFaqView__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminProductFaq_Replace",
+        "x-domain-command": "AdminProductFaq_Replace",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "products:update"
+        ],
+        "x-requirement-id": [
+          "MCH-PRODUCT-EDIT-01"
+        ],
+        "x-scope-policy": [
+          "public_reference_projection",
+          "stores:read",
+          "stores:manage",
+          "products:read",
+          "products:update",
+          "products:publish",
+          "inventories:read",
+          "inventories:adjust",
+          "reviews:read",
+          "reviews:reply"
+        ],
+        "x-test-case-ids": [
+          "ADM-INV-*",
+          "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
+          "MCH-PORTAL-*"
+        ]
       }
     },
     "/api/v1/admin/products/{product_id}/faqs/{faq_id}/versions": {
@@ -25826,6 +25989,7 @@
         "x-requirement-id": [
           "ADM-STORE-LIST-01",
           "MCH-DASH-01",
+          "MCH-ORDER-01",
           "MCH-PRODUCT-EDIT-01",
           "MCH-PRODUCT-LIST-01",
           "MCH-PRODUCT-NEW-01",
@@ -25846,16 +26010,23 @@
           "inventories:adjust",
           "reviews:read",
           "reviews:reply",
+          "orders:read",
+          "shipments:create",
           "store_owner"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
+          "ADM-ORDER-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-SHIP-CREATE-*",
           "ADM-STORE-*",
           "FILE-UPLOAD-*",
           "FINANCE-*",
-          "MCH-PORTAL-*"
+          "MCH-ORDER-*",
+          "MCH-PORTAL-*",
+          "ORDER-AUTO-CONFIRM-*",
+          "ORDER-DOMAIN-*"
         ]
       }
     },
@@ -34723,6 +34894,67 @@
         ],
         "title": "AdminFaqPublicationRequest"
       },
+      "AdminFaqReplaceItem": {
+        "properties": {
+          "faq_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "minLength": 5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Faq Id"
+          },
+          "question": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Question"
+          },
+          "answer": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1,
+            "title": "Answer"
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Sort Order",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question",
+          "answer"
+        ],
+        "title": "AdminFaqReplaceItem"
+      },
+      "AdminFaqReplaceRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminFaqReplaceItem"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AdminFaqReplaceRequest"
+      },
       "AdminFaqVersionCreateRequest": {
         "properties": {
           "source_format": {
@@ -36219,26 +36451,14 @@
             "title": "File Id"
           },
           "sku_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 40,
-                "minLength": 5
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 5,
             "title": "Sku Id"
           },
           "image_type": {
             "type": "string",
-            "enum": [
-              "main",
-              "gallery",
-              "detail",
-              "spec"
-            ],
+            "const": "spec",
             "title": "Image Type"
           },
           "alt_text": {
@@ -36264,6 +36484,7 @@
         "type": "object",
         "required": [
           "file_id",
+          "sku_id",
           "image_type",
           "sort_order"
         ],
@@ -36277,7 +36498,6 @@
             },
             "type": "array",
             "maxItems": 100,
-            "minItems": 1,
             "title": "Items"
           }
         },
@@ -36297,26 +36517,14 @@
             "title": "File Id"
           },
           "sku_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 40,
-                "minLength": 5
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 5,
             "title": "Sku Id"
           },
           "image_type": {
             "type": "string",
-            "enum": [
-              "main",
-              "gallery",
-              "detail",
-              "spec"
-            ],
+            "const": "spec",
             "title": "Image Type"
           },
           "alt_text": {
@@ -36358,6 +36566,7 @@
         "type": "object",
         "required": [
           "file_id",
+          "sku_id",
           "image_type",
           "sort_order",
           "image_url",
@@ -46399,9 +46608,42 @@
           "net_revenue": {
             "$ref": "#/components/schemas/Money"
           },
-          "paid_order_count": {
+          "today_revenue": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "yesterday_revenue": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "last_30_days_revenue": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "all_order_count": {
             "type": "integer",
-            "title": "Paid Order Count"
+            "title": "All Order Count"
+          },
+          "completed_order_count": {
+            "type": "integer",
+            "title": "Completed Order Count"
+          },
+          "pending_payment_count": {
+            "type": "integer",
+            "title": "Pending Payment Count"
+          },
+          "pending_shipment_count": {
+            "type": "integer",
+            "title": "Pending Shipment Count"
+          },
+          "in_transit_count": {
+            "type": "integer",
+            "title": "In Transit Count"
+          },
+          "after_sale_pending_count": {
+            "type": "integer",
+            "title": "After Sale Pending Count"
+          },
+          "cancelled_count": {
+            "type": "integer",
+            "title": "Cancelled Count"
           }
         },
         "additionalProperties": false,
@@ -46411,7 +46653,16 @@
           "gross_sales",
           "refunded_amount",
           "net_revenue",
-          "paid_order_count"
+          "today_revenue",
+          "yesterday_revenue",
+          "last_30_days_revenue",
+          "all_order_count",
+          "completed_order_count",
+          "pending_payment_count",
+          "pending_shipment_count",
+          "in_transit_count",
+          "after_sale_pending_count",
+          "cancelled_count"
         ],
         "title": "MerchantRevenueView"
       },

@@ -92,7 +92,11 @@ def available_action_codes(snapshot: OrderPolicySnapshot, now: datetime) -> list
         actions.extend(("pay", "cancel_order"))
     if snapshot.fulfillment_status in {"partial", "shipped", "received"}:
         actions.append("view_logistics")
-    if snapshot.order_status == "shipped" and snapshot.fulfillment_status == "shipped":
+    if (
+        snapshot.order_status == "shipped"
+        and snapshot.fulfillment_status == "shipped"
+        and snapshot.after_sale_status != "in_progress"
+    ):
         actions.append("confirm_receipt")
     if snapshot.has_after_sale_history:
         actions.append("view_after_sale")

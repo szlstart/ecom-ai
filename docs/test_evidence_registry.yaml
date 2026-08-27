@@ -66,8 +66,10 @@ families:
   HOME: {layers: [contract, integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}
   ME: {layers: [integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   MCH-PORTAL: {layers: [integration, security], selectors: [backend/tests/test_merchant_bootstrap_integration.py::test_store_operator_login_permissions_and_store_isolation]}
+  MCH-ORDER: {layers: [unit, integration], selectors: [backend/tests/test_merchant_bootstrap_integration.py::test_store_operator_login_permissions_and_store_isolation, backend/tests/test_order_auto_confirm.py::test_auto_confirm_marks_received_and_emits_auditable_event]}
   MSG-USER: {layers: [contract, integration, security], selectors: [backend/tests/test_messaging_api_integration.py::test_conversation_uniqueness_message_replay_moderation_and_human_handoff]}
   ORDER-DOMAIN: {layers: [unit], selectors: [backend/tests/test_order_domain.py::test_every_illegal_order_transition_is_rejected_without_target]}
+  ORDER-AUTO-CONFIRM: {layers: [unit], selectors: [backend/tests/test_order_auto_confirm.py::test_auto_confirm_marks_received_and_emits_auditable_event]}
   ORDER-USER: {layers: [contract, integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   ORDER-USER-DASHBOARD: {layers: [integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   PAY: {layers: [contract, integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}

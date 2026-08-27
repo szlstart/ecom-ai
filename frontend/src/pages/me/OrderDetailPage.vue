@@ -114,6 +114,7 @@ onMounted(load)
             <button v-for="action in order.available_actions" :key="action.code" type="button" :disabled="busy || !action.enabled || hidden !== null" @click="runAction(action)">{{ busy ? '处理中…' : actionLabel(action.code) }}</button>
           </div>
         </header>
+        <p v-if="order.order_status === 'shipped'" class="alert info">收到商品后请点击“确认收货”。如果物流已经签收且你没有操作，系统会在签收满 7 天后自动确认，届时订单进入“已完成”，并开放评价和售后入口。</p>
         <div class="order-detail-grid">
           <main class="order-detail-main">
             <article class="card order-section">

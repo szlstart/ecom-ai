@@ -182,7 +182,9 @@ class ProductImage(MutableMySQLModel, MySQLBase):
     product_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("products.id"), nullable=False
     )
-    sku_id: Mapped[int | None] = mapped_column(BIGINT(unsigned=True), ForeignKey("product_skus.id"))
+    sku_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("product_skus.id"), nullable=False
+    )
     file_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("file_objects.id"), nullable=False
     )

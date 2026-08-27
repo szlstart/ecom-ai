@@ -180,6 +180,7 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
         },
     )
     assert sku.status_code == 201, sku.text
+    sku_id = sku.json()["data"]["sku_id"]
 
     product = await client.get(f"/api/v1/admin/products/{product_id}", headers=auth)
     assert product.status_code == 200, product.text
@@ -190,9 +191,9 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
             "items": [
                 {
                     "file_id": image_no,
-                    "sku_id": None,
-                    "image_type": "main",
-                    "alt_text": "商品主图",
+                    "sku_id": sku_id,
+                    "image_type": "spec",
+                    "alt_text": "标准款图片",
                     "sort_order": 0,
                 }
             ]

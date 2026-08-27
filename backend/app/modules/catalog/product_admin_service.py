@@ -34,6 +34,7 @@ from app.modules.catalog.product_admin_schemas import (
     AdminContentVersionView,
     AdminFaqCreateRequest,
     AdminFaqPublicationRequest,
+    AdminFaqReplaceRequest,
     AdminFaqVersionCreateRequest,
     AdminFaqView,
     AdminProductAttributeInput,
@@ -490,11 +491,7 @@ class ProductAdminService:
         rows = await self.repository.images(product.id)
         sku_nos = {item.id: item.sku_no for item in await self.repository.skus(product.id)}
         return [
-            _image_view(
-                image,
-                file,
-                sku_nos.get(image.sku_id) if image.sku_id is not None else None,
-            )
+            _image_view(image, file, sku_nos[image.sku_id])
             for image, file in rows
         ]
 
@@ -510,20 +507,20 @@ class ProductAdminService:
         _version(product.version, expected_version)
         if len({item.file_id for item in payload.items}) != len(payload.items):
             raise _invalid("PRODUCT_IMAGE_DUPLICATE", "同一文件不能重复绑定。")
-        spu_main = [
-            item for item in payload.items if item.sku_id is None and item.image_type == "main"
-        ]
-        if len(spu_main) != 1:
-            raise _invalid("PRODUCT_MAIN_IMAGE_REQUIRED", "必须且只能设置一张 SPU 主图。")
-        if any(item.image_type == "main" and item.sku_id is not None for item in payload.items):
-            raise _invalid("PRODUCT_IMAGE_SCOPE_INVALID", "SKU 图片不能声明为 SPU 主图。")
+        if any(item.image_type != "spec" for item in payload.items):
+            raise _invalid(
+                "PRODUCT_IMAGE_SCOPE_INVALID",
+                "商品展示图片必须绑定到具体款式，且图片类型必须为 spec。",
+            )
         scopes = [(item.sku_id, item.sort_order) for item in payload.items]
         if len(scopes) != len(set(scopes)):
             raise _invalid("PRODUCT_IMAGE_ORDER_DUPLICATE", "同一图片作用域的排序号不能重复。")
         skus = await self.repository.skus(product.id)
         sku_by_no = {item.sku_no: item for item in skus}
-        if any(item.sku_id is not None and item.sku_id not in sku_by_no for item in payload.items):
+        if any(item.sku_id not in sku_by_no for item in payload.items):
             raise _invalid("PRODUCT_IMAGE_SKU_INVALID", "图片引用了不属于该商品的 SKU。")
+        if any(sku_by_no[item.sku_id].sku_status != "active" for item in payload.items):
+            raise _invalid("PRODUCT_IMAGE_SKU_INACTIVE", "图片只能绑定到当前有效的商品款式。")
         files = await self.repository.files_by_nos([item.file_id for item in payload.items])
         file_by_no = {item.file_no: item for item in files}
         if len(files) != len(payload.items) or any(
@@ -540,7 +537,7 @@ class ProductAdminService:
             file = file_by_no[item.file_id]
             image = ProductImage(
                 product_id=product.id,
-                sku_id=sku_by_no[item.sku_id].id if item.sku_id else None,
+                sku_id=sku_by_no[item.sku_id].id,
                 file_id=file.id,
                 object_key=file.object_key,
                 image_type=item.image_type,
@@ -768,6 +765,107 @@ class ProductAdminService:
         self.idempotency.complete(claim, response_status=201, resource_no=faq.faq_no)
         await self.session.commit()
         return await self._faq_view(faq, product.product_no)
+
+    async def replace_faqs(
+        self,
+        access: AdminAccess,
+        product_no: str,
+        payload: AdminFaqReplaceRequest,
+        expected_version: int,
+    ) -> list[AdminFaqView]:
+        product, store, _, _ = await self._product(access, product_no, for_update=True)
+        _editable(product)
+        _version(product.version, expected_version)
+        existing = await self.repository.faqs(product.id)
+        existing_by_no = {item.faq_no: item for item in existing}
+        supplied_ids = {item.faq_id for item in payload.items if item.faq_id is not None}
+        unknown = supplied_ids - set(existing_by_no)
+        if unknown:
+            raise _invalid("PRODUCT_FAQ_INVALID", "常见问题不存在或不属于当前商品。")
+
+        now = utc_now()
+        for existing_faq in existing:
+            if existing_faq.faq_no not in supplied_ids:
+                existing_faq.faq_status = "archived"
+                existing_faq.version += 1
+
+        for item in payload.items:
+            question = " ".join(item.question.split())
+            answer = item.answer.strip()
+            sanitized = sanitize_content("plain_text", answer)
+            await self._validate_content_files(store, sanitized)
+            faq = existing_by_no.get(item.faq_id or "")
+            current = None
+            if faq is None:
+                faq = ProductFaq(
+                    faq_no=new_prefixed_ulid("faq_"),
+                    product_id=product.id,
+                    question=question,
+                    faq_status="draft",
+                    sort_order=item.sort_order,
+                )
+                self.session.add(faq)
+                await self.session.flush()
+            else:
+                current = (
+                    await self.repository.faq_version_by_id(
+                        faq.id, faq.current_content_version_id
+                    )
+                    if faq.current_content_version_id is not None
+                    else None
+                )
+                faq.question = question
+                faq.sort_order = item.sort_order
+
+            version = current
+            if current is None or current.safe_text != sanitized.safe_text:
+                version_payload = AdminFaqVersionCreateRequest(
+                    source_format="plain_text", source_content=answer
+                )
+                version = await self._new_faq_version(
+                    faq, version_payload, sanitized, access
+                )
+                self.session.add(version)
+                await self.session.flush()
+            if version is None:
+                raise RuntimeError("FAQ version creation invariant violated")
+            previous = (
+                await self.repository.faq_version_by_id(
+                    faq.id, faq.published_content_version_id
+                )
+                if faq.published_content_version_id
+                else None
+            )
+            if previous is not None and previous.id != version.id:
+                previous.version_status = "superseded"
+                previous.version += 1
+            if version.version_status != "published":
+                version.version_status = "published"
+                version.published_at = now
+                version.approved_by = access.context.user.id
+                version.approved_at = now
+                version.version += 1
+            faq.current_content_version_id = version.id
+            faq.published_content_version_id = version.id
+            faq.faq_status = "published"
+            faq.published_at = now
+            faq.version += 1
+
+        product.version += 1
+        _change_event(self.session, product, store, "product.faqs_replaced.v1")
+        record_admin_operation(
+            self.session,
+            access,
+            action="replace_product_faqs",
+            target_type="product",
+            target_no=product.product_no,
+            reason="商家从商品编辑器统一保存常见问题",
+            after={"faq_count": len(payload.items)},
+            scope_type="store",
+            scope_id=store.id,
+        )
+        await self.session.commit()
+        return await self.faqs(access, product_no)
 
     async def create_faq_version(
         self,
@@ -1181,11 +1279,15 @@ class ProductAdminService:
         flags = {
             "basic": bool(product.product_name and product.category_id),
             "sku": any(item.sku_status == "active" for item in skus),
-            "main_image": any(
-                image.sku_id is None
-                and image.image_type == "main"
-                and image.image_status == "active"
-                for image, _ in images
+            "main_image": bool(active_sku_ids := {
+                item.id for item in skus if item.sku_status == "active"
+            })
+            and active_sku_ids.issubset(
+                {
+                    image.sku_id
+                    for image, _ in images
+                    if image.sku_id is not None and image.image_status == "active"
+                }
             ),
             "attributes": bool(attributes),
             "fulfillment": fulfillment is not None,
@@ -1282,11 +1384,11 @@ def _sku_view(sku: ProductSku, product_no: str) -> AdminSkuView:
     )
 
 
-def _image_view(image: ProductImage, file: FileObject, sku_no: str | None) -> AdminProductImageView:
+def _image_view(image: ProductImage, file: FileObject, sku_no: str) -> AdminProductImageView:
     return AdminProductImageView(
         file_id=file.file_no,
         sku_id=sku_no,
-        image_type=cast(Literal["main", "gallery", "detail", "spec"], image.image_type),
+        image_type=cast(Literal["spec"], image.image_type),
         alt_text=image.alt_text,
         sort_order=image.sort_order,
         image_url=f"/api/v1/files/{file.file_no}",

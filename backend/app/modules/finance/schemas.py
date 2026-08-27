@@ -63,7 +63,16 @@ class MerchantRevenueView(StrictRequest):
     gross_sales: Money
     refunded_amount: Money
     net_revenue: Money
-    paid_order_count: int
+    today_revenue: Money
+    yesterday_revenue: Money
+    last_30_days_revenue: Money
+    all_order_count: int
+    completed_order_count: int
+    pending_payment_count: int
+    pending_shipment_count: int
+    in_transit_count: int
+    after_sale_pending_count: int
+    cancelled_count: int
 
 
 class AccountDeletionRequest(StrictRequest):

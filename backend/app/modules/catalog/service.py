@@ -151,7 +151,6 @@ class CatalogService:
         if category is None:
             raise _not_found()
         store_logo = await self.repository.public_file_by_object_key(store.logo_object_key)
-        public_images, _ = await self.repository.product_images(product.id)
         content = await self.repository.published_content(product)
         attributes = await self.repository.product_attributes(product.id)
         fulfillment = await self.repository.fulfillment_profile(product.id)
@@ -186,9 +185,7 @@ class CatalogService:
             sales_count=product.sales_count,
             review_count=product.review_count,
             rating_score=_decimal_string(product.rating_score),
-            public_images=[
-                _public_image(image, file_object) for image, file_object in public_images
-            ],
+            public_images=[],
             default_sku_id=await self._default_sku_no(product),
             detail_content=_safe_content(content) if content else None,
             attributes=[
@@ -240,7 +237,7 @@ class CatalogService:
                     max_purchase_quantity=min(available, 99),
                     sales_count=inventory.sold_quantity if inventory else 0,
                     images=images,
-                    image_fallback="none" if images else "product_public_images",
+                    image_fallback="none",
                 )
             )
         return ProductSkuList(items=items)

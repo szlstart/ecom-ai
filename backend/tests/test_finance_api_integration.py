@@ -57,7 +57,16 @@ async def test_merchant_zero_revenue_and_physical_account_deletion(
         "gross_sales": {"minor_units": "0", "currency": "CNY"},
         "refunded_amount": {"minor_units": "0", "currency": "CNY"},
         "net_revenue": {"minor_units": "0", "currency": "CNY"},
-        "paid_order_count": 0,
+        "today_revenue": {"minor_units": "0", "currency": "CNY"},
+        "yesterday_revenue": {"minor_units": "0", "currency": "CNY"},
+        "last_30_days_revenue": {"minor_units": "0", "currency": "CNY"},
+        "all_order_count": 0,
+        "completed_order_count": 0,
+        "pending_payment_count": 0,
+        "pending_shipment_count": 0,
+        "in_transit_count": 0,
+        "after_sale_pending_count": 0,
+        "cancelled_count": 0,
     }
 
     deletion = await client.request(

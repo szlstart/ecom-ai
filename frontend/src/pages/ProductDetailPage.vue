@@ -43,9 +43,7 @@ const buyBusy = ref(false)
 const contactBusy = ref(false)
 
 const selectedSku = computed(() => skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? null)
-const gallery = computed<PublicImage[]>(() => selectedSku.value?.images.length
-  ? selectedSku.value.images
-  : product.value?.public_images ?? [])
+const gallery = computed<PublicImage[]>(() => selectedSku.value?.images ?? [])
 const selectedImage = computed(() => gallery.value.find((item) => item.file_id === selectedImageId.value) ?? gallery.value[0] ?? null)
 const maxQuantity = computed(() => Math.max(1, selectedSku.value?.max_purchase_quantity ?? 1))
 const canPurchase = computed(() => selectedSku.value?.stock_status === 'in_stock' || selectedSku.value?.stock_status === 'low_stock')
@@ -79,7 +77,7 @@ async function load() {
 
 function selectSku(sku: ProductSku) {
   selectedSkuId.value = sku.sku_id
-  selectedImageId.value = sku.images[0]?.file_id ?? product.value?.public_images[0]?.file_id ?? ''
+  selectedImageId.value = sku.images[0]?.file_id ?? ''
   quantity.value = 1
   void router.replace({ query: { ...route.query, sku_id: sku.sku_id } })
 }

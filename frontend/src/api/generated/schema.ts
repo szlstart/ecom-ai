@@ -3924,7 +3924,8 @@ export interface paths {
         };
         /** List Faqs */
         get: operations["AdminProductFaq_List"];
-        put?: never;
+        /** Replace Faqs */
+        put: operations["AdminProductFaq_Replace"];
         /** Create Faq */
         post: operations["AdminProductFaq_Create"];
         delete?: never;
@@ -5472,6 +5473,25 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** AdminFaqReplaceItem */
+        AdminFaqReplaceItem: {
+            /** Faq Id */
+            faq_id?: string | null;
+            /** Question */
+            question: string;
+            /** Answer */
+            answer: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminFaqReplaceRequest */
+        AdminFaqReplaceRequest: {
+            /** Items */
+            items: components["schemas"]["AdminFaqReplaceItem"][];
+        };
         /** AdminFaqVersionCreateRequest */
         AdminFaqVersionCreateRequest: {
             /**
@@ -5957,12 +5977,12 @@ export interface components {
             /** File Id */
             file_id: string;
             /** Sku Id */
-            sku_id?: string | null;
+            sku_id: string;
             /**
              * Image Type
-             * @enum {string}
+             * @constant
              */
-            image_type: "main" | "gallery" | "detail" | "spec";
+            image_type: "spec";
             /** Alt Text */
             alt_text?: string | null;
             /** Sort Order */
@@ -5978,12 +5998,12 @@ export interface components {
             /** File Id */
             file_id: string;
             /** Sku Id */
-            sku_id?: string | null;
+            sku_id: string;
             /**
              * Image Type
-             * @enum {string}
+             * @constant
              */
-            image_type: "main" | "gallery" | "detail" | "spec";
+            image_type: "spec";
             /** Alt Text */
             alt_text?: string | null;
             /** Sort Order */
@@ -9273,8 +9293,23 @@ export interface components {
             gross_sales: components["schemas"]["Money"];
             refunded_amount: components["schemas"]["Money"];
             net_revenue: components["schemas"]["Money"];
-            /** Paid Order Count */
-            paid_order_count: number;
+            today_revenue: components["schemas"]["Money"];
+            yesterday_revenue: components["schemas"]["Money"];
+            last_30_days_revenue: components["schemas"]["Money"];
+            /** All Order Count */
+            all_order_count: number;
+            /** Completed Order Count */
+            completed_order_count: number;
+            /** Pending Payment Count */
+            pending_payment_count: number;
+            /** Pending Shipment Count */
+            pending_shipment_count: number;
+            /** In Transit Count */
+            in_transit_count: number;
+            /** After Sale Pending Count */
+            after_sale_pending_count: number;
+            /** Cancelled Count */
+            cancelled_count: number;
         };
         /** MessageCreateRequest */
         MessageCreateRequest: {
@@ -22011,6 +22046,52 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductFaq_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFaqReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminFaqView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
             429: components["responses"]["Problem429"];
             500: components["responses"]["Problem500"];
             503: components["responses"]["Problem503"];

@@ -559,7 +559,7 @@
 
 | 功能点       | 说明                                                         |
 | :----------- | :----------------------------------------------------------- |
-| **展示方式** | 每个 SKU 显示唯一款式名称与实际售价；无 SKU 专属图时展示商品公共主图 |
+| **展示方式** | 每个 SKU 显示唯一款式名称、实际售价与该款式自己的图片；不使用商品公共图或其他款式图片回退 |
 | **选中状态** | 当前 `sku_id` 对应项带高亮边框和可访问选中状态               |
 | **切换交互** | 点击后选中 SKU → 左侧切换该 SKU 图片集（无则回退公共图库）→ 价格/库存/已售同步更新 |
 
@@ -2511,7 +2511,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | :--- | :--- |
 | 商品创建/编辑 | 店铺 Scope 从管理身份派生；If-Match；未知字段拒绝；服务端执行富文本安全过滤 |
 | SKU 管理 | 规格组合唯一；已被订单引用的 SKU 只能禁用，不能物理删除；价格使用 Money |
-| 图片 | 先上传、扫描和激活，再绑定商品；支持排序、主图和 SKU 图；失败文件不可发布 |
+| 图片 | 先上传、扫描和激活，再绑定具体 SKU；每个款式独立排序，不存在 SPU 公共主图；失败文件不可发布 |
 | 提交审核/发布 | 展示缺失字段和影响预览；使用显式 publication/moderation 命令；结果写状态流水 |
 | 分类品牌 | 平台权限维护；移动分类防环；已被引用的品牌/分类停用而非级联删除 |
 | 库存调整 | 录入有符号调整量、原因码、业务单号和备注；显示调整前后值；禁止直接设置无来源的最终库存 |
@@ -2800,6 +2800,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 工作台 | `/merchant/dashboard` / `MerchantDashboardPage.vue` | 在售/待完善商品、待处理咨询、待回复评价；可直接修改当前店铺名称 | `stores:read/manage` + Store；不授予平台仪表盘权限 |
 | 商品列表 | `/merchant/products` / `MerchantProductListPage.vue` | 按名称和状态筛选本店商品 | `products:read` + Store |
 | 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 商品名称、款式价格库存、图片、参数、发货地、详情、FAQ、评价回复、提交审核、上架/下架 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
+| 我的订单 | `/merchant/orders` / `MerchantOrderListPage.vue` | 总/今日/昨日/近 30 日收益，订单状态分段、售后待处理自动刷新和创建包裹发货 | `orders:read`、`shipments:create`、`refunds:read` + Store |
 | 库存 | `/merchant/inventory` / `AdminInventoryPage.vue(portal=merchant)` | 本店 SKU 库存查询和有据可查的增减调整 | `inventories:read/adjust` + Store |
 | 客户咨询 | `/merchant/support`、`/merchant/support/:ticketId` / `MerchantSupportListPage.vue`、`AdminSupportWorkspacePage.vue(portal=merchant)` | 店铺人工工单领取、回复、等待、恢复和解决 | `support:*` + Store Queue |
 | 评价回复 | `/merchant/reviews`、`/merchant/reviews/:reviewId` / `MerchantReview*Page.vue` | 查看本店已发布评价、发布一次商家回复 | `reviews:read/reply` + Store |
@@ -2813,7 +2814,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 商品编辑按“基础信息、销售规格、商品图片、商品参数、发货设置、商品详情、常见问题、上架检查”顺序组织。新建页自动使用账号唯一绑定店铺，不要求商家输入 `sto_...`；存在多个授权店铺时必须显式选择，前端选择只缩小 Scope，服务端仍从 Grant 与目标资源重新校验。
 
-SKU 价格在商家界面使用元，提交时转换为整数分。首版商家编辑器只暴露款式名称、销售价和该款式库存，不暴露划线价、店内编码、重量、条形码或任意规格行；服务端兼容字段由 Merchant Adapter 按固定规则构造，其中内部市场价等于销售价，内部规格固定为 `{name: "款式", value: <款式名称>}`。点击“新增款式”后，新增表单使用与已选款式一致的绿色激活边框，同时取消旧款式卡的激活态；保存成功后新款式卡自动成为当前选中项。编辑已有款式时提供“删除款式”，经二次确认后调用 `AdminProductSku_ChangeStatus(disable)`：该款式立即从商家可编辑款式和顾客购买选项隐藏，但不物理删除 SKU、历史订单、评价、库存流水或审计记录；在售商品的最后一个启用款式必须拒绝删除，并提示先新增其他款式或下架商品。删除成功后，前端必须将服务端返回的 SKU 状态局部合并到当前编辑器，同步商品版本、默认款式、价格、库存汇总与完整性；不得重新加载整个编辑页、替换路由或重置表单，必须保留用户当前滚动位置、未保存输入、详情块排序及其他编辑上下文。图片必须通过受控上传、病毒扫描和安全衍生后绑定；恰好一张公共主图。上架检查由服务端返回完整性缺项和 `available_actions`，前端不得自行绕过 SKU、主图、参数、履约与详情版本要求。Merchant Session 的日常店铺经营操作不要求再次输入密码，但仍必须通过登录会话、Permission、Store Scope、业务状态、幂等、ETag 与审计校验；平台管理员的近期认证规则不受此例外影响。
+SKU 价格在商家界面使用元，提交时转换为整数分。首版商家编辑器只暴露款式名称、销售价和该款式库存，不暴露划线价、店内编码、重量、条形码或任意规格行；服务端兼容字段由 Merchant Adapter 按固定规则构造，其中内部市场价等于销售价，内部规格固定为 `{name: "款式", value: <款式名称>}`。点击“新增款式”后，新增表单使用与已选款式一致的绿色激活边框，同时取消旧款式卡的激活态；保存成功后新款式卡自动成为当前选中项。编辑已有款式时提供“删除款式”，经二次确认后调用 `AdminProductSku_ChangeStatus(disable)`：该款式立即从商家可编辑款式和顾客购买选项隐藏，但不物理删除 SKU、历史订单、评价、库存流水或审计记录；在售商品的最后一个启用款式必须拒绝删除，并提示先新增其他款式或下架商品。删除成功后，前端必须将服务端返回的 SKU 状态局部合并到当前编辑器，同步商品版本、默认款式、价格、库存汇总与完整性；不得重新加载整个编辑页、替换路由或重置表单，必须保留用户当前滚动位置、未保存输入、详情块排序及其他编辑上下文。展示图片必须通过受控上传、病毒扫描和安全衍生后绑定，而且必须先存在有效 SKU；每张图片只属于一个具体款式，不再建立 SPU 公共主图。款式可以临时没有图片，也允许删除其最后一张图片，但“完成编辑”和提交上架前必须保证每个有效款式至少一张图片。上架检查由服务端返回完整性缺项和 `available_actions`，前端不得自行绕过 SKU、款式图片、履约与详情版本要求。商品名称、参数、发货设置、详情和 FAQ 在底部“完成编辑”统一保存，FAQ 支持新增、修改和删除，不提供单独“新增并发布”按钮。Merchant Session 的日常店铺经营操作不要求再次输入密码，但仍必须通过登录会话、Permission、Store Scope、业务状态、幂等、ETag 与审计校验；平台管理员的近期认证规则不受此例外影响。
 
 店铺名称使用 `store_name_normalized` 全局唯一约束，并在事务内进行重复预检与唯一键兜底。改名不设置次数或时间冷却，成功时写入 `store_name_changed_at`、递增 Version、记录操作审计并发布缓存失效事件。商品卡、商品/店铺收藏、购物车及历史订单页面均在查询时以 `store_id` 关联 `stores` 主表取得当前公开店名，因此改名后统一显示新名称；订单号、金额、商品/SKU、地址、政策等成交事实仍保持原快照，不因店名变化改写。`store_name_change_available_at` 仅作为旧客户端兼容字段固定返回 `null`，新界面不得据此禁用输入。
 
@@ -2848,7 +2849,7 @@ SKU 价格在商家界面使用元，提交时转换为整数分。首版商家�
 
 商品编辑不使用后台多页签，而按顾客商品详情页的阅读顺序组织：左侧图片与缩略图；右侧只直接编辑商品名称以及各款式的名称、价格、库存；下方依次为商品参数、发货与购买须知、商品详情、常见问题、本商品评价与底部上架状态栏。商家端移除“一句话卖点”和“商品简介”输入，保存基础信息时将两个旧字段清空；完整介绍统一写入有版本控制的“商品详情”。平台分类和品牌属于后台治理字段，商家页面不展示、不要求填写；新商品由后端赋予可用的默认内部归类。点击“新增商品”后系统在后台创建未命名草稿并直接进入商品详情编辑，不展示独立“创建商品草稿”步骤；编辑期间可明确点击“暂存为草稿”。点击“新增款式”后，新款式表单紧接现有款式显示在右侧，只填写款式名称、价格、库存并点击“完成”即可成为新的款式卡片；同一表单提交 SKU 更新与目标库存，前端把目标库存转换为带版本的 Delta 库存调整命令。销售中的商品也使用完全相同的就地编辑形式，状态机命令仍独立执行。商家界面不展示额外“规格名/规格值”行、划线价或选填信息。
 
-商家可继续通过本地文件选择器上传 JPG、PNG 或 WebP，也可先选择图片归属款式，再点击左侧大图并使用 macOS `Command + V` 或 Windows `Ctrl + V` 粘贴剪贴板图片；粘贴图片必须自动生成受控扩展名，并复用同一上传策略、大小限制、SHA-256 校验、隔离区和安全扫描。文件通过扫描后，编辑器必须立即调用 `AdminProductImage_Replace` 将图片绑定到商品，刷新、切换编辑区或点击“完成编辑”均不得丢失；不再提供容易遗漏的第二次“保存图片”操作。绑定完成前点击“完成编辑”必须等待当前绑定请求结束。剪贴板没有图片、格式不受支持或自动绑定失败时在图片区就地说明具体原因，不清空页面表单。
+商家必须先创建并保存至少一个款式，随后从右侧选择款式，左侧大图才开放本地上传与粘贴；页面不再显示“图片属于”下拉框。每个款式拥有独立图片集合，切换款式只显示该款式图片。商家可通过本地文件选择器上传 JPG、PNG 或 WebP，也可点击左侧大图并使用 macOS `Command + V` 或 Windows `Ctrl + V` 粘贴剪贴板图片；粘贴图片必须自动生成受控扩展名，并复用同一上传策略、大小限制、SHA-256 校验、隔离区和安全扫描。文件通过扫描后，编辑器必须立即调用 `AdminProductImage_Replace` 将图片绑定到当前 SKU，刷新、切换编辑区或点击“完成编辑”均不得丢失；允许移除当前款式最后一张图片，不再存在“至少保留一张主图”的删除拦截。绑定完成前点击“完成编辑”必须等待当前绑定请求结束。剪贴板没有图片、格式不受支持或自动绑定失败时在图片区就地说明具体原因，不清空页面表单。
 
 “发货与购买须知”只向商家展示“发货地（省/市）”、发货时间和购买须知，不展示运费模板选择器。`shipping_template_id` 仍是后端结算的必要内部字段：优先复用当前店铺已生效模板；店铺尚无模板时，在商家首次保存发货设置时自动创建并发布覆盖全国的零运费“系统默认配送”模板，再保存商品履约资料。该默认策略必须留有审计记录，后续如增加运费管理入口，应继续由后端按地址和模板计算运费，前端不得自行计算。
 
@@ -2860,6 +2861,7 @@ SKU 价格在商家界面使用元，提交时转换为整数分。首版商家�
 | :--- | :--- | :--- | :--- |
 | 商品工作台 | `/merchant/products`、兼容 `/merchant/dashboard` / `MerchantProductListPage.vue` | 店铺式商品卡片、仅“全部”首张新增卡片、悬浮编辑/删除、搜索与中文状态分段 | `stores:read`、`products:read/update` + Store |
 | 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 顾客商品详情同构布局内就地编辑商品、款式、库存、FAQ，并查看/回复本商品评价 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
+| 我的订单 | `/merchant/orders` / `MerchantOrderListPage.vue` | 确认收货口径收益、订单状态分段、待处理售后和创建包裹发货；可见时每 15 秒静默刷新 | `orders:read`、`shipments:create`、`refunds:read` + Store |
 | 顶栏消息中心 | `MerchantMessageCenter.vue` | 置顶平台专属客服、顾客咨询列表和回复；真实未读总数/分会话角标、实时更新、断线轮询与轻微新消息抖动 | Conversation Owner、`support:*` + Store Queue |
 | 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、营业额、商家账号注销和用户端预览；店名可随时修改且全局唯一 | `stores:read/manage` + Store Owner |
 | 兼容高级路由 | `/merchant/inventory`、`/merchant/reviews/*`、`/merchant/support/*` | 保留历史深链，不在一级导航展示 | `inventories:*`、`reviews:*`、`support:*` + Store/Queue |
@@ -5659,7 +5661,7 @@ MySQL 是 Grant 的权威来源，Redis 只缓存短时允许/撤销结果。Gra
 | `rating_score` | `DECIMAL(3,2)` | NOT NULL DEFAULT 0，派生值 |
 | `published_at` / `off_shelf_at` | `DATETIME(6)` | NULL |
 
-索引：`uk_products_product_no`、`idx_products_store_status(store_id, product_status, created_at, id)`、`idx_products_category_status(category_id, product_status, id)`。上架必须至少有一个可售 SKU、主图、有效分类和店铺经营权，并且 `published_detail_content_version_id` 指向扫描通过、已批准且属于本商品的不可变内容版本。因 Version 表反向引用 Product，外键通过 Alembic 后续 Add Constraint 建立，不能省略归属校验。
+索引：`uk_products_product_no`、`idx_products_store_status(store_id, product_status, created_at, id)`、`idx_products_category_status(category_id, product_status, id)`。上架必须至少有一个可售 SKU，且每个可售 SKU 都有至少一张已扫描通过的款式图片，同时具备有效分类和店铺经营权，并且 `published_detail_content_version_id` 指向扫描通过、已批准且属于本商品的不可变内容版本。因 Version 表反向引用 Product，外键通过 Alembic 后续 Add Constraint 建立，不能省略归属校验。
 
 ##### 3.7.4.4 product_skus SKU 表
 
@@ -5689,7 +5691,7 @@ MySQL 是 Grant 的权威来源，Redis 只缓存短时允许/撤销结果。Gra
 | `width` / `height` / `sort_order` | `INT UNSIGNED` | NOT NULL |
 | `image_status` | `VARCHAR(16)` | `active/hidden` |
 
-索引：`idx_product_images_product_sort(product_id, sku_id, image_type, sort_order, id)`。`sku_id` 非 NULL 时必须属于同一 `product_id`；SPU 公共图和每个 SKU 专属图都是独立的有序集合，同一作用域的 `sort_order` 不得重复。仅允许一张 `sku_id IS NULL AND image_type=main AND image_status=active` 的 SPU 活跃主图，通过可空生成列唯一约束保证；每个 SKU 可有多张 `gallery/spec` 图。查询时按 `sort_order,id` 稳定排序，SKU 图集为空时由公开 DTO 明确回退 SPU 公共图集，不复制图片行。
+索引：`idx_product_images_product_sort(product_id, sku_id, image_type, sort_order, id)`。商城展示图的 `sku_id` 必须非 NULL 且属于同一 `product_id` 的有效 SKU，`image_type=spec`；每个 SKU 是独立有序集合，同一 SKU 内 `sort_order` 不得重复。每个 SKU 可有多张图片，也允许编辑过程中临时为零张；不存在 SPU 公共主图或跨款式图片回退。商品卡片封面从有效 SKU 图片中按 `sort_order,id` 选择第一张只读投影，商品详情切换款式时严格使用该款式图片。历史公共图由 Alembic 迁移到默认 SKU，无 SKU 的孤立旧绑定被清理但文件对象仍按文件 GC 管理。
 
 ##### 3.7.4.6 product_attributes 商品属性表
 
@@ -6240,7 +6242,7 @@ WHERE sku_id = :sku_id
 
 ##### 3.7.8.9 店铺营业额口径
 
-店铺营业额不是可写字段，也不由商品销量估算。首版查询投影实时汇总当前 Store Scope 内 `orders.paid_amount`：`gross_sales = SUM(paid_amount)`、`refunded_amount = SUM(refunded_amount)`、`net_revenue = gross_sales - refunded_amount`，同时返回 `paid_order_count`。页面主数字展示净营业额，并并列展示累计实收与累计退款；未支付和已取消订单不计入。后续结算、平台佣金、提现上线时再引入独立商户资金账户与清结算账本。
+店铺营业额不是可写字段，也不由商品销量估算。用户付款后资金先处于平台内的待履约状态，只有订单同时满足 `order_status=completed、fulfillment_status=received、completed_at IS NOT NULL`，即用户确认收货或物流签收满 7 天由系统自动确认后，才进入店铺营业额投影。`gross_sales = SUM(paid_amount)`、`refunded_amount = SUM(refunded_amount)`、`net_revenue = gross_sales - refunded_amount`，同时返回总/已完成/待付款/待发货/运输中/售后待处理/已取消订单数，以及按 Asia/Shanghai 自然日计算的今日、昨日和近 30 日净收益。页面主数字展示净营业额；未确认收货、未支付和已取消订单不计入收入。后续真实清结算、平台佣金和提现上线时再引入独立商户资金账户与清结算账本。
 
 ---
 
@@ -7923,7 +7925,7 @@ MySQL 权威表统一使用 3.7.15 的 `file_objects` 与 `file_upload_sessions`
 
 #### 3.10.1 商品图片
 
-商品图分为主图、图集、详情图和 SKU 规格图。流程：原图上传到 `temporary-uploads` → 格式/尺寸/像素检查 → 恶意内容和商品内容审核 → 生成多尺寸派生图 → 发布到 `public-assets` → 事务内绑定 `product_images`。
+商品展示图是按 SKU 隔离的款式图集，商品详情长图则作为有序内容块引用文件；不建立 SPU 公共主图。流程：原图上传到 `temporary-uploads` → 格式/尺寸/像素检查 → 恶意内容和商品内容审核 → 生成多尺寸派生图 → 发布到 `public-assets` → 事务内绑定具体 SKU 或详情内容版本。
 
 要求：
 
@@ -8843,7 +8845,7 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | `POST` | `/payments/{payment_id}/closures` | 用户/系统 | 关闭尚未完成的支付单；幂等；不能关闭渠道已成功但本地尚未同步的支付 |
 | `POST` | `/webhooks/payments/{provider}` | 支付渠道 | 支付/退款异步通知；验签、去重、落原始摘要并快速应答，详见 3.12.25 |
 
-支付创建请求包含 `trade_order_id、provider、payment_method、return_url_key` 等受控字段，不接受客户端传入支付金额。后端从订单快照读取金额并验证订单状态，再创建支付单。首版 `wallet_balance` 是明确标注的模拟余额支付：服务端按固定锁顺序锁定 Trade Order、用户余额、子订单与库存预占，余额不足返回 409 `INSUFFICIENT_BALANCE`；余额充足时在同一个 MySQL 事务中追加 Debit 流水、扣减余额、确认库存、把 Payment/Trade Order/Order 推进到已支付并写 Outbox。任何一步失败整笔回滚，不能出现已扣余额但订单未支付，或订单已支付但未扣余额。订单 `paid_amount` 成功更新后，店铺营业额查询投影会立即纳入累计实收与净营业额。`fake_balance` 仍用于签名回调、重放和对账测试，不作为用户页面默认按钮。前端从渠道返回页不能把 URL 参数当作支付成功依据，必须查询支付资源或接收实时事件；状态仍为 Processing 时展示“支付结果确认中”。
+支付创建请求包含 `trade_order_id、provider、payment_method、return_url_key` 等受控字段，不接受客户端传入支付金额。后端从订单快照读取金额并验证订单状态，再创建支付单。首版 `wallet_balance` 是明确标注的模拟余额支付：服务端按固定锁顺序锁定 Trade Order、用户余额、子订单与库存预占，余额不足返回 409 `INSUFFICIENT_BALANCE`；余额充足时在同一个 MySQL 事务中追加 Debit 流水、扣减余额、确认库存、把 Payment/Trade Order/Order 推进到已支付并写 Outbox。任何一步失败整笔回滚，不能出现已扣余额但订单未支付，或订单已支付但未扣余额。支付成功只表示用户资金已扣并进入待履约状态；店铺营业额必须等用户确认收货或物流签收满 7 天自动确认后才纳入。`fake_balance` 仍用于签名回调、重放和对账测试，不作为用户页面默认按钮。前端从渠道返回页不能把 URL 参数当作支付成功依据，必须查询支付资源或接收实时事件；状态仍为 Processing 时展示“支付结果确认中”。
 
 Payment Idempotency Key 与订单 Key 分开保存，Scope 至少绑定当前用户、Trade Order、Provider 和本次逻辑支付尝试。相同 Key 重放返回同一 `payment_id`；同一 Trade Order 存在 `created/pending` 尝试（包括 Provider 结果未知、正在主动查询）时，换 Key 创建返回 409 `PAYMENT_ATTEMPT_IN_PROGRESS` 及现有 `payment_id`，前端只能进入结果确认页。只有旧尝试明确 `failed/closed` 且订单仍返回 `available_actions.pay=true`，才允许使用新 Key 创建下一次支付尝试。订单已支付返回 409 `TRADE_ORDER_ALREADY_PAID` 并返回安全成功摘要；支付窗口截止返回 410 `PAYMENT_WINDOW_EXPIRED`；Provider 暂不可用且未创建 Payment 返回 503 `PAYMENT_PROVIDER_UNAVAILABLE`，页面回订单详情显示“订单已创建，可继续支付”。
 
@@ -9212,7 +9214,7 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `GET/PATCH` | `/admin/products/{product_id}` | GET 要求 `products:read`，PATCH 要求 `products:update`；仅草稿/可编辑状态，If-Match，富文本服务端消毒 |
 | `POST` | `/admin/products/{product_id}/review-submissions` | 店铺提交审核；完整性检查、幂等 |
 | `POST` | `/admin/products/{product_id}/moderation-decisions` | `products:review`；通过/拒绝/补充，原因和 If-Match |
-| `POST` | `/admin/products/{product_id}/publications` | `products:publish`；校验 SKU/主图/分类/履约/店铺状态并写 Outbox |
+| `POST` | `/admin/products/{product_id}/publications` | `products:publish`；校验有效 SKU 均有款式图片、分类/履约/店铺状态并写 Outbox |
 | `POST` | `/admin/products/{product_id}/off-shelf-commands` | `products:publish`；原因、影响和幂等，不改历史订单快照 |
 | `POST` | `/admin/products/{product_id}/skus` | `products:update`；规格组合唯一，Money/店铺 SKU Code 校验 |
 | `PATCH` | `/admin/products/{product_id}/skus/{sku_id}` | `products:update`；If-Match；订单已引用 SKU 不允许物理删除 |
@@ -9529,10 +9531,10 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 | `POST` | `/merchant/auth/login` | 匿名 | 商家密码登录；只接受纯 `store_operator` + Store Scope 身份 |
 | `POST` | `/merchant/auth/token-refresh` | Merchant Cookie | 轮换商家独立 Refresh Session 并重新校验身份类别与 Store Scope |
 | `POST` | `/merchant/auth/logout` | Merchant Session | 注销商家会话并清除商家独立 Cookie，不影响用户端和平台管理端 Cookie |
-| `GET` | `/merchant/stores/{store_id}/revenue` | 商家 | 查询本人店铺累计实收、退款、净营业额和已支付订单数 |
+| `GET` | `/merchant/stores/{store_id}/revenue` | 商家 | 查询本人店铺确认收货口径的累计/今日/昨日/近 30 日收益与订单状态计数 |
 | `DELETE` | `/merchant/account` | 商家 | 无任何店铺交易时物理注销商家身份与店铺；存在交易时阻断 |
 
-商家资金与注销使用两个专用 Facade：`GET /merchant/stores/{store_id}/revenue` 只接受当前 Merchant Context 且再次校验 `stores.owner_user_id`，返回累计实收、累计退款、净营业额和已支付订单数；`DELETE /merchant/account` 要求确认短语 `DELETE_MY_STORE_AND_ACCOUNT`，仅在该商家名下所有店铺均无任何历史订单时物理删除店铺、商品、商家账号和关联非交易数据，存在任意订单返回 409，不得为了完成注销而删除买家订单。余额和营业额接口都返回整数分 Money 对象，禁止前端浮点数作为账务事实。
+商家资金与注销使用两个专用 Facade：`GET /merchant/stores/{store_id}/revenue` 只接受当前 Merchant Context 且再次校验 `stores.owner_user_id`，只汇总已确认收货订单，返回累计实收、累计退款、净营业额、今日/昨日/近 30 日净收益及各订单状态计数；`DELETE /merchant/account` 要求确认短语 `DELETE_MY_STORE_AND_ACCOUNT`，仅在该商家名下所有店铺均无任何历史订单时物理删除店铺、商品、商家账号和关联非交易数据，存在任意订单返回 409，不得为了完成注销而删除买家订单。余额和营业额接口都返回整数分 Money 对象，禁止前端浮点数作为账务事实。
 
 新版商家工作台在既有受控管理 API 之上增加最小投影：`AdminProductSummary` 返回 `cover_image_url、sku_count、available_quantity、sales_count、review_count、rating_score`，使一条商品列表请求即可绘制店铺式商品卡片，禁止每张卡片触发 N+1 请求；`GET /admin/inventories` 和 `GET /admin/reviews` 分别支持 `product_id` 窄化参数，编辑器只读取目标商品的 SKU 与已发布评价。`product_id` 只能缩小 Store Scope，不能扩大授权。商家输入目标账面库存后，前端转换为 `on_hand_delta` 调用 `AdminInventory_Adjust`，服务端继续执行 If-Match、原因、幂等、预占保护和流水审计。
 
@@ -9924,7 +9926,7 @@ draft/rejected/off_shelf → archived（停止经营，逻辑归档）
 
 首版直接采用 3.7.4.3 已定义的 `draft/pending_review/on_sale/off_shelf/rejected/archived`，不再引入 `submitted/reviewing/approved/deleted` 等第二套主状态。审核领取、开始处理、批准等细粒度过程写 `product_status_logs.event_type` 和审核任务，不扩张主状态；如未来确需独立 Moderation 状态，必须先通过数据库迁移和 API 版本兼容方案正式引入。
 
-发布命令校验店铺有效、分类/品牌、标题/详情内容安全、主图 Active、至少一个启用 SKU、SKU 价格/规格唯一和服务政策。Transaction 更新版本与状态、追加 `product_status_logs`、写 Outbox；提交后失效商品/店铺缓存并更新搜索/向量知识。搜索同步失败不回滚主库发布，通过 Outbox 重试；前端商品详情始终以 MySQL/API 状态为准。
+发布命令校验店铺有效、分类/品牌、标题/详情内容安全、至少一个启用 SKU、每个启用 SKU 至少一张 Active 款式图片、SKU 价格/规格唯一和服务政策。Transaction 更新版本与状态、追加 `product_status_logs`、写 Outbox；提交后失效商品/店铺缓存并更新搜索/向量知识。搜索同步失败不回滚主库发布，通过 Outbox 重试；前端商品详情始终以 MySQL/API 状态为准。
 
 #### 3.14.3 SKU 与库存更新流程
 
@@ -10070,7 +10072,7 @@ Scheduler 只负责扫描并投递候选，Worker 以小批量处理 `trade_orde
 
 用户点击“确认收货”前，接口返回的 `available_actions` 必须包含 `confirm_receipt`；前端展示订单/包裹摘要并二次确认。命令要求订单属于用户、已全部发货、未处于阻止确认的争议状态，并携 Idempotency Key。
 
-Transaction 锁定订单，条件更新：`order_status shipped → completed`、`fulfillment_status shipped → received`，写 `completed_at`，将相关已交付包裹保持/补正为 Delivered，开启 Review 与售后时间窗，追加状态流水和 Outbox。积分、结算、通知等跨聚合动作在提交后异步执行。
+Transaction 锁定订单，条件更新：`order_status shipped → completed`、`fulfillment_status shipped → received`，写 `completed_at`，将相关已交付包裹保持/补正为 Delivered，开启 Review 与售后时间窗，追加状态流水和 Outbox。该事务提交后，订单才进入店铺营业额查询投影；支付成功但尚未确认收货的金额不算商家收入。积分、真实清结算、通知等跨聚合动作在提交后异步执行。
 
 重复确认返回首次完成结果；若已有售后，不简单禁止所有确认，应由政策决定“未售后部分是否可确认”或要求先完成售后。首版建议订单级确认仅在没有阻塞型全单售后时开放，复杂部分确认待引入订单项收货状态后实现。
 
@@ -10078,11 +10080,11 @@ Transaction 锁定订单，条件更新：`order_status shipped → completed`�
 
 自动完成不是“定时把所有 Shipped 改 Completed”。Scheduler 扫描候选，Worker 逐单复核：
 
-- 所有有效包裹已由可信轨迹 Delivered，且超过平台/店铺 Policy Snapshot 中的自动确认宽限期；或已超过明确的最大发货后保护期并通过风险规则。
+- 所有有效包裹已由可信轨迹 Delivered，且最后一个有效包裹的 `delivered_at` 已满 7×24 小时；首版固定为 7 天，可由 `order_auto_confirm_days` 部署参数在 1～30 天内调整，但不能由前端传入。
 - 没有进行中的拒收、退货、平台争议、物流异常或阻止自动完成的售后。
 - Order 仍为 `shipped` 且版本未变。
 
-满足后复用与用户确认相同的 Domain Command，Actor 为 System，幂等更新 `completed/received` 并记录 `auto_confirmed` 原因。不能因物流接口短暂不可用推测已送达；异常单进入人工队列。用户在临界时刻发起售后和自动完成竞争时，以锁与状态/售后 Guard 决定，失败的一方重新读取，不覆盖对方结果。
+满足后复用与用户确认相同的 Domain Command，Actor 为 System，幂等更新 `completed/received` 并记录 `order.receipt_auto_confirmed`、`confirmation_type=automatic`，随后计入店铺营业额。不能因物流接口短暂不可用推测已送达；存在未 Delivered 有效包裹、Delivered 时间为空、7 天宽限期未满或 `after_sale_status=in_progress` 时均不自动确认。用户在临界时刻发起售后和自动完成竞争时，以行锁与状态/售后 Guard 决定，失败的一方重新读取，不覆盖对方结果。
 
 #### 3.14.14 评价流程
 

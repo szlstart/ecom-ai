@@ -84,6 +84,7 @@ class Settings(BaseSettings):
     file_scanner_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     order_timeout_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)
     order_timeout_batch_size: int = Field(default=100, ge=1, le=1000)
+    order_auto_confirm_days: int = Field(default=7, ge=1, le=30)
     payment_reconcile_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)
     payment_reconcile_batch_size: int = Field(default=100, ge=1, le=1000)
     logistics_sync_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)

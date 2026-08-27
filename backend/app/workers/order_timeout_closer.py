@@ -32,6 +32,12 @@ async def run() -> None:
                     processed = await OrderService(session, settings, security).expire_due(
                         limit=settings.order_timeout_batch_size
                     )
+                    processed += await OrderService(
+                        session, settings, security
+                    ).auto_confirm_due(
+                        days=settings.order_auto_confirm_days,
+                        limit=settings.order_timeout_batch_size,
+                    )
             except Exception:
                 logger.exception("order_timeout_batch_failed")
             if processed:

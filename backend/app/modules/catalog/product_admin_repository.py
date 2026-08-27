@@ -111,11 +111,12 @@ class ProductAdminRepository:
                 .join(FileObject, FileObject.id == ProductImage.file_id)
                 .where(
                     ProductImage.product_id.in_(product_ids),
+                    ProductImage.image_type == "spec",
                     ProductImage.image_status == "active",
                 )
                 .order_by(
                     ProductImage.product_id,
-                    case((ProductImage.image_type == "main", 0), else_=1),
+                    ProductImage.sku_id,
                     ProductImage.sort_order,
                     ProductImage.id,
                 )
@@ -305,7 +306,10 @@ class ProductAdminRepository:
             (
                 await self.session.scalars(
                     select(ProductFaq)
-                    .where(ProductFaq.product_id == product_id)
+                    .where(
+                        ProductFaq.product_id == product_id,
+                        ProductFaq.faq_status != "archived",
+                    )
                     .order_by(ProductFaq.sort_order, ProductFaq.id)
                 )
             ).all()

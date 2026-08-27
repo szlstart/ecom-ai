@@ -141,6 +141,16 @@ class OrderService:
                 f"该结算会话已创建交易单 {consumed.trade_no}，不能重复下单。",
             ) from exc
         quantity_by_sku = _quantity_by_sku(checkout)
+        product_ids = {context[0][2].id for context in checkout.contexts}
+        locked_products = await self.repository.lock_products(sorted(product_ids))
+        if set(locked_products) != product_ids or any(
+            product.product_status != "on_sale" or product.deleted_at is not None
+            for product in locked_products.values()
+        ):
+            raise _conflict(
+                "PRODUCT_UNAVAILABLE",
+                "部分商品已下架或删除，请刷新结算信息后重试。",
+            )
         inventories = await self.repository.lock_inventories(sorted(quantity_by_sku))
         if set(inventories) != set(quantity_by_sku):
             raise _conflict("INVENTORY_INSUFFICIENT", "部分商品暂无可用库存。")
@@ -167,7 +177,6 @@ class OrderService:
         await self.session.flush()
 
         contexts_by_store = _contexts_by_store(checkout)
-        product_ids = {context[0][2].id for context in checkout.contexts}
         images = await self.repository.main_images(product_ids)
         order_ids: list[str] = []
         order_items: list[tuple[Order, OrderItem, Inventory, int]] = []

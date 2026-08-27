@@ -20,6 +20,7 @@ from app.modules.catalog.models import (
 )
 from app.modules.files.models import FileObject
 from app.modules.inventory.models import Inventory
+from app.modules.orders.models import OrderItem
 from app.modules.stores.models import ShippingTemplate, Store
 
 ProductRow = tuple[Product, Store, Category, Brand | None]
@@ -147,6 +148,12 @@ class ProductAdminRepository:
             statement = statement.with_for_update(of=Product)
         row = (await self.session.execute(statement)).one_or_none()
         return None if row is None else (row[0], row[1], row[2], row[3])
+
+    async def product_has_transactions(self, product_id: int) -> bool:
+        order_item_id = await self.session.scalar(
+            select(OrderItem.id).where(OrderItem.product_id == product_id).limit(1)
+        )
+        return order_item_id is not None
 
     async def store_by_no(self, store_no: str) -> Store | None:
         return cast(

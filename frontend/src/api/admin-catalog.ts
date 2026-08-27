@@ -200,6 +200,16 @@ export interface AdminProduct extends AdminProductSummary {
   off_shelf_at: string | null
 }
 
+export interface AdminProductDeletionEligibility {
+  product_id: string
+  current_status: string
+  has_transactions: boolean
+  can_delete: boolean
+  can_off_shelf: boolean
+  recommended_action: 'delete' | 'off_shelf' | 'none'
+  message: string
+}
+
 export interface AdminSku extends AdminVersioned {
   sku_id: string
   product_id: string

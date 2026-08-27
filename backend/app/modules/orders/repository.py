@@ -417,6 +417,19 @@ class OrderRepository:
         )
         return {row.sku_id: row for row in rows}
 
+    async def lock_products(self, product_ids: list[int]) -> dict[int, Product]:
+        rows = list(
+            (
+                await self.session.scalars(
+                    select(Product)
+                    .where(Product.id.in_(product_ids))
+                    .order_by(Product.id)
+                    .with_for_update()
+                )
+            ).all()
+        )
+        return {row.id: row for row in rows}
+
     async def main_images(self, product_ids: set[int]) -> dict[int, str]:
         if not product_ids:
             return {}

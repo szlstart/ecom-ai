@@ -1,6 +1,7 @@
 import hashlib
 import os
 import secrets
+from datetime import timedelta
 from decimal import Decimal
 
 import pyotp
@@ -13,9 +14,10 @@ from app.core.config import get_settings
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
 from app.database.mysql import mysql_session
-from app.modules.catalog.models import Category, Product, ProductStatusLog
+from app.modules.catalog.models import Category, Product, ProductSku, ProductStatusLog
 from app.modules.files.models import FileObject
 from app.modules.identity.models import User
+from app.modules.orders.models import Order, OrderItem, TradeOrder
 from app.modules.stores.models import ShippingTemplate, Store
 from app.modules.system.models import OutboxEvent
 
@@ -142,6 +144,12 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
     )
     assert created.status_code == 201, created.text
     product_id = created.json()["data"]["product_id"]
+    no_trade_eligibility = await client.get(
+        f"/api/v1/admin/products/{product_id}/deletion-eligibility", headers=auth
+    )
+    assert no_trade_eligibility.status_code == 200, no_trade_eligibility.text
+    assert no_trade_eligibility.json()["data"]["can_delete"] is True
+    assert no_trade_eligibility.json()["data"]["recommended_action"] == "delete"
 
     incomplete = await client.post(
         f"/api/v1/admin/products/{product_id}/review-submissions",
@@ -326,6 +334,105 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
     assert edited_public_detail.status_code == 200, edited_public_detail.text
     assert edited_public_detail.json()["data"]["product_name"] == f"在售商品就地编辑 {suffix}"
 
+    async for session in mysql_session():
+        traded_product = await session.scalar(
+            select(Product).where(Product.product_no == product_id)
+        )
+        traded_sku = await session.scalar(
+            select(ProductSku).where(ProductSku.sku_no == sku.json()["data"]["sku_id"])
+        )
+        buyer = await session.scalar(
+            select(User).where(User.user_no == provisioning.user_no)
+        )
+        assert traded_product is not None and traded_sku is not None and buyer is not None
+        trade = TradeOrder(
+            trade_no=new_prefixed_ulid("trd_"),
+            checkout_session_id=None,
+            checkout_no_snapshot=new_prefixed_ulid("chk_"),
+            checkout_snapshot_hash=hashlib.sha256(f"delete-guard-{suffix}".encode()).digest(),
+            user_id=buyer.id,
+            order_source="buy_now",
+            trade_status="paid",
+            goods_amount=12900,
+            freight_amount=0,
+            payable_amount=12900,
+            adjustment_amount=0,
+            paid_amount=12900,
+            refunded_amount=0,
+            currency="CNY",
+            order_count=1,
+            expires_at=now + timedelta(hours=1),
+            paid_at=now,
+        )
+        session.add(trade)
+        await session.flush()
+        historical_order = Order(
+            order_no=new_prefixed_ulid("ord_"),
+            trade_order_id=trade.id,
+            user_id=buyer.id,
+            store_id=traded_product.store_id,
+            order_status="completed",
+            payment_status="paid",
+            fulfillment_status="received",
+            after_sale_status="none",
+            goods_amount=12900,
+            freight_amount=0,
+            payable_amount=12900,
+            adjustment_amount=0,
+            paid_amount=12900,
+            refunded_amount=0,
+            currency="CNY",
+            policy_snapshot={"version": 1},
+            expires_at=now + timedelta(hours=1),
+            paid_at=now,
+            completed_at=now,
+        )
+        session.add(historical_order)
+        await session.flush()
+        session.add(
+            OrderItem(
+                order_item_no=new_prefixed_ulid("oit_"),
+                order_id=historical_order.id,
+                product_id=traded_product.id,
+                sku_id=traded_sku.id,
+                product_no=traded_product.product_no,
+                sku_no=traded_sku.sku_no,
+                product_name=traded_product.product_name,
+                sku_name=traded_sku.sku_name,
+                spec_snapshot=traded_sku.spec_values,
+                quantity=1,
+                unit_price_amount=12900,
+                market_price_amount=15900,
+                gross_amount=12900,
+                payable_amount=12900,
+                adjustment_amount=0,
+                refunded_quantity=0,
+                refunded_amount=0,
+                currency="CNY",
+                review_status="pending",
+                after_sale_status="none",
+            )
+        )
+        await session.commit()
+
+    traded_eligibility = await client.get(
+        f"/api/v1/admin/products/{product_id}/deletion-eligibility", headers=auth
+    )
+    assert traded_eligibility.status_code == 200, traded_eligibility.text
+    assert traded_eligibility.json()["data"]["can_delete"] is False
+    assert traded_eligibility.json()["data"]["can_off_shelf"] is True
+    assert traded_eligibility.json()["data"]["recommended_action"] == "off_shelf"
+    blocked_delete = await client.delete(
+        f"/api/v1/admin/products/{product_id}",
+        headers={
+            **auth,
+            "If-Match": edit_on_sale.headers["etag"],
+            "Idempotency-Key": f"product-delete-blocked-{suffix}",
+        },
+    )
+    assert blocked_delete.status_code == 409, blocked_delete.text
+    assert blocked_delete.json()["code"] == "PRODUCT_HAS_TRANSACTIONS"
+
     off_shelf = await client.post(
         f"/api/v1/admin/products/{product_id}/off-shelf-commands",
         headers={
@@ -338,20 +445,51 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
     assert off_shelf.status_code == 200, off_shelf.text
     assert off_shelf.json()["data"]["status"] == "off_shelf"
 
-    deleted = await client.delete(
+    off_shelf_eligibility = await client.get(
+        f"/api/v1/admin/products/{product_id}/deletion-eligibility", headers=auth
+    )
+    assert off_shelf_eligibility.status_code == 200, off_shelf_eligibility.text
+    assert off_shelf_eligibility.json()["data"]["can_delete"] is False
+    assert off_shelf_eligibility.json()["data"]["can_off_shelf"] is False
+    assert off_shelf_eligibility.json()["data"]["recommended_action"] == "none"
+    still_blocked_delete = await client.delete(
         f"/api/v1/admin/products/{product_id}",
         headers={
             **auth,
             "If-Match": off_shelf.headers["etag"],
+            "Idempotency-Key": f"product-delete-still-blocked-{suffix}",
+        },
+    )
+    assert still_blocked_delete.status_code == 409, still_blocked_delete.text
+    assert still_blocked_delete.json()["code"] == "PRODUCT_HAS_TRANSACTIONS"
+
+    disposable = await client.post(
+        "/api/v1/admin/products",
+        headers={**auth, "Idempotency-Key": f"product-disposable-{suffix}"},
+        json={
+            "store_id": store_no,
+            "category_id": category_no,
+            "brand_id": None,
+            "product_name": f"无交易可删除商品 {suffix}",
+            "subtitle": None,
+            "description": None,
+        },
+    )
+    assert disposable.status_code == 201, disposable.text
+    disposable_id = disposable.json()["data"]["product_id"]
+    deleted = await client.delete(
+        f"/api/v1/admin/products/{disposable_id}",
+        headers={
+            **auth,
+            "If-Match": disposable.headers["etag"],
             "Idempotency-Key": f"product-delete-{suffix}",
         },
     )
     assert deleted.status_code == 200, deleted.text
-    assert deleted.json()["data"]["previous_status"] == "off_shelf"
+    assert deleted.json()["data"]["previous_status"] == "draft"
     assert deleted.json()["data"]["deleted_at"]
-    assert (await client.get(f"/api/v1/products/{product_id}")).status_code == 404
     assert (
-        await client.get(f"/api/v1/admin/products/{product_id}", headers=auth)
+        await client.get(f"/api/v1/admin/products/{disposable_id}", headers=auth)
     ).status_code == 404
 
     async for session in mysql_session():
@@ -368,7 +506,11 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
         )
         assert status_count is not None and status_count >= 5
         assert product_event_count is not None and product_event_count >= 10
-        deleted_product = await session.scalar(
+        traded_product = await session.scalar(
             select(Product).where(Product.product_no == product_id)
+        )
+        assert traded_product is not None and traded_product.deleted_at is None
+        deleted_product = await session.scalar(
+            select(Product).where(Product.product_no == disposable_id)
         )
         assert deleted_product is not None and deleted_product.deleted_at is not None

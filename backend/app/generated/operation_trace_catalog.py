@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "7a00cca1c678793e53a95e81c70bb9a83c58eb0ec3cf98c4bb157c854c547d0f"
+SOURCE_SHA256 = "17494aafcf6f0e06e71e74df7773c62724e99d75f5481207e74e1e990b99ce73"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -836,6 +836,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         ],
         "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
     },
+    "AdminProductDeletionEligibility_Check": {
+        "x-audit-event": "access.AdminProductDeletionEligibility_Check",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": ["products:update"],
+        "x-requirement-id": ["MCH-PRODUCT-LIST-01"],
+        "x-scope-policy": ["stores:read", "products:read", "products:update", "products:publish"],
+        "x-test-case-ids": ["ADM-PRODUCT-*", "MCH-PORTAL-*"],
+    },
     "AdminProductFaqVersion_Create": {
         "x-audit-event": "command.AdminProductFaqVersion_Create",
         "x-domain-command": "AdminProductFaqVersion_Create",
@@ -1120,7 +1130,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
         "x-requirement-id": ["MCH-PRODUCT-LIST-01"],
-        "x-scope-policy": ["stores:read", "products:read", "products:update"],
+        "x-scope-policy": ["stores:read", "products:read", "products:update", "products:publish"],
         "x-test-case-ids": ["ADM-PRODUCT-*", "MCH-PORTAL-*"],
     },
     "AdminProduct_Get": {
@@ -1151,7 +1161,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
         "x-requirement-id": ["ADM-PRODUCT-LIST-01", "MCH-DASH-01", "MCH-PRODUCT-LIST-01"],
-        "x-scope-policy": ["stores:read", "products:read", "store_scope", "products:update"],
+        "x-scope-policy": [
+            "stores:read",
+            "products:read",
+            "store_scope",
+            "products:update",
+            "products:publish",
+        ],
         "x-test-case-ids": ["ADM-PRODUCT-*", "MCH-PORTAL-*"],
     },
     "AdminProduct_Moderate": {
@@ -1176,13 +1192,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:publish"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01", "MCH-PRODUCT-LIST-01"],
         "x-scope-policy": [
-            "public_reference_projection",
             "stores:read",
             "products:read",
             "products:update",
             "products:publish",
+            "public_reference_projection",
             "inventories:read",
             "inventories:adjust",
             "reviews:read",
@@ -2017,9 +2033,9 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "products:read",
             "store_scope",
             "products:update",
+            "products:publish",
             "public_reference_projection",
             "products:create",
-            "products:publish",
             "inventories:read",
             "inventories:adjust",
             "reviews:read",

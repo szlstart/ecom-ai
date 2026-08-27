@@ -54,6 +54,16 @@ class AdminProductDeletionView(StrictRequest):
     version: int
 
 
+class AdminProductDeletionEligibility(StrictRequest):
+    product_id: str
+    current_status: str
+    has_transactions: bool
+    can_delete: bool
+    can_off_shelf: bool
+    recommended_action: Literal["delete", "off_shelf", "none"]
+    message: str
+
+
 class AdminProductDetail(AdminProductSummary):
     description: str | None
     default_sku_id: str | None

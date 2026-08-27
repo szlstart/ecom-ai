@@ -2832,7 +2832,7 @@ SKU 价格在界面使用元，提交时转换为整数分；市场价不得低�
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-商品工作台以顾客店铺页的方式展示商品。“全部”分段的第一张卡片固定为空白“新增商品”；销售中、草稿、审核中、需修改和已下架分段只显示对应商品，不显示新增卡片。其余卡片显示封面、中文状态、商品名、卖点、价格、款式数、可售库存、销量、评分和评价数。鼠标悬停在任意状态的商品卡片时同时出现“编辑商品”和“删除商品”：编辑进入 `MerchantProductEditorPage.vue`；删除是经确认的逻辑永久删除，并与可恢复上架的“下架”严格区分。逻辑删除后商品立即从顾客端与商家列表消失，商品、SKU 不再参与销售，但历史订单、评价、库存流水、状态流水和操作审计按法定及售后期限保留。没有商品时，“全部”仍保留新增卡片；筛选分段仅显示相应空状态。商品列表统计必须由 Store Scope 接口直接返回，不能在全平台数据上前端过滤。
+商品工作台以顾客店铺页的方式展示商品。“全部”分段的第一张卡片固定为空白“新增商品”；销售中、草稿、审核中、需修改和已下架分段只显示对应商品，不显示新增卡片。其余卡片显示封面、中文状态、商品名、卖点、价格、款式数、可售库存、销量、评分和评价数。鼠标悬停在任意状态的商品卡片时同时出现“编辑商品”和“删除商品”：编辑进入 `MerchantProductEditorPage.vue`；点击删除后必须先由服务端按 `order_items.product_id` 检查是否存在任何订单交易明细。没有产生过交易的商品才显示“直接删除 / 取消”，执行经确认的逻辑永久删除；只要曾产生交易，不论订单后来取消、关闭、退款或完成，商品均永久禁止删除，并显示“下架商品 / 取消”。在售商品可由该弹窗直接转为下架；已下架商品只提示保持下架。该规则保证订单、退款、售后、评价和审计链路始终能关联历史商品，并且不能通过直接调用删除 API 绕过。没有商品时，“全部”仍保留新增卡片；筛选分段仅显示相应空状态。商品列表统计必须由 Store Scope 接口直接返回，不能在全平台数据上前端过滤。
 
 商品编辑不使用后台多页签，而按顾客商品详情页的阅读顺序组织：左侧图片与缩略图；右侧直接编辑名称、卖点、简介、款式、价格和库存；下方依次为商品参数、发货与购买须知、商品详情、常见问题、本商品评价与底部上架状态栏。平台分类和品牌属于后台治理字段，商家页面不展示、不要求填写；新商品由后端赋予可用的默认内部归类。点击“新增商品”后系统在后台创建未命名草稿并直接进入商品详情编辑，不展示独立“创建商品草稿”步骤；编辑期间可明确点击“暂存为草稿”。点击“新增款式”后，新款式表单紧接现有款式显示在右侧，填写款式名、价格、规格与库存并点击“完成”即可成为新的款式卡片。销售中的商品也使用完全相同的就地编辑形式，保存的公开字段通过受控内容版本立即更新，状态机命令仍独立执行。每个款式使用普通“规格名/规格值”行，不要求商家填写 JSON；图片默认关联当前选择的款式，也可设为全部款式共用。
 
@@ -9471,7 +9471,9 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 新版商家工作台在既有受控管理 API 之上增加最小投影：`AdminProductSummary` 返回 `cover_image_url、sku_count、available_quantity、sales_count、review_count、rating_score`，使一条商品列表请求即可绘制店铺式商品卡片，禁止每张卡片触发 N+1 请求；`GET /admin/inventories` 和 `GET /admin/reviews` 分别支持 `product_id` 窄化参数，编辑器只读取目标商品的 SKU 与已发布评价。`product_id` 只能缩小 Store Scope，不能扩大授权。商家输入目标账面库存后，前端转换为 `on_hand_delta` 调用 `AdminInventory_Adjust`，服务端继续执行 If-Match、原因、幂等、预占保护和流水审计。
 
-`DELETE /admin/products/{product_id}`（`AdminProduct_Delete`）表示经确认的商品逻辑永久删除，不等同于 `POST /admin/products/{product_id}/off-shelf-commands`。删除命令要求 `products:update`、Store Scope、If-Match 和 Idempotency-Key；事务内禁用全部 SKU、写入 `products.deleted_at`、记录原状态、商品状态流水、管理员操作审计和 Outbox。所有公开商品查询、商家商品列表、商品详情与库存管理默认追加 `deleted_at IS NULL`；订单、评价、售后及审计链路仍可通过历史快照或受控内部查询访问必要事实。首版不提供商家恢复逻辑删除商品的接口。
+`GET /admin/products/{product_id}/deletion-eligibility`（`AdminProductDeletionEligibility_Check`）在 Store Scope 内返回 `has_transactions、can_delete、can_off_shelf、recommended_action`，供商家删除弹窗决定展示“直接删除”还是“下架商品”；`order_items(product_id, id)` 必须建立索引。资格检查只是交互预检，不能替代命令内重验。
+
+`DELETE /admin/products/{product_id}`（`AdminProduct_Delete`）只允许从未产生任何 `order_items` 的商品执行逻辑永久删除，不等同于 `POST /admin/products/{product_id}/off-shelf-commands`。删除命令要求 `products:update`、Store Scope、If-Match 和 Idempotency-Key，并在持有商品锁后重新检查交易记录；发现任何订单明细均返回 `409 PRODUCT_HAS_TRANSACTIONS`，前端转为下架分支。没有交易时，事务内禁用全部 SKU、写入 `products.deleted_at`、记录原状态、商品状态流水、管理员操作审计和 Outbox。为封闭“检查无交易后恰好并发下单”的竞态，订单创建事务必须按商品 ID 排序锁定全部 Product，在锁内重新校验 `on_sale + deleted_at IS NULL` 后才能锁库存并创建 `order_items`；删除与下单因此在 Product 锁上串行化。所有公开商品查询、商家商品列表、商品详情与库存管理默认追加 `deleted_at IS NULL`。首版不提供商家恢复逻辑删除商品的接口。
 
 商家置顶“专属客服”使用 `/merchant/support/exclusive-conversation*` 薄 Facade，提供固定会话创建/读取、消息列表、消息发送和平台人工工单建立；Facade 内部继续调用统一 Messaging Service 与 Human Service Ticket 状态机，不复制消息表或领域服务。端点只接受 `client_type=merchant` 的 Merchant Context；消费者、平台管理员和其他商家身份均拒绝。消息用 `client_message_id` 去重，人工工单用 Idempotency-Key 建立或复用有效 Platform Queue Ticket；平台支持人员仍通过既有 `/support/*` 工作台回复。
 

@@ -3604,6 +3604,23 @@ export interface paths {
         patch: operations["AdminProduct_Update"];
         trace?: never;
     };
+    "/api/v1/admin/products/{product_id}/deletion-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check Product Deletion Eligibility */
+        get: operations["AdminProductDeletionEligibility_Check"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/products/{product_id}/review-submissions": {
         parameters: {
             query?: never;
@@ -5696,6 +5713,26 @@ export interface components {
             subtitle?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /** AdminProductDeletionEligibility */
+        AdminProductDeletionEligibility: {
+            /** Product Id */
+            product_id: string;
+            /** Current Status */
+            current_status: string;
+            /** Has Transactions */
+            has_transactions: boolean;
+            /** Can Delete */
+            can_delete: boolean;
+            /** Can Off Shelf */
+            can_off_shelf: boolean;
+            /**
+             * Recommended Action
+             * @enum {string}
+             */
+            recommended_action: "delete" | "off_shelf" | "none";
+            /** Message */
+            message: string;
         };
         /** AdminProductDeletionView */
         AdminProductDeletionView: {
@@ -7823,6 +7860,11 @@ export interface components {
         /** Envelope[AdminPaymentView] */
         Envelope_AdminPaymentView_: {
             data: components["schemas"]["AdminPaymentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductDeletionEligibility] */
+        Envelope_AdminProductDeletionEligibility_: {
+            data: components["schemas"]["AdminProductDeletionEligibility"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminProductDeletionView] */
@@ -20785,6 +20827,43 @@ export interface operations {
                 };
             };
             428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductDeletionEligibility_Check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDeletionEligibility_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
             429: components["responses"]["Problem429"];
             500: components["responses"]["Problem500"];
             503: components["responses"]["Problem503"];

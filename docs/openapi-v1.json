@@ -22161,7 +22161,8 @@
           "stores:read",
           "products:read",
           "store_scope",
-          "products:update"
+          "products:update",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
@@ -22613,7 +22614,95 @@
         "x-scope-policy": [
           "stores:read",
           "products:read",
+          "products:update",
+          "products:publish"
+        ],
+        "x-test-case-ids": [
+          "ADM-PRODUCT-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/admin/products/{product_id}/deletion-eligibility": {
+      "get": {
+        "tags": [
+          "product-administration"
+        ],
+        "summary": "Check Product Deletion Eligibility",
+        "operationId": "AdminProductDeletionEligibility_Check",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminProductDeletionEligibility_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "access.AdminProductDeletionEligibility_Check",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
           "products:update"
+        ],
+        "x-requirement-id": [
+          "MCH-PRODUCT-LIST-01"
+        ],
+        "x-scope-policy": [
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
@@ -23178,14 +23267,15 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
-          "MCH-PRODUCT-EDIT-01"
+          "MCH-PRODUCT-EDIT-01",
+          "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
-          "public_reference_projection",
           "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "public_reference_projection",
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
@@ -25235,9 +25325,9 @@
           "products:read",
           "store_scope",
           "products:update",
+          "products:publish",
           "public_reference_projection",
           "products:create",
-          "products:publish",
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
@@ -35115,6 +35205,55 @@
         ],
         "title": "AdminProductCreateRequest"
       },
+      "AdminProductDeletionEligibility": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "title": "Product Id"
+          },
+          "current_status": {
+            "type": "string",
+            "title": "Current Status"
+          },
+          "has_transactions": {
+            "type": "boolean",
+            "title": "Has Transactions"
+          },
+          "can_delete": {
+            "type": "boolean",
+            "title": "Can Delete"
+          },
+          "can_off_shelf": {
+            "type": "boolean",
+            "title": "Can Off Shelf"
+          },
+          "recommended_action": {
+            "type": "string",
+            "enum": [
+              "delete",
+              "off_shelf",
+              "none"
+            ],
+            "title": "Recommended Action"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "product_id",
+          "current_status",
+          "has_transactions",
+          "can_delete",
+          "can_off_shelf",
+          "recommended_action",
+          "message"
+        ],
+        "title": "AdminProductDeletionEligibility"
+      },
       "AdminProductDeletionView": {
         "properties": {
           "product_id": {
@@ -41741,6 +41880,21 @@
           "data"
         ],
         "title": "Envelope[AdminPaymentView]"
+      },
+      "Envelope_AdminProductDeletionEligibility_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminProductDeletionEligibility"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminProductDeletionEligibility]"
       },
       "Envelope_AdminProductDeletionView_": {
         "properties": {

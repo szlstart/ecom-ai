@@ -169,6 +169,7 @@ class OrderItem(MutableMySQLModel, MySQLBase):
         ),
         Index("idx_order_items_order", "order_id", "id"),
         Index("idx_order_items_sku", "sku_id", "created_at", "id"),
+        Index("idx_order_items_product", "product_id", "id"),
     )
 
     order_item_no: Mapped[str] = mapped_column(String(40), nullable=False)

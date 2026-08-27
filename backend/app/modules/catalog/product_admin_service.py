@@ -41,6 +41,7 @@ from app.modules.catalog.product_admin_schemas import (
     AdminProductCommandRequest,
     AdminProductCompleteness,
     AdminProductCreateRequest,
+    AdminProductDeletionEligibility,
     AdminProductDeletionView,
     AdminProductDetail,
     AdminProductFulfillmentRequest,
@@ -237,6 +238,11 @@ class ProductAdminService:
         if product.deleted_at is not None:
             raise _not_found()
         _version(product.version, expected_version)
+        if await self.repository.product_has_transactions(product.id):
+            raise _conflict(
+                "PRODUCT_HAS_TRANSACTIONS",
+                "该商品已经产生订单交易，不能删除，只能下架并保留历史数据。",
+            )
         previous = product.product_status
         deleted_at = utc_now()
         for sku in await self.repository.skus(product.id, for_update=True):
@@ -276,6 +282,35 @@ class ProductAdminService:
             deleted_at=deleted_at,
             previous_status=previous,
             version=product.version,
+        )
+
+    async def deletion_eligibility(
+        self, access: AdminAccess, product_no: str
+    ) -> AdminProductDeletionEligibility:
+        product, _, _, _ = await self._product(access, product_no)
+        has_transactions = await self.repository.product_has_transactions(product.id)
+        can_off_shelf = has_transactions and product.product_status == "on_sale"
+        if not has_transactions:
+            action: Literal["delete", "off_shelf", "none"] = "delete"
+            message = "该商品没有产生过交易，可以直接删除。"
+        elif can_off_shelf:
+            action = "off_shelf"
+            message = "该商品已经产生订单交易，不能删除，只能下架。"
+        else:
+            action = "none"
+            message = (
+                "该商品已经产生订单交易，不能删除，商品当前已经下架。"
+                if product.product_status == "off_shelf"
+                else "该商品已经产生订单交易，不能删除，当前状态不能执行下架。"
+            )
+        return AdminProductDeletionEligibility(
+            product_id=product.product_no,
+            current_status=product.product_status,
+            has_transactions=has_transactions,
+            can_delete=not has_transactions,
+            can_off_shelf=can_off_shelf,
+            recommended_action=action,
+            message=message,
         )
 
     async def skus(self, access: AdminAccess, product_no: str) -> list[AdminSkuView]:

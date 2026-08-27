@@ -18,6 +18,7 @@ from app.modules.catalog.product_admin_schemas import (
     AdminProductAttributeSetRequest,
     AdminProductCommandRequest,
     AdminProductCreateRequest,
+    AdminProductDeletionEligibility,
     AdminProductDeletionView,
     AdminProductDetail,
     AdminProductFulfillmentRequest,
@@ -105,6 +106,22 @@ async def update_product(
 ) -> Envelope[AdminProductDetail]:
     item = await service.update_product(access, product_id, payload, _expected_version(if_match))
     return _resource(response, item, item.version)
+
+
+@router.get(
+    "/{product_id}/deletion-eligibility",
+    response_model=Envelope[AdminProductDeletionEligibility],
+    operation_id="AdminProductDeletionEligibility_Check",
+)
+async def check_product_deletion_eligibility(
+    product_id: str,
+    response: Response,
+    service: ProductAdminServiceDependency,
+    access: Annotated[AdminAccess, require_admin_permission("products:update")],
+) -> Envelope[AdminProductDeletionEligibility]:
+    item = await service.deletion_eligibility(access, product_id)
+    _no_store(response)
+    return Envelope(data=item)
 
 
 @router.delete(

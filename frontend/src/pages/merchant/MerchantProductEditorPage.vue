@@ -235,9 +235,36 @@ async function confirmSkuDelete() {
   if (!deletingSku.value || deletingLastActiveSku.value) return
   skuDeleting.value = true; skuDeleteError.value = ''; error.value = ''; notice.value = ''
   try {
-    await adminCommand(path(`/skus/${encodeURIComponent(deletingSku.value.sku_id)}/status-changes`), { action: 'disable', reason_code: 'MERCHANT_STYLE_REMOVE', reason: '商家从商品编辑器删除款式；保留历史交易与审计记录。' }, token(), deletingSku.value.version, 'merchant-style-delete')
-    selectedSkuId.value = ''; closeSkuEditor(); deletingSku.value = null
-    await load()
+    const targetSku = deletingSku.value
+    const disabledSku = (await adminCommand<AdminSku>(path(`/skus/${encodeURIComponent(targetSku.sku_id)}/status-changes`), { action: 'disable', reason_code: 'MERCHANT_STYLE_REMOVE', reason: '商家从商品编辑器删除款式；保留历史交易与审计记录。' }, token(), targetSku.version, 'merchant-style-delete')).data
+    skus.value = skus.value.map((item) => item.sku_id === disabledSku.sku_id ? disabledSku : item)
+    const remainingSkus = activeSkus.value
+    const remainingSkuIds = new Set(remainingSkus.map((item) => item.sku_id))
+    const prices = remainingSkus.map((item) => Number(item.sale_price)).filter(Number.isFinite)
+    if (product.value) {
+      const missingRequirements = new Set(product.value.completeness.missing_requirements)
+      if (remainingSkus.length) missingRequirements.delete('sku')
+      else missingRequirements.add('sku')
+      product.value = {
+        ...product.value,
+        version: product.value.version + 1,
+        default_sku_id: product.value.default_sku_id === disabledSku.sku_id ? (remainingSkus[0]?.sku_id ?? null) : product.value.default_sku_id,
+        min_price: prices.length ? Math.min(...prices).toFixed(2) : '0.00',
+        max_price: prices.length ? Math.max(...prices).toFixed(2) : '0.00',
+        sku_count: remainingSkus.length,
+        available_quantity: inventories.value
+          .filter((item) => remainingSkuIds.has(item.sku_id))
+          .reduce((total, item) => total + item.available_quantity, 0),
+        completeness: {
+          ...product.value.completeness,
+          sku: remainingSkus.length > 0,
+          missing_requirements: [...missingRequirements],
+        },
+      }
+    }
+    selectedSkuId.value = remainingSkus[0]?.sku_id ?? ''
+    selectedImage.value = 0
+    closeSkuEditor(); deletingSku.value = null
     notice.value = '款式已删除，不再向顾客展示；历史订单记录仍会保留。'
   } catch (cause) { skuDeleteError.value = errorMessage(cause) }
   finally { skuDeleting.value = false }

@@ -301,23 +301,17 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     expect(wrapper.text()).toContain('新款式、价格和库存已添加')
   })
 
-  it('removes an existing style from the merchant editor through the audited status command', async () => {
+  it('removes an existing style locally without reloading the editor or losing unsaved input', async () => {
     const wrapper = await mountPage()
+    const productName = wrapper.get<HTMLInputElement>('.merchant-product-info-editor input')
+    await productName.setValue('还没有保存的商品名称')
     await wrapper.get('.merchant-style-picker > div > button').trigger('click')
     expect(wrapper.get('.merchant-inline-sku-form').text()).toContain('删除款式')
 
     await wrapper.get('.merchant-inline-sku-form button.danger').trigger('click')
     expect(document.body.querySelector('.merchant-delete-dialog')?.textContent).toContain('删除“黑色款”款式')
-    mocks.adminGet.mockImplementation(async (requestPath: string) => {
-      if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
-      if (requestPath === '/admin/products/prd_test') return { data: product }
-      if (requestPath.endsWith('/skus')) return { data: [{ ...sku, status: 'disabled', version: 2 }] }
-      if (requestPath.endsWith('/images') || requestPath.endsWith('/attributes') || requestPath.endsWith('/faqs')) return { data: [] }
-      if (requestPath.startsWith('/admin/inventories?')) return { data: { items: [inventory] } }
-      if (requestPath.endsWith('/fulfillment-profile')) return { data: null }
-      if (requestPath.endsWith('/shipping-templates')) return { data: [] }
-      throw new Error(`unexpected path: ${requestPath}`)
-    })
+    const getCallCount = mocks.adminGet.mock.calls.length
+    mocks.adminCommand.mockResolvedValueOnce({ data: { ...sku, status: 'disabled', version: 2 } })
     document.body.querySelector<HTMLButtonElement>('.merchant-delete-dialog button.danger')?.click()
     await flushPromises()
 
@@ -328,6 +322,8 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
       1,
       'merchant-style-delete',
     )
+    expect(mocks.adminGet).toHaveBeenCalledTimes(getCallCount)
+    expect(productName.element.value).toBe('还没有保存的商品名称')
     expect(wrapper.find('.merchant-style-picker > div > button').exists()).toBe(false)
     expect(wrapper.text()).toContain('款式已删除，不再向顾客展示')
   })

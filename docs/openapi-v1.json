@@ -6252,9 +6252,12 @@
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -6349,9 +6352,12 @@
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -7295,18 +7301,13 @@
         ],
         "x-requirement-id": [
           "ADM-REVIEW-LIST-01",
-          "MCH-DASH-01",
           "MCH-REVIEW-LIST-01"
         ],
         "x-scope-policy": [
-          "stores:read",
-          "stores:manage",
-          "store_scope",
           "reviews:read"
         ],
         "x-test-case-ids": [
           "ADM-REVIEW-*",
-          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -11207,6 +11208,318 @@
         ]
       }
     },
+    "/api/v1/merchant/support/exclusive-conversation": {
+      "put": {
+        "tags": [
+          "merchant-support"
+        ],
+        "summary": "Put Merchant Exclusive",
+        "operationId": "MerchantExclusiveConversation_PutMine",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "command.MerchantExclusiveConversation_PutMine",
+        "x-domain-command": "MerchantExclusiveConversation_PutMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-SHELL-01"
+        ],
+        "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/support/exclusive-conversation/messages": {
+      "get": {
+        "tags": [
+          "merchant-support"
+        ],
+        "summary": "List Merchant Exclusive Messages",
+        "operationId": "MerchantExclusiveMessage_ListMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-SHELL-01"
+        ],
+        "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
+        ]
+      },
+      "post": {
+        "tags": [
+          "merchant-support"
+        ],
+        "summary": "Send Merchant Exclusive Message",
+        "operationId": "MerchantExclusiveMessage_CreateMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantExclusiveMessage_CreateMine",
+        "x-domain-command": "MerchantExclusiveMessage_CreateMine",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-SHELL-01"
+        ],
+        "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/support/exclusive-conversation/human-service-tickets": {
+      "post": {
+        "tags": [
+          "merchant-support"
+        ],
+        "summary": "Request Merchant Human Service",
+        "operationId": "MerchantHumanServiceRequest_CreateMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16,
+              "maxLength": 128,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumanHandoffRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_HumanTicketView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantHumanServiceRequest_CreateMine",
+        "x-domain-command": "MerchantHumanServiceRequest_CreateMine",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-SHELL-01"
+        ],
+        "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
     "/api/v1/support/human-service-tickets": {
       "get": {
         "tags": [
@@ -11325,17 +11638,16 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-LIST-01",
-          "MCH-DASH-01",
+          "MCH-SHELL-01",
           "MCH-SUPPORT-LIST-01"
         ],
         "x-scope-policy": [
-          "stores:read",
-          "stores:manage",
-          "store_scope",
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope",
           "support:queue_read"
         ],
         "x-test-case-ids": [
-          "ADM-STORE-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
@@ -11506,9 +11818,13 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
+          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -11609,9 +11925,13 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
+          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -11711,9 +12031,13 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
+          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -11935,9 +12259,13 @@
         ],
         "x-requirement-id": [
           "ADM-SUPPORT-01",
+          "MCH-SHELL-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
+          "store_operator_with_store_scope",
+          "merchant_exclusive_conversation_owner",
+          "store_queue_scope",
           "support:queue_read",
           "support:claim",
           "support:reply",
@@ -21332,6 +21660,24 @@
             }
           },
           {
+            "name": "product_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Product Id"
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "required": false,
@@ -21410,14 +21756,21 @@
         ],
         "x-requirement-id": [
           "ADM-INV-01",
-          "MCH-INVENTORY-01"
+          "MCH-INVENTORY-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
           "inventories:read",
           "inventories:adjust"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
+          "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -21599,14 +21952,21 @@
         ],
         "x-requirement-id": [
           "ADM-INV-01",
-          "MCH-INVENTORY-01"
+          "MCH-INVENTORY-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
+          "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
           "inventories:read",
           "inventories:adjust"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
+          "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -21759,13 +22119,11 @@
         ],
         "x-scope-policy": [
           "stores:read",
-          "stores:manage",
-          "store_scope",
-          "products:read"
+          "products:read",
+          "store_scope"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
-          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -21950,12 +22308,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -22072,12 +22434,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -22212,12 +22578,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -22490,12 +22860,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -22630,12 +23004,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -22719,12 +23097,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -22835,12 +23217,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -22968,12 +23354,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -23112,19 +23502,17 @@
           "products:update"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01",
-          "MCH-PRODUCT-EDIT-01"
+          "ADM-PRODUCT-01"
         ],
         "x-scope-policy": [
           "public_reference_projection",
           "products:read",
           "products:update",
-          "products:publish",
-          "products:review"
+          "products:review",
+          "products:publish"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*",
-          "MCH-PORTAL-*"
+          "ADM-PRODUCT-*"
         ]
       }
     },
@@ -23206,12 +23594,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -23328,12 +23720,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -23417,12 +23813,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -23539,12 +23939,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -23628,12 +24032,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -23750,12 +24158,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -23868,12 +24280,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -23966,12 +24382,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -24055,12 +24475,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -24171,12 +24595,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -24298,12 +24726,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -24425,12 +24857,16 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
           "products:read",
           "products:update",
           "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "products:review"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "MCH-PORTAL-*"
         ]
@@ -24563,17 +24999,25 @@
         "x-requirement-id": [
           "ADM-STORE-LIST-01",
           "MCH-DASH-01",
+          "MCH-PRODUCT-EDIT-01",
+          "MCH-PRODUCT-LIST-01",
           "MCH-PRODUCT-NEW-01",
           "MCH-STORE-01"
         ],
         "x-scope-policy": [
           "stores:read",
-          "stores:manage",
+          "products:read",
           "store_scope",
           "public_reference_projection",
-          "products:create"
+          "products:create",
+          "products:update",
+          "products:publish",
+          "inventories:read",
+          "inventories:adjust",
+          "stores:manage"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-STORE-*",
           "MCH-PORTAL-*"
@@ -24771,13 +25215,11 @@
         ],
         "x-requirement-id": [
           "ADM-STORE-DETAIL-01",
-          "MCH-DASH-01",
           "MCH-STORE-01"
         ],
         "x-scope-policy": [
           "stores:read",
-          "stores:manage",
-          "store_scope"
+          "stores:manage"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*",
@@ -26712,14 +27154,24 @@
           "stores:read"
         ],
         "x-requirement-id": [
-          "ADM-STORE-DETAIL-01"
+          "ADM-STORE-DETAIL-01",
+          "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
+          "public_reference_projection",
           "stores:read",
+          "products:read",
+          "products:update",
+          "products:publish",
+          "inventories:read",
+          "inventories:adjust",
           "stores:manage"
         ],
         "x-test-case-ids": [
-          "ADM-STORE-*"
+          "ADM-INV-*",
+          "ADM-PRODUCT-*",
+          "ADM-STORE-*",
+          "MCH-PORTAL-*"
         ]
       },
       "post": {
@@ -33416,6 +33868,17 @@
             ],
             "title": "Current Version Id"
           },
+          "current_answer_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Answer Text"
+          },
           "published_version_id": {
             "anyOf": [
               {
@@ -34495,6 +34958,32 @@
             "type": "string",
             "title": "Currency"
           },
+          "cover_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Image Url"
+          },
+          "sku_count": {
+            "type": "integer",
+            "title": "Sku Count",
+            "default": 0
+          },
+          "available_quantity": {
+            "type": "integer",
+            "title": "Available Quantity",
+            "default": 0
+          },
+          "sales_count": {
+            "type": "integer",
+            "title": "Sales Count",
+            "default": 0
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time",
@@ -35010,6 +35499,32 @@
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "cover_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Image Url"
+          },
+          "sku_count": {
+            "type": "integer",
+            "title": "Sku Count",
+            "default": 0
+          },
+          "available_quantity": {
+            "type": "integer",
+            "title": "Available Quantity",
+            "default": 0
+          },
+          "sales_count": {
+            "type": "integer",
+            "title": "Sales Count",
+            "default": 0
           },
           "updated_at": {
             "type": "string",

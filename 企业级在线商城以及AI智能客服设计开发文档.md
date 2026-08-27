@@ -2813,6 +2813,42 @@ SKU 价格在界面使用元，提交时转换为整数分；市场价不得低�
 
 所有列表实现 Loading、Empty、Error 和 Retry。403 表示角色缺权限；跨店资源统一返回 404；412 保留本地输入并提示刷新资源版本；428 引导近期认证；429 遵循 `Retry-After`。创建和命令携带 Idempotency-Key，可变资源携带 If-Match。商家退出只撤销 Merchant/Admin Audience 管理会话，不影响同一自然人的消费者会话。浏览器不得持久化客户会话正文、评价敏感投影、Token 或其他店铺数据。
 
+#### 2.14.8 商家端店铺式工作台实施基线
+
+本节是 2.14.2～2.14.6 的新版实施基线；如前述深绿色侧栏、独立仪表盘、商品表格、多页签编辑器、一级库存或一级客户咨询描述与本节冲突，以本节为准。商家登录后进入 `/merchant/products`；访问 `/merchant`、`/merchant/` 或兼容路由 `/merchant/dashboard` 均进入同一商品工作台。
+
+一级导航只保留“我的商品、评价回复、店铺资料”。顶栏固定显示当前店铺、“消息”和店铺资料入口；库存合并到商品款式内，顾客咨询合并到消息中心。整体采用白色轻量侧栏、浅色工作区和用户店铺页风格商品卡片，不复用平台管理端的高密度表格。
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 左侧固定导航 228px              │ 顶栏：当前店铺 / [消息] / [店铺资料]       │
+│ Ecom AI 商家中心                ├───────────────────────────────────────────┤
+│ [店铺 Logo] 当前店铺 / 营业中   │ [店铺名、简介、商品/库存/销量/评分]         │
+│ ▦ 我的商品 / 上架与编辑         │ [全部][销售中][草稿][审核中][需修改][下架] │
+│ ☆ 评价回复 / 维护店铺口碑       │ ┌────────┐ ┌────────┐ ┌────────┐          │
+│ ◇ 店铺资料 / 顾客看到的信息     │ │＋新增商品│ │商品卡片 │ │商品卡片 │          │
+│                                 │ └────────┘ └────────┘ └────────┘          │
+│ 查看用户端店铺 / 退出商家中心   │                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+商品工作台以顾客店铺页的方式展示商品。第一张卡片固定为空白“新增商品”，其余卡片显示封面、中文状态、商品名、卖点、价格、款式数、可售库存和销量。卡片点击进入 `MerchantProductEditorPage.vue`；没有商品时仍保留新增卡片。商品列表统计必须由 Store Scope 接口直接返回，不能在全平台数据上前端过滤。
+
+商品编辑不使用后台多页签，而按顾客商品详情页的阅读顺序组织：左侧图片与缩略图，右侧名称、卖点、简介、分类、品牌和款式；下方依次为款式编辑、实时库存、商品参数、发货与购买须知、商品详情、常见问题和底部上架状态栏。新增商品先提交名称、分类等最小信息创建草稿，再进入同一详情模板。每个款式使用普通“规格名/规格值”行，不要求商家填写 JSON；图片默认关联当前选择的款式，也可设为全部款式共用。
+
+库存按 SKU 显示账面、预占和可售数量。商家输入目标账面库存，前端计算 Delta 后调用受审计库存调整命令；顾客成交由领域库存流水自动扣减，刷新商家页即可看到更新后的可售数。前端不得直接覆盖预占量、已售量或安全库存，也不得绕过 If-Match、原因、幂等和 Store Scope 校验。
+
+顶栏“消息”打开桌面微信式双栏窗口。左栏第一项固定置顶“专属客服”，用于商家向平台商家支持队列留言；其后为当前店铺的顾客咨询。右栏显示会话正文和输入区。未领取顾客工单只展示必要交接摘要，领取后读取完整授权会话；专属客服只访问当前商家自己的固定平台会话，首次留言同时建立或复用平台人工支持工单。点击遮罩空白或关闭按钮退出消息窗口，不离开当前编辑页面。
+
+| 页面/全局组件 | Vue Route / Component | 主要能力 | Permission / Scope |
+| :--- | :--- | :--- | :--- |
+| 商品工作台 | `/merchant/products`、兼容 `/merchant/dashboard` / `MerchantProductListPage.vue` | 店铺式商品卡片、第一张新增卡片、搜索与中文状态分段 | `stores:read`、`products:read` + Store |
+| 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 详情模板内就地编辑商品全部销售信息和库存 | `products:create/update/publish`、`inventories:read/adjust` + Store |
+| 顶栏消息中心 | `MerchantMessageCenter.vue` | 置顶平台专属客服、顾客咨询列表和回复 | Conversation Owner、`support:*` + Store Queue |
+| 评价回复 | `/merchant/reviews/*` / `MerchantReview*Page.vue` | 查看本店已发布评价并公开回复 | `reviews:read/reply` + Store |
+| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、修改冷却期和用户端预览 | `stores:read/manage` + Store |
+| 兼容高级路由 | `/merchant/inventory`、`/merchant/support/*` | 保留历史深链，不在一级导航展示 | `inventories:*`、`support:*` + Store/Queue |
+
 ---
 
 ## 3 后端系统设计
@@ -9433,6 +9469,10 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 出站 Webhook 如后续开放给企业商家，必须另行设计 Endpoint 验证、签名 Secret 轮换、事件订阅、重放保护、重试与停用机制，不能复用入站 Provider Secret，也不能让商家自定义内网/云元数据地址造成 SSRF。
 
 #### 3.12.26 商家中心接口投影
+
+新版商家工作台在既有受控管理 API 之上增加最小投影：`AdminProductSummary` 返回 `cover_image_url、sku_count、available_quantity、sales_count`，使一条商品列表请求即可绘制店铺式商品卡片，禁止每张卡片触发 N+1 请求；`GET /admin/inventories` 支持 `product_id` 窄化参数，编辑器只读取目标商品 SKU。`product_id` 只能缩小 Store Scope，不能扩大授权。商家输入目标账面库存后，前端转换为 `on_hand_delta` 调用 `AdminInventory_Adjust`，服务端继续执行 If-Match、原因、幂等、预占保护和流水审计。
+
+商家置顶“专属客服”使用 `/merchant/support/exclusive-conversation*` 薄 Facade，提供固定会话创建/读取、消息列表、消息发送和平台人工工单建立；Facade 内部继续调用统一 Messaging Service 与 Human Service Ticket 状态机，不复制消息表或领域服务。端点只接受 `client_type=merchant` 的 Merchant Context；消费者、平台管理员和其他商家身份均拒绝。消息用 `client_message_id` 去重，人工工单用 Idempotency-Key 建立或复用有效 Platform Queue Ticket；平台支持人员仍通过既有 `/support/*` 工作台回复。
 
 商家中心首版不复制一套领域实现。身份准入使用专用 `/merchant/auth/login`、`/merchant/auth/token-refresh`、`/merchant/auth/logout` 与 `/merchant/auth/reauthentications` Facade，以实现密码直登、独立 Cookie Namespace、商家身份限制和 Store Scope 服务端校验；登录后的店铺、商品、库存、评价与客服能力仍复用 `/admin/stores/*`、`/admin/products/*`、`/admin/inventories*`、`/admin/reviews/*` 与 `/support/*` 的受控管理 API。Token 必须来自 `client_type=merchant` 会话并关联 `store_operator` 有效 Grant，所有资源逐次与 Store/Queue Scope 取交集。除身份准入确有差异外，不为商家复制领域 Service；后续新增 `/merchant/*` Facade 也必须调用相同 Domain Service 和授权组件。
 

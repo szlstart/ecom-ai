@@ -32,6 +32,10 @@ class AdminProductSummary(StrictRequest):
     min_price: str
     max_price: str
     currency: str
+    cover_image_url: str | None = None
+    sku_count: int = 0
+    available_quantity: int = 0
+    sales_count: int = 0
     updated_at: datetime
     version: int
 
@@ -232,6 +236,7 @@ class AdminFaqView(StrictRequest):
     status: str
     sort_order: int
     current_version_id: str | None
+    current_answer_text: str | None = None
     published_version_id: str | None
     published_at: datetime | None
     version: int

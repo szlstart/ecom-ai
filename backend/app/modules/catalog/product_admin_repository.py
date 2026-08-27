@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.catalog.models import (
@@ -63,6 +63,68 @@ class ProductAdminRepository:
             await self.session.execute(statement.order_by(Product.product_no).limit(limit + 1))
         ).all()
         return [(row[0], row[1], row[2], row[3]) for row in rows]
+
+    async def product_card_stats(
+        self, product_ids: list[int]
+    ) -> dict[int, tuple[str | None, int, int]]:
+        if not product_ids:
+            return {}
+        result: dict[int, tuple[str | None, int, int]] = {
+            product_id: (None, 0, 0) for product_id in product_ids
+        }
+        aggregate_rows = (
+            await self.session.execute(
+                select(
+                    ProductSku.product_id,
+                    func.count(ProductSku.id),
+                    func.coalesce(
+                        func.sum(
+                            case(
+                                (
+                                    Inventory.id.is_not(None),
+                                    Inventory.on_hand_quantity
+                                    - Inventory.reserved_quantity
+                                    - Inventory.safety_stock_quantity,
+                                ),
+                                else_=0,
+                            )
+                        ),
+                        0,
+                    ),
+                )
+                .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
+                .where(ProductSku.product_id.in_(product_ids))
+                .group_by(ProductSku.product_id)
+            )
+        ).all()
+        for product_id, sku_count, available_quantity in aggregate_rows:
+            result[product_id] = (None, int(sku_count), max(0, int(available_quantity)))
+
+        image_rows = (
+            await self.session.execute(
+                select(ProductImage.product_id, FileObject.file_no)
+                .join(FileObject, FileObject.id == ProductImage.file_id)
+                .where(
+                    ProductImage.product_id.in_(product_ids),
+                    ProductImage.image_status == "active",
+                )
+                .order_by(
+                    ProductImage.product_id,
+                    case((ProductImage.image_type == "main", 0), else_=1),
+                    ProductImage.sort_order,
+                    ProductImage.id,
+                )
+            )
+        ).all()
+        for product_id, file_no in image_rows:
+            cover, sku_count, available_quantity = result[product_id]
+            if cover is None:
+                result[product_id] = (
+                    f"/api/v1/files/{file_no}",
+                    sku_count,
+                    available_quantity,
+                )
+        return result
 
     async def product_by_no(
         self, product_no: str, *, for_update: bool = False

@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Query, Response, status
 
-from app.api.dependencies import IdempotencyKey, UserContext
+from app.api.dependencies import IdempotencyKey, MerchantContext, UserContext
 from app.api.schemas import Envelope
 from app.modules.identity.router import _etag, _expected_version, _no_store
 from app.modules.messaging.dependencies import (
@@ -30,6 +30,77 @@ from app.modules.messaging.schemas import (
 )
 
 router = APIRouter(tags=["messaging"])
+merchant_router = APIRouter(prefix="/merchant/support", tags=["merchant-support"])
+
+
+@merchant_router.put(
+    "/exclusive-conversation",
+    response_model=Envelope[ConversationView],
+    operation_id="MerchantExclusiveConversation_PutMine",
+)
+async def put_merchant_exclusive(
+    response: Response, context: MerchantContext, service: MessagingServiceDependency
+) -> Envelope[ConversationView]:
+    result = await service.get_or_create_exclusive(context.user)
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@merchant_router.get(
+    "/exclusive-conversation/messages",
+    response_model=Envelope[MessageList],
+    operation_id="MerchantExclusiveMessage_ListMine",
+)
+async def list_merchant_exclusive_messages(
+    response: Response,
+    context: MerchantContext,
+    service: MessagingServiceDependency,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+) -> Envelope[MessageList]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await service.messages(context.user, conversation.conversation_id, limit, 0)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@merchant_router.post(
+    "/exclusive-conversation/messages",
+    response_model=Envelope[MessageView],
+    status_code=status.HTTP_201_CREATED,
+    operation_id="MerchantExclusiveMessage_CreateMine",
+)
+async def send_merchant_exclusive_message(
+    payload: MessageCreateRequest,
+    response: Response,
+    context: MerchantContext,
+    service: MessagingServiceDependency,
+) -> Envelope[MessageView]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await service.send(context.user, conversation.conversation_id, payload)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@merchant_router.post(
+    "/exclusive-conversation/human-service-tickets",
+    response_model=Envelope[HumanTicketView],
+    status_code=status.HTTP_201_CREATED,
+    operation_id="MerchantHumanServiceRequest_CreateMine",
+)
+async def request_merchant_human_service(
+    payload: HumanHandoffRequest,
+    response: Response,
+    context: MerchantContext,
+    service: MessagingServiceDependency,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key", min_length=16, max_length=128)],
+) -> Envelope[HumanTicketView]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await service.request_human(
+        context.user, conversation.conversation_id, payload, idempotency_key
+    )
+    _no_store(response)
+    return Envelope(data=result)
 
 
 @router.put(

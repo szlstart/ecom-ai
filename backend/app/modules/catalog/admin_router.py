@@ -139,12 +139,15 @@ async def list_inventories(
     service: AdminCatalogServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("inventories:read")],
     store_id: Annotated[str | None, Query(min_length=5, max_length=40)] = None,
+    product_id: Annotated[str | None, Query(min_length=5, max_length=40)] = None,
     q: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> Envelope[AdminInventoryList]:
     _no_store(response)
     return Envelope(
-        data=await service.list_inventories(access, store_no=store_id, q=q, limit=limit)
+        data=await service.list_inventories(
+            access, store_no=store_id, product_no=product_id, q=q, limit=limit
+        )
     )
 
 

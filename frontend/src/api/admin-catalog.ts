@@ -172,6 +172,10 @@ export interface AdminProductSummary extends AdminVersioned {
   min_price: string
   max_price: string
   currency: string
+  cover_image_url: string | null
+  sku_count: number
+  available_quantity: number
+  sales_count: number
   updated_at: string
 }
 
@@ -237,6 +241,7 @@ export interface AdminProductFaq extends AdminVersioned {
   status: string
   sort_order: number
   current_version_id: string | null
+  current_answer_text: string | null
   published_version_id: string | null
   published_at: string | null
 }

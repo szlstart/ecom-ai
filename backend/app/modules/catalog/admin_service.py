@@ -270,12 +270,14 @@ class AdminCatalogService:
         access: AdminAccess,
         *,
         store_no: str | None,
+        product_no: str | None,
         q: str | None,
         limit: int,
     ) -> AdminInventoryList:
         rows = await self.repository.inventories(
             access.scopes,
             store_no=store_no,
+            product_no=product_no,
             q=q.strip() if q else None,
             limit=limit,
         )

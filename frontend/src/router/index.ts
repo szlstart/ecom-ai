@@ -57,10 +57,11 @@ const routes: RouteRecordRaw[] = [
   { path: '/merchant/login', component: () => import('@/layouts/MerchantAuthLayout.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: false, title: '商家登录', requirementId: 'MCH-AUTH-01' }, children: [{ path: '', component: () => import('@/pages/merchant/MerchantLoginPage.vue') }] },
   { path: '/merchant/reauthenticate', component: () => import('@/layouts/MerchantAuthLayout.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: true, title: '确认商家密码', requirementId: 'MCH-AUTH-03' }, children: [{ path: '', component: () => import('@/pages/merchant/MerchantReauthenticatePage.vue') }] },
   { path: '/merchant', component: () => import('@/layouts/MerchantLayout.vue'), meta: { ...merchantMeta, title: '商家中心', requirementId: 'MCH-SHELL-01' }, children: [
-    { path: 'dashboard', component: () => import('@/pages/merchant/MerchantDashboardPage.vue'), meta: { ...merchantMeta, title: '商家工作台', requirementId: 'MCH-DASH-01', requiredPermission: 'stores:read' } },
+    { path: '', redirect: '/merchant/products' },
+    { path: 'dashboard', component: () => import('@/pages/merchant/MerchantProductListPage.vue'), meta: { ...merchantMeta, title: '我的商品', requirementId: 'MCH-DASH-01', requiredPermission: 'stores:read' } },
     { path: 'products', component: () => import('@/pages/merchant/MerchantProductListPage.vue'), meta: { ...merchantMeta, title: '商品管理', requirementId: 'MCH-PRODUCT-LIST-01', requiredPermission: 'products:read' } },
-    { path: 'products/new', component: () => import('@/pages/admin/AdminProductEditPage.vue'), props: { portal: 'merchant' }, meta: { ...merchantMeta, title: '发布新商品', requirementId: 'MCH-PRODUCT-NEW-01', requiredPermission: 'products:create' } },
-    { path: 'products/:productId', component: () => import('@/pages/admin/AdminProductEditPage.vue'), props: { portal: 'merchant' }, meta: { ...merchantMeta, title: '编辑商品', requirementId: 'MCH-PRODUCT-EDIT-01', requiredPermission: 'products:read' } },
+    { path: 'products/new', component: () => import('@/pages/merchant/MerchantProductEditorPage.vue'), meta: { ...merchantMeta, title: '新增商品', requirementId: 'MCH-PRODUCT-NEW-01', requiredPermission: 'products:create' } },
+    { path: 'products/:productId', component: () => import('@/pages/merchant/MerchantProductEditorPage.vue'), meta: { ...merchantMeta, title: '编辑商品', requirementId: 'MCH-PRODUCT-EDIT-01', requiredPermission: 'products:read' } },
     { path: 'inventory', component: () => import('@/pages/admin/AdminInventoryPage.vue'), props: { portal: 'merchant' }, meta: { ...merchantMeta, title: '库存管理', requirementId: 'MCH-INVENTORY-01', requiredPermission: 'inventories:read' } },
     { path: 'support', component: () => import('@/pages/merchant/MerchantSupportListPage.vue'), meta: { ...merchantMeta, title: '客户咨询', requirementId: 'MCH-SUPPORT-LIST-01', requiredPermission: 'support:queue_read' } },
     { path: 'support/:ticketId', component: () => import('@/pages/admin/AdminSupportWorkspacePage.vue'), props: { portal: 'merchant' }, meta: { ...merchantMeta, title: '客服会话', requirementId: 'MCH-SUPPORT-01', requiredPermission: 'support:queue_read' } },
@@ -138,7 +139,7 @@ const router = createRouter({
   },
 })
 router.beforeEach(async (to) => {
-  if (to.path === '/merchant') return { path: '/merchant/dashboard' }
+  if (to.path === '/merchant' || to.path === '/merchant/') return { path: '/merchant/products' }
   if (!to.meta.requiresAuth) return true
   if (to.meta.audience === 'user') {
     const auth = useUserAuthStore()

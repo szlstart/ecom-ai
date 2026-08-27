@@ -111,6 +111,7 @@ class AdminCatalogRepository:
         scopes: tuple[tuple[str, int], ...],
         *,
         store_no: str | None,
+        product_no: str | None,
         q: str | None,
         limit: int,
     ) -> list[tuple[Inventory, ProductSku, Product, Store]]:
@@ -127,6 +128,8 @@ class AdminCatalogRepository:
             statement = statement.where(Store.id.in_(store_ids))
         if store_no:
             statement = statement.where(Store.store_no == store_no)
+        if product_no:
+            statement = statement.where(Product.product_no == product_no)
         if q:
             term = f"%{_escape_like(q)}%"
             statement = statement.where(

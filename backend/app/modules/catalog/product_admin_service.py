@@ -101,8 +101,9 @@ class ProductAdminService:
             limit=limit,
         )
         visible = rows[:limit]
+        card_stats = await self.repository.product_card_stats([row[0].id for row in visible])
         return AdminProductList(
-            items=[_summary(row) for row in visible],
+            items=[_summary(row, card_stats.get(row[0].id)) for row in visible],
             next_cursor=(
                 self.cursor.encode(filter_key=filter_key, values=(visible[-1][0].product_no,))
                 if len(rows) > limit and visible
@@ -766,6 +767,7 @@ class ProductAdminService:
             status=faq.faq_status,
             sort_order=faq.sort_order,
             current_version_id=current.faq_version_no if current else None,
+            current_answer_text=current.safe_text if current else None,
             published_version_id=published.faq_version_no if published else None,
             published_at=faq.published_at,
             version=faq.version,
@@ -1113,8 +1115,11 @@ class ProductAdminService:
         )
 
 
-def _summary(row: ProductRow) -> AdminProductSummary:
+def _summary(
+    row: ProductRow, card_stats: tuple[str | None, int, int] | None = None
+) -> AdminProductSummary:
     product, store, category, brand = row
+    cover_image_url, sku_count, available_quantity = card_stats or (None, 0, 0)
     return AdminProductSummary(
         product_id=product.product_no,
         store_id=store.store_no,
@@ -1129,6 +1134,10 @@ def _summary(row: ProductRow) -> AdminProductSummary:
         min_price=_money(product.min_price_amount),
         max_price=_money(product.max_price_amount),
         currency=product.currency,
+        cover_image_url=cover_image_url,
+        sku_count=sku_count,
+        available_quantity=available_quantity,
+        sales_count=product.sales_count,
         updated_at=product.updated_at,
         version=product.version,
     )

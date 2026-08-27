@@ -1922,6 +1922,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/merchant/support/exclusive-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Merchant Exclusive */
+        put: operations["MerchantExclusiveConversation_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/support/exclusive-conversation/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Merchant Exclusive Messages */
+        get: operations["MerchantExclusiveMessage_ListMine"];
+        put?: never;
+        /** Send Merchant Exclusive Message */
+        post: operations["MerchantExclusiveMessage_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/support/exclusive-conversation/human-service-tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Merchant Human Service */
+        post: operations["MerchantHumanServiceRequest_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support/human-service-tickets": {
         parameters: {
             query?: never;
@@ -5330,6 +5382,8 @@ export interface components {
             sort_order: number;
             /** Current Version Id */
             current_version_id: string | null;
+            /** Current Answer Text */
+            current_answer_text?: string | null;
             /** Published Version Id */
             published_version_id: string | null;
             /** Published At */
@@ -5670,6 +5724,23 @@ export interface components {
             max_price: string;
             /** Currency */
             currency: string;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            /**
+             * Sku Count
+             * @default 0
+             */
+            sku_count: number;
+            /**
+             * Available Quantity
+             * @default 0
+             */
+            available_quantity: number;
+            /**
+             * Sales Count
+             * @default 0
+             */
+            sales_count: number;
             /**
              * Updated At
              * Format: date-time
@@ -5815,6 +5886,23 @@ export interface components {
             max_price: string;
             /** Currency */
             currency: string;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            /**
+             * Sku Count
+             * @default 0
+             */
+            sku_count: number;
+            /**
+             * Available Quantity
+             * @default 0
+             */
+            available_quantity: number;
+            /**
+             * Sales Count
+             * @default 0
+             */
+            sales_count: number;
             /**
              * Updated At
              * Format: date-time
@@ -16225,6 +16313,144 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    MerchantExclusiveConversation_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantExclusiveMessage_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantExclusiveMessage_CreateMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantHumanServiceRequest_CreateMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HumanHandoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     SupportTicket_List: {
         parameters: {
             query?: {
@@ -20203,6 +20429,7 @@ export interface operations {
         parameters: {
             query?: {
                 store_id?: string | null;
+                product_id?: string | null;
                 q?: string | null;
                 limit?: number;
             };

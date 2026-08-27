@@ -10,14 +10,23 @@ import MerchantProductEditorPage from './MerchantProductEditorPage.vue'
 
 const mocks = vi.hoisted(() => ({
   adminGet: vi.fn(),
+  adminCommand: vi.fn(),
+  adminCreate: vi.fn(),
+  adminReplace: vi.fn(),
+  adminUpdate: vi.fn(),
   getCategories: vi.fn(),
   listAdminReviews: vi.fn(),
   pastedFile: null as File | null,
+  persistedImages: [] as Array<Record<string, unknown>>,
 }))
 
 vi.mock('@/api/admin-catalog', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/api/admin-catalog')>(),
   adminGet: mocks.adminGet,
+  adminCommand: mocks.adminCommand,
+  adminCreate: mocks.adminCreate,
+  adminReplace: mocks.adminReplace,
+  adminUpdate: mocks.adminUpdate,
 }))
 vi.mock('@/api/catalog', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/api/catalog')>(),
@@ -46,6 +55,11 @@ const store = {
 const sku = {
   sku_id: 'sku_test', product_id: 'prd_test', merchant_sku_code: null, sku_name: '黑色款', spec_values: [{ name: '颜色', value: '黑色' }],
   sale_price: '10.00', market_price: '10.00', currency: 'CNY', weight_grams: null, barcode: null, status: 'active', version: 1,
+}
+
+const inventory = {
+  sku_id: 'sku_test', sku_name: '黑色款', product_id: 'prd_test', product_name: '剪贴板测试商品', store_id: 'sto_test', store_name: '测试店铺',
+  on_hand_quantity: 8, reserved_quantity: 1, safety_stock_quantity: 0, available_quantity: 7, sold_quantity: 0, status: 'active', last_reconciled_at: null, version: 1,
 }
 
 const FileUploadStub = defineComponent({
@@ -88,14 +102,29 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.pastedFile = null
+    mocks.persistedImages = []
+    mocks.adminCreate.mockImplementation(async (path: string) => {
+      if (path.endsWith('/shipping-templates')) return { data: { template_id: 'sht_default', version: 1 } }
+      return { data: {} }
+    })
+    mocks.adminCommand.mockResolvedValue({ data: { template_id: 'sht_default', status: 'effective', version: 2 } })
+    mocks.adminUpdate.mockResolvedValue({ data: sku })
+    mocks.adminReplace.mockImplementation(async (path: string, payload: { items?: Array<Record<string, unknown>> }) => {
+      if (path.endsWith('/images')) {
+        mocks.persistedImages = (payload.items ?? []).map((item) => ({ ...item, image_url: `/api/v1/files/${item.file_id}`, width: 100, height: 100, status: 'active' }))
+        return { data: mocks.persistedImages }
+      }
+      return { data: {} }
+    })
     mocks.getCategories.mockResolvedValue({ data: [] })
     mocks.listAdminReviews.mockResolvedValue({ data: { items: [], next_cursor: null } })
     mocks.adminGet.mockImplementation(async (path: string) => {
       if (path === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
       if (path === '/admin/products/prd_test') return { data: product }
       if (path.endsWith('/skus')) return { data: [sku] }
-      if (path.endsWith('/images') || path.endsWith('/attributes') || path.endsWith('/faqs')) return { data: [] }
-      if (path.startsWith('/admin/inventories?')) return { data: { items: [] } }
+      if (path.endsWith('/images')) return { data: mocks.persistedImages }
+      if (path.endsWith('/attributes') || path.endsWith('/faqs')) return { data: [] }
+      if (path.startsWith('/admin/inventories?')) return { data: { items: [inventory] } }
       if (path.endsWith('/fulfillment-profile')) return { data: null }
       if (path.endsWith('/shipping-templates')) return { data: [] }
       throw new Error(`unexpected path: ${path}`)
@@ -111,9 +140,19 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     await flushPromises()
 
     expect(mocks.pastedFile?.name).toMatch(/^clipboard-\d+\.png$/)
-    expect(wrapper.text()).toContain('剪贴板图片已上传并通过安全扫描')
+    expect(wrapper.text()).toContain('图片已上传并自动保存，刷新页面也不会丢失')
+    expect(mocks.adminReplace).toHaveBeenCalledWith(
+      '/admin/products/prd_test/images',
+      expect.objectContaining({ items: [expect.objectContaining({ file_id: 'fil_clipboard', image_type: 'main', sku_id: null })] }),
+      'merchant-token',
+      1,
+    )
     expect(wrapper.text()).toContain('从本地选择图片')
     expect(wrapper.find('.merchant-product-editor').exists()).toBe(true)
+
+    wrapper.unmount()
+    const refreshed = await mountPage()
+    expect(refreshed.find('.merchant-main-image img').exists()).toBe(true)
   })
 
   it('shows a local explanation and keeps the editor visible when no image was copied', async () => {
@@ -125,5 +164,80 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
 
     expect(wrapper.text()).toContain('剪贴板中没有图片')
     expect(wrapper.find('.merchant-product-info-editor').exists()).toBe(true)
+  })
+
+  it('shows only the direct style fields and keeps stock beside its style', async () => {
+    const wrapper = await mountPage()
+
+    expect(wrapper.text()).not.toContain('一句话卖点')
+    expect(wrapper.text()).not.toContain('商品简介')
+    expect(wrapper.text()).not.toContain('划线价')
+    expect(wrapper.text()).not.toContain('选填信息')
+    expect(wrapper.text()).not.toContain('运费模板')
+    expect(wrapper.text()).toContain('库存 8 · 可售 7')
+    expect(wrapper.text()).toContain('发货地')
+
+    await wrapper.get('.merchant-style-picker button[type="button"]').trigger('click')
+    expect(wrapper.get('.merchant-simple-sku-fields').text()).toContain('款式名称')
+    expect(wrapper.get('.merchant-simple-sku-fields').text()).toContain('价格（元）')
+    expect(wrapper.get('.merchant-simple-sku-fields').text()).toContain('库存')
+    expect(wrapper.find('.merchant-inline-stock').exists()).toBe(false)
+    expect(wrapper.find('.merchant-spec-editor').exists()).toBe(false)
+  })
+
+  it('saves style name, price and stock from the same form', async () => {
+    const wrapper = await mountPage()
+    await wrapper.get('.merchant-style-picker > div > button').trigger('click')
+    await wrapper.get('.merchant-simple-sku-fields input[placeholder]').setValue('曜石黑')
+    const numberInputs = wrapper.findAll<HTMLInputElement>('.merchant-simple-sku-fields input[type="number"]')
+    await numberInputs[0]!.setValue('12.50')
+    await numberInputs[1]!.setValue('10')
+    await wrapper.get('.merchant-inline-sku-form').trigger('submit')
+    await flushPromises()
+
+    expect(mocks.adminUpdate).toHaveBeenCalledWith(
+      '/admin/products/prd_test/skus/sku_test',
+      expect.objectContaining({
+        sku_name: '曜石黑',
+        spec_values: [{ name: '款式', value: '曜石黑' }],
+        sale_price_amount: 1250,
+        market_price_amount: 1250,
+      }),
+      'merchant-token',
+      1,
+    )
+    expect(mocks.adminCreate).toHaveBeenCalledWith(
+      '/admin/inventory-adjustments',
+      expect.objectContaining({ sku_id: 'sku_test', on_hand_delta: 2, expected_version: 1 }),
+      'merchant-token',
+      'merchant-stock-adjust',
+    )
+  })
+
+  it('creates the hidden default delivery configuration when only a shipping origin is entered', async () => {
+    const wrapper = await mountPage()
+    await wrapper.get('.merchant-origin-field select').setValue('110000')
+    await wrapper.findAll('.merchant-detail-editors > form')[1]!.trigger('submit')
+    await flushPromises()
+
+    expect(mocks.adminCreate).toHaveBeenCalledWith(
+      '/admin/stores/sto_test/shipping-templates',
+      expect.objectContaining({ template_name: '系统默认配送', charge_mode: 'fixed' }),
+      'merchant-token',
+      'merchant-default-shipping-create',
+    )
+    expect(mocks.adminCommand).toHaveBeenCalledWith(
+      '/admin/stores/sto_test/shipping-templates/sht_default/publications',
+      expect.any(Object),
+      'merchant-token',
+      1,
+      'merchant-default-shipping-publish',
+    )
+    expect(mocks.adminReplace).toHaveBeenCalledWith(
+      '/admin/products/prd_test/fulfillment-profile',
+      expect.objectContaining({ shipping_template_id: 'sht_default', origin_region_code: '110000' }),
+      'merchant-token',
+      1,
+    )
   })
 })

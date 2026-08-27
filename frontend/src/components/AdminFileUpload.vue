@@ -26,7 +26,7 @@ interface UploadSession {
 }
 
 const props = defineProps<{ purpose: string; businessContextId?: string | null; label?: string }>()
-const emit = defineEmits<{ uploaded: [fileId: string] }>()
+const emit = defineEmits<{ uploaded: [fileId: string]; busyChanged: [busy: boolean] }>()
 const auth = useAdminAuthStore()
 const policy = ref<UploadPolicy | null>(null)
 const selected = ref<File | null>(null)
@@ -51,7 +51,7 @@ async function loadPolicy() {
 
 async function upload(throwOnError = false) {
   if (!selected.value || !auth.accessToken) return
-  busy.value = true; error.value = ''; status.value = '正在计算文件校验值…'
+  busy.value = true; emit('busyChanged', true); error.value = ''; status.value = '正在计算文件校验值…'
   try {
     const sha256 = await digest(selected.value)
     if (!policy.value) policy.value = (await apiRequest<UploadPolicy>(`/file-upload-policies/${encodeURIComponent(props.purpose)}`)).data
@@ -80,7 +80,7 @@ async function upload(throwOnError = false) {
     error.value = cause instanceof Error && !(cause instanceof TypeError) ? cause.message : errorMessage(cause)
     if (throwOnError) throw new Error(error.value)
   }
-  finally { busy.value = false }
+  finally { busy.value = false; emit('busyChanged', false) }
 }
 
 async function uploadFile(file: File) {

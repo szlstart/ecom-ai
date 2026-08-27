@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import areaData from 'china-area-data'
 
 import {
   adminCommand,
@@ -28,8 +29,8 @@ import { useAdminAuthStore } from '@/stores/admin-auth'
 import { imageFileFromClipboard } from '@/utils/clipboard-image'
 
 interface Fulfillment { shipping_template_id: string; origin_region_code: string; dispatch_min_hours: number; dispatch_max_hours: number; purchase_notice: string | null; profile_version: number; version: number }
-interface SpecRow { name: string; value: string }
 interface FileUploadHandle { uploadFile: (file: File) => Promise<void> }
+interface RegionOption { code: string; name: string }
 
 const route = useRoute(); const router = useRouter(); const auth = useAdminAuthStore()
 const isNew = computed(() => route.path.endsWith('/new'))
@@ -47,26 +48,34 @@ const shippingTemplates = ref<AdminShippingTemplate[]>([])
 const loading = ref(true); const saving = ref(false); const error = ref(''); const notice = ref('')
 const selectedImage = ref(0); const selectedSkuId = ref(''); const skuEditing = ref<AdminSku | null>(null)
 const showSkuEditor = ref(false)
-const newStock = ref<number | null>(null)
 const skuNameInput = ref<HTMLInputElement | null>(null)
 const mainImageArea = ref<HTMLElement | null>(null)
 const imageUpload = ref<FileUploadHandle | null>(null)
 const pasteFocused = ref(false)
 const pasteBusy = ref(false)
+const uploadBusy = ref(false)
+const imageSaving = ref(false)
+const imageSaveFailed = ref(false)
 const pasteError = ref('')
 const pasteNotice = ref('')
+let imageSavePromise: Promise<void> | null = null
 const replyDrafts = reactive<Record<string, string>>({})
 const replyingReviewId = ref('')
-const basic = reactive({ store_id: '', category_id: '', brand_id: '', product_name: '', subtitle: '', description: '' })
-const skuForm = reactive({ code: '', name: '', sale_price: '', market_price: '', weight_grams: '', barcode: '' })
-const specs = ref<SpecRow[]>([{ name: '款式', value: '标准款' }])
+const basic = reactive({ store_id: '', category_id: '', brand_id: '', product_name: '' })
+const skuForm = reactive({ name: '', sale_price: '', stock: 0 })
 const content = ref('')
 const faqForm = reactive({ question: '', answer: '' })
 const faqEditing = ref<AdminProductFaq | null>(null)
-const fulfillment = reactive({ shipping_template_id: '', origin_region_code: 'CN', dispatch_min_hours: 24, dispatch_max_hours: 48, purchase_notice: '' })
+const fulfillment = reactive({ shipping_template_id: '', origin_region_code: '', dispatch_min_hours: 24, dispatch_max_hours: 48, purchase_notice: '' })
+const originProvinceCode = ref('')
+const originCityCode = ref('')
+const excludedProvinceCodes = new Set(['810000', '820000'])
+const originProvinces = Object.entries(areaData['86'] ?? {})
+  .filter(([code]) => !excludedProvinceCodes.has(code))
+  .map(([code, name]) => ({ code, name }))
+const originCities = computed<RegionOption[]>(() => Object.entries(areaData[originProvinceCode.value] ?? {}).map(([code, name]) => ({ code, name })))
 const flatCategories = computed(() => flatten(categories.value))
 const activeSku = computed(() => skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? skus.value[0] ?? null)
-const activeInventory = computed(() => inventories.value.find((item) => item.sku_id === activeSku.value?.sku_id) ?? null)
 const activeImages = computed(() => {
   const skuId = activeSku.value?.sku_id
   const matching = images.value.filter((item) => item.sku_id === skuId)
@@ -74,6 +83,7 @@ const activeImages = computed(() => {
 })
 const displayImage = computed(() => activeImages.value[selectedImage.value] ?? activeImages.value[0] ?? null)
 const canEdit = computed(() => !product.value || ['draft', 'rejected', 'off_shelf', 'on_sale'].includes(product.value.status))
+const editorBusy = computed(() => saving.value || pasteBusy.value || uploadBusy.value || imageSaving.value)
 
 function token() { return requireAdminToken(auth.accessToken) }
 function path(suffix = '') { return `/admin/products/${encodeURIComponent(productId.value)}${suffix}` }
@@ -81,6 +91,15 @@ function flatten(nodes: Category[]): Category[] { return nodes.flatMap((item) =>
 function minor(value: string) { return Math.round(Number(value || 0) * 100) }
 function statusLabel(value?: string) { return ({ draft: '草稿', pending_review: '审核中', approved: '审核通过，待上架', rejected: '审核退回', on_sale: '销售中', off_shelf: '已下架' } as Record<string, string>)[value || ''] ?? value }
 function inventoryFor(skuId: string) { return inventories.value.find((item) => item.sku_id === skuId) }
+function selectOriginProvince() { originCityCode.value = ''; fulfillment.origin_region_code = originProvinceCode.value }
+function selectOriginCity() { fulfillment.origin_region_code = originCityCode.value || originProvinceCode.value }
+function restoreOriginSelection(regionCode: string) {
+  const code = regionCode.replace(/^CN[_-]/, '')
+  if (!/^\d{6}$/.test(code)) { originProvinceCode.value = ''; originCityCode.value = ''; return }
+  const provinceCode = `${code.slice(0, 2)}0000`
+  originProvinceCode.value = originProvinces.some((item) => item.code === provinceCode) ? provinceCode : ''
+  originCityCode.value = originCities.value.some((item) => item.code === code) ? code : ''
+}
 
 async function loadReferences() {
   const [categoryResult, storeResult] = await Promise.all([
@@ -112,14 +131,16 @@ async function load() {
       listAdminReviews(token(), 'published', productId.value),
     ])
     product.value = detailResult.data; skus.value = skuResult.data; images.value = imageResult.data; attributes.value = attributeResult.data; faqs.value = faqResult.data; inventories.value = inventoryResult.data.items; reviews.value = reviewResult.data.items
-    Object.assign(basic, { store_id: product.value.store_id, category_id: product.value.category_id, brand_id: product.value.brand_id ?? '', product_name: product.value.product_name, subtitle: product.value.subtitle ?? '', description: product.value.description ?? '' })
+    Object.assign(basic, { store_id: product.value.store_id, category_id: product.value.category_id, brand_id: product.value.brand_id ?? '', product_name: product.value.product_name })
     const firstSku = skus.value[0]
     if (firstSku && !skus.value.some((item) => item.sku_id === selectedSkuId.value)) selectedSkuId.value = firstSku.sku_id
     if (detailResult.data.current_detail_content_version_id) {
       content.value = (await adminGet<AdminContentVersion>(path(`/detail-content-versions/${encodeURIComponent(detailResult.data.current_detail_content_version_id)}`), token())).data.source_content
     }
-    if (fulfillmentResult.data) Object.assign(fulfillment, { ...fulfillmentResult.data, purchase_notice: fulfillmentResult.data.purchase_notice ?? '' })
     if (store.value) shippingTemplates.value = (await adminGet<AdminShippingTemplate[]>(`/admin/stores/${encodeURIComponent(store.value.store_id)}/shipping-templates`, token())).data
+    if (fulfillmentResult.data) Object.assign(fulfillment, { ...fulfillmentResult.data, purchase_notice: fulfillmentResult.data.purchase_notice ?? '' })
+    if (!fulfillment.shipping_template_id) fulfillment.shipping_template_id = shippingTemplates.value.find((item) => item.status === 'effective')?.template_id ?? ''
+    restoreOriginSelection(fulfillment.origin_region_code)
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
 }
@@ -136,45 +157,69 @@ async function saveBasic() {
   if (isNew.value) {
     saving.value = true; error.value = ''
     try {
-      const created = (await adminCreate<AdminProduct>('/admin/products', { store_id: basic.store_id, category_id: basic.category_id, brand_id: basic.brand_id || null, product_name: basic.product_name, subtitle: basic.subtitle || null, description: basic.description || null }, token(), 'merchant-product-create')).data
+      const created = (await adminCreate<AdminProduct>('/admin/products', { store_id: basic.store_id, category_id: basic.category_id, brand_id: basic.brand_id || null, product_name: basic.product_name, subtitle: null, description: null }, token(), 'merchant-product-create')).data
       await router.replace(`/merchant/products/${created.product_id}`)
     } catch (cause) { error.value = errorMessage(cause) }
     finally { saving.value = false }
     return
   }
-  await perform(() => adminUpdate(path(), { category_id: basic.category_id, brand_id: basic.brand_id || null, product_name: basic.product_name, subtitle: basic.subtitle || null, description: basic.description || null }, token(), product.value!.version), '商品信息已保存。')
+  await perform(() => adminUpdate(path(), { category_id: basic.category_id, brand_id: basic.brand_id || null, product_name: basic.product_name, subtitle: null, description: null }, token(), product.value!.version), '商品信息已保存。')
 }
 
-function resetSku() { skuEditing.value = null; Object.assign(skuForm, { code: '', name: '', sale_price: '', market_price: '', weight_grams: '', barcode: '' }); specs.value = [{ name: '款式', value: '标准款' }] }
+function resetSku() { skuEditing.value = null; Object.assign(skuForm, { name: '', sale_price: '', stock: 0 }) }
 function closeSkuEditor() { resetSku(); showSkuEditor.value = false }
-async function startNewSku() { resetSku(); showSkuEditor.value = true; await nextTick(); skuNameInput.value?.focus(); skuNameInput.value?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
-function editSku(item: AdminSku) { skuEditing.value = item; showSkuEditor.value = true; selectedSkuId.value = item.sku_id; Object.assign(skuForm, { code: item.merchant_sku_code ?? '', name: item.sku_name, sale_price: item.sale_price, market_price: item.market_price, weight_grams: item.weight_grams == null ? '' : String(item.weight_grams), barcode: item.barcode ?? '' }); specs.value = item.spec_values.map((spec) => ({ ...spec })); newStock.value = inventoryFor(item.sku_id)?.on_hand_quantity ?? 0 }
-function addSpec() { specs.value.push({ name: '', value: '' }) }
-function removeSpec(index: number) { if (specs.value.length > 1) specs.value.splice(index, 1) }
+async function startNewSku() { resetSku(); showSkuEditor.value = true; await nextTick(); skuNameInput.value?.focus(); skuNameInput.value?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }) }
+function editSku(item: AdminSku) { skuEditing.value = item; showSkuEditor.value = true; selectedSkuId.value = item.sku_id; Object.assign(skuForm, { name: item.sku_name, sale_price: item.sale_price, stock: inventoryFor(item.sku_id)?.on_hand_quantity ?? 0 }) }
 async function saveSku() {
-  const specValues = specs.value.map((item) => ({ name: item.name.trim(), value: item.value.trim() })).filter((item) => item.name && item.value)
-  if (!skuForm.name.trim() || !specValues.length) { error.value = '请填写款式名称，并至少保留一组完整的规格名称和规格值。'; return }
-  if (Number(skuForm.market_price) < Number(skuForm.sale_price)) { error.value = '市场价不能低于销售价。'; return }
-  const payload = { merchant_sku_code: skuForm.code || null, sku_name: skuForm.name, spec_values: specValues, sale_price_amount: minor(skuForm.sale_price), market_price_amount: minor(skuForm.market_price), weight_grams: skuForm.weight_grams === '' ? null : Number(skuForm.weight_grams), barcode: skuForm.barcode || null }
-  await perform(async () => {
-    if (skuEditing.value) await adminUpdate(path(`/skus/${encodeURIComponent(skuEditing.value.sku_id)}`), payload, token(), skuEditing.value.version)
-    else await adminCreate(path('/skus'), { ...payload, currency: 'CNY' }, token(), 'merchant-sku-create')
+  const styleName = skuForm.name.trim()
+  const stock = Number(skuForm.stock)
+  if (!styleName) { error.value = '请填写款式名称。'; return }
+  if (skuForm.sale_price === '' || Number(skuForm.sale_price) < 0) { error.value = '请填写不小于 0 元的价格。'; return }
+  if (!Number.isInteger(stock) || stock < 0) { error.value = '库存必须是大于或等于 0 的整数。'; return }
+  const priceAmount = minor(skuForm.sale_price)
+  const editing = skuEditing.value
+  const payload = { merchant_sku_code: editing?.merchant_sku_code ?? null, sku_name: styleName, spec_values: [{ name: '款式', value: styleName }], sale_price_amount: priceAmount, market_price_amount: priceAmount, weight_grams: editing?.weight_grams ?? null, barcode: editing?.barcode ?? null }
+  saving.value = true; error.value = ''; notice.value = ''
+  try {
+    let targetSku: AdminSku
+    let inventory: AdminInventory | undefined
+    if (editing) {
+      targetSku = (await adminUpdate<AdminSku>(path(`/skus/${encodeURIComponent(editing.sku_id)}`), payload, token(), editing.version)).data
+      inventory = inventoryFor(editing.sku_id)
+    } else {
+      targetSku = (await adminCreate<AdminSku>(path('/skus'), { ...payload, currency: 'CNY' }, token(), 'merchant-sku-create')).data
+      inventory = (await adminGet<{ items: AdminInventory[] }>(`/admin/inventories?product_id=${encodeURIComponent(productId.value)}&limit=100`, token())).data.items.find((item) => item.sku_id === targetSku.sku_id)
+    }
+    if (!inventory) throw new Error('款式已保存，但库存记录尚未准备好，请刷新后重新设置库存。')
+    const delta = stock - inventory.on_hand_quantity
+    if (delta) await adminCreate('/admin/inventory-adjustments', { sku_id: targetSku.sku_id, on_hand_delta: delta, reason_code: 'MERCHANT_DIRECT_EDIT', reason: '商家在商品款式中直接修改库存', reference_no: `merchant-ui-${Date.now()}`, expected_version: inventory.version }, token(), 'merchant-stock-adjust')
     closeSkuEditor()
-  }, skuEditing.value ? '款式已更新。' : '新款式已添加。')
+    await load()
+    notice.value = editing ? '款式、价格和库存已更新。' : '新款式、价格和库存已添加。'
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { saving.value = false }
 }
 
-async function saveStock() {
-  if (!activeInventory.value || newStock.value === null) return
-  const delta = newStock.value - activeInventory.value.on_hand_quantity
-  if (!delta) { notice.value = '库存数量没有变化。'; return }
-  await perform(() => adminCreate('/admin/inventory-adjustments', { sku_id: activeInventory.value!.sku_id, on_hand_delta: delta, reason_code: 'MERCHANT_DIRECT_EDIT', reason: '商家在商品详情模板中直接修改库存', reference_no: `merchant-ui-${Date.now()}`, expected_version: activeInventory.value!.version }, token(), 'merchant-stock-adjust'), '库存已更新。')
+function imagePayload() {
+  return { items: images.value.map((item, index) => ({ file_id: item.file_id, sku_id: item.sku_id || null, image_type: item.image_type, alt_text: item.alt_text || basic.product_name, sort_order: index })) }
 }
-
+async function persistImages(success: string) {
+  if (!product.value) throw new Error('商品信息尚未加载完成。')
+  const result = await adminReplace<AdminProductImage[]>(path('/images'), imagePayload(), token(), product.value.version)
+  images.value = result.data
+  product.value = (await adminGet<AdminProduct>(path(), token())).data
+  selectedImage.value = Math.max(0, Math.min(selectedImage.value, activeImages.value.length - 1))
+  pasteNotice.value = success
+}
 function addImage(fileId: string) {
-  const skuId = selectedSkuId.value || null
   const hasMainImage = images.value.some((item) => item.sku_id === null && item.image_type === 'main')
+  const skuId = hasMainImage ? (selectedSkuId.value || null) : null
   images.value.push({ file_id: fileId, sku_id: skuId, image_type: skuId ? 'spec' : (hasMainImage ? 'gallery' : 'main'), alt_text: basic.product_name, sort_order: images.value.length, image_url: `/api/v1/files/${fileId}`, width: 0, height: 0, status: 'active' })
   selectedImage.value = activeImages.value.length - 1
+  pasteError.value = ''; pasteNotice.value = '图片正在自动保存…'; imageSaving.value = true; imageSaveFailed.value = false
+  imageSavePromise = persistImages('图片已上传并自动保存，刷新页面也不会丢失。')
+    .catch((cause) => { imageSaveFailed.value = true; pasteError.value = `图片上传成功，但自动保存失败：${errorMessage(cause)}` })
+    .finally(() => { imageSavePromise = null; imageSaving.value = false })
 }
 async function pasteImage(event: ClipboardEvent) {
   if (!canEdit.value || pasteBusy.value) return
@@ -190,17 +235,24 @@ async function pasteImage(event: ClipboardEvent) {
     if (!imageUpload.value) throw new Error('图片上传组件尚未准备好，请稍后重试。')
     pasteBusy.value = true
     await imageUpload.value.uploadFile(file)
-    pasteNotice.value = '剪贴板图片已上传并通过安全扫描，请点击“保存图片”完成商品绑定。'
+    if (imageSavePromise) await imageSavePromise
   } catch (cause) {
     pasteError.value = cause instanceof Error ? cause.message : errorMessage(cause)
   } finally {
     pasteBusy.value = false
   }
 }
-function removeImage(index: number) { const item = activeImages.value[index]; if (!item) return; const actualIndex = images.value.indexOf(item); if (actualIndex >= 0) images.value.splice(actualIndex, 1) }
-async function saveImages() {
-  if (!images.value.length) { error.value = '请至少保留一张商品图片。'; return }
-  await perform(() => adminReplace(path('/images'), { items: images.value.map((item, index) => ({ file_id: item.file_id, sku_id: item.sku_id || null, image_type: item.image_type, alt_text: item.alt_text || basic.product_name, sort_order: index })) }, token(), product.value!.version), '商品图片已保存。')
+async function removeImage(index: number) {
+  const item = activeImages.value[index]
+  if (!item) return
+  if (images.value.length === 1) { pasteError.value = '商品至少需要保留一张主图，请先上传替换图片。'; return }
+  const actualIndex = images.value.indexOf(item)
+  if (actualIndex < 0) return
+  const removed = images.value.splice(actualIndex, 1)[0]
+  if (!removed) return
+  pasteError.value = ''; pasteNotice.value = '正在移除并自动保存…'
+  try { await persistImages('图片已移除并自动保存。') }
+  catch (cause) { images.value.splice(actualIndex, 0, removed); pasteError.value = `图片移除失败：${errorMessage(cause)}` }
 }
 
 function addAttribute() { attributes.value.push({ attribute_code: `property_${attributes.value.length + 1}`, attribute_name: '', value_text: '', value_normalized: null, unit: null, is_searchable: false, sort_order: attributes.value.length }) }
@@ -221,7 +273,33 @@ async function saveFaq() {
     resetFaq()
   }, faqEditing.value ? '常见问题已更新并发布。' : '常见问题已新增并发布。')
 }
-async function saveFulfillment() { if (!fulfillment.shipping_template_id) { error.value = '请先选择运费模板。'; return }; await perform(() => adminReplace(path('/fulfillment-profile'), { shipping_template_id: fulfillment.shipping_template_id, origin_region_code: fulfillment.origin_region_code, dispatch_min_hours: fulfillment.dispatch_min_hours, dispatch_max_hours: fulfillment.dispatch_max_hours, purchase_notice: fulfillment.purchase_notice || null }, token(), product.value!.version), '发货设置已保存。') }
+async function ensureEffectiveShippingTemplate(): Promise<string> {
+  const existing = shippingTemplates.value.find((item) => item.status === 'effective')
+  if (existing) return existing.template_id
+  if (!store.value) throw new Error('当前店铺信息尚未加载完成。')
+  const storePath = `/admin/stores/${encodeURIComponent(store.value.store_id)}/shipping-templates`
+  const created = (await adminCreate<AdminShippingTemplate>(storePath, {
+    template_family_id: null,
+    template_name: '系统默认配送',
+    delivery_type: 'express',
+    charge_mode: 'fixed',
+    currency: 'CNY',
+    dispatch_min_hours: fulfillment.dispatch_min_hours,
+    dispatch_max_hours: fulfillment.dispatch_max_hours,
+    rules: [{ region_scope: { include: [], exclude: [] }, first_unit: 1, additional_unit: 1, first_fee_amount: 0, additional_fee_amount: 0, estimated_min_days: 1, estimated_max_days: 7 }],
+  }, token(), 'merchant-default-shipping-create')).data
+  const published = (await adminCommand<AdminShippingTemplate>(`${storePath}/${encodeURIComponent(created.template_id)}/publications`, { reason: '商家首次保存商品发货设置，启用系统默认配送' }, token(), created.version, 'merchant-default-shipping-publish')).data
+  shippingTemplates.value.push(published)
+  return published.template_id
+}
+async function saveFulfillment() {
+  if (!originProvinceCode.value) { error.value = '请选择发货地。'; return }
+  fulfillment.origin_region_code = originCityCode.value || originProvinceCode.value
+  await perform(async () => {
+    fulfillment.shipping_template_id = await ensureEffectiveShippingTemplate()
+    await adminReplace(path('/fulfillment-profile'), { shipping_template_id: fulfillment.shipping_template_id, origin_region_code: fulfillment.origin_region_code, dispatch_min_hours: fulfillment.dispatch_min_hours, dispatch_max_hours: fulfillment.dispatch_max_hours, purchase_notice: fulfillment.purchase_notice || null }, token(), product.value!.version)
+  }, '发货设置已保存。')
+}
 async function replyReview(item: AdminReview) {
   const text = replyDrafts[item.review_id]?.trim() ?? ''
   if (text.length < 2) { error.value = '评价回复至少需要填写 2 个字符。'; return }
@@ -234,7 +312,9 @@ async function finishEditing(label: string) {
   if (!product.value || !basic.product_name.trim()) { error.value = '请填写商品名称。'; return }
   saving.value = true; error.value = ''; notice.value = ''
   try {
-    await adminUpdate(path(), { product_name: basic.product_name, subtitle: basic.subtitle || null, description: basic.description || null }, token(), product.value.version)
+    if (imageSavePromise) await imageSavePromise
+    if (imageSaveFailed.value) throw new Error('商品图片尚未保存成功，请根据图片区提示处理后再完成编辑。')
+    await adminUpdate(path(), { product_name: basic.product_name, subtitle: null, description: null }, token(), product.value.version)
     notice.value = label
     await router.push('/merchant/products')
   } catch (cause) { error.value = errorMessage(cause) }
@@ -247,7 +327,7 @@ async function productCommand(action: 'submit_review' | 'publish' | 'off_shelf')
 }
 
 watch(() => route.params.productId, () => void load())
-watch(selectedSkuId, () => { selectedImage.value = 0; const inventory = activeInventory.value; newStock.value = inventory?.on_hand_quantity ?? null })
+watch(selectedSkuId, () => { selectedImage.value = 0 })
 onMounted(() => { resetSku(); void load() })
 </script>
 
@@ -259,22 +339,21 @@ onMounted(() => { resetSku(); void load() })
       <template v-if="product">
         <div class="merchant-live-editor">
           <section class="merchant-gallery-editor">
-            <div ref="mainImageArea" class="merchant-main-image merchant-paste-image-zone" :class="{ focused: pasteFocused, busy: pasteBusy }" :tabindex="canEdit ? 0 : -1" :role="canEdit ? 'button' : undefined" :aria-label="canEdit ? '商品大图粘贴上传区，点击后按 Command 加 V 或 Control 加 V 粘贴图片' : undefined" @click="mainImageArea?.focus()" @focus="pasteFocused = true" @blur="pasteFocused = false" @paste="pasteImage"><img v-if="displayImage" :src="resolveApiAssetUrl(displayImage.image_url) || undefined" :alt="displayImage.alt_text || basic.product_name" /><div v-else><b>上传这件商品的第一张图片</b><p>选择款式后上传，图片会自动关联到该款式。</p></div><span v-if="canEdit" class="merchant-paste-image-hint" aria-live="polite">{{ pasteBusy ? '正在读取、扫描并上传剪贴板图片…' : '点击大图后，按 Command + V（macOS）或 Ctrl + V（Windows）粘贴图片' }}</span></div>
+            <div ref="mainImageArea" class="merchant-main-image merchant-paste-image-zone" :class="{ focused: pasteFocused, busy: pasteBusy }" :tabindex="canEdit ? 0 : -1" :role="canEdit ? 'button' : undefined" :aria-label="canEdit ? '商品大图粘贴上传区，点击后按 Command 加 V 或 Control 加 V 粘贴图片' : undefined" @click="mainImageArea?.focus()" @focus="pasteFocused = true" @blur="pasteFocused = false" @paste="pasteImage"><img v-if="displayImage" :src="resolveApiAssetUrl(displayImage.image_url) || undefined" :alt="displayImage.alt_text || basic.product_name" /><div v-else><b>上传这件商品的第一张图片</b><p>第一张自动作为商品主图，后续图片可关联到具体款式。</p></div><span v-if="canEdit" class="merchant-paste-image-hint" aria-live="polite">{{ pasteBusy ? '正在读取、扫描并上传剪贴板图片…' : '点击大图后，按 Command + V（macOS）或 Ctrl + V（Windows）粘贴图片' }}</span></div>
             <p v-if="pasteNotice" class="success-text merchant-paste-feedback" role="status">{{ pasteNotice }}</p><p v-if="pasteError" class="error-text merchant-paste-feedback" role="alert">{{ pasteError }}</p>
             <div v-if="activeImages.length" class="merchant-thumbnails"><button v-for="(item, index) in activeImages" :key="`${item.file_id}-${index}`" type="button" :class="{ active: selectedImage === index }" @click="selectedImage = index"><img :src="resolveApiAssetUrl(item.image_url) || undefined" alt="" /></button></div>
-            <div v-if="canEdit" class="merchant-image-actions"><label>图片属于<select v-model="selectedSkuId"><option value="">全部款式</option><option v-for="sku in skus" :key="sku.sku_id" :value="sku.sku_id">{{ sku.sku_name }}</option></select></label><AdminFileUpload ref="imageUpload" purpose="product" :business-context-id="product.store_id" label="从本地选择图片" @uploaded="addImage" /><div class="actions"><button type="button" :disabled="!images.length || saving || pasteBusy" @click="saveImages">保存图片</button><button v-if="displayImage" type="button" class="danger small" :disabled="pasteBusy" @click="removeImage(selectedImage)">移除当前图片</button></div></div>
+            <div v-if="canEdit" class="merchant-image-actions"><label>图片属于<select v-model="selectedSkuId"><option value="">全部款式</option><option v-for="sku in skus" :key="sku.sku_id" :value="sku.sku_id">{{ sku.sku_name }}</option></select></label><AdminFileUpload ref="imageUpload" purpose="product" :business-context-id="product.store_id" label="从本地选择图片" @uploaded="addImage" @busy-changed="uploadBusy = $event" /><small>上传或粘贴成功后会自动保存，无需再次确认。</small><div class="actions"><button v-if="displayImage" type="button" class="danger small" :disabled="editorBusy" @click="removeImage(selectedImage)">移除当前图片</button></div></div>
           </section>
 
-          <section class="merchant-product-info-editor"><p class="eyebrow">顾客看到的商品信息 · 可直接编辑</p><label class="merchant-title-input">商品名称<input v-model.trim="basic.product_name" required maxlength="255" :disabled="!canEdit" /></label><label>一句话卖点<input v-model.trim="basic.subtitle" maxlength="500" :disabled="!canEdit" /></label><label>商品简介<textarea v-model.trim="basic.description" rows="3" maxlength="2000" :disabled="!canEdit" /></label><button v-if="canEdit" type="button" :disabled="saving" @click="saveBasic">完成商品信息</button>
-            <div class="merchant-style-picker"><header><div><span>款式与价格</span><small>选择已有款式直接改，或在最后新增一款</small></div><button v-if="canEdit" type="button" class="secondary small" @click="startNewSku">＋ 新增款式</button></header><div><button v-for="sku in skus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id; editSku(sku)"><strong>{{ sku.sku_name }}</strong><small>{{ sku.spec_values.map((spec) => spec.value).join(' · ') }}</small><b>¥{{ sku.sale_price }}</b></button></div><p v-if="!skus.length">还没有款式，点击“新增款式”后直接在这里填写。</p></div>
-            <form v-if="canEdit && showSkuEditor" class="merchant-inline-sku-form" @submit.prevent="saveSku"><header><strong>{{ skuEditing ? `正在编辑：${skuEditing.sku_name}` : '新增一个款式' }}</strong><button type="button" class="secondary small" @click="closeSkuEditor">取消</button></header><label>款式名称<input ref="skuNameInput" v-model.trim="skuForm.name" required placeholder="例如：曜石黑 / 42 码" /></label><div class="field-grid"><label>销售价（元）<input v-model="skuForm.sale_price" type="number" min="0" step="0.01" required /></label><label>划线价（元）<input v-model="skuForm.market_price" type="number" min="0" step="0.01" required /></label></div><div class="merchant-spec-editor"><div v-for="(spec, index) in specs" :key="index"><input v-model.trim="spec.name" placeholder="规格名，如颜色" maxlength="64" /><input v-model.trim="spec.value" placeholder="规格值，如曜石黑" maxlength="128" /><button type="button" class="secondary small" @click="removeSpec(index)">移除</button></div><button type="button" class="secondary small" @click="addSpec">＋ 增加规格</button></div><details><summary>选填信息</summary><div class="field-grid"><label>店内编码<input v-model.trim="skuForm.code" maxlength="64" /></label><label>重量（克）<input v-model="skuForm.weight_grams" type="number" min="0" /></label><label>条形码<input v-model.trim="skuForm.barcode" maxlength="64" /></label></div></details><button :disabled="saving">完成</button></form>
-            <section class="merchant-inline-stock"><header><div><strong>库存</strong><small>顾客购买后可售数量会自动减少</small></div></header><div class="merchant-stock-grid"><button v-for="sku in skus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id"><span>{{ sku.sku_name }}</span><strong>{{ inventoryFor(sku.sku_id)?.available_quantity ?? 0 }}</strong><small>可售 / 账面 {{ inventoryFor(sku.sku_id)?.on_hand_quantity ?? 0 }}</small></button></div><form v-if="activeInventory && canEdit" class="merchant-direct-stock" @submit.prevent="saveStock"><label>把「{{ activeSku?.sku_name }}」账面库存改为<input v-model.number="newStock" type="number" min="0" step="1" /></label><button :disabled="saving || newStock === null">完成</button><small>其中 {{ activeInventory.reserved_quantity }} 件已被订单预占，不会被覆盖。</small></form></section>
+          <section class="merchant-product-info-editor"><p class="eyebrow">顾客看到的商品信息 · 可直接编辑</p><label class="merchant-title-input">商品名称<input v-model.trim="basic.product_name" required maxlength="255" :disabled="!canEdit" /></label><button v-if="canEdit" type="button" :disabled="editorBusy" @click="saveBasic">完成商品信息</button>
+            <div class="merchant-style-picker"><header><div><span>款式与价格</span><small>每个款式直接设置名称、价格和库存；顾客购买后库存会自动减少</small></div><button v-if="canEdit" type="button" class="secondary small" @click="startNewSku">＋ 新增款式</button></header><div><button v-for="sku in skus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" @click="selectedSkuId = sku.sku_id; editSku(sku)"><strong>{{ sku.sku_name }}</strong><b>¥{{ sku.sale_price }}</b><small>库存 {{ inventoryFor(sku.sku_id)?.on_hand_quantity ?? 0 }} · 可售 {{ inventoryFor(sku.sku_id)?.available_quantity ?? 0 }}</small></button></div><p v-if="!skus.length">还没有款式，点击“新增款式”后直接填写名称、价格和库存。</p></div>
+            <form v-if="canEdit && showSkuEditor" class="merchant-inline-sku-form" @submit.prevent="saveSku"><header><strong>{{ skuEditing ? `正在编辑：${skuEditing.sku_name}` : '新增一个款式' }}</strong><button type="button" class="secondary small" @click="closeSkuEditor">取消</button></header><div class="merchant-simple-sku-fields"><label>款式名称<input ref="skuNameInput" v-model.trim="skuForm.name" required maxlength="255" placeholder="例如：曜石黑 / 42 码" /></label><label>价格（元）<input v-model="skuForm.sale_price" type="number" min="0" step="0.01" required /></label><label>库存<input v-model.number="skuForm.stock" type="number" min="0" step="1" required /></label></div><small v-if="skuEditing && (inventoryFor(skuEditing.sku_id)?.reserved_quantity ?? 0) > 0">其中 {{ inventoryFor(skuEditing.sku_id)?.reserved_quantity }} 件已被订单预占；修改账面库存不会取消已有订单。</small><button :disabled="editorBusy">完成</button></form>
           </section>
         </div>
 
         <section class="merchant-detail-editors">
           <form class="card" @submit.prevent="saveAttributes"><header><div><p class="eyebrow">商品参数</p><h2>顾客对比商品时会看这里</h2></div><button v-if="canEdit" type="button" class="secondary small" @click="addAttribute">＋ 新增参数</button></header><div class="merchant-attribute-rows"><div v-for="(item, index) in attributes" :key="index"><input v-model.trim="item.attribute_name" placeholder="参数名" :disabled="!canEdit" /><input v-model.trim="item.value_text" placeholder="参数值" :disabled="!canEdit" /><button v-if="canEdit" type="button" class="danger small" @click="attributes.splice(index, 1)">删除</button></div></div><button v-if="canEdit" :disabled="saving">保存商品参数</button></form>
-          <form class="card" @submit.prevent="saveFulfillment"><header><div><p class="eyebrow">发货与购买须知</p><h2>让顾客在下单前了解</h2></div></header><label>运费模板<select v-model="fulfillment.shipping_template_id" :disabled="!canEdit"><option value="">请选择</option><option v-for="item in shippingTemplates" :key="item.template_id" :value="item.template_id">{{ item.template_name }}</option></select></label><div class="field-grid"><label>最早发货（小时）<input v-model.number="fulfillment.dispatch_min_hours" type="number" min="0" :disabled="!canEdit" /></label><label>最晚发货（小时）<input v-model.number="fulfillment.dispatch_max_hours" type="number" min="0" :disabled="!canEdit" /></label></div><label>购买须知<textarea v-model.trim="fulfillment.purchase_notice" rows="4" maxlength="3000" :disabled="!canEdit" /></label><button v-if="canEdit" :disabled="saving">保存发货设置</button></form>
+          <form class="card" @submit.prevent="saveFulfillment"><header><div><p class="eyebrow">发货与购买须知</p><h2>让顾客在下单前了解</h2></div></header><fieldset class="merchant-origin-field"><legend>发货地</legend><div class="field-grid"><label>省份<select v-model="originProvinceCode" required :disabled="!canEdit" @change="selectOriginProvince"><option value="" disabled>请选择省份</option><option v-for="item in originProvinces" :key="item.code" :value="item.code">{{ item.name }}</option></select></label><label>城市<select v-model="originCityCode" :disabled="!canEdit || !originProvinceCode" @change="selectOriginCity"><option value="">全省</option><option v-for="item in originCities" :key="item.code" :value="item.code">{{ item.name }}</option></select></label></div></fieldset><div class="field-grid"><label>最早发货（小时）<input v-model.number="fulfillment.dispatch_min_hours" type="number" min="0" :disabled="!canEdit" /></label><label>最晚发货（小时）<input v-model.number="fulfillment.dispatch_max_hours" type="number" min="0" :disabled="!canEdit" /></label></div><label>购买须知<textarea v-model.trim="fulfillment.purchase_notice" rows="4" maxlength="3000" :disabled="!canEdit" /></label><button v-if="canEdit" :disabled="saving">保存发货设置</button></form>
         </section>
 
         <section class="merchant-content-editor card"><header><div><p class="eyebrow">商品详情</p><h2>像写商品介绍一样直接编辑</h2><p>可以写材质、功能、适用场景、保养方式等完整信息。</p></div></header><textarea v-model="content" rows="12" maxlength="100000" :disabled="!canEdit" placeholder="从这里开始介绍商品…" /><button v-if="canEdit" :disabled="saving" @click="saveContent">保存商品详情</button></section>
@@ -283,7 +362,7 @@ onMounted(() => { resetSku(); void load() })
 
         <section class="merchant-product-reviews card"><header><div><p class="eyebrow">商品评价</p><h2>顾客在这件商品下看到的评价</h2><p>平均 {{ product.rating_score }} 分 · 共 {{ product.review_count }} 条</p></div></header><p v-if="!reviews.length" class="merchant-review-empty">这件商品暂时还没有顾客评价。</p><article v-for="item in reviews" :key="item.review_id"><header><span class="merchant-stars">{{ '★'.repeat(item.rating) }}{{ '☆'.repeat(5 - item.rating) }}</span><strong>{{ item.is_anonymous ? '匿名顾客' : item.user_name }}</strong><time>{{ new Date(item.submitted_at).toLocaleString('zh-CN') }}</time></header><p>{{ item.content || '顾客只留下了星级评分。' }}</p><small>购买款式：{{ item.sku_name }}</small><div v-if="item.merchant_reply" class="merchant-existing-reply"><strong>店铺回复</strong><p>{{ item.merchant_reply.content }}</p></div><form v-else @submit.prevent="replyReview(item)"><label>回复这条评价<textarea v-model="replyDrafts[item.review_id]" rows="3" minlength="2" maxlength="500" placeholder="感谢您的反馈……" /></label><div class="actions"><button type="button" class="secondary small" @click="replyDrafts[item.review_id] = '感谢您的支持与认可，我们会继续认真做好商品和服务。'">感谢好评</button><button :disabled="replyingReviewId === item.review_id || (replyDrafts[item.review_id]?.trim().length ?? 0) < 2">{{ replyingReviewId === item.review_id ? '正在回复…' : '发布回复' }}</button></div></form></article></section>
 
-        <footer class="merchant-publication-bar"><div><strong>{{ statusLabel(product.status) }}</strong><span v-if="product.completeness.missing_requirements.length">还可以继续补充：{{ product.completeness.missing_requirements.join('、') }}</span><span v-else>商品资料已完整</span></div><div class="actions"><button v-if="product.status === 'draft'" type="button" class="secondary" :disabled="saving" @click="finishEditing('商品已暂存为草稿。')">暂存为草稿</button><button v-if="canEdit" type="button" :disabled="saving" @click="finishEditing('商品编辑已完成。')">完成编辑</button><RouterLink v-if="product.status === 'on_sale'" :to="`/products/${product.product_id}`" target="_blank">查看顾客页面 ↗</RouterLink><button v-if="product.available_actions.includes('submit_review')" :disabled="saving" @click="productCommand('submit_review')">提交平台审核</button><button v-if="product.available_actions.includes('publish')" :disabled="saving" @click="productCommand('publish')">立即上架</button><button v-if="product.available_actions.includes('off_shelf')" class="danger" :disabled="saving" @click="productCommand('off_shelf')">下架商品</button></div></footer>
+        <footer class="merchant-publication-bar"><div><strong>{{ statusLabel(product.status) }}</strong><span v-if="product.completeness.missing_requirements.length">还可以继续补充：{{ product.completeness.missing_requirements.join('、') }}</span><span v-else>商品资料已完整</span></div><div class="actions"><button v-if="product.status === 'draft'" type="button" class="secondary" :disabled="editorBusy" @click="finishEditing('商品已暂存为草稿。')">暂存为草稿</button><button v-if="canEdit" type="button" :disabled="editorBusy" @click="finishEditing('商品编辑已完成。')">完成编辑</button><RouterLink v-if="product.status === 'on_sale'" :to="`/products/${product.product_id}`" target="_blank">查看顾客页面 ↗</RouterLink><button v-if="product.available_actions.includes('submit_review')" :disabled="editorBusy" @click="productCommand('submit_review')">提交平台审核</button><button v-if="product.available_actions.includes('publish')" :disabled="editorBusy" @click="productCommand('publish')">立即上架</button><button v-if="product.available_actions.includes('off_shelf')" class="danger" :disabled="editorBusy" @click="productCommand('off_shelf')">下架商品</button></div></footer>
       </template>
     </PageState>
   </section>

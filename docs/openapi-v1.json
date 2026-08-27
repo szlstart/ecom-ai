@@ -46888,6 +46888,10 @@
             "type": "string",
             "title": "Product Id"
           },
+          "product_available": {
+            "type": "boolean",
+            "title": "Product Available"
+          },
           "sku_id": {
             "type": "string",
             "title": "Sku Id"
@@ -46955,6 +46959,7 @@
         "required": [
           "order_item_id",
           "product_id",
+          "product_available",
           "sku_id",
           "product_name",
           "sku_name",

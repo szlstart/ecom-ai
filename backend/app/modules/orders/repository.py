@@ -356,6 +356,24 @@ class OrderRepository:
             result.setdefault(item.order_id, []).append(item)
         return result
 
+    async def product_availability(self, product_ids: set[int]) -> dict[int, bool]:
+        """Return current public availability for products referenced by order snapshots."""
+        if not product_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(
+                    Product.id,
+                    Product.product_status,
+                    Product.deleted_at,
+                ).where(Product.id.in_(product_ids))
+            )
+        ).all()
+        return {
+            product_id: product_status == "on_sale" and deleted_at is None
+            for product_id, product_status, deleted_at in rows
+        }
+
     async def order_items_for_update(self, order_id: int) -> list[OrderItem]:
         return list(
             (

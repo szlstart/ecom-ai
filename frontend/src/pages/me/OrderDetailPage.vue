@@ -8,6 +8,7 @@ import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import { cancelOrder, confirmOrderReceipt, getMyOrder, hideOrder, repurchaseOrder, restoreOrder, type OrderAction, type OrderDetail, type OrderHideResult } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
+import OrderProductEntry from '@/components/OrderProductEntry.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const route = useRoute()
@@ -115,12 +116,20 @@ onMounted(load)
           <main class="order-detail-main">
             <article class="card order-section">
               <header class="card-heading"><div><p class="eyebrow">商品清单</p><h2>{{ order.store.store_name }}</h2></div><RouterLink :to="`/stores/${order.store.store_id}`">进入店铺 →</RouterLink></header>
-              <RouterLink v-for="item in order.items" :key="item.order_item_id" class="order-detail-item" :to="`/products/${item.product_id}?sku_id=${item.sku_id}`">
+              <OrderProductEntry
+                v-for="item in order.items"
+                :key="item.order_item_id"
+                class="order-detail-item"
+                :product-id="item.product_id"
+                :sku-id="item.sku_id"
+                :product-name="item.product_name"
+                :product-available="item.product_available"
+              >
                 <img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) ?? ''" width="88" height="88" :alt="item.product_name" />
                 <div v-else class="order-image-placeholder">商品</div>
-                <span><strong>{{ item.product_name }}</strong><small>{{ item.sku_name }}</small><small>{{ item.spec_snapshot.map((spec) => `${spec.name}:${spec.value}`).join(' / ') }}</small></span>
+                <span><strong>{{ item.product_name }}</strong><small>{{ item.sku_name }}</small><small>{{ item.spec_snapshot.map((spec) => `${spec.name}:${spec.value}`).join(' / ') }}</small><small v-if="!item.product_available" class="order-product-unavailable-badge">已下架</small></span>
                 <span class="item-price">{{ formatMoney(item.unit_price) }}<small>× {{ item.quantity }}</small></span>
-              </RouterLink>
+              </OrderProductEntry>
             </article>
             <article class="card order-section">
               <p class="eyebrow">订单进度</p><h2>状态时间线</h2>

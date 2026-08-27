@@ -18,6 +18,7 @@ from app.modules.catalog.models import Category, Product, ProductSku, ProductSta
 from app.modules.files.models import FileObject
 from app.modules.identity.models import User
 from app.modules.orders.models import Order, OrderItem, TradeOrder
+from app.modules.orders.service import OrderService
 from app.modules.stores.models import ShippingTemplate, Store
 from app.modules.system.models import OutboxEvent
 
@@ -104,6 +105,7 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
         )
         session.add_all([template, image])
         await session.commit()
+
         store_no = store.store_no
         category_no = category.category_no
         template_no = template.template_no
@@ -341,9 +343,7 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
         traded_sku = await session.scalar(
             select(ProductSku).where(ProductSku.sku_no == sku.json()["data"]["sku_id"])
         )
-        buyer = await session.scalar(
-            select(User).where(User.user_no == provisioning.user_no)
-        )
+        buyer = await session.scalar(select(User).where(User.user_no == provisioning.user_no))
         assert traded_product is not None and traded_sku is not None and buyer is not None
         trade = TradeOrder(
             trade_no=new_prefixed_ulid("trd_"),
@@ -413,7 +413,26 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
                 after_sale_status="none",
             )
         )
+        historical_order_no = historical_order.order_no
         await session.commit()
+
+        available_orders, _ = await OrderService(session, get_settings(), security).list_mine(
+            buyer,
+            view="all",
+            query=None,
+            created_from=None,
+            created_to=None,
+            cursor=None,
+            limit=100,
+        )
+        available_item = next(
+            item
+            for candidate in available_orders.items
+            if candidate.order_id == historical_order_no
+            for item in candidate.items
+            if item.product_id == product_id
+        )
+        assert available_item.product_available is True
 
     traded_eligibility = await client.get(
         f"/api/v1/admin/products/{product_id}/deletion-eligibility", headers=auth
@@ -444,6 +463,27 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
     )
     assert off_shelf.status_code == 200, off_shelf.text
     assert off_shelf.json()["data"]["status"] == "off_shelf"
+
+    async for session in mysql_session():
+        buyer = await session.scalar(select(User).where(User.user_no == provisioning.user_no))
+        assert buyer is not None
+        unavailable_orders, _ = await OrderService(session, get_settings(), security).list_mine(
+            buyer,
+            view="all",
+            query=None,
+            created_from=None,
+            created_to=None,
+            cursor=None,
+            limit=100,
+        )
+        unavailable_item = next(
+            item
+            for candidate in unavailable_orders.items
+            if candidate.order_id == historical_order_no
+            for item in candidate.items
+            if item.product_id == product_id
+        )
+        assert unavailable_item.product_available is False
 
     off_shelf_eligibility = await client.get(
         f"/api/v1/admin/products/{product_id}/deletion-eligibility", headers=auth

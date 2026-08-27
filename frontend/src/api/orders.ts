@@ -17,6 +17,7 @@ export interface OrderAction {
 export interface OrderItem {
   order_item_id: string
   product_id: string
+  product_available: boolean
   sku_id: string
   product_name: string
   sku_name: string

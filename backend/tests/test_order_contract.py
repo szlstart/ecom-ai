@@ -61,6 +61,12 @@ def test_order_list_exposes_the_eight_normative_views() -> None:
     ]
 
 
+def test_order_item_projects_current_product_availability() -> None:
+    schema = create_app().openapi()["components"]["schemas"]["OrderItemView"]
+    assert "product_available" in schema["required"]
+    assert schema["properties"]["product_available"]["type"] == "boolean"
+
+
 def test_admin_order_operations_are_explicit_resources() -> None:
     paths = create_app().openapi()["paths"]
     expected = {

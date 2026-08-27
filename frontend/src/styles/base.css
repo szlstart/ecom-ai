@@ -314,7 +314,8 @@ tr.selected td { background: #f0f4ff; }
 .order-store-row { padding-block: 12px; border-top: 1px solid #edf0f5; border-bottom: 1px solid #edf0f5; }
 .mini-store-logo { width: 36px; height: 36px; display: grid !important; flex: 0 0 auto; place-items: center; color: #fff; border-radius: 9px; background: #3158d8; }
 .order-card-main { padding: 4px 20px; display: block; color: inherit; }
-.order-card-main:hover, .order-detail-item:hover { text-decoration: none; background: #fbfcff; }
+.order-product-entry { width: 100%; margin: 0; color: inherit; border: 0; border-radius: 0; background: transparent; font: inherit; text-align: left; }
+.order-product-entry:hover { text-decoration: none; background: #fbfcff; }
 .order-item-summary { padding: 14px 0; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; align-items: center; gap: 14px; border-bottom: 1px solid #edf0f5; }
 .order-item-summary img, .order-detail-item img { border-radius: 10px; object-fit: cover; background: #f0f2f6; }
 .order-image-placeholder { width: 72px; height: 72px; display: grid; place-items: center; color: #8a93a5; border-radius: 10px; background: #f0f2f6; }
@@ -332,6 +333,12 @@ tr.selected td { background: #f0f4ff; }
 .order-section h2, .order-section p { margin-block: 0; }
 .order-detail-item { padding: 14px 0; display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: 14px; color: inherit; border-top: 1px solid #edf0f5; }
 .order-detail-item .order-image-placeholder { width: 88px; height: 88px; }
+.order-product-unavailable-badge { width: max-content; padding: 3px 8px; color: #8d2634; border-radius: 999px; background: #fff1f3; font-weight: 750; }
+.order-product-unavailable-backdrop { position: fixed; z-index: 1100; inset: 0; padding: 24px; display: grid; place-items: center; background: rgb(10 15 28 / 62%); backdrop-filter: blur(3px); }
+.order-product-unavailable-dialog { width: min(440px, 94vw); padding: 30px; display: grid; justify-items: center; gap: 13px; border-radius: 18px; background: #fff; box-shadow: 0 28px 80px rgb(8 15 34 / 30%); text-align: center; }
+.order-product-unavailable-dialog > span { width: 54px; height: 54px; display: grid; place-items: center; color: #8d2634; border-radius: 50%; background: #fff1f3; font-size: 1.5rem; font-weight: 850; }
+.order-product-unavailable-dialog h2, .order-product-unavailable-dialog p { margin: 0; }
+.order-product-unavailable-dialog p { color: #687287; line-height: 1.7; }
 .item-price { text-align: right; font-weight: 700; }
 .amount-list { grid-template-columns: 1fr auto; }
 .amount-list .total { padding-top: 12px; color: #172033; border-top: 1px solid #e3e7ef; font-size: 1.08rem; font-weight: 800; }

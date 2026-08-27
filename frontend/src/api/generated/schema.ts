@@ -9565,6 +9565,8 @@ export interface components {
             order_item_id: string;
             /** Product Id */
             product_id: string;
+            /** Product Available */
+            product_available: boolean;
             /** Sku Id */
             sku_id: string;
             /** Product Name */

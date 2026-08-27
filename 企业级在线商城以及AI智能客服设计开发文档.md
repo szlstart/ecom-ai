@@ -1768,7 +1768,7 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 | 金额区 | 商品总件数、实付/应付金额、运费、退款金额（如有） |
 | 操作区 | 所有可用操作在卡片底部右对齐横向排列，主操作使用强调色 |
 
-点击订单卡片非按钮区域或订单号进入 `/me/orders/:orderId`。点击商品进入商品详情页；点击店铺 Logo/名称进入店铺页。按钮点击必须阻止卡片跳转事件冒泡。
+点击订单卡片非商品区域、[查看订单详情] 或订单号进入 `/me/orders/:orderId`。点击商品时必须先使用订单 DTO 的 `product_available` 判断当前公开可用性：值为 `true` 才进入 `/products/:productId?sku_id=:skuId`；值为 `false`（商品已下架、逻辑删除或已不存在）时不得离开当前订单页面，弹出“该商品已被下架”，同时说明历史订单信息仍会保留。前端不得仅凭订单快照或旧 URL 推断商品仍可购买。点击店铺 Logo/名称进入店铺页；按钮点击必须阻止卡片跳转事件冒泡。
 
 #### 2.9.3 订单状态筛选
 
@@ -8716,8 +8716,8 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | 方法 | 路径 | 访问者 | 用途与关键规则 |
 | --- | --- | --- | --- |
 | `POST` | `/orders` | 用户 | 使用有效 `checkout_id` 创建订单；幂等；返回合并交易单和按店铺拆分的订单 |
-| `GET` | `/users/me/orders` | 用户 | “我的订单”列表；Cursor 分页，支持固定复合视图 `view` 及 `q、created_from、created_to`；`q` 可匹配本人订单号、订单商品名称和店铺名称 |
-| `GET` | `/orders/{order_id}` | 订单所属用户 | 用户投影的单个店铺订单详情；返回订单来源、支付摘要、商品、金额/改价、地址快照、物流摘要、售后摘要、状态时间轴和动态操作集合 |
+| `GET` | `/users/me/orders` | 用户 | “我的订单”列表；Cursor 分页，支持固定复合视图 `view` 及 `q、created_from、created_to`；`q` 可匹配本人订单号、订单商品名称和店铺名称；每个订单项返回当前 `product_available` |
+| `GET` | `/orders/{order_id}` | 订单所属用户 | 用户投影的单个店铺订单详情；返回订单来源、支付摘要、商品、金额/改价、地址快照、物流摘要、售后摘要、状态时间轴和动态操作集合；订单项包含当前 `product_available` |
 | `GET` | `/trade-orders/{trade_order_id}` | 用户 | 查询一次结算生成的合并交易单与所属店铺订单，用于支付结果页 |
 | `GET` | `/orders/{order_id}/events` | 订单所属用户 | 查询用户可见的订单状态时间轴；不直接暴露内部操作日志 |
 | `DELETE` | `/users/me/orders/{order_id}` | 用户 | 按统一 `OrderHidePolicy` 把符合条件的终态订单从用户列表隐藏；If-Match，不物理删除审计数据 |
@@ -8728,7 +8728,7 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 
 订单创建与 Payment 创建是两个资源、两个请求和两个 Idempotency Scope。`POST /orders` 成功只返回 201 `trade_order_id、order_ids、payment_deadline_at、available_actions`，不内嵌调用支付 Provider。网络超时后客户端必须以同一个 `Idempotency-Key` 重放 `POST /orders`；首次仍在处理中返回 409 `IDEMPOTENCY_REQUEST_IN_PROGRESS` 和 `Retry-After`，已完成则返回首次结果。不同 Key 再消费 Checkout 返回 409 `CHECKOUT_ALREADY_CONSUMED` 并在当前用户范围内返回已创建 `trade_order_id`；过期返回 410 `CHECKOUT_SESSION_EXPIRED`，版本变化返回 412 `CHECKOUT_VERSION_MISMATCH` 和最新 Checkout ETag/安全差异。订单已创建后无论支付创建是否成功，都不得恢复 Checkout 或创建第二组订单。
 
-订单详情中的 `order_source` 从持久化的 `trade_orders.order_source` 返回，不回读可能已经删除的 Checkout；订单金额返回 `goods_amount、freight_amount、adjustment_amount、payable_amount、paid_amount、refunded_amount、currency`，每个订单项返回自己的 `gross_amount、adjustment_amount、payable_amount、refunded_amount`，两层汇总必须满足 3.7.7 的不变式。`adjustment_amount != 0` 时同时返回面向用户的安全原因。支付方式和支付时间来自成功支付摘要；物流预计时间使用 3.11.5 的 `ServiceEstimate`，不存在可靠范围时返回 `status=unavailable`，前端显示“暂无可靠预计时间”。
+订单详情中的 `order_source` 从持久化的 `trade_orders.order_source` 返回，不回读可能已经删除的 Checkout；订单金额返回 `goods_amount、freight_amount、adjustment_amount、payable_amount、paid_amount、refunded_amount、currency`，每个订单项返回自己的 `gross_amount、adjustment_amount、payable_amount、refunded_amount`，两层汇总必须满足 3.7.7 的不变式。订单项的名称、规格、图片和金额继续使用下单快照；`product_available` 则由 Query Service 批量读取当前商品状态生成，仅当 `products.product_status=on_sale AND deleted_at IS NULL` 时为 `true`，缺失商品按 `false` 处理，禁止逐条查询造成 N+1。`adjustment_amount != 0` 时同时返回面向用户的安全原因。支付方式和支付时间来自成功支付摘要；物流预计时间使用 3.11.5 的 `ServiceEstimate`，不存在可靠范围时返回 `status=unavailable`，前端显示“暂无可靠预计时间”。
 
 `OrderHidePolicy` 是前端按钮和 DELETE 命令的唯一规则来源。允许隐藏的情形为：① `completed` 且所有可评价订单项均为 `reviewed/closed`；② `cancelled/closed`；③售后已完成、资金结果终态且无进行中争议。任一活动售后、支付结果未知、退款处理中、举证/申诉窗口内争议或风控保全状态均禁止隐藏。列表与详情的 `available_actions.delete_order` 必须由同一策略计算，不能由 Router 复制条件。
 

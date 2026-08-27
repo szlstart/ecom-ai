@@ -69,6 +69,7 @@ class OrderStoreView(StrictRequest):
 class OrderItemView(StrictRequest):
     order_item_id: str
     product_id: str
+    product_available: bool
     sku_id: str
     product_name: str
     sku_name: str

@@ -8,6 +8,7 @@ import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import { cancelOrder, confirmOrderReceipt, hideOrder, listMyOrders, ORDER_VIEWS, repurchaseOrder, restoreOrder, type OrderAction, type OrderHideResult, type OrderSummary, type OrderView } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
+import OrderProductEntry from '@/components/OrderProductEntry.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const viewLabels: Record<OrderView, string> = { all: '全部', pending_payment: '待付款', pending_shipment: '待发货', in_transit: '运输中', completed: '已完成', pending_review: '待评价', after_sale: '售后', cancelled: '已取消' }
@@ -158,18 +159,27 @@ watch(() => route.fullPath, () => {
               <strong>{{ order.store.store_name }}</strong><span aria-hidden="true">→</span>
             </RouterLink>
           </div>
-          <RouterLink class="order-card-main" :to="`/me/orders/${order.order_id}`">
-            <div v-for="item in order.items.slice(0, 3)" :key="item.order_item_id" class="order-item-summary">
+          <div class="order-card-main">
+            <OrderProductEntry
+              v-for="item in order.items.slice(0, 3)"
+              :key="item.order_item_id"
+              class="order-item-summary"
+              :product-id="item.product_id"
+              :sku-id="item.sku_id"
+              :product-name="item.product_name"
+              :product-available="item.product_available"
+            >
               <img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) ?? ''" width="72" height="72" :alt="item.product_name" />
               <div v-else class="order-image-placeholder">商品</div>
-              <span><strong>{{ item.product_name }}</strong><small>{{ item.sku_name }} · × {{ item.quantity }}</small></span>
+              <span><strong>{{ item.product_name }}</strong><small>{{ item.sku_name }} · × {{ item.quantity }}</small><small v-if="!item.product_available" class="order-product-unavailable-badge">已下架</small></span>
               <strong>{{ formatMoney(item.payable_amount) }}</strong>
-            </div>
-            <small v-if="order.item_count > 3">另有 {{ order.item_count - 3 }} 件商品，点击查看全部</small>
-          </RouterLink>
+            </OrderProductEntry>
+            <RouterLink v-if="order.item_count > 3" :to="`/me/orders/${order.order_id}`">另有 {{ order.item_count - 3 }} 件商品，点击查看全部</RouterLink>
+          </div>
           <footer>
             <span>共 {{ order.total_quantity }} 件，应付 <strong>{{ formatMoney(order.amounts.payable_amount) }}</strong></span>
             <div class="order-actions">
+              <RouterLink class="order-action" :to="`/me/orders/${order.order_id}`">查看订单详情</RouterLink>
               <button v-for="action in order.available_actions" :key="action.code" type="button" :class="['order-action', { disabled: !action.enabled }]" :disabled="!action.enabled || busyOrder !== ''" :title="action.reason_message ?? undefined" @click="runAction(action, order)">{{ busyOrder === order.order_id ? '处理中…' : actionLabel(action.code) }}</button>
             </div>
           </footer>

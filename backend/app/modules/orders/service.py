@@ -1231,6 +1231,9 @@ class OrderService:
     ) -> list[OrderListItem]:
         order_ids = [order.id for order, _, _ in rows]
         items_by_order = await self.repository.order_items(order_ids)
+        product_availability = await self.repository.product_availability(
+            {item.product_id for items in items_by_order.values() for item in items}
+        )
         object_keys = {
             key for order, store, _ in rows for key in [store.logo_object_key] if key is not None
         }
@@ -1263,7 +1266,12 @@ class OrderService:
                         Any, matched_views(_policy_snapshot(order, items), utc_now())
                     ),
                     items=[
-                        _item_view(item, files.get(item.image_object_key or "")) for item in items
+                        _item_view(
+                            item,
+                            files.get(item.image_object_key or ""),
+                            product_available=product_availability.get(item.product_id, False),
+                        )
+                        for item in items
                     ],
                     item_count=len(items),
                     total_quantity=sum(item.quantity for item in items),
@@ -1427,10 +1435,16 @@ def _amounts(value: Order | TradeOrder) -> OrderAmountsView:
     )
 
 
-def _item_view(item: OrderItem, file: FileObject | None) -> OrderItemView:
+def _item_view(
+    item: OrderItem,
+    file: FileObject | None,
+    *,
+    product_available: bool,
+) -> OrderItemView:
     return OrderItemView(
         order_item_id=item.order_item_no,
         product_id=item.product_no,
+        product_available=product_available,
         sku_id=item.sku_no,
         product_name=item.product_name,
         sku_name=item.sku_name,

@@ -25,6 +25,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'messages/:conversationId', component: () => import('@/pages/MessagePopupRedirectPage.vue'), meta: { ...userMeta, title: '会话', requirementId: 'USR-MSG-02' } },
     { path: 'me', component: () => import('@/pages/me/MyDashboardPage.vue'), meta: { ...userMeta, title: '我的', requirementId: 'USR-ME-01' } },
     { path: 'me/profile', component: () => import('@/pages/me/ProfilePage.vue'), meta: { ...userMeta, title: '个人信息', requirementId: 'USR-PROFILE-01' } },
+    { path: 'me/wallet', component: () => import('@/pages/me/WalletPage.vue'), meta: { ...userMeta, title: '账户余额', requirementId: 'USR-WALLET-01' } },
     { path: 'me/settings/security', component: () => import('@/pages/me/SecuritySettingsPage.vue'), meta: { ...userMeta, title: '账号安全', requirementId: 'USR-SECURITY-01' } },
     { path: 'me/settings/ai-personalization', component: () => import('@/pages/me/AiPersonalizationPage.vue'), meta: { ...userMeta, title: 'AI 个性化与记忆', requirementId: 'USR-AI-PRIVACY-01' } },
     { path: 'me/settings/account-closure', component: () => import('@/pages/me/AccountClosurePage.vue'), meta: { ...userMeta, title: '账号注销', requirementId: 'USR-CLOSURE-01' } },

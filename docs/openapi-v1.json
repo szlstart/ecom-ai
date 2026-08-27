@@ -2730,6 +2730,74 @@
         "x-test-case-ids": [
           "PROFILE-*"
         ]
+      },
+      "delete": {
+        "tags": [
+          "current-user"
+        ],
+        "summary": "Delete User Account",
+        "operationId": "UserAccount_DeleteMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.UserAccount_DeleteMine",
+        "x-domain-command": "UserAccount_DeleteMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-CLOSURE-01"
+        ],
+        "x-scope-policy": [
+          "current_user"
+        ],
+        "x-test-case-ids": [
+          "FINANCE-*"
+        ]
       }
     },
     "/api/v1/users/me/password": {
@@ -3480,101 +3548,6 @@
         ],
         "x-test-case-ids": [
           "ADDRESS-*"
-        ]
-      }
-    },
-    "/api/v1/users/me/account-closure-requests": {
-      "post": {
-        "tags": [
-          "current-user"
-        ],
-        "summary": "Request Account Closure",
-        "operationId": "UserAccountClosureRequest_Create",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Idempotency-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccountClosureRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Envelope_MessageResult_"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Problem401"
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem409"
-          },
-          "429": {
-            "$ref": "#/components/responses/Problem429"
-          },
-          "500": {
-            "$ref": "#/components/responses/Problem500"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem503"
-          }
-        },
-        "x-audit-event": "command.UserAccountClosureRequest_Create",
-        "x-domain-command": "UserAccountClosureRequest_Create",
-        "x-idempotency-policy": "idempotency_key_required",
-        "x-owner-kind": [
-          "vue_route"
-        ],
-        "x-permission-codes": [],
-        "x-requirement-id": [
-          "USR-CLOSURE-01"
-        ],
-        "x-scope-policy": [
-          "current_user"
-        ],
-        "x-test-case-ids": [
-          "ACCOUNT-CLOSURE-*"
         ]
       }
     },
@@ -5710,6 +5683,389 @@
         "x-test-case-ids": [
           "ADM-BATCH-*",
           "FILE-UPLOAD-*"
+        ]
+      }
+    },
+    "/api/v1/users/me/wallet": {
+      "get": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "Get Wallet",
+        "operationId": "UserWallet_GetMine",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_WalletView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-WALLET-01"
+        ],
+        "x-scope-policy": [
+          "current_user"
+        ],
+        "x-test-case-ids": [
+          "FINANCE-*"
+        ]
+      }
+    },
+    "/api/v1/users/me/wallet/recharges": {
+      "post": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "Create Recharge",
+        "operationId": "UserWalletRecharge_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletRechargeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_WalletRechargeResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.UserWalletRecharge_Create",
+        "x-domain-command": "UserWalletRecharge_Create",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-WALLET-01"
+        ],
+        "x-scope-policy": [
+          "current_user"
+        ],
+        "x-test-case-ids": [
+          "FINANCE-*"
+        ]
+      }
+    },
+    "/api/v1/users/me/wallet/transactions": {
+      "get": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "List Transactions",
+        "operationId": "UserWalletTransaction_ListMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_WalletTransactionList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-WALLET-01"
+        ],
+        "x-scope-policy": [
+          "current_user"
+        ],
+        "x-test-case-ids": [
+          "FINANCE-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/account": {
+      "delete": {
+        "tags": [
+          "merchant-finance"
+        ],
+        "summary": "Delete Merchant Account",
+        "operationId": "MerchantAccount_DeleteMine",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MerchantAccountDeletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "command.MerchantAccount_DeleteMine",
+        "x-domain-command": "MerchantAccount_DeleteMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-STORE-01"
+        ],
+        "x-scope-policy": [
+          "stores:read",
+          "stores:manage",
+          "store_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-STORE-*",
+          "FINANCE-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/stores/{store_id}/revenue": {
+      "get": {
+        "tags": [
+          "merchant-finance"
+        ],
+        "summary": "Get Merchant Revenue",
+        "operationId": "MerchantStoreRevenue_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MerchantRevenueView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-STORE-01"
+        ],
+        "x-scope-policy": [
+          "stores:read",
+          "stores:manage",
+          "store_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-STORE-*",
+          "FINANCE-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -25451,13 +25807,15 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply"
+          "reviews:reply",
+          "store_owner"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
           "ADM-STORE-*",
+          "FINANCE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -25657,10 +26015,12 @@
         ],
         "x-scope-policy": [
           "stores:read",
-          "stores:manage"
+          "stores:manage",
+          "store_owner"
         ],
         "x-test-case-ids": [
           "ADM-STORE-*",
+          "FINANCE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -32695,42 +33055,20 @@
   },
   "components": {
     "schemas": {
-      "AccountClosureRequest": {
+      "AccountDeletionRequest": {
         "properties": {
-          "reason_code": {
-            "type": "string",
-            "enum": [
-              "no_longer_needed",
-              "privacy_concern",
-              "other"
-            ],
-            "title": "Reason Code"
-          },
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 500
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
           "confirmation": {
             "type": "string",
-            "const": "CLOSE_MY_ACCOUNT",
+            "const": "DELETE_MY_ACCOUNT",
             "title": "Confirmation"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "reason_code",
           "confirmation"
         ],
-        "title": "AccountClosureRequest"
+        "title": "AccountDeletionRequest"
       },
       "AddressList": {
         "properties": {
@@ -42949,6 +43287,21 @@
         ],
         "title": "Envelope[McpServerList]"
       },
+      "Envelope_MerchantRevenueView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MerchantRevenueView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[MerchantRevenueView]"
+      },
       "Envelope_MessageList_": {
         "properties": {
           "data": {
@@ -44044,6 +44397,51 @@
           "data"
         ],
         "title": "Envelope[VersionBindingView]"
+      },
+      "Envelope_WalletRechargeResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WalletRechargeResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[WalletRechargeResult]"
+      },
+      "Envelope_WalletTransactionList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WalletTransactionList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[WalletTransactionList]"
+      },
+      "Envelope_WalletView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WalletView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[WalletView]"
       },
       "Envelope_dict_str__object__": {
         "properties": {
@@ -45811,6 +46209,21 @@
         ],
         "title": "McpServerView"
       },
+      "MerchantAccountDeletionRequest": {
+        "properties": {
+          "confirmation": {
+            "type": "string",
+            "const": "DELETE_MY_STORE_AND_ACCOUNT",
+            "title": "Confirmation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirmation"
+        ],
+        "title": "MerchantAccountDeletionRequest"
+      },
       "MerchantReauthenticationRequest": {
         "properties": {
           "password": {
@@ -45826,6 +46239,37 @@
           "password"
         ],
         "title": "MerchantReauthenticationRequest"
+      },
+      "MerchantRevenueView": {
+        "properties": {
+          "store_id": {
+            "type": "string",
+            "title": "Store Id"
+          },
+          "gross_sales": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "refunded_amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "net_revenue": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "paid_order_count": {
+            "type": "integer",
+            "title": "Paid Order Count"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "store_id",
+          "gross_sales",
+          "refunded_amount",
+          "net_revenue",
+          "paid_order_count"
+        ],
+        "title": "MerchantRevenueView"
       },
       "MessageCreateRequest": {
         "properties": {
@@ -52951,6 +53395,202 @@
           "effect"
         ],
         "title": "VersionBindingView"
+      },
+      "WalletRechargeRequest": {
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "wechat",
+              "alipay"
+            ],
+            "title": "Channel"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "channel",
+          "amount"
+        ],
+        "title": "WalletRechargeRequest"
+      },
+      "WalletRechargeResult": {
+        "properties": {
+          "recharge": {
+            "$ref": "#/components/schemas/WalletRechargeView"
+          },
+          "wallet": {
+            "$ref": "#/components/schemas/WalletView"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recharge",
+          "wallet"
+        ],
+        "title": "WalletRechargeResult"
+      },
+      "WalletRechargeView": {
+        "properties": {
+          "recharge_id": {
+            "type": "string",
+            "title": "Recharge Id"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "wechat",
+              "alipay"
+            ],
+            "title": "Channel"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "recharge_status": {
+            "type": "string",
+            "const": "succeeded",
+            "title": "Recharge Status"
+          },
+          "is_simulated": {
+            "type": "boolean",
+            "title": "Is Simulated"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Completed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recharge_id",
+          "channel",
+          "amount",
+          "recharge_status",
+          "is_simulated",
+          "completed_at"
+        ],
+        "title": "WalletRechargeView"
+      },
+      "WalletTransactionList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WalletTransactionView"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "WalletTransactionList"
+      },
+      "WalletTransactionView": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "title": "Transaction Id"
+          },
+          "transaction_type": {
+            "type": "string",
+            "title": "Transaction Type"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "credit",
+              "debit"
+            ],
+            "title": "Direction"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "balance_after": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "transaction_type",
+          "direction",
+          "amount",
+          "balance_after",
+          "channel",
+          "description",
+          "occurred_at"
+        ],
+        "title": "WalletTransactionView"
+      },
+      "WalletView": {
+        "properties": {
+          "wallet_id": {
+            "type": "string",
+            "title": "Wallet Id"
+          },
+          "balance": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "total_recharged": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "wallet_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "frozen"
+            ],
+            "title": "Wallet Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "wallet_id",
+          "balance",
+          "total_recharged",
+          "wallet_status",
+          "version"
+        ],
+        "title": "WalletView"
       },
       "ProblemDetails": {
         "properties": {

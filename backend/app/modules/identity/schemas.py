@@ -205,12 +205,6 @@ class DefaultAddressRequest(StrictRequest):
     address_id: str
 
 
-class AccountClosureRequest(StrictRequest):
-    reason_code: Literal["no_longer_needed", "privacy_concern", "other"]
-    reason: str | None = Field(default=None, max_length=500)
-    confirmation: Literal["CLOSE_MY_ACCOUNT"]
-
-
 class ContactChangeTicketRequest(StrictRequest):
     credential_type: Literal["phone", "email"]
     current_password: str = Field(min_length=1)

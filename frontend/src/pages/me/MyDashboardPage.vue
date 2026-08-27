@@ -12,10 +12,12 @@ interface Dashboard {
   unread_message_count: number
   unavailable_sections: string[]
 }
+interface Wallet { balance: { minor_units: string; currency: string }; total_recharged: { minor_units: string; currency: string } }
 
 const auth = useUserAuthStore()
 const router = useRouter()
 const data = ref<Dashboard | null>(null)
+const wallet = ref<Wallet | null>(null)
 const error = ref('')
 const loggingOut = ref(false)
 const orderCountLabels: Record<string, string> = {
@@ -28,11 +30,14 @@ const orderCountLabels: Record<string, string> = {
 
 onMounted(async () => {
   try {
-    data.value = (await apiRequest<Dashboard>('/users/me/dashboard', {}, auth.accessToken)).data
+    const [dashboardResult, walletResult] = await Promise.all([apiRequest<Dashboard>('/users/me/dashboard', {}, auth.accessToken), apiRequest<Wallet>('/users/me/wallet', {}, auth.accessToken)])
+    data.value = dashboardResult.data
+    wallet.value = walletResult.data
   } catch (reason) {
     error.value = errorMessage(reason)
   }
 })
+function money(minorUnits = '0') { return `¥${(Number(minorUnits) / 100).toFixed(2)}` }
 
 async function logout() {
   loggingOut.value = true
@@ -55,6 +60,7 @@ async function logout() {
 
     <p v-if="error" class="alert error">{{ error }}</p>
     <div v-if="data" class="dashboard-sections">
+      <article class="card dashboard-card dashboard-card-wallet"><div class="dashboard-card-heading"><div><p class="eyebrow">余额</p><h2>账户余额</h2></div><RouterLink to="/me/wallet">充值与明细</RouterLink></div><p class="dashboard-balance">{{ money(wallet?.balance.minor_units) }}</p><small class="muted">当前充值为模拟流程，不会产生真实扣款。</small></article>
       <article class="card dashboard-card dashboard-card-orders">
         <div class="dashboard-card-heading"><div><p class="eyebrow">订单</p><h2>我的订单</h2></div><RouterLink to="/me/orders?view=all">查看全部订单</RouterLink></div>
         <dl class="metric-list"><div v-for="(count, key) in data.order_counts" :key="key"><dt>{{ orderCountLabels[key] ?? key }}</dt><dd>{{ count }}</dd></div></dl>

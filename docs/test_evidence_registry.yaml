@@ -7,7 +7,6 @@ description: >-
   when one end-to-end scenario deliberately proves several adjacent contracts.
 allowed_layers: [unit, contract, integration, ui, e2e, accessibility, security, migration, operations]
 families:
-  ACCOUNT-CLOSURE: {layers: [contract, integration], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   ADDRESS: {layers: [integration], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   ADM-AGENT: {layers: [integration], selectors: [backend/tests/test_admin_agent_runtime_integration.py::test_admin_can_cancel_only_unexecuted_agent_run_with_audit_and_idempotency]}
   ADM-AI-POLICY: {layers: [contract, integration, security], selectors: [backend/tests/test_admin_ai_governance_api_integration.py::test_admin_dashboard_observability_evaluation_policy_and_skill_lifecycle]}
@@ -61,6 +60,7 @@ families:
   CHECKOUT: {layers: [contract, integration], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   FAVORITE: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}
   FILE-UPLOAD: {layers: [integration, security], selectors: [backend/tests/test_file_upload_api_integration.py::test_presigned_upload_scan_derivation_and_store_logo_binding]}
+  FINANCE: {layers: [contract, integration], selectors: [backend/tests/test_finance_api_integration.py::test_merchant_zero_revenue_and_physical_account_deletion, backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   FOLLOW: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}
   HEALTH: {layers: [unit, contract], selectors: [backend/tests/test_health.py::test_liveness_returns_request_id]}
   HOME: {layers: [contract, integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}

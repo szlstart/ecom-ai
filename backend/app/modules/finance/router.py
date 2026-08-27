@@ -1,0 +1,109 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Query, Response, status
+
+from app.api.dependencies import IdempotencyKey, MerchantContext, UserContext
+from app.api.schemas import Envelope
+from app.modules.finance.dependencies import (
+    AccountDeletionServiceDependency,
+    FinanceServiceDependency,
+)
+from app.modules.finance.schemas import (
+    AccountDeletionRequest,
+    MerchantAccountDeletionRequest,
+    MerchantRevenueView,
+    WalletRechargeRequest,
+    WalletRechargeResult,
+    WalletTransactionList,
+    WalletView,
+)
+from app.modules.identity.router import _no_store
+
+router = APIRouter(prefix="/users/me/wallet", tags=["wallet"])
+merchant_router = APIRouter(prefix="/merchant", tags=["merchant-finance"])
+
+
+account_router = APIRouter(prefix="/users/me", tags=["current-user"])
+
+
+@account_router.delete(
+    "",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="UserAccount_DeleteMine",
+)
+async def delete_user_account(
+    payload: AccountDeletionRequest,
+    context: UserContext,
+    service: AccountDeletionServiceDependency,
+) -> None:
+    del payload
+    await service.delete_consumer(context.user)
+
+
+@merchant_router.delete(
+    "/account",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="MerchantAccount_DeleteMine",
+)
+async def delete_merchant_account(
+    payload: MerchantAccountDeletionRequest,
+    context: MerchantContext,
+    service: AccountDeletionServiceDependency,
+) -> None:
+    del payload
+    await service.delete_merchant(context.user)
+
+
+@router.get("", response_model=Envelope[WalletView], operation_id="UserWallet_GetMine")
+async def get_wallet(
+    response: Response, context: UserContext, service: FinanceServiceDependency
+) -> Envelope[WalletView]:
+    _no_store(response)
+    return Envelope(data=await service.wallet(context.user))
+
+
+@router.post(
+    "/recharges",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[WalletRechargeResult],
+    operation_id="UserWalletRecharge_Create",
+)
+async def create_recharge(
+    payload: WalletRechargeRequest,
+    response: Response,
+    context: UserContext,
+    service: FinanceServiceDependency,
+    idempotency_key: IdempotencyKey,
+) -> Envelope[WalletRechargeResult]:
+    _no_store(response)
+    return Envelope(data=await service.recharge(context.user, payload, idempotency_key))
+
+
+@router.get(
+    "/transactions",
+    response_model=Envelope[WalletTransactionList],
+    operation_id="UserWalletTransaction_ListMine",
+)
+async def list_transactions(
+    response: Response,
+    context: UserContext,
+    service: FinanceServiceDependency,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> Envelope[WalletTransactionList]:
+    _no_store(response)
+    return Envelope(data=await service.transactions(context.user, limit))
+
+
+@merchant_router.get(
+    "/stores/{store_id}/revenue",
+    response_model=Envelope[MerchantRevenueView],
+    operation_id="MerchantStoreRevenue_Get",
+)
+async def get_merchant_revenue(
+    store_id: str,
+    response: Response,
+    context: MerchantContext,
+    service: FinanceServiceDependency,
+) -> Envelope[MerchantRevenueView]:
+    _no_store(response)
+    return Envelope(data=await service.merchant_revenue(context.user, store_id))

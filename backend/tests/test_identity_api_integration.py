@@ -402,31 +402,48 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         },
     )
     assert new_password_login.status_code == 200, new_password_login.text
-    closure_auth = {
-        "Authorization": f"Bearer {new_password_login.json()['data']['access_token']}"
+    wallet_auth = {"Authorization": f"Bearer {new_password_login.json()['data']['access_token']}"}
+    initial_wallet = await client.get("/api/v1/users/me/wallet", headers=wallet_auth)
+    assert initial_wallet.status_code == 200, initial_wallet.text
+    assert initial_wallet.json()["data"]["balance"]["minor_units"] == "0"
+    recharge_headers = {
+        **wallet_auth,
+        "Idempotency-Key": f"wallet-recharge-{suffix}-001",
     }
-    closure_headers = {
-        **closure_auth,
-        "Idempotency-Key": f"account-closure-{suffix}-001",
-    }
-    closure_payload = {
-        "reason_code": "no_longer_needed",
-        "reason": "Integration acceptance",
-        "confirmation": "CLOSE_MY_ACCOUNT",
-    }
-    closure = await client.post(
-        "/api/v1/users/me/account-closure-requests",
-        headers=closure_headers,
-        json=closure_payload,
+    recharge = await client.post(
+        "/api/v1/users/me/wallet/recharges",
+        headers=recharge_headers,
+        json={
+            "channel": "wechat",
+            "amount": {"minor_units": "12345", "currency": "CNY"},
+        },
     )
-    assert closure.status_code == 202, closure.text
-    closure_replay = await client.post(
-        "/api/v1/users/me/account-closure-requests",
-        headers=closure_headers,
-        json=closure_payload,
+    assert recharge.status_code == 201, recharge.text
+    assert recharge.json()["data"]["wallet"]["balance"]["minor_units"] == "12345"
+    recharge_replay = await client.post(
+        "/api/v1/users/me/wallet/recharges",
+        headers=recharge_headers,
+        json={
+            "channel": "wechat",
+            "amount": {"minor_units": "12345", "currency": "CNY"},
+        },
     )
-    assert closure_replay.status_code in {202, 401}
-    assert (await client.get("/api/v1/users/me", headers=closure_auth)).status_code == 401
+    assert recharge_replay.status_code == 201, recharge_replay.text
+    assert recharge_replay.json()["data"]["wallet"]["balance"]["minor_units"] == "12345"
+    transactions = await client.get("/api/v1/users/me/wallet/transactions", headers=wallet_auth)
+    assert transactions.status_code == 200
+    assert len(transactions.json()["data"]["items"]) == 1
+
+    deletion = await client.request(
+        "DELETE",
+        "/api/v1/users/me",
+        headers=wallet_auth,
+        json={"confirmation": "DELETE_MY_ACCOUNT"},
+    )
+    assert deletion.status_code == 204, deletion.text
+    assert (await client.get("/api/v1/users/me", headers=wallet_auth)).status_code == 401
+    async for session in mysql_session():
+        assert await session.scalar(select(User).where(User.username == username)) is None
 
 
 async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(

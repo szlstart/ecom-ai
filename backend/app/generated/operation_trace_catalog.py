@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "1be4097d2833832a16daf12b2d9c8089b0ab06faed3764a9379fc29b2276bb2c"
+SOURCE_SHA256 = "e81a3ef9b02f53a6e13b99cf987409908e4515eaad70a6335048fafa9a4b0e5b"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -2105,12 +2105,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
+            "store_owner",
         ],
         "x-test-case-ids": [
             "ADM-INV-*",
             "ADM-PRODUCT-*",
             "ADM-REVIEW-*",
             "ADM-STORE-*",
+            "FINANCE-*",
             "MCH-PORTAL-*",
         ],
     },
@@ -2121,8 +2123,8 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
         "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-STORE-01"],
-        "x-scope-policy": ["stores:read", "stores:manage"],
-        "x-test-case-ids": ["ADM-STORE-*", "MCH-PORTAL-*"],
+        "x-scope-policy": ["stores:read", "stores:manage", "store_owner"],
+        "x-test-case-ids": ["ADM-STORE-*", "FINANCE-*", "MCH-PORTAL-*"],
     },
     "AdminToolVersion_Rollback": {
         "x-audit-event": "command.AdminToolVersion_Rollback",
@@ -2983,6 +2985,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["provider_signature"],
         "x-test-case-ids": ["SHIP-WEBHOOK-*"],
     },
+    "MerchantAccount_DeleteMine": {
+        "x-audit-event": "command.MerchantAccount_DeleteMine",
+        "x-domain-command": "MerchantAccount_DeleteMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["MCH-STORE-01"],
+        "x-scope-policy": ["stores:read", "stores:manage", "store_owner"],
+        "x-test-case-ids": ["ADM-STORE-*", "FINANCE-*", "MCH-PORTAL-*"],
+    },
     "MerchantAuthToken_Refresh": {
         "x-audit-event": "command.MerchantAuthToken_Refresh",
         "x-domain-command": "MerchantAuthToken_Refresh",
@@ -3092,6 +3104,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "store_queue_scope",
         ],
         "x-test-case-ids": ["ADM-SUPPORT-*", "MCH-PORTAL-*"],
+    },
+    "MerchantStoreRevenue_Get": {
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["MCH-STORE-01"],
+        "x-scope-policy": ["stores:read", "stores:manage", "store_owner"],
+        "x-test-case-ids": ["ADM-STORE-*", "FINANCE-*", "MCH-PORTAL-*"],
     },
     "MessageReadCursor_PutMine": {
         "x-audit-event": "command.MessageReadCursor_PutMine",
@@ -3957,15 +3979,15 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["trade_owner", "payment_owner"],
         "x-test-case-ids": ["PAY-*"],
     },
-    "UserAccountClosureRequest_Create": {
-        "x-audit-event": "command.UserAccountClosureRequest_Create",
-        "x-domain-command": "UserAccountClosureRequest_Create",
-        "x-idempotency-policy": "idempotency_key_required",
+    "UserAccount_DeleteMine": {
+        "x-audit-event": "command.UserAccount_DeleteMine",
+        "x-domain-command": "UserAccount_DeleteMine",
+        "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
         "x-requirement-id": ["USR-CLOSURE-01"],
         "x-scope-policy": ["current_user"],
-        "x-test-case-ids": ["ACCOUNT-CLOSURE-*"],
+        "x-test-case-ids": ["FINANCE-*"],
     },
     "UserContactChange_Complete": {
         "x-audit-event": "command.UserContactChange_Complete",
@@ -4026,5 +4048,35 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["USR-SECURITY-01"],
         "x-scope-policy": ["current_user"],
         "x-test-case-ids": ["SECURITY-*"],
+    },
+    "UserWalletRecharge_Create": {
+        "x-audit-event": "command.UserWalletRecharge_Create",
+        "x-domain-command": "UserWalletRecharge_Create",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["USR-WALLET-01"],
+        "x-scope-policy": ["current_user"],
+        "x-test-case-ids": ["FINANCE-*"],
+    },
+    "UserWalletTransaction_ListMine": {
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["USR-WALLET-01"],
+        "x-scope-policy": ["current_user"],
+        "x-test-case-ids": ["FINANCE-*"],
+    },
+    "UserWallet_GetMine": {
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["USR-WALLET-01"],
+        "x-scope-policy": ["current_user"],
+        "x-test-case-ids": ["FINANCE-*"],
     },
 }

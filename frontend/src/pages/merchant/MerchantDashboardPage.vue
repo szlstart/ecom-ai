@@ -24,8 +24,6 @@ const onSale = computed(() => products.value.filter((item) => item.status === 'o
 const drafts = computed(() => products.value.filter((item) => ['draft', 'rejected', 'off_shelf'].includes(item.status)).length)
 const unansweredReviews = computed(() => reviews.value.filter((item) => item.review_status === 'published' && !item.merchant_reply).length)
 const openTickets = computed(() => tickets.value.filter((item) => !['resolved', 'closed'].includes(item.ticket_status)).length)
-const canRename = computed(() => !store.value?.store_name_change_available_at || new Date(store.value.store_name_change_available_at).getTime() <= Date.now())
-const renameAvailableLabel = computed(() => store.value?.store_name_change_available_at ? new Date(store.value.store_name_change_available_at).toLocaleString('zh-CN') : '')
 
 function token() { return requireAdminToken(auth.accessToken) }
 function statusLabel(value: string) { return ({ draft: '草稿', pending_review: '审核中', rejected: '需修改', on_sale: '销售中', off_shelf: '已下架' } as Record<string, string>)[value] ?? value }
@@ -53,7 +51,7 @@ async function load() {
 }
 
 async function renameStore() {
-  if (!store.value || !canRename.value || storeName.value.trim() === store.value.store_name) return
+  if (!store.value || storeName.value.trim() === store.value.store_name) return
   renaming.value = true
   renameError.value = ''
   renameNotice.value = ''
@@ -87,9 +85,8 @@ onMounted(load)
         <RouterLink to="/merchant/reviews?unanswered=1"><span>待回复评价</span><strong>{{ unansweredReviews }}</strong><small>感谢并回应顾客</small></RouterLink>
       </div>
       <article class="card merchant-rename-card">
-        <div><p class="eyebrow">店铺名称</p><h2>用户看到的店铺名</h2><p>名称不能与其他店铺重复，商家每 7 天只能修改一次。</p></div>
-        <form @submit.prevent="renameStore"><label>新店铺名称<input v-model.trim="storeName" required minlength="2" maxlength="128" :disabled="!canRename" /></label><button :disabled="renaming || !canRename || storeName.trim() === store?.store_name">{{ renaming ? '正在保存…' : '修改店铺名' }}</button></form>
-        <p v-if="!canRename" class="merchant-field-hint">下次可修改时间：{{ renameAvailableLabel }}</p>
+        <div><p class="eyebrow">店铺名称</p><h2>用户看到的店铺名</h2><p>名称不能与其他店铺重复，修改次数不受限制。</p></div>
+        <form @submit.prevent="renameStore"><label>新店铺名称<input v-model.trim="storeName" required minlength="2" maxlength="128" /></label><button :disabled="renaming || storeName.trim() === store?.store_name">{{ renaming ? '正在保存…' : '修改店铺名' }}</button></form>
         <p v-if="renameNotice" class="alert success">{{ renameNotice }}</p><p v-if="renameError" class="alert error">{{ renameError }}</p>
       </article>
       <div class="merchant-dashboard-grid">

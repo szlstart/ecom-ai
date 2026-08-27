@@ -10,7 +10,6 @@ from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
 from app.modules.identity.dependencies import IdentityServiceDependency
 from app.modules.identity.schemas import (
-    AccountClosureRequest,
     AddressList,
     AddressPatch,
     AddressView,
@@ -432,27 +431,6 @@ async def set_default_address(
     service: IdentityServiceDependency,
 ) -> Envelope[AddressView]:
     return Envelope(data=await service.set_default_address(context.user.id, payload.address_id))
-
-
-@user_router.post(
-    "/account-closure-requests",
-    status_code=status.HTTP_202_ACCEPTED,
-    response_model=Envelope[MessageResult],
-    operation_id="UserAccountClosureRequest_Create",
-)
-async def request_account_closure(
-    payload: AccountClosureRequest,
-    context: UserContext,
-    idempotency_key: IdempotencyKey,
-    service: IdentityServiceDependency,
-) -> Envelope[MessageResult]:
-    await service.request_account_closure(
-        context.user,
-        payload.reason_code,
-        payload.reason,
-        idempotency_key,
-    )
-    return Envelope(data=MessageResult(message="账号注销申请已受理，当前进入冷静期。"))
 
 
 def _set_refresh_cookie(response: Response, refresh_token: str, csrf_token: str) -> None:

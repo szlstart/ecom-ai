@@ -130,6 +130,7 @@ onBeforeUnmount(() => {
     class="user-message-trigger"
     :class="{ 'message-arrival-shake': shaking }"
     type="button"
+    aria-label="消息"
     aria-haspopup="dialog"
     @click="show"
   >

@@ -87,6 +87,9 @@ fieldset { display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid
 .dashboard-card-address { min-height: 170px; }
 .dashboard-card-favorites { min-height: 185px; }
 .dashboard-card-security { min-height: 165px; }
+.dashboard-card-wallet { min-height: 175px; color: #fff; border-color: transparent; background: linear-gradient(135deg, #3158d8, #6b78e8); }
+.dashboard-card-wallet .eyebrow, .dashboard-card-wallet .muted, .dashboard-card-wallet a { color: #eef2ff; }
+.dashboard-balance { font-size: clamp(2rem, 6vw, 3.2rem); font-weight: 850; letter-spacing: -.04em; }
 .dashboard-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .dashboard-actions { justify-content: flex-start; }
 .card { padding: 22px; border: 1px solid #e3e7ef; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px rgb(27 49 101 / 5%); }
@@ -527,6 +530,28 @@ tr.selected td { background: #f0f4ff; }
 .merchant-store-preview { text-align: center; }
 .merchant-preview-logo { width: 82px; height: 82px; margin: 10px auto 18px; display: grid; place-items: center; color: #fff; border-radius: 24px; background: linear-gradient(145deg, #187657, #31ab7c); font-size: 2rem; font-weight: 850; }
 .merchant-store-preview dl { margin-top: 24px; text-align: left; }
+.merchant-revenue-value { margin: 12px 0 4px; color: #187657; font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 850; letter-spacing: -.05em; }
+.danger-zone { margin-top: 20px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; border-color: #f1c8c3; background: #fffafa; }
+.danger-zone h2, .danger-zone p { margin-block: 5px; }
+.danger-zone .alert { grid-column: 1 / -1; }
+.wallet-page { display: grid; gap: 22px; }
+.wallet-grid { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(360px, 1.2fr); gap: 20px; align-items: stretch; }
+.wallet-balance-card { min-height: 310px; padding: 34px; display: flex; flex-direction: column; justify-content: center; gap: 10px; color: #fff; border-radius: 22px; background: linear-gradient(145deg, #243f9d, #6678ef); box-shadow: 0 20px 50px rgb(49 88 216 / 22%); }
+.wallet-balance-card strong { font-size: clamp(2.8rem, 7vw, 4.8rem); letter-spacing: -.06em; }
+.wallet-balance-card small { color: #e4e9ff; }
+.wallet-recharge-card { display: grid; gap: 15px; }
+.wallet-recharge-card fieldset { padding: 0; border: 0; }
+.wallet-recharge-card legend { margin-bottom: 7px; font-weight: 650; }
+.wallet-channel-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wallet-channel-options label { padding: 13px; display: flex; align-items: center; gap: 8px; border: 1px solid #d8deea; border-radius: 11px; cursor: pointer; }
+.wallet-channel-options label.active { color: #3158d8; border-color: #6b78e8; background: #f1f3ff; }
+.wallet-channel-options input { width: auto; }
+.wallet-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.wallet-transactions { display: grid; }
+.wallet-transactions > div { padding: 14px 0; display: flex; justify-content: space-between; gap: 18px; border-top: 1px solid #edf0f5; }
+.wallet-transactions span { display: grid; gap: 4px; }
+.wallet-transactions span:last-child { text-align: right; }
+.wallet-transactions small { color: #788296; }
 .merchant-store-indicator { padding: 13px 14px; display: flex; justify-content: space-between; gap: 16px; border: 1px solid #d9e5df; border-radius: 10px; background: #f5faf7; }
 .merchant-store-indicator span { color: #6e7e75; }
 
@@ -765,6 +790,8 @@ tr.selected td { background: #f0f4ff; }
 
 @media (max-width: 720px) {
   .nav-links span { display: none; }
+  .user-message-trigger { min-width: 28px; min-height: 28px; display: inline-grid; place-items: center; }
+  .user-message-trigger::before { content: '💬'; }
   .hero { padding: 36px 24px; }
   .admin-shell { grid-template-columns: 1fr; }
   .admin-sidebar { position: static; height: auto; flex-direction: row; align-items: center; justify-content: space-between; overflow-x: auto; }
@@ -832,6 +859,7 @@ tr.selected td { background: #f0f4ff; }
   .merchant-page-heading { align-items: flex-start; flex-direction: column; }
   .merchant-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .merchant-dashboard-grid, .merchant-review-detail, .merchant-store-settings, .merchant-rename-card { grid-template-columns: 1fr; }
+  .wallet-grid, .danger-zone { grid-template-columns: 1fr; }
   .merchant-rename-card form { grid-template-columns: 1fr; }
   .merchant-filter-bar { grid-template-columns: 1fr; }
   .merchant-product-table { overflow-x: auto; }

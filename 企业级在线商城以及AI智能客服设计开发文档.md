@@ -2099,9 +2099,10 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 消息兼容入口 | `/messages`、`/messages/:conversationId` / `MessagePopupRedirectPage.vue` | 是 | 可选 `conversationId` | 不新增 API；恢复全局消息弹窗后替换为安全背景路由 | 兼容旧深链，不渲染独立消息业务页面；none |
 | 我的 | `/me` / `MyDashboardPage.vue` | 是 | 无 | `GET /users/me/dashboard` | 我的；L/N；none |
 | 个人资料 | `/me/profile` / `ProfilePage.vue` | 是 | 无 | `GET/PATCH /users/me` | 个人资料；L/412/N；form |
+| 账户余额 | `/me/wallet` / `WalletPage.vue` | 是 | 无 | `GET /users/me/wallet`、`GET /users/me/wallet/transactions`、`POST /users/me/wallet/recharges` | 余额、模拟充值与明细；L/E/N；payment-like confirmation |
 | 账号安全/设置 | `/me/settings/security` / `SecuritySettingsPage.vue` | 是 | 无 | `UserSecurity_Get`、`UserPassword_Replace`、`UserContactChange_Complete`、`AuthSession_ListMine/Revoke` | 账号与安全；L/字段错误/N；form |
 | AI 个性化与记忆 | `/me/settings/ai-personalization` / `AiPersonalizationPage.vue` | 是 | `scope_type、store_id、status、cursor` | `AiConsent_ListMine/Grant/Revoke`、`AiPersonalization_DisableAll`、`AiMemory_ListMine/Revise/Delete`、`CleanupTask_GetMine` | AI 个性化与记忆；L/E/409/412/N；form |
-| 注销账号 | `/me/settings/account-closure` / `AccountClosurePage.vue` | 是 | 无 | `POST /users/me/account-closure-requests` | 注销账号；阻断事项/冷静期；form |
+| 注销账号 | `/me/settings/account-closure` / `AccountClosurePage.vue` | 是 | 无 | `DELETE /users/me` | 永久注销；明确确认/历史交易阻断；form |
 | 收货地址 | `/me/addresses` / `AddressListPage.vue` | 是 | 可选 `return_to=checkout` | `Address_ListMine/Create/Get/Patch/Delete`、`Address_SetDefault` | 收货地址；L/E/412/N；form |
 | 商品收藏 | `/me/favorites/products` / `FavoriteProductsPage.vue` | 是 | `cursor` | `GET /users/me/favorite-products` | 商品收藏；L/E/410/N；none |
 | 店铺收藏 | `/me/favorites/stores` / `FollowedStoresPage.vue` | 是 | `cursor` | `GET /users/me/followed-stores` | 店铺收藏；L/E/410/N；none |
@@ -2313,7 +2314,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 售后采用“我的售后 → 售后详情 → 填写退货物流/申诉详情”路径。详情展示申请商品、逐项数量/金额、不可变状态时间线、凭证、退款资金进度和服务端 `available_actions`；填写退货物流是独立表单，成功返回详情。被拒绝后的“创建新申请”和“平台申诉”进入不同页面/资源，原申请始终只读。
 
-设置页包含资料、安全会话、修改密码、联系方式与账号注销入口。账号注销必须列出未完成订单、退款、余额/争议等服务端阻断事项、冷静期和后果，要求近期认证和明确确认；提交后展示申请状态，不立即在前端删除数据。
+设置页包含资料、账户余额、安全会话、修改密码、联系方式与账号注销入口。余额页展示可用余额、累计充值和不可变资金明细；首版微信/支付宝充值均为明确标注的模拟流程，用户确认后由服务端幂等记账并立即到账，不发起真实渠道扣款。账号注销使用明确确认短语，不设置冷静期：从未产生交易的纯消费者账号立即物理删除用户、余额、收藏、地址、会话及关联非交易数据；存在任意历史订单时返回 `ACCOUNT_DELETION_BLOCKED`，防止删除另一方必须保留的交易事实，转平台客服按留存/匿名化流程处理。页面不得把“提交申请”冒充“已经删除”。
 
 错误页面必须提供可执行恢复入口：401/Session 过期 [重新登录并返回]，403 [返回上一页/首页]，404 [返回首页]，410 Checkout [重新结算]、Cursor [从第一页加载]、重置 Ticket [重新申请]，500 [重试并显示 Request ID]，维护页 [稍后重试]，离线状态 [网络恢复后重试]。错误页不显示堆栈、内部表名、权限码或其他用户资源是否存在。
 
@@ -2802,7 +2803,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 库存 | `/merchant/inventory` / `AdminInventoryPage.vue(portal=merchant)` | 本店 SKU 库存查询和有据可查的增减调整 | `inventories:read/adjust` + Store |
 | 客户咨询 | `/merchant/support`、`/merchant/support/:ticketId` / `MerchantSupportListPage.vue`、`AdminSupportWorkspacePage.vue(portal=merchant)` | 店铺人工工单领取、回复、等待、恢复和解决 | `support:*` + Store Queue |
 | 评价回复 | `/merchant/reviews`、`/merchant/reviews/:reviewId` / `MerchantReview*Page.vue` | 查看本店已发布评价、发布一次商家回复 | `reviews:read/reply` + Store |
-| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo 和用户端预览；展示店名下次可修改时间 | `stores:read/manage` + Store |
+| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、用户端预览、营业额和商家账号注销；店名可随时修改 | `stores:read/manage` + Store |
 
 #### 2.14.4 工作台与任务优先级
 
@@ -2814,7 +2815,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 SKU 价格在商家界面使用元，提交时转换为整数分。首版商家编辑器只暴露款式名称、销售价和该款式库存，不暴露划线价、店内编码、重量、条形码或任意规格行；服务端兼容字段由 Merchant Adapter 按固定规则构造，其中内部市场价等于销售价，内部规格固定为 `{name: "款式", value: <款式名称>}`。点击“新增款式”后，新增表单使用与已选款式一致的绿色激活边框，同时取消旧款式卡的激活态；保存成功后新款式卡自动成为当前选中项。编辑已有款式时提供“删除款式”，经二次确认后调用 `AdminProductSku_ChangeStatus(disable)`：该款式立即从商家可编辑款式和顾客购买选项隐藏，但不物理删除 SKU、历史订单、评价、库存流水或审计记录；在售商品的最后一个启用款式必须拒绝删除，并提示先新增其他款式或下架商品。删除成功后，前端必须将服务端返回的 SKU 状态局部合并到当前编辑器，同步商品版本、默认款式、价格、库存汇总与完整性；不得重新加载整个编辑页、替换路由或重置表单，必须保留用户当前滚动位置、未保存输入、详情块排序及其他编辑上下文。图片必须通过受控上传、病毒扫描和安全衍生后绑定；恰好一张公共主图。上架检查由服务端返回完整性缺项和 `available_actions`，前端不得自行绕过 SKU、主图、参数、履约与详情版本要求。Merchant Session 的日常店铺经营操作不要求再次输入密码，但仍必须通过登录会话、Permission、Store Scope、业务状态、幂等、ETag 与审计校验；平台管理员的近期认证规则不受此例外影响。
 
-店铺名称使用 `store_name_normalized` 全局唯一约束，并在事务内进行重复预检与唯一键兜底。店铺范围账号成功改名时写入 `store_name_changed_at`，之后 7×24 小时内再次改名返回 `STORE_NAME_CHANGE_COOLDOWN`；查询投影同时返回 `store_name_change_available_at` 供界面禁用输入并显示准确时间。修改简介和 Logo 不受店名冷却期影响。Platform Scope 管理员可为纠错或治理目的覆盖冷却限制，但仍受名称唯一约束与审计约束。
+店铺名称使用 `store_name_normalized` 全局唯一约束，并在事务内进行重复预检与唯一键兜底。改名不设置次数或时间冷却，成功时写入 `store_name_changed_at`、递增 Version、记录操作审计并发布缓存失效事件。商品卡、商品/店铺收藏、购物车及历史订单页面均在查询时以 `store_id` 关联 `stores` 主表取得当前公开店名，因此改名后统一显示新名称；订单号、金额、商品/SKU、地址、政策等成交事实仍保持原快照，不因店名变化改写。`store_name_change_available_at` 仅作为旧客户端兼容字段固定返回 `null`，新界面不得据此禁用输入。
 
 #### 2.14.6 客服与评价回复
 
@@ -2860,7 +2861,7 @@ SKU 价格在商家界面使用元，提交时转换为整数分。首版商家�
 | 商品工作台 | `/merchant/products`、兼容 `/merchant/dashboard` / `MerchantProductListPage.vue` | 店铺式商品卡片、仅“全部”首张新增卡片、悬浮编辑/删除、搜索与中文状态分段 | `stores:read`、`products:read/update` + Store |
 | 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 顾客商品详情同构布局内就地编辑商品、款式、库存、FAQ，并查看/回复本商品评价 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
 | 顶栏消息中心 | `MerchantMessageCenter.vue` | 置顶平台专属客服、顾客咨询列表和回复；真实未读总数/分会话角标、实时更新、断线轮询与轻微新消息抖动 | Conversation Owner、`support:*` + Store Queue |
-| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、修改冷却期和用户端预览 | `stores:read/manage` + Store |
+| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、营业额、商家账号注销和用户端预览；店名可随时修改且全局唯一 | `stores:read/manage` + Store Owner |
 | 兼容高级路由 | `/merchant/inventory`、`/merchant/reviews/*`、`/merchant/support/*` | 保留历史深链，不在一级导航展示 | `inventories:*`、`reviews:*`、`support:*` + Store/Queue |
 
 ---
@@ -4530,6 +4531,7 @@ active → pending_delete → deleted
 | 结算预览 | 约 30 分钟或配置值 | 不归档 | 到期删除/失效，不作为订单事实 |
 | 商品和店铺 | 在售/经营期 | 下架、关闭后归档 | 有历史订单引用时保留必要快照 |
 | 订单、支付、退款 | 完整业务周期 | 按财务/合规期限归档 | 不直接物理删除；可对个人字段加密、脱敏或匿名化 |
+| 用户余额与充值流水 | 账户有效期 | 资金明细按账务策略归档 | 无交易账号注销时随账号物理删除；存在真实交易时不得通过自助注销删除 |
 | 消息 | 会话活跃期 | 按客服与审计策略归档 | 店铺会话可由用户隐藏，并在重新咨询或收到新消息时恢复显示；正文按政策隔离、匿名化和最终清理 |
 | Agent Checkpoint | Run 活跃/可恢复期 | Run 结束后短期保留 | 到期删除，业务审计不依赖 Checkpoint |
 | 短期上下文缓存 | 小时级 | 不归档 | TTL 自动删除，可从消息/Checkpoint 重建 |
@@ -4688,17 +4690,14 @@ pending → processing → published
 ##### 用户注销
 
 ```text
-提交注销并二次验证
-  → 检查未完成订单、售后、余额等阻断条件
-  → 进入冷静期/待注销状态（如产品策略要求）
-  → 撤销 Session 和授权
-  → 停止个性化记忆与营销
-  → 匿名化允许匿名化的数据
-  → 保留法定/财务/争议处理所需交易记录并严格限制访问
-  → 删除长期记忆正文和向量
-  → 删除/匿名化非必要消息与文件
-  → 通过 Tombstone 清理 PostgreSQL、Redis 和对象存储派生数据
-  → 写入不可包含原始敏感值的注销审计
+输入明确确认短语
+  → 检查是否存在任意消费者订单或商家店铺订单
+  → 有交易：返回 ACCOUNT_DELETION_BLOCKED，不删除双方交易事实
+  → 无交易：删除 PostgreSQL Agent/记忆派生数据
+  → 在 MySQL 事务内物理删除账号、余额、凭证、Session、收藏、地址、消息及关联非交易数据
+  → 商家账号同时删除无交易店铺、商品、库存和店铺关联数据
+  → 清理 Redis 会话/缓存和受账号控制且无保留要求的对象文件
+  → 旧 Bearer/Refresh 因主体不存在立即失效
 ```
 
 ##### 会话删除
@@ -5152,7 +5151,7 @@ Payment 只归属 Trade Order 支付尝试，不向 `orders/order_items` 增加�
 
 ##### 3.7.1.8 user_status_records 用户状态变更记录表
 
-追加型权威历史，用于冻结、解冻、注销申请和关闭；`users` 只保存当前投影。
+追加型权威历史，用于冻结、解冻和管理关闭；`users` 只保存当前投影。无交易账号的自助永久注销不先创建 `pending_close` 状态记录，而是直接执行受控物理删除；存在交易时拒绝自助物理删除。
 
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
@@ -6205,6 +6204,43 @@ WHERE sku_id = :sku_id
 ```
 
 验签失败不查信回调中声称的成功状态，并生成安全指标。已成功回调再到达时返回成功响应但不重复扣库存/发送通知。回调金额不符、未知支付单、本地已关闭但渠道成功等进入异常对账队列，不在回调线程中自作主张改写终态。
+
+##### 3.7.8.6 user_wallets 用户余额账户表
+
+首版每个用户只有一个人民币余额账户，金额全部使用整数分。
+
+| 字段 | 类型 | 约束/内容 |
+| :--- | :--- | :--- |
+| `wallet_no` | `VARCHAR(40)` | UK，公开 ID，前缀 `wal_` |
+| `user_id` / `currency` | `BIGINT UNSIGNED` / `CHAR(3)` | FK；`UNIQUE(user_id, currency)`，首版仅 `CNY` |
+| `balance_amount` | `BIGINT UNSIGNED` | NOT NULL DEFAULT 0，当前可用余额 |
+| `total_recharged_amount` | `BIGINT UNSIGNED` | NOT NULL DEFAULT 0，累计模拟充值 |
+| `wallet_status` | `VARCHAR(16)` | `active/frozen` |
+| `version` | `BIGINT UNSIGNED` | 乐观锁与并发记账版本 |
+
+任何入账必须锁定余额账户，同时追加 `wallet_transactions` 后才更新余额；禁止管理界面直接编辑 `balance_amount`。注册事务创建零余额账户，迁移为存量账号补建账户。
+
+##### 3.7.8.7 wallet_recharges 模拟充值记录表
+
+| 字段 | 类型 | 约束/内容 |
+| :--- | :--- | :--- |
+| `recharge_no` | `VARCHAR(40)` | UK，前缀 `rch_` |
+| `wallet_id` / `user_id` | `BIGINT UNSIGNED` | FK |
+| `channel` | `VARCHAR(16)` | `wechat/alipay`，仅表示用户选择的模拟渠道 |
+| `amount` / `currency` | `BIGINT UNSIGNED` / `CHAR(3)` | 1.00～50,000.00 CNY |
+| `recharge_status` | `VARCHAR(16)` | 首版固定 `succeeded` |
+| `is_simulated` | `BOOLEAN` | 固定 TRUE，防止与真实资金混淆 |
+| `provider_reference` | `VARCHAR(64)` | 本系统生成的模拟参考号，不伪造真实渠道单号 |
+| `idempotency_key_hash` | `BINARY(32)` | UK，防重复到账 |
+| `completed_at` | `DATETIME(6)` | 到账时间 |
+
+##### 3.7.8.8 wallet_transactions 余额流水表
+
+该表只追加不修改。核心字段为 `transaction_no、wallet_id、transaction_type、direction、amount、balance_before、balance_after、currency、business_type、business_no、channel、description、occurred_at`。约束 `UNIQUE(business_type,business_no)`，并验证 `balance_after = balance_before ± amount`。首版只有 `simulated_recharge/credit`；未来若开放余额支付、退款或提现，必须新增明确交易类型和状态机，不能复用模拟充值语义。
+
+##### 3.7.8.9 店铺营业额口径
+
+店铺营业额不是可写字段，也不由商品销量估算。首版查询投影实时汇总当前 Store Scope 内 `orders.paid_amount`：`gross_sales = SUM(paid_amount)`、`refunded_amount = SUM(refunded_amount)`、`net_revenue = gross_sales - refunded_amount`，同时返回 `paid_order_count`。页面主数字展示净营业额，并并列展示累计实收与累计退款；未支付和已取消订单不计入。后续结算、平台佣金、提现上线时再引入独立商户资金账户与清结算账本。
 
 ---
 
@@ -8576,7 +8612,10 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | `PUT` | `/users/me/password` | 用户 | 使用旧密码或一次性安全 Ticket 修改密码；幂等；成功后按策略撤销其他会话 |
 | `GET` | `/users/me/security` | 用户 | 查询密码设置状态、当前完整邮箱、最近修改时间和活跃会话数量；仅本人可读，响应强制 `no-store` |
 | `POST` | `/users/me/contact-changes` | 用户 | 提交 `new_email` 直接更换本人找回邮箱；不要求当前密码或验证码；幂等、校验全局唯一性并撤销除当前会话外的其他会话 |
-| `POST` | `/users/me/account-closure-requests` | 用户 | 发起账号注销/删除申请；近期认证、风险提示、冷静期和未完结交易检查 |
+| `GET` | `/users/me/wallet` | 用户 | 获取人民币可用余额、累计充值和账户状态；响应 `no-store` |
+| `GET` | `/users/me/wallet/transactions` | 用户 | 获取本人余额不可变流水，默认最近 50 条 |
+| `POST` | `/users/me/wallet/recharges` | 用户 | 选择 `wechat/alipay` 执行明确标注的模拟充值；1.00～50,000.00 元、Idempotency-Key、锁账户并同事务写充值记录和流水，成功立即到账 |
+| `DELETE` | `/users/me` | 用户 | 输入 `DELETE_MY_ACCOUNT` 后永久注销；无冷静期；无历史交易时物理删除本人及关联非交易数据，存在历史订单返回 409 `ACCOUNT_DELETION_BLOCKED` |
 
 `GET /users/me` 不返回 `password_hash`、加密密钥或完整邮箱；只有专用的 `GET /users/me/security` 可向当前已登录本人显示完整邮箱，且必须 `no-store`、不得进入埋点或 Agent 上下文。`PATCH /users/me` 对昵称按 Unicode 字符执行 2～20 字符、去除首尾空白、禁止纯空白及内容安全校验。更换邮箱不要求当前密码和验证码，但必须依赖有效 User Audience Session、数据归属、邮箱格式与唯一约束、幂等键和安全审计；成功后撤销除当前会话外的其他会话。密码修改成功也应写安全审计，通知内容不得包含新旧密码。用户头像先走 3.11.16 文件上传，资料更新只提交已激活且 Purpose 为 Avatar 的 `file_id`。
 
@@ -9151,7 +9190,7 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `GET` | `/admin/store-certifications/{certification_id}/events` | `stores:review` 或 `stores:manage` + 本店 Scope；Cursor 返回材料版本与审核时间线 |
 | `POST` | `/admin/store-certifications/{certification_id}/material-versions` | `stores:manage` + 本店 Scope；仅 `more_info_required`，提交完整 Active 私有文件集、材料版本、If-Match 与幂等，成功后回到 `pending` |
 | `GET` | `/admin/stores`、`/admin/stores/{store_id}` | `stores:read` + Data Scope |
-| `PATCH` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；修改名称、简介或已通过扫描且归属本店的 `store_logo` 派生文件，If-Match 必填；名称全局唯一，店铺范围账号 7 天只能成功改名一次 |
+| `PATCH` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；修改名称、简介或已通过扫描且归属本店的 `store_logo` 派生文件，If-Match 必填；名称全局唯一但不设改名冷却，成功后当前店名投影与缓存同步更新 |
 | `POST` | `/admin/stores/{store_id}/status-changes` | `stores:manage`；展示/提交影响码，不能覆盖认证历史 |
 | `GET/POST/PATCH` | `/admin/stores/{store_id}/product-groups` | 店铺运营权限；If-Match、店铺归属校验 |
 | `PUT` | `/admin/stores/{store_id}/product-groups/{group_id}/products` | 完整目标商品集；所有 Product 必须属于本店 |
@@ -9483,6 +9522,8 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 出站 Webhook 如后续开放给企业商家，必须另行设计 Endpoint 验证、签名 Secret 轮换、事件订阅、重放保护、重试与停用机制，不能复用入站 Provider Secret，也不能让商家自定义内网/云元数据地址造成 SSRF。
 
 #### 3.12.26 商家中心接口投影
+
+商家资金与注销使用两个专用 Facade：`GET /merchant/stores/{store_id}/revenue` 只接受当前 Merchant Context 且再次校验 `stores.owner_user_id`，返回累计实收、累计退款、净营业额和已支付订单数；`DELETE /merchant/account` 要求确认短语 `DELETE_MY_STORE_AND_ACCOUNT`，仅在该商家名下所有店铺均无任何历史订单时物理删除店铺、商品、商家账号和关联非交易数据，存在任意订单返回 409，不得为了完成注销而删除买家订单。余额和营业额接口都返回整数分 Money 对象，禁止前端浮点数作为账务事实。
 
 新版商家工作台在既有受控管理 API 之上增加最小投影：`AdminProductSummary` 返回 `cover_image_url、sku_count、available_quantity、sales_count、review_count、rating_score`，使一条商品列表请求即可绘制店铺式商品卡片，禁止每张卡片触发 N+1 请求；`GET /admin/inventories` 和 `GET /admin/reviews` 分别支持 `product_id` 窄化参数，编辑器只读取目标商品的 SKU 与已发布评价。`product_id` 只能缩小 Store Scope，不能扩大授权。商家输入目标账面库存后，前端转换为 `on_hand_delta` 调用 `AdminInventory_Adjust`，服务端继续执行 If-Match、原因、幂等、预占保护和流水审计。
 
@@ -13666,7 +13707,7 @@ API 的 Pool Size 从每实例 5–10、有限 Overflow 起压测，Worker/Agent
 
 #### 3.34.2 第二阶段：用户与权限
 
-实现 Registration Config、算术验证码 + 加密找回邮箱注册、密码登录、Refresh Rotation/Reuse Detection、退出/强制下线、脱敏邮箱提示 + 完整邮箱精确核对的找回/重置密码、修改密码、直接更换邮箱、个人信息、地址、账号安全会话与注销申请、RBAC、平台管理员密码直登/近期密码确认/操作日志、管理员审批聚合与 Executor 骨架、Cookie/CSRF/CORS/限流和字段加密。数据层交付 `users、user_credentials、auth_sessions、password_reset_records、user_addresses、user_agreement_acceptances、auth_attempts` 及法务 Content Version 的迁移/Repository；`verification_codes、credential_change_records、admin_mfa_authenticators` 仅作未启用的兼容预留表，注册算术题只在 Redis 短期保存 HMAC。Vue3 用户端完成 2.12.2、2.12.3.1～2.12.3.3 的 AuthModal、找回/重置 AuthLayout、登录注册、我的资料、密码、邮箱、会话、三级地区地址和账号注销联调；独立管理端完成密码直登、Admin Audience Session、后台 Shell、权限菜单、Scope 切换、用户治理、角色权限、安全会话和审批中心页面。认证层同时交付纯消费者、纯 Store 商家与纯 Platform 管理员的统一身份分类器、三套独立 Cookie/CSRF/Refresh/Logout 链路和会话持续重校验，并通过三入口全排列隔离测试。
+实现 Registration Config、算术验证码 + 加密找回邮箱注册、密码登录、Refresh Rotation/Reuse Detection、退出/强制下线、脱敏邮箱提示 + 完整邮箱精确核对的找回/重置密码、修改密码、直接更换邮箱、个人信息、地址、账号安全会话、无交易账号物理注销、用户余额与模拟充值、RBAC、平台管理员密码直登/近期密码确认/操作日志、管理员审批聚合与 Executor 骨架、Cookie/CSRF/CORS/限流和字段加密。数据层交付 `users、user_credentials、auth_sessions、password_reset_records、user_addresses、user_wallets、wallet_recharges、wallet_transactions、user_agreement_acceptances、auth_attempts` 及法务 Content Version 的迁移/Repository；`verification_codes、credential_change_records、admin_mfa_authenticators` 仅作未启用的兼容预留表，注册算术题只在 Redis 短期保存 HMAC。Vue3 用户端完成 2.12.2、2.12.3.1～2.12.3.3 的 AuthModal、找回/重置 AuthLayout、登录注册、我的资料、密码、邮箱、会话、三级地区地址、账户余额、模拟充值和账号注销联调；独立管理端完成密码直登、Admin Audience Session、后台 Shell、权限菜单、Scope 切换、用户治理、角色权限、安全会话和审批中心页面。认证层同时交付纯消费者、纯 Store 商家与纯 Platform 管理员的统一身份分类器、三套独立 Cookie/CSRF/Refresh/Logout 链路和会话持续重校验，并通过三入口全排列隔离测试。
 
 验收：2.12.3 的 Text UI、响应式、键盘和错误状态通过 3.30.24；Registration Config、精确协议版本、一次性 Captcha、严格 Registration/Password-only Login Schema、User Audience Session 与安全 Redirect 的前后端契约一致。注册核心资源全成或全败；并发同 Username 或同 Captcha 仅一人成功；相同幂等 Key 不重复创建用户、协议、角色、专属客服会话或 Session，Commit 成功响应丢失按固定 Bootstrap Session Replacement 策略恢复。认证/API/数据库并发测试通过；密码哈希/算术答案/Token 不入日志、Trace、截图或浏览器持久存储；账号枚举和 Refresh 重放被阻断并撤销相应会话；用户 Token 与 Admin Token Audience 不能混用。用户、商家、平台管理员凭据在服务端三入口全排列互斥；同一自然人如需多种身份，必须使用拥有单一身份类别的不同逻辑账号。三类账号的入口、Cookie Namespace/Path、CSRF 上下文、Refresh/Logout 端点与 Session 独立，交换 `aud/client_type`、Cookie 或 CSRF 的负向测试全部拒绝；Refresh、Bearer 请求和 WebSocket 建连在角色撤销或身份混合后 Fail Closed 并撤销失效会话。生产 Admin Audience 无购物车、下单或支付能力，业务演练只允许隔离环境的独立 Sandbox 用户且生产镜像/配置不含 Sandbox 凭据。IDOR、横向/纵向越权、安全错误信息测试为零泄漏；权限自提升、删除最后安全管理员、近期认证绕过、发起人自批、重复审批席位和跨店 Scope 测试全部拒绝且管理员高危操作审计完整。角色撤销/过期后重新授权生成新 Grant，历史事件不可改写且任意时刻仅有一条 Active Grant；用户业务冻结与登录失败锁定严格分离，到期或提前解冻不恢复已撤销 Session；敏感字段临时 Grant 完成绑定、一次性消费、撤销、过期与全程脱敏测试。Redis 全丢最多导致重新认证或回源 MySQL，不得恢复已撤销 Session/Grant；注册在 Redis 不可用时 Fail Closed。
 
@@ -13799,7 +13840,8 @@ Go/No-Go Meeting 逐项确认并保存签字证据：
 | `USR-HOME-01` 首页聚合 | `/` | `Homepage_Get` / `GET /homepage` | Public/Current User；Consent-aware 通用/个性推荐；局部降级 | Query Count+Cursor+UI `HOME-*` |
 | `USR-SEARCH-01` 商品搜索 | `/search` | `Product_Search`、`SearchSuggestion_List` | Public；URL 筛选、opaque Cursor、限流 | Contract+Restore `SEARCH-*` |
 | `USR-PROFILE-01` 修改资料/密码 | `/me/profile` | `UserProfile_Update`、`UserPassword_Change` | Current User；ETag/近期认证；撤销旧 Session | Audit `user.security.*`；`PROFILE-*` |
-| `USR-SETTINGS-01` 安全会话/注销 | `/me/settings/*` | `UserSecurity_Get`、`AuthSession_List/Revoke`、`AccountClosureRequest_Create` | Current User；近期认证、阻断事项、冷静期 | Security+E2E `SETTINGS-*` |
+| `USR-SETTINGS-01` 安全会话/注销 | `/me/settings/*` | `UserSecurity_Get`、`AuthSession_List/Revoke`、`UserAccount_DeleteMine` | Current User；明确确认、历史交易阻断、无交易账号跨库物理删除 | Security+E2E `SETTINGS-*`、`FINANCE-*` |
+| `USR-WALLET-01` 余额与模拟充值 | `/me/wallet` | `UserWallet_GetMine`、`UserWalletTransaction_ListMine`、`UserWalletRecharge_Create` | Current User；整数分、1～50000 元、微信/支付宝仅模拟、幂等到账、账户行锁与不可变流水 | Integration+E2E `FINANCE-*` |
 | `USR-ADDR-01` 管理地址 | `/me/addresses` | `UserAddress_Create/Update/Delete/SetDefault` | Current User；唯一默认；不改历史快照 | Domain+E2E `ADDR-*` |
 | `USR-STORE-01` 店铺页/政策 | `/stores/:storeId` | `Store_Get`、`StorePolicy_ListPublic` | Public/历史关系投影；只读当前 Published | Contract `STORE-PUBLIC-*` |
 | `USR-FAVORITE-01` 商品/店铺收藏 | `/me/favorites/*` | `FavoriteProduct_List/Put/Delete`、`FollowedStore_List/Put/Delete` | Current User；失效资源受限摘要；幂等 | Contract+E2E `FAVORITE-*` |

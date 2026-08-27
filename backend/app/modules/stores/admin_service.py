@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import timedelta
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -128,40 +127,11 @@ class AdminStoreService:
         logo: FileObject | None = None
         if payload.store_name is not None and payload.store_name != store.store_name:
             normalized_name = _normalize_name(payload.store_name)
-            if await self.repository.store_name_exists(
-                normalized_name, exclude_store_id=store.id
-            ):
+            if await self.repository.store_name_exists(normalized_name, exclude_store_id=store.id):
                 raise _conflict("STORE_NAME_ALREADY_EXISTS", "该店铺名称已被其他店铺使用。")
-            now = utc_now()
-            available_at = (
-                store.store_name_changed_at + timedelta(days=7)
-                if store.store_name_changed_at is not None
-                else None
-            )
-            if (
-                ("platform", 0) not in access.scopes
-                and available_at is not None
-                and now < available_at
-            ):
-                raise ApplicationError(
-                    status=409,
-                    code="STORE_NAME_CHANGE_COOLDOWN",
-                    title="Store name change is temporarily unavailable",
-                    detail=(
-                        "店铺名称每 7 天只能修改一次，下次可修改时间为 "
-                        f"{available_at.isoformat(timespec='seconds')}。"
-                    ),
-                    errors=[
-                        {
-                            "pointer": "/store_name",
-                            "code": "STORE_NAME_CHANGE_COOLDOWN",
-                            "message": "店铺名称尚在 7 天修改冷却期内。",
-                        }
-                    ],
-                )
             store.store_name = payload.store_name
             store.store_name_normalized = normalized_name
-            store.store_name_changed_at = now
+            store.store_name_changed_at = utc_now()
         if "description" in payload.model_fields_set:
             store.description = payload.description
         if "logo_file_id" in payload.model_fields_set:
@@ -907,11 +877,7 @@ def _store_view(store: Store, owner_user_no: str, logo: FileObject | None) -> Ad
         follower_count=store.follower_count,
         sales_count=store.sales_count,
         store_name_changed_at=store.store_name_changed_at,
-        store_name_change_available_at=(
-            store.store_name_changed_at + timedelta(days=7)
-            if store.store_name_changed_at is not None
-            else None
-        ),
+        store_name_change_available_at=None,
         opened_at=store.opened_at,
         suspended_at=store.suspended_at,
         closed_at=store.closed_at,

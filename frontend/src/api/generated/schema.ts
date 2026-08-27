@@ -510,7 +510,8 @@ export interface paths {
         get: operations["UserProfile_Get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete User Account */
+        delete: operations["UserAccount_DeleteMine"];
         options?: never;
         head?: never;
         /** Update Profile */
@@ -616,23 +617,6 @@ export interface paths {
         /** Set Default Address */
         put: operations["Address_SetDefault"];
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/me/account-closure-requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Request Account Closure */
-        post: operations["UserAccountClosureRequest_Create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1026,6 +1010,91 @@ export interface paths {
         };
         /** Get File */
         get: operations["File_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/wallet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Wallet */
+        get: operations["UserWallet_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/wallet/recharges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Recharge */
+        post: operations["UserWalletRecharge_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/wallet/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Transactions */
+        get: operations["UserWalletTransaction_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Merchant Account */
+        delete: operations["MerchantAccount_DeleteMine"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/stores/{store_id}/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Merchant Revenue */
+        get: operations["MerchantStoreRevenue_Get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4933,20 +5002,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AccountClosureRequest */
-        AccountClosureRequest: {
-            /**
-             * Reason Code
-             * @enum {string}
-             */
-            reason_code: "no_longer_needed" | "privacy_concern" | "other";
-            /** Reason */
-            reason?: string | null;
+        /** AccountDeletionRequest */
+        AccountDeletionRequest: {
             /**
              * Confirmation
              * @constant
              */
-            confirmation: "CLOSE_MY_ACCOUNT";
+            confirmation: "DELETE_MY_ACCOUNT";
         };
         /** AddressList */
         AddressList: {
@@ -8186,6 +8248,11 @@ export interface components {
             data: components["schemas"]["McpServerList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[MerchantRevenueView] */
+        Envelope_MerchantRevenueView_: {
+            data: components["schemas"]["MerchantRevenueView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[MessageList] */
         Envelope_MessageList_: {
             data: components["schemas"]["MessageList"];
@@ -8542,6 +8609,21 @@ export interface components {
         /** Envelope[VersionBindingView] */
         Envelope_VersionBindingView_: {
             data: components["schemas"]["VersionBindingView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[WalletRechargeResult] */
+        Envelope_WalletRechargeResult_: {
+            data: components["schemas"]["WalletRechargeResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[WalletTransactionList] */
+        Envelope_WalletTransactionList_: {
+            data: components["schemas"]["WalletTransactionList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[WalletView] */
+        Envelope_WalletView_: {
+            data: components["schemas"]["WalletView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[dict[str, object]] */
@@ -9144,10 +9226,28 @@ export interface components {
             /** Timeout Seconds */
             timeout_seconds: number;
         };
+        /** MerchantAccountDeletionRequest */
+        MerchantAccountDeletionRequest: {
+            /**
+             * Confirmation
+             * @constant
+             */
+            confirmation: "DELETE_MY_STORE_AND_ACCOUNT";
+        };
         /** MerchantReauthenticationRequest */
         MerchantReauthenticationRequest: {
             /** Password */
             password: string;
+        };
+        /** MerchantRevenueView */
+        MerchantRevenueView: {
+            /** Store Id */
+            store_id: string;
+            gross_sales: components["schemas"]["Money"];
+            refunded_amount: components["schemas"]["Money"];
+            net_revenue: components["schemas"]["Money"];
+            /** Paid Order Count */
+            paid_order_count: number;
         };
         /** MessageCreateRequest */
         MessageCreateRequest: {
@@ -11641,6 +11741,85 @@ export interface components {
             /** Effect */
             effect: string;
         };
+        /** WalletRechargeRequest */
+        WalletRechargeRequest: {
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "wechat" | "alipay";
+            amount: components["schemas"]["Money"];
+        };
+        /** WalletRechargeResult */
+        WalletRechargeResult: {
+            recharge: components["schemas"]["WalletRechargeView"];
+            wallet: components["schemas"]["WalletView"];
+        };
+        /** WalletRechargeView */
+        WalletRechargeView: {
+            /** Recharge Id */
+            recharge_id: string;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "wechat" | "alipay";
+            amount: components["schemas"]["Money"];
+            /**
+             * Recharge Status
+             * @constant
+             */
+            recharge_status: "succeeded";
+            /** Is Simulated */
+            is_simulated: boolean;
+            /**
+             * Completed At
+             * Format: date-time
+             */
+            completed_at: string;
+        };
+        /** WalletTransactionList */
+        WalletTransactionList: {
+            /** Items */
+            items: components["schemas"]["WalletTransactionView"][];
+        };
+        /** WalletTransactionView */
+        WalletTransactionView: {
+            /** Transaction Id */
+            transaction_id: string;
+            /** Transaction Type */
+            transaction_type: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "credit" | "debit";
+            amount: components["schemas"]["Money"];
+            balance_after: components["schemas"]["Money"];
+            /** Channel */
+            channel: string | null;
+            /** Description */
+            description: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** WalletView */
+        WalletView: {
+            /** Wallet Id */
+            wallet_id: string;
+            balance: components["schemas"]["Money"];
+            total_recharged: components["schemas"]["Money"];
+            /**
+             * Wallet Status
+             * @enum {string}
+             */
+            wallet_status: "active" | "frozen";
+            /** Version */
+            version: number;
+        };
         /** ProblemDetails */
         ProblemDetails: {
             /**
@@ -12884,6 +13063,42 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    UserAccount_DeleteMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountDeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     UserProfile_Patch: {
         parameters: {
             query?: never;
@@ -13234,46 +13449,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_AddressView_"];
-                };
-            };
-            401: components["responses"]["Problem401"];
-            409: components["responses"]["Problem409"];
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            429: components["responses"]["Problem429"];
-            500: components["responses"]["Problem500"];
-            503: components["responses"]["Problem503"];
-        };
-    };
-    UserAccountClosureRequest_Create: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AccountClosureRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
             401: components["responses"]["Problem401"];
@@ -14196,6 +14371,177 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    UserWallet_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_WalletView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    UserWalletRecharge_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WalletRechargeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_WalletRechargeResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    UserWalletTransaction_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_WalletTransactionList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAccount_DeleteMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MerchantAccountDeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantStoreRevenue_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MerchantRevenueView_"];
+                };
             };
             401: components["responses"]["Problem401"];
             404: components["responses"]["Problem404"];

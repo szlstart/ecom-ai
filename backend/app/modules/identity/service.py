@@ -29,6 +29,7 @@ from app.core.security import (
     utc_now,
 )
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
+from app.modules.finance.models import UserWallet
 from app.modules.identity.access_policy import load_identity_eligibility
 from app.modules.identity.models import (
     AuthAttempt,
@@ -39,7 +40,6 @@ from app.modules.identity.models import (
     UserAddress,
     UserAgreementAcceptance,
     UserCredential,
-    UserStatusRecord,
     VerificationCode,
 )
 from app.modules.identity.repository import IdentityRepository
@@ -409,6 +409,16 @@ class IdentityService:
                 is_primary=True,
                 is_verified=False,
                 credential_status="active",
+            )
+        )
+        self.session.add(
+            UserWallet(
+                wallet_no=new_prefixed_ulid("wal_"),
+                user_id=user.id,
+                balance_amount=0,
+                total_recharged_amount=0,
+                currency="CNY",
+                wallet_status="active",
             )
         )
         role = await self.repository.role_by_code("user")
@@ -1283,53 +1293,6 @@ class IdentityService:
             address.version += 1
             await self.session.commit()
         return self._address_view(address)
-
-    async def request_account_closure(
-        self, user: User, reason_code: str, reason: str | None, idempotency_key: str
-    ) -> None:
-        claim = await self.idempotency.begin(
-            scope_key=f"user:{user.user_no}:account-closure",
-            idempotency_key=idempotency_key,
-            payload=self._idempotency_payload(
-                "account-closure", {"reason_code": reason_code, "reason": reason}
-            ),
-            resource_type="account_closure",
-        )
-        if claim.replayed:
-            return
-        if user.user_status == "pending_close":
-            self.idempotency.complete(claim, response_status=202, resource_no=user.user_no)
-            await self.session.commit()
-            return
-        now = utc_now()
-        record = UserStatusRecord(
-            status_record_no=new_prefixed_ulid("usrst_"),
-            user_id=user.id,
-            from_status=user.user_status,
-            to_status="pending_close",
-            reason_code=reason_code,
-            reason=reason or reason_code,
-            effective_at=now,
-            expires_at=now + timedelta(days=30),
-            actor_type="user",
-            actor_user_id=user.id,
-            expected_user_version=user.version,
-            result_user_version=user.version + 1,
-            idempotency_key=idempotency_key,
-            idempotency_scope_key=self.security.keyed_hash(
-                "user-status-idempotency", f"user:{user.id}:{idempotency_key}"
-            ),
-            request_id=_request_id(),
-            trace_id=_request_id(),
-        )
-        self.session.add(record)
-        await self.session.flush()
-        user.user_status = "pending_close"
-        user.current_status_record_id = record.id
-        user.version += 1
-        await self.repository.revoke_user_sessions(user.id, now, "account_closure_requested")
-        self.idempotency.complete(claim, response_status=202, resource_no=record.status_record_no)
-        await self.session.commit()
 
     async def _validate_registration_contract(
         self, request: RegistrationRequest

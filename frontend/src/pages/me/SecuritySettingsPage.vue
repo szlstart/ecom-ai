@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import { ApiProblem, apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
 import { useUserAuthStore } from '@/stores/user-auth'
@@ -122,5 +123,6 @@ async function revoke(sessionId: string) {
         </li>
       </ul>
     </article>
+    <article class="card danger-zone"><div><p class="eyebrow danger-text">不可恢复</p><h2>注销账号</h2><p>永久删除账号、余额及非交易数据；存在历史订单时系统会阻止直接删除。</p></div><RouterLink class="button-link danger" to="/me/settings/account-closure">进入账号注销</RouterLink></article>
   </section>
 </template>

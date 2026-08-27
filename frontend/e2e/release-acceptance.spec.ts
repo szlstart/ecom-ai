@@ -171,7 +171,7 @@ test('ACCOUNT-ADDRESS-BROWSER keeps messaging active and exposes the three-level
   })
 
   await page.goto('/me/addresses')
-  await expect(page.getByRole('link', { name: '消息' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '消息', exact: true })).toBeVisible()
   await expect(page.getByText(/(早上|中午|下午|晚上)好，验收用户/)).toBeVisible()
   await page.getByRole('button', { name: '新增地址' }).click()
   await expect(page.getByLabel('省份').locator('option')).toHaveCount(33)
@@ -197,7 +197,7 @@ test('AUTH-BROWSER keeps user and admin authentication entry points keyboard rea
   await expect(page.getByRole('heading', { name: '页面不存在' })).toBeVisible()
 
   await page.goto('/admin/login')
-  await expect(page.getByRole('heading', { name: '管理端登录' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '管理员登录' })).toBeVisible()
   await assertBaselineAccessibility(page)
 })
 
@@ -208,7 +208,7 @@ test('AUTH-GUARD-BROWSER fails closed for protected user and admin routes', asyn
 
   await page.goto('/admin/dashboard')
   await expect(page).toHaveURL(/\/admin\/login$/)
-  await expect(page.getByRole('heading', { name: '管理端登录' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '管理员登录' })).toBeVisible()
 })
 
 test('SYSTEM-STATE-BROWSER exposes deterministic recovery pages', async ({ page }, testInfo) => {

@@ -125,9 +125,7 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
 
     stores = await client.get("/api/v1/admin/stores", headers=headers)
     assert stores.status_code == 200, stores.text
-    assert [item["store_id"] for item in stores.json()["data"]["items"]] == [
-        provisioning.store_no
-    ]
+    assert [item["store_id"] for item in stores.json()["data"]["items"]] == [provisioning.store_no]
 
     store_detail = await client.get(
         f"/api/v1/admin/stores/{provisioning.store_no}", headers=headers
@@ -147,15 +145,15 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
     )
     assert renamed.status_code == 200, renamed.text
     assert renamed.json()["data"]["store_name_changed_at"] is not None
-    assert renamed.json()["data"]["store_name_change_available_at"] is not None
+    assert renamed.json()["data"]["store_name_change_available_at"] is None
 
-    cooldown = await client.patch(
+    renamed_again = await client.patch(
         f"/api/v1/admin/stores/{provisioning.store_no}",
         headers={**headers, "If-Match": renamed.headers["etag"]},
         json={"store_name": f"商家再次改名 {suffix}"},
     )
-    assert cooldown.status_code == 409, cooldown.text
-    assert cooldown.json()["code"] == "STORE_NAME_CHANGE_COOLDOWN"
+    assert renamed_again.status_code == 200, renamed_again.text
+    assert renamed_again.json()["data"]["store_name"] == f"商家再次改名 {suffix}"
 
     forbidden = await client.get(f"/api/v1/admin/stores/{foreign_store_no}", headers=headers)
     assert forbidden.status_code == 404

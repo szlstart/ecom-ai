@@ -706,6 +706,10 @@
 | **参数表格**             | 结构清晰展示                                                 |
 | **长内容折叠**           | 如商品描述内容过长（超过 2000px 高度），默认展示部分内容 + "展开更多"按钮，点击后完整展开 |
 
+商家编辑商品详情时不再使用单个纯文本框，而使用有序 Block 编辑器。每次“添加文字”、本地上传图片或在详情粘贴区使用 `Command + V / Ctrl + V` 粘贴图片，都会在当前内容末尾产生一个独立 Block；商家可以对任意 Block 执行上移、下移或删除。保存时按界面从上到下的顺序序列化为 `source_format=structured`，文本写为 `paragraph`，图片写为仅引用本店安全文件公开 ID 的 `image`，数组顺序就是顾客端唯一展示顺序。图片上传必须经过既有受控上传、对象存储、安全扫描和店铺归属校验；上传完成但尚未点击“保存商品详情”时，界面必须明确提示仍需保存。
+
+顾客端通过统一 `SafeContentRenderer` 顺序渲染服务端发布的 `safe_blocks`，图片自适应内容栏宽度，文字保留合理换行；组件禁止 `v-html/innerHTML`，不得读取商家原始 Source。本次实现仅建设可供后续使用的结构化图文数据与页面排版，不接入 AI 图片识别、OCR、图片摘要或多模态回答；相关 AI 能力须在用户后续明确提出后另行设计、评估和上线。
+
 数据同步说明
 
 | 同步项                  | 说明                                                         |
@@ -5766,7 +5770,7 @@ MySQL 是 Grant 的权威来源，Redis 只缓存短时允许/撤销结果。Gra
 | `source_content` | `MEDIUMTEXT` | NOT NULL，私有原始编辑内容；加大小上限，不进入公开/Agent DTO |
 | `source_hash` | `BINARY(32)` | NOT NULL，原始规范化内容 Hash |
 | `public_content_format` | `VARCHAR(24)` | `structured_v1/safe_html_v1` |
-| `safe_blocks` | `JSON` | NULL，版本化结构化块；Schema 拒绝未知 Block/属性 |
+| `safe_blocks` | `JSON` | NULL，版本化结构化块；数组顺序是页面从上到下的权威顺序，支持文字与本店安全图片引用，Schema 拒绝未知 Block/属性 |
 | `safe_html` | `MEDIUMTEXT` | NULL，服务端 Sanitizer 生成，不接受客户端作为权威值 |
 | `safe_text` | `MEDIUMTEXT` | NOT NULL，纯文本降级及 AI/RAG 的不可信数据输入 |
 | `content_hash` | `BINARY(32)` | NOT NULL，安全公开内容的 Canonical Hash |

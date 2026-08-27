@@ -65,6 +65,7 @@ const inventory = {
   sku_id: 'sku_test', sku_name: '黑色款', product_id: 'prd_test', product_name: '剪贴板测试商品', store_id: 'sto_test', store_name: '测试店铺',
   on_hand_quantity: 8, reserved_quantity: 1, safety_stock_quantity: 0, available_quantity: 7, sold_quantity: 0, status: 'active', last_reconciled_at: null, version: 1,
 }
+const uploadedFileId = 'file_01ARZ3NDEKTSV4RRFFQ69G5FAV'
 
 const FileUploadStub = defineComponent({
   emits: ['uploaded'],
@@ -72,7 +73,7 @@ const FileUploadStub = defineComponent({
     expose({
       async uploadFile(file: File) {
         mocks.pastedFile = file
-        emit('uploaded', 'fil_clipboard')
+        emit('uploaded', uploadedFileId)
       },
     })
     return () => h('div', { class: 'file-upload-stub' }, '从本地选择图片')
@@ -148,7 +149,7 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     expect(wrapper.text()).toContain('图片已上传并自动保存，刷新页面也不会丢失')
     expect(mocks.adminReplace).toHaveBeenCalledWith(
       '/admin/products/prd_test/images',
-      expect.objectContaining({ items: [expect.objectContaining({ file_id: 'fil_clipboard', image_type: 'main', sku_id: null })] }),
+      expect.objectContaining({ items: [expect.objectContaining({ file_id: uploadedFileId, image_type: 'main', sku_id: null })] }),
       'merchant-token',
       1,
     )
@@ -169,6 +170,68 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
 
     expect(wrapper.text()).toContain('剪贴板中没有图片')
     expect(wrapper.find('.merchant-product-info-editor').exists()).toBe(true)
+  })
+
+  it('keeps pasted detail images and text in the merchant-defined vertical order', async () => {
+    const wrapper = await mountPage()
+    await wrapper.get('.merchant-detail-block textarea').setValue('第一段文字')
+
+    const source = new File(['detail'], '', { type: 'image/png' })
+    wrapper.get('.merchant-detail-image-insert').element.dispatchEvent(pasteEvent([
+      { kind: 'file', type: 'image/png', getAsFile: () => source },
+    ]))
+    await flushPromises()
+    expect(mocks.pastedFile?.name).toMatch(/^clipboard-\d+\.png$/)
+    expect(wrapper.text()).toContain('图片已添加到商品详情末尾')
+    expect(wrapper.get('.merchant-detail-block.is-image img').attributes('src')).toContain(uploadedFileId)
+    expect(wrapper.findAll('.file-upload-stub')).toHaveLength(2)
+
+    const addText = wrapper.findAll('button').find((button) => button.text().includes('添加文字'))
+    await addText!.trigger('click')
+    const textareas = wrapper.findAll<HTMLTextAreaElement>('.merchant-detail-block textarea')
+    await textareas[1]!.setValue('第二段文字')
+    const saveDetail = wrapper.findAll('button').find((button) => button.text() === '保存商品详情')
+    await saveDetail!.trigger('click')
+    await flushPromises()
+
+    const detailCall = mocks.adminCreate.mock.calls.find(([requestPath]) => requestPath.endsWith('/detail-content-versions'))
+    expect(detailCall?.[1]).toMatchObject({ source_format: 'structured' })
+    expect(JSON.parse(detailCall?.[1].source_content as string)).toEqual([
+      { type: 'paragraph', text: '第一段文字' },
+      { type: 'image', file_id: uploadedFileId, alt: '剪贴板测试商品' },
+      { type: 'paragraph', text: '第二段文字' },
+    ])
+    expect(wrapper.text()).toContain('商品详情已按当前图文顺序保存')
+  })
+
+  it('restores a previously saved structured detail version in the same order', async () => {
+    mocks.adminGet.mockImplementation(async (requestPath: string) => {
+      if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
+      if (requestPath === '/admin/products/prd_test') return { data: { ...product, current_detail_content_version_id: 'pcv_test' } }
+      if (requestPath.endsWith('/detail-content-versions/pcv_test')) return { data: {
+        version_id: 'pcv_test', content_version: 1, source_format: 'structured',
+        source_content: JSON.stringify([
+          { type: 'paragraph', text: '上方文字' },
+          { type: 'image', file_id: uploadedFileId, alt: '中间图片' },
+          { type: 'paragraph', text: '下方文字' },
+        ]),
+        public_content_format: 'structured_v1', safe_blocks: [], safe_html: null,
+        safe_text: '上方文字 中间图片 下方文字', security_scan_status: 'passed', status: 'draft', created_at: '2026-08-27T00:00:00Z',
+      } }
+      if (requestPath.endsWith('/skus')) return { data: [sku] }
+      if (requestPath.endsWith('/images') || requestPath.endsWith('/attributes') || requestPath.endsWith('/faqs')) return { data: [] }
+      if (requestPath.startsWith('/admin/inventories?')) return { data: { items: [inventory] } }
+      if (requestPath.endsWith('/fulfillment-profile')) return { data: null }
+      if (requestPath.endsWith('/shipping-templates')) return { data: [] }
+      throw new Error(`unexpected path: ${requestPath}`)
+    })
+
+    const wrapper = await mountPage()
+    expect(wrapper.findAll('.merchant-detail-block').map((block) => block.classes().find((name) => name.startsWith('is-')))).toEqual([
+      'is-paragraph', 'is-image', 'is-paragraph',
+    ])
+    expect(wrapper.findAll<HTMLTextAreaElement>('.merchant-detail-block textarea').map((field) => field.element.value)).toEqual(['上方文字', '下方文字'])
+    expect(wrapper.get('.merchant-detail-block.is-image img').attributes('src')).toContain(uploadedFileId)
   })
 
   it('shows only the direct style fields and keeps stock beside its style', async () => {

@@ -19,6 +19,7 @@ import { createBuyNowCheckout } from '@/api/checkout'
 import { createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
+import SafeContentRenderer from '@/components/SafeContentRenderer.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { useMessageCenterStore } from '@/stores/message-center'
 
@@ -212,7 +213,7 @@ watch(() => auth.accessToken, () => void load())
 
           <section id="details" class="content-section">
             <p class="eyebrow">已审核内容</p><h2>商品详情</h2>
-            <div v-if="product.detail_content" class="safe-content">{{ product.detail_content.safe_text_fallback }}</div>
+            <SafeContentRenderer v-if="product.detail_content" :content="product.detail_content" />
             <p v-else class="muted">商家暂未补充详细说明。</p>
             <dl v-if="product.attributes.length" class="attribute-list">
               <template v-for="(attribute, index) in product.attributes" :key="index">

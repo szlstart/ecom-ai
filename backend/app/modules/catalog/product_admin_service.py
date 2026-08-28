@@ -1080,8 +1080,8 @@ class ProductAdminService:
                     "pending_review",
                     "rejected",
                     "auto_rejected",
-                    "AUTO_MODERATION_FIREARMS_AMMUNITION",
-                    "自动审核发现枪支弹药相关违禁词，请修改商品内容后重新提交。",
+                    "AUTO_MODERATION_DRUGS_KILLING",
+                    "自动审核发现毒品、杀人相关违禁词，请修改商品内容后重新提交。",
                 )
                 _change_event(self.session, product, store, "product.rejected.v1")
             else:

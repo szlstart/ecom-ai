@@ -561,7 +561,7 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
     sensitive_edit = await client.patch(
         f"/api/v1/admin/products/{product_id}",
         headers={**merchant_auth, "If-Match": merchant_product.headers["etag"]},
-        json={"product_name": f"金属手 枪测试商品 {suffix}"},
+        json={"product_name": f"毒 品测试商品 {suffix}"},
     )
     assert sensitive_edit.status_code == 200, sensitive_edit.text
     auto_rejected = await client.post(

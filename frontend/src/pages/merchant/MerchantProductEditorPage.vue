@@ -518,7 +518,7 @@ async function productCommand(action: 'submit_review' | 'publish' | 'off_shelf')
           return status === 'on_sale'
             ? '系统自动审核通过，商品已立即上架。'
             : status === 'rejected'
-              ? '自动审核未通过：商品内容包含枪支弹药相关违禁词，请修改后重新提交。'
+              ? '自动审核未通过：商品内容包含毒品、杀人相关违禁词，请修改后重新提交。'
               : '商品已提交审核。'
         }
       : action === 'publish' ? '商品已上架。' : '商品已下架。',

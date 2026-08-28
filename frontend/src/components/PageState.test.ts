@@ -25,4 +25,16 @@ describe('PageState', () => {
     expect(document.activeElement).toBe(input.element)
     wrapper.unmount()
   })
+
+  it('can keep settled content without showing the background refresh notice', async () => {
+    const wrapper = mount(PageState, {
+      props: { loading: false, showRefreshStatus: false },
+      slots: { default: '<article data-testid="content">订单列表</article>' },
+    })
+
+    await wrapper.setProps({ loading: true })
+
+    expect(wrapper.get('[data-testid="content"]').text()).toBe('订单列表')
+    expect(wrapper.text()).not.toContain('正在更新')
+  })
 })

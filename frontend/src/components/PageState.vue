@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   loading?: boolean
   error?: string
   empty?: boolean
   emptyTitle?: string
   emptyDetail?: string
-}>()
+  showRefreshStatus?: boolean
+}>(), { showRefreshStatus: true })
 defineEmits<{ retry: [] }>()
 
 // Initial loading may replace the page with a full loading state. Once content has
@@ -25,7 +26,7 @@ watch(() => props.loading, (loading) => {
     <p>正在加载，请稍候…</p>
   </div>
   <template v-else>
-    <div v-show="loading" class="page-refresh-status" role="status" aria-live="polite">
+    <div v-if="loading && showRefreshStatus" class="page-refresh-status" role="status" aria-live="polite">
       <span class="spinner" aria-hidden="true"></span>
       <span>正在更新…</span>
     </div>

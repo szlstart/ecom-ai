@@ -185,6 +185,11 @@ function closeBuyCheckout() {
   buyCheckoutOpen.value = false
 }
 
+function syncBuyNowQuantity(nextQuantity: number) {
+  setQuantity(nextQuantity)
+  if (selectedSku.value) buyCheckoutSignature.value = `${selectedSku.value.sku_id}:${quantity.value}`
+}
+
 function estimateText(): string {
   const estimate = product.value?.dispatch_estimate
   if (!estimate || estimate.status !== 'available' || !estimate.min_at || !estimate.max_at) return '暂时无法提供可靠发货时间范围'
@@ -317,7 +322,7 @@ onBeforeUnmount(() => document.body.classList.remove('modal-open'))
               <div><p class="eyebrow">无需离开商品页</p><h2 id="buy-now-checkout-title">确认本次购买</h2></div>
               <button type="button" class="buy-now-checkout-close secondary" aria-label="关闭结算弹窗并继续浏览商品" @click="closeBuyCheckout">×</button>
             </header>
-            <CheckoutPage :checkout-id="buyCheckoutId" embedded />
+            <CheckoutPage :checkout-id="buyCheckoutId" embedded @quantity-changed="syncBuyNowQuantity" />
           </section>
         </div>
       </Teleport>

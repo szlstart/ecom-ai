@@ -53,7 +53,7 @@ function checkout(overrides: Record<string, unknown> = {}) {
   }
 }
 
-async function mountPage() {
+async function mountPage(embedded = false) {
   const pinia = createPinia()
   setActivePinia(pinia)
   useUserAuthStore().accessToken = 'user-token'
@@ -70,7 +70,7 @@ async function mountPage() {
   })
   await router.push('/checkout/chk_test')
   await router.isReady()
-  const wrapper = mount(CheckoutPage, { global: { plugins: [pinia, router] } })
+  const wrapper = mount(CheckoutPage, { props: embedded ? { checkoutId: 'chk_test', embedded: true } : {}, global: { plugins: [pinia, router] } })
   await flushPromises()
   return wrapper
 }
@@ -112,5 +112,40 @@ describe('CheckoutPage', () => {
     expect(mocks.patchCheckout).toHaveBeenCalledWith(
       'chk_test', { address_id: address.address_id }, 1, 'user-token',
     )
+  })
+
+  it('updates buy-now quantity and payable amount inside the embedded checkout', async () => {
+    const changed = checkout()
+    changed.store_groups[0]!.items[0]!.quantity = 3
+    changed.store_groups[0]!.items[0]!.subtotal = { minor_units: '1800', currency: 'CNY' }
+    changed.store_groups[0]!.goods_amount = { minor_units: '1800', currency: 'CNY' }
+    changed.amounts = {
+      goods_amount: { minor_units: '1800', currency: 'CNY' },
+      freight_amount: { minor_units: '0', currency: 'CNY' },
+      payable_amount: { minor_units: '1800', currency: 'CNY' },
+    }
+    changed.version = 3
+    mocks.getCheckout.mockResolvedValue({ data: checkout() })
+    mocks.patchCheckout.mockResolvedValue({ data: changed })
+
+    const wrapper = await mountPage(true)
+    await wrapper.get('button[aria-label="增加结算数量"]').trigger('click')
+    await flushPromises()
+
+    expect(mocks.patchCheckout).toHaveBeenCalledWith('chk_test', { quantity: 3 }, 2, 'user-token')
+    expect((wrapper.get('input[aria-label="结算购买数量"]').element as HTMLInputElement).value).toBe('3')
+    expect(wrapper.get('.checkout-embedded-total').text()).toContain('¥18.00')
+    expect(wrapper.emitted('quantityChanged')).toEqual([[3]])
+  })
+
+  it('keeps the merchant remark collapsed until the user opens more', async () => {
+    mocks.getCheckout.mockResolvedValue({ data: checkout() })
+
+    const wrapper = await mountPage(true)
+    const details = wrapper.get('.checkout-remark-details')
+
+    expect(details.attributes('open')).toBeUndefined()
+    expect(details.get('summary').text()).toContain('给商家留言')
+    expect(details.get('summary').text()).toContain('（更多）')
   })
 })

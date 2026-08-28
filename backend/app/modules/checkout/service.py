@@ -132,6 +132,13 @@ class CheckoutService:
         self._require_version(row, expected_version)
         snapshot = await self._snapshot(row)
         source = cast(dict[str, Any], snapshot.snapshot_payload["source"])
+        if payload.quantity is not None:
+            if row.source_type != "buy_now":
+                raise _conflict(
+                    "CHECKOUT_QUANTITY_CHANGE_UNSUPPORTED",
+                    "购物车结算的数量请返回购物车修改。",
+                )
+            source = {**source, "quantity": payload.quantity}
         current_view = CheckoutView.model_validate(snapshot.snapshot_payload["view"])
         address_no = (
             payload.address_id if payload.address_id is not None else current_view.address_id
@@ -374,6 +381,8 @@ class CheckoutService:
                 )
             )
         actions = ["change_address", "reprice"]
+        if source_type == "buy_now":
+            actions.append("change_quantity")
         if not blocking:
             actions.append("create_order")
         return CheckoutView(

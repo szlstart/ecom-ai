@@ -41299,6 +41299,19 @@
               }
             ],
             "title": "Buyer Remarks"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 99.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
           }
         },
         "additionalProperties": false,

@@ -53,11 +53,12 @@ class BuyerRemark(StrictRequest):
 class CheckoutPatchRequest(StrictRequest):
     address_id: str | None = Field(default=None, pattern=r"^addr_[0-9A-Z]+$", max_length=40)
     buyer_remarks: list[BuyerRemark] | None = Field(default=None, max_length=100)
+    quantity: int | None = Field(default=None, ge=1, le=99)
 
     @model_validator(mode="after")
     def require_change(self) -> CheckoutPatchRequest:
-        if self.address_id is None and self.buyer_remarks is None:
-            raise ValueError("address_id or buyer_remarks is required")
+        if self.address_id is None and self.buyer_remarks is None and self.quantity is None:
+            raise ValueError("address_id, buyer_remarks or quantity is required")
         if self.buyer_remarks is not None:
             ids = [item.store_id for item in self.buyer_remarks]
             if len(ids) != len(set(ids)):

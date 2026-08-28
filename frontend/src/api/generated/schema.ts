@@ -7466,6 +7466,8 @@ export interface components {
             address_id?: string | null;
             /** Buyer Remarks */
             buyer_remarks?: components["schemas"]["BuyerRemark"][] | null;
+            /** Quantity */
+            quantity?: number | null;
         };
         /** CheckoutStoreGroupView */
         CheckoutStoreGroupView: {

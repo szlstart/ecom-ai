@@ -511,6 +511,16 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     )
     assert patched.status_code == 200, patched.text
     assert patched.json()["data"]["store_groups"][0]["buyer_remark"] == "请轻放\n谢谢"
+    quantity_patched = await client.patch(
+        f"/api/v1/checkout-sessions/{checkout_id}",
+        headers={**auth, "If-Match": patched.headers["etag"]},
+        json={"quantity": 3},
+    )
+    assert quantity_patched.status_code == 200, quantity_patched.text
+    assert quantity_patched.json()["data"]["store_groups"][0]["items"][0]["quantity"] == 3
+    assert quantity_patched.json()["data"]["amounts"]["payable_amount"]["minor_units"] == "7500"
+    assert quantity_patched.json()["data"]["store_groups"][0]["buyer_remark"] == "请轻放\n谢谢"
+    assert "change_quantity" in quantity_patched.json()["data"]["available_actions"]
     stale = await client.patch(
         f"/api/v1/checkout-sessions/{checkout_id}",
         headers={**auth, "If-Match": created.headers["etag"]},
@@ -523,7 +533,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     )
     assert repriced.status_code == 200, repriced.text
     assert repriced.json()["data"]["pricing_version"] == "pricing_v2_free_shipping"
-    assert repriced.json()["data"]["version"] == 2
+    assert repriced.json()["data"]["version"] == 3
 
     expiring = await client.post(
         "/api/v1/checkout-sessions",

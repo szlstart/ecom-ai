@@ -522,7 +522,8 @@
 | 4    | **款式选择区**     | SKU 的用户可见款式名称列表                  | 点击后选中对应 `sku_id`，左侧切换该 SKU 图片集；无专属图时回退商品公共图库 |
 | 5    | **发货信息**       | 城市级发货地 + 预计发货时间范围             | 发货地由地区代码转换为可读省市，不暴露仓库详细地址     |
 | 6    | **数量选择**       | 加减按钮（− / +）+ 数字显示                 | 最少 1 件，最大为服务端返回的本次可购买上限           |
-| 7    | **操作按钮区**     | 加入购物车（主按钮）+ 立即购买（强调按钮）  | 水平并排显示                                           |
+| 7    | **支付总额**       | 当前款式实际售价 × 当前数量，运费按当前包邮政策展示 | 数量为 1 时也必须显示；加减或输入数量后立即联动更新    |
+| 8    | **操作按钮区**     | 加入购物车（主按钮）+ 立即购买（强调按钮）  | 水平并排显示                                           |
 
 ##### 2.3.3.2 店铺信息
 
@@ -585,7 +586,7 @@
 | 按钮           | 样式                                  | 交互行为                                                     |
 | :------------- | :------------------------------------ | :----------------------------------------------------------- |
 | **加入购物车** | 主按钮（如橙色/品牌色），宽占约 45%   | 将当前选中 `sku_id + quantity` 增量加入购物车；同一 SKU 已存在时由服务端累加，使用响应的 `cart_total_quantity` 更新顶部角标，不在本地推算 |
-| **立即购买**   | 强调按钮（如红色/高亮色），宽占约 45% | 使用当前 `sku_id + quantity` 创建 `buy_now` 结算会话，成功后导航到 `/checkout/:checkoutId`，跳过购物车但不直接创建订单或扣款 |
+| **立即购买**   | 强调按钮（如红色/高亮色），宽占约 45% | 使用当前 `sku_id + quantity` 创建 `buy_now` 结算会话，成功后在商品页内打开结算弹窗且不改变 URL；跳过购物车但不直接创建订单或扣款。点击遮罩空白、关闭按钮或按 Esc 可返回商品浏览，保留款式、数量与滚动位置 |
 | **按钮间距**   | 两按钮之间留出合适间距                | 水平并排，整体居中或靠右对齐                                 |
 
 ##### 2.3.3.7 右侧栏固定说明
@@ -1466,10 +1467,10 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 
 ### 2.6 订单结算界面
 
-订单结算界面用于用户在付款前确认收货地址、商品规格、配送方式和应付金额。该界面有两个入口，但使用同一套页面和结算逻辑：
+订单结算界面用于用户在付款前确认收货地址、商品规格、配送方式和应付金额。该界面有两个入口，使用同一个 `CheckoutPage.vue` 和同一套结算逻辑，但容器不同：
 
-1. 商品详情页点击 **[立即购买]**，以 API JSON 字段 `sku_id + quantity` 创建单个商品结算；
-2. 购物车点击 **[去结算]**，携带已勾选的购物车条目 ID 集合进入多商品结算。
+1. 商品详情页点击 **[立即购买]**，以 API JSON 字段 `sku_id + quantity` 创建单个商品结算，并在当前商品页打开模态弹窗；
+2. 购物车点击 **[去结算]**，携带已勾选的购物车条目 ID 集合进入 `/checkout/:checkoutId` 多商品结算页。
 
 > **按钮语义说明**：商品详情页的 [立即购买] 只创建结算快照并进入本界面，**不能创建订单或扣款**。结算页的 [提交订单] 只调用订单创建接口；订单成功后才进入独立支付收银台，由用户选择渠道并调用支付创建接口。两个步骤使用各自稳定的 Idempotency Key，任何一步都不得被前端合并成一个结果未知的请求。
 
@@ -1477,10 +1478,10 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 
 | 场景 | 结算会话创建参数 | 页面路由 | 返回行为 |
 | :--- | :------- | :------- | :------- |
-| 单个商品立即购买 | `source_type=buy_now`、`items[{sku_id, quantity}]` | `/checkout/:checkoutId` | 返回原商品详情页，保留已选规格和数量 |
+| 单个商品立即购买 | `source_type=buy_now`、`items[{sku_id, quantity}]` | 商品详情页内结算弹窗，商品 URL 不变 | 点击遮罩空白、关闭按钮或按 Esc 关闭；保留已选款式、数量和滚动位置 |
 | 购物车选中结算 | `source_type=cart`、`cart_item_ids[]` | `/checkout/:checkoutId` | 返回购物车，保留勾选状态 |
 
-入口页先调用 `POST /api/v1/checkout-sessions` 创建短期结算会话，成功后使用响应中的 `checkout_id` 导航到 `/checkout/:checkoutId`。结算页刷新、浏览器返回和重新计价都根据 `checkoutId` 读取服务端快照；原始 SKU、购物车条目和客户端金额不能作为刷新后的权威状态。结算参数必须由服务端重新读取商品名称、价格、库存和运费，前端传入的金额只用于入口过渡展示，不能作为实际扣款依据。
+入口先调用 `POST /api/v1/checkout-sessions` 创建短期结算会话。`buy_now` 成功后把 `checkout_id` 交给商品页内嵌的 `CheckoutPage.vue`，不得导航离开商品页；`cart` 成功后才导航到 `/checkout/:checkoutId`。弹窗、结算页刷新、重新打开和重新计价都根据 `checkoutId` 读取服务端快照；原始 SKU、购物车条目和客户端金额不能作为权威状态。结算参数必须由服务端重新读取商品名称、价格、库存和运费，前端传入的金额只用于入口过渡展示，不能作为实际扣款依据。
 
 #### 2.6.2 页面整体布局（Text UI）
 
@@ -1503,14 +1504,14 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 │  │  └────────┘                                                                          │  │
 │  │  配送模板预计 2026-08-22～2026-08-23 送达 · 更新于 2026-08-20 09:15 · 仅供参考  │  │
 │  │  配送方式：快递配送                                             运费 ¥0.00  │  │
-│  │  订单备注：[选填，请先与商家协商，最多200字____________________]                        │  │
+│  │  给商家留言                                                     [（更多）⌄]          │  │
+│  │  （默认收起；点击后展示最多 200 字的留言输入框）                                      │  │
 │  └────────────────────────────────────────────────────────────────────────────────────────┘  │
 │                                                                                              │
 │  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
 │  │  支付提示                          提交订单后前往收银台选择支付方式              │  │
-│  │  商品金额                                                               ¥8,999.00      │  │
-│  │  运费                                                                      ¥0.00      │  │
-│  │  应付总额                                                         ¥8,999.00             │  │
+│  │  购买数量                                                        [−] 1 [+]              │  │
+│  │  支付总额（邮寄包邮）                                             ¥8,999.00             │  │
 │  └────────────────────────────────────────────────────────────────────────────────────────┘  │
 │                                                                                              │
 │                                  配送至：上海市浦东新区……  收货人：张三 138****8888          │
@@ -1532,7 +1533,8 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 
 - 商品按店铺分组；单个商品立即购买时只展示一个店铺下的当前商品。
 - 店铺 Logo、店铺名称可点击进入店铺页；商品图片、商品名称可点击进入商品详情页。
-- 每个商品必须展示商品主图、名称、SKU 规格、单价、数量和小计；结算页不允许直接修改规格和数量，用户需返回来源页修改。
+- 每个商品必须展示商品主图、名称、SKU 规格、单价、数量和小计。`buy_now` 弹窗允许直接加减或输入数量，使用 `PATCH /checkout-sessions/{checkout_id}` 的 `quantity` 字段和 If-Match 生成新快照、重新校验库存并计价，同时把确认后的数量同步回商品页；款式仍需关闭弹窗后在商品页修改。`cart` 结算不允许在结算页修改数量，用户需返回购物车修改。
+- “给商家留言”默认折叠，只显示“（更多）”入口；用户主动展开后才展示最多 200 字的输入框，已填写时折叠标题显示“已填写 · 点击修改”。
 - 每个店铺拥有独立配送方式、运费和订单备注；一次结算生成一个合并交易单 `trade_order`，每个店铺生成一个店铺子订单 `order`，支付时可针对合并交易单统一支付。
 - 点击 [联系客服] 进入与商品详情页相同的店铺唯一会话，并建立短期 `checkout_store_group` Active Context。该上下文由服务端绑定当前用户、会话店铺、`checkout_id + checkout_version` 和 Checkout 过期时间；只包含本店组的 `product_id、sku_id、商品名、规格、数量` 及必要的本店配送问题，不包含其他店铺分组、完整收货地址、手机号、优惠明细、支付偏好或跨店总额。
 - Checkout 重新计价产生新 Version 后，旧 Context 立即因版本不匹配而不可调用 Tool；用户再次点击 [联系客服] 才以最新版本原子替换。Checkout 过期、成功创建订单或被显式放弃时 Context 进入 `expired`；仅浏览器离开页面不立即删除，在 TTL 内返回仍可恢复。
@@ -2088,11 +2090,11 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 重置密码 | `/reset-password` / `ResetPasswordPage.vue` | 否 | 一次性 `ticket` 仅由上一步写入内存或受限 `history.state`，不进 URL/日志/持久存储 | `POST /auth/password-resets` | 重置密码；410/已使用；form |
 | 法务文档 | `/legal/:documentType` / `LegalDocumentPage.vue` | 否 | `documentType` 仅允许注册表值；`version、locale、region_code` | `GET /content/legal-documents/{document_type}` | 用户协议/隐私政策；L/404/410/N；none |
 | 商品搜索 | `/search` / `ProductSearchPage.vue` | 否 | 用户界面只生成 `q、sort、cursor`；`sort` 为五种固定值 | `Product_Search / GET /api/v1/products`、`SearchSuggestion_List / GET /api/v1/search/suggestions` | 搜索商品；L/E/410/N；none |
-| 商品详情 | `/products/:productId` / `ProductDetailPage.vue` | 否 | `productId`，可选 `sku_id` | `Product_Get / GET /api/v1/products/{product_id}`、`ProductSku_List / GET /api/v1/products/{product_id}/skus`、`ProductFaq_List / GET /api/v1/products/{product_id}/faqs` | 商品名称；L/404/N；none |
+| 商品详情 | `/products/:productId` / `ProductDetailPage.vue`；立即购买时嵌入 `CheckoutPage.vue` 弹窗 | 否（购买需登录） | `productId`，可选 `sku_id`；结算弹窗不改变 URL | `Product_Get / GET /api/v1/products/{product_id}`、`ProductSku_List / GET /api/v1/products/{product_id}/skus`、`ProductFaq_List / GET /api/v1/products/{product_id}/faqs`；弹窗内结算操作统一归属下方“结算”契约 | 商品名称；L/404/N；弹窗关闭后保留款式、数量和滚动位置 |
 | 商品全部评价 | `/products/:productId/reviews` / `ProductReviewsPage.vue` | 否 | `rating、has_image、sku_id、sort、cursor` | `GET /products/{product_id}/reviews` | 商品评价；L/E/410/N；none |
 | 店铺 | `/stores/:storeId` / `StorePage.vue` | 否 | `q、group_id、sort、cursor` | `Store_Get / GET /api/v1/stores/{store_id}`、`StoreProduct_List / GET /api/v1/stores/{store_id}/products`、`StoreHomeContent_Get / GET /api/v1/stores/{store_id}/home-content`、`StorePolicy_ListPublic / GET /api/v1/stores/{store_id}/service-policies` | 店铺名称；L/E/404/N；none |
 | 购物车 | `/cart` / `CartPage.vue` | 是 | 无 | `Cart_GetMine`、`CartItem_Create`、`CartItem_Patch`、`CartItem_Delete`、`CartSelection_Replace`、`CartInvalidItem_Clear` | 购物车；L/E/412/N；none |
-| 结算 | `/checkout/:checkoutId` / `CheckoutPage.vue` | 是 | `checkoutId` | `CheckoutSession_Get`、`CheckoutSession_Patch`、`CheckoutRepricing_Create`、`Order_Create` | 确认订单；L/410/412/N；form |
+| 结算 | `/checkout/:checkoutId` / `CheckoutPage.vue`（购物车结算及兼容恢复入口） | 是 | `checkoutId` | `CheckoutSession_Get`、`CheckoutSession_Patch`、`CheckoutRepricing_Create`、`Order_Create` | 确认订单；L/410/412/N；form；商品立即购买默认使用商品页内弹窗 |
 | 支付收银台 | `/pay/:tradeOrderId` / `PaymentCashierPage.vue` | 是 | `tradeOrderId` | `GET /trade-orders/{trade_order_id}`、`GET /trade-orders/{trade_order_id}/payments`、`POST /payments` | 支付订单；L/410/409/N；payment |
 | 支付结果 | `/payments/:paymentId/result` / `PaymentResultPage.vue` | 是 | `paymentId` | `GET /payments/{payment_id}`、`GET /trade-orders/{trade_order_id}` | 支付结果；确认中/成功/失败/超时；payment |
 | 全局消息弹窗 | 任意用户端页面 / `UserMessageCenter.vue`，`ConversationPage.vue` 作为右栏嵌入 | 是 | 可选选中 `conversationId` | `GET /conversations`、`PUT /users/me/exclusive-conversation`、`GET /conversations/{conversation_id}`、`GET/POST /conversations/{conversation_id}/messages`、`PUT /conversations/{conversation_id}/read-cursor` | 消息；L/E/403/404/N；upload；关闭后留在原页面 |
@@ -8732,7 +8734,7 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | --- | --- | --- | --- |
 | `POST` | `/checkout-sessions` | 用户 | 从 `buy_now` 或 `cart` 创建结算会话；幂等；锁定输入快照但不表示订单已创建 |
 | `GET` | `/checkout-sessions/{checkout_id}` | 用户 | 获取结算页按店铺分组的商品、地址、配送、金额明细、过期时间和 ETag |
-| `PATCH` | `/checkout-sessions/{checkout_id}` | 用户 | 修改地址、配送选项或买家留言；If-Match，服务端重新计价 |
+| `PATCH` | `/checkout-sessions/{checkout_id}` | 用户 | 修改地址、买家留言，或修改 `buy_now` 的单商品数量；If-Match，服务端生成新快照并重新计价。`cart` 结算提交 `quantity` 返回冲突并引导回购物车修改 |
 | `POST` | `/checkout-sessions/{checkout_id}/repricings` | 用户 | 主动刷新价格、库存和运费；幂等；生成新快照与 ETag |
 
 创建请求使用以 `source_type` 为判别字段的 `oneOf` Schema。立即购买示例：
@@ -9965,7 +9967,7 @@ draft/rejected/off_shelf → archived（停止经营，逻辑归档）
 3. 使用版本化 Pricing Engine 计算各店铺小计、配送选项、运费和总应付，校验 Money 汇总不变式。
 4. 生成 `checkout_sessions(active)` 与不可变 `checkout_snapshots`，记录 Pricing/Policy/SKU Version、Hash 和较短 `expires_at`。
 5. 返回 `warnings、blocking_issues、available_actions`。存在 Blocking Issue 时不允许创建订单。
-6. 用户更改地址或配送方式时使用 If-Match 更新会话并追加新 Snapshot，不覆盖旧快照。
+6. 用户更改地址、买家留言或 `buy_now` 数量时使用 If-Match 更新会话并追加新 Snapshot，不覆盖旧快照；数量只接受 `1–99`，仍必须受实时可售数量和限购规则约束。
 
 结算页面显示“以提交订单时为准”。价格降低可按策略自动采用并提示；价格升高或运费增加必须返回差异让用户再次确认。Checkout 过期/已提交不可复活，重新创建新会话。
 

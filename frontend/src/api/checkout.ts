@@ -14,7 +14,7 @@ export function createCartCheckout(itemIds: string[], token: string, key = creat
   return apiRequest('/checkout-sessions', { method: 'POST', headers: { 'Idempotency-Key': key }, body: JSON.stringify({ source: { source_type: 'cart', cart_item_ids: itemIds } }) }, token)
 }
 export function getCheckout(id: string, token: string): Promise<ApiResult<CheckoutData>> { return apiRequest(`/checkout-sessions/${encodeURIComponent(id)}`, {}, token) }
-export function patchCheckout(id: string, payload: { address_id?: string; buyer_remarks?: Array<{ store_id: string; content: string }> }, version: number, token: string): Promise<ApiResult<CheckoutData>> {
+export function patchCheckout(id: string, payload: { address_id?: string; buyer_remarks?: Array<{ store_id: string; content: string }>; quantity?: number }, version: number, token: string): Promise<ApiResult<CheckoutData>> {
   return apiRequest(`/checkout-sessions/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'If-Match': `"v${version}"` }, body: JSON.stringify(payload) }, token)
 }
 export function repriceCheckout(id: string, token: string): Promise<ApiResult<CheckoutData>> {

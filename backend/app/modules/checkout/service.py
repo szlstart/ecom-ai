@@ -28,10 +28,10 @@ from app.modules.checkout.schemas import (
 )
 from app.modules.identity.models import User, UserAddress
 from app.modules.inventory.models import Inventory
-from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule
+from app.modules.stores.models import ShippingTemplate
 
 CHECKOUT_TTL_MINUTES = 30
-PRICING_POLICY_VERSION = "pricing_v1"
+PRICING_POLICY_VERSION = "pricing_v2_free_shipping"
 
 
 @dataclass(frozen=True)
@@ -197,7 +197,7 @@ class CheckoutService:
             address,
             remarks,
             row.expires_at,
-            row.pricing_version,
+            PRICING_POLICY_VERSION,
             row.version,
         )
         if current.blocking_issues or _commercial_fingerprint(current) != _commercial_fingerprint(
@@ -239,7 +239,7 @@ class CheckoutService:
             address,
             remarks,
             row.expires_at,
-            row.pricing_version,
+            PRICING_POLICY_VERSION,
             next_version,
         )
         payload: dict[str, object] = {
@@ -254,6 +254,7 @@ class CheckoutService:
         row.freight_amount = int(view.amounts.freight_amount.minor_units)
         row.payable_amount = int(view.amounts.payable_amount.minor_units)
         row.snapshot_hash = digest
+        row.pricing_version = PRICING_POLICY_VERSION
         row.version = next_version
         self.session.add(
             CheckoutSnapshot(
@@ -279,8 +280,6 @@ class CheckoutService:
         pricing_version: str,
         version: int,
     ) -> CheckoutView:
-        template_ids = {item[0][6].id for item in contexts if item[0][6] is not None}
-        rules = await self.repository.rules(template_ids)
         policy_versions = await self.repository.policy_versions(
             {item[0][3].id for item in contexts}
         )
@@ -342,7 +341,7 @@ class CheckoutService:
         views: list[CheckoutStoreGroupView] = []
         for store_no, value in groups.items():
             store = value["store"]
-            fee, option = _delivery_group(value["delivery_inputs"], rules, address)
+            fee, option = _delivery_group(value["delivery_inputs"], address)
             if option is None:
                 blocking.append(
                     CheckoutIssue(
@@ -477,44 +476,21 @@ def _issue(code: str, message: str, store_no: str, sku_no: str) -> CheckoutIssue
 
 def _delivery_group(
     inputs: list[tuple[ShippingTemplate | None, ProductFulfillmentProfile | None, ProductSku, int]],
-    rules: dict[int, list[ShippingTemplateRule]],
     address: UserAddress | None,
 ) -> tuple[int, DeliveryOptionView | None]:
     if address is None or not inputs:
         return 0, None
-    bundles: dict[int, dict[str, Any]] = {}
-    for template, profile, sku, quantity in inputs:
-        if template is None or profile is None or template.template_status != "effective":
-            return 0, None
-        bundle = bundles.setdefault(template.id, {"template": template, "units": 0})
-        if template.charge_mode == "weight":
-            if sku.weight_grams is None:
-                return 0, None
-            bundle["units"] += sku.weight_grams * quantity
-        else:
-            bundle["units"] += quantity
-    fee = 0
     min_days: list[int] = []
     max_days: list[int] = []
     updated_at = None
-    for bundle in bundles.values():
-        template = cast(ShippingTemplate, bundle["template"])
-        rule = next(
-            (
-                item
-                for item in rules.get(template.id, [])
-                if _region_matches(item.region_scope, address)
-            ),
-            None,
-        )
-        if rule is None:
+    for template, profile, _sku, _quantity in inputs:
+        if template is None or profile is None or template.template_status != "effective":
             return 0, None
-        units = cast(int, bundle["units"])
-        extra = max(0, units - rule.first_unit)
-        steps = math.ceil(extra / rule.additional_unit) if extra and rule.additional_unit else 0
-        fee += rule.first_fee_amount + steps * rule.additional_fee_amount
-        min_days.append(rule.estimated_min_days or 0)
-        max_days.append(rule.estimated_max_days or rule.estimated_min_days or 0)
+        # The storefront currently uses one platform-wide policy: every physical
+        # product is mailed free of charge. Region-specific template fees are kept
+        # in the database for future policy versions but do not affect checkout.
+        min_days.append(max(1, math.ceil(profile.dispatch_min_hours / 24)) + 2)
+        max_days.append(max(1, math.ceil(profile.dispatch_max_hours / 24)) + 5)
         if updated_at is None or template.updated_at > updated_at:
             updated_at = template.updated_at
     now = utc_now()
@@ -529,19 +505,12 @@ def _delivery_group(
         timezone="Asia/Shanghai",
         disclaimer_code="ESTIMATE_NOT_GUARANTEE",
     )
-    return fee, DeliveryOptionView(
-        option_id="standard_delivery",
-        name="标准配送",
-        freight=_money(fee),
+    return 0, DeliveryOptionView(
+        option_id="postal_delivery",
+        name="邮寄",
+        freight=_money(0),
         estimate=estimate,
     )
-
-
-def _region_matches(scope: dict[str, object], address: UserAddress) -> bool:
-    codes = {address.country_code, address.province_code, address.city_code, address.district_code}
-    includes = {str(item) for item in cast(list[object], scope.get("include", []))}
-    excludes = {str(item) for item in cast(list[object], scope.get("exclude", []))}
-    return not (codes & excludes) and (not includes or bool(codes & includes))
 
 
 def _commercial_fingerprint(view: CheckoutView) -> tuple[object, ...]:

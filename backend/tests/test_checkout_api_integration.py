@@ -439,8 +439,8 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert data["address_id"] == address_no
     assert data["amounts"] == {
         "goods_amount": {"minor_units": "5000", "currency": "CNY"},
-        "freight_amount": {"minor_units": "1000", "currency": "CNY"},
-        "payable_amount": {"minor_units": "6000", "currency": "CNY"},
+        "freight_amount": {"minor_units": "0", "currency": "CNY"},
+        "payable_amount": {"minor_units": "5000", "currency": "CNY"},
     }
     assert data["blocking_issues"] == []
     assert "spec_values" not in data["store_groups"][0]["items"][0]
@@ -475,7 +475,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         headers={**auth, "Idempotency-Key": f"reprice-{suffix}"},
     )
     assert repriced.status_code == 200, repriced.text
-    assert repriced.json()["data"]["pricing_version"] == "pricing_v1"
+    assert repriced.json()["data"]["pricing_version"] == "pricing_v2_free_shipping"
     assert repriced.json()["data"]["version"] == 2
 
     expiring = await client.post(
@@ -610,8 +610,8 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         assert trade.order_count == 2
         assert (trade.goods_amount, trade.freight_amount, trade.payable_amount) == (
             6500,
-            1300,
-            7800,
+            0,
+            6500,
         )
         orders = list(
             (await session.scalars(select(Order).where(Order.trade_order_id == trade.id))).all()

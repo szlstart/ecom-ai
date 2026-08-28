@@ -772,12 +772,14 @@ tr.selected td { background: #f0f4ff; }
 .merchant-income-grid .primary span, .merchant-income-grid .primary small { color: #d9f4e8; }
 .merchant-income-grid strong { color: #173228; font-size: clamp(1.6rem, 3vw, 2.35rem); letter-spacing: -.04em; }
 .merchant-income-grid .primary strong { color: #fff; }
-.merchant-order-tabs { padding: 7px; display: grid; grid-template-columns: repeat(7, minmax(105px, 1fr)); gap: 7px; overflow-x: auto; border: 1px solid #dce5df; border-radius: 16px; background: #fff; }
-.merchant-order-tabs button { padding: 11px 10px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #53645b; background: transparent; white-space: nowrap; }
-.merchant-order-tabs button b { min-width: 22px; padding: 2px 6px; border-radius: 999px; background: #edf3ef; font-size: .78rem; }
-.merchant-order-tabs button.active { color: #fff; background: #167252; }
+.merchant-order-tabs { padding: 7px; display: grid; grid-template-columns: repeat(7, minmax(105px, 1fr)); gap: 7px; overflow-x: auto; border: 1px solid #dce5df; border-radius: 16px; background: #f4f7f5; }
+.merchant-order-tabs button { padding: 11px 10px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #202923; border: 1px solid #d7e0da; border-radius: 10px; background: #fff; box-shadow: 0 2px 7px rgb(35 68 50 / 4%); font-weight: 760; white-space: nowrap; transition: color .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease, transform .16s ease; }
+.merchant-order-tabs button b { min-width: 22px; padding: 2px 6px; color: #202923; border-radius: 999px; background: #edf3ef; font-size: .78rem; }
+.merchant-orders-page .merchant-order-tabs button:not(.active) { color: #202923; background: #fff; }
+.merchant-orders-page .merchant-order-tabs button:not(.active):hover { color: #202923; border-color: #7eaf98; background: #fff; box-shadow: 0 6px 15px rgb(28 91 61 / 10%); transform: translateY(-1px); }
+.merchant-orders-page .merchant-order-tabs button.active { color: #fff; border-color: #167252; background: #167252; box-shadow: 0 7px 18px rgb(22 114 82 / 22%); }
 .merchant-order-tabs button.active b { color: #167252; background: #fff; }
-.merchant-order-tabs button.urgent:not(.active) { color: #a33a2d; background: #fff1ef; }
+.merchant-order-tabs button.urgent:not(.active) { color: #202923; background: #fff; }
 .merchant-order-list { display: grid; gap: 15px; }
 .merchant-order-card { overflow: hidden; border: 1px solid #dce5df; border-radius: 18px; background: #fff; }
 .merchant-order-card.aftersale { border-color: #eab2aa; box-shadow: 0 0 0 3px rgb(180 35 24 / 6%); }

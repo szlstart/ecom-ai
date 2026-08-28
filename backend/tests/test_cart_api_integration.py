@@ -14,7 +14,8 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
 from app.database.mysql import mysql_session
 from app.modules.cart.models import Cart, CartItem
-from app.modules.catalog.models import Category, Product, ProductSku
+from app.modules.catalog.models import Category, Product, ProductImage, ProductSku
+from app.modules.files.models import FileObject
 from app.modules.identity.models import AuthSession, User
 from app.modules.inventory.models import Inventory
 from app.modules.rbac.models import Role, UserRole
@@ -92,6 +93,7 @@ async def test_permanent_cart_idempotency_etag_and_invalid_cleanup(
             level=1,
             category_status="active",
         )
+        store_logo_object_key = f"tests/stores/{suffix}/logo.webp"
         store = Store(
             store_no=new_prefixed_ulid("sto_"),
             owner_user_id=user.id,
@@ -102,6 +104,7 @@ async def test_permanent_cart_idempotency_etag_and_invalid_cleanup(
             rating_count=0,
             follower_count=0,
             sales_count=0,
+            logo_object_key=store_logo_object_key,
             opened_at=now,
         )
         session.add_all([auth_session, category, store])
@@ -135,6 +138,66 @@ async def test_permanent_cart_idempotency_etag_and_invalid_cleanup(
         )
         session.add(sku)
         await session.flush()
+        product_image_file = FileObject(
+            file_no=new_prefixed_ulid("file_"),
+            bucket="public-assets",
+            object_key=f"tests/products/{suffix}/standard.webp",
+            purpose="product_image",
+            owner_type="store",
+            owner_no=store.store_no,
+            variant="original",
+            declared_mime_type="image/webp",
+            detected_mime_type="image/webp",
+            size_bytes=1024,
+            sha256=hashlib.sha256(f"cart-product-image-{suffix}".encode()).digest(),
+            width=800,
+            height=800,
+            visibility="public",
+            sensitivity_level="L1",
+            scan_status="safe",
+            file_status="active",
+            reference_count=1,
+            activated_at=now,
+        )
+        store_logo_file = FileObject(
+            file_no=new_prefixed_ulid("file_"),
+            bucket="public-assets",
+            object_key=store_logo_object_key,
+            purpose="store_logo",
+            owner_type="store",
+            owner_no=store.store_no,
+            variant="original",
+            declared_mime_type="image/webp",
+            detected_mime_type="image/webp",
+            size_bytes=512,
+            sha256=hashlib.sha256(f"cart-store-logo-{suffix}".encode()).digest(),
+            width=256,
+            height=256,
+            visibility="public",
+            sensitivity_level="L1",
+            scan_status="safe",
+            file_status="active",
+            reference_count=1,
+            activated_at=now,
+        )
+        session.add_all([product_image_file, store_logo_file])
+        await session.flush()
+        session.add(
+            ProductImage(
+                product_id=product.id,
+                sku_id=sku.id,
+                file_id=product_image_file.id,
+                object_key=product_image_file.object_key,
+                image_type="spec",
+                alt_text="购物车标准款",
+                width=800,
+                height=800,
+                sort_order=0,
+                image_status="active",
+            )
+        )
+        product_image_file_no = product_image_file.file_no
+        store_logo_file_no = store_logo_file.file_no
         session.add(Inventory(sku_id=sku.id, on_hand_quantity=10, inventory_status="active"))
         await session.commit()
         user_no, user_id, session_no, sku_no, product_id = (
@@ -169,6 +232,10 @@ async def test_permanent_cart_idempotency_etag_and_invalid_cleanup(
     assert added.json()["data"]["cart_total_quantity"] == 2
     public_item = added.json()["data"]["groups"][0]["items"][0]
     assert "spec_values" not in public_item
+    assert public_item["image_url"] == f"/api/v1/files/{product_image_file_no}"
+    assert added.json()["data"]["groups"][0]["store_logo_url"] == (
+        f"/api/v1/files/{store_logo_file_no}"
+    )
     item_id = public_item["cart_item_id"]
     assert item_id.startswith("ci_")
 

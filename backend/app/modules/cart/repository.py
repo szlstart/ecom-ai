@@ -6,7 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.cart.models import Cart, CartItem
-from app.modules.catalog.models import Product, ProductSku
+from app.modules.catalog.models import Product, ProductImage, ProductSku
+from app.modules.files.models import FileObject
 from app.modules.inventory.models import Inventory
 from app.modules.stores.models import Store
 
@@ -84,6 +85,42 @@ class CartRepository:
             )
         ).all()
         return cast(list[CartProjection], rows)
+
+    async def sku_image_urls(self, sku_ids: set[int]) -> dict[int, str]:
+        if not sku_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(ProductImage.sku_id, FileObject.file_no)
+                .join(FileObject, FileObject.id == ProductImage.file_id)
+                .where(
+                    ProductImage.sku_id.in_(sku_ids),
+                    ProductImage.image_type == "spec",
+                    ProductImage.image_status == "active",
+                    FileObject.file_status == "active",
+                    FileObject.scan_status == "safe",
+                )
+                .order_by(ProductImage.sku_id, ProductImage.sort_order, ProductImage.id)
+            )
+        ).all()
+        result: dict[int, str] = {}
+        for sku_id, file_no in rows:
+            result.setdefault(sku_id, f"/api/v1/files/{file_no}")
+        return result
+
+    async def public_file_urls(self, object_keys: set[str]) -> dict[str, str]:
+        if not object_keys:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(FileObject.object_key, FileObject.file_no).where(
+                    FileObject.object_key.in_(object_keys),
+                    FileObject.file_status == "active",
+                    FileObject.scan_status == "safe",
+                )
+            )
+        ).all()
+        return {object_key: f"/api/v1/files/{file_no}" for object_key, file_no in rows}
 
     async def items_by_nos(self, cart_id: int, item_nos: list[str]) -> list[CartItem]:
         return list(

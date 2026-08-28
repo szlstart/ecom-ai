@@ -43,6 +43,7 @@ class CartItemView(StrictRequest):
     sku_id: str
     product_name: str
     sku_name: str
+    image_url: str | None = None
     quantity: int
     is_selected: bool
     added_price: Money
@@ -56,6 +57,7 @@ class CartItemView(StrictRequest):
 class CartStoreGroupView(StrictRequest):
     store_id: str
     store_name: str
+    store_logo_url: str | None = None
     items: list[CartItemView]
     selected_quantity: int
     selected_amount: Money

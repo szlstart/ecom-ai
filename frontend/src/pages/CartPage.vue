@@ -11,8 +11,9 @@ import {
   replaceCartSelection,
   type CartData,
   type CartItem,
+  type CartStoreGroup,
 } from '@/api/cart'
-import { errorMessage } from '@/api/http'
+import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { createCartCheckout } from '@/api/checkout'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
@@ -41,6 +42,30 @@ function invalidReasonText(reason: string | null): string {
     INVENTORY_UNAVAILABLE: '暂时无法确认库存',
     INSUFFICIENT_STOCK: '库存不足，请调整数量',
   } as Record<string, string>)[reason || ''] || '商品当前不可结算'
+}
+function groupValidItems(group: CartStoreGroup): CartItem[] {
+  return group.items.filter((item) => item.is_valid)
+}
+function groupSelected(group: CartStoreGroup): boolean {
+  const items = groupValidItems(group)
+  return items.length > 0 && items.every((item) => item.is_selected)
+}
+function toggleGroup(group: CartStoreGroup) {
+  if (!cart.value) return
+  const items = groupValidItems(group)
+  if (!items.length) return
+  void mutate(`store-${group.store_id}`, () => replaceCartSelection(
+    items.map((item) => item.cart_item_id), !groupSelected(group), cart.value!.version, token(),
+  ))
+}
+function itemSubtotal(item: CartItem): string {
+  return formatMoney({
+    minor_units: (BigInt(item.current_price.minor_units) * BigInt(item.quantity)).toString(),
+    currency: item.current_price.currency,
+  })
+}
+function quantityLimit(item: CartItem): number {
+  return Math.max(1, Math.min(99, item.available_quantity || 1))
 }
 async function load() {
   loading.value = true; error.value = ''
@@ -88,21 +113,27 @@ onMounted(load)
 
 <template>
   <section class="cart-page">
-    <header class="page-heading"><div><p class="eyebrow">购物袋</p><h1>购物车</h1><p class="muted">商品价格、库存和配送资格会在结算及下单时再次校验。</p></div><RouterLink to="/search">继续购物</RouterLink></header>
+    <header class="cart-hero"><div><p class="eyebrow">SHOPPING CART</p><h1>我的购物车</h1><p>核对商品、款式和数量，选中后即可统一结算。价格与库存会在下单前再次确认。</p></div><div class="cart-hero-summary"><strong>{{ cart?.cart_total_quantity ?? 0 }}</strong><span>件商品</span><RouterLink class="button-link" to="/search">继续购物</RouterLink></div></header>
     <div v-if="error" class="notice error" role="alert">{{ error }}</div>
     <PageState :loading="loading" :error="''" :empty="!cart || cart.groups.length === 0" empty-title="购物车还是空的" empty-message="去挑选喜欢的商品吧。" @retry="load">
       <template v-if="cart && cart.groups.length">
         <article v-for="group in cart.groups" :key="group.store_id" class="cart-store-card">
-          <header><RouterLink :to="`/stores/${group.store_id}`"><strong>{{ group.store_name }}</strong> →</RouterLink><span>已选 {{ group.selected_quantity }} 件 · {{ formatMoney(group.selected_amount) }}</span></header>
+          <header>
+            <div class="cart-store-heading"><input type="checkbox" :checked="groupSelected(group)" :disabled="busyItem !== '' || !groupValidItems(group).length" :aria-label="`选择${group.store_name}的全部有效商品`" @change="toggleGroup(group)" /><RouterLink class="cart-store-identity" :to="`/stores/${group.store_id}`"><span class="cart-store-logo"><img v-if="group.store_logo_url" :src="resolveApiAssetUrl(group.store_logo_url) || undefined" :alt="`${group.store_name} Logo`" /><b v-else>{{ group.store_name.slice(0, 1) }}</b></span><span><strong>{{ group.store_name }}</strong><small>进入店铺 →</small></span></RouterLink></div>
+            <span class="cart-store-selected">本店已选 {{ group.selected_quantity }} 件 · <strong>{{ formatMoney(group.selected_amount) }}</strong></span>
+          </header>
+          <div class="cart-column-headings" aria-hidden="true"><span></span><span></span><span>商品信息</span><span>单价</span><span>数量</span><span>小计</span><span>操作</span></div>
           <div v-for="item in group.items" :key="item.cart_item_id" :class="['cart-item-row', { invalid: !item.is_valid }]">
-            <input type="checkbox" :checked="item.is_selected" :disabled="busyItem !== '' || !item.is_valid" :aria-label="`选择 ${item.product_name}`" @change="toggleItem(item)" />
-            <div class="cart-item-copy"><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>款式：{{ item.sku_name }}</small><small v-if="!item.is_valid" class="error-text">{{ invalidReasonText(item.invalid_reason) }}</small><small v-else-if="item.price_changed" class="warning-text">价格已由 {{ formatMoney(item.added_price) }} 变为 {{ formatMoney(item.current_price) }}</small></div>
-            <strong>{{ formatMoney(item.current_price) }}</strong>
-            <label>数量<input :value="item.quantity" type="number" min="1" max="99" :disabled="busyItem !== ''" @change="changeQuantity(item, Number(($event.target as HTMLInputElement).value))" /></label>
-            <button type="button" class="link-button danger" :disabled="busyItem !== ''" @click="remove(item)">删除</button>
+            <input class="cart-item-select" type="checkbox" :checked="item.is_selected" :disabled="busyItem !== '' || !item.is_valid" :aria-label="`选择 ${item.product_name}`" @change="toggleItem(item)" />
+            <RouterLink class="cart-product-image" :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) || undefined" :alt="`${item.product_name} ${item.sku_name}`" /><b v-else>{{ item.product_name.slice(0, 1) }}</b><span v-if="!item.is_valid">失效</span></RouterLink>
+            <div class="cart-item-copy"><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><span class="cart-sku-badge">款式：{{ item.sku_name }}</span><small v-if="!item.is_valid" class="error-text">{{ invalidReasonText(item.invalid_reason) }}</small><small v-else-if="item.price_changed" class="warning-text">价格已由 {{ formatMoney(item.added_price) }} 调整为 {{ formatMoney(item.current_price) }}</small><small v-else-if="item.available_quantity <= 5" class="warning-text">库存仅剩 {{ item.available_quantity }} 件</small><small v-else class="cart-stock-ok">库存充足</small></div>
+            <strong class="cart-unit-price">{{ formatMoney(item.current_price) }}</strong>
+            <div class="cart-quantity-stepper" aria-label="购买数量"><button type="button" class="secondary" :disabled="busyItem !== '' || item.quantity <= 1" aria-label="减少数量" @click="changeQuantity(item, item.quantity - 1)">−</button><input :value="item.quantity" type="number" min="1" :max="quantityLimit(item)" :disabled="busyItem !== ''" aria-label="数量" @change="changeQuantity(item, Number(($event.target as HTMLInputElement).value))" /><button type="button" class="secondary" :disabled="busyItem !== '' || item.quantity >= quantityLimit(item)" aria-label="增加数量" @click="changeQuantity(item, item.quantity + 1)">＋</button></div>
+            <strong class="cart-line-total">{{ itemSubtotal(item) }}</strong>
+            <button type="button" class="cart-remove link-button danger" :disabled="busyItem !== ''" @click="remove(item)">删除</button>
           </div>
         </article>
-        <footer class="cart-summary-bar"><div class="actions"><button type="button" class="secondary" :disabled="busyItem !== '' || validItems.length === 0" @click="toggleAll">全选/取消全选</button><button v-if="hasInvalid" type="button" class="secondary" :disabled="busyItem !== ''" @click="clearInvalid">清理失效商品</button></div><div><span>已选 {{ cart.selected_quantity }} 件</span><strong>{{ formatMoney(cart.amount_summary.selected_goods_amount) }}</strong><button type="button" :disabled="busyItem !== '' || !selectedIds.length" @click="checkoutSelected">{{ busyItem === 'checkout' ? '创建中…' : '去结算' }}</button></div></footer>
+        <footer class="cart-summary-bar"><div class="cart-summary-actions"><button type="button" class="secondary" :disabled="busyItem !== '' || validItems.length === 0" @click="toggleAll">全选 / 取消全选</button><button v-if="hasInvalid" type="button" class="secondary" :disabled="busyItem !== ''" @click="clearInvalid">清理失效商品</button></div><div class="cart-checkout-summary"><span>已选 <b>{{ cart.selected_quantity }}</b> 件</span><span class="cart-total-copy">合计<small>全场包邮</small></span><strong>{{ formatMoney(cart.amount_summary.selected_goods_amount) }}</strong><button type="button" :disabled="busyItem !== '' || !selectedIds.length" @click="checkoutSelected">{{ busyItem === 'checkout' ? '创建结算…' : '去结算' }}</button></div></footer>
       </template>
     </PageState>
   </section>

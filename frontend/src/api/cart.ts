@@ -7,6 +7,7 @@ export interface CartItem {
   sku_id: string
   product_name: string
   sku_name: string
+  image_url: string | null
   quantity: number
   is_selected: boolean
   added_price: Money
@@ -20,6 +21,7 @@ export interface CartItem {
 export interface CartStoreGroup {
   store_id: string
   store_name: string
+  store_logo_url: string | null
   items: CartItem[]
   selected_quantity: number
   selected_amount: Money

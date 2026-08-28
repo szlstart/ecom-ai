@@ -213,7 +213,13 @@ class CartService:
                 version=0,
             )
         projections = await self.repository.projections(cart.id)
-        groups: OrderedDict[int, tuple[str, str, list[CartItemView]]] = OrderedDict()
+        sku_image_urls = await self.repository.sku_image_urls(
+            {sku.id for _, sku, _, _, _ in projections}
+        )
+        store_logo_urls = await self.repository.public_file_urls(
+            {store.logo_object_key for _, _, _, store, _ in projections if store.logo_object_key}
+        )
+        groups: OrderedDict[int, tuple[str, str, str | None, list[CartItemView]]] = OrderedDict()
         total_quantity = selected_quantity = valid_count = selected_amount = 0
         for item, sku, product, store, inventory in projections:
             available = _available(inventory)
@@ -227,14 +233,23 @@ class CartService:
             if valid and item.is_selected:
                 selected_quantity += item.quantity
                 selected_amount += sku.sale_price_amount * item.quantity
-            group = groups.setdefault(store.id, (store.store_no, store.store_name, []))
-            group[2].append(
+            group = groups.setdefault(
+                store.id,
+                (
+                    store.store_no,
+                    store.store_name,
+                    store_logo_urls.get(store.logo_object_key or ""),
+                    [],
+                ),
+            )
+            group[3].append(
                 CartItemView(
                     cart_item_id=item.cart_item_no,
                     product_id=product.product_no,
                     sku_id=sku.sku_no,
                     product_name=product.product_name,
                     sku_name=sku.sku_name,
+                    image_url=sku_image_urls.get(sku.id),
                     quantity=item.quantity,
                     is_selected=item.is_selected,
                     added_price=Money(
@@ -253,7 +268,7 @@ class CartService:
                 )
             )
         group_views: list[CartStoreGroupView] = []
-        for store_no, store_name, items in groups.values():
+        for store_no, store_name, store_logo_url, items in groups.values():
             group_selected_quantity = sum(
                 item.quantity for item in items if item.is_valid and item.is_selected
             )
@@ -266,6 +281,7 @@ class CartService:
                 CartStoreGroupView(
                     store_id=store_no,
                     store_name=store_name,
+                    store_logo_url=store_logo_url,
                     items=items,
                     selected_quantity=group_selected_quantity,
                     selected_amount=Money(minor_units=str(group_amount), currency="CNY"),

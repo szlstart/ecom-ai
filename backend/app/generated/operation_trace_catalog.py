@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "73bc72d64b288bbb602a9970f24e52d78bb15360f1a3d4f82de949737530da37"
+SOURCE_SHA256 = "127d95be139b525349855864d6e0fcc39468c5cd61e19ae36a8256f5cf067960"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -230,6 +230,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-permission-codes": [],
         "x-requirement-id": ["ADM-AUTH-03"],
         "x-scope-policy": ["admin_session"],
+        "x-test-case-ids": ["ADM-AUTH-*"],
+    },
+    "AdminAuthSession_Resume": {
+        "x-audit-event": "command.AdminAuthSession_Resume",
+        "x-domain-command": "AdminAuthSession_Resume",
+        "x-idempotency-policy": "read_only_command",
+        "x-owner-kind": ["global_ui"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["GLOBAL-ADMIN-SHELL-00"],
+        "x-scope-policy": ["platform_admin_refresh_cookie"],
         "x-test-case-ids": ["ADM-AUTH-*"],
     },
     "AdminAuthSession_Revoke": {
@@ -3140,6 +3150,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["MCH-STORE-01"],
         "x-scope-policy": ["stores:read", "stores:manage", "store_owner"],
         "x-test-case-ids": ["ADM-STORE-*", "FILE-UPLOAD-*", "FINANCE-*", "MCH-PORTAL-*"],
+    },
+    "MerchantAuthSession_Resume": {
+        "x-audit-event": "command.MerchantAuthSession_Resume",
+        "x-domain-command": "MerchantAuthSession_Resume",
+        "x-idempotency-policy": "read_only_command",
+        "x-owner-kind": ["global_ui"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["GLOBAL-MERCHANT-SHELL-00"],
+        "x-scope-policy": ["merchant_refresh_cookie"],
+        "x-test-case-ids": ["MCH-PORTAL-*"],
     },
     "MerchantAuthToken_Refresh": {
         "x-audit-event": "command.MerchantAuthToken_Refresh",

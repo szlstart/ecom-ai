@@ -101,6 +101,22 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
     assert platform_navigation.status_code == 403
     assert platform_navigation.json()["code"] == "AUTH_PORTAL_MISMATCH"
 
+    resumed_response = await client.post(
+        "/api/v1/merchant/auth/session-resume",
+        headers={"X-CSRF-Token": bootstrap["session"]["csrf_token"]},
+    )
+    assert resumed_response.status_code == 200, resumed_response.text
+    resumed = resumed_response.json()["data"]
+    assert resumed["session"]["session_id"] == bootstrap["session"]["session"]["session_id"]
+    still_valid = await client.get("/api/v1/admin/me", headers=headers)
+    assert still_valid.status_code == 200, still_valid.text
+
+    wrong_resume = await client.post(
+        "/api/v1/admin/auth/session-resume",
+        headers={"X-CSRF-Token": bootstrap["session"]["csrf_token"]},
+    )
+    assert wrong_resume.status_code == 401
+
     wrong_refresh = await client.post(
         "/api/v1/admin/auth/token-refresh",
         headers={"X-CSRF-Token": bootstrap["session"]["csrf_token"]},

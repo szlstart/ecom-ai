@@ -53,9 +53,14 @@ export interface ApiResult<T> {
 
 type UserAuthRecoveryHandler = (failedAccessToken: string) => Promise<string | null>
 let userAuthRecoveryHandler: UserAuthRecoveryHandler | null = null
+let managementAuthRecoveryHandler: UserAuthRecoveryHandler | null = null
 
 export function registerUserAuthRecovery(handler: UserAuthRecoveryHandler | null): void {
   userAuthRecoveryHandler = handler
+}
+
+export function registerManagementAuthRecovery(handler: UserAuthRecoveryHandler | null): void {
+  managementAuthRecoveryHandler = handler
 }
 
 export async function apiRequest<T>(
@@ -74,10 +79,11 @@ export async function apiRequest<T>(
   if (
     response.status === 401
     && accessToken
-    && userAuthRecoveryHandler
+    && (userAuthRecoveryHandler || managementAuthRecoveryHandler)
     && !path.startsWith('/auth/')
   ) {
-    const recoveredToken = await userAuthRecoveryHandler(accessToken)
+    const recoveredToken = await userAuthRecoveryHandler?.(accessToken)
+      ?? await managementAuthRecoveryHandler?.(accessToken)
     if (recoveredToken) {
       headers.set('Authorization', `Bearer ${recoveredToken}`)
       response = await fetch(`${API_BASE_URL}${path}`, {

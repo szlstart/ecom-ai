@@ -30342,6 +30342,99 @@
         ]
       }
     },
+    "/api/v1/merchant/auth/session-resume": {
+      "post": {
+        "tags": [
+          "merchant-authentication"
+        ],
+        "summary": "Resume Merchant Session",
+        "operationId": "MerchantAuthSession_Resume",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "ecom_merchant_refresh",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ecom Merchant Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SessionBootstrap_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantAuthSession_Resume",
+        "x-domain-command": "MerchantAuthSession_Resume",
+        "x-idempotency-policy": "read_only_command",
+        "x-owner-kind": [
+          "global_ui"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "GLOBAL-MERCHANT-SHELL-00"
+        ],
+        "x-scope-policy": [
+          "merchant_refresh_cookie"
+        ],
+        "x-test-case-ids": [
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
     "/api/v1/merchant/auth/token-refresh": {
       "post": {
         "tags": [
@@ -30654,6 +30747,99 @@
         ],
         "x-scope-policy": [
           "platform_admin_session"
+        ],
+        "x-test-case-ids": [
+          "ADM-AUTH-*"
+        ]
+      }
+    },
+    "/api/v1/admin/auth/session-resume": {
+      "post": {
+        "tags": [
+          "admin-authentication"
+        ],
+        "summary": "Resume Admin Session",
+        "operationId": "AdminAuthSession_Resume",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "ecom_admin_refresh",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ecom Admin Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SessionBootstrap_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminAuthSession_Resume",
+        "x-domain-command": "AdminAuthSession_Resume",
+        "x-idempotency-policy": "read_only_command",
+        "x-owner-kind": [
+          "global_ui"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "GLOBAL-ADMIN-SHELL-00"
+        ],
+        "x-scope-policy": [
+          "platform_admin_refresh_cookie"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*"

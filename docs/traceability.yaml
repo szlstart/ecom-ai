@@ -52,6 +52,8 @@ idempotency_policy:
     PasswordResetHint_Get: read_only_command
     Auth_Login: rate_limited_security_command_no_automatic_retry
     AuthSession_Resume: read_only_command
+    AdminAuthSession_Resume: read_only_command
+    MerchantAuthSession_Resume: read_only_command
     AuthToken_Refresh: refresh_token_rotation_replay_detection
     Auth_Logout: session_terminal_state_convergence
     PasswordResetTicket_Create: rate_limited_security_command_no_automatic_retry
@@ -143,8 +145,10 @@ operation_owners:
   - {requirement_id: GLOBAL-USER-AUTH-01, operation_id: AuthToken_Refresh, owner_kind: global_ui, authorization: consumer_refresh_cookie, domain_rules: [rotation_and_reuse_detection, active_consumer_role_recheck, reject_management_identity], tests: [AUTH-REFRESH-*]}
   - {requirement_id: GLOBAL-USER-AUTH-02, operation_id: Auth_Logout, owner_kind: global_ui, authorization: user_session, domain_rules: [session_revocation], tests: [AUTH-LOGOUT-*]}
   - {requirement_id: GLOBAL-USER-AUTH-03, operation_id: AuthSession_RevokeOthers, owner_kind: global_ui, authorization: current_user, domain_rules: [recent_auth], tests: [SECURITY-*]}
+  - {requirement_id: GLOBAL-ADMIN-SHELL-00, operation_id: AdminAuthSession_Resume, owner_kind: global_ui, authorization: platform_admin_refresh_cookie, domain_rules: [non_rotating_access_token_reissue, platform_admin_client_type, active_platform_role_recheck, separate_cookie_namespace], tests: [ADM-AUTH-*]}
   - {requirement_id: GLOBAL-ADMIN-SHELL-01, operation_id: AdminAuthToken_Refresh, owner_kind: global_ui, authorization: platform_admin_refresh_cookie, domain_rules: [rotation_and_reuse_detection, platform_admin_client_type, active_platform_role_recheck], tests: [ADM-AUTH-*]}
   - {requirement_id: GLOBAL-ADMIN-SHELL-02, operation_id: AdminAuth_Logout, owner_kind: global_ui, authorization: platform_admin_session, domain_rules: [session_revocation], tests: [ADM-AUTH-*]}
+  - {requirement_id: GLOBAL-MERCHANT-SHELL-00, operation_id: MerchantAuthSession_Resume, owner_kind: global_ui, authorization: merchant_refresh_cookie, domain_rules: [non_rotating_access_token_reissue, merchant_client_type, active_store_operator_role_recheck, separate_cookie_namespace], tests: [MCH-PORTAL-*]}
   - {requirement_id: GLOBAL-MERCHANT-SHELL-01, operation_id: MerchantAuthToken_Refresh, owner_kind: global_ui, authorization: merchant_refresh_cookie, domain_rules: [rotation_and_reuse_detection, merchant_client_type, active_store_operator_role_recheck, separate_cookie_namespace], tests: [MCH-PORTAL-*]}
   - {requirement_id: GLOBAL-MERCHANT-SHELL-02, operation_id: MerchantAuth_Logout, owner_kind: global_ui, authorization: merchant_session, domain_rules: [session_revocation, separate_cookie_namespace], tests: [MCH-PORTAL-*]}
   - {requirement_id: MCH-AUTH-COMPAT-01, operation_id: MerchantAuth_Reauthenticate, owner_kind: internal_only, authorization: merchant_session, domain_rules: [compatibility_only, no_vue_entry, no_store_operation_step_up], tests: [MCH-PORTAL-*]}

@@ -854,6 +854,22 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     assert audit_response.status_code == 200
     assert any(item["target_id"] == target_user_no for item in audit_response.json()["data"])
 
+    resume_response = await client.post(
+        "/api/v1/admin/auth/session-resume",
+        headers={"X-CSRF-Token": admin_session["csrf_token"]},
+    )
+    assert resume_response.status_code == 200, resume_response.text
+    resumed = resume_response.json()["data"]
+    assert resumed["session"]["session_id"] == admin_session["session"]["session_id"]
+    still_valid = await client.get("/api/v1/admin/me", headers=admin_headers)
+    assert still_valid.status_code == 200, still_valid.text
+
+    wrong_portal_resume = await client.post(
+        "/api/v1/merchant/auth/session-resume",
+        headers={"X-CSRF-Token": admin_session["csrf_token"]},
+    )
+    assert wrong_portal_resume.status_code == 401
+
     refresh_response = await client.post(
         "/api/v1/admin/auth/token-refresh",
         headers={"X-CSRF-Token": admin_session["csrf_token"]},

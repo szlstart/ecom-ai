@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { apiRequest, createIdempotencyKey, registerUserAuthRecovery, resolveApiAssetUrl } from '@/api/http'
+import { apiRequest, createIdempotencyKey, registerManagementAuthRecovery, registerUserAuthRecovery, resolveApiAssetUrl } from '@/api/http'
 
 describe('API client', () => {
-  afterEach(() => registerUserAuthRecovery(null))
+  afterEach(() => {
+    registerUserAuthRecovery(null)
+    registerManagementAuthRecovery(null)
+  })
 
   it('unwraps the standard response envelope and sends credentials', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(

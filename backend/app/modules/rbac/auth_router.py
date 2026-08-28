@@ -192,6 +192,27 @@ async def verify_admin_mfa(
 
 
 @router.post(
+    "/auth/session-resume",
+    response_model=Envelope[SessionBootstrap],
+    operation_id="AdminAuthSession_Resume",
+)
+async def resume_admin_session(
+    response: Response,
+    service: IdentityServiceDependency,
+    refresh_token: Annotated[str | None, Cookie(alias=ADMIN_REFRESH_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> Envelope[SessionBootstrap]:
+    payload = await service.resume(
+        refresh_token,
+        csrf_token,
+        "admin",
+        allowed_client_types=frozenset({"admin", "admin_password"}),
+    )
+    _no_store(response)
+    return Envelope(data=payload)
+
+
+@router.post(
     "/auth/token-refresh",
     response_model=Envelope[SessionBootstrap],
     operation_id="AdminAuthToken_Refresh",
@@ -214,6 +235,27 @@ async def refresh_admin_token(
     _set_admin_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
     _no_store(response)
     return Envelope(data=result.payload)
+
+
+@merchant_router.post(
+    "/auth/session-resume",
+    response_model=Envelope[SessionBootstrap],
+    operation_id="MerchantAuthSession_Resume",
+)
+async def resume_merchant_session(
+    response: Response,
+    service: IdentityServiceDependency,
+    refresh_token: Annotated[str | None, Cookie(alias=MERCHANT_REFRESH_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> Envelope[SessionBootstrap]:
+    payload = await service.resume(
+        refresh_token,
+        csrf_token,
+        "admin",
+        allowed_client_types=frozenset({"merchant"}),
+    )
+    _no_store(response)
+    return Envelope(data=payload)
 
 
 @merchant_router.post(

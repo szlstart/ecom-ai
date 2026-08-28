@@ -4520,6 +4520,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/merchant/auth/session-resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Merchant Session */
+        post: operations["MerchantAuthSession_Resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/merchant/auth/token-refresh": {
         parameters: {
             query?: never;
@@ -4582,6 +4599,23 @@ export interface paths {
         put?: never;
         /** Reauthenticate Admin Password */
         post: operations["AdminAuth_PasswordReauthenticate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/session-resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Admin Session */
+        post: operations["AdminAuthSession_Resume"];
         delete?: never;
         options?: never;
         head?: never;
@@ -23951,6 +23985,43 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    MerchantAuthSession_Resume: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ecom_merchant_refresh?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
+                };
+            };
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     MerchantAuthToken_Refresh: {
         parameters: {
             query?: never;
@@ -24082,6 +24153,43 @@ export interface operations {
                 };
             };
             401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAuthSession_Resume: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ecom_admin_refresh?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
+                };
+            };
             409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {

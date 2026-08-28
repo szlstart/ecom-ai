@@ -72,7 +72,6 @@ class MerchantRevenueView(StrictRequest):
     pending_shipment_count: int
     in_transit_count: int
     after_sale_pending_count: int
-    cancelled_count: int
 
 
 class AdminStoreRevenueView(MerchantRevenueView):

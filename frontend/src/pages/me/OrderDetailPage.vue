@@ -78,13 +78,18 @@ async function runAction(action: OrderAction) {
     if (action.code === 'cancel_order') {
       const description = window.prompt('可选：请补充取消原因（最多 200 字）')?.trim() || undefined
       await cancelOrder(order.value.order_id, order.value.version, token(), 'no_longer_needed', description)
-      await load()
+      await router.replace({ path: '/me/orders', query: { view: 'cancelled' } })
     } else if (action.code === 'confirm_receipt') {
       await confirmOrderReceipt(order.value.order_id, order.value.version, token())
       await load()
     } else if (action.code === 'delete_order') {
-      hidden.value = (await hideOrder(order.value.order_id, order.value.version, token())).data
-      message.value = `订单已隐藏，可在 ${dateTime(hidden.value.undo_until)} 前撤销。`
+      const result = (await hideOrder(order.value.order_id, order.value.version, token())).data
+      if (result.deletion_mode === 'permanent') {
+        await router.replace({ path: '/me/orders', query: { view: 'cancelled' } })
+      } else {
+        hidden.value = result
+        message.value = `订单已隐藏，可在 ${dateTime(result.undo_until!)} 前撤销。`
+      }
     } else if (action.code === 'repurchase') {
       const cart = await getCart(token())
       const result = (await repurchaseOrder(order.value.order_id, cart.data.version, token())).data

@@ -189,7 +189,6 @@ class FinanceService:
             pending_shipment_count=metrics["pending_shipment_count"],
             in_transit_count=metrics["in_transit_count"],
             after_sale_pending_count=metrics["after_sale_pending_count"],
-            cancelled_count=metrics["cancelled_count"],
         )
 
     async def _wallet(self, user_id: int) -> UserWallet:

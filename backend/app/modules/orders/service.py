@@ -6,7 +6,7 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import PaginationMeta
@@ -35,6 +35,7 @@ from app.modules.orders.domain import (
     require_transition,
 )
 from app.modules.orders.models import (
+    CancelledOrderRecord,
     Order,
     OrderAddress,
     OrderItem,
@@ -360,6 +361,28 @@ class OrderService:
         )
         position = self.cursor.decode(cursor, filter_key=filter_key)
         try:
+            if view == "cancelled":
+                records, has_more = await self.repository.cancelled_order_records(
+                    user_id=user.id,
+                    query=normalized_query,
+                    created_from=created_from,
+                    created_to=created_to,
+                    position=position,
+                    limit=limit,
+                )
+                return OrderList(
+                    items=[
+                        OrderListItem.model_validate(record.snapshot_payload)
+                        for record in records
+                    ]
+                ), _order_pagination(
+                    rows=cast(list[Any], records),
+                    position=position,
+                    has_more=has_more,
+                    filter_key=filter_key,
+                    limit=limit,
+                    codec=self.cursor,
+                )
             rows, has_more = await self.repository.user_orders(
                 user_id=user.id,
                 view=view,
@@ -769,7 +792,21 @@ class OrderService:
             scope_id=initial[1].id,
         )
         await self.session.flush()
-        result = await self.admin_detail(access, order_no)
+        rows = await self.repository.order_rows([sibling.id for sibling in orders])
+        views = await self._order_views(rows, include_contact_store=False)
+        target_view = next(item for item in views if item.order_id == order_no)
+        target_events = await self.repository.order_events(order.id)
+        result = AdminOrderDetail(
+            **_admin_order_summary(target_view, initial[3], {}).model_dump(),
+            events=[_event_view(event) for event in target_events],
+        )
+        await self._archive_and_delete_cancelled_orders(
+            rows=rows,
+            views=views,
+            reason_code=payload.reason_code,
+            reason=payload.reason,
+            cancelled_at=trade.closed_at or utc_now(),
+        )
         self.idempotency.complete(
             claim,
             response_status=200,
@@ -835,11 +872,18 @@ class OrderService:
         )
         new_events = [event for event in all_events if event.order_id == order.id]
         await self.session.flush()
-        refreshed = await self.repository.user_order(user.id, order_no)
-        if refreshed is None:
-            raise RuntimeError("cancelled order disappeared")
-        view = (await self._order_views([refreshed]))[0]
-        result = OrderCommandResult(order=view, events=[_event_view(event) for event in new_events])
+        rows = await self.repository.order_rows([sibling.id for sibling in sibling_orders])
+        views = await self._order_views(rows)
+        event_views = [_event_view(event) for event in new_events]
+        archived_views = await self._archive_and_delete_cancelled_orders(
+            rows=rows,
+            views=views,
+            reason_code=payload.reason_code,
+            reason=payload.description or payload.reason_code,
+            cancelled_at=trade.closed_at or now,
+        )
+        view = next(item for item in archived_views if item.order_id == order_no)
+        result = OrderCommandResult(order=view, events=event_views)
         self.idempotency.complete(
             claim,
             response_status=200,
@@ -879,6 +923,16 @@ class OrderService:
                 request_id=request_id,
                 now=now,
                 request_payload_hash=None,
+            )
+            await self.session.flush()
+            rows = await self.repository.order_rows([order.id for order in orders])
+            views = await self._order_views(rows)
+            await self._archive_and_delete_cancelled_orders(
+                rows=rows,
+                views=views,
+                reason_code="payment_timeout",
+                reason="支付时限已到，订单自动关闭。",
+                cancelled_at=trade.closed_at or now,
             )
             processed += 1
         await self.session.commit()
@@ -1145,6 +1199,24 @@ class OrderService:
         return events
 
     async def hide(self, user: User, order_no: str, expected_version: int) -> OrderHideResult:
+        cancelled = await self.repository.cancelled_order_record(
+            user.id, order_no, for_update=True
+        )
+        if cancelled is not None:
+            if cancelled.version != expected_version:
+                raise ApplicationError(
+                    status=412,
+                    code="RESOURCE_VERSION_CONFLICT",
+                    title="Version conflict",
+                    detail="取消记录已经变化，请刷新后重试。",
+                )
+            await self.session.delete(cancelled)
+            await self.session.commit()
+            return OrderHideResult(
+                order_id=order_no,
+                deletion_mode="permanent",
+                version=expected_version,
+            )
         row = await self.repository.user_order(user.id, order_no, for_update=True)
         if row is None:
             raise _not_found()
@@ -1161,10 +1233,78 @@ class OrderService:
         await self.session.commit()
         return OrderHideResult(
             order_id=order.order_no,
+            deletion_mode="hidden",
             undo_until=order.undo_until,
             restore_url=f"/api/v1/users/me/orders/{order.order_no}/restorations",
             version=order.version,
         )
+
+    async def _archive_and_delete_cancelled_orders(
+        self,
+        *,
+        rows: list[tuple[Order, Store, TradeOrder]],
+        views: list[OrderListItem],
+        reason_code: str,
+        reason: str,
+        cancelled_at: datetime,
+    ) -> list[OrderListItem]:
+        """Replace unpaid business orders with user-only navigation snapshots."""
+        if len(rows) != len(views):
+            raise RuntimeError("cancelled order archive rows are incomplete")
+        order_ids: list[int] = []
+        archived_views: list[OrderListItem] = []
+        for (order, _store, _trade), view in zip(rows, views, strict=True):
+            archive_view = view.model_copy(
+                update={
+                    "matched_views": ["cancelled"],
+                    "available_actions": [
+                        _route_action(
+                            "delete_order",
+                            "my-orders",
+                            {"orderId": order.order_no},
+                            confirmation=True,
+                        )
+                    ],
+                    "version": 0,
+                }
+            )
+            search_text = " ".join(
+                [
+                    archive_view.order_id,
+                    archive_view.store.store_name,
+                    *(item.product_name for item in archive_view.items),
+                ]
+            )[:2000]
+            self.session.add(
+                CancelledOrderRecord(
+                    order_no=order.order_no,
+                    trade_no=archive_view.trade_order_id,
+                    user_id=order.user_id,
+                    cancellation_reason_code=reason_code,
+                    cancellation_reason=reason,
+                    cancelled_at=cancelled_at,
+                    search_text=search_text,
+                    snapshot_payload=cast(
+                        dict[str, object], archive_view.model_dump(mode="json")
+                    ),
+                    created_at=order.created_at,
+                    updated_at=cancelled_at,
+                    version=0,
+                )
+            )
+            order_ids.append(order.id)
+            archived_views.append(archive_view)
+        await self.session.flush()
+        for model in (
+            InventoryReservation,
+            OrderAddress,
+            OrderStatusLog,
+            OrderOperationLog,
+            OrderItem,
+        ):
+            await self.session.execute(delete(model).where(model.order_id.in_(order_ids)))
+        await self.session.execute(delete(Order).where(Order.id.in_(order_ids)))
+        return archived_views
 
     async def restore(
         self,

@@ -56,7 +56,7 @@ describe('MerchantOrderListPage', () => {
       gross_sales: money('12000'), refunded_amount: money('2000'), net_revenue: money('10000'),
       today_revenue: money('3000'), yesterday_revenue: money('2000'), last_30_days_revenue: money('9000'),
       all_order_count: 8, completed_order_count: 3, pending_payment_count: 1,
-      pending_shipment_count: 1, in_transit_count: 1, after_sale_pending_count: 1, cancelled_count: 1,
+      pending_shipment_count: 1, in_transit_count: 1, after_sale_pending_count: 1,
     } })
     mocks.listOrders.mockResolvedValue({ data: { items: [] } })
     mocks.listRefunds.mockResolvedValue({ data: { items: [] } })
@@ -79,9 +79,7 @@ describe('MerchantOrderListPage', () => {
     await flushPromises()
     expect(mocks.listOrders).toHaveBeenLastCalledWith({ view: 'after_sale' }, 'merchant-token')
 
-    await wrapper.findAll('.merchant-order-tabs button')[6]!.trigger('click')
-    await flushPromises()
-    expect(mocks.listOrders).toHaveBeenLastCalledWith({ view: 'cancelled' }, 'merchant-token')
+    expect(wrapper.findAll('.merchant-order-tabs button')).toHaveLength(6)
     wrapper.unmount()
   })
 

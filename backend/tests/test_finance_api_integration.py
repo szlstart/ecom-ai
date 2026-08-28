@@ -66,7 +66,6 @@ async def test_merchant_zero_revenue_and_physical_account_deletion(
         "pending_shipment_count": 0,
         "in_transit_count": 0,
         "after_sale_pending_count": 0,
-        "cancelled_count": 0,
     }
 
     deletion = await client.request(

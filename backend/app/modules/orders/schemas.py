@@ -190,8 +190,9 @@ class OrderCommandResult(StrictRequest):
 
 class OrderHideResult(StrictRequest):
     order_id: str
-    undo_until: datetime
-    restore_url: str
+    deletion_mode: Literal["hidden", "permanent"]
+    undo_until: datetime | None = None
+    restore_url: str | None = None
     version: int
 
 

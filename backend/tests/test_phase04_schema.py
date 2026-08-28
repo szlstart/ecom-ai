@@ -62,14 +62,21 @@ def test_order_schema_has_trade_split_snapshot_and_amount_guards() -> None:
         "order_addresses",
         "order_status_logs",
         "order_operation_logs",
+        "cancelled_order_records",
     }
     assert expected <= set(MySQLBase.metadata.tables)
     trades = MySQLBase.metadata.tables["trade_orders"]
     orders = MySQLBase.metadata.tables["orders"]
     items = MySQLBase.metadata.tables["order_items"]
+    cancelled_records = MySQLBase.metadata.tables["cancelled_order_records"]
     trade_uniques = {item.name for item in trades.constraints if isinstance(item, UniqueConstraint)}
     order_checks = {item.name for item in orders.constraints if isinstance(item, CheckConstraint)}
     item_checks = {item.name for item in items.constraints if isinstance(item, CheckConstraint)}
+    cancelled_uniques = {
+        item.name
+        for item in cancelled_records.constraints
+        if isinstance(item, UniqueConstraint)
+    }
     assert {
         "uk_trade_orders_no",
         "uk_trade_orders_checkout",
@@ -85,3 +92,4 @@ def test_order_schema_has_trade_split_snapshot_and_amount_guards() -> None:
         "ck_order_items_order_item_payable",
         "ck_order_items_order_item_refunded",
     } <= item_checks
+    assert "uk_cancelled_order_records_no" in cancelled_uniques

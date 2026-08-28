@@ -1826,7 +1826,7 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 | 已完成、待评价 | 在售后时效内显示 | 显示 | **[去评价]** | 隐藏 | 隐藏 | [再次购买] |
 | 已完成、已评价 | 在售后时效内显示 | 显示 | [查看评价]/[追评] | **显示** | 隐藏 | [再次购买] |
 | 售后处理中 | [查看售后] | 已发货则显示 | 依据原订单完成状态 | 隐藏 | 通常隐藏 | [联系商家] |
-| 已取消/退款完成 | [查看退款详情]（如有） | 隐藏或保留历史物流 | 隐藏 | **显示** | 隐藏 | [再次购买] |
+| 已取消导航记录 | 隐藏 | 隐藏 | 隐藏 | **显示并永久删除记录** | 隐藏 | 商品卡片/店铺卡片作为再次访问入口 |
 
 “删除订单”是用户侧隐藏，不是物理删除。是否可用只看 `available_actions.delete_order`，服务端内部的 `OrderHidePolicy` 条件以 3.12.9 为权威定义；后台审计、财务和售后记录始终保留。
 
@@ -1900,7 +1900,7 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 
 - 顶部突出当前状态和下一步说明；待支付时同时展示服务端支付截止时间倒计时。
 - 订单主状态进度为：已下单 → 已支付 → 已发货 → 已完成。用户确认或系统自动确认时，履约状态同时进入“已收货”，并在时间线中追加“用户确认收货/系统自动完成”事件；不把“已收货”设计成 `orders.order_status` 中独立于“已完成”的主状态。
-- 已取消订单显示取消时间和原因，不继续显示正常进度线。
+- “已取消”只显示用户侧轻量导航卡片，不再提供订单详情或正常进度线；卡片中的商品和店铺可点击重新进入，删除后永久消失。
 - 有售后申请时在正常进度下方增加售后状态条：已申请 → 审核中 → 待退货（如需要）→ 退款中 → 已完成/已拒绝。
 - 页面收到订单状态推送或重新获得焦点时刷新详情；用户发起关键操作前必须再次获取最新状态。
 
@@ -4185,7 +4185,7 @@ Scheduler 分页查找到期订单 ID
   → 投递 expire_order(order_id)
   → Worker 调用 ExpireOrderService
   → Service 锁定订单并检查仍为待支付且确已过期
-  → 取消订单、释放库存、写 Outbox
+  → 取消订单、释放库存、写 Outbox 和用户取消导航快照、删除正式店铺订单
 ```
 
 任务规范：
@@ -6031,7 +6031,7 @@ WHERE sku_id = :sku_id
 | `expires_at` / `paid_at` / `shipped_at` / `completed_at` / `closed_at` | `DATETIME(6)` | 按状态可空 |
 | `user_hidden_at` | `DATETIME(6)` | NULL，仅允许符合策略的终态订单在用户侧隐藏 |
 
-金额不变式：`payable_amount = goods_amount + freight_amount + adjustment_amount` 且结果不得小于 0。改价只允许在未支付且不存在活动支付尝试时通过专用命令执行；如已有支付尝试，必须先取得渠道确定关闭结果，结果未知时禁止改价。改价事务使用 3.6.4 的统一舍入策略把订单级调整额重新分摊到全部 Order Item，保证 `orders.adjustment_amount = SUM(order_items.adjustment_amount)`、`orders.payable_amount = SUM(order_items.payable_amount) + freight_amount`；任何订单项实付不得小于 0。随后重新计算 Trade Order、递增 Order/Trade/Item Version 并写 `order_operation_logs/system_audit_logs`，不得用通用 PATCH 修改金额。索引：`idx_orders_user_status_time(user_id, order_status, created_at, id)`、`idx_orders_store_status_time(store_id, order_status, created_at, id)`、`idx_orders_trade(trade_order_id)`。前端的“删除订单”只写 `user_hidden_at`，不物理删除交易记录；是否可隐藏统一由 `OrderHidePolicy` 判定。
+金额不变式：`payable_amount = goods_amount + freight_amount + adjustment_amount` 且结果不得小于 0。改价只允许在未支付且不存在活动支付尝试时通过专用命令执行；如已有支付尝试，必须先取得渠道确定关闭结果，结果未知时禁止改价。改价事务使用 3.6.4 的统一舍入策略把订单级调整额重新分摊到全部 Order Item，保证 `orders.adjustment_amount = SUM(order_items.adjustment_amount)`、`orders.payable_amount = SUM(order_items.payable_amount) + freight_amount`；任何订单项实付不得小于 0。随后重新计算 Trade Order、递增 Order/Trade/Item Version 并写 `order_operation_logs/system_audit_logs`，不得用通用 PATCH 修改金额。索引：`idx_orders_user_status_time(user_id, order_status, created_at, id)`、`idx_orders_store_status_time(store_id, order_status, created_at, id)`、`idx_orders_trade(trade_order_id)`。未支付订单取消或支付超时后，先释放库存并生成 3.7.7.8 的用户导航快照，再物理删除 `orders、order_items、order_addresses、inventory_reservations` 及订单级流水；商家端和超级管理员端因此不会继续看到取消订单。合并交易单、Outbox、库存流水和幂等响应只作为技术审计/防重证据保留，不作为店铺订单展示。已完成等需要交易追溯的订单仍按 `OrderHidePolicy` 仅写 `user_hidden_at`，不得物理删除。
 
 ##### 3.7.7.3 order_items 订单商品表
 
@@ -6119,6 +6119,23 @@ WHERE sku_id = :sku_id
 | `expires_at` | `DATETIME(6)` | NOT NULL |
 
 约束：`UNIQUE(scope, actor_type, actor_no, idempotency_key)`；索引 `idx_idempotency_expiry(expires_at)`。记录的创建与业务结果尽可能处于同一事务；卡在 `processing` 的记录使用 Lease/超时恢复，不盲目再次执行外部副作用。
+
+##### 3.7.7.8 cancelled_order_records 用户取消记录表
+
+该表不是交易订单，也不提供给店铺、超级管理员、支付、履约、售后或营业额统计使用，只为用户“已取消”页面保留重新进入原商品与原店铺所需的最小导航快照。
+
+| 字段 | 类型 | 约束/内容 |
+| :--- | :--- | :--- |
+| `order_no` | `VARCHAR(32)` | UK，沿用被取消订单的公开 ID，仅用于本人删除和列表定位 |
+| `trade_no` | `VARCHAR(32)` | 合并交易号快照，不设业务 FK |
+| `user_id` | `BIGINT UNSIGNED` | FK，只允许所属用户读取和删除 |
+| `cancellation_reason_code` / `cancellation_reason` | `VARCHAR(64)` / `VARCHAR(500)` | 取消原因快照 |
+| `cancelled_at` | `DATETIME(6)` | 取消时间 |
+| `search_text` | `VARCHAR(2000)` | 订单号、店铺名、商品名组成的受控本人搜索投影 |
+| `snapshot_payload` | `JSON` | 店铺公开 ID/名称/Logo、商品与 SKU 公开 ID/名称/图片、原购买数量和金额；不得保存收货地址、电话、支付凭证或商家经营数据 |
+| `created_at` / `updated_at` / `version` | 公共字段 | `created_at` 沿用原订单创建时间，支持 Cursor；删除使用 If-Match |
+
+取消事务必须原子完成“释放库存 → 写库存流水与 Outbox → 写取消导航快照 → 删除正式店铺订单”。快照的 `available_actions` 仅包含永久删除，商品卡片和店铺卡片本身就是再次访问入口；不再提供订单详情、物流、售后、联系商家或整单再次购买。用户执行删除前必须明确提示“删除后无法恢复”，确认后物理删除该行，不提供撤销和恢复接口。仅有取消技术记录且不存在正式 `orders` 的用户不应被视为“存在历史交易”，账号注销时可连同技术 Trade/Outbox 按 FK 图清理。索引：`idx_cancelled_order_records_user_time(user_id, created_at, id)`。
 
 #### 3.7.8 支付表
 
@@ -6249,7 +6266,7 @@ WHERE sku_id = :sku_id
 
 ##### 3.7.8.9 店铺营业额口径
 
-店铺营业额不是可写字段，也不由商品销量估算。用户付款后资金先处于平台内的待履约状态，只有订单同时满足 `order_status=completed、fulfillment_status=received、completed_at IS NOT NULL`，即用户确认收货或物流签收满 7 天由系统自动确认后，才进入店铺营业额投影。`gross_sales = SUM(paid_amount)`、`refunded_amount = SUM(refunded_amount)`、`net_revenue = gross_sales - refunded_amount`，同时返回总/已完成/待付款/待发货/运输中/售后待处理/已取消订单数，以及按 Asia/Shanghai 自然日计算的今日、昨日和近 30 日净收益。页面主数字展示净营业额；未确认收货、未支付和已取消订单不计入收入。后续真实清结算、平台佣金和提现上线时再引入独立商户资金账户与清结算账本。
+店铺营业额不是可写字段，也不由商品销量估算。用户付款后资金先处于平台内的待履约状态，只有订单同时满足 `order_status=completed、fulfillment_status=received、completed_at IS NOT NULL`，即用户确认收货或物流签收满 7 天由系统自动确认后，才进入店铺营业额投影。`gross_sales = SUM(paid_amount)`、`refunded_amount = SUM(refunded_amount)`、`net_revenue = gross_sales - refunded_amount`，同时返回总/已完成/待付款/待发货/运输中/售后待处理订单数，以及按 Asia/Shanghai 自然日计算的今日、昨日和近 30 日净收益。商家与超级管理员订单统计不提供“已取消”计数；未支付取消记录已经移出正式订单域。页面主数字展示净营业额；未确认收货和未支付订单不计入收入。后续真实清结算、平台佣金和提现上线时再引入独立商户资金账户与清结算账本。
 
 ---
 
@@ -8783,7 +8800,7 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | `GET` | `/orders/{order_id}` | 订单所属用户 | 用户投影的单个店铺订单详情；返回订单来源、支付摘要、商品、金额/改价、地址快照、物流摘要、售后摘要、状态时间轴和动态操作集合；订单项包含当前 `product_available` |
 | `GET` | `/trade-orders/{trade_order_id}` | 用户 | 查询一次结算生成的合并交易单与所属店铺订单，用于支付结果页 |
 | `GET` | `/orders/{order_id}/events` | 订单所属用户 | 查询用户可见的订单状态时间轴；不直接暴露内部操作日志 |
-| `DELETE` | `/users/me/orders/{order_id}` | 用户 | 按统一 `OrderHidePolicy` 把符合条件的终态订单从用户列表隐藏；If-Match，不物理删除审计数据 |
+| `DELETE` | `/users/me/orders/{order_id}` | 用户 | If-Match；目标为 `cancelled_order_records` 时物理删除且返回 `deletion_mode=permanent`，其他符合策略的终态交易订单仍只隐藏并返回 `deletion_mode=hidden、undo_until、restore_url` |
 | `POST` | `/users/me/orders/{order_id}/restorations` | 用户 | 在响应给出的短时 `undo_until` 内恢复刚隐藏的订单；幂等且携 If-Match，超过窗口返回 409 并仍可由客服按政策协助 |
 | `POST` | `/orders/{order_id}/repurchases` | 用户 | 将仍可售的原订单 SKU 和数量批量加入购物车；Idempotency-Key + 当前购物车 If-Match，返回 `added_items、unavailable_items、requires_reselection` 和最新购物车汇总 |
 
@@ -8793,22 +8810,22 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 
 订单详情中的 `order_source` 从持久化的 `trade_orders.order_source` 返回，不回读可能已经删除的 Checkout；订单金额返回 `goods_amount、freight_amount、adjustment_amount、payable_amount、paid_amount、refunded_amount、currency`，每个订单项返回自己的 `gross_amount、adjustment_amount、payable_amount、refunded_amount`，两层汇总必须满足 3.7.7 的不变式。订单项的名称、规格、图片和金额继续使用下单快照；`product_available` 则由 Query Service 批量读取当前商品状态生成，仅当 `products.product_status=on_sale AND deleted_at IS NULL` 时为 `true`，缺失商品按 `false` 处理，禁止逐条查询造成 N+1。`adjustment_amount != 0` 时同时返回面向用户的安全原因。支付方式和支付时间来自成功支付摘要；物流预计时间使用 3.11.5 的 `ServiceEstimate`，不存在可靠范围时返回 `status=unavailable`，前端显示“暂无可靠预计时间”。
 
-`OrderHidePolicy` 是前端按钮和 DELETE 命令的唯一规则来源。允许隐藏的情形为：① `completed` 且所有可评价订单项均为 `reviewed/closed`；② `cancelled/closed`；③售后已完成、资金结果终态且无进行中争议。任一活动售后、支付结果未知、退款处理中、举证/申诉窗口内争议或风控保全状态均禁止隐藏。列表与详情的 `available_actions.delete_order` 必须由同一策略计算，不能由 Router 复制条件。
+`OrderHidePolicy` 是仍需交易追溯的正式订单“隐藏”按钮和 DELETE 命令的唯一规则来源。允许隐藏的情形为：① `completed` 且所有可评价订单项均为 `reviewed/closed`；②售后已完成、资金结果终态且无进行中争议。任一活动售后、支付结果未知、退款处理中、举证/申诉窗口内争议或风控保全状态均禁止隐藏。取消记录不适用 `OrderHidePolicy`：它不是正式订单，DELETE 通过本人归属和 Version 校验后直接物理删除。前端必须按响应的 `deletion_mode` 决定是否展示撤销入口。
 
-订单搜索对订单号支持精确/前缀匹配，对商品和店铺名称使用规范化受控查询；始终附加当前 `user_id` 和 `user_hidden_at IS NULL`，限制关键词长度与频率，不能把后台全文检索变成跨用户枚举通道。隐藏订单响应返回 `undo_until` 和新 ETag；恢复只清空符合窗口的 `user_hidden_at` 并写操作流水。再次购买不保证全部成功，不可售 SKU 不得静默替换为其他规格。
+正式订单搜索对订单号支持精确/前缀匹配，对商品和店铺名称使用规范化受控查询；始终附加当前 `user_id` 和 `user_hidden_at IS NULL`。取消记录只在 `view=cancelled` 下查询当前用户的 `search_text` 投影。两者均限制关键词长度与频率，不能形成跨用户枚举通道。隐藏订单响应返回 `undo_until` 和新 ETag，恢复只清空符合窗口的 `user_hidden_at` 并写操作流水；取消记录永久删除响应不返回恢复地址。正式已完成订单的再次购买仍不保证全部成功，不可售 SKU 不得静默替换为其他规格。
 
 `view` 是面向用户页面的稳定复合筛选契约，不等同于数据库 `order_status`。OpenAPI 必须固定以下枚举和服务端映射：
 
 | `view` | 服务端包含规则 |
 | :--- | :--- |
-| `all` | 当前用户且 `user_hidden_at IS NULL` 的全部店铺订单 |
+| `all` | 当前用户且 `user_hidden_at IS NULL` 的全部正式店铺订单；不混入取消导航记录 |
 | `pending_payment` | `order_status=pending_payment` 且尚未到 `expires_at` |
 | `pending_shipment` | `order_status=pending_shipment` |
 | `in_transit` | `order_status=shipped` 且 `fulfillment_status!=received` |
 | `completed` | `order_status=completed`，无论是否已评价或发生过售后 |
 | `pending_review` | `order_status=completed` 且存在 `order_items.review_status=pending` 的可评价订单项 |
 | `after_sale` | 存在当前用户对该订单创建的任意 `refund_applications`，包含处理中、成功、拒绝、撤销和关闭历史 |
-| `cancelled` | `order_status IN (cancelled, closed)` 且订单从未成功支付，用于用户取消、支付超时或管理员受控取消 |
+| `cancelled` | 当前用户 `cancelled_order_records` 中的轻量导航快照；不查询正式 `orders`，也不向商家和超级管理员提供同名视图 |
 
 除 `all` 外，同一订单可以同时命中多个视图，例如已完成订单同时属于 `completed、pending_review、after_sale`。列表响应返回 `matched_views[]`，便于前端调试和埋点，但前端仍只按当前请求视图展示。无效 `view` 返回 422；用户端不得自行组合 `order_status/after_sale_status/review_status` 推导上述视图，管理后台的原始状态筛选使用独立管理接口契约。
 
@@ -10066,7 +10083,7 @@ available >= qty:
 Scheduler 只负责扫描并投递候选，Worker 以小批量处理 `trade_orders.pending_payment AND expires_at <= now`：
 
 1. 领取任务后锁定 Trade Order，复核仍未支付；查询存在 `pending/unknown` Payment 时，先主动向渠道确认或延迟处理。
-2. 条件更新 Trade Order 为 `closed`，所属未支付 Orders 为 `cancelled` 且 `payment_status=unpaid`，未成功 Payments 为 `closed`。
+2. 条件更新 Trade Order 为 `closed`，所属未支付 Orders 在事务内短暂转换为 `cancelled`、未成功 Payments 为 `closed`；完成库存释放、Outbox 和用户取消导航快照后删除正式 Orders，不向店铺或超级管理员暴露取消记录。
 3. 将 Active Reservation 转 `expired`，原子减少 `reserved_quantity`，写库存/订单/支付流水。
 4. 写 Outbox `TradeOrderExpired/InventoryReleased` 后提交；通知前端并失效订单/购物车相关缓存。
 5. 重复 Worker 只看到终态并成功退出。执行失败按游标/主键重试，不扩大扫描事务。
@@ -10196,7 +10213,7 @@ pending_payment ──payment_succeeded──> paid ──fulfillment_initialize
 | `shipped` | `completed` | 用户确认或满足自动完成规则 |
 | `shipped` | `closed` | 正常完成前发生全单退回/异常终止且资金处理完毕 |
 
-`completed/cancelled/closed` 是主状态终态。订单完成后发生售后，不把 `completed` 逆转为处理中；通过 `after_sale_status` 和 `payment_status` 展示。若全额退款发生在完成后，主状态仍可保持 Completed，资金字段显示 Refunded，从而保留正常履约事实。
+`completed/closed` 是需要保留的正式订单主状态终态；`cancelled` 是未支付订单清理事务中的过渡终态，完成用户取消快照后正式订单行即删除。订单完成后发生售后，不把 `completed` 逆转为处理中；通过 `after_sale_status` 和 `payment_status` 展示。若全额退款发生在完成后，主状态仍可保持 Completed，资金字段显示 Refunded，从而保留正常履约事实。
 
 #### 3.14.20 支付状态机
 
@@ -12809,7 +12826,7 @@ Case 应主要由合成/脱敏场景、业务规则推导样本、历史缺陷�
 
 #### 3.28.9 订单查询测试集
 
-用确定性 Fixture 覆盖待支付、已支付待发货、部分发货、已发货、已签收、已完成、已取消、售后中和异常状态，并覆盖一个 Trade Order 下多店订单、订单不存在、非本人订单、删除/隐藏订单和重复问询。用户自然语言中可给模糊时间、商品名或订单卡片，Agent 应消歧而非猜 Order ID。
+用确定性 Fixture 覆盖待支付、已支付待发货、部分发货、已发货、已签收、已完成、用户取消导航记录、售后中和异常状态，并覆盖一个 Trade Order 下多店订单、订单不存在、非本人订单、永久删除取消记录、隐藏正式订单和重复问询。用户自然语言中可给模糊时间、商品名或订单卡片，Agent 应消歧而非猜 Order ID；取消导航记录不作为可查询交易订单交给 Order Agent。
 
 预期结果同时断言 Tool、Scope、查询次数、状态映射和用户可用操作。越权订单必须表现为安全的 Not Found/Denied，不泄露是否存在；店铺客服只解释当前店铺订单卡片，不读取用户其他店订单。任何“已退款/已发货”等结论必须与快照一致。
 
@@ -13751,9 +13768,9 @@ API 的 Pool Size 从每实例 5–10、有限 Overflow 起压测，Worker/Agent
 
 #### 3.34.4 第四阶段：购物车、结算与订单
 
-实现 Cart/Items、单商品与购物车 Checkout Session/Snapshot、地址/价格/库存/配送实时校验、Trade Order/Store Order/Items/Address Snapshot、库存预占、订单状态机、取消/超时、确认收货、订单搜索/隐藏短时恢复/再次购买、我的订单和单订单页面。创建订单使用 Idempotency-Key，业务事务写 Outbox。
+实现 Cart/Items、单商品与购物车 Checkout Session/Snapshot、地址/价格/库存/配送实时校验、Trade Order/Store Order/Items/Address Snapshot、库存预占、订单状态机、取消/超时、确认收货、订单搜索、正式订单隐藏短时恢复/再次购买、用户取消导航记录的永久删除、我的订单和单订单页面。创建订单使用 Idempotency-Key，业务事务写 Outbox。
 
-验收：单品结算和购物车多店拆单端到端通过；Cart 永久复用且所有 Cart Item API 只接受 `ci_` 公开 ID；买家备注 API 严格 200 Unicode 字符、空白/内容安全一致；价格/库存/地址/配送变化得到确定提示。结算联系客服创建的 `checkout_store_group` 只含本店最小摘要，跨店、旧 Version、过期/已消费 Checkout 全部拒绝。订单创建与支付创建是两个独立幂等步骤，订单成功后 Payment 失败仍能在详情继续支付，重复/结果未知不产生第二组订单。订单级正负改价能确定性分摊到订单项且汇总守恒；`view` 八种订单复合筛选与前端 Tab 契约测试全部通过；订单、预占和 Outbox 原子一致；超时取消与支付竞争无错误释放。列表、详情、支付和售后入口只消费同一 `available_actions`，缺少 Action 时隐藏，禁用时显示稳定原因；订单隐藏撤销以 `undo_until/restore_url/ETag` 调用服务端恢复，过期、412、重复和结果未知不会只在本地插回卡片。满足订单/库存并发、状态机和 `DOC-P2-ACTION-*` Suite。
+验收：单品结算和购物车多店拆单端到端通过；Cart 永久复用且所有 Cart Item API 只接受 `ci_` 公开 ID；买家备注 API 严格 200 Unicode 字符、空白/内容安全一致；价格/库存/地址/配送变化得到确定提示。结算联系客服创建的 `checkout_store_group` 只含本店最小摘要，跨店、旧 Version、过期/已消费 Checkout 全部拒绝。订单创建与支付创建是两个独立幂等步骤，订单成功后 Payment 失败仍能在详情继续支付，重复/结果未知不产生第二组订单。订单级正负改价能确定性分摊到订单项且汇总守恒；用户端八种视图中 `cancelled` 独立读取本人取消导航记录，商家和超级管理员端仅保留六种正式订单视图；订单、预占和 Outbox 原子一致；取消/超时必须释放库存、生成快照并删除正式店铺订单。正式订单隐藏撤销以 `undo_until/restore_url/ETag` 恢复；取消记录删除返回 `deletion_mode=permanent` 且不可恢复。满足订单/库存并发、状态机和 `DOC-P2-ACTION-*` Suite。
 
 #### 3.34.5 第五阶段：支付、物流与售后
 

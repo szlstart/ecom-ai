@@ -107,7 +107,13 @@ export interface TradeOrder {
   available_actions: OrderAction[]
   version: number
 }
-export interface OrderHideResult { order_id: string; undo_until: string; restore_url: string; version: number }
+export interface OrderHideResult {
+  order_id: string
+  deletion_mode: 'hidden' | 'permanent'
+  undo_until: string | null
+  restore_url: string | null
+  version: number
+}
 export interface OrderRepurchaseResult {
   order_id: string
   added_items: string[]
@@ -155,6 +161,7 @@ export function hideOrder(orderId: string, version: number, token: string): Prom
 }
 
 export function restoreOrder(result: OrderHideResult, token: string): Promise<ApiResult<OrderSummary>> {
+  if (!result.restore_url) throw new Error('该记录已永久删除，不能恢复。')
   const path = result.restore_url.replace(/^\/api\/v1/, '')
   return apiRequest(path, { method: 'POST', headers: { 'If-Match': `"v${result.version}"`, 'Idempotency-Key': createIdempotencyKey('order-restore') } }, token)
 }

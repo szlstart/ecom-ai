@@ -101,7 +101,10 @@ async function runAction(action: OrderAction, order: OrderSummary) {
     }
     return
   }
-  if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !window.confirm(`${actionLabel(action.code)}？此操作将以服务器最终结果为准。`)) return
+  const confirmation = action.code === 'delete_order' && order.order_status === 'cancelled'
+    ? '永久删除这条已取消记录？删除后无法恢复。'
+    : `${actionLabel(action.code)}？此操作将以服务器最终结果为准。`
+  if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !window.confirm(confirmation)) return
   busyOrder.value = order.order_id
   error.value = ''
   message.value = ''
@@ -109,8 +112,14 @@ async function runAction(action: OrderAction, order: OrderSummary) {
     if (action.code === 'cancel_order') await cancelOrder(order.order_id, order.version, token())
     else if (action.code === 'confirm_receipt') await confirmOrderReceipt(order.order_id, order.version, token())
     else if (action.code === 'delete_order') {
-      hiddenOrder.value = (await hideOrder(order.order_id, order.version, token())).data
-      message.value = `订单已从列表隐藏，可在 ${dateTime(hiddenOrder.value.undo_until)} 前撤销。`
+      const result = (await hideOrder(order.order_id, order.version, token())).data
+      if (result.deletion_mode === 'permanent') {
+        hiddenOrder.value = null
+        message.value = '已取消记录已永久删除。'
+      } else {
+        hiddenOrder.value = result
+        message.value = `订单已从列表隐藏，可在 ${dateTime(result.undo_until!)} 前撤销。`
+      }
     } else if (action.code === 'repurchase') {
       const cart = await getCart(token())
       const result = (await repurchaseOrder(order.order_id, cart.data.version, token())).data
@@ -182,12 +191,12 @@ watch(() => route.fullPath, () => {
               <span><strong>{{ item.product_name }}</strong><small>款式：{{ item.sku_name }} · × {{ item.quantity }}</small><small v-if="!item.product_available" class="order-product-unavailable-badge">已下架</small></span>
               <strong>{{ formatMoney(item.payable_amount) }}</strong>
             </OrderProductEntry>
-            <RouterLink v-if="order.item_count > 3" :to="`/me/orders/${order.order_id}`">另有 {{ order.item_count - 3 }} 件商品，点击查看全部</RouterLink>
+            <RouterLink v-if="order.item_count > 3 && order.order_status !== 'cancelled'" :to="`/me/orders/${order.order_id}`">另有 {{ order.item_count - 3 }} 件商品，点击查看全部</RouterLink>
           </div>
           <footer>
             <span>共 {{ order.total_quantity }} 件，应付 <strong>{{ formatMoney(order.amounts.payable_amount) }}</strong><small v-if="order.order_status === 'shipped'">物流签收满 7 天后将自动确认收货</small></span>
             <div class="order-actions">
-              <RouterLink class="order-action" :to="`/me/orders/${order.order_id}`">查看订单详情</RouterLink>
+              <RouterLink v-if="order.order_status !== 'cancelled'" class="order-action" :to="`/me/orders/${order.order_id}`">查看订单详情</RouterLink>
               <button v-for="action in order.available_actions" :key="action.code" type="button" :class="['order-action', { disabled: !action.enabled }]" :disabled="!action.enabled || busyOrder !== ''" :title="action.reason_message ?? undefined" @click="runAction(action, order)">{{ busyOrder === order.order_id ? '处理中…' : actionLabel(action.code) }}</button>
             </div>
           </footer>

@@ -16082,8 +16082,7 @@
                     "pending_shipment",
                     "in_transit",
                     "completed",
-                    "after_sale",
-                    "cancelled"
+                    "after_sale"
                   ],
                   "type": "string"
                 },
@@ -39243,10 +39242,6 @@
             "type": "integer",
             "title": "After Sale Pending Count"
           },
-          "cancelled_count": {
-            "type": "integer",
-            "title": "Cancelled Count"
-          },
           "product_count": {
             "type": "integer",
             "title": "Product Count"
@@ -39268,7 +39263,6 @@
           "pending_shipment_count",
           "in_transit_count",
           "after_sale_pending_count",
-          "cancelled_count",
           "product_count"
         ],
         "title": "AdminStoreRevenueView"
@@ -47531,10 +47525,6 @@
           "after_sale_pending_count": {
             "type": "integer",
             "title": "After Sale Pending Count"
-          },
-          "cancelled_count": {
-            "type": "integer",
-            "title": "Cancelled Count"
           }
         },
         "additionalProperties": false,
@@ -47552,8 +47542,7 @@
           "pending_payment_count",
           "pending_shipment_count",
           "in_transit_count",
-          "after_sale_pending_count",
-          "cancelled_count"
+          "after_sale_pending_count"
         ],
         "title": "MerchantRevenueView"
       },
@@ -48707,13 +48696,35 @@
             "type": "string",
             "title": "Order Id"
           },
-          "undo_until": {
+          "deletion_mode": {
             "type": "string",
-            "format": "date-time",
+            "enum": [
+              "hidden",
+              "permanent"
+            ],
+            "title": "Deletion Mode"
+          },
+          "undo_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Undo Until"
           },
           "restore_url": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Restore Url"
           },
           "version": {
@@ -48725,8 +48736,7 @@
         "type": "object",
         "required": [
           "order_id",
-          "undo_until",
-          "restore_url",
+          "deletion_mode",
           "version"
         ],
         "title": "OrderHideResult"

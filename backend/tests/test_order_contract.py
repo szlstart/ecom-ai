@@ -2,7 +2,11 @@ import pytest
 from pydantic import ValidationError
 
 from app.main import create_app
-from app.modules.orders.schemas import AdminOrderAmountAdjustmentRequest, OrderCreateRequest
+from app.modules.orders.schemas import (
+    AdminOrderAmountAdjustmentRequest,
+    OrderCreateRequest,
+    OrderHideResult,
+)
 
 
 def test_order_create_accepts_only_checkout_identity_and_version() -> None:
@@ -59,6 +63,29 @@ def test_order_list_exposes_the_eight_normative_views() -> None:
         "after_sale",
         "cancelled",
     ]
+
+
+def test_admin_order_views_exclude_user_only_cancellation_records() -> None:
+    operation = create_app().openapi()["paths"]["/api/v1/admin/orders"]["get"]
+    view_parameter = next(item for item in operation["parameters"] if item["name"] == "view")
+    assert view_parameter["schema"]["anyOf"][0]["enum"] == [
+        "all",
+        "pending_payment",
+        "pending_shipment",
+        "in_transit",
+        "completed",
+        "after_sale",
+    ]
+
+
+def test_order_delete_result_distinguishes_hide_from_permanent_delete() -> None:
+    permanent = OrderHideResult(
+        order_id="ord_01TEST",
+        deletion_mode="permanent",
+        version=0,
+    )
+    assert permanent.undo_until is None
+    assert permanent.restore_url is None
 
 
 def test_order_item_projects_current_product_availability() -> None:

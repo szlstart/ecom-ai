@@ -146,6 +146,27 @@ class Order(MutableMySQLModel, MySQLBase):
     undo_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
 
 
+class CancelledOrderRecord(MutableMySQLModel, MySQLBase):
+    """User-only navigation snapshot left after an unpaid order is cancelled."""
+
+    __tablename__ = "cancelled_order_records"
+    __table_args__ = (
+        UniqueConstraint("order_no", name="uk_cancelled_order_records_no"),
+        Index("idx_cancelled_order_records_user_time", "user_id", "created_at", "id"),
+    )
+
+    order_no: Mapped[str] = mapped_column(String(32), nullable=False)
+    trade_no: Mapped[str] = mapped_column(String(32), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False
+    )
+    cancellation_reason_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    cancellation_reason: Mapped[str | None] = mapped_column(String(500))
+    cancelled_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    search_text: Mapped[str] = mapped_column(String(2000), nullable=False)
+    snapshot_payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+
+
 class OrderItem(MutableMySQLModel, MySQLBase):
     __tablename__ = "order_items"
     __table_args__ = (

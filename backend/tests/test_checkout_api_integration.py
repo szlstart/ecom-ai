@@ -51,7 +51,13 @@ from app.modules.logistics.schemas import (
     AdminTrackingCorrectionRequest,
 )
 from app.modules.logistics.service import LogisticsService
-from app.modules.orders.models import Order, OrderAddress, OrderItem, TradeOrder
+from app.modules.orders.models import (
+    CancelledOrderRecord,
+    Order,
+    OrderAddress,
+    OrderItem,
+    TradeOrder,
+)
 from app.modules.orders.service import OrderService
 from app.modules.payments.models import Payment, PaymentCallback
 from app.modules.payments.service import PaymentService
@@ -841,8 +847,6 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert cancelled_data["events"][0]["event_code"] == "order.user_cancelled"
     assert [action["code"] for action in cancelled_data["order"]["available_actions"]] == [
         "delete_order",
-        "repurchase",
-        "contact_store",
     ]
     cancellation_replay = await client.post(
         f"/api/v1/orders/{selected_order_id}/cancellations",
@@ -863,27 +867,38 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
                 )
             ).all()
         )
-        assert len(cancelled_orders) == 2
-        assert all(item.order_status == "cancelled" for item in cancelled_orders)
-        released = list(
+        assert cancelled_orders == []
+        cancellation_records = list(
             (
                 await session.scalars(
-                    select(InventoryReservation).where(
-                        InventoryReservation.order_id.in_([item.id for item in cancelled_orders])
+                    select(CancelledOrderRecord).where(
+                        CancelledOrderRecord.order_no.in_(order_data["order_ids"])
                     )
                 )
             ).all()
         )
-        assert all(item.reservation_status == "released" for item in released)
+        assert len(cancellation_records) == 2
+        assert all(
+            record.snapshot_payload["matched_views"] == ["cancelled"]
+            for record in cancellation_records
+        )
+
+    cancellation_list = await client.get(
+        "/api/v1/users/me/orders", headers=auth, params={"view": "cancelled"}
+    )
+    assert cancellation_list.status_code == 200, cancellation_list.text
+    assert selected_order_id in {
+        item["order_id"] for item in cancellation_list.json()["data"]["items"]
+    }
 
     hidden = await client.delete(
         f"/api/v1/users/me/orders/{selected_order_id}",
         headers={**auth, "If-Match": cancelled.headers["etag"]},
     )
     assert hidden.status_code == 200, hidden.text
-    assert hidden.json()["data"]["restore_url"].endswith(
-        f"/users/me/orders/{selected_order_id}/restorations"
-    )
+    assert hidden.json()["data"]["deletion_mode"] == "permanent"
+    assert hidden.json()["data"]["restore_url"] is None
+    assert hidden.json()["data"]["undo_until"] is None
     assert (
         await client.get(f"/api/v1/orders/{selected_order_id}", headers=auth)
     ).status_code == 404
@@ -895,21 +910,14 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             "Idempotency-Key": f"order-restore-{suffix}",
         },
     )
-    assert restored.status_code == 200, restored.text
-    assert restored.json()["data"]["order_id"] == selected_order_id
-
-    current_cart = await client.get("/api/v1/users/me/cart", headers=auth)
-    repurchased = await client.post(
-        f"/api/v1/orders/{selected_order_id}/repurchases",
-        headers={
-            **auth,
-            "If-Match": current_cart.headers["etag"],
-            "Idempotency-Key": f"order-repurchase-{suffix}",
-        },
+    assert restored.status_code == 404, restored.text
+    cancellation_list_after_delete = await client.get(
+        "/api/v1/users/me/orders", headers=auth, params={"view": "cancelled"}
     )
-    assert repurchased.status_code == 200, repurchased.text
-    assert len(repurchased.json()["data"]["added_items"]) == 1
-    assert repurchased.json()["data"]["unavailable_items"] == []
+    assert selected_order_id not in {
+        item["order_id"]
+        for item in cancellation_list_after_delete.json()["data"]["items"]
+    }
 
     receipt_checkout = await client.post(
         "/api/v1/checkout-sessions",

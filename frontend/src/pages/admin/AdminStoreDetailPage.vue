@@ -12,13 +12,12 @@ import { useAdminAuthStore } from '@/stores/admin-auth'
 
 type WorkspaceSection = 'products' | 'orders'
 type ProductStatus = '' | 'on_sale' | 'draft' | 'pending_review' | 'rejected' | 'off_shelf'
-type OrderView = 'all' | 'pending_payment' | 'pending_shipment' | 'in_transit' | 'completed' | 'after_sale' | 'cancelled'
+type OrderView = 'all' | 'pending_payment' | 'pending_shipment' | 'in_transit' | 'completed' | 'after_sale'
 interface RevenueDashboard {
   gross_sales: Money; refunded_amount: Money; net_revenue: Money
   today_revenue: Money; yesterday_revenue: Money; last_30_days_revenue: Money
   all_order_count: number; completed_order_count: number; pending_payment_count: number
   pending_shipment_count: number; in_transit_count: number; after_sale_pending_count: number
-  cancelled_count: number
   product_count: number
 }
 
@@ -52,7 +51,6 @@ const orderTabs = computed(() => [
   { value: 'in_transit' as const, label: '运输中', count: revenue.value?.in_transit_count ?? 0 },
   { value: 'completed' as const, label: '已完成', count: revenue.value?.completed_order_count ?? 0 },
   { value: 'after_sale' as const, label: '售后待处理', count: revenue.value?.after_sale_pending_count ?? 0 },
-  { value: 'cancelled' as const, label: '已取消', count: revenue.value?.cancelled_count ?? 0 },
 ])
 const totalStock = computed(() => products.value.reduce((sum, item) => sum + item.available_quantity, 0))
 

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.catalog.models import Product
 from app.modules.finance.models import UserWallet, WalletRecharge, WalletTransaction
-from app.modules.orders.models import Order, TradeOrder
+from app.modules.orders.models import Order
 from app.modules.stores.models import Store
 
 
@@ -171,15 +171,6 @@ class FinanceRepository:
                         ),
                         0,
                     ),
-                    func.coalesce(
-                        func.sum(
-                            case(
-                                (Order.order_status.in_(("cancelled", "closed")), 1),
-                                else_=0,
-                            )
-                        ),
-                        0,
-                    ),
                 ).where(Order.store_id == store_id)
             )
         ).one()
@@ -187,14 +178,14 @@ class FinanceRepository:
             "gross_sales", "refunded_amount", "completed_order_count",
             "today_revenue", "yesterday_revenue", "last_30_days_revenue",
             "all_order_count", "pending_payment_count", "pending_shipment_count",
-            "in_transit_count", "after_sale_pending_count", "cancelled_count",
+            "in_transit_count", "after_sale_pending_count",
         )
         return {key: int(value or 0) for key, value in zip(keys, row, strict=True)}
 
     async def has_consumer_trade(self, user_id: int) -> bool:
         return bool(
             await self.session.scalar(
-                select(func.count(TradeOrder.id)).where(TradeOrder.user_id == user_id)
+                select(func.count(Order.id)).where(Order.user_id == user_id)
             )
         )
 

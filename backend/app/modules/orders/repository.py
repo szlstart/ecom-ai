@@ -15,7 +15,14 @@ from app.modules.files.models import FileObject
 from app.modules.identity.models import User
 from app.modules.inventory.models import Inventory, InventoryReservation
 from app.modules.logistics.models import Shipment, ShipmentItem
-from app.modules.orders.models import Order, OrderAddress, OrderItem, OrderStatusLog, TradeOrder
+from app.modules.orders.models import (
+    CancelledOrderRecord,
+    Order,
+    OrderAddress,
+    OrderItem,
+    OrderStatusLog,
+    TradeOrder,
+)
 from app.modules.stores.models import Store
 
 
@@ -141,6 +148,44 @@ class OrderRepository:
             rows.reverse()
         return [(row[0], row[1], row[2]) for row in rows], has_more
 
+    async def cancelled_order_records(
+        self,
+        *,
+        user_id: int,
+        query: str | None,
+        created_from: datetime | None,
+        created_to: datetime | None,
+        position: CursorPosition | None,
+        limit: int,
+    ) -> tuple[list[CancelledOrderRecord], bool]:
+        statement = select(CancelledOrderRecord).where(
+            CancelledOrderRecord.user_id == user_id
+        )
+        if query:
+            statement = statement.where(CancelledOrderRecord.search_text.like(f"%{query}%"))
+        if created_from is not None:
+            statement = statement.where(CancelledOrderRecord.created_at >= created_from)
+        if created_to is not None:
+            statement = statement.where(CancelledOrderRecord.created_at < created_to)
+        statement, reverse = _cancelled_record_cursor(statement, position)
+        rows = list((await self.session.scalars(statement.limit(limit + 1))).all())
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        if reverse:
+            rows.reverse()
+        return rows, has_more
+
+    async def cancelled_order_record(
+        self, user_id: int, order_no: str, *, for_update: bool = False
+    ) -> CancelledOrderRecord | None:
+        statement = select(CancelledOrderRecord).where(
+            CancelledOrderRecord.user_id == user_id,
+            CancelledOrderRecord.order_no == order_no,
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        return cast(CancelledOrderRecord | None, await self.session.scalar(statement))
+
     async def admin_orders(
         self,
         *,
@@ -160,6 +205,7 @@ class OrderRepository:
             .join(Store, Store.id == Order.store_id)
             .join(TradeOrder, TradeOrder.id == Order.trade_order_id)
             .join(User, User.id == Order.user_id)
+            .where(Order.order_status != "cancelled")
         )
         if ("platform", 0) not in scopes:
             store_ids = [scope_id for scope_type, scope_id in scopes if scope_type == "store"]
@@ -336,6 +382,24 @@ class OrderRepository:
                 )
             ).all()
         )
+
+    async def order_rows(
+        self, order_ids: Sequence[int]
+    ) -> list[tuple[Order, Store, TradeOrder]]:
+        if not order_ids:
+            return []
+        rows = list(
+            (
+                await self.session.execute(
+                    select(Order, Store, TradeOrder)
+                    .join(Store, Store.id == Order.store_id)
+                    .join(TradeOrder, TradeOrder.id == Order.trade_order_id)
+                    .where(Order.id.in_(order_ids))
+                    .order_by(Order.id)
+                )
+            ).all()
+        )
+        return [(row[0], row[1], row[2]) for row in rows]
 
     async def expired_pending_trades(self, now: datetime, limit: int) -> list[TradeOrder]:
         return list(
@@ -618,8 +682,6 @@ def _admin_order_view(
         return statement.where(Order.order_status == "completed")
     if view == "after_sale":
         return statement.where(Order.after_sale_status == "in_progress")
-    if view == "cancelled":
-        return statement.where(Order.order_status.in_(("cancelled", "closed")))
     raise ValueError(f"unsupported admin order view: {view}")
 
 
@@ -640,4 +702,26 @@ def _order_cursor(
     return statement.order_by(
         Order.created_at.desc() if descending else Order.created_at.asc(),
         Order.id.desc() if descending else Order.id.asc(),
+    ), reverse
+
+
+def _cancelled_record_cursor(
+    statement: Select[tuple[CancelledOrderRecord]], position: CursorPosition | None
+) -> tuple[Select[tuple[CancelledOrderRecord]], bool]:
+    reverse = position is not None and position.direction == "previous"
+    descending = not reverse
+    if position is not None:
+        if len(position.values) != 2:
+            raise ValueError("cancelled order cursor must contain two values")
+        timestamp = datetime.fromisoformat(position.values[0])
+        record_id = int(position.values[1])
+        key = tuple_(CancelledOrderRecord.created_at, CancelledOrderRecord.id)
+        statement = statement.where(
+            key < (timestamp, record_id) if descending else key > (timestamp, record_id)
+        )
+    return statement.order_by(
+        CancelledOrderRecord.created_at.desc()
+        if descending
+        else CancelledOrderRecord.created_at.asc(),
+        CancelledOrderRecord.id.desc() if descending else CancelledOrderRecord.id.asc(),
     ), reverse

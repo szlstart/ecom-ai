@@ -17,7 +17,7 @@ from app.database.mysql import mysql_session
 from app.modules.catalog.models import Category, Product, ProductSku
 from app.modules.identity.models import User
 from app.modules.inventory.models import Inventory, InventoryReservation
-from app.modules.orders.models import Order, OrderItem, TradeOrder
+from app.modules.orders.models import CancelledOrderRecord, Order, OrderItem, TradeOrder
 from app.modules.rbac.models import AdminOperationLog
 from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
@@ -271,10 +271,15 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
         headers=headers,
         params={"store_id": store_no, "view": "cancelled"},
     )
-    assert cancelled_list.status_code == 200, cancelled_list.text
-    assert [item["order"]["order_id"] for item in cancelled_list.json()["data"]["items"]] == [
-        order_no
-    ]
+    assert cancelled_list.status_code == 422, cancelled_list.text
+
+    all_after_cancel = await client.get(
+        "/api/v1/admin/orders",
+        headers=headers,
+        params={"store_id": store_no, "view": "all"},
+    )
+    assert all_after_cancel.status_code == 200, all_after_cancel.text
+    assert all_after_cancel.json()["data"]["items"] == []
 
     another_store = await client.get(
         "/api/v1/admin/orders",
@@ -290,9 +295,16 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
         stored_item = await session.get(OrderItem, item_id)
         stored_inventory = await session.get(Inventory, inventory_id)
         assert stored_trade and stored_trade.payable_amount == 1900
-        assert stored_order and stored_order.payable_amount == 1900
-        assert stored_item and stored_item.payable_amount == 1800
+        assert stored_order is None
+        assert stored_item is None
         assert stored_inventory and stored_inventory.reserved_quantity == 0
+        record = await session.scalar(
+            select(CancelledOrderRecord).where(CancelledOrderRecord.order_no == order_no)
+        )
+        assert record is not None
+        store_snapshot = record.snapshot_payload["store"]
+        assert isinstance(store_snapshot, dict)
+        assert store_snapshot["store_id"] == store_no
         assert (
             await session.scalar(
                 select(func.count(AdminOperationLog.id)).where(
@@ -309,13 +321,3 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
             )
             == 2
         )
-        stored_order.order_status = "closed"
-        await session.commit()
-
-    closed_list = await client.get(
-        "/api/v1/admin/orders",
-        headers=headers,
-        params={"store_id": store_no, "view": "cancelled"},
-    )
-    assert closed_list.status_code == 200, closed_list.text
-    assert [item["order"]["order_id"] for item in closed_list.json()["data"]["items"]] == [order_no]

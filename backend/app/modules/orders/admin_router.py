@@ -32,7 +32,6 @@ async def list_orders(
             "in_transit",
             "completed",
             "after_sale",
-            "cancelled",
         ]
         | None,
         Query(),

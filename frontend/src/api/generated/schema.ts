@@ -6601,8 +6601,6 @@ export interface components {
             in_transit_count: number;
             /** After Sale Pending Count */
             after_sale_pending_count: number;
-            /** Cancelled Count */
-            cancelled_count: number;
             /** Product Count */
             product_count: number;
         };
@@ -9353,8 +9351,6 @@ export interface components {
             in_transit_count: number;
             /** After Sale Pending Count */
             after_sale_pending_count: number;
-            /** Cancelled Count */
-            cancelled_count: number;
         };
         /** MessageCreateRequest */
         MessageCreateRequest: {
@@ -9766,12 +9762,14 @@ export interface components {
             /** Order Id */
             order_id: string;
             /**
-             * Undo Until
-             * Format: date-time
+             * Deletion Mode
+             * @enum {string}
              */
-            undo_until: string;
+            deletion_mode: "hidden" | "permanent";
+            /** Undo Until */
+            undo_until?: string | null;
             /** Restore Url */
-            restore_url: string;
+            restore_url?: string | null;
             /** Version */
             version: number;
         };
@@ -18559,7 +18557,7 @@ export interface operations {
             query?: {
                 q?: string | null;
                 store_id?: string | null;
-                view?: ("all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "after_sale" | "cancelled") | null;
+                view?: ("all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "after_sale") | null;
                 order_status?: string | null;
                 payment_status?: string | null;
                 fulfillment_status?: string | null;

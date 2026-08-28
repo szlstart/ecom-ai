@@ -244,7 +244,7 @@ onBeforeUnmount(() => loadMoreObserver?.disconnect())
       </section>
 
       <section id="store-products">
-        <div class="section-heading"><div><p class="eyebrow">全部在售</p><h2>店铺商品</h2></div></div>
+        <div class="section-heading"><div><h2>店铺商品</h2></div></div>
         <div class="store-product-tools">
           <form class="store-filter" role="search" @submit.prevent="applyFilters">
             <label>店内搜索<input v-model="q" type="search" maxlength="100" placeholder="输入商品名称或关键词" /></label>

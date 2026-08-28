@@ -100,7 +100,7 @@ onBeforeUnmount(() => loadMoreObserver?.disconnect())
 
 <template>
   <PageState :loading="loading" :error="error" @retry="load">
-    <div v-if="homepage" class="storefront-stack">
+    <div v-if="homepage" class="storefront-stack home-page-stack">
       <section class="commerce-hero">
         <div>
           <p class="eyebrow">可信商品 · 安全交易</p>
@@ -119,9 +119,9 @@ onBeforeUnmount(() => loadMoreObserver?.disconnect())
         <span>{{ text(homepage.announcements[0]!, 'title') || text(homepage.announcements[0]!, 'content') }}</span>
       </aside>
 
-      <section v-for="section in homepage.sections" :key="section.section" :aria-labelledby="`section-${section.section}`">
+      <section v-for="section in homepage.sections" :key="section.section" :class="{ 'home-recommended-section': section.section === 'recommended' }" :aria-labelledby="`section-${section.section}`">
         <div class="section-heading">
-          <div><p class="eyebrow">{{ section.section.replace('_', ' ') }}</p><h2 :id="`section-${section.section}`">{{ section.title }}</h2></div>
+          <div><h2 :id="`section-${section.section}`">{{ section.title }}</h2></div>
           <RouterLink to="/search">更多商品</RouterLink>
         </div>
         <p v-if="section.status === 'unavailable'" class="alert warning" role="status">

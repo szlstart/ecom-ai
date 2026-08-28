@@ -22,6 +22,7 @@ const greetingEmoji = computed(() => greetingEmojis[greetingEmojiIndex.value])
 let greetingEmojiTimer: number | undefined
 const authMode = computed<'login' | 'register'>(() => route.query.auth === 'register' ? 'register' : 'login')
 const authModalOpen = computed(() => route.query.auth === 'login' || route.query.auth === 'register')
+const showHomepageFooter = computed(() => route.path === '/')
 const displayName = computed(() => auth.user?.nickname || auth.user?.username || '用户')
 const greeting = computed(() => {
   const hour = new Date().getHours()
@@ -121,7 +122,7 @@ watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
       </nav>
     </header>
     <main id="main-content" class="page-content"><RouterView /></main>
-    <footer class="site-footer">
+    <footer v-if="showHomepageFooter" class="site-footer">
       <div class="site-footer-inner">
         <div class="site-footer-copy">
           <span class="site-footer-mark" aria-hidden="true">E</span>

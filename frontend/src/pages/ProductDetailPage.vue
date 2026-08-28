@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import areaData from 'china-area-data'
 
@@ -13,6 +13,7 @@ import {
   type ProductFaq,
   type ProductSku,
   type PublicImage,
+  type Money,
 } from '@/api/catalog'
 import { addCartItem } from '@/api/cart'
 import { createBuyNowCheckout } from '@/api/checkout'
@@ -20,6 +21,7 @@ import { createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/ht
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import SafeContentRenderer from '@/components/SafeContentRenderer.vue'
+import CheckoutPage from '@/pages/CheckoutPage.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { useMessageCenterStore } from '@/stores/message-center'
 
@@ -40,6 +42,10 @@ const cartBusy = ref(false)
 const cartNotice = ref('')
 const pendingCartRequest = ref<{ signature: string; key: string } | null>(null)
 const buyBusy = ref(false)
+const buyCheckoutId = ref('')
+const buyCheckoutSignature = ref('')
+const buyCheckoutOpen = ref(false)
+const checkoutDialog = ref<HTMLElement | null>(null)
 const contactBusy = ref(false)
 
 const selectedSku = computed(() => skus.value.find((item) => item.sku_id === selectedSkuId.value) ?? null)
@@ -47,6 +53,13 @@ const gallery = computed<PublicImage[]>(() => selectedSku.value?.images ?? [])
 const selectedImage = computed(() => gallery.value.find((item) => item.file_id === selectedImageId.value) ?? gallery.value[0] ?? null)
 const maxQuantity = computed(() => Math.max(1, selectedSku.value?.max_purchase_quantity ?? 1))
 const canPurchase = computed(() => selectedSku.value?.stock_status === 'in_stock' || selectedSku.value?.stock_status === 'low_stock')
+const paymentTotal = computed<Money>(() => {
+  const unitPrice = selectedSku.value?.sale_price ?? product.value?.price_range[0] ?? { minor_units: '0', currency: 'CNY' }
+  return {
+    minor_units: (BigInt(unitPrice.minor_units) * BigInt(quantity.value)).toString(),
+    currency: unitPrice.currency,
+  }
+})
 const returnTo = computed(() => {
   const value = typeof route.query.return_to === 'string' ? route.query.return_to : ''
   return value.startsWith('/search') || value.startsWith('/stores/') || value === '/' ? value : '/'
@@ -152,10 +165,24 @@ async function addToCart() {
 async function buyNow() {
   if (!selectedSku.value || !canPurchase.value) return
   if (!auth.accessToken) { await router.push({ path: route.path, query: { ...route.query, auth: 'login', redirect: route.fullPath } }); return }
+  const signature = `${selectedSku.value.sku_id}:${quantity.value}`
+  if (buyCheckoutId.value && buyCheckoutSignature.value === signature) {
+    buyCheckoutOpen.value = true
+    return
+  }
   buyBusy.value = true; error.value = ''
-  try { const response = await createBuyNowCheckout(selectedSku.value.sku_id, quantity.value, auth.accessToken); await router.push(`/checkout/${response.data.checkout_id}`) }
+  try {
+    const response = await createBuyNowCheckout(selectedSku.value.sku_id, quantity.value, auth.accessToken)
+    buyCheckoutId.value = response.data.checkout_id
+    buyCheckoutSignature.value = signature
+    buyCheckoutOpen.value = true
+  }
   catch (cause) { error.value = errorMessage(cause) }
   finally { buyBusy.value = false }
+}
+
+function closeBuyCheckout() {
+  buyCheckoutOpen.value = false
 }
 
 function estimateText(): string {
@@ -179,6 +206,14 @@ function originText(regionCode: string | null): string {
 onMounted(load)
 watch(() => route.params.productId, load)
 watch(() => auth.accessToken, () => void load())
+watch(buyCheckoutOpen, async (open) => {
+  document.body.classList.toggle('modal-open', open)
+  if (open) {
+    await nextTick()
+    checkoutDialog.value?.focus()
+  }
+})
+onBeforeUnmount(() => document.body.classList.remove('modal-open'))
 </script>
 
 <template>
@@ -254,9 +289,13 @@ watch(() => auth.accessToken, () => void load())
           <p v-if="originText(product.origin_region_code)" class="muted">发货地：{{ originText(product.origin_region_code) }}</p>
           <p class="muted">{{ estimateText() }}</p>
           <label class="quantity-control">数量
-            <span><button type="button" class="secondary" :disabled="quantity <= 1" @click="setQuantity(quantity - 1)">−</button><input :value="quantity" inputmode="numeric" aria-label="购买数量" @change="setQuantity(Number(($event.target as HTMLInputElement).value))" /><button type="button" class="secondary" :disabled="quantity >= maxQuantity" @click="setQuantity(quantity + 1)">＋</button></span>
+            <span><button type="button" class="secondary" :disabled="quantity <= 1" @click="setQuantity(quantity - 1)">−</button><input :value="quantity" inputmode="numeric" aria-label="购买数量" @input="setQuantity(Number(($event.target as HTMLInputElement).value))" /><button type="button" class="secondary" :disabled="quantity >= maxQuantity" @click="setQuantity(quantity + 1)">＋</button></span>
           </label>
           <small v-if="quantity >= maxQuantity">已达本次可购买上限，结算时仍会重新校验。</small>
+          <div class="purchase-total-card" aria-live="polite">
+            <span><b>支付总额</b><small>{{ quantity }} 件商品 · 包邮</small></span>
+            <strong>{{ formatMoney(paymentTotal) }}</strong>
+          </div>
           <div class="purchase-benefits"><span>✓ 邮寄包邮</span><span>✓ 库存实时校验</span><span>✓ 支持售后申请</span></div>
           <div class="purchase-actions">
             <button type="button" class="secondary" :disabled="contactBusy" @click="contactStore">{{ contactBusy ? '进入客服…' : '联系客服' }}</button>
@@ -271,6 +310,17 @@ watch(() => auth.accessToken, () => void load())
       <div class="mobile-purchase-bar" aria-label="移动端购买操作">
         <button type="button" class="secondary" :disabled="contactBusy" @click="contactStore">客服</button><button type="button" :disabled="cartBusy || !canPurchase" @click="addToCart">加入购物车</button><button type="button" :disabled="buyBusy || !canPurchase" @click="buyNow">立即购买</button>
       </div>
+      <Teleport to="body">
+        <div v-if="buyCheckoutOpen && buyCheckoutId" class="buy-now-checkout-overlay" @mousedown.self="closeBuyCheckout" @keydown.esc="closeBuyCheckout">
+          <section ref="checkoutDialog" class="buy-now-checkout-dialog" role="dialog" aria-modal="true" aria-labelledby="buy-now-checkout-title" tabindex="-1">
+            <header class="buy-now-checkout-dialog-header">
+              <div><p class="eyebrow">无需离开商品页</p><h2 id="buy-now-checkout-title">确认本次购买</h2></div>
+              <button type="button" class="buy-now-checkout-close secondary" aria-label="关闭结算弹窗并继续浏览商品" @click="closeBuyCheckout">×</button>
+            </header>
+            <CheckoutPage :checkout-id="buyCheckoutId" embedded />
+          </section>
+        </div>
+      </Teleport>
     </article>
   </PageState>
 </template>

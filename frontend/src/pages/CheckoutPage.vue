@@ -11,6 +11,10 @@ import { useUserAuthStore } from '@/stores/user-auth'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { formatChinaRegion } from '@/utils/china-regions'
 
+const props = withDefaults(defineProps<{ checkoutId?: string; embedded?: boolean }>(), {
+  checkoutId: '',
+  embedded: false,
+})
 const route = useRoute(), router = useRouter(), auth = useUserAuthStore()
 const messageCenter = useMessageCenterStore()
 const checkout = ref<CheckoutData | null>(null), addresses = ref<AddressSummary[]>([])
@@ -18,12 +22,13 @@ const loading = ref(true), busy = ref(false), error = ref('')
 const pendingOrderKey = ref('')
 const selectedAddressId = ref('')
 const CURRENT_PRICING_POLICY = 'pricing_v2_free_shipping'
+const requestedCheckoutId = computed(() => props.checkoutId || String(route.params.checkoutId || ''))
 const remaining = computed(() => checkout.value ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(checkout.value.expires_at)) : '')
 function token() { if (!auth.accessToken) throw new Error('missing token'); return auth.accessToken }
 async function load() {
   loading.value = true; error.value = ''
   try {
-    const [session, addressList] = await Promise.all([getCheckout(String(route.params.checkoutId), token()), listAddresses(token())])
+    const [session, addressList] = await Promise.all([getCheckout(requestedCheckoutId.value, token()), listAddresses(token())])
     addresses.value = addressList.data.items
     let current = session.data
     const selectedAddressExists = addresses.value.some((item) => item.address_id === current.address_id)
@@ -88,8 +93,8 @@ onMounted(load)
 </script>
 
 <template>
-  <section class="checkout-page">
-    <header class="page-heading"><div><p class="eyebrow">确认交易信息</p><h1>结算</h1><p class="muted">会话有效至 {{ remaining }}，提交订单前仍会再次校验价格、库存和配送。</p></div><RouterLink to="/cart">返回购物车</RouterLink></header>
+  <section :class="['checkout-page', { 'checkout-page-embedded': embedded }]">
+    <header class="page-heading"><div><p class="eyebrow">确认交易信息</p><h1>{{ embedded ? '确认订单' : '结算' }}</h1><p class="muted">会话有效至 {{ remaining }}，提交订单前仍会再次校验价格、库存和配送。</p></div><RouterLink v-if="!embedded" to="/cart">返回购物车</RouterLink></header>
     <div v-if="error" class="notice error" role="alert">{{ error }}</div>
     <PageState :loading="loading" :error="''" :empty="false" @retry="load">
       <template v-if="checkout">

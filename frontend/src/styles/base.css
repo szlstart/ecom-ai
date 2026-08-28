@@ -252,11 +252,14 @@ pre { max-width: 100%; overflow: auto; padding: 12px; border-radius: 8px; backgr
 .page-refresh-status .spinner { width: 16px; height: 16px; border-width: 2px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .search-panel, .store-filter { padding: 18px; display: grid; grid-template-columns: minmax(210px, 1fr) auto; align-items: end; gap: 12px; border: 1px solid #e3e7ef; border-radius: 16px; background: #fff; }
-.store-filter { grid-template-columns: minmax(220px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto; margin-bottom: 22px; }
+.store-product-tools { margin-bottom: 22px; padding: 18px; display: grid; gap: 16px; border: 1px solid #e3e7ef; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px rgb(27 49 101 / 4%); }
+.store-filter { padding: 0; grid-template-columns: minmax(220px, 1fr) auto; border: 0; border-radius: 0; background: transparent; }
+.store-search-button { min-width: 96px; }
 .sort-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sort-bar > span { margin-right: 4px; color: #586279; font-weight: 700; }
 .sort-bar button { padding: 9px 14px; color: #3158d8; border: 1px solid #c9d3ec; background: #fff; }
 .sort-bar button.active { color: #fff; border-color: #3158d8; background: #3158d8; }
+.store-sort-bar { padding-top: 16px; border-top: 1px solid #edf0f5; }
 .suggestion-field { position: relative; }
 .suggestion-list { position: absolute; z-index: 10; top: calc(100% + 4px); right: 0; left: 0; margin: 0; padding: 6px; list-style: none; border: 1px solid #d7deeb; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgb(27 49 101 / 14%); }
 .suggestion-list button { width: 100%; padding: 9px 10px; color: #172033; text-align: left; background: transparent; }

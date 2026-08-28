@@ -96,8 +96,6 @@ describe('phase two route contract', () => {
 
   it('registers every phase three administration route from the traceability matrix', () => {
     const expected = new Map([
-      ['/admin/store-certifications', 'ADM-CERT-LIST-01'],
-      ['/admin/store-certifications/:certificationId', 'ADM-STORE-01'],
       ['/admin/stores', 'ADM-STORE-LIST-01'],
       ['/admin/stores/:storeId', 'ADM-STORE-DETAIL-01'],
       ['/admin/stores/:storeId/policies', 'ADM-POLICY-01'],

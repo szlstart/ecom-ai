@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { adminCreate, adminGet, adminQuery, requireAdminToken, type AdminStore } from '@/api/admin-catalog'
-import { ApiProblem, errorMessage } from '@/api/http'
+import { ApiProblem, errorMessage, type ApiResult } from '@/api/http'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
@@ -31,15 +31,25 @@ const activeCount = computed(() => items.value.filter((item) => item.status === 
 const pausedCount = computed(() => items.value.filter((item) => item.status === 'suspended').length)
 
 function token(): string { return requireAdminToken(auth.accessToken) }
-function statusLabel(value: string): string { return ({ active: '营业中', pending: '待开通', suspended: '已暂停', closed: '已关闭' } as Record<string, string>)[value] ?? value }
+function statusLabel(value: string): string { return ({ active: '营业中', suspended: '已暂停' } as Record<string, string>)[value] ?? value }
 function initials(value: string): string { return value.slice(0, 1).toUpperCase() }
+function chooseStatus(value: '' | 'active' | 'suspended') { status.value = value }
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const response = await adminGet<{ items: AdminStore[]; next_cursor: string | null }>(`/admin/stores${adminQuery({ limit: 100 })}`, token())
-    items.value = response.data.items
+    const collected: AdminStore[] = []
+    let cursor: string | null = null
+    do {
+      const response: ApiResult<{ items: AdminStore[]; next_cursor: string | null }> = await adminGet(
+        `/admin/stores${adminQuery({ limit: 100, cursor })}`,
+        token(),
+      )
+      collected.push(...response.data.items)
+      cursor = response.data.next_cursor
+    } while (cursor)
+    items.value = collected
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
 }
@@ -77,16 +87,16 @@ onMounted(load)
       <button v-if="auth.has('stores:manage')" @click="createOpen = true">＋ 创建店铺</button>
     </header>
 
-    <div class="admin-entity-stats">
-      <article><span class="blue">店</span><div><small>当前载入</small><strong>{{ items.length }}</strong></div></article>
-      <article><span class="green">营</span><div><small>营业中</small><strong>{{ activeCount }}</strong></div></article>
-      <article><span class="red">停</span><div><small>已暂停</small><strong>{{ pausedCount }}</strong></div></article>
+    <div class="admin-entity-stats admin-store-status-filters" aria-label="按经营状态筛选店铺">
+      <button type="button" :class="{ active: status === '' }" :aria-pressed="status === ''" @click="chooseStatus('')"><span class="blue">店</span><div><small>全部</small><strong>{{ items.length }}</strong></div></button>
+      <button type="button" :class="{ active: status === 'active' }" :aria-pressed="status === 'active'" @click="chooseStatus('active')"><span class="green">营</span><div><small>营业中</small><strong>{{ activeCount }}</strong></div></button>
+      <button type="button" :class="{ active: status === 'suspended' }" :aria-pressed="status === 'suspended'" @click="chooseStatus('suspended')"><span class="red">停</span><div><small>已暂停</small><strong>{{ pausedCount }}</strong></div></button>
     </div>
 
     <section class="admin-list-panel">
       <header class="admin-list-toolbar">
         <label class="admin-inline-search"><span>⌕</span><input v-model="q" placeholder="搜索店铺名称、店铺 ID 或店主 ID" /></label>
-        <div><select v-model="status"><option value="">全部状态</option><option value="active">营业中</option><option value="pending">待开通</option><option value="suspended">已暂停</option><option value="closed">已关闭</option></select><RouterLink v-if="auth.has('stores:review')" class="button-link secondary" to="/admin/store-certifications">认证审核</RouterLink></div>
+        <div><small class="admin-filter-summary">当前展示：{{ status ? statusLabel(status) : '全部店铺' }} · {{ visible.length }} 家</small></div>
       </header>
       <PageState :loading="loading" :error="error" :empty="!loading && !error && visible.length === 0" empty-title="没有匹配的店铺" @retry="load">
         <div class="admin-store-grid">

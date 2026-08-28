@@ -18,6 +18,7 @@ from app.modules.evaluation.router import router as evaluation_router
 from app.modules.events.router import router as events_router
 from app.modules.files.router import router as files_router
 from app.modules.finance.router import account_router as finance_account_router
+from app.modules.finance.router import admin_router as admin_finance_router
 from app.modules.finance.router import merchant_router as merchant_finance_router
 from app.modules.finance.router import router as finance_router
 from app.modules.identity.router import auth_router, user_router
@@ -56,6 +57,7 @@ api_router.include_router(observability_router)
 api_router.include_router(events_router)
 api_router.include_router(files_router)
 api_router.include_router(finance_router)
+api_router.include_router(admin_finance_router)
 api_router.include_router(finance_account_router)
 api_router.include_router(merchant_finance_router)
 api_router.include_router(catalog_router)

@@ -10,6 +10,7 @@ from app.modules.finance.dependencies import (
 )
 from app.modules.finance.schemas import (
     AccountDeletionRequest,
+    AdminStoreRevenueView,
     MerchantAccountDeletionRequest,
     MerchantRevenueView,
     WalletRechargeRequest,
@@ -18,9 +19,11 @@ from app.modules.finance.schemas import (
     WalletView,
 )
 from app.modules.identity.router import _no_store
+from app.modules.rbac.dependencies import AdminAccess, require_admin_permission
 
 router = APIRouter(prefix="/users/me/wallet", tags=["wallet"])
 merchant_router = APIRouter(prefix="/merchant", tags=["merchant-finance"])
+admin_router = APIRouter(prefix="/admin", tags=["admin-finance"])
 
 
 account_router = APIRouter(prefix="/users/me", tags=["current-user"])
@@ -107,3 +110,18 @@ async def get_merchant_revenue(
 ) -> Envelope[MerchantRevenueView]:
     _no_store(response)
     return Envelope(data=await service.merchant_revenue(context.user, store_id))
+
+
+@admin_router.get(
+    "/stores/{store_id}/revenue",
+    response_model=Envelope[AdminStoreRevenueView],
+    operation_id="AdminStoreRevenue_Get",
+)
+async def get_admin_store_revenue(
+    store_id: str,
+    response: Response,
+    service: FinanceServiceDependency,
+    access: Annotated[AdminAccess, require_admin_permission("stores:read")],
+) -> Envelope[AdminStoreRevenueView]:
+    _no_store(response)
+    return Envelope(data=await service.admin_store_revenue(access, store_id))

@@ -14,6 +14,7 @@ from app.modules.catalog.schemas import Money
 from app.modules.finance.models import UserWallet, WalletRecharge, WalletTransaction
 from app.modules.finance.repository import FinanceRepository
 from app.modules.finance.schemas import (
+    AdminStoreRevenueView,
     MerchantRevenueView,
     WalletRechargeRequest,
     WalletRechargeResult,
@@ -23,6 +24,8 @@ from app.modules.finance.schemas import (
     WalletView,
 )
 from app.modules.identity.models import User
+from app.modules.rbac.dependencies import AdminAccess
+from app.modules.stores.models import Store
 
 
 class FinanceService:
@@ -136,6 +139,27 @@ class FinanceService:
                 title="Store not found",
                 detail="未找到该店铺。",
             )
+        return await self._store_revenue(store)
+
+    async def admin_store_revenue(
+        self, access: AdminAccess, store_no: str
+    ) -> AdminStoreRevenueView:
+        store = await self.repository.store_by_no(store_no)
+        if store is None:
+            raise ApplicationError(
+                status=404,
+                code="STORE_NOT_FOUND",
+                title="Store not found",
+                detail="未找到该店铺。",
+            )
+        access.require_scope("store", store.id)
+        revenue = await self._store_revenue(store)
+        return AdminStoreRevenueView(
+            **revenue.model_dump(),
+            product_count=await self.repository.store_product_count(store.id),
+        )
+
+    async def _store_revenue(self, store: Store) -> MerchantRevenueView:
         shanghai = ZoneInfo("Asia/Shanghai")
         local_today = datetime.now(shanghai).replace(hour=0, minute=0, second=0, microsecond=0)
 

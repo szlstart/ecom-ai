@@ -169,7 +169,10 @@ async function load() {
     product.value = null;
     const onlyStore =
       stores.value.length === 1 ? stores.value.at(0) : undefined;
-    if (merchantMode.value && onlyStore) basic.store_id = onlyStore.store_id;
+    const requestedStore = typeof route.query.store_id === "string" ? route.query.store_id : "";
+    if (requestedStore && stores.value.some((item) => item.store_id === requestedStore))
+      basic.store_id = requestedStore;
+    else if (merchantMode.value && onlyStore) basic.store_id = onlyStore.store_id;
     loading.value = false;
     return;
   }

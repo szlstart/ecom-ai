@@ -8,17 +8,8 @@ from app.api.dependencies import IdempotencyKey
 from app.api.schemas import Envelope
 from app.modules.finance.dependencies import AccountDeletionServiceDependency
 from app.modules.identity.router import _etag, _expected_version, _no_store
-from app.modules.rbac.dependencies import (
-    AdminAccess,
-    require_admin_permission,
-    require_any_admin_permission,
-)
+from app.modules.rbac.dependencies import AdminAccess, require_admin_permission
 from app.modules.stores.admin_schemas import (
-    AdminCertificationDecisionRequest,
-    AdminCertificationDetail,
-    AdminCertificationEventView,
-    AdminCertificationList,
-    AdminCertificationMaterialRequest,
     AdminPolicyCommandRequest,
     AdminStoreCreateRequest,
     AdminStoreDeleteRequest,
@@ -162,120 +153,6 @@ async def delete_store(
     await deletion.delete_merchant(owner)
     response.status_code = status.HTTP_204_NO_CONTENT
     _no_store(response)
-
-
-@router.get(
-    "/store-certifications",
-    response_model=Envelope[AdminCertificationList],
-    operation_id="AdminStoreCertification_List",
-)
-async def list_certifications(
-    response: Response,
-    service: AdminStoreServiceDependency,
-    access: Annotated[
-        AdminAccess,
-        require_any_admin_permission("stores:review", "stores:read"),
-    ],
-    review_status: Annotated[str | None, Query(max_length=32)] = None,
-    cursor: Annotated[str | None, Query(max_length=2048)] = None,
-    limit: Annotated[int, Query(ge=1, le=100)] = 50,
-) -> Envelope[AdminCertificationList]:
-    _no_store(response)
-    return Envelope(
-        data=await service.list_certifications(
-            access,
-            review_status=review_status,
-            cursor=cursor,
-            limit=limit,
-        )
-    )
-
-
-@router.get(
-    "/store-certifications/{certification_id}",
-    response_model=Envelope[AdminCertificationDetail],
-    operation_id="AdminStoreCertification_Get",
-)
-async def get_certification(
-    certification_id: str,
-    response: Response,
-    service: AdminStoreServiceDependency,
-    access: Annotated[AdminAccess, require_admin_permission("stores:review")],
-) -> Envelope[AdminCertificationDetail]:
-    item = await service.get_certification(access, certification_id)
-    response.headers["ETag"] = _etag(item.version)
-    _no_store(response)
-    return Envelope(data=item)
-
-
-@router.get(
-    "/store-certifications/{certification_id}/events",
-    response_model=Envelope[list[AdminCertificationEventView]],
-    operation_id="AdminStoreCertificationEvent_List",
-)
-async def list_certification_events(
-    certification_id: str,
-    response: Response,
-    service: AdminStoreServiceDependency,
-    access: Annotated[
-        AdminAccess,
-        require_any_admin_permission("stores:review", "stores:manage"),
-    ],
-) -> Envelope[list[AdminCertificationEventView]]:
-    _no_store(response)
-    return Envelope(data=await service.certification_events(access, certification_id))
-
-
-@router.post(
-    "/store-certifications/{certification_id}/decisions",
-    response_model=Envelope[AdminCertificationDetail],
-    operation_id="AdminStoreCertification_Decide",
-)
-async def decide_certification(
-    certification_id: str,
-    payload: AdminCertificationDecisionRequest,
-    response: Response,
-    service: AdminStoreServiceDependency,
-    idempotency_key: IdempotencyKey,
-    access: Annotated[AdminAccess, require_admin_permission("stores:review")],
-    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
-) -> Envelope[AdminCertificationDetail]:
-    item = await service.decide_certification(
-        access,
-        certification_id,
-        payload,
-        _expected_version(if_match),
-        idempotency_key,
-    )
-    response.headers["ETag"] = _etag(item.version)
-    _no_store(response)
-    return Envelope(data=item)
-
-
-@router.post(
-    "/store-certifications/{certification_id}/material-versions",
-    response_model=Envelope[AdminCertificationDetail],
-    operation_id="AdminStoreCertification_AddMaterialVersion",
-)
-async def add_certification_material_version(
-    certification_id: str,
-    payload: AdminCertificationMaterialRequest,
-    response: Response,
-    service: AdminStoreServiceDependency,
-    idempotency_key: IdempotencyKey,
-    access: Annotated[AdminAccess, require_admin_permission("stores:manage")],
-    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
-) -> Envelope[AdminCertificationDetail]:
-    item = await service.add_material_version(
-        access,
-        certification_id,
-        payload,
-        _expected_version(if_match),
-        idempotency_key,
-    )
-    response.headers["ETag"] = _etag(item.version)
-    _no_store(response)
-    return Envelope(data=item)
 
 
 @router.get(

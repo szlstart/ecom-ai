@@ -15,7 +15,6 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
 from app.database.mysql import mysql_session
 from app.modules.catalog.models import Brand, Category, Product, ProductSku
-from app.modules.files.models import FileObject
 from app.modules.identity.models import AuthSession, User
 from app.modules.inventory.models import Inventory, InventoryLog
 from app.modules.orders.models import Order, OrderItem, TradeOrder
@@ -24,8 +23,6 @@ from app.modules.reviews.models import Review, ReviewAppendRecord, ReviewReply
 from app.modules.stores.models import (
     Store,
     StoreAnnouncement,
-    StoreCertification,
-    StoreCertificationEvent,
     StoreFeaturedProduct,
     StoreProductGroup,
     StoreProductGroupItem,
@@ -728,7 +725,7 @@ async def test_admin_taxonomy_and_inventory_adjustment_invariants(client: AsyncC
         assert event_count == 1
 
 
-async def test_admin_store_certification_status_and_policy_lifecycle(
+async def test_admin_store_status_and_policy_lifecycle(
     client: AsyncClient,
 ) -> None:
     suffix = secrets.token_hex(5)
@@ -748,10 +745,10 @@ async def test_admin_store_certification_status_and_policy_lifecycle(
         store = Store(
             store_no=new_prefixed_ulid("sto_"),
             owner_user_id=owner.id,
-            store_name=f"认证店铺 {suffix}",
-            store_name_normalized=f"certification-store-{suffix}",
-            description="店铺认证与政策生命周期集成测试",
-            store_status="pending",
+            store_name=f"运营店铺 {suffix}",
+            store_name_normalized=f"operations-store-{suffix}",
+            description="店铺经营状态与政策生命周期集成测试",
+            store_status="active",
             rating_score=Decimal("0.00"),
             rating_count=0,
             follower_count=0,
@@ -760,10 +757,10 @@ async def test_admin_store_certification_status_and_policy_lifecycle(
         secondary_store = Store(
             store_no=new_prefixed_ulid("sto_"),
             owner_user_id=owner.id,
-            store_name=f"认证店铺备用 {suffix}",
-            store_name_normalized=f"certification-store-secondary-{suffix}",
+            store_name=f"运营店铺备用 {suffix}",
+            store_name_normalized=f"operations-store-secondary-{suffix}",
             description="用于管理端游标分页测试",
-            store_status="pending",
+            store_status="active",
             rating_score=Decimal("0.00"),
             rating_count=0,
             follower_count=0,
@@ -772,75 +769,8 @@ async def test_admin_store_certification_status_and_policy_lifecycle(
         session.add_all([store, secondary_store])
         await session.flush()
 
-        first_file = FileObject(
-            file_no=new_prefixed_ulid("file_"),
-            bucket="private",
-            object_key=f"certifications/{store.store_no}/v1.pdf",
-            purpose="store_certification",
-            owner_type="store",
-            owner_no=store.store_no,
-            declared_mime_type="application/pdf",
-            detected_mime_type="application/pdf",
-            size_bytes=1024,
-            sha256=hashlib.sha256(f"first-{suffix}".encode()).digest(),
-            visibility="private",
-            sensitivity_level="S3",
-            scan_status="safe",
-            file_status="active",
-            activated_at=now,
-        )
-        second_file = FileObject(
-            file_no=new_prefixed_ulid("file_"),
-            bucket="private",
-            object_key=f"certifications/{store.store_no}/v2.pdf",
-            purpose="store_certification",
-            owner_type="store",
-            owner_no=store.store_no,
-            declared_mime_type="application/pdf",
-            detected_mime_type="application/pdf",
-            size_bytes=2048,
-            sha256=hashlib.sha256(f"second-{suffix}".encode()).digest(),
-            visibility="private",
-            sensitivity_level="S3",
-            scan_status="safe",
-            file_status="active",
-            activated_at=now,
-        )
-        session.add_all([first_file, second_file])
-        await session.flush()
-        certification = StoreCertification(
-            certification_no=new_prefixed_ulid("cer_"),
-            store_id=store.id,
-            certification_type="business_license",
-            subject_name_ciphertext=b"encrypted-subject",
-            certificate_no_ciphertext=b"encrypted-certificate-number",
-            certificate_no_hash=hashlib.sha256(f"certificate-{suffix}".encode()).digest(),
-            current_material_version=1,
-            evidence_object_key=first_file.object_key,
-            review_status="pending",
-            key_version=1,
-        )
-        session.add(certification)
-        await session.flush()
-        session.add(
-            StoreCertificationEvent(
-                event_no=new_prefixed_ulid("evt_"),
-                certification_id=certification.id,
-                event_type="submitted",
-                material_version=1,
-                evidence_file_ids=[first_file.file_no],
-                actor_type="store",
-                actor_user_id=owner.id,
-                certification_version=0,
-                request_id=new_prefixed_ulid("req_"),
-                trace_id=new_prefixed_ulid("trc_"),
-            )
-        )
         await session.commit()
         store_no = store.store_no
-        certification_no = certification.certification_no
-        certification_internal_id = certification.id
-        second_file_no = second_file.file_no
 
     login = await client.post(
         "/api/v1/admin/auth/login",
@@ -886,131 +816,13 @@ async def test_admin_store_certification_status_and_policy_lifecycle(
     assert mismatched_store_cursor.status_code == 400
     assert mismatched_store_cursor.json()["code"] == "PAGINATION_CURSOR_INVALID"
 
-    certification_list = await client.get(
-        "/api/v1/admin/store-certifications",
-        headers=admin_headers,
-        params={"review_status": "pending"},
-    )
-    assert certification_list.status_code == 200, certification_list.text
-    assert certification_no in {
-        item["certification_id"] for item in certification_list.json()["data"]["items"]
-    }
-
-    detail = await client.get(
-        f"/api/v1/admin/store-certifications/{certification_no}",
-        headers=admin_headers,
-    )
-    assert detail.status_code == 200, detail.text
-    assert detail.json()["data"]["material_version"] == 1
-
-    more_info = await client.post(
-        f"/api/v1/admin/store-certifications/{certification_no}/decisions",
-        headers={
-            **admin_headers,
-            "If-Match": detail.headers["etag"],
-            "Idempotency-Key": f"cert-more-info-{suffix}-01",
-        },
-        json={
-            "decision": "request_more_info",
-            "reason_code": "LICENSE_PAGE_MISSING",
-            "reason": "请补充营业执照完整页面。",
-            "required_materials": [
-                {
-                    "material_code": "FULL_LICENSE",
-                    "title": "营业执照完整页",
-                    "description": "四角完整、文字清晰。",
-                }
-            ],
-        },
-    )
-    assert more_info.status_code == 200, more_info.text
-    assert more_info.json()["data"]["review_status"] == "more_info_required"
-
-    resubmitted = await client.post(
-        f"/api/v1/admin/store-certifications/{certification_no}/material-versions",
-        headers={
-            **admin_headers,
-            "If-Match": more_info.headers["etag"],
-            "Idempotency-Key": f"cert-material-{suffix}-001",
-        },
-        json={
-            "evidence_file_ids": [second_file_no],
-            "reason": "已补充完整营业执照页面。",
-        },
-    )
-    assert resubmitted.status_code == 200, resubmitted.text
-    assert resubmitted.json()["data"]["material_version"] == 2
-    assert resubmitted.json()["data"]["review_status"] == "pending"
-
-    approved = await client.post(
-        f"/api/v1/admin/store-certifications/{certification_no}/decisions",
-        headers={
-            **admin_headers,
-            "If-Match": resubmitted.headers["etag"],
-            "Idempotency-Key": f"cert-approve-{suffix}-0001",
-        },
-        json={
-            "decision": "approve",
-            "reason_code": "REVIEW_PASSED",
-            "reason": "材料真实有效，审核通过。",
-            "valid_from": now.date().isoformat(),
-            "valid_until": (now.date() + timedelta(days=365)).isoformat(),
-        },
-    )
-    assert approved.status_code == 200, approved.text
-    assert approved.json()["data"]["review_status"] == "approved"
-
-    events = await client.get(
-        f"/api/v1/admin/store-certifications/{certification_no}/events",
-        headers=admin_headers,
-    )
-    assert events.status_code == 200, events.text
-    assert {item["event_type"] for item in events.json()["data"]} == {
-        "submitted",
-        "more_info_requested",
-        "materials_resubmitted",
-        "approved",
-    }
-
     store_detail = await client.get(f"/api/v1/admin/stores/{store_no}", headers=admin_headers)
     assert store_detail.status_code == 200, store_detail.text
-    activate = await client.post(
-        f"/api/v1/admin/stores/{store_no}/status-changes",
-        headers={
-            **admin_headers,
-            "If-Match": store_detail.headers["etag"],
-            "Idempotency-Key": f"store-activate-{suffix}-01",
-        },
-        json={
-            "action": "activate",
-            "reason_code": "CERTIFICATION_APPROVED",
-            "reason": "认证审核通过，启用店铺。",
-        },
-    )
-    assert activate.status_code == 200, activate.text
-    assert activate.json()["data"]["status"] == "active"
-
-    illegal_activate = await client.post(
-        f"/api/v1/admin/stores/{store_no}/status-changes",
-        headers={
-            **admin_headers,
-            "If-Match": activate.headers["etag"],
-            "Idempotency-Key": f"store-activate-{suffix}-02",
-        },
-        json={
-            "action": "activate",
-            "reason_code": "DUPLICATE_ACTIVATION",
-            "reason": "重复启用状态机测试。",
-        },
-    )
-    assert illegal_activate.status_code == 409
-    assert illegal_activate.json()["code"] == "ILLEGAL_STATE_TRANSITION"
-
     suspend = await client.post(
         f"/api/v1/admin/stores/{store_no}/status-changes",
         headers={
             **admin_headers,
-            "If-Match": activate.headers["etag"],
+            "If-Match": store_detail.headers["etag"],
             "Idempotency-Key": f"store-suspend-{suffix}-001",
         },
         json={
@@ -1124,17 +936,6 @@ async def test_admin_store_certification_status_and_policy_lifecycle(
     assert withdrawn.json()["data"]["status"] == "withdrawn"
 
     async for session in mysql_session():
-        certification_events = await session.scalar(
-            select(func.count(StoreCertificationEvent.id)).where(
-                StoreCertificationEvent.certification_id == certification_internal_id
-            )
-        )
-        certification_outbox = await session.scalar(
-            select(func.count(OutboxEvent.id)).where(
-                OutboxEvent.aggregate_type == "store_certification",
-                OutboxEvent.aggregate_no == certification_no,
-            )
-        )
         store_outbox = await session.scalar(
             select(func.count(OutboxEvent.id)).where(
                 OutboxEvent.aggregate_type == "store",
@@ -1147,7 +948,5 @@ async def test_admin_store_certification_status_and_policy_lifecycle(
                 OutboxEvent.aggregate_no == policy_id,
             )
         )
-        assert certification_events == 4
-        assert certification_outbox == 3
-        assert store_outbox == 3
+        assert store_outbox == 2
         assert policy_outbox == 2

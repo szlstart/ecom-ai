@@ -17,24 +17,11 @@ defaults:
 aggregates:
   store:
     field: store_status
-    states: [pending, active, suspended, closed]
-    terminal_states: [closed]
+    states: [active, suspended]
+    terminal_states: []
     transitions:
-      - {command: ActivateStore, from: [pending], to: active, event: store.activated}
       - {command: SuspendStore, from: [active], to: suspended, event: store.suspended}
       - {command: ResumeStore, from: [suspended], to: active, event: store.resumed}
-      - {command: CloseStore, from: [pending, active, suspended], to: closed, event: store.closed}
-  store_certification:
-    field: review_status
-    states: [pending, more_info_required, approved, rejected, expired, revoked]
-    terminal_states: [rejected, expired, revoked]
-    transitions:
-      - {command: RequestMoreCertificationInfo, from: [pending], to: more_info_required, event: store.certification_more_info_requested}
-      - {command: ResubmitCertificationMaterials, from: [more_info_required], to: pending, event: store.certification_materials_resubmitted}
-      - {command: ApproveCertification, from: [pending], to: approved, event: store.certification_approved}
-      - {command: RejectCertification, from: [pending], to: rejected, event: store.certification_rejected}
-      - {command: ExpireCertification, from: [approved], to: expired, event: store.certification_expired}
-      - {command: RevokeCertification, from: [approved], to: revoked, event: store.certification_revoked}
   store_service_policy:
     field: policy_status
     states: [draft, published, withdrawn, expired]

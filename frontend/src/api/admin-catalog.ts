@@ -59,37 +59,6 @@ export interface AdminStore extends AdminVersioned {
   closed_at: string | null
 }
 
-export interface AdminCertificationSummary extends AdminVersioned {
-  certification_id: string
-  store_id: string
-  store_name: string
-  certification_type: string
-  review_status: string
-  material_version: number
-  valid_from: string | null
-  valid_until: string | null
-  reviewed_at: string | null
-}
-
-export interface AdminCertification extends AdminCertificationSummary {
-  evidence_file_ids: string[]
-  decision_reason_code: string | null
-  decision_reason: string | null
-}
-
-export interface AdminCertificationEvent {
-  event_id: string
-  event_type: string
-  material_version: number
-  evidence_file_ids: string[]
-  reason_code: string | null
-  reason: string | null
-  required_materials: Array<Record<string, unknown>> | null
-  actor_type: string
-  certification_version: number
-  created_at: string
-}
-
 export interface AdminStorePolicy extends AdminVersioned {
   policy_id: string
   store_id: string

@@ -416,30 +416,16 @@ class AdminStoreService:
             return _store_view(store, owner.user_no, logo)
         _check_version(store.version, expected_version)
         transitions = {
-            "activate": ({"pending"}, "active", "store.activated.v1"),
             "suspend": ({"active"}, "suspended", "store.suspended.v1"),
             "resume": ({"suspended"}, "active", "store.resumed.v1"),
-            "close": ({"pending", "active", "suspended"}, "closed", "store.closed.v1"),
         }
         allowed_from, next_status, event_type = transitions[payload.action]
         if store.store_status not in allowed_from:
             raise _invalid_transition(store.store_status, payload.action)
         now = utc_now()
-        if payload.action == "activate" and not await self.repository.approved_certification_exists(
-            store.id, now
-        ):
-            raise ApplicationError(
-                status=409,
-                code="STORE_CERTIFICATION_REQUIRED",
-                title="Store certification required",
-                detail="店铺至少需要一项当前有效的已通过认证才能启用。",
-            )
         before_status = store.store_status
         store.store_status = next_status
-        if payload.action == "activate" and store.opened_at is None:
-            store.opened_at = now
         store.suspended_at = now if payload.action == "suspend" else None
-        store.closed_at = now if payload.action == "close" else store.closed_at
         store.version += 1
         _add_outbox(
             self.session,

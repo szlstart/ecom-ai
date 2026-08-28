@@ -26,8 +26,7 @@ let unreadTimer: number | undefined
 
 const groupDefinitions = [
   { key: 'overview', title: '运营总览', icon: '⌂', codes: ['dashboard'] },
-  { key: 'people', title: '用户与店铺', icon: '◎', codes: ['users', 'stores', 'store-certifications'] },
-  { key: 'commerce', title: '商品与交易', icon: '◇', codes: ['products', 'inventories', 'orders', 'payments', 'refunds', 'refund-appeals', 'reviews'] },
+  { key: 'people', title: '用户与店铺', icon: '◎', codes: ['users', 'stores'] },
   { key: 'service', title: '服务与内容', icon: '◌', codes: ['support', 'content'] },
   { key: 'ai', title: 'AI 智能中心', icon: '✦', codes: ['ai-center', 'ai-agents', 'ai-skills', 'ai-tools', 'ai-policies', 'knowledge', 'ai-evaluations', 'observability'] },
   { key: 'system', title: '安全与系统', icon: '□', codes: ['roles', 'approvals', 'audit', 'batch-jobs', 'dead-letter-events', 'categories', 'brands'] },
@@ -46,7 +45,7 @@ const currentTitle = computed(() => String(route.meta.title || '管理中心'))
 const initials = computed(() => (profile.value?.nickname || profile.value?.username || '管').slice(0, 1).toUpperCase())
 
 function iconFor(code: string): string {
-  return ({ dashboard: '⌂', users: '♙', stores: '▣', 'store-certifications': '✓', products: '▦', inventories: '≣', orders: '▤', payments: '¥', refunds: '↺', 'refund-appeals': '⚖', reviews: '☆', support: '◍', content: '▧', 'ai-center': '✦', 'ai-agents': '◈', 'ai-skills': '⌁', 'ai-tools': '⌘', 'ai-policies': '♢', knowledge: '▱', 'ai-evaluations': '⌁', observability: '⌇', roles: '♜', approvals: '✓', audit: '◎', 'batch-jobs': '⇄', 'dead-letter-events': '!', categories: '⌗', brands: '◆' } as Record<string, string>)[code] ?? '•'
+  return ({ dashboard: '⌂', users: '♙', stores: '▣', support: '◍', content: '▧', 'ai-center': '✦', 'ai-agents': '◈', 'ai-skills': '⌁', 'ai-tools': '⌘', 'ai-policies': '♢', knowledge: '▱', 'ai-evaluations': '⌁', observability: '⌇', roles: '♜', approvals: '✓', audit: '◎', 'batch-jobs': '⇄', 'dead-letter-events': '!' } as Record<string, string>)[code] ?? '•'
 }
 
 async function loadNavigation() {

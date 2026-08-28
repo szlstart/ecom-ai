@@ -6,6 +6,7 @@ from typing import cast
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.catalog.models import Product
 from app.modules.finance.models import UserWallet, WalletRecharge, WalletTransaction
 from app.modules.orders.models import Order, TradeOrder
 from app.modules.stores.models import Store
@@ -53,6 +54,23 @@ class FinanceRepository:
             await self.session.scalar(
                 select(Store).where(Store.owner_user_id == user_id, Store.store_no == store_no)
             ),
+        )
+
+    async def store_by_no(self, store_no: str) -> Store | None:
+        return cast(
+            Store | None,
+            await self.session.scalar(select(Store).where(Store.store_no == store_no)),
+        )
+
+    async def store_product_count(self, store_id: int) -> int:
+        return int(
+            await self.session.scalar(
+                select(func.count(Product.id)).where(
+                    Product.store_id == store_id,
+                    Product.deleted_at.is_(None),
+                )
+            )
+            or 0
         )
 
     async def revenue(self, store_id: int) -> tuple[int, int, int]:

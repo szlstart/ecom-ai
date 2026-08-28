@@ -1611,7 +1611,6 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 | 元素 | 说明与交互 |
 | :--- | :--------- |
 | 店铺 Logo/名称 | 展示当前店铺识别信息；当前页不可重复跳转 |
-| 认证标识 | 根据店铺认证类型展示“企业认证/官方旗舰店”等，鼠标悬停显示认证说明 |
 | 经营数据 | 展示在售商品数、综合评分；不展示后台敏感经营数据 |
 | 店铺简介 | 最多两行，超出显示省略号，可在店铺介绍中查看完整内容 |
 | 联系客服 | 进入该店铺唯一会话；无历史会话则创建，有历史会话则恢复，与商品页客服同入口、同会话 ID |
@@ -2493,15 +2492,15 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 2.13.6 店铺审核与店铺运营
+#### 2.13.6 店铺运营
 
-路由：`/admin/store-certifications`、`/admin/stores/:storeId` 及其运营子页面。
+路由：`/admin/stores`、`/admin/stores/:storeId`。当前版本不建设商家认证申请流程，因此超级管理端不提供“店铺认证”页面、导航或审核 API；历史认证表仅作为未启用的兼容结构，不参与开店、营业或商品发布。
 
-- 店铺认证队列支持按状态、类型、申请时间和风险标记筛选；材料通过鉴权下载，页面水印显示管理员和访问时间。
-- 审核决定为“通过、拒绝、要求补充材料”，原因必填且历史不可覆盖。暂停/关闭店铺是独立状态命令，并展示对在售商品、历史订单、客服和售后的影响预览。
-- 店铺员工只能管理本店分组、公告、推荐商品、服务政策和配送模板；所有关联商品必须属于本店。
-- 配送模板以版本发布，编辑草稿不影响现有结算；发布前展示影响地区、预计运费样例和引用商品数，发布后触发 Checkout/商品缓存失效。
-- 店铺页面顶部始终展示当前 Scope；从平台视角切换店铺时清空旧列表 Cursor、选择项和批量操作状态。
+- 店铺列表只使用“全部、营业中、已暂停”三种筛选；新建店铺直接营业，不产生“待开通”，经营状态只允许“暂停、恢复”，不再提供“关闭”命令。
+- 点击店铺进入以该店为 Scope 的运营工作台：顶部展示并可编辑店铺名称、简介和 Logo，同时展示营业额、商品数量、累计销量和评分。
+- 工作台只设“店铺的商品”和“店铺的订单”两个主入口。商品支持状态分类、编辑、下架和重新上架；订单支持按履约/售后状态监管并进入详情处置。
+- 页面明确显示“超级管理员监管视角”，使用“该店铺、顾客、管理员”等真实关系称谓，禁止复制商家端的“我的商品/我的订单”身份文案。
+- 左侧不再设置全平台“商品与交易”菜单；商品、库存、订单、支付、退款和评价能力从具体店铺或关联业务详情进入，后端仍按 Store Scope 与原子 Permission 校验。
 
 #### 2.13.7 商品、SKU、分类、品牌与库存
 
@@ -2641,8 +2640,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 用户列表 | `/admin/users` / `AdminUserListPage.vue` | `AdminUser_List`、`GET /admin/users` | `users:read` + Platform | Cursor；默认脱敏 |
 | 用户详情/安全 | `/admin/users/:userId` / `AdminUserDetailPage.vue` | `AdminUser_Get/ChangeStatus`、`AdminSensitiveGrant_Create`、`AdminRoleGrant_List/Create/Revoke` | `users:*`、`rbac:*` 对应原子权限 + Platform | ETag；敏感访问 Ticket；近期密码确认/SoD/审计 |
 | 角色列表/详情 | `/admin/roles`、`/admin/roles/:roleId` / `AdminRoleListPage.vue`、`AdminRoleDetailPage.vue` | `AdminRole_List/Get/Create/Update`、`AdminRolePermission_Replace` | `rbac:read/manage` + Platform/Store | 不可委派 Permission 不可进入自定义 Role |
-| 店铺认证列表/详情 | `/admin/store-certifications`、`/admin/store-certifications/:certificationId` / `AdminStoreCertificationListPage.vue`、`AdminStoreCertificationDetailPage.vue` | `AdminStoreCertification_List/Get/Decide/AddMaterialVersion` | `stores:read/review` + Scope | 材料 Version+ETag；通过/拒绝/补件单一 Decision Enum |
-| 店铺列表/详情 | `/admin/stores`、`/admin/stores/:storeId` / `AdminStoreListPage.vue`、`AdminStoreDetailPage.vue` | `AdminStore_List/Get/ChangeStatus` | `stores:read/manage` + Scope | 状态机、ETag、近期认证 |
+| 店铺列表/运营工作台 | `/admin/stores`、`/admin/stores/:storeId` / `AdminStoreListPage.vue`、`AdminStoreDetailPage.vue` | `AdminStore_List/Get/Update/ChangeStatus`、`AdminStoreRevenue_Get`、店铺范围内 `AdminProduct_*` 与 `AdminOrder_List` | `stores:*`、`products:*`、`orders:read` + Store Scope | 仅营业中/已暂停；ETag；管理员 Actor 审计；商品与订单按当前店铺隔离 |
 | 店铺政策 | `/admin/stores/:storeId/policies` / `AdminStorePolicyPage.vue` | `AdminStorePolicy_List/Create/Update/Publish/Withdraw` | `store_policies:*` + Store | 不可变发布版；RAG 重建事件 |
 | 商品列表/新建/详情 | `/admin/products`、`/admin/products/new`、`/admin/products/:productId` / `AdminProductListPage.vue`、`AdminProductEditPage.vue` | `AdminProduct_List/Create/Get/Update/Submit/Publish` | `products:*` + Store | 新建路由无 `productId`；详情 ETag/完整性/审核状态 |
 | 分类/品牌 | `/admin/categories`、`/admin/brands` / `AdminCategoryPage.vue`、`AdminBrandPage.vue` | `AdminCategory_List/Upsert`、`AdminBrand_List/Upsert` | `catalog_taxonomy:manage` + Platform | 循环分类阻断；被引用项禁止物理删除 |
@@ -2690,14 +2688,15 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 └─ [授予新角色] 只新建 Grant；不恢复旧行；权限提升可进审批中心 ─┘
 ```
 
-##### 2.13.17.3 店铺认证与运营
+##### 2.13.17.3 店铺运营工作台
 
 ```text
-┌─ 认证 cert_... [待补件] 材料v3 ETag:v8 ──────────────────┐
-│ 时间线:提交v1→要求补件→重提v2→要求补件→重提v3             │
-│ (○通过 ○拒绝 ○要求补件) 规则码:[__] 说明:[____] [提交]         │
-│ Tabs:[分组] [服务政策] [配送模板] [公告] [推荐]                     │
-└─ 退换货政策 v4 Published [历史] [新建草稿] [发布] [撤回] ──┘
+┌─ 店铺 sto_... [营业中] ─────────────── [编辑资料] [暂停营业] ┐
+│ Logo  店铺名称 / 简介     营业额 / 商品数 / 累计销量 / 评分       │
+│ Tabs:[店铺的商品] [店铺的订单]                                  │
+│ 商品:[全部][销售中][草稿][审核中][需修改][已下架] [新增商品]       │
+│ 订单:[全部][待付款][待发货][运输中][已完成][售后][已取消]           │
+└─ 全部操作显示管理员身份语义，并按该店 Store Scope 审计 ─────────┘
 ```
 
 ##### 2.13.17.4 商品与库存
@@ -5444,7 +5443,7 @@ MySQL 是 Grant 的权威来源，Redis 只缓存短时允许/撤销结果。Gra
 | `store_name` / `store_name_normalized` | `VARCHAR(128)` | NOT NULL，归一化名称按产品策略 UK |
 | `logo_object_key` | `VARCHAR(512)` | NULL |
 | `description` | `VARCHAR(2000)` | NULL |
-| `store_status` | `VARCHAR(32)` | `pending/active/suspended/closed` |
+| `store_status` | `VARCHAR(32)` | 当前业务只写入 `active/suspended`；旧值 `pending/closed` 仅用于迁移兼容，开发环境完成数据清理后不得新建 |
 | `service_phone_ciphertext` | `VARBINARY(512)` | NULL |
 | `rating_score` | `DECIMAL(3,2)` | NOT NULL DEFAULT 0，可重建展示聚合值 |
 | `rating_count` / `follower_count` / `sales_count` | `BIGINT UNSIGNED` | NOT NULL DEFAULT 0，派生计数 |
@@ -5453,6 +5452,8 @@ MySQL 是 Grant 的权威来源，Redis 只缓存短时允许/撤销结果。Gra
 索引：`uk_stores_store_no`、`idx_stores_owner(owner_user_id)`、`idx_stores_status_created(store_status, created_at, id)`。评分/数量字段不是原始事实，需定期与评价/关注/订单对账。
 
 ##### 3.7.3.2 store_certifications 店铺认证表
+
+当前版本不启用店铺认证申请/审核能力，不创建新记录、不暴露 API 或管理页面，也不将本表作为开店和营业的前置条件。本表仅为已有迁移的兼容保留结构；正式清理迁移确认无历史数据后可删除，下面字段只用于解释旧 Schema，不属于当前开发范围。
 
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
@@ -5597,6 +5598,8 @@ MySQL 是 Grant 的权威来源，Redis 只缓存短时允许/撤销结果。Gra
 约束：`UNIQUE(store_id, product_id, slot_type)`；公开接口只返回当前有效且仍为 `on_sale` 的本店商品。
 
 ##### 3.7.3.12 store_certification_events 店铺认证事件与材料版本表
+
+当前版本停用。该表只随 `store_certifications` 作为旧 Schema 兼容结构保留，不写新事件、不建立 Worker、文件桶或管理入口；后续清理迁移应与认证主表一起移除。
 
 追加型事件同时表达材料版本与审核决定，不用新补件覆盖旧文件。
 
@@ -7903,7 +7906,6 @@ XREADGROUP GROUP <group> <consumer> COUNT <n> BLOCK <ms> STREAMS <stream> >
 | :--- | :--- | :--- | :--- |
 | `public-assets` | 公开/CDN | 已审核商品图、店铺 Logo、可公开头像/评价图派生版 | 只读公开派生文件，原图不直接公开 |
 | `private-image-sources` | 私有 | 已完成上传校验、等待扫描或用于重建派生图的商品/Logo 原件 | 仅文件处理 Worker 可读，不复用客户端可覆盖的临时 Key |
-| `private-certifications` | 严格私有 | 店铺认证证件原件 | 仅认证审核服务和文件处理 Worker 可读，禁止公开派生 |
 | `private-user-assets` | 私有 | 用户头像原图、待处理用户文件 | 服务身份/短期签名 |
 | `review-assets` | 受控原图 | 评价图原件和审核中文件 | 扫描/内容审核后才发布派生版 |
 | `after-sale-evidence` | 严格私有 | 退款图片、视频、PDF 凭证 | 业务鉴权、短签名、访问审计、独立密钥 |
@@ -9193,19 +9195,18 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 
 角色授予/撤销/到期同时递增目标用户 `permission_version`、追加 `user_role_events`、失效缓存并按风险撤销管理 Session。到期 Worker 将已到期的 Active Grant 条件迁移为 `expired`；授予同角色/同 Scope 时新建 Grant，不恢复历史行。不能删除最后一个安全管理员；操作者不能批准自己的权限提升，Critical 权限按策略进入双人复核。
 
-##### 3.12.22.4 店铺审核与运营
+##### 3.12.22.4 店铺运营
+
+当前版本没有商家认证申请入口，因此不暴露 `/admin/store-certifications` 系列接口，也不以认证状态控制开店。
 
 | 方法 | 路径 | 权限与行为 |
 | --- | --- | --- |
-| `GET` | `/admin/store-certifications`、`/admin/store-certifications/{certification_id}` | `stores:review`；材料下载鉴权、水印和审计 |
-| `POST` | `/admin/store-certifications/{certification_id}/decisions` | `stores:review`；`approve/reject/request_more_info`、If-Match、原因和幂等 |
-| `GET` | `/admin/store-certifications/{certification_id}/events` | `stores:review` 或 `stores:manage` + 本店 Scope；Cursor 返回材料版本与审核时间线 |
-| `POST` | `/admin/store-certifications/{certification_id}/material-versions` | `stores:manage` + 本店 Scope；仅 `more_info_required`，提交完整 Active 私有文件集、材料版本、If-Match 与幂等，成功后回到 `pending` |
 | `GET` | `/admin/stores`、`/admin/stores/{store_id}` | `stores:read` + Data Scope |
 | `POST` | `/admin/stores` | `stores:manage` + Platform Scope；原子创建全局唯一店铺、独立商家登录身份、密码/邮箱凭证和 Store Scope `store_operator` Grant；不得复用用户或管理员身份 |
 | `PATCH` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；修改名称、简介或已通过扫描且归属本店的 `store_logo` 派生文件，If-Match 必填；名称全局唯一但不设改名冷却，成功后当前店名投影与缓存同步更新 |
-| `POST` | `/admin/stores/{store_id}/status-changes` | `stores:manage`；展示/提交影响码，不能覆盖认证历史 |
-| `DELETE` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；If-Match、原因和 `DELETE_STORE` 确认；店铺及其商家账号从未产生交易时才允许受控物理删除，否则只允许暂停或关闭并保留交易事实 |
+| `POST` | `/admin/stores/{store_id}/status-changes` | `stores:manage`；只接受 `suspend/resume`，展示影响并写管理员审计；不接受待开通、启用或关闭命令 |
+| `GET` | `/admin/stores/{store_id}/revenue` | `stores:read` + 本店 Scope；按确认收货净额返回总营业额、今日/昨日/近 30 日收益与订单分类计数 |
+| `DELETE` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；If-Match、原因和 `DELETE_STORE` 确认；店铺及其商家账号从未产生交易时才允许受控物理删除，否则只允许暂停并保留交易事实 |
 | `GET/POST/PATCH` | `/admin/stores/{store_id}/product-groups` | 店铺运营权限；If-Match、店铺归属校验 |
 | `PUT` | `/admin/stores/{store_id}/product-groups/{group_id}/products` | 完整目标商品集；所有 Product 必须属于本店 |
 | `GET/POST` | `/admin/stores/{store_id}/service-policies` | GET 需 `store_policies:read`，POST 需 `store_policies:create`，均需 Store Scope；GET 读取家族/历史，POST 创建新草稿版本 |
@@ -13745,7 +13746,7 @@ API 的 Pool Size 从每实例 5–10、有限 Overflow 起压测，Worker/Agent
 
 实现店铺/认证/平台经营分类/店铺商品分组/公告/推荐位/服务政策/配送运费模板、平台类目/品牌、Product/SKU/Image/Attribute/FAQ/履约资料、上下架状态、收藏/关注和库存/预占/流水。完成首页聚合、独立商品搜索、商品全部评价、商品/店铺收藏、用户店铺页和商品详情；管理端完成店铺审核/运营、商品分区编辑、SKU、多图片、分类品牌、库存调整、发布审核与批量导入预检页面。对象存储支持商品/Logo/导入文件上传、缩略图和权限。
 
-验收：首页 Read Model 无详情 N+1，Banner/公告/推荐区可局部降级，Cursor/返回锚点可恢复；搜索使用独立 `/search` 和 URL 筛选，店铺查询只接受 `q/group_id/sort/cursor`。商品首次进入停留顶部，Scroll Spy、SKU 图片集/公共图库回退、桌面 Sticky 和移动底栏均通过布局测试。店铺 Scope 隔离、经营分类与店铺分组不混用、商品状态机、SKU 唯一、图片归属与缓存失效正确；店铺认证支持要求补件、材料版本再次提交和不可变事件历史；服务政策支持草稿、发布、替换、撤回/失效，公开读取只返回当前有效版本，历史订单快照不追随政策更新，发布事件可使缓存失效并触发 RAG 重建。商品详情与 FAQ 采用不可变内容版本，发布时重跑 Sanitization 和内容安全扫描；公开 DTO 只返回 `structured_v1/safe_html_v1` 判别联合与安全纯文本，不返回原始 Source。脚本、事件属性、危险 URL、iframe、表单和可执行 SVG 均被阻断，RAG 只摄取已发布 `safe_text`。`file_upload_sessions → file_objects → 扫描 → Active 业务绑定` 全链路通过，过期 Multipart 可清理且私有原图不可被公开读取；运费模板按区域/件数/重量产生确定结果，不可配送有稳定原因码；库存条件更新/锁/日志通过并发测试，无负库存/超卖；下架商品不可新购且历史订单快照不受影响。管理端商品发布前缺项、If-Match 冲突、跨店关联、库存无原因调整和恶意导入文件均被正确阻断；批处理逐项结果可追踪。搜索索引尚未建设时可用受控 MySQL 查询，但接口 Contract 保持可替换。
+验收：首页 Read Model 无详情 N+1，Banner/公告/推荐区可局部降级，Cursor/返回锚点可恢复；搜索使用独立 `/search` 和 URL 筛选，店铺查询只接受 `q/group_id/sort/cursor`。商品首次进入停留顶部，Scroll Spy、SKU 图片集/公共图库回退、桌面 Sticky 和移动底栏均通过布局测试。店铺 Scope 隔离、经营分类与店铺分组不混用、商品状态机、SKU 唯一、图片归属与缓存失效正确；超级管理端不出现店铺认证入口，只按营业中/已暂停治理店铺；服务政策支持草稿、发布、替换、撤回/失效，公开读取只返回当前有效版本，历史订单快照不追随政策更新，发布事件可使缓存失效并触发 RAG 重建。商品详情与 FAQ 采用不可变内容版本，发布时重跑 Sanitization 和内容安全扫描；公开 DTO 只返回 `structured_v1/safe_html_v1` 判别联合与安全纯文本，不返回原始 Source。脚本、事件属性、危险 URL、iframe、表单和可执行 SVG 均被阻断，RAG 只摄取已发布 `safe_text`。`file_upload_sessions → file_objects → 扫描 → Active 业务绑定` 全链路通过，过期 Multipart 可清理且私有原图不可被公开读取；运费模板按区域/件数/重量产生确定结果，不可配送有稳定原因码；库存条件更新/锁/日志通过并发测试，无负库存/超卖；下架商品不可新购且历史订单快照不受影响。管理端商品发布前缺项、If-Match 冲突、跨店关联、库存无原因调整和恶意导入文件均被正确阻断；批处理逐项结果可追踪。搜索索引尚未建设时可用受控 MySQL 查询，但接口 Contract 保持可替换。
 
 #### 3.34.4 第四阶段：购物车、结算与订单
 
@@ -13902,7 +13903,7 @@ Go/No-Go Meeting 逐项确认并保存签字证据：
 | `ADM-USER-01` 冻结/解冻 | `/admin/users/:userId` | `AdminUser_ChangeStatus` / `POST /api/v1/admin/users/{user_id}/status-changes` | `users:manage`；ETag；`user_status_records`；Session 撤销 | Audit+State+E2E `ADM-USER-STATUS-*` |
 | `ADM-USER-02` 敏感字段 | `/admin/users/:userId` | `AdminSensitiveGrant_Create/Consume/Revoke` | `users:read_sensitive`；Admin+Session+Target+Fields+Purpose+TTL | Security `ADM-SENSITIVE-*` |
 | `ADM-RBAC-01` 授权/撤销 | `/admin/users/:userId` | `AdminRoleGrant_Create/Revoke/List` | `rbac:manage`、`rbac:read`；Active UK；不恢复旧 Grant | Audit+Concurrency `ADM-RBAC-*` |
-| `ADM-STORE-01` 认证决定/补件 | `/admin/store-certifications/:certificationId` | `AdminStoreCertification_Decide/AddMaterialVersion` | `stores:review` 或 `stores:manage` + 本店 Scope；材料 Version+ETag | Audit+State `ADM-CERT-*` |
+| `ADM-STORE-DETAIL-01` 店铺资料、商品与订单监管 | `/admin/stores/:storeId` | `AdminStore_Update/ChangeStatus`、`AdminStoreRevenue_Get`、店铺范围内 `AdminProduct_*`、`AdminOrder_List` | `stores:*`、`products:*`、`orders:read` + Store Scope；仅暂停/恢复；ETag | Audit+State+UI `ADM-STORE-*` |
 | `ADM-POLICY-01` 店铺政策 | `/admin/stores/:storeId/policies` | `AdminStorePolicy_List/Create/Update/Publish/Withdraw` | `store_policies:read`、`store_policies:create`、`store_policies:update`、`store_policies:publish` + Store Scope；版本不可变 | Contract+RAG `ADM-POLICY-*` |
 | `ADM-PRODUCT-01` 商品编辑/发布 | `/admin/products/:productId` | `AdminProduct_Update/Submit/Publish` | `products:update`、`products:publish` + Store Scope；ETag/完整性 | Audit+E2E `ADM-PRODUCT-*` |
 | `ADM-INV-01` 库存调整 | `/admin/inventories` | `AdminInventory_Adjust` | `inventories:adjust` + Store Scope；Delta/原因/版本 | Concurrency `ADM-INV-*` |

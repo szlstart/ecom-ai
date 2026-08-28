@@ -54,7 +54,7 @@ onMounted(load)
     <div class="admin-metric-grid">
       <RouterLink v-if="auth.has('users:read')" to="/admin/users" class="admin-metric-card blue"><span>♙</span><div><small>有效用户</small><strong>{{ summary?.active_user_count ?? users.length }}</strong><p>今日新增 {{ newUsersToday }} 人</p></div><b>↗</b></RouterLink>
       <RouterLink v-if="auth.has('stores:read')" to="/admin/stores" class="admin-metric-card green"><span>▣</span><div><small>当前可见店铺</small><strong>{{ stores.length }}</strong><p>{{ pendingStores }} 家需要关注</p></div><b>↗</b></RouterLink>
-      <RouterLink v-if="auth.has('products:read')" to="/admin/products" class="admin-metric-card purple"><span>▦</span><div><small>当前可见商品</small><strong>{{ products.length }}</strong><p>{{ riskyProducts }} 件待处理</p></div><b>↗</b></RouterLink>
+      <RouterLink v-if="auth.has('products:read')" to="/admin/stores" class="admin-metric-card purple"><span>▦</span><div><small>当前可见商品</small><strong>{{ products.length }}</strong><p>{{ riskyProducts }} 件待处理 · 从店铺进入</p></div><b>↗</b></RouterLink>
       <RouterLink v-if="auth.has('support:queue_read')" to="/admin/support/tickets" class="admin-metric-card orange"><span>◍</span><div><small>客服待处理</small><strong>{{ pendingTickets }}</strong><p>{{ unreadMessages }} 条未读消息</p></div><b>↗</b></RouterLink>
     </div>
 
@@ -64,7 +64,7 @@ onMounted(load)
         <div class="admin-priority-list">
           <RouterLink v-if="summary?.pending_approval_count" to="/admin/approval-requests"><span class="warning">!</span><div><strong>{{ summary.pending_approval_count }} 项高风险操作等待复核</strong><small>审批超时前需要独立管理员完成决定</small></div><b>立即处理</b></RouterLink>
           <RouterLink v-if="pendingTickets" to="/admin/support/tickets"><span class="message">◍</span><div><strong>{{ pendingTickets }} 个用户或店铺会话待处理</strong><small>顶部“消息”可以直接打开微信式工作台</small></div><b>打开消息</b></RouterLink>
-          <RouterLink v-if="riskyProducts" to="/admin/products"><span class="product">▦</span><div><strong>{{ riskyProducts }} 件商品需要查看</strong><small>集中处理审核、需修改和异常状态</small></div><b>查看商品</b></RouterLink>
+          <RouterLink v-if="riskyProducts" to="/admin/stores"><span class="product">▦</span><div><strong>{{ riskyProducts }} 件商品需要查看</strong><small>先选择所属店铺，再处理审核和异常状态</small></div><b>选择店铺</b></RouterLink>
           <div v-if="!summary?.pending_approval_count && !pendingTickets && !riskyProducts" class="admin-all-clear"><span>✓</span><div><strong>当前没有紧急待办</strong><small>系统状态平稳，可以继续日常巡检。</small></div></div>
         </div>
       </article>
@@ -76,6 +76,6 @@ onMounted(load)
       </article>
     </div>
 
-    <article class="admin-panel admin-quick-panel"><header><div><p class="eyebrow">QUICK ACCESS</p><h2>常用管理入口</h2></div></header><div class="admin-quick-grid"><RouterLink v-if="auth.has('users:read')" to="/admin/users"><span>♙</span><strong>管理用户</strong><small>资料、安全与交易关系</small></RouterLink><RouterLink v-if="auth.has('stores:read')" to="/admin/stores"><span>▣</span><strong>管理店铺</strong><small>资料、商品与经营状态</small></RouterLink><RouterLink v-if="auth.has('orders:read')" to="/admin/orders"><span>▤</span><strong>订单监管</strong><small>支付、履约与售后</small></RouterLink><RouterLink v-if="auth.has('audit:read')" to="/admin/audit-logs"><span>◎</span><strong>审计追踪</strong><small>查看所有管理操作</small></RouterLink></div></article>
+    <article class="admin-panel admin-quick-panel"><header><div><p class="eyebrow">QUICK ACCESS</p><h2>常用管理入口</h2></div></header><div class="admin-quick-grid"><RouterLink v-if="auth.has('users:read')" to="/admin/users"><span>♙</span><strong>管理用户</strong><small>资料、安全与交易关系</small></RouterLink><RouterLink v-if="auth.has('stores:read')" to="/admin/stores"><span>▣</span><strong>管理店铺</strong><small>资料、商品与经营状态</small></RouterLink><RouterLink v-if="auth.has('orders:read')" to="/admin/stores"><span>▤</span><strong>店铺订单监管</strong><small>选择店铺后查看支付、履约与售后</small></RouterLink><RouterLink v-if="auth.has('audit:read')" to="/admin/audit-logs"><span>◎</span><strong>审计追踪</strong><small>查看所有管理操作</small></RouterLink></div></article>
   </section>
 </template>

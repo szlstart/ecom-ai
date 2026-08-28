@@ -2,152 +2,209 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import {
-  adminCommand,
-  adminCreate,
-  adminGet,
-  adminReplace,
-  adminUpdate,
-  requireAdminToken,
-  type AdminFeaturedProduct,
-  type AdminShippingTemplate,
-  type AdminStore,
-  type AdminStoreAnnouncement,
-  type AdminStoreGroup,
-} from '@/api/admin-catalog'
-import { apiRequest, errorMessage } from '@/api/http'
+import { adminCommand, adminGet, adminQuery, adminUpdate, requireAdminToken, type AdminProduct, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
+import { formatMoney, type Money } from '@/api/catalog'
+import { apiRequest, errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { listAdminOrders, type AdminOrderSummary } from '@/api/orders'
 import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
-type Section = 'profile' | 'groups' | 'shipping' | 'announcements' | 'featured'
+type WorkspaceSection = 'products' | 'orders'
+type ProductStatus = '' | 'on_sale' | 'draft' | 'pending_review' | 'rejected' | 'off_shelf'
+type OrderView = 'all' | 'pending_payment' | 'pending_shipment' | 'in_transit' | 'completed' | 'after_sale' | 'cancelled'
+interface RevenueDashboard {
+  gross_sales: Money; refunded_amount: Money; net_revenue: Money
+  today_revenue: Money; yesterday_revenue: Money; last_30_days_revenue: Money
+  all_order_count: number; completed_order_count: number; pending_payment_count: number
+  pending_shipment_count: number; in_transit_count: number; after_sale_pending_count: number
+  cancelled_count: number
+  product_count: number
+}
 
 const route = useRoute(); const router = useRouter(); const auth = useAdminAuthStore()
 const storeId = computed(() => String(route.params.storeId))
 const store = ref<AdminStore | null>(null)
-const groups = ref<AdminStoreGroup[]>([])
-const shipping = ref<AdminShippingTemplate[]>([])
-const announcements = ref<AdminStoreAnnouncement[]>([])
-const featured = ref<AdminFeaturedProduct[]>([])
-const section = ref<Section>('profile'); const loading = ref(true); const saving = ref(false)
-const error = ref(''); const message = ref('')
+const revenue = ref<RevenueDashboard | null>(null)
+const products = ref<AdminProductSummary[]>([])
+const orders = ref<AdminOrderSummary[]>([])
+const section = ref<WorkspaceSection>(route.query.tab === 'orders' ? 'orders' : 'products')
+const productStatus = ref<ProductStatus>('')
+const orderView = ref<OrderView>('all')
+const productQuery = ref('')
+const loading = ref(true); const panelLoading = ref(false); const saving = ref(false)
+const error = ref(''); const notice = ref('')
+const editingProfile = ref(false)
+const deleteOpen = ref(false); const deleteReason = ref(''); const deleteConfirmation = ref('')
 const profile = reactive({ store_name: '', description: '', logo_file_id: '' })
-const statusForm = reactive({ action: 'suspend', reason_code: 'OPERATIONS_REVIEW', reason: '' })
-const groupForm = reactive({ group_name: '', parent_group_id: '', sort_order: 0, product_ids: '' })
-const selectedGroup = ref<AdminStoreGroup | null>(null)
-const shippingEditing = ref<AdminShippingTemplate | null>(null)
-const shippingForm = reactive({ template_name: '', delivery_type: 'express', charge_mode: 'by_item', dispatch_min_hours: 24, dispatch_max_hours: 48, region_scope: '{"country":"CN"}', first_unit: 1, additional_unit: 1, first_fee_amount: 0, additional_fee_amount: 0, estimated_min_days: 1, estimated_max_days: 3, reason: '' })
-const announcementForm = reactive({ title: '', content: '', status: 'draft', starts_at: '', ends_at: '', sort_order: 0 })
-const announcementEditing = ref<AdminStoreAnnouncement | null>(null)
-const featuredForm = reactive({ slot_type: 'recommended', product_ids: '' })
-const deleteOpen = ref(false)
-const deleteReason = ref('')
-const deleteConfirmation = ref('')
+
+const productTabs: Array<{ value: ProductStatus; label: string }> = [
+  { value: '', label: '全部商品' }, { value: 'on_sale', label: '销售中' }, { value: 'draft', label: '草稿' },
+  { value: 'pending_review', label: '审核中' }, { value: 'rejected', label: '需修改' }, { value: 'off_shelf', label: '已下架' },
+]
+const orderTabs = computed(() => [
+  { value: 'all' as const, label: '全部订单', count: revenue.value?.all_order_count ?? 0 },
+  { value: 'pending_payment' as const, label: '待付款', count: revenue.value?.pending_payment_count ?? 0 },
+  { value: 'pending_shipment' as const, label: '待发货', count: revenue.value?.pending_shipment_count ?? 0 },
+  { value: 'in_transit' as const, label: '运输中', count: revenue.value?.in_transit_count ?? 0 },
+  { value: 'completed' as const, label: '已完成', count: revenue.value?.completed_order_count ?? 0 },
+  { value: 'after_sale' as const, label: '售后待处理', count: revenue.value?.after_sale_pending_count ?? 0 },
+  { value: 'cancelled' as const, label: '已取消', count: revenue.value?.cancelled_count ?? 0 },
+])
+const totalStock = computed(() => products.value.reduce((sum, item) => sum + item.available_quantity, 0))
 
 function token() { return requireAdminToken(auth.accessToken) }
-function endpoint(suffix: string) { return `/admin/stores/${encodeURIComponent(storeId.value)}${suffix}` }
-function iso(value: string) { return value ? new Date(value).toISOString() : null }
+function endpoint(suffix = '') { return `/admin/stores/${encodeURIComponent(storeId.value)}${suffix}` }
+function statusLabel(value: string) { return ({ active: '营业中', suspended: '已暂停', draft: '草稿', pending_review: '审核中', rejected: '需修改', on_sale: '销售中', off_shelf: '已下架' } as Record<string, string>)[value] ?? value }
+function orderStatusLabel(item: AdminOrderSummary) {
+  if (item.order.after_sale_status === 'in_progress') return '售后处理中'
+  return ({ pending_payment: '等待顾客付款', pending_shipment: '等待店铺发货', shipped: '运输中', completed: '已完成', cancelled: '已取消', closed: '已关闭' } as Record<string, string>)[item.order.order_status] ?? item.order.order_status
+}
+function dateTime(value: string) { return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) }
+function orderFilters(): Record<string, string> {
+  const result: Record<string, string> = { q: storeId.value }
+  if (orderView.value === 'after_sale') result.after_sale_status = 'in_progress'
+  else if (orderView.value === 'in_transit') result.order_status = 'shipped'
+  else if (orderView.value !== 'all') result.order_status = orderView.value
+  return result
+}
 
 async function load() {
   loading.value = true; error.value = ''
   try {
-    const [storeResult, groupResult, shippingResult, announcementResult, featuredResult] = await Promise.all([
-      adminGet<AdminStore>(endpoint(''), token()),
-      adminGet<AdminStoreGroup[]>(endpoint('/product-groups'), token()),
-      adminGet<AdminShippingTemplate[]>(endpoint('/shipping-templates'), token()),
-      adminGet<AdminStoreAnnouncement[]>(endpoint('/announcements'), token()),
-      adminGet<AdminFeaturedProduct[]>(endpoint(`/featured-products?slot_type=${featuredForm.slot_type}`), token()),
+    const [storeResult, revenueResult] = await Promise.all([
+      adminGet<AdminStore>(endpoint(), token()),
+      apiRequest<RevenueDashboard>(endpoint('/revenue'), {}, token()),
     ])
-    store.value = storeResult.data; groups.value = groupResult.data; shipping.value = shippingResult.data; announcements.value = announcementResult.data; featured.value = featuredResult.data
+    store.value = storeResult.data; revenue.value = revenueResult.data
     Object.assign(profile, { store_name: store.value.store_name, description: store.value.description ?? '', logo_file_id: '' })
+    if (section.value === 'orders') await loadOrders()
+    else await loadProducts()
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
 }
 
-async function run(action: () => Promise<unknown>, success: string) {
-  saving.value = true; error.value = ''; message.value = ''
-  try { await action(); message.value = success; await load() }
+async function loadProducts() {
+  panelLoading.value = true; error.value = ''
+  try {
+    const result = await adminGet<{ items: AdminProductSummary[] }>(`/admin/products${adminQuery({ store_id: storeId.value, status: productStatus.value, q: productQuery.value.trim(), limit: 100 })}`, token())
+    products.value = result.data.items
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { panelLoading.value = false }
+}
+
+async function loadOrders() {
+  panelLoading.value = true; error.value = ''
+  try { orders.value = (await listAdminOrders(orderFilters(), token())).data.items.filter((item) => item.order.store.store_id === storeId.value) }
   catch (cause) { error.value = errorMessage(cause) }
+  finally { panelLoading.value = false }
+}
+
+async function chooseSection(value: WorkspaceSection) {
+  section.value = value
+  await router.replace({ query: { ...route.query, tab: value === 'orders' ? 'orders' : undefined } })
+  if (value === 'orders') await loadOrders()
+  else await loadProducts()
+}
+async function chooseProductStatus(value: ProductStatus) { productStatus.value = value; await loadProducts() }
+async function chooseOrderView(value: OrderView) { orderView.value = value; await loadOrders() }
+
+async function saveProfile() {
+  if (!store.value) return
+  saving.value = true; error.value = ''; notice.value = ''
+  try {
+    const payload: Record<string, unknown> = { store_name: profile.store_name, description: profile.description || null }
+    if (profile.logo_file_id) payload.logo_file_id = profile.logo_file_id
+    store.value = (await adminUpdate<AdminStore>(endpoint(), payload, token(), store.value.version)).data
+    editingProfile.value = false; profile.logo_file_id = ''; notice.value = '店铺公开资料已更新，顾客端会同步显示最新内容。'
+  } catch (cause) { error.value = errorMessage(cause) }
   finally { saving.value = false }
 }
 
-function saveProfile() {
+async function toggleStoreStatus() {
   if (!store.value) return
-  const payload: Record<string, unknown> = { store_name: profile.store_name, description: profile.description || null }
-  if (profile.logo_file_id) payload.logo_file_id = profile.logo_file_id
-  return run(() => adminUpdate<AdminStore>(endpoint(''), payload, token(), store.value!.version), '店铺资料已更新。')
+  saving.value = true; error.value = ''; notice.value = ''
+  const action = store.value.status === 'active' ? 'suspend' : 'resume'
+  try {
+    store.value = (await adminCommand<AdminStore>(endpoint('/status-changes'), { action, reason_code: 'PLATFORM_OPERATIONS', reason: '超级管理员在店铺运营工作台调整经营状态。' }, token(), store.value.version, `admin-store-${action}`)).data
+    notice.value = action === 'suspend' ? '店铺已暂停营业，顾客端不再开放新的购买。' : '店铺已恢复营业。'
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { saving.value = false }
 }
 
-function changeStatus() {
-  if (!store.value) return
-  return run(() => adminCommand<AdminStore>(endpoint('/status-changes'), { ...statusForm }, token(), store.value!.version, 'store-status'), '店铺状态命令已执行。')
+async function toggleProduct(item: AdminProductSummary) {
+  saving.value = true; error.value = ''; notice.value = ''
+  const base = `/admin/products/${encodeURIComponent(item.product_id)}`
+  const payload = { reason_code: 'PLATFORM_OPERATIONS', reason: '超级管理员在店铺运营工作台调整商品营业状态。' }
+  try {
+    if (item.status === 'on_sale') {
+      await adminCommand<AdminProduct>(`${base}/off-shelf-commands`, payload, token(), item.version, 'admin-product-off-shelf')
+      notice.value = `“${item.product_name}”已下架。`
+    } else if (item.status === 'off_shelf') {
+      const submitted = (await adminCommand<AdminProduct>(`${base}/review-submissions`, payload, token(), item.version, 'admin-product-resubmit')).data
+      const approved = (await adminCommand<AdminProduct>(`${base}/moderation-decisions`, { ...payload, decision: 'approve' }, token(), submitted.version, 'admin-product-approve')).data
+      await adminCommand<AdminProduct>(`${base}/publications`, payload, token(), approved.version, 'admin-product-republish')
+      notice.value = `“${item.product_name}”已完成平台复核并重新上架。`
+    }
+    await loadProducts()
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { saving.value = false }
 }
 
 async function deleteStore() {
   if (!store.value || deleteConfirmation.value !== 'DELETE_STORE' || deleteReason.value.trim().length < 2) return
   saving.value = true; error.value = ''
   try {
-    await apiRequest(endpoint(''), { method: 'DELETE', headers: { 'If-Match': `"v${store.value.version}"` }, body: JSON.stringify({ reason: deleteReason.value.trim(), confirmation: deleteConfirmation.value }) }, token())
+    await apiRequest(endpoint(), { method: 'DELETE', headers: { 'If-Match': `"v${store.value.version}"` }, body: JSON.stringify({ reason: deleteReason.value.trim(), confirmation: deleteConfirmation.value }) }, token())
     await router.replace({ path: '/admin/stores', query: { deleted: storeId.value } })
   } catch (cause) { error.value = errorMessage(cause); deleteOpen.value = false }
   finally { saving.value = false }
-}
-
-function chooseGroup(item: AdminStoreGroup) { selectedGroup.value = item; Object.assign(groupForm, { group_name: item.group_name, parent_group_id: item.parent_group_id ?? '', sort_order: item.sort_order, product_ids: item.product_ids.join('\n') }) }
-function resetGroup() { selectedGroup.value = null; Object.assign(groupForm, { group_name: '', parent_group_id: '', sort_order: 0, product_ids: '' }) }
-async function saveGroup() {
-  const payload = { group_name: groupForm.group_name, parent_group_id: groupForm.parent_group_id || null, sort_order: groupForm.sort_order }
-  await run(async () => {
-    let current: AdminStoreGroup
-    if (selectedGroup.value) current = (await adminUpdate<AdminStoreGroup>(endpoint(`/product-groups/${encodeURIComponent(selectedGroup.value.group_id)}`), payload, token(), selectedGroup.value.version)).data
-    else current = (await adminCreate<AdminStoreGroup>(endpoint('/product-groups'), payload, token(), 'store-group-create')).data
-    const productIds = groupForm.product_ids.split(/[\s,]+/).map((value) => value.trim()).filter(Boolean)
-    if (productIds.length || selectedGroup.value?.product_ids.length) await adminReplace(endpoint(`/product-groups/${encodeURIComponent(current.group_id)}/products`), { product_ids: productIds }, token(), current.version)
-    resetGroup()
-  }, selectedGroup.value ? '店铺分组已更新。' : '店铺分组已创建。')
-}
-
-function editShipping(item: AdminShippingTemplate) {
-  shippingEditing.value = item
-  const rule = item.rules[0]
-  Object.assign(shippingForm, { template_name: item.template_name, delivery_type: item.delivery_type, charge_mode: item.charge_mode, dispatch_min_hours: item.dispatch_min_hours, dispatch_max_hours: item.dispatch_max_hours, region_scope: JSON.stringify(rule?.region_scope ?? { country: 'CN' }), first_unit: rule?.first_unit ?? 1, additional_unit: rule?.additional_unit ?? 1, first_fee_amount: rule?.first_fee_amount ?? 0, additional_fee_amount: rule?.additional_fee_amount ?? 0, estimated_min_days: rule?.estimated_min_days ?? 1, estimated_max_days: rule?.estimated_max_days ?? 3, reason: '' })
-}
-function resetShipping() { shippingEditing.value = null; Object.assign(shippingForm, { template_name: '', delivery_type: 'express', charge_mode: 'by_item', dispatch_min_hours: 24, dispatch_max_hours: 48, region_scope: '{"country":"CN"}', first_unit: 1, additional_unit: 1, first_fee_amount: 0, additional_fee_amount: 0, estimated_min_days: 1, estimated_max_days: 3, reason: '' }) }
-function saveShipping() {
-  let regionScope: Record<string, unknown>
-  try { regionScope = JSON.parse(shippingForm.region_scope) as Record<string, unknown> }
-  catch { error.value = '区域范围必须是有效 JSON。'; return }
-  const payload = { template_name: shippingForm.template_name, delivery_type: shippingForm.delivery_type, charge_mode: shippingForm.charge_mode, dispatch_min_hours: shippingForm.dispatch_min_hours, dispatch_max_hours: shippingForm.dispatch_max_hours, rules: [{ region_scope: regionScope, first_unit: shippingForm.first_unit, additional_unit: shippingForm.additional_unit, first_fee_amount: shippingForm.first_fee_amount, additional_fee_amount: shippingForm.additional_fee_amount, estimated_min_days: shippingForm.estimated_min_days, estimated_max_days: shippingForm.estimated_max_days }] }
-  return run(async () => { if (shippingEditing.value) await adminUpdate(endpoint(`/shipping-templates/${encodeURIComponent(shippingEditing.value.template_id)}`), payload, token(), shippingEditing.value.version); else await adminCreate(endpoint('/shipping-templates'), { ...payload, template_family_id: null, currency: 'CNY' }, token(), 'shipping-template-create'); resetShipping() }, shippingEditing.value ? '配送模板草稿已更新。' : '配送模板草稿已创建。')
-}
-function publishShipping(item: AdminShippingTemplate) { return run(() => adminCommand(endpoint(`/shipping-templates/${encodeURIComponent(item.template_id)}/publications`), { reason: shippingForm.reason }, token(), item.version, 'shipping-template-publish'), '配送模板版本已发布。') }
-
-function editAnnouncement(item: AdminStoreAnnouncement) { announcementEditing.value = item; Object.assign(announcementForm, { title: item.title, content: item.content, status: item.status, starts_at: item.starts_at?.slice(0, 16) ?? '', ends_at: item.ends_at?.slice(0, 16) ?? '', sort_order: item.sort_order }) }
-function resetAnnouncement() { announcementEditing.value = null; Object.assign(announcementForm, { title: '', content: '', status: 'draft', starts_at: '', ends_at: '', sort_order: 0 }) }
-function saveAnnouncement() {
-  const payload = { ...announcementForm, starts_at: iso(announcementForm.starts_at), ends_at: iso(announcementForm.ends_at) }
-  return run(async () => { if (announcementEditing.value) await adminUpdate(endpoint(`/announcements/${encodeURIComponent(announcementEditing.value.announcement_id)}`), payload, token(), announcementEditing.value.version); else await adminCreate(endpoint('/announcements'), payload, token(), 'store-announcement-create'); resetAnnouncement() }, announcementEditing.value ? '店铺公告已更新。' : '店铺公告已创建。')
-}
-
-async function loadFeatured() {
-  try { featured.value = (await adminGet<AdminFeaturedProduct[]>(endpoint(`/featured-products?slot_type=${featuredForm.slot_type}`), token())).data }
-  catch (cause) { error.value = errorMessage(cause) }
-}
-function replaceFeatured() {
-  if (!store.value) return
-  const items = featuredForm.product_ids.split(/[\s,]+/).map((product_id) => product_id.trim()).filter(Boolean).map((product_id) => ({ product_id, starts_at: null, ends_at: null }))
-  return run(() => adminReplace(endpoint('/featured-products'), { slot_type: featuredForm.slot_type, items }, token(), store.value!.version), '推荐位已完整替换。')
 }
 
 onMounted(load)
 </script>
 
 <template>
-  <section class="admin-page-stack"><header class="page-heading"><div><p class="eyebrow">店铺运营 · {{ storeId }}</p><h1>{{ store?.store_name || '店铺详情' }}</h1><p class="muted">当前页面的全部关联商品和配置都由服务端再次校验店铺 Scope。</p></div><div class="actions"><RouterLink :to="`/stores/${storeId}`" target="_blank">查看公开店铺</RouterLink><RouterLink to="/admin/stores">返回列表</RouterLink></div></header><p v-if="message" class="alert success" aria-live="polite">{{ message }}</p><PageState :loading="loading" :error="error" :empty="!loading && !store" empty-title="店铺不存在" @retry="load"><template v-if="store"><nav class="tab-list" aria-label="店铺运营分区"><button v-for="entry in ([['profile','店铺资料'],['groups','商品分组'],['shipping','配送模板'],['announcements','店铺公告'],['featured','推荐位']] as const)" :key="entry[0]" type="button" :class="{ active: section === entry[0] }" @click="section = entry[0]">{{ entry[1] }}</button><RouterLink :to="`/admin/stores/${storeId}/policies`">服务政策</RouterLink></nav>
-      <div v-if="section === 'profile'" class="admin-detail-grid"><form class="card admin-editor" @submit.prevent="saveProfile"><h2>基础资料</h2><label>店铺名称<input v-model.trim="profile.store_name" minlength="2" maxlength="128" required /></label><label>店铺简介<textarea v-model.trim="profile.description" maxlength="2000" /></label><AdminFileUpload purpose="store_logo" :business-context-id="storeId" label="上传店铺 Logo" @uploaded="profile.logo_file_id = $event" /><p v-if="profile.logo_file_id" class="muted">待绑定文件：{{ profile.logo_file_id }}</p><button :disabled="saving || !auth.has('stores:manage')">保存资料</button><div class="actions"><RouterLink :to="{ path: '/admin/products', query: { store_id: storeId } }">管理该店商品</RouterLink><RouterLink :to="{ path: '/admin/orders', query: { store_id: storeId } }">查看该店订单</RouterLink></div></form><form class="card admin-editor" @submit.prevent="changeStatus"><h2>状态命令</h2><p>当前：<span class="badge">{{ store.status }}</span> · 版本 v{{ store.version }}</p><div class="alert info">暂停或关闭会影响新商品购买与公开展示；历史订单和售后事实不删除。</div><label>动作<select v-model="statusForm.action"><option value="activate">开通</option><option value="suspend">暂停</option><option value="resume">恢复</option><option value="close">关闭</option></select></label><label>原因码<input v-model.trim="statusForm.reason_code" required pattern="[A-Z][A-Z0-9_]{1,63}" /></label><label>原因<textarea v-model.trim="statusForm.reason" required minlength="2" maxlength="500" /></label><button class="danger" :disabled="saving || !auth.has('stores:manage')">执行状态命令</button><hr /><h3>注销店铺与商家账号</h3><p class="muted">从未产生交易时可以物理删除；有交易历史时系统会阻止，只能关闭店铺。</p><button type="button" class="danger" :disabled="saving || !auth.has('stores:manage')" @click="deleteOpen = true">删除店铺</button></form></div>
-      <div v-else-if="section === 'groups'" class="admin-split"><div class="card-list"><article v-for="item in groups" :key="item.group_id" class="card"><h2>{{ item.group_name }}</h2><p><span class="badge">{{ item.status }}</span> · {{ item.product_ids.length }} 件商品 · 排序 {{ item.sort_order }}</p><button type="button" class="secondary small" @click="chooseGroup(item)">编辑完整集合</button></article></div><form class="card admin-editor" @submit.prevent="saveGroup"><h2>{{ selectedGroup ? '编辑商品分组' : '新建商品分组' }}</h2><label>分组名称<input v-model.trim="groupForm.group_name" required maxlength="64" /></label><label>父分组<select v-model="groupForm.parent_group_id"><option value="">无</option><option v-for="item in groups.filter((value) => value.group_id !== selectedGroup?.group_id)" :key="item.group_id" :value="item.group_id">{{ item.group_name }}</option></select></label><label>排序<input v-model.number="groupForm.sort_order" type="number" min="0" max="100000" /></label><label>商品公开 ID（每行一个）<textarea v-model.trim="groupForm.product_ids" rows="8" placeholder="prd_…" /></label><p class="muted">保存时完整替换分组商品集合，服务端拒绝跨店商品。</p><div class="actions"><button :disabled="saving">保存分组</button><button v-if="selectedGroup" type="button" class="secondary" @click="resetGroup">取消</button></div></form></div>
-      <div v-else-if="section === 'shipping'" class="admin-split"><div class="card-list"><article v-for="item in shipping" :key="item.template_id" class="card"><div class="card-heading"><h2>{{ item.template_name }}</h2><span class="badge">{{ item.status }}</span></div><p>{{ item.delivery_type }} · {{ item.charge_mode }} · 发货 {{ item.dispatch_min_hours }}–{{ item.dispatch_max_hours }} 小时</p><p class="muted">版本 {{ item.policy_version }} · {{ item.rules.length }} 条区域规则</p><div class="actions"><button type="button" class="secondary small" :disabled="item.status !== 'draft'" @click="editShipping(item)">编辑草稿</button><button type="button" class="small" :disabled="item.status !== 'draft' || shippingForm.reason.trim().length < 2 || saving" @click="publishShipping(item)">发布此版本</button></div></article></div><form class="card admin-editor" @submit.prevent="saveShipping"><h2>{{ shippingEditing ? '编辑配送模板草稿' : '新建配送模板草稿' }}</h2><label>模板名称<input v-model.trim="shippingForm.template_name" required maxlength="128" /></label><div class="field-grid"><label>配送类型<select v-model="shippingForm.delivery_type"><option value="express">快递</option><option value="same_day">当日达</option><option value="self_pickup">自提</option></select></label><label>计费方式<select v-model="shippingForm.charge_mode"><option value="fixed">固定</option><option value="by_item">按件</option><option value="by_weight">按重量</option></select></label><label>最短发货小时<input v-model.number="shippingForm.dispatch_min_hours" type="number" min="0" max="8760" /></label><label>最长发货小时<input v-model.number="shippingForm.dispatch_max_hours" type="number" min="0" max="8760" /></label></div><label>区域范围 JSON<textarea v-model="shippingForm.region_scope" required /></label><div class="field-grid"><label>首单位<input v-model.number="shippingForm.first_unit" type="number" min="1" /></label><label>续单位<input v-model.number="shippingForm.additional_unit" type="number" min="1" /></label><label>首费（分）<input v-model.number="shippingForm.first_fee_amount" type="number" min="0" /></label><label>续费（分）<input v-model.number="shippingForm.additional_fee_amount" type="number" min="0" /></label><label>预计最短天<input v-model.number="shippingForm.estimated_min_days" type="number" min="0" /></label><label>预计最长天<input v-model.number="shippingForm.estimated_max_days" type="number" min="0" /></label></div><label>发布原因<textarea v-model.trim="shippingForm.reason" maxlength="500" placeholder="发布按钮使用，至少 2 个字" /></label><div class="actions"><button :disabled="saving">保存草稿</button><button v-if="shippingEditing" type="button" class="secondary" @click="resetShipping">取消</button></div></form></div>
-      <div v-else-if="section === 'announcements'" class="admin-split"><div class="card-list"><article v-for="item in announcements" :key="item.announcement_id" class="card"><div class="card-heading"><h2>{{ item.title }}</h2><span class="badge">{{ item.status }}</span></div><p>{{ item.content }}</p><p class="muted">{{ item.starts_at || '立即' }} 至 {{ item.ends_at || '长期' }}</p><button type="button" class="secondary small" @click="editAnnouncement(item)">编辑</button></article></div><form class="card admin-editor" @submit.prevent="saveAnnouncement"><h2>{{ announcementEditing ? '编辑公告' : '新建公告' }}</h2><label>标题<input v-model.trim="announcementForm.title" required maxlength="128" /></label><label>内容<textarea v-model.trim="announcementForm.content" required maxlength="2000" /></label><label>状态<select v-model="announcementForm.status"><option value="draft">草稿</option><option value="published">发布</option><option value="disabled">停用</option></select></label><div class="field-grid"><label>开始<input v-model="announcementForm.starts_at" type="datetime-local" /></label><label>结束<input v-model="announcementForm.ends_at" type="datetime-local" /></label></div><label>排序<input v-model.number="announcementForm.sort_order" type="number" min="0" /></label><div class="actions"><button :disabled="saving">保存公告</button><button v-if="announcementEditing" type="button" class="secondary" @click="resetAnnouncement">取消</button></div></form></div>
-      <div v-else class="admin-split"><div class="card-list"><article v-for="item in featured" :key="`${item.slot_type}-${item.product_id}`" class="card"><strong>{{ item.product_id }}</strong><p>{{ item.slot_type }} · 排序 {{ item.sort_order }}</p></article><p v-if="!featured.length" class="empty-state">当前推荐位为空</p></div><form class="card admin-editor" @submit.prevent="replaceFeatured"><h2>完整替换推荐位</h2><label>推荐位<select v-model="featuredForm.slot_type" @change="loadFeatured"><option value="recommended">推荐</option><option value="hot">热门</option></select></label><label>商品公开 ID（每行一个，最多 12 个）<textarea v-model.trim="featuredForm.product_ids" rows="10" placeholder="prd_…" /></label><p class="alert info">提交的是目标完整集合，不做增量追加；跨店或不可见商品会被拒绝。</p><button :disabled="saving">确认替换</button></form></div>
-    </template></PageState><div v-if="deleteOpen" class="admin-form-overlay" @click.self="deleteOpen = false"><form class="admin-form-dialog admin-delete-dialog" @submit.prevent="deleteStore"><header><div><p class="eyebrow">DANGEROUS ACTION</p><h2>删除店铺与商家账号</h2><p>操作不可恢复；如存在交易，后端会阻止删除。</p></div><button type="button" @click="deleteOpen = false">×</button></header><div class="admin-form-fields"><label class="wide">删除原因<textarea v-model.trim="deleteReason" required minlength="2" maxlength="500" /></label><label class="wide">输入 DELETE_STORE 确认<input v-model.trim="deleteConfirmation" required /></label></div><footer><button type="button" class="secondary" @click="deleteOpen = false">取消</button><button class="danger" :disabled="saving || deleteConfirmation !== 'DELETE_STORE'">永久删除</button></footer></form></div></section>
+  <section class="admin-page-stack admin-store-workspace">
+    <div class="admin-workspace-breadcrumb"><RouterLink to="/admin/stores">店铺运营</RouterLink><span>›</span><strong>{{ store?.store_name || storeId }}</strong></div>
+    <p v-if="notice" class="alert success" aria-live="polite">{{ notice }}</p>
+    <PageState :loading="loading" :error="error" :empty="!loading && !store" empty-title="店铺不存在" @retry="load">
+      <template v-if="store">
+        <header class="admin-store-workspace-hero">
+          <div class="admin-store-workspace-brand"><span><img v-if="store.logo_url" :src="resolveApiAssetUrl(store.logo_url) || undefined" alt="" /><template v-else>{{ store.store_name.slice(0, 1) }}</template></span><div><p class="eyebrow">平台监管视角 · {{ store.store_id }}</p><h1>{{ store.store_name }}</h1><p>{{ store.description || '暂无店铺简介，管理员可以补充。' }}</p><small :class="store.status">● {{ statusLabel(store.status) }}</small></div></div>
+          <div class="actions"><RouterLink class="button-link secondary" :to="`/stores/${storeId}`" target="_blank">查看顾客端 ↗</RouterLink><button v-if="auth.has('stores:manage')" type="button" class="secondary" @click="editingProfile = !editingProfile">编辑店铺资料</button><button v-if="auth.has('stores:manage')" type="button" :class="store.status === 'active' ? 'danger' : ''" :disabled="saving" @click="toggleStoreStatus">{{ store.status === 'active' ? '暂停营业' : '恢复营业' }}</button></div>
+        </header>
+
+        <form v-if="editingProfile" class="admin-store-profile-editor" @submit.prevent="saveProfile">
+          <header><div><h2>编辑顾客看到的店铺资料</h2><p>本次修改由超级管理员执行并写入操作审计。</p></div><button type="button" class="secondary small" @click="editingProfile = false">取消</button></header>
+          <div class="admin-store-profile-fields"><label>店铺名称<input v-model.trim="profile.store_name" required minlength="2" maxlength="128" /></label><label class="wide">店铺简介<textarea v-model.trim="profile.description" maxlength="2000" rows="4" /></label><AdminFileUpload purpose="store_logo" :business-context-id="storeId" label="上传新的店铺 Logo" @uploaded="profile.logo_file_id = $event" /></div>
+          <footer><button type="button" class="danger" @click="deleteOpen = true">删除店铺</button><button :disabled="saving">{{ saving ? '正在保存…' : '保存店铺资料' }}</button></footer>
+        </form>
+
+        <section class="admin-store-metrics" aria-label="店铺经营概览">
+          <article class="revenue"><span>总营业额</span><strong>{{ revenue ? formatMoney(revenue.net_revenue) : '—' }}</strong><small>顾客确认收货后计入，已扣除退款</small></article>
+          <article><span>商品数量</span><strong>{{ revenue?.product_count ?? 0 }}</strong><small>当前店铺全部商品</small></article>
+          <article><span>累计销量</span><strong>{{ store.sales_count }}</strong><small>历史成交件数</small></article>
+          <article><span>店铺评分</span><strong>{{ Number(store.rating_score).toFixed(1) }}</strong><small>{{ store.rating_count }} 条有效评价</small></article>
+        </section>
+
+        <nav class="admin-store-workspace-tabs" aria-label="店铺监管内容"><button type="button" :class="{ active: section === 'products' }" @click="chooseSection('products')"><span>店铺的商品</span><small>查看、编辑与调整营业状态</small></button><button type="button" :class="{ active: section === 'orders' }" @click="chooseSection('orders')"><span>店铺的订单</span><small>监管履约、售后与异常交易</small></button></nav>
+
+        <section v-if="section === 'products'" class="admin-store-panel">
+          <header><div><p class="eyebrow">STORE PRODUCTS</p><h2>该店铺的商品</h2><p>这里的操作身份是超级管理员；所有状态调整都会留痕，不会伪装成店铺人员。</p></div><RouterLink v-if="auth.has('products:create')" class="button-link" :to="{ path: '/admin/products/new', query: { store_id: storeId, return_to: route.fullPath } }">＋ 为该店铺新增商品</RouterLink></header>
+          <div class="merchant-products-toolbar"><div class="merchant-segmented" aria-label="商品营业状态"><button v-for="tab in productTabs" :key="tab.value || 'all'" type="button" :class="{ active: productStatus === tab.value }" @click="chooseProductStatus(tab.value)">{{ tab.label }}</button></div><form class="merchant-product-search" @submit.prevent="loadProducts"><input v-model="productQuery" placeholder="搜索该店商品" /><button>搜索</button></form></div>
+          <PageState :loading="panelLoading" :error="''" :empty="!products.length" empty-title="当前分类没有商品" @retry="loadProducts"><div class="admin-store-product-grid"><article v-for="item in products" :key="item.product_id" class="merchant-product-card merchant-manage-card"><RouterLink class="merchant-product-card-link" :to="{ path: `/admin/products/${item.product_id}`, query: { return_to: route.fullPath } }"><div class="merchant-product-cover"><img v-if="item.cover_image_url" :src="resolveApiAssetUrl(item.cover_image_url) || undefined" :alt="item.product_name" /><div v-else><span>暂无图片</span><small>进入商品补充款式图片</small></div><em :class="`status-${item.status}`">{{ statusLabel(item.status) }}</em><span class="merchant-card-edit-action">管理员编辑</span></div><div class="merchant-product-card-body"><h2>{{ item.product_name }}</h2><div class="merchant-product-price"><strong>¥{{ item.min_price }}</strong><span v-if="item.min_price !== item.max_price">起</span></div><dl><div><dt>款式</dt><dd>{{ item.sku_count }}</dd></div><div><dt>库存</dt><dd>{{ item.available_quantity }}</dd></div><div><dt>销量</dt><dd>{{ item.sales_count }}</dd></div><div><dt>评价</dt><dd>★ {{ item.rating_score }}</dd></div></dl></div></RouterLink><button v-if="item.status === 'on_sale' || item.status === 'off_shelf'" type="button" class="admin-product-status-toggle" :disabled="saving" @click="toggleProduct(item)">{{ item.status === 'on_sale' ? '下架商品' : '重新上架' }}</button><RouterLink v-else class="admin-product-status-toggle" :to="`/admin/products/${item.product_id}`">处理{{ statusLabel(item.status) }}商品</RouterLink></article></div></PageState>
+          <p class="admin-store-panel-footnote">当前载入可售库存 {{ totalStock }} 件。库存编辑、款式图片、详情、常见问题与评价处理均从具体商品进入。</p>
+        </section>
+
+        <section v-else class="admin-store-panel admin-store-orders-panel">
+          <header><div><p class="eyebrow">STORE ORDERS</p><h2>该店铺的订单</h2><p>超级管理员负责监管和异常处置；页面中的“顾客”与“店铺”角色保持真实关系。</p></div></header>
+          <section v-if="revenue" class="merchant-income-grid"><article class="primary"><span>总营业额</span><strong>{{ formatMoney(revenue.net_revenue) }}</strong><small>确认收货金额减退款</small></article><article><span>今日收益</span><strong>{{ formatMoney(revenue.today_revenue) }}</strong></article><article><span>昨日收益</span><strong>{{ formatMoney(revenue.yesterday_revenue) }}</strong></article><article><span>近 30 日收益</span><strong>{{ formatMoney(revenue.last_30_days_revenue) }}</strong></article></section>
+          <nav class="merchant-order-tabs"><button v-for="tab in orderTabs" :key="tab.value" type="button" :class="{ active: orderView === tab.value, urgent: tab.value === 'after_sale' && tab.count > 0 }" @click="chooseOrderView(tab.value)"><span>{{ tab.label }}</span><b>{{ tab.count }}</b></button></nav>
+          <PageState :loading="panelLoading" :error="''" :empty="!orders.length" empty-title="当前分类没有订单" @retry="loadOrders"><div class="merchant-order-list"><article v-for="item in orders" :key="item.order.order_id" class="merchant-order-card" :class="{ aftersale: item.order.after_sale_status === 'in_progress' }"><header><div><strong>{{ orderStatusLabel(item) }}</strong><small>{{ dateTime(item.order.created_at) }} · 订单 {{ item.order.order_id }}</small></div><span>顾客 {{ item.user_name_masked }}</span></header><div class="merchant-order-lines"><div v-for="line in item.order.items" :key="line.order_item_id"><img v-if="line.image_url" :src="resolveApiAssetUrl(line.image_url) || undefined" alt="" /><div v-else class="order-image-placeholder">商品</div><span><strong>{{ line.product_name }}</strong><small>{{ line.sku_name }} · × {{ line.quantity }}</small></span><b>{{ formatMoney(line.payable_amount) }}</b></div></div><footer><span>实付 {{ formatMoney(item.order.amounts.paid_amount) }}<small v-if="item.order.amounts.refunded_amount.minor_units !== '0'">已退款 {{ formatMoney(item.order.amounts.refunded_amount) }}</small></span><div class="actions"><RouterLink class="button-link secondary" :to="{ path: `/admin/orders/${item.order.order_id}`, query: { return_to: route.fullPath } }">监管订单详情</RouterLink></div></footer></article></div></PageState>
+        </section>
+      </template>
+    </PageState>
+    <Teleport to="body"><div v-if="deleteOpen" class="admin-form-overlay" @click.self="deleteOpen = false"><form class="admin-form-dialog" @submit.prevent="deleteStore"><header><div><p class="eyebrow">DANGER ZONE</p><h2>删除“{{ store?.store_name }}”及商家账号</h2><p>只有从未产生交易的店铺可以物理删除；已有订单时服务端会阻断，请改用“暂停营业”。</p></div><button type="button" @click="deleteOpen = false">×</button></header><label>删除原因<textarea v-model.trim="deleteReason" required minlength="2" maxlength="500" /></label><label>输入 DELETE_STORE 确认<input v-model.trim="deleteConfirmation" required /></label><footer><button type="button" class="secondary" @click="deleteOpen = false">取消</button><button class="danger" :disabled="saving || deleteConfirmation !== 'DELETE_STORE' || deleteReason.length < 2">{{ saving ? '正在删除…' : '永久删除无交易店铺' }}</button></footer></form></div></Teleport>
+  </section>
 </template>

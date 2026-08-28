@@ -75,6 +75,10 @@ class MerchantRevenueView(StrictRequest):
     cancelled_count: int
 
 
+class AdminStoreRevenueView(MerchantRevenueView):
+    product_count: int
+
+
 class AccountDeletionRequest(StrictRequest):
     confirmation: Literal["DELETE_MY_ACCOUNT"]
 

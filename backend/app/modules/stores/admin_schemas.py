@@ -76,7 +76,7 @@ class AdminStoreList(StrictRequest):
 
 
 class AdminStoreStatusChangeRequest(StrictRequest):
-    action: Literal["activate", "suspend", "resume", "close"]
+    action: Literal["suspend", "resume"]
     reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
     reason: str = Field(min_length=2, max_length=500)
 

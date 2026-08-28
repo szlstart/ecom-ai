@@ -50,21 +50,9 @@ def test_catalog_and_store_openapi_operations_are_stable() -> None:
             "post",
         ): "AdminStore_ChangeStatus",
         (
-            "/api/v1/admin/store-certifications",
+            "/api/v1/admin/stores/{store_id}/revenue",
             "get",
-        ): "AdminStoreCertification_List",
-        (
-            "/api/v1/admin/store-certifications/{certification_id}",
-            "get",
-        ): "AdminStoreCertification_Get",
-        (
-            "/api/v1/admin/store-certifications/{certification_id}/decisions",
-            "post",
-        ): "AdminStoreCertification_Decide",
-        (
-            "/api/v1/admin/store-certifications/{certification_id}/material-versions",
-            "post",
-        ): "AdminStoreCertification_AddMaterialVersion",
+        ): "AdminStoreRevenue_Get",
         (
             "/api/v1/admin/stores/{store_id}/service-policies",
             "get",

@@ -177,7 +177,7 @@ pre { max-width: 100%; overflow: auto; padding: 12px; border-radius: 8px; backgr
 .back-link { display: inline-flex; margin-bottom: 20px; }
 .product-detail-page { min-width: 0; display: grid; gap: 20px; }
 .product-detail-page .back-link { margin-bottom: -4px; }
-.product-detail-layout { height: calc(100vh - 154px); min-height: 680px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(390px, 440px); align-items: stretch; gap: 24px; overflow: hidden; }
+.product-detail-layout { height: calc(100vh - 154px); min-height: 680px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(445px, 500px); align-items: stretch; gap: 24px; overflow: hidden; }
 .product-detail-main { min-width: 0; padding-right: 6px; display: grid; align-content: start; gap: 24px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .gallery, .content-section, .purchase-panel { padding: 22px; border: 1px solid #e3e7ef; border-radius: 18px; background: #fff; }
 .gallery-stage { aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border-radius: 12px; background: #f0f2f6; }
@@ -775,7 +775,7 @@ tr.selected td { background: #f0f4ff; }
 .merchant-new-product > span { font-size: 4rem; color: #2d9870; }
 .merchant-new-product h1 { margin: 4px 0 10px; }
 .merchant-live-editor { display: grid; grid-template-columns: minmax(420px, 1fr) minmax(400px, .9fr); gap: 30px; align-items: start; }
-.merchant-editor-layout { height: calc(100vh - 220px); min-height: 700px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(390px, 440px); align-items: stretch; gap: 24px; overflow: hidden; }
+.merchant-editor-layout { height: calc(100vh - 220px); min-height: 700px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(445px, 500px); align-items: stretch; gap: 24px; overflow: hidden; }
 .merchant-editor-content { min-width: 0; padding-right: 6px; display: grid; align-content: start; gap: 20px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .merchant-gallery-editor, .merchant-product-info-editor { min-width: 0; }
 .merchant-gallery-editor { padding: 24px; border: 1px solid #e1e5df; border-radius: 20px; background: #fff; }

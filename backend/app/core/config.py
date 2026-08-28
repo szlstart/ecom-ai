@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     order_auto_confirm_days: int = Field(default=7, ge=1, le=30)
     payment_reconcile_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)
     payment_reconcile_batch_size: int = Field(default=100, ge=1, le=1000)
-    logistics_sync_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)
+    logistics_sync_poll_seconds: float = Field(default=0.5, ge=0.5, le=60)
     logistics_sync_stale_seconds: int = Field(default=300, ge=30, le=86_400)
     logistics_sync_batch_size: int = Field(default=100, ge=1, le=1000)
     review_submission_window_days: int = Field(default=30, ge=1, le=365)

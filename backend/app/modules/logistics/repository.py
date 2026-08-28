@@ -3,17 +3,18 @@ from __future__ import annotations
 from datetime import datetime
 from typing import cast
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from app.modules.catalog.models import ProductFulfillmentProfile
 from app.modules.logistics.models import (
     LogisticsSyncLog,
     Shipment,
     ShipmentItem,
     ShipmentTrack,
 )
-from app.modules.orders.models import Order, OrderItem
+from app.modules.orders.models import Order, OrderAddress, OrderItem
 from app.modules.stores.models import Store
 
 
@@ -190,7 +191,9 @@ class LogisticsRepository:
         now: datetime,
         stale_before: datetime,
         limit: int,
+        simulated_stale_before: datetime | None = None,
     ) -> list[Shipment]:
+        simulated_threshold = simulated_stale_before or stale_before
         latest_log = aliased(LogisticsSyncLog)
         latest_log_id = (
             select(func.max(LogisticsSyncLog.id))
@@ -209,7 +212,14 @@ class LogisticsRepository:
                         ),
                         or_(
                             latest_log.id.is_(None),
-                            latest_log.created_at < stale_before,
+                            and_(
+                                Shipment.carrier_code == "fake_express",
+                                latest_log.created_at < simulated_threshold,
+                            ),
+                            and_(
+                                Shipment.carrier_code != "fake_express",
+                                latest_log.created_at < stale_before,
+                            ),
                             and_(
                                 latest_log.sync_status == "retry",
                                 latest_log.next_retry_at.is_not(None),
@@ -226,6 +236,51 @@ class LogisticsRepository:
                     .limit(limit)
                 )
             ).all()
+        )
+
+    async def automatic_shipment_candidates(self, limit: int) -> list[str]:
+        active_shipment_exists = exists(
+            select(Shipment.id).where(
+                Shipment.order_id == Order.id,
+                Shipment.shipment_status != "voided",
+            )
+        )
+        return list(
+            (
+                await self.session.scalars(
+                    select(Order.order_no)
+                    .where(
+                        Order.payment_status.in_({"paid", "partially_refunded"}),
+                        Order.order_status == "pending_shipment",
+                        Order.fulfillment_status == "unfulfilled",
+                        Order.after_sale_status != "in_progress",
+                        ~active_shipment_exists,
+                    )
+                    .order_by(Order.paid_at, Order.id)
+                    .limit(limit)
+                )
+            ).all()
+        )
+
+    async def order_address(self, order_id: int) -> OrderAddress | None:
+        return cast(
+            OrderAddress | None,
+            await self.session.scalar(
+                select(OrderAddress).where(OrderAddress.order_id == order_id)
+            ),
+        )
+
+    async def shipment_origin_region_code(self, shipment_id: int) -> str | None:
+        return cast(
+            str | None,
+            await self.session.scalar(
+                select(ProductFulfillmentProfile.origin_region_code)
+                .join(OrderItem, OrderItem.product_id == ProductFulfillmentProfile.product_id)
+                .join(ShipmentItem, ShipmentItem.order_item_id == OrderItem.id)
+                .where(ShipmentItem.shipment_id == shipment_id)
+                .order_by(ShipmentItem.id)
+                .limit(1)
+            ),
         )
 
     async def admin_order(
@@ -290,6 +345,6 @@ class LogisticsRepository:
             .where(Shipment.shipment_no == shipment_no)
         )
         if for_update:
-            statement = statement.with_for_update(of=Shipment)
+            statement = statement.with_for_update()
         row = (await self.session.execute(statement)).one_or_none()
         return (row[0], row[1], row[2]) if row else None

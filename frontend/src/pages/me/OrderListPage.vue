@@ -9,6 +9,7 @@ import { ensureStoreConversation, setConversationContext } from '@/api/messaging
 import { cancelOrder, confirmOrderReceipt, hideOrder, listMyOrders, ORDER_VIEWS, repurchaseOrder, restoreOrder, type OrderAction, type OrderHideResult, type OrderSummary, type OrderView } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import OrderProductEntry from '@/components/OrderProductEntry.vue'
+import OrderLogisticsDialog from '@/components/OrderLogisticsDialog.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { useMessageCenterStore } from '@/stores/message-center'
 
@@ -24,6 +25,7 @@ const error = ref('')
 const message = ref('')
 const busyOrder = ref('')
 const hiddenOrder = ref<OrderHideResult | null>(null)
+const logisticsOrderId = ref<string | null>(null)
 const searchText = ref(String(route.query.q ?? ''))
 const previousCursor = ref<string | null>(null)
 const nextCursor = ref<string | null>(null)
@@ -79,6 +81,10 @@ async function runAction(action: OrderAction, order: OrderSummary) {
   if (!action.enabled || busyOrder.value) return
   if (action.code === 'pay') {
     await router.push({ name: action.target.name, params: action.target.params })
+    return
+  }
+  if (action.code === 'view_logistics') {
+    logisticsOrderId.value = order.order_id
     return
   }
   if (action.code === 'contact_store') {
@@ -193,4 +199,5 @@ watch(() => route.fullPath, () => {
       </nav>
     </PageState>
   </section>
+  <OrderLogisticsDialog :order-id="logisticsOrderId" @close="logisticsOrderId = null" />
 </template>

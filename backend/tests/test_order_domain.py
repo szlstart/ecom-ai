@@ -99,6 +99,12 @@ def test_available_actions_share_the_hide_policy() -> None:
     assert available_action_codes(pending, utc_now()) == ["pay", "cancel_order"]
     processing = _snapshot(payment_status="processing")
     assert available_action_codes(processing, utc_now()) == []
+    paid_waiting_for_waybill = _snapshot(
+        order_status="pending_shipment", payment_status="paid"
+    )
+    assert available_action_codes(paid_waiting_for_waybill, utc_now()) == [
+        "view_logistics"
+    ]
     completed_pending_review = _snapshot(
         order_status="completed",
         fulfillment_status="received",

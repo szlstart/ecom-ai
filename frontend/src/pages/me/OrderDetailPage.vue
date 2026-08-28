@@ -9,6 +9,7 @@ import { ensureStoreConversation, setConversationContext } from '@/api/messaging
 import { cancelOrder, confirmOrderReceipt, getMyOrder, hideOrder, repurchaseOrder, restoreOrder, type OrderAction, type OrderDetail, type OrderHideResult } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import OrderProductEntry from '@/components/OrderProductEntry.vue'
+import OrderLogisticsDialog from '@/components/OrderLogisticsDialog.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { formatChinaRegion } from '@/utils/china-regions'
@@ -23,6 +24,7 @@ const error = ref('')
 const message = ref('')
 const busy = ref(false)
 const hidden = ref<OrderHideResult | null>(null)
+const logisticsOrderId = ref<string | null>(null)
 
 function token(): string {
   if (!auth.accessToken) throw new Error('missing user token')
@@ -50,7 +52,11 @@ async function load() {
 }
 async function runAction(action: OrderAction) {
   if (!order.value || busy.value || !action.enabled) return
-  if (['pay', 'apply_after_sale', 'view_after_sale', 'view_logistics', 'review'].includes(action.code)) {
+  if (action.code === 'view_logistics') {
+    logisticsOrderId.value = order.value.order_id
+    return
+  }
+  if (['pay', 'apply_after_sale', 'view_after_sale', 'review'].includes(action.code)) {
     await router.push({ name: action.target.name, params: action.target.params })
     return
   }
@@ -146,10 +152,11 @@ onMounted(load)
             <article class="card order-section"><p class="eyebrow">收货信息</p><h2>{{ order.address.recipient_name }}</h2><p>{{ order.address.phone_masked }}</p><p>{{ formatChinaRegion(order.address) }} {{ order.address.address }}</p><small>此处展示下单时的地址快照，修改地址簿不会影响本订单。</small></article>
             <article class="card order-section"><p class="eyebrow">金额明细</p><dl class="amount-list"><dt>商品金额</dt><dd>{{ formatMoney(order.amounts.goods_amount) }}</dd><dt>运费</dt><dd>{{ formatMoney(order.amounts.freight_amount) }}</dd><dt>调整金额</dt><dd>{{ formatMoney(order.amounts.adjustment_amount) }}</dd><dt>实付金额</dt><dd>{{ formatMoney(order.amounts.paid_amount) }}</dd><dt class="total">应付金额</dt><dd class="total">{{ formatMoney(order.amounts.payable_amount) }}</dd></dl></article>
             <article v-if="order.buyer_remark" class="card order-section"><p class="eyebrow">买家留言</p><p>{{ order.buyer_remark }}</p></article>
-            <article v-if="order.fulfillment_status === 'unfulfilled'" class="alert info"><strong>物流信息</strong><p>商家正在备货，暂无物流信息。</p></article>
+            <article v-if="order.fulfillment_status === 'unfulfilled'" class="alert info"><strong>物流信息</strong><p>{{ order.payment_status === 'paid' ? '支付已完成，模拟物流单正在自动生成。可点击“查看物流”实时查看。' : '商家正在备货，暂无物流信息。' }}</p></article>
           </aside>
         </div>
       </template>
     </PageState>
   </section>
+  <OrderLogisticsDialog :order-id="logisticsOrderId" @close="logisticsOrderId = null" />
 </template>

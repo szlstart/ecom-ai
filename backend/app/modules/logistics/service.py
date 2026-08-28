@@ -44,6 +44,7 @@ from app.modules.logistics.schemas import (
     LogisticsWebhookAck,
     ShipmentItemView,
     ShipmentRefreshResult,
+    ShipmentRouteView,
     ShipmentStatus,
     ShipmentTrackList,
     ShipmentTrackView,
@@ -115,6 +116,7 @@ class LogisticsService:
         latest_sync = await self.repository.latest_sync(
             shipment.id, sync_statuses=("success", "no_change")
         )
+        route = await self._route_view(shipment, order)
         return UserShipmentDetail(
             shipment_id=shipment.shipment_no,
             order_id=order.order_no,
@@ -128,6 +130,8 @@ class LogisticsService:
             items=_items(item_map.get(shipment.id, [])),
             delivery_estimate=_estimate(shipment),
             latest_tracks=[_track(item) for item in tracks],
+            route=route,
+            shipped_at=shipment.shipped_at,
             last_synced_at=latest_sync.created_at if latest_sync else None,
             version=shipment.version,
         )
@@ -881,12 +885,14 @@ class LogisticsService:
         stale_after_seconds: int = 300,
     ) -> int:
         now = utc_now()
+        created = await self._create_automatic_shipments(limit=limit, now=now)
         candidates = await self.repository.sync_candidates(
             now=now,
             stale_before=now - timedelta(seconds=stale_after_seconds),
+            simulated_stale_before=now - timedelta(seconds=1),
             limit=limit,
         )
-        processed = 0
+        processed = created
         for candidate in candidates:
             if await self.sync_shipment(candidate.shipment_no, now=now):
                 processed += 1
@@ -914,14 +920,17 @@ class LogisticsService:
             tracking_no = self.security.decrypt(
                 "shipment-tracking-no", candidate.tracking_no_ciphertext
             )
-            snapshot = await _provider(candidate.carrier_code).query_tracking(
-                carrier_code=candidate.carrier_code,
-                tracking_no=tracking_no,
-            )
+            if candidate.carrier_code == "fake_express":
+                snapshot = await self._simulated_snapshot(candidate, tracking_no, effective_now)
+            else:
+                snapshot = await _provider(candidate.carrier_code).query_tracking(
+                    carrier_code=candidate.carrier_code,
+                    tracking_no=tracking_no,
+                )
             locked = await self.repository.shipment_by_no(shipment_no, for_update=True)
             if locked is None:
                 return False
-            shipment = locked[0]
+            shipment, order, _ = locked
             if not hmac.compare_digest(shipment.tracking_no_hash, queried_hash):
                 self.session.add(
                     _sync_log(
@@ -942,6 +951,7 @@ class LogisticsService:
                 await self._apply_provider_snapshot(
                     shipment,
                     snapshot,
+                    order=order,
                     sync_type="poll",
                     response_hash=_snapshot_hash(snapshot),
                     now=effective_now,
@@ -982,6 +992,7 @@ class LogisticsService:
         response_hash: bytes,
         now: datetime,
         duration_ms: int = 0,
+        order: Order | None = None,
     ) -> tuple[int, int]:
         created = 0
         duplicates = 0
@@ -1077,6 +1088,8 @@ class LogisticsService:
                 )
             )
         estimate_changed = _apply_carrier_estimate(shipment, snapshot, now)
+        if created and order is not None:
+            await self._project_order_shipped(order, shipment, now)
         if estimate_changed and created == 0:
             shipment.version += 1
             request_id = request_id_context.get() or new_prefixed_ulid("req_")
@@ -1108,6 +1121,201 @@ class LogisticsService:
             )
         )
         return created, duplicates
+
+    async def _create_automatic_shipments(self, *, limit: int, now: datetime) -> int:
+        created = 0
+        for order_no in await self.repository.automatic_shipment_candidates(limit):
+            row = await self.repository.admin_order(order_no, for_update=True)
+            if row is None:
+                continue
+            order, store = row
+            if (
+                order.payment_status not in {"paid", "partially_refunded"}
+                or order.order_status != "pending_shipment"
+                or order.fulfillment_status != "unfulfilled"
+                or order.after_sale_status == "in_progress"
+                or await self.repository.allocated_quantities(order.id)
+            ):
+                continue
+            order_items = await self.repository.order_items_for_update(order.id)
+            if not order_items:
+                continue
+            tracking_no = _normalize_tracking_no(
+                f"ECOM{new_prefixed_ulid('trk_').replace('_', '')}"
+            )
+            tracking_hash = self.security.keyed_hash(
+                "shipment-tracking-no", f"fake_express:{tracking_no}"
+            )
+            started_at = order.paid_at or now
+            shipment = Shipment(
+                shipment_no=new_prefixed_ulid("shp_"),
+                order_id=order.id,
+                store_id=store.id,
+                carrier_code="fake_express",
+                carrier_name="Ecom 速运",
+                tracking_no_ciphertext=self.security.encrypt(
+                    "shipment-tracking-no", tracking_no
+                ),
+                tracking_no_hash=tracking_hash,
+                tracking_no_masked=_mask_tracking_no(tracking_no),
+                shipment_status="created",
+                estimated_delivery_min_at=started_at + timedelta(seconds=20),
+                estimated_delivery_max_at=started_at + timedelta(seconds=25),
+                estimate_source="carrier",
+                estimate_updated_at=now,
+                shipped_at=started_at,
+                key_version=1,
+            )
+            self.session.add(shipment)
+            await self.session.flush()
+            for item in order_items:
+                remaining = item.quantity - item.refunded_quantity
+                if remaining > 0:
+                    self.session.add(
+                        ShipmentItem(
+                            shipment_id=shipment.id,
+                            order_item_id=item.id,
+                            quantity=remaining,
+                        )
+                    )
+            self.session.add(
+                OutboxEvent(
+                    event_no=new_prefixed_ulid("evt_"),
+                    event_type="shipment.automatic_created.v1",
+                    aggregate_type="shipment",
+                    aggregate_no=shipment.shipment_no,
+                    aggregate_version=shipment.version,
+                    payload={
+                        "shipment_id": shipment.shipment_no,
+                        "order_id": order.order_no,
+                        "carrier_code": shipment.carrier_code,
+                    },
+                    event_status="pending",
+                    available_at=now,
+                    attempt_count=0,
+                    trace_id=request_id_context.get(),
+                )
+            )
+            created += 1
+        if created:
+            await self.session.commit()
+        return created
+
+    async def _simulated_snapshot(
+        self, shipment: Shipment, tracking_no: str, now: datetime
+    ) -> LogisticsProviderSnapshot:
+        started_at = shipment.shipped_at or shipment.created_at
+        address = await self.repository.order_address(shipment.order_id)
+        origin = await self.repository.shipment_origin_region_code(shipment.id)
+        destination_district = address.district_code if address is not None else None
+        destination_address = (
+            self.security.decrypt("address-detail", address.address_ciphertext)
+            if address is not None
+            else None
+        )
+        return _simulated_tracking_snapshot(
+            shipment_no=shipment.shipment_no,
+            tracking_no=tracking_no,
+            started_at=started_at,
+            now=now,
+            origin_region_code=origin,
+            destination_district_code=destination_district,
+            destination_address=destination_address,
+        )
+
+    async def _project_order_shipped(
+        self, order: Order, shipment: Shipment, now: datetime
+    ) -> None:
+        if (
+            order.order_status != "pending_shipment"
+            or order.fulfillment_status not in {"unfulfilled", "partial"}
+            or shipment.shipment_status == "created"
+        ):
+            return
+        order_items = await self.repository.order_items_for_update(order.id)
+        allocated = await self.repository.allocated_quantities(order.id)
+        if any(
+            allocated.get(item.id, 0) < item.quantity - item.refunded_quantity
+            for item in order_items
+        ):
+            return
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        previous_fulfillment = order.fulfillment_status
+        order.fulfillment_status = require_transition(
+            FULFILLMENT_TRANSITIONS, previous_fulfillment, "RecordAllItemsShipped"
+        )
+        order.version += 1
+        self.session.add(
+            OrderStatusLog(
+                order_id=order.id,
+                state_dimension="fulfillment",
+                from_status=previous_fulfillment,
+                to_status="shipped",
+                event_code="shipment.automatic_dispatched",
+                actor_type="system",
+                actor_id=None,
+                reason="模拟物流首条发货轨迹已生成",
+                order_version=order.version,
+                request_id=request_id,
+                trace_id=request_id,
+                created_at=now,
+            )
+        )
+        previous_order = order.order_status
+        order.order_status = require_transition(
+            ORDER_TRANSITIONS, previous_order, "RecordAllItemsShipped"
+        )
+        order.shipped_at = shipment.shipped_at or now
+        order.version += 1
+        self.session.add(
+            OrderStatusLog(
+                order_id=order.id,
+                state_dimension="order",
+                from_status=previous_order,
+                to_status="shipped",
+                event_code="order.automatic_shipped",
+                actor_type="system",
+                actor_id=None,
+                reason="模拟物流已发货",
+                order_version=order.version,
+                request_id=request_id,
+                trace_id=request_id,
+                created_at=now,
+            )
+        )
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="order.shipped.v1",
+                aggregate_type="order",
+                aggregate_no=order.order_no,
+                aggregate_version=order.version,
+                payload={
+                    "order_id": order.order_no,
+                    "shipment_id": shipment.shipment_no,
+                    "source": "automatic_simulation",
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+
+    async def _route_view(self, shipment: Shipment, order: Order) -> ShipmentRouteView:
+        address = await self.repository.order_address(order.id)
+        if address is None:
+            raise RuntimeError(f"order {order.order_no} has no address snapshot")
+        return ShipmentRouteView(
+            origin_region_code=await self.repository.shipment_origin_region_code(shipment.id),
+            country_code=address.country_code,
+            province_code=address.province_code,
+            city_code=address.city_code,
+            district_code=address.district_code,
+            destination_address=self.security.decrypt(
+                "address-detail", address.address_ciphertext
+            ),
+        )
 
     async def request_refresh(
         self,
@@ -1259,6 +1467,56 @@ def _items(rows: list[tuple[ShipmentItem, OrderItem]]) -> list[ShipmentItemView]
     return result
 
 
+def _simulated_tracking_snapshot(
+    *,
+    shipment_no: str,
+    tracking_no: str,
+    started_at: datetime,
+    now: datetime,
+    origin_region_code: str | None,
+    destination_district_code: str | None,
+    destination_address: str | None,
+) -> LogisticsProviderSnapshot:
+    definitions = (
+        (5, "picked_up", "WAITING_PICKUP", "已发货，待揽收", origin_region_code),
+        (10, "in_transit", "PICKED_UP", "已揽收，开始运输", origin_region_code),
+        (
+            15,
+            "in_transit",
+            "OUT_FOR_DELIVERY",
+            "正在派送中…",
+            destination_district_code,
+        ),
+        (20, "delivered", "DELIVERED", "已签收", destination_address),
+    )
+    tracks: list[LogisticsProviderTrack] = []
+    for offset, status, provider_status, description, location in definitions:
+        occurred_at = started_at + timedelta(seconds=offset)
+        if now < occurred_at:
+            continue
+        tracks.append(
+            LogisticsProviderTrack(
+                provider_event_id=f"auto:{shipment_no}:{provider_status.lower()}",
+                status=cast(
+                    Literal[
+                        "picked_up", "in_transit", "delivered", "exception", "returned"
+                    ],
+                    status,
+                ),
+                provider_status=provider_status,
+                description=description,
+                location_text=location,
+                occurred_at=occurred_at,
+            )
+        )
+    return LogisticsProviderSnapshot(
+        provider_request_id=f"auto-query-{tracking_no[-6:]}-{int(now.timestamp())}",
+        tracks=tuple(tracks),
+        estimated_delivery_min_at=started_at + timedelta(seconds=20),
+        estimated_delivery_max_at=started_at + timedelta(seconds=25),
+    )
+
+
 def _estimate(shipment: Shipment) -> DeliveryEstimate:
     available = (
         shipment.estimated_delivery_min_at is not None
@@ -1279,6 +1537,7 @@ def _estimate(shipment: Shipment) -> DeliveryEstimate:
 def _track(track: ShipmentTrack) -> ShipmentTrackView:
     return ShipmentTrackView(
         track_status=track.track_status,
+        provider_status=track.provider_status,
         description=track.description,
         location_text=track.location_text,
         occurred_at=track.occurred_at,

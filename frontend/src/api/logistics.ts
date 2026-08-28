@@ -1,9 +1,10 @@
 import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
 export interface DeliveryEstimate { type: 'delivery'; status: 'available' | 'unavailable'; min_at: string | null; max_at: string | null; source: 'shipping_template' | 'carrier' | null; updated_at: string | null; disclaimer: string }
-export interface ShipmentTrack { track_status: string; description: string; location_text: string | null; occurred_at: string; received_at: string }
+export interface ShipmentTrack { track_status: string; provider_status: string | null; description: string; location_text: string | null; occurred_at: string; received_at: string }
 export interface ShipmentItem { order_item_id: string; product_name: string; sku_name: string; quantity: number }
 export interface ShipmentSummary { shipment_id: string; carrier_code: string; carrier_name: string; tracking_no_masked: string; shipment_status: string; items: ShipmentItem[]; delivery_estimate: DeliveryEstimate; last_track: ShipmentTrack | null; last_synced_at: string | null }
-export interface ShipmentDetail extends ShipmentSummary { order_id: string; tracking_no: string; latest_tracks: ShipmentTrack[]; version: number }
+export interface ShipmentRoute { origin_region_code: string | null; country_code: string; province_code: string; city_code: string; district_code: string; destination_address: string }
+export interface ShipmentDetail extends ShipmentSummary { order_id: string; tracking_no: string; latest_tracks: ShipmentTrack[]; route: ShipmentRoute; shipped_at: string | null; version: number }
 export interface AdminShipmentDetail {
   shipment_id: string
   order_id: string

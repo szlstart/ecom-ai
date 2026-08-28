@@ -38,6 +38,7 @@ class ShipmentItemView(StrictRequest):
 
 class ShipmentTrackView(StrictRequest):
     track_status: str
+    provider_status: str | None = None
     description: str
     location_text: str | None = None
     occurred_at: datetime
@@ -61,6 +62,15 @@ class UserOrderShipmentList(StrictRequest):
     items: list[UserOrderShipmentSummary]
 
 
+class ShipmentRouteView(StrictRequest):
+    origin_region_code: str | None = None
+    country_code: str
+    province_code: str
+    city_code: str
+    district_code: str
+    destination_address: str
+
+
 class UserShipmentDetail(StrictRequest):
     shipment_id: str
     order_id: str
@@ -72,6 +82,8 @@ class UserShipmentDetail(StrictRequest):
     items: list[ShipmentItemView]
     delivery_estimate: DeliveryEstimate
     latest_tracks: list[ShipmentTrackView]
+    route: ShipmentRouteView
+    shipped_at: datetime | None = None
     last_synced_at: datetime | None = None
     version: int
 

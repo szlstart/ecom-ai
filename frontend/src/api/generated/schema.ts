@@ -7334,6 +7334,8 @@ export interface components {
             product_name: string;
             /** Sku Name */
             sku_name: string;
+            /** Image Url */
+            image_url?: string | null;
             /** Quantity */
             quantity: number;
             /** Is Selected */
@@ -7372,6 +7374,8 @@ export interface components {
             store_id: string;
             /** Store Name */
             store_name: string;
+            /** Store Logo Url */
+            store_logo_url?: string | null;
             /** Items */
             items: components["schemas"]["CartItemView"][];
             /** Selected Quantity */
@@ -7447,6 +7451,8 @@ export interface components {
             product_name: string;
             /** Sku Name */
             sku_name: string;
+            /** Image Url */
+            image_url?: string | null;
             /** Quantity */
             quantity: number;
             unit_price: components["schemas"]["Money"];
@@ -11083,6 +11089,21 @@ export interface components {
              */
             requested_at: string;
         };
+        /** ShipmentRouteView */
+        ShipmentRouteView: {
+            /** Origin Region Code */
+            origin_region_code?: string | null;
+            /** Country Code */
+            country_code: string;
+            /** Province Code */
+            province_code: string;
+            /** City Code */
+            city_code: string;
+            /** District Code */
+            district_code: string;
+            /** Destination Address */
+            destination_address: string;
+        };
         /** ShipmentTrackList */
         ShipmentTrackList: {
             /** Shipment Id */
@@ -11094,6 +11115,8 @@ export interface components {
         ShipmentTrackView: {
             /** Track Status */
             track_status: string;
+            /** Provider Status */
+            provider_status?: string | null;
             /** Description */
             description: string;
             /** Location Text */
@@ -11735,6 +11758,9 @@ export interface components {
             delivery_estimate: components["schemas"]["DeliveryEstimate"];
             /** Latest Tracks */
             latest_tracks: components["schemas"]["ShipmentTrackView"][];
+            route: components["schemas"]["ShipmentRouteView"];
+            /** Shipped At */
+            shipped_at?: string | null;
             /** Last Synced At */
             last_synced_at?: string | null;
             /** Version */

@@ -40824,6 +40824,17 @@
             "type": "string",
             "title": "Sku Name"
           },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "quantity": {
             "type": "integer",
             "title": "Quantity"
@@ -40943,6 +40954,17 @@
           "store_name": {
             "type": "string",
             "title": "Store Name"
+          },
+          "store_logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Logo Url"
           },
           "items": {
             "items": {
@@ -41207,6 +41229,17 @@
           "sku_name": {
             "type": "string",
             "title": "Sku Name"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
           },
           "quantity": {
             "type": "integer",
@@ -51769,6 +51802,51 @@
         ],
         "title": "ShipmentRefreshResult"
       },
+      "ShipmentRouteView": {
+        "properties": {
+          "origin_region_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Region Code"
+          },
+          "country_code": {
+            "type": "string",
+            "title": "Country Code"
+          },
+          "province_code": {
+            "type": "string",
+            "title": "Province Code"
+          },
+          "city_code": {
+            "type": "string",
+            "title": "City Code"
+          },
+          "district_code": {
+            "type": "string",
+            "title": "District Code"
+          },
+          "destination_address": {
+            "type": "string",
+            "title": "Destination Address"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "country_code",
+          "province_code",
+          "city_code",
+          "district_code",
+          "destination_address"
+        ],
+        "title": "ShipmentRouteView"
+      },
       "ShipmentTrackList": {
         "properties": {
           "shipment_id": {
@@ -51796,6 +51874,17 @@
           "track_status": {
             "type": "string",
             "title": "Track Status"
+          },
+          "provider_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Status"
           },
           "description": {
             "type": "string",
@@ -53647,6 +53736,21 @@
             "type": "array",
             "title": "Latest Tracks"
           },
+          "route": {
+            "$ref": "#/components/schemas/ShipmentRouteView"
+          },
+          "shipped_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shipped At"
+          },
           "last_synced_at": {
             "anyOf": [
               {
@@ -53677,6 +53781,7 @@
           "items",
           "delivery_estimate",
           "latest_tracks",
+          "route",
           "version"
         ],
         "title": "UserShipmentDetail"

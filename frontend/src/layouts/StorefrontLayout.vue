@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import type { LocationQueryRaw } from 'vue-router'
@@ -16,6 +16,10 @@ const router = useRouter()
 const searchTerm = ref('')
 const userMenu = ref<HTMLDetailsElement | null>(null)
 const openMessagesAfterAuth = ref(false)
+const greetingEmojis = ['😊', '👋', '🌞', '✨', '🌈', '🍀', '😄', '🥳', '💫', '🌻']
+const greetingEmojiIndex = ref(0)
+const greetingEmoji = computed(() => greetingEmojis[greetingEmojiIndex.value])
+let greetingEmojiTimer: number | undefined
 const authMode = computed<'login' | 'register'>(() => route.query.auth === 'register' ? 'register' : 'login')
 const authModalOpen = computed(() => route.query.auth === 'login' || route.query.auth === 'register')
 const displayName = computed(() => auth.user?.nickname || auth.user?.username || '用户')
@@ -76,6 +80,13 @@ async function logout() {
 
 onMounted(() => {
   if (!auth.isAuthenticated) void auth.refresh()
+  greetingEmojiTimer = window.setInterval(() => {
+    greetingEmojiIndex.value = (greetingEmojiIndex.value + 1) % greetingEmojis.length
+  }, 5_000)
+})
+
+onBeforeUnmount(() => {
+  if (greetingEmojiTimer) window.clearInterval(greetingEmojiTimer)
 })
 
 watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
@@ -99,7 +110,7 @@ watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
           <RouterLink v-if="auth.isAuthenticated" class="storefront-nav-entry" to="/me"><span aria-hidden="true">👤</span><span class="nav-entry-label">我的</span></RouterLink><button v-else class="nav-link-button storefront-nav-entry" type="button" @click="openAuth('login', '/me')"><span aria-hidden="true">👤</span><span class="nav-entry-label">我的</span></button>
 
           <details v-if="auth.isAuthenticated" ref="userMenu" class="user-menu">
-            <summary>{{ greeting }}，{{ displayName }}</summary>
+            <summary>{{ greeting }}{{ greetingEmoji }}，{{ displayName }}</summary>
             <div class="user-menu-panel">
               <RouterLink to="/me">查看我的</RouterLink>
               <button type="button" @click="logout">退出登录</button>

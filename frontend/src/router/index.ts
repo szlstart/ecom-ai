@@ -76,6 +76,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/admin/login', component: () => import('@/layouts/AdminAuthLayout.vue'), meta: { layout: 'admin-auth', audience: 'admin', requiresAuth: false, title: '管理端登录', requirementId: 'ADM-AUTH-01' }, children: [{ path: '', component: () => import('@/pages/admin/AdminLoginPage.vue') }] },
   { path: '/admin/reauthenticate', component: () => import('@/layouts/AdminAuthLayout.vue'), meta: { layout: 'admin-auth', audience: 'admin', requiresAuth: true, title: '确认管理员密码', requirementId: 'ADM-AUTH-02' }, children: [{ path: '', component: () => import('@/pages/admin/AdminReauthenticatePage.vue'), meta: { layout: 'admin-auth', audience: 'admin', requiresAuth: true, title: '确认管理员密码', requirementId: 'ADM-AUTH-02' } }] },
   { path: '/admin', component: () => import('@/layouts/AdminLayout.vue'), meta: { ...adminMeta, title: '管理后台', requirementId: 'ADM-SHELL-01' }, children: [
+    { path: '', redirect: '/admin/dashboard' },
     { path: 'dashboard', component: () => import('@/pages/admin/AdminDashboardPage.vue'), meta: { ...adminMeta, title: '管理仪表盘', requirementId: 'ADM-DASH-01', requiredPermission: 'dashboard:read' } },
     { path: 'users', component: () => import('@/pages/admin/AdminUserListPage.vue'), meta: { ...adminMeta, title: '用户治理', requirementId: 'ADM-USER-LIST-01', requiredPermission: 'users:read' } },
     { path: 'users/:userId', component: () => import('@/pages/admin/AdminUserDetailPage.vue'), meta: { ...adminMeta, title: '用户详情', requirementId: 'ADM-USER-01', requiredPermission: 'users:read' } },
@@ -110,6 +111,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'reviews/:reviewId', component: () => import('@/pages/admin/AdminReviewDetailPage.vue'), meta: { ...adminMeta, title: '评价治理', requirementId: 'ADM-REVIEW-01', requiredPermission: 'reviews:read' } },
     { path: 'support/tickets', component: () => import('@/pages/admin/AdminSupportTicketListPage.vue'), meta: { ...adminMeta, title: '人工客服队列', requirementId: 'ADM-SUPPORT-LIST-01', requiredPermission: 'support:queue_read' } },
     { path: 'support/tickets/:ticketId', component: () => import('@/pages/admin/AdminSupportWorkspacePage.vue'), meta: { ...adminMeta, title: '人工客服工作台', requirementId: 'ADM-SUPPORT-01', requiredPermission: 'support:queue_read' } },
+    { path: 'ai', component: () => import('@/pages/admin/AdminAiCenterPage.vue'), meta: { ...adminMeta, title: 'AI 管理总览', requirementId: 'ADM-AI-CENTER-01', requiredPermission: 'ai_agents:read' } },
     { path: 'ai/agents', component: () => import('@/pages/admin/AdminAgentPage.vue'), meta: { ...adminMeta, title: 'Agent 管理', requirementId: 'ADM-AI-AGENT-01', requiredPermission: 'ai_agents:read' } },
     { path: 'ai/skills', component: () => import('@/pages/admin/AdminSkillPage.vue'), meta: { ...adminMeta, title: 'Skill 管理', requirementId: 'ADM-AI-SKILL-01', requiredPermission: 'ai_skills:read' } },
     { path: 'ai/tools', component: () => import('@/pages/admin/AdminToolPage.vue'), meta: { ...adminMeta, title: 'MCP Tool 管理', requirementId: 'ADM-AI-TOOL-LIST-01', requiredPermission: 'ai_tools:read' } },

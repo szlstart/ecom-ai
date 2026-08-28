@@ -9172,10 +9172,15 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | 方法 | 路径 | 权限与行为 |
 | --- | --- | --- |
 | `GET` | `/admin/users`、`/admin/users/{user_id}` | `users:read`；默认脱敏，按 Scope/Cursor 查询 |
+| `POST` | `/admin/users` | `users:manage` + Platform Scope；创建独立消费者身份、密码凭证、找回邮箱、默认钱包和 `user` 角色；用户名与邮箱唯一，不能创建商家或管理员身份 |
+| `PATCH` | `/admin/users/{user_id}` | `users:manage`；If-Match；修改用户名、昵称或找回邮箱，邮箱修改后重新进入未验证状态，敏感字段不写入审计明文 |
 | `POST` | `/admin/users/{user_id}/status-changes` | `users:manage`；显式 `suspend/resume`，原因、可选冻结期限、If-Match 和幂等键必填；写 `user_status_records` |
 | `GET` | `/admin/users/{user_id}/status-events` | `users:read`；Cursor 读取冻结/解冻/注销时间线的脱敏投影 |
 | `POST` | `/admin/users/{user_id}/session-revocations` | `users:sessions_revoke`；选择当前/全部范围并通知用户 |
-| `POST` | `/admin/users/{user_id}/password-reset-requirements` | `users:force_password_reset`；只设置 `must_change_password`、撤销会话，管理员不得提交新密码 |
+| `POST` | `/admin/users/{user_id}/password-reset-requirements` | `users:force_password_reset`；只设置 `must_change_password`、撤销会话，适用于不接触用户密码的常规安全处置 |
+| `POST` | `/admin/users/{user_id}/password-replacements` | `users:force_password_reset`；受控设置临时密码，可要求下次登录修改；密码不回显、不进日志，成功后撤销该用户全部 Session 并记录操作原因 |
+| `POST` | `/admin/users/{user_id}/wallet-adjustments` | `users:manage`；以 `credit/debit + amount_minor + reason` 增减余额，不允许覆盖余额；行锁校验后追加不可变资金流水、幂等记录和管理审计 |
+| `DELETE` | `/admin/users/{user_id}` | `users:manage`；If-Match、原因和 `DELETE_USER` 确认；仅无交易历史且仅具消费者身份的账号可物理删除，商家/管理员身份和有交易账号一律阻断 |
 | `POST` | `/admin/users/{user_id}/sensitive-field-access-grants` | `users:read_sensitive`；近期认证、字段白名单、Purpose、业务理由和服务端上限内 TTL；返回绑定当前 Session 的 `grant_id` |
 | `GET` | `/admin/users/{user_id}/sensitive-fields` | `users:read_sensitive` + 同 Session Active Grant；通过 `X-Sensitive-Access-Grant` 指定一次消费 Grant，只返回白名单字段并加水印/审计 |
 | `POST` | `/admin/sensitive-field-access-grants/{grant_id}/revocations` | Grant 所属管理员需 `users:read_sensitive`，安全主管可用 `users:manage` + 目标 Scope；原因、If-Match、幂等，立即失效 Redis 缓存 |
@@ -9197,8 +9202,10 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `GET` | `/admin/store-certifications/{certification_id}/events` | `stores:review` 或 `stores:manage` + 本店 Scope；Cursor 返回材料版本与审核时间线 |
 | `POST` | `/admin/store-certifications/{certification_id}/material-versions` | `stores:manage` + 本店 Scope；仅 `more_info_required`，提交完整 Active 私有文件集、材料版本、If-Match 与幂等，成功后回到 `pending` |
 | `GET` | `/admin/stores`、`/admin/stores/{store_id}` | `stores:read` + Data Scope |
+| `POST` | `/admin/stores` | `stores:manage` + Platform Scope；原子创建全局唯一店铺、独立商家登录身份、密码/邮箱凭证和 Store Scope `store_operator` Grant；不得复用用户或管理员身份 |
 | `PATCH` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；修改名称、简介或已通过扫描且归属本店的 `store_logo` 派生文件，If-Match 必填；名称全局唯一但不设改名冷却，成功后当前店名投影与缓存同步更新 |
 | `POST` | `/admin/stores/{store_id}/status-changes` | `stores:manage`；展示/提交影响码，不能覆盖认证历史 |
+| `DELETE` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；If-Match、原因和 `DELETE_STORE` 确认；店铺及其商家账号从未产生交易时才允许受控物理删除，否则只允许暂停或关闭并保留交易事实 |
 | `GET/POST/PATCH` | `/admin/stores/{store_id}/product-groups` | 店铺运营权限；If-Match、店铺归属校验 |
 | `PUT` | `/admin/stores/{store_id}/product-groups/{group_id}/products` | 完整目标商品集；所有 Product 必须属于本店 |
 | `GET/POST` | `/admin/stores/{store_id}/service-policies` | GET 需 `store_policies:read`，POST 需 `store_policies:create`，均需 Store Scope；GET 读取家族/历史，POST 创建新草稿版本 |
@@ -9210,6 +9217,8 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `POST` | `/admin/stores/{store_id}/shipping-templates/{template_id}/publications` | 影响预览版本一致后发布不可变版本并失效 Checkout 缓存 |
 | `GET/POST/PATCH` | `/admin/stores/{store_id}/announcements` | 本店公告草稿与时段管理 |
 | `PUT` | `/admin/stores/{store_id}/featured-products` | 完整有序目标集；商品本店且在允许状态 |
+
+管理端信息架构固定为“运营总览、用户与店铺、商品与交易、服务与内容、AI 智能中心、安全与系统”六组。全局搜索用于定位功能入口；消息采用浮层工作台，固定置顶“AI 管家”，并将用户消息与商家消息分别折叠。AI 管家在未接入受控 Agent Runtime 前只能提供只读导航和诊断捷径，不得伪造自然语言执行结果。AI 智能中心先呈现 Agent、Skill、MCP Tool、RAG 知识、权限确认、评估观测之间的关系，再进入各版本化管理页。
 
 ##### 3.12.22.5 商品、SKU、分类、品牌与库存
 

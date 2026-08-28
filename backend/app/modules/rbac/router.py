@@ -6,6 +6,7 @@ from fastapi import APIRouter, Header, Query, Response, status
 
 from app.api.dependencies import IdempotencyKey
 from app.api.schemas import Envelope
+from app.modules.finance.dependencies import AccountDeletionServiceDependency
 from app.modules.identity.router import _etag, _expected_version, _no_store
 from app.modules.identity.schemas import MessageResult
 from app.modules.rbac.dependencies import (
@@ -15,8 +16,14 @@ from app.modules.rbac.dependencies import (
 )
 from app.modules.rbac.schemas import (
     AdminDashboardSummary,
+    AdminUserCreateRequest,
+    AdminUserDeleteRequest,
     AdminUserList,
+    AdminUserPasswordReplaceRequest,
     AdminUserSummary,
+    AdminUserUpdateRequest,
+    AdminWalletAdjustmentRequest,
+    AdminWalletAdjustmentResult,
     ApprovalDecisionRequest,
     ApprovalView,
     AuditLogView,
@@ -71,6 +78,25 @@ async def list_users(
     return Envelope(data=await service.list_users(limit, cursor))
 
 
+@router.post(
+    "/users",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[AdminUserSummary],
+    operation_id="AdminUser_Create",
+)
+async def create_user(
+    payload: AdminUserCreateRequest,
+    response: Response,
+    service: RbacServiceDependency,
+    idempotency_key: IdempotencyKey,
+    access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+) -> Envelope[AdminUserSummary]:
+    item = await service.create_user(access, payload, idempotency_key)
+    response.headers["ETag"] = _etag(item.version)
+    _no_store(response)
+    return Envelope(data=item)
+
+
 @router.get(
     "/users/{user_id}",
     response_model=Envelope[AdminUserSummary],
@@ -86,6 +112,85 @@ async def get_user(
     item = await service.get_user(user_id)
     response.headers["ETag"] = _etag(item.version)
     return Envelope(data=item)
+
+
+@router.patch(
+    "/users/{user_id}",
+    response_model=Envelope[AdminUserSummary],
+    operation_id="AdminUser_Update",
+)
+async def update_user(
+    user_id: str,
+    payload: AdminUserUpdateRequest,
+    response: Response,
+    service: RbacServiceDependency,
+    access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AdminUserSummary]:
+    item = await service.update_user(access, user_id, payload, _expected_version(if_match))
+    response.headers["ETag"] = _etag(item.version)
+    _no_store(response)
+    return Envelope(data=item)
+
+
+@router.post(
+    "/users/{user_id}/password-replacements",
+    response_model=Envelope[MessageResult],
+    operation_id="AdminUserPassword_Replace",
+)
+async def replace_user_password(
+    user_id: str,
+    payload: AdminUserPasswordReplaceRequest,
+    service: RbacServiceDependency,
+    idempotency_key: IdempotencyKey,
+    access: Annotated[
+        AdminAccess, require_admin_permission("users:force_password_reset")
+    ],
+) -> Envelope[MessageResult]:
+    await service.replace_user_password(access, user_id, payload, idempotency_key)
+    return Envelope(data=MessageResult(message="临时密码已设置，目标账号的全部会话已撤销。"))
+
+
+@router.post(
+    "/users/{user_id}/wallet-adjustments",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[AdminWalletAdjustmentResult],
+    operation_id="AdminUserWallet_Adjust",
+)
+async def adjust_user_wallet(
+    user_id: str,
+    payload: AdminWalletAdjustmentRequest,
+    response: Response,
+    service: RbacServiceDependency,
+    idempotency_key: IdempotencyKey,
+    access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+) -> Envelope[AdminWalletAdjustmentResult]:
+    _no_store(response)
+    return Envelope(
+        data=await service.adjust_user_wallet(access, user_id, payload, idempotency_key)
+    )
+
+
+@router.delete(
+    "/users/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="AdminUser_Delete",
+)
+async def delete_user(
+    user_id: str,
+    payload: AdminUserDeleteRequest,
+    service: RbacServiceDependency,
+    deletion_service: AccountDeletionServiceDependency,
+    access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> None:
+    target = await service.prepare_user_deletion(
+        access,
+        user_id,
+        payload,
+        _expected_version(if_match),
+    )
+    await deletion_service.delete_consumer(target)
 
 
 @router.get(

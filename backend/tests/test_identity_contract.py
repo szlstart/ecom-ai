@@ -50,6 +50,17 @@ def test_identity_openapi_contract_has_stable_operation_ids() -> None:
         ): "MerchantAuth_Reauthenticate",
         ("/api/v1/admin/auth/sessions", "get"): "AdminAuthSession_ListMine",
         ("/api/v1/admin/users", "get"): "AdminUser_List",
+        ("/api/v1/admin/users", "post"): "AdminUser_Create",
+        ("/api/v1/admin/users/{user_id}", "patch"): "AdminUser_Update",
+        ("/api/v1/admin/users/{user_id}", "delete"): "AdminUser_Delete",
+        (
+            "/api/v1/admin/users/{user_id}/password-replacements",
+            "post",
+        ): "AdminUserPassword_Replace",
+        (
+            "/api/v1/admin/users/{user_id}/wallet-adjustments",
+            "post",
+        ): "AdminUserWallet_Adjust",
         ("/api/v1/admin/roles", "post"): "AdminRole_Create",
         ("/api/v1/admin/approval-requests", "get"): "AdminApproval_List",
         (

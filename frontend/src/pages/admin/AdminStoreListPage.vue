@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { adminGet, adminQuery, requireAdminToken, type AdminStore } from '@/api/admin-catalog'
-import { errorMessage, type PaginationMeta } from '@/api/http'
+import { adminCreate, adminGet, adminQuery, requireAdminToken, type AdminStore } from '@/api/admin-catalog'
+import { ApiProblem, errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
@@ -13,21 +13,104 @@ const loading = ref(true)
 const error = ref('')
 const q = ref('')
 const status = ref('')
-const cursor = ref('')
-const pagination = ref<PaginationMeta | null>(null)
+const createOpen = ref(false)
+const saving = ref(false)
+const formError = ref('')
+const fieldErrors = ref<Record<string, string>>({})
+const form = reactive({ store_name: '', description: '', merchant_username: '', merchant_password: '', merchant_email: '' })
 
-async function load(nextCursor = '') {
-  loading.value = true; error.value = ''
+const visible = computed(() => {
+  const keyword = q.value.trim().toLocaleLowerCase('zh-CN')
+  return items.value.filter((item) => {
+    const matchesStatus = !status.value || item.status === status.value
+    const haystack = `${item.store_name} ${item.store_id} ${item.owner_user_id}`.toLocaleLowerCase('zh-CN')
+    return matchesStatus && (!keyword || haystack.includes(keyword))
+  })
+})
+const activeCount = computed(() => items.value.filter((item) => item.status === 'active').length)
+const pausedCount = computed(() => items.value.filter((item) => item.status === 'suspended').length)
+
+function token(): string { return requireAdminToken(auth.accessToken) }
+function statusLabel(value: string): string { return ({ active: '营业中', pending: '待开通', suspended: '已暂停', closed: '已关闭' } as Record<string, string>)[value] ?? value }
+function initials(value: string): string { return value.slice(0, 1).toUpperCase() }
+
+async function load() {
+  loading.value = true
+  error.value = ''
   try {
-    const response = await adminGet<{ items: AdminStore[]; next_cursor: string | null }>(`/admin/stores${adminQuery({ q: q.value.trim(), status: status.value, cursor: nextCursor, limit: 50 })}`, requireAdminToken(auth.accessToken))
-    items.value = response.data.items; cursor.value = nextCursor; pagination.value = response.meta.pagination
+    const response = await adminGet<{ items: AdminStore[]; next_cursor: string | null }>(`/admin/stores${adminQuery({ limit: 100 })}`, token())
+    items.value = response.data.items
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
 }
 
-onMounted(() => load())
+function closeCreate() {
+  createOpen.value = false
+  formError.value = ''
+  fieldErrors.value = {}
+}
+
+async function createStore() {
+  saving.value = true
+  formError.value = ''
+  fieldErrors.value = {}
+  try {
+    await adminCreate('/admin/stores', { ...form, description: form.description || null }, token(), 'admin-store-create')
+    Object.assign(form, { store_name: '', description: '', merchant_username: '', merchant_password: '', merchant_email: '' })
+    closeCreate()
+    await load()
+  } catch (cause) {
+    if (cause instanceof ApiProblem) {
+      for (const item of cause.body.errors ?? []) fieldErrors.value[item.pointer.replace(/^\//, '')] = item.message
+    }
+    formError.value = errorMessage(cause)
+  } finally { saving.value = false }
+}
+
+onMounted(load)
 </script>
 
 <template>
-  <section class="admin-page-stack"><header class="page-heading"><div><p class="eyebrow">店铺管理</p><h1>店铺运营</h1><p class="muted">列表只返回当前管理员数据范围内的店铺。</p></div><RouterLink v-if="auth.has('stores:review')" class="button-link secondary" to="/admin/store-certifications">认证审核队列</RouterLink></header><form class="filter-bar" @submit.prevent="load()"><label>店铺名称<input v-model="q" maxlength="128" /></label><label>状态<select v-model="status"><option value="">全部</option><option value="pending">待开通</option><option value="active">营业中</option><option value="suspended">已暂停</option><option value="closed">已关闭</option></select></label><button>查询</button></form><PageState :loading="loading" :error="error" :empty="!loading && !error && items.length === 0" empty-title="没有匹配的店铺" @retry="load()"><div class="table-wrap"><table><thead><tr><th>店铺</th><th>状态</th><th>评分</th><th>关注/销量</th><th>开店时间</th><th>操作</th></tr></thead><tbody><tr v-for="item in items" :key="item.store_id"><td><strong>{{ item.store_name }}</strong><small>{{ item.store_id }} · Owner {{ item.owner_user_id }}</small></td><td><span class="badge">{{ item.status }}</span></td><td>{{ item.rating_score }}（{{ item.rating_count }}）</td><td>{{ item.follower_count }} / {{ item.sales_count }}</td><td>{{ item.opened_at || '—' }}</td><td><RouterLink :to="`/admin/stores/${item.store_id}`">进入运营</RouterLink></td></tr></tbody></table></div><nav v-if="pagination" class="pagination"><button type="button" class="secondary" :disabled="!pagination.has_previous" @click="load(pagination.previous_cursor || '')">上一页</button><span>每页 {{ pagination.limit }} 条</span><button type="button" class="secondary" :disabled="!pagination.has_next" @click="load(pagination.next_cursor || '')">下一页</button></nav></PageState></section>
+  <section class="admin-page-stack admin-store-list-page">
+    <header class="admin-entity-hero admin-store-hero">
+      <div><p class="eyebrow">MERCHANT OPERATIONS</p><h1>店铺与商家</h1><p>从建店、资料维护、商品运营到停业处理，在一个清晰入口完成。</p></div>
+      <button v-if="auth.has('stores:manage')" @click="createOpen = true">＋ 创建店铺</button>
+    </header>
+
+    <div class="admin-entity-stats">
+      <article><span class="blue">店</span><div><small>当前载入</small><strong>{{ items.length }}</strong></div></article>
+      <article><span class="green">营</span><div><small>营业中</small><strong>{{ activeCount }}</strong></div></article>
+      <article><span class="red">停</span><div><small>已暂停</small><strong>{{ pausedCount }}</strong></div></article>
+    </div>
+
+    <section class="admin-list-panel">
+      <header class="admin-list-toolbar">
+        <label class="admin-inline-search"><span>⌕</span><input v-model="q" placeholder="搜索店铺名称、店铺 ID 或店主 ID" /></label>
+        <div><select v-model="status"><option value="">全部状态</option><option value="active">营业中</option><option value="pending">待开通</option><option value="suspended">已暂停</option><option value="closed">已关闭</option></select><RouterLink v-if="auth.has('stores:review')" class="button-link secondary" to="/admin/store-certifications">认证审核</RouterLink></div>
+      </header>
+      <PageState :loading="loading" :error="error" :empty="!loading && !error && visible.length === 0" empty-title="没有匹配的店铺" @retry="load">
+        <div class="admin-store-grid">
+          <RouterLink v-for="item in visible" :key="item.store_id" class="admin-store-card" :to="`/admin/stores/${item.store_id}`">
+            <div class="admin-store-cover"><img v-if="item.logo_url" :src="item.logo_url" alt="" /><span v-else>{{ initials(item.store_name) }}</span><i :class="item.status">{{ statusLabel(item.status) }}</i></div>
+            <div class="admin-store-card-body"><h2>{{ item.store_name }}</h2><p>{{ item.description || '暂无店铺简介' }}</p><dl><div><dt>销量</dt><dd>{{ item.sales_count }}</dd></div><div><dt>关注</dt><dd>{{ item.follower_count }}</dd></div><div><dt>评分</dt><dd>{{ Number(item.rating_score).toFixed(1) }}</dd></div></dl><footer><small>{{ item.store_id }}</small><b>进入运营 →</b></footer></div>
+          </RouterLink>
+        </div>
+      </PageState>
+    </section>
+
+    <div v-if="createOpen" class="admin-form-overlay" @click.self="closeCreate">
+      <form class="admin-form-dialog" @submit.prevent="createStore">
+        <header><div><p class="eyebrow">CREATE MERCHANT</p><h2>创建店铺与商家账号</h2><p>一次创建独立商家身份和所属店铺；该账号不能登录用户端或超级管理端。</p></div><button type="button" @click="closeCreate">×</button></header>
+        <p v-if="formError" class="alert error">{{ formError }}</p>
+        <div class="admin-form-fields">
+          <label>店铺名称<input v-model.trim="form.store_name" required minlength="2" maxlength="128" /><small v-if="fieldErrors.store_name" class="error-text">{{ fieldErrors.store_name }}</small></label>
+          <label>商家登录名<input v-model.trim="form.merchant_username" required minlength="4" maxlength="32" pattern="[A-Za-z0-9_]+" /><small v-if="fieldErrors.merchant_username" class="error-text">{{ fieldErrors.merchant_username }}</small></label>
+          <label>商家登录密码<input v-model="form.merchant_password" required type="password" autocomplete="new-password" placeholder="不能为空且不能包含空格" /></label>
+          <label>商家邮箱<input v-model.trim="form.merchant_email" required type="email" /><small v-if="fieldErrors.merchant_email" class="error-text">{{ fieldErrors.merchant_email }}</small></label>
+          <label class="wide">店铺简介（可选）<textarea v-model.trim="form.description" maxlength="2000" placeholder="向用户简洁介绍店铺特色" /></label>
+        </div>
+        <footer><button type="button" class="secondary" @click="closeCreate">取消</button><button :disabled="saving">{{ saving ? '正在创建…' : '创建并开通店铺' }}</button></footer>
+      </form>
+    </div>
+  </section>
 </template>

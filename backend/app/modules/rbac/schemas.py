@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.api.schemas import StrictRequest
 from app.modules.identity.schemas import ClientDescriptor, SessionBootstrap
@@ -119,6 +119,69 @@ class AdminUserSummary(StrictRequest):
 class AdminUserList(StrictRequest):
     items: list[AdminUserSummary]
     next_cursor: str | None
+
+
+class AdminUserCreateRequest(StrictRequest):
+    username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    password: str = Field(min_length=1, max_length=128)
+    email: str = Field(min_length=3, max_length=254)
+    nickname: str | None = Field(default=None, min_length=1, max_length=64)
+
+    @field_validator("password")
+    @classmethod
+    def reject_password_whitespace(cls, value: str) -> str:
+        if any(character.isspace() for character in value):
+            raise ValueError("密码不能包含空白字符")
+        return value
+
+
+class AdminUserUpdateRequest(StrictRequest):
+    username: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=32,
+        pattern=r"^[A-Za-z0-9_]+$",
+    )
+    nickname: str | None = Field(default=None, min_length=1, max_length=64)
+    email: str | None = Field(default=None, min_length=3, max_length=254)
+
+    @model_validator(mode="after")
+    def require_change(self) -> AdminUserUpdateRequest:
+        if not self.model_fields_set:
+            raise ValueError("至少需要提交一个要修改的字段")
+        return self
+
+
+class AdminUserPasswordReplaceRequest(StrictRequest):
+    temporary_password: str = Field(min_length=1, max_length=128)
+    require_change_on_next_login: bool = True
+    reason: str = Field(min_length=2, max_length=500)
+
+    @field_validator("temporary_password")
+    @classmethod
+    def reject_password_whitespace(cls, value: str) -> str:
+        if any(character.isspace() for character in value):
+            raise ValueError("临时密码不能包含空白字符")
+        return value
+
+
+class AdminUserDeleteRequest(StrictRequest):
+    confirmation: str = Field(pattern=r"^DELETE_USER$")
+    reason: str = Field(min_length=2, max_length=500)
+
+
+class AdminWalletAdjustmentRequest(StrictRequest):
+    direction: Literal["credit", "debit"]
+    amount_minor: int = Field(ge=1, le=100_000_000)
+    reason: str = Field(min_length=2, max_length=500)
+
+
+class AdminWalletAdjustmentResult(StrictRequest):
+    transaction_id: str
+    direction: Literal["credit", "debit"]
+    amount_minor: str
+    balance_minor: str
+    currency: str
 
 
 class UserStatusEventView(StrictRequest):

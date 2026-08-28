@@ -6,6 +6,7 @@ from fastapi import APIRouter, Header, Query, Response, status
 
 from app.api.dependencies import IdempotencyKey
 from app.api.schemas import Envelope
+from app.modules.finance.dependencies import AccountDeletionServiceDependency
 from app.modules.identity.router import _etag, _expected_version, _no_store
 from app.modules.rbac.dependencies import (
     AdminAccess,
@@ -19,6 +20,8 @@ from app.modules.stores.admin_schemas import (
     AdminCertificationList,
     AdminCertificationMaterialRequest,
     AdminPolicyCommandRequest,
+    AdminStoreCreateRequest,
+    AdminStoreDeleteRequest,
     AdminStoreList,
     AdminStorePolicyCreateRequest,
     AdminStorePolicyUpdateRequest,
@@ -30,6 +33,25 @@ from app.modules.stores.admin_schemas import (
 from app.modules.stores.dependencies import AdminStoreServiceDependency
 
 router = APIRouter(prefix="/admin", tags=["store-administration"])
+
+
+@router.post(
+    "/stores",
+    response_model=Envelope[AdminStoreView],
+    status_code=status.HTTP_201_CREATED,
+    operation_id="AdminStore_Create",
+)
+async def create_store(
+    payload: AdminStoreCreateRequest,
+    response: Response,
+    service: AdminStoreServiceDependency,
+    idempotency_key: IdempotencyKey,
+    access: Annotated[AdminAccess, require_admin_permission("stores:manage")],
+) -> Envelope[AdminStoreView]:
+    item = await service.create_store(access, payload, idempotency_key)
+    response.headers["ETag"] = _etag(item.version)
+    _no_store(response)
+    return Envelope(data=item)
 
 
 @router.get(
@@ -118,6 +140,28 @@ async def change_store_status(
     response.headers["ETag"] = _etag(item.version)
     _no_store(response)
     return Envelope(data=item)
+
+
+@router.delete(
+    "/stores/{store_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="AdminStore_Delete",
+)
+async def delete_store(
+    store_id: str,
+    payload: AdminStoreDeleteRequest,
+    response: Response,
+    service: AdminStoreServiceDependency,
+    deletion: AccountDeletionServiceDependency,
+    access: Annotated[AdminAccess, require_admin_permission("stores:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> None:
+    owner = await service.prepare_store_deletion(
+        access, store_id, payload, _expected_version(if_match)
+    )
+    await deletion.delete_merchant(owner)
+    response.status_code = status.HTTP_204_NO_CONTENT
+    _no_store(response)
 
 
 @router.get(

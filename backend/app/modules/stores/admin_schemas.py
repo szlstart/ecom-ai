@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from app.api.schemas import StrictRequest
 
@@ -26,6 +26,36 @@ class AdminStoreView(StrictRequest):
     suspended_at: datetime | None
     closed_at: datetime | None
     version: int
+
+
+class AdminStoreCreateRequest(StrictRequest):
+    store_name: str = Field(min_length=2, max_length=128)
+    description: str | None = Field(default=None, max_length=2000)
+    merchant_username: str = Field(
+        min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$"
+    )
+    merchant_password: str = Field(min_length=1, max_length=128)
+    merchant_email: str = Field(min_length=3, max_length=254)
+
+    @field_validator("store_name")
+    @classmethod
+    def normalize_store_name(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if len(normalized) < 2:
+            raise ValueError("店铺名称至少需要 2 个字符")
+        return normalized
+
+    @field_validator("merchant_password")
+    @classmethod
+    def reject_password_whitespace(cls, value: str) -> str:
+        if any(character.isspace() for character in value):
+            raise ValueError("密码不能包含空白字符")
+        return value
+
+
+class AdminStoreDeleteRequest(StrictRequest):
+    reason: str = Field(min_length=2, max_length=500)
+    confirmation: str = Field(pattern=r"^DELETE_STORE$")
 
 
 class AdminStoreUpdateRequest(StrictRequest):

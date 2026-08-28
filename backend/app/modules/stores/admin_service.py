@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from decimal import Decimal
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,10 +14,12 @@ from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.pagination import CursorCodec
-from app.core.security import utc_now
+from app.core.security import SecurityService, normalize_target, normalize_username, utc_now
 from app.modules.files.models import FileObject
+from app.modules.identity.models import User, UserCredential
 from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
+from app.modules.rbac.models import Role, UserRole
 from app.modules.stores.admin_repository import AdminStoreRepository
 from app.modules.stores.admin_schemas import (
     AdminCertificationDecisionRequest,
@@ -25,6 +29,8 @@ from app.modules.stores.admin_schemas import (
     AdminCertificationMaterialRequest,
     AdminCertificationSummary,
     AdminPolicyCommandRequest,
+    AdminStoreCreateRequest,
+    AdminStoreDeleteRequest,
     AdminStoreList,
     AdminStorePolicyCreateRequest,
     AdminStorePolicyUpdateRequest,
@@ -48,6 +54,194 @@ class AdminStoreService:
         self.repository = AdminStoreRepository(session)
         self.idempotency = IdempotencyService(session)
         self.cursor = CursorCodec(settings.security_hmac_secret.get_secret_value())
+        self.security = SecurityService(settings)
+
+    async def create_store(
+        self,
+        access: AdminAccess,
+        payload: AdminStoreCreateRequest,
+        idempotency_key: str,
+    ) -> AdminStoreView:
+        access.require_scope("platform", 0)
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:store-create:{access.context.user.user_no}",
+            idempotency_key=idempotency_key,
+            payload=payload.model_dump(mode="json"),
+            resource_type="store",
+        )
+        if claim.replayed and claim.record.resource_no:
+            return await self.get_store(access, claim.record.resource_no)
+
+        normalized_username = normalize_username(payload.merchant_username)
+        if await self.session.scalar(
+            select(User.id).where(User.username_normalized == normalized_username)
+        ):
+            raise _field_error(
+                "/merchant_username",
+                "MERCHANT_USERNAME_ALREADY_EXISTS",
+                "该商家用户名已经存在，请输入其他用户名。",
+            )
+        normalized_name = _normalize_name(payload.store_name)
+        if await self.session.scalar(
+            select(Store.id).where(Store.store_name_normalized == normalized_name)
+        ):
+            raise _field_error(
+                "/store_name",
+                "STORE_NAME_ALREADY_EXISTS",
+                "该店铺名称已经存在，请输入其他名称。",
+            )
+        try:
+            normalized_email = normalize_target("email", payload.merchant_email)
+        except ValueError as exc:
+            raise _field_error(
+                "/merchant_email", "INVALID_EMAIL", "请输入有效的商家邮箱。", status=422
+            ) from exc
+        email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
+        if await self.session.scalar(
+            select(UserCredential.id).where(
+                UserCredential.credential_type == "email",
+                UserCredential.active_identifier_hash == email_hash,
+            )
+        ):
+            raise _field_error(
+                "/merchant_email",
+                "MERCHANT_EMAIL_ALREADY_EXISTS",
+                "该邮箱已经绑定其他账号，请输入其他邮箱。",
+            )
+        role = await self.session.scalar(
+            select(Role).where(
+                Role.role_code == "store_operator",
+                Role.scope_type == "store",
+                Role.role_status == "active",
+            )
+        )
+        if role is None:
+            raise RuntimeError("store_operator role is not seeded")
+
+        now = utc_now()
+        owner = User(
+            user_no=new_prefixed_ulid("usr_"),
+            username=payload.merchant_username,
+            username_normalized=normalized_username,
+            nickname=payload.merchant_username,
+            user_status="active",
+            locale="zh-CN",
+            timezone="Asia/Shanghai",
+            registered_at=now,
+        )
+        self.session.add(owner)
+        await self.session.flush()
+        self.session.add_all(
+            [
+                UserCredential(
+                    user_id=owner.id,
+                    credential_type="password",
+                    secret_hash=self.security.hash_password(payload.merchant_password),
+                    algorithm="argon2id",
+                    is_primary=True,
+                    is_verified=True,
+                    verified_at=now,
+                    password_changed_at=now,
+                    credential_status="active",
+                ),
+                UserCredential(
+                    user_id=owner.id,
+                    credential_type="email",
+                    identifier_ciphertext=self.security.encrypt(
+                        "user-credential:email", normalized_email
+                    ),
+                    identifier_hash=email_hash,
+                    key_version=1,
+                    is_primary=True,
+                    is_verified=False,
+                    credential_status="active",
+                ),
+            ]
+        )
+        store = Store(
+            store_no=new_prefixed_ulid("sto_"),
+            owner_user_id=owner.id,
+            store_name=payload.store_name,
+            store_name_normalized=normalized_name,
+            description=payload.description or "欢迎来到我们的店铺。",
+            store_status="active",
+            rating_score=Decimal("0.00"),
+            rating_count=0,
+            follower_count=0,
+            sales_count=0,
+            opened_at=now,
+        )
+        self.session.add(store)
+        await self.session.flush()
+        self.session.add(
+            UserRole(
+                user_id=owner.id,
+                role_id=role.id,
+                grant_no=new_prefixed_ulid("grt_"),
+                scope_type="store",
+                scope_id=store.id,
+                grant_status="active",
+                active_grant_key=self.security.keyed_hash(
+                    "active-role-grant", f"{owner.id}:{role.id}:store:{store.id}"
+                ),
+                granted_by=access.context.user.id,
+                granted_at=now,
+                grant_reason="admin_store_creation",
+            )
+        )
+        record_admin_operation(
+            self.session,
+            access,
+            action="create_store",
+            target_type="store",
+            target_no=store.store_no,
+            after={
+                "store_name": store.store_name,
+                "owner_user_no": owner.user_no,
+                "merchant_username": owner.username,
+            },
+            scope_type="platform",
+            scope_id=0,
+        )
+        self.idempotency.complete(claim, response_status=201, resource_no=store.store_no)
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise ApplicationError(
+                status=409,
+                code="ADMIN_STORE_CREATE_CONFLICT",
+                title="Store creation conflict",
+                detail="店铺名称、商家用户名或邮箱刚刚被占用，请修改后重试。",
+            ) from exc
+        return _store_view(store, owner.user_no, None)
+
+    async def prepare_store_deletion(
+        self,
+        access: AdminAccess,
+        store_no: str,
+        payload: AdminStoreDeleteRequest,
+        expected_version: int,
+    ) -> User:
+        row = await self.repository.store_by_no(store_no, for_update=True)
+        if row is None:
+            raise _not_found()
+        store, owner = row
+        access.require_scope("store", store.id)
+        _check_version(store.version, expected_version)
+        record_admin_operation(
+            self.session,
+            access,
+            action="delete_store",
+            target_type="store",
+            target_no=store.store_no,
+            before={"store_name": store.store_name, "owner_user_no": owner.user_no},
+            reason=payload.reason,
+            scope_type="store",
+            scope_id=store.id,
+        )
+        await self.session.flush()
+        return owner
 
     async def list_stores(
         self,
@@ -1034,4 +1228,20 @@ def _conflict(code: str, detail: str) -> ApplicationError:
         code=code,
         title="Resource conflict",
         detail=detail,
+    )
+
+
+def _field_error(
+    pointer: str,
+    code: str,
+    message: str,
+    *,
+    status: int = 409,
+) -> ApplicationError:
+    return ApplicationError(
+        status=status,
+        code=code,
+        title="Invalid field value",
+        detail=message,
+        errors=[{"pointer": pointer, "code": code, "message": message}],
     )

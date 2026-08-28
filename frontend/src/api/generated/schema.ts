@@ -3995,7 +3995,8 @@ export interface paths {
         /** List Stores */
         get: operations["AdminStore_List"];
         put?: never;
-        post?: never;
+        /** Create Store */
+        post: operations["AdminStore_Create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4013,7 +4014,8 @@ export interface paths {
         get: operations["AdminStore_Get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Store */
+        delete: operations["AdminStore_Delete"];
         options?: never;
         head?: never;
         /** Update Store */
@@ -4751,7 +4753,8 @@ export interface paths {
         /** List Users */
         get: operations["AdminUser_List"];
         put?: never;
-        post?: never;
+        /** Create User */
+        post: operations["AdminUser_Create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4769,6 +4772,42 @@ export interface paths {
         get: operations["AdminUser_Get"];
         put?: never;
         post?: never;
+        /** Delete User */
+        delete: operations["AdminUser_Delete"];
+        options?: never;
+        head?: never;
+        /** Update User */
+        patch: operations["AdminUser_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/password-replacements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace User Password */
+        post: operations["AdminUserPassword_Replace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/wallet-adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust User Wallet */
+        post: operations["AdminUserWallet_Adjust"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6606,6 +6645,26 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AdminStoreCreateRequest */
+        AdminStoreCreateRequest: {
+            /** Store Name */
+            store_name: string;
+            /** Description */
+            description?: string | null;
+            /** Merchant Username */
+            merchant_username: string;
+            /** Merchant Password */
+            merchant_password: string;
+            /** Merchant Email */
+            merchant_email: string;
+        };
+        /** AdminStoreDeleteRequest */
+        AdminStoreDeleteRequest: {
+            /** Reason */
+            reason: string;
+            /** Confirmation */
+            confirmation: string;
+        };
         /** AdminStoreList */
         AdminStoreList: {
             /** Items */
@@ -6778,12 +6837,42 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** AdminUserCreateRequest */
+        AdminUserCreateRequest: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+            /** Email */
+            email: string;
+            /** Nickname */
+            nickname?: string | null;
+        };
+        /** AdminUserDeleteRequest */
+        AdminUserDeleteRequest: {
+            /** Confirmation */
+            confirmation: string;
+            /** Reason */
+            reason: string;
+        };
         /** AdminUserList */
         AdminUserList: {
             /** Items */
             items: components["schemas"]["AdminUserSummary"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** AdminUserPasswordReplaceRequest */
+        AdminUserPasswordReplaceRequest: {
+            /** Temporary Password */
+            temporary_password: string;
+            /**
+             * Require Change On Next Login
+             * @default true
+             */
+            require_change_on_next_login: boolean;
+            /** Reason */
+            reason: string;
         };
         /** AdminUserSummary */
         AdminUserSummary: {
@@ -6806,6 +6895,43 @@ export interface components {
             permission_version: number;
             /** Version */
             version: number;
+        };
+        /** AdminUserUpdateRequest */
+        AdminUserUpdateRequest: {
+            /** Username */
+            username?: string | null;
+            /** Nickname */
+            nickname?: string | null;
+            /** Email */
+            email?: string | null;
+        };
+        /** AdminWalletAdjustmentRequest */
+        AdminWalletAdjustmentRequest: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "credit" | "debit";
+            /** Amount Minor */
+            amount_minor: number;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminWalletAdjustmentResult */
+        AdminWalletAdjustmentResult: {
+            /** Transaction Id */
+            transaction_id: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "credit" | "debit";
+            /** Amount Minor */
+            amount_minor: string;
+            /** Balance Minor */
+            balance_minor: string;
+            /** Currency */
+            currency: string;
         };
         /** AgentApprovalDecisionRequest */
         AgentApprovalDecisionRequest: {
@@ -8145,6 +8271,11 @@ export interface components {
         /** Envelope[AdminUserSummary] */
         Envelope_AdminUserSummary_: {
             data: components["schemas"]["AdminUserSummary"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminWalletAdjustmentResult] */
+        Envelope_AdminWalletAdjustmentResult_: {
+            data: components["schemas"]["AdminWalletAdjustmentResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AgentApprovalView] */
@@ -22411,6 +22542,47 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    AdminStore_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     AdminStore_Get: {
         parameters: {
             query?: never;
@@ -22443,6 +22615,50 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStore_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
             429: components["responses"]["Problem429"];
             500: components["responses"]["Problem500"];
             503: components["responses"]["Problem503"];
@@ -24445,6 +24661,47 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    AdminUser_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminUserSummary_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     AdminUser_Get: {
         parameters: {
             query?: never;
@@ -24468,6 +24725,184 @@ export interface operations {
             401: components["responses"]["Problem401"];
             403: components["responses"]["Problem403"];
             404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUser_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUser_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminUserSummary_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserPassword_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserPasswordReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserWallet_Adjust: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminWalletAdjustmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminWalletAdjustmentResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {

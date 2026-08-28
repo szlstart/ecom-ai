@@ -127,14 +127,15 @@ onBeforeUnmount(() => {
 <template>
   <button
     ref="trigger"
-    class="user-message-trigger"
+    class="user-message-trigger storefront-nav-entry"
     :class="{ 'message-arrival-shake': shaking }"
     type="button"
     aria-label="消息"
     aria-haspopup="dialog"
     @click="show"
   >
-    <span>消息</span>
+    <span aria-hidden="true">💬</span>
+    <span class="nav-entry-label">消息</span>
     <b v-if="totalUnread" :aria-label="`${totalUnread} 条未读消息`">{{ unreadLabel(totalUnread) }}</b>
   </button>
   <Teleport to="body">

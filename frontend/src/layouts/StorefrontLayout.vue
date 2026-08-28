@@ -92,11 +92,11 @@ watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
           <button type="submit" class="small">搜索</button>
         </form>
         <div class="nav-links">
-          <RouterLink v-if="auth.isAuthenticated" to="/cart">购物车</RouterLink><button v-else class="nav-link-button" type="button" @click="openAuth('login', '/cart')">购物车</button>
-          <UserMessageCenter v-if="auth.isAuthenticated" /><button v-else class="nav-link-button" type="button" @click="requestMessages">消息</button>
-          <RouterLink v-if="auth.isAuthenticated" to="/me/favorites/products">收藏</RouterLink><button v-else class="nav-link-button" type="button" @click="openAuth('login', '/me/favorites/products')">收藏</button>
-          <RouterLink v-if="auth.isAuthenticated" to="/me/addresses">地址</RouterLink><button v-else class="nav-link-button" type="button" @click="openAuth('login', '/me/addresses')">地址</button>
-          <RouterLink v-if="auth.isAuthenticated" to="/me">我的</RouterLink><button v-else class="nav-link-button" type="button" @click="openAuth('login', '/me')">我的</button>
+          <RouterLink v-if="auth.isAuthenticated" class="storefront-nav-entry" to="/cart"><span aria-hidden="true">🛒</span><span class="nav-entry-label">购物车</span></RouterLink><button v-else class="nav-link-button storefront-nav-entry" type="button" @click="openAuth('login', '/cart')"><span aria-hidden="true">🛒</span><span class="nav-entry-label">购物车</span></button>
+          <UserMessageCenter v-if="auth.isAuthenticated" /><button v-else class="nav-link-button storefront-nav-entry" type="button" @click="requestMessages"><span aria-hidden="true">💬</span><span class="nav-entry-label">消息</span></button>
+          <RouterLink v-if="auth.isAuthenticated" class="storefront-nav-entry" to="/me/favorites/products"><span aria-hidden="true">♥</span><span class="nav-entry-label">收藏</span></RouterLink><button v-else class="nav-link-button storefront-nav-entry" type="button" @click="openAuth('login', '/me/favorites/products')"><span aria-hidden="true">♥</span><span class="nav-entry-label">收藏</span></button>
+          <RouterLink v-if="auth.isAuthenticated" class="storefront-nav-entry" to="/me/addresses"><span aria-hidden="true">📍</span><span class="nav-entry-label">收货地址</span></RouterLink><button v-else class="nav-link-button storefront-nav-entry" type="button" @click="openAuth('login', '/me/addresses')"><span aria-hidden="true">📍</span><span class="nav-entry-label">收货地址</span></button>
+          <RouterLink v-if="auth.isAuthenticated" class="storefront-nav-entry" to="/me"><span aria-hidden="true">👤</span><span class="nav-entry-label">我的</span></RouterLink><button v-else class="nav-link-button storefront-nav-entry" type="button" @click="openAuth('login', '/me')"><span aria-hidden="true">👤</span><span class="nav-entry-label">我的</span></button>
 
           <details v-if="auth.isAuthenticated" ref="userMenu" class="user-menu">
             <summary>{{ greeting }}，{{ displayName }}</summary>

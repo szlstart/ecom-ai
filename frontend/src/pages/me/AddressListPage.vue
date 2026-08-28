@@ -263,39 +263,62 @@ onMounted(() => load().catch((reason) => { error.value = errorMessage(reason) })
 </script>
 
 <template>
-  <section>
-    <div class="page-heading">
-      <div><p class="eyebrow">我的</p><h1>收货地址</h1></div>
-      <button type="button" @click="showForm ? cancelForm() : openCreateForm()">{{ showForm ? '取消' : '新增地址' }}</button>
-    </div>
+  <section class="address-book-page">
+    <header class="address-book-hero">
+      <div>
+        <p class="eyebrow">Delivery address</p>
+        <h1>收货地址</h1>
+        <p>妥善管理常用地址，下单时可更快完成配送信息确认。</p>
+      </div>
+      <div class="address-book-hero-actions">
+        <span><strong>{{ items.length }}</strong><small>个已保存地址</small></span>
+        <button type="button" @click="showForm ? cancelForm() : openCreateForm()">{{ showForm ? '收起编辑' : '＋ 新增地址' }}</button>
+      </div>
+    </header>
     <p v-if="error" class="alert error">{{ error }}</p>
 
-    <form v-if="showForm" class="card address-form" novalidate @submit.prevent="save">
-      <h2>{{ isEditing ? '编辑收货地址' : '新增收货地址' }}</h2>
-      <label>收货人<input v-model.trim="form.recipient_name" autocomplete="name" minlength="1" maxlength="64" required :aria-invalid="Boolean(fieldErrors.recipient_name)" @input="clearFieldError('recipient_name')" /><small v-if="fieldErrors.recipient_name" class="field-error" role="alert">{{ fieldErrors.recipient_name }}</small></label>
-      <label>联系电话<input v-model.trim="form.phone" autocomplete="tel" minlength="7" maxlength="32" required :aria-invalid="Boolean(fieldErrors.phone)" @input="clearFieldError('phone')" /><small v-if="fieldErrors.phone" class="field-error" role="alert">{{ fieldErrors.phone }}</small></label>
-      <fieldset class="region-selector">
-        <legend>地区</legend>
-        <div class="field-row">
-          <label>省份<select v-model="form.province_code" required :aria-invalid="Boolean(fieldErrors.province_code)" @change="selectProvince"><option value="" disabled>请选择省份</option><option v-for="item in provinces" :key="item.code" :value="item.code">{{ item.name }}</option></select><small v-if="fieldErrors.province_code" class="field-error" role="alert">{{ fieldErrors.province_code }}</small></label>
-          <label>城市<select v-model="form.city_code" required :disabled="!form.province_code" :aria-invalid="Boolean(fieldErrors.city_code)" @change="selectCity"><option value="" disabled>请选择城市</option><option v-for="item in cities" :key="item.code" :value="item.code">{{ item.name }}</option></select><small v-if="fieldErrors.city_code" class="field-error" role="alert">{{ fieldErrors.city_code }}</small></label>
-          <label>区 / 县<select v-model="form.district_code" required :disabled="!form.city_code" :aria-invalid="Boolean(fieldErrors.district_code)" @change="clearFieldError('district_code')"><option value="" disabled>请选择区或县</option><option v-for="item in districts" :key="item.code" :value="item.code">{{ item.name }}</option></select><small v-if="fieldErrors.district_code" class="field-error" role="alert">{{ fieldErrors.district_code }}</small></label>
-        </div>
-      </fieldset>
-      <label>详细地址<textarea v-model.trim="form.address" autocomplete="street-address" minlength="2" maxlength="500" placeholder="请输入街道、门牌号、小区、楼栋及房间号" required :aria-invalid="Boolean(fieldErrors.address)" @input="clearFieldError('address')" /><small v-if="fieldErrors.address" class="field-error" role="alert">{{ fieldErrors.address }}</small></label>
-      <label v-if="!isEditing" class="check-row"><input v-model="form.is_default" type="checkbox" />设为默认地址</label>
-      <div class="actions form-actions">
+    <form v-if="showForm" class="address-editor-card" novalidate @submit.prevent="save">
+      <header>
+        <div><p class="eyebrow">{{ isEditing ? 'Edit address' : 'New address' }}</p><h2>{{ isEditing ? '编辑收货地址' : '新增收货地址' }}</h2><p>请填写真实、准确的信息，以免影响配送。</p></div>
+        <button class="address-editor-close" type="button" aria-label="关闭地址编辑" @click="cancelForm">×</button>
+      </header>
+      <div class="address-form-grid">
+        <label>收货人<input v-model.trim="form.recipient_name" autocomplete="name" minlength="1" maxlength="64" placeholder="请输入收货人姓名" required :aria-invalid="Boolean(fieldErrors.recipient_name)" @input="clearFieldError('recipient_name')" /><small v-if="fieldErrors.recipient_name" class="field-error" role="alert">{{ fieldErrors.recipient_name }}</small></label>
+        <label>联系电话<input v-model.trim="form.phone" autocomplete="tel" minlength="7" maxlength="32" placeholder="请输入手机或联系电话" required :aria-invalid="Boolean(fieldErrors.phone)" @input="clearFieldError('phone')" /><small v-if="fieldErrors.phone" class="field-error" role="alert">{{ fieldErrors.phone }}</small></label>
+        <fieldset class="region-selector address-region-selector">
+          <legend>地区</legend>
+          <div class="field-row">
+            <label>省份<select v-model="form.province_code" required :aria-invalid="Boolean(fieldErrors.province_code)" @change="selectProvince"><option value="" disabled>请选择省份</option><option v-for="item in provinces" :key="item.code" :value="item.code">{{ item.name }}</option></select><small v-if="fieldErrors.province_code" class="field-error" role="alert">{{ fieldErrors.province_code }}</small></label>
+            <label>城市<select v-model="form.city_code" required :disabled="!form.province_code" :aria-invalid="Boolean(fieldErrors.city_code)" @change="selectCity"><option value="" disabled>请选择城市</option><option v-for="item in cities" :key="item.code" :value="item.code">{{ item.name }}</option></select><small v-if="fieldErrors.city_code" class="field-error" role="alert">{{ fieldErrors.city_code }}</small></label>
+            <label>区 / 县<select v-model="form.district_code" required :disabled="!form.city_code" :aria-invalid="Boolean(fieldErrors.district_code)" @change="clearFieldError('district_code')"><option value="" disabled>请选择区或县</option><option v-for="item in districts" :key="item.code" :value="item.code">{{ item.name }}</option></select><small v-if="fieldErrors.district_code" class="field-error" role="alert">{{ fieldErrors.district_code }}</small></label>
+          </div>
+        </fieldset>
+        <label class="address-detail-field">详细地址<textarea v-model.trim="form.address" autocomplete="street-address" minlength="2" maxlength="500" placeholder="请输入街道、门牌号、小区、楼栋及房间号" required :aria-invalid="Boolean(fieldErrors.address)" @input="clearFieldError('address')" /><small v-if="fieldErrors.address" class="field-error" role="alert">{{ fieldErrors.address }}</small></label>
+        <label v-if="!isEditing" class="check-row address-default-check"><input v-model="form.is_default" type="checkbox" />设为默认收货地址</label>
+      </div>
+      <footer class="actions form-actions">
         <button :disabled="pending" type="submit">{{ pending ? '正在保存…' : isEditing ? '保存修改' : '保存地址' }}</button>
         <button class="secondary" :disabled="pending" type="button" @click="cancelForm">取消</button>
-      </div>
+      </footer>
     </form>
 
-    <div class="stack">
-      <article v-for="item in items" :key="item.address_id" class="card address-card">
-        <div><span v-if="item.is_default" class="badge">默认</span><strong>{{ item.recipient_name }}</strong> · {{ item.phone }}<p>{{ displayRegion(item) }} {{ item.address }}</p></div>
-        <div class="actions"><button class="secondary small" type="button" @click="openEditForm(item)">编辑</button><button v-if="!item.is_default" class="secondary small" type="button" @click="setDefault(item)">设为默认</button><button class="danger small" type="button" @click="remove(item)">删除</button></div>
-      </article>
-      <p v-if="!items.length" class="empty-state card">暂无收货地址</p>
-    </div>
+    <section class="address-list-section">
+      <header>
+        <div><p class="eyebrow">Address book</p><h2>地址簿</h2></div>
+        <span>默认地址将在结算时优先选中</span>
+      </header>
+      <div class="address-book-grid">
+        <article v-for="item in items" :key="item.address_id" class="address-book-card" :class="{ default: item.is_default }">
+          <span class="address-pin" aria-hidden="true">📍</span>
+          <div class="address-book-copy">
+            <header><strong>{{ item.recipient_name }}</strong><span>{{ item.phone }}</span><b v-if="item.is_default">默认地址</b></header>
+            <p>{{ displayRegion(item) }} {{ item.address }}</p>
+            <small>{{ item.is_default ? '结算时优先使用此地址' : '已保存到您的地址簿' }}</small>
+          </div>
+          <div class="address-card-actions"><button class="secondary small" type="button" @click="openEditForm(item)">编辑</button><button v-if="!item.is_default" class="secondary small" type="button" @click="setDefault(item)">设为默认</button><button class="address-delete-button small" type="button" @click="remove(item)">删除</button></div>
+        </article>
+        <div v-if="!items.length" class="address-book-empty"><span aria-hidden="true">⌖</span><h3>还没有收货地址</h3><p>添加一个常用地址，结算时无需重复填写。</p><button type="button" @click="openCreateForm">添加第一个地址</button></div>
+      </div>
+    </section>
   </section>
 </template>

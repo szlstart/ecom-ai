@@ -47,42 +47,45 @@ async function logout() {
 </script>
 
 <template>
-  <section>
-    <div class="page-heading">
-      <div><p class="eyebrow">个人中心</p><h1>你好，{{ auth.user?.nickname || auth.user?.username }}</h1></div>
-      <div class="actions">
-        <RouterLink class="button-link" to="/me/profile">编辑资料</RouterLink>
-        <button class="danger" type="button" :disabled="loggingOut" @click="logout">
-          {{ loggingOut ? '正在退出…' : '退出登录' }}
-        </button>
+  <section class="my-center-page">
+    <header class="my-center-hero">
+      <div class="my-center-profile">
+        <span class="my-center-avatar">{{ (auth.user?.nickname || auth.user?.username || '我').slice(0, 1).toUpperCase() }}</span>
+        <div><p class="eyebrow">Personal center</p><h1>你好，{{ auth.user?.nickname || auth.user?.username }}</h1><p>订单、地址、收藏和账户安全，都在这里统一管理。</p></div>
       </div>
-    </div>
-
+      <div class="my-center-hero-actions">
+        <RouterLink class="my-profile-button" to="/me/profile">编辑个人资料</RouterLink>
+        <button class="my-logout-button" type="button" :disabled="loggingOut" @click="logout">{{ loggingOut ? '正在退出…' : '退出登录' }}</button>
+      </div>
+      <div class="my-wallet-panel">
+        <div><p>账户余额</p><strong>{{ money(wallet?.balance.minor_units) }}</strong><small>模拟充值余额，可用于商城内支付</small></div>
+        <RouterLink to="/me/wallet">充值与明细 <span aria-hidden="true">→</span></RouterLink>
+      </div>
+      <div v-if="data" class="my-ai-service-pill"><span aria-hidden="true">✦</span> AI 专属客服在线<span v-if="data.unread_message_count"> · {{ data.unread_message_count }} 条未读消息</span></div>
+    </header>
     <p v-if="error" class="alert error">{{ error }}</p>
     <div v-if="data" class="dashboard-sections">
-      <article class="card dashboard-card dashboard-card-wallet"><div class="dashboard-card-heading"><div><p class="eyebrow">余额</p><h2>账户余额</h2></div><RouterLink to="/me/wallet">充值与明细</RouterLink></div><p class="dashboard-balance">{{ money(wallet?.balance.minor_units) }}</p><small class="muted">当前充值为模拟流程，不会产生真实扣款。</small></article>
-      <article class="card dashboard-card dashboard-card-orders">
-        <div class="dashboard-card-heading"><div><p class="eyebrow">订单</p><h2>我的订单</h2></div><RouterLink to="/me/orders?view=all">查看全部订单</RouterLink></div>
-        <dl class="metric-list"><div v-for="(count, key) in data.order_counts" :key="key"><dt>{{ orderCountLabels[key] ?? key }}</dt><dd>{{ count }}</dd></div></dl>
+      <article class="dashboard-card dashboard-card-orders premium-dashboard-card">
+        <div class="dashboard-card-heading"><div class="dashboard-heading-copy"><span class="dashboard-section-icon" aria-hidden="true">▣</span><div><p class="eyebrow">Orders</p><h2>我的订单</h2><p>查看订单进度，及时完成支付、收货与评价。</p></div></div><RouterLink class="dashboard-main-link" to="/me/orders?view=all">全部订单 <span aria-hidden="true">→</span></RouterLink></div>
+        <div class="my-order-shortcuts"><RouterLink v-for="(count, key) in data.order_counts" :key="key" :to="{ path: '/me/orders', query: { view: String(key) } }"><span>{{ orderCountLabels[key] ?? key }}</span><strong>{{ count }}</strong><small>查看订单</small></RouterLink></div>
       </article>
 
-      <article class="card dashboard-card dashboard-card-address">
-        <div><p class="eyebrow">配送</p><h2>默认收货地址</h2></div>
-        <p v-if="data.default_address">{{ data.default_address.recipient_name }} · {{ data.default_address.address }}</p>
-        <p v-else class="muted">尚未设置默认收货地址</p>
-        <RouterLink to="/me/addresses">管理地址</RouterLink>
+      <article class="dashboard-card dashboard-card-address premium-dashboard-card dashboard-row-card">
+        <span class="dashboard-section-icon" aria-hidden="true">⌖</span>
+        <div><p class="eyebrow">Delivery</p><h2>默认收货地址</h2><p v-if="data.default_address" class="dashboard-primary-copy"><strong>{{ data.default_address.recipient_name }}</strong><span>{{ data.default_address.address }}</span></p><p v-else class="dashboard-empty-copy">尚未设置默认收货地址，添加后结算更快捷。</p></div>
+        <RouterLink class="dashboard-main-link" to="/me/addresses">管理收货地址 <span aria-hidden="true">→</span></RouterLink>
       </article>
 
-      <article class="card dashboard-card dashboard-card-favorites">
-        <div><p class="eyebrow">收藏</p><h2>我的收藏</h2></div>
-        <p>集中查看收藏的商品和关注的店铺。</p>
-        <div class="actions dashboard-actions"><RouterLink to="/me/favorites/products">商品收藏</RouterLink><RouterLink to="/me/favorites/stores">店铺收藏</RouterLink></div>
+      <article class="dashboard-card dashboard-card-favorites premium-dashboard-card dashboard-row-card">
+        <span class="dashboard-section-icon favorite" aria-hidden="true">♥</span>
+        <div><p class="eyebrow">Favorites</p><h2>我的收藏</h2><p>心仪商品与关注店铺集中管理，随时继续选购。</p><div class="dashboard-quick-links"><RouterLink to="/me/favorites/products">商品收藏</RouterLink><RouterLink to="/me/favorites/stores">店铺收藏</RouterLink></div></div>
+        <RouterLink class="dashboard-main-link" to="/me/favorites/products">查看收藏 <span aria-hidden="true">→</span></RouterLink>
       </article>
 
-      <article class="card dashboard-card dashboard-card-security">
-        <div><p class="eyebrow">账户</p><h2>账号与安全</h2></div>
-        <p>管理密码、联系方式和登录设备。</p>
-        <RouterLink to="/me/settings/security">进入安全设置</RouterLink>
+      <article class="dashboard-card dashboard-card-security premium-dashboard-card dashboard-row-card">
+        <span class="dashboard-section-icon security" aria-hidden="true">◇</span>
+        <div><p class="eyebrow">Security</p><h2>账号与安全</h2><p>管理登录密码、绑定邮箱与账户注销。</p></div>
+        <RouterLink class="dashboard-main-link" to="/me/settings/security">安全设置 <span aria-hidden="true">→</span></RouterLink>
       </article>
     </div>
   </section>

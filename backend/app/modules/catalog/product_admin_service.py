@@ -59,6 +59,7 @@ from app.modules.catalog.product_admin_schemas import (
     AdminSkuUpdateRequest,
     AdminSkuView,
 )
+from app.modules.catalog.product_moderation import moderate_product_texts
 from app.modules.files.models import FileObject
 from app.modules.inventory.models import Inventory
 from app.modules.rbac.audit import record_admin_operation
@@ -1024,7 +1025,7 @@ class ProductAdminService:
         key: str,
     ) -> AdminProductDetail:
         row = await self._product(access, product_no, for_update=True)
-        product, store, _, _ = row
+        product, store, category, _ = row
         claim = await self._command_claim(product_no, "review-submit", payload, key)
         if claim.replayed:
             return await self._detail(row)
@@ -1036,6 +1037,11 @@ class ProductAdminService:
                 "PRODUCT_INCOMPLETE",
                 f"商品资料不完整: {', '.join(completeness.missing_requirements)}。",
             )
+        automatic_moderation = access.context.session.client_type == "merchant"
+        if automatic_moderation and (
+            store.store_status != "active" or category.category_status != "active"
+        ):
+            raise _conflict("PRODUCT_PUBLICATION_SCOPE_INVALID", "店铺与平台分类必须处于启用状态。")
         previous = product.product_status
         product.product_status = "pending_review"
         product.version += 1
@@ -1057,9 +1063,94 @@ class ProductAdminService:
             payload.reason,
         )
         _change_event(self.session, product, store, "product.review_submitted.v1")
+
+        if automatic_moderation:
+            moderation = moderate_product_texts(await self._moderation_texts(product, current))
+            if not moderation.approved:
+                product.product_status = "rejected"
+                product.version += 1
+                if current.version_status not in {"published", "approved"}:
+                    current.version_status = "rejected"
+                    current.approved_by = None
+                    current.approved_at = None
+                    current.version += 1
+                _system_status_log(
+                    self.session,
+                    product,
+                    "pending_review",
+                    "rejected",
+                    "auto_rejected",
+                    "AUTO_MODERATION_FIREARMS_AMMUNITION",
+                    "自动审核发现枪支弹药相关违禁词，请修改商品内容后重新提交。",
+                )
+                _change_event(self.session, product, store, "product.rejected.v1")
+            else:
+                product.version += 1
+                if current.version_status != "published":
+                    current.version_status = "approved"
+                    current.approved_by = None
+                    current.approved_at = utc_now()
+                    current.version += 1
+                _system_status_log(
+                    self.session,
+                    product,
+                    "pending_review",
+                    "pending_review",
+                    "auto_approved",
+                    "AUTO_MODERATION_PASSED",
+                    "系统自动审核通过。",
+                )
+                _change_event(self.session, product, store, "product.approved.v1")
+
+                if current.version_status != "published":
+                    current.version_status = "published"
+                    current.published_at = utc_now()
+                    current.version += 1
+                product.published_detail_content_version_id = current.id
+                product.product_status = "on_sale"
+                product.published_at = utc_now()
+                product.off_shelf_at = None
+                product.version += 1
+                _system_status_log(
+                    self.session,
+                    product,
+                    "pending_review",
+                    "on_sale",
+                    "auto_published",
+                    "AUTO_MODERATION_PASSED",
+                    "自动审核通过后立即上架。",
+                )
+                _change_event(self.session, product, store, "product.published.v1")
         self.idempotency.complete(claim, response_status=200, resource_no=product.product_no)
         await self.session.commit()
         return await self._fresh_detail(access, product.product_no)
+
+    async def _moderation_texts(
+        self, product: Product, current: ProductContentVersion
+    ) -> list[str | None]:
+        values: list[str | None] = [
+            product.product_name,
+            product.subtitle,
+            product.description,
+            current.safe_text,
+        ]
+        for sku in await self.repository.skus(product.id):
+            if sku.sku_status == "active":
+                values.extend((sku.sku_name, json.dumps(sku.spec_values, ensure_ascii=False)))
+        for attribute in await self.repository.attributes(product.id):
+            values.extend((attribute.attribute_name, attribute.value_text))
+        fulfillment = await self.repository.fulfillment(product.id)
+        if fulfillment:
+            values.append(fulfillment.purchase_notice)
+        for faq in await self.repository.faqs(product.id):
+            values.append(faq.question)
+            if faq.current_content_version_id:
+                version = await self.repository.faq_version_by_id(
+                    faq.id, faq.current_content_version_id
+                )
+                if version:
+                    values.append(version.safe_text)
+        return values
 
     async def moderate(
         self,
@@ -1485,6 +1576,32 @@ def _status_log(
             event_type=event,
             actor_type="admin",
             actor_id=access.context.user.id,
+            reason_code=reason_code,
+            reason=reason,
+            product_version=product.version,
+            request_id=_request_id(),
+            trace_id=_request_id(),
+        )
+    )
+
+
+def _system_status_log(
+    session: AsyncSession,
+    product: Product,
+    previous: str,
+    target: str,
+    event: str,
+    reason_code: str,
+    reason: str,
+) -> None:
+    session.add(
+        ProductStatusLog(
+            product_id=product.id,
+            from_status=previous,
+            to_status=target,
+            event_type=event,
+            actor_type="system",
+            actor_id=None,
             reason_code=reason_code,
             reason=reason,
             product_version=product.version,

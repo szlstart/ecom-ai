@@ -246,9 +246,17 @@ async function load(options: { preserveDrafts?: boolean } = {}) {
   }
 }
 
-async function perform(action: () => Promise<unknown>, success: string, reload = true) {
+async function perform(
+  action: () => Promise<unknown>,
+  success: string | ((result: unknown) => string),
+  reload = true,
+) {
   saving.value = true; error.value = ''; notice.value = ''
-  try { await action(); notice.value = success; if (reload) await load({ preserveDrafts: true }) }
+  try {
+    const result = await action()
+    notice.value = typeof success === 'function' ? success(result) : success
+    if (reload) await load({ preserveDrafts: true })
+  }
   catch (cause) { error.value = errorMessage(cause) }
   finally { saving.value = false }
 }
@@ -501,7 +509,19 @@ async function finishEditing(label: string, requireComplete = true) {
 async function productCommand(action: 'submit_review' | 'publish' | 'off_shelf') {
   const endpoint = { submit_review: '/review-submissions', publish: '/publications', off_shelf: '/off-shelf-commands' }[action]
   const reason = { submit_review: '商家完成商品资料并提交审核', publish: '商家确认商品开始销售', off_shelf: '商家主动停止商品销售' }[action]
-  await perform(() => adminCommand(path(endpoint), { reason_code: 'MERCHANT_OPERATION', reason }, token(), product.value!.version, `merchant-product-${action}`), action === 'submit_review' ? '商品已提交审核。' : action === 'publish' ? '商品已上架。' : '商品已下架。')
+  await perform(
+    () => adminCommand<AdminProduct>(path(endpoint), { reason_code: 'MERCHANT_OPERATION', reason }, token(), product.value!.version, `merchant-product-${action}`),
+    action === 'submit_review'
+      ? (result) => {
+          const status = (result as { data?: AdminProduct }).data?.status
+          return status === 'on_sale'
+            ? '系统自动审核通过，商品已立即上架。'
+            : status === 'rejected'
+              ? '自动审核未通过：商品内容包含枪支弹药相关违禁词，请修改后重新提交。'
+              : '商品已提交审核。'
+        }
+      : action === 'publish' ? '商品已上架。' : '商品已下架。',
+  )
 }
 
 watch(() => route.params.productId, () => void load())
@@ -541,7 +561,7 @@ onMounted(() => { resetSku(); void load() })
 
         <section class="merchant-product-reviews card"><header><div><p class="eyebrow">商品评价</p><h2>顾客在这件商品下看到的评价</h2><p>平均 {{ product.rating_score }} 分 · 共 {{ product.review_count }} 条</p></div></header><p v-if="!reviews.length" class="merchant-review-empty">这件商品暂时还没有顾客评价。</p><article v-for="item in reviews" :key="item.review_id"><header><span class="merchant-stars">{{ '★'.repeat(item.rating) }}{{ '☆'.repeat(5 - item.rating) }}</span><strong>{{ item.is_anonymous ? '匿名顾客' : item.user_name }}</strong><time>{{ new Date(item.submitted_at).toLocaleString('zh-CN') }}</time></header><p>{{ item.content || '顾客只留下了星级评分。' }}</p><small>购买款式：{{ item.sku_name }}</small><div v-if="item.merchant_reply" class="merchant-existing-reply"><strong>店铺回复</strong><p>{{ item.merchant_reply.content }}</p></div><form v-else @submit.prevent="replyReview(item)"><label>回复这条评价<textarea v-model="replyDrafts[item.review_id]" rows="3" minlength="2" maxlength="500" placeholder="感谢您的反馈……" /></label><div class="actions"><button type="button" class="secondary small" @click="replyDrafts[item.review_id] = '感谢您的支持与认可，我们会继续认真做好商品和服务。'">感谢好评</button><button :disabled="replyingReviewId === item.review_id || (replyDrafts[item.review_id]?.trim().length ?? 0) < 2">{{ replyingReviewId === item.review_id ? '正在回复…' : '发布回复' }}</button></div></form></article></section>
 
-        <footer class="merchant-publication-bar"><div><strong>{{ statusLabel(product.status) }}</strong><span v-if="product.completeness.missing_requirements.length">还可以继续补充：{{ product.completeness.missing_requirements.join('、') }}</span><span v-else>商品资料已完整</span><small>商品名称、参数、发货设置、详情和常见问题都由这里统一保存；款式需先完成后才能上传对应图片。</small></div><div class="actions"><button v-if="product.status === 'draft'" type="button" class="secondary" :disabled="editorBusy" @click="finishEditing('商品已暂存为草稿。', false)">暂存为草稿</button><button v-if="canEdit" type="button" :disabled="editorBusy" @click="finishEditing('商品编辑已完成。')">完成编辑</button><RouterLink v-if="product.status === 'on_sale'" :to="`/products/${product.product_id}`" target="_blank">查看顾客页面 ↗</RouterLink><button v-if="product.available_actions.includes('submit_review')" :disabled="editorBusy" @click="productCommand('submit_review')">提交平台审核</button><button v-if="product.available_actions.includes('publish')" :disabled="editorBusy" @click="productCommand('publish')">立即上架</button><button v-if="product.available_actions.includes('off_shelf')" class="danger" :disabled="editorBusy" @click="productCommand('off_shelf')">下架商品</button></div></footer>
+        <footer class="merchant-publication-bar"><div><strong>{{ statusLabel(product.status) }}</strong><span v-if="product.completeness.missing_requirements.length">还可以继续补充：{{ product.completeness.missing_requirements.join('、') }}</span><span v-else>商品资料已完整</span><small>商品名称、参数、发货设置、详情和常见问题都由这里统一保存；款式需先完成后才能上传对应图片。</small></div><div class="actions"><button v-if="product.status === 'draft'" type="button" class="secondary" :disabled="editorBusy" @click="finishEditing('商品已暂存为草稿。', false)">暂存为草稿</button><button v-if="canEdit" type="button" :disabled="editorBusy" @click="finishEditing('商品编辑已完成。')">完成编辑</button><RouterLink v-if="product.status === 'on_sale'" :to="`/products/${product.product_id}`" target="_blank">查看顾客页面 ↗</RouterLink><button v-if="product.available_actions.includes('submit_review')" :disabled="editorBusy" @click="productCommand('submit_review')">提交并自动审核</button><button v-if="product.available_actions.includes('publish')" :disabled="editorBusy" @click="productCommand('publish')">立即上架</button><button v-if="product.available_actions.includes('off_shelf')" class="danger" :disabled="editorBusy" @click="productCommand('off_shelf')">下架商品</button></div></footer>
       </template>
     </PageState>
     <Teleport to="body"><div v-if="deletingSku" class="merchant-delete-overlay" @mousedown.self="closeSkuDelete"><section class="merchant-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="merchant-sku-delete-title"><span>!</span><template v-if="deletingLastActiveSku"><h2 id="merchant-sku-delete-title">当前不能删除最后一个在售款式</h2><p>在售商品必须至少保留一个顾客可以购买的款式。请先新增另一个款式，或者先将整个商品下架。</p><div class="actions"><button type="button" class="secondary" @click="closeSkuDelete">知道了</button></div></template><template v-else><h2 id="merchant-sku-delete-title">删除“{{ deletingSku.sku_name }}”款式？</h2><p>删除后，该款式会立即从商家编辑区和顾客购买选项中消失。为了保证订单、评价、库存流水和审计记录完整，历史数据仍会安全保留。</p><p v-if="(inventoryFor(deletingSku.sku_id)?.sold_quantity ?? 0) > 0">这个款式已有 {{ inventoryFor(deletingSku.sku_id)?.sold_quantity }} 件销量，历史订单中的款式名称不会受影响。</p><p v-if="skuDeleteError" class="error-text" role="alert">{{ skuDeleteError }}</p><div class="actions"><button type="button" class="secondary" :disabled="skuDeleting" @click="closeSkuDelete">取消</button><button type="button" class="danger" :disabled="skuDeleting" @click="confirmSkuDelete">{{ skuDeleting ? '正在删除…' : '删除款式' }}</button></div></template></section></div></Teleport>

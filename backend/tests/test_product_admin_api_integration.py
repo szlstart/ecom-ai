@@ -10,6 +10,7 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 
 from app.bootstrap.admin import provision_platform_super_admin
+from app.bootstrap.merchant import provision_store_operator
 from app.core.config import get_settings
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
@@ -38,6 +39,8 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
     now = utc_now()
     security = SecurityService(get_settings())
     password = f"Admin-Product-{suffix}-Correct-Horse!"
+    merchant_username = f"product_merchant_{suffix}"
+    merchant_password = f"Merchant-Product-{suffix}-Correct-Horse!"
 
     async for session in mysql_session():
         provisioning = await provision_platform_super_admin(
@@ -104,6 +107,13 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
             activated_at=now,
         )
         session.add_all([template, image])
+        await provision_store_operator(
+            session,
+            security,
+            username=merchant_username,
+            password=merchant_password,
+            store_no=store.store_no,
+        )
         await session.commit()
 
         store_no = store.store_no
@@ -533,6 +543,58 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
         await client.get(f"/api/v1/admin/products/{disposable_id}", headers=auth)
     ).status_code == 404
 
+    merchant_login = await client.post(
+        "/api/v1/merchant/auth/login",
+        json={
+            "identifier": merchant_username,
+            "password": merchant_password,
+            "client": {"client_type": "web", "device_name": "Product auto moderation test"},
+        },
+    )
+    assert merchant_login.status_code == 200, merchant_login.text
+    merchant_auth = {
+        "Authorization": f"Bearer {merchant_login.json()['data']['session']['access_token']}"
+    }
+    merchant_product = await client.get(
+        f"/api/v1/admin/products/{product_id}", headers=merchant_auth
+    )
+    sensitive_edit = await client.patch(
+        f"/api/v1/admin/products/{product_id}",
+        headers={**merchant_auth, "If-Match": merchant_product.headers["etag"]},
+        json={"product_name": f"金属手 枪测试商品 {suffix}"},
+    )
+    assert sensitive_edit.status_code == 200, sensitive_edit.text
+    auto_rejected = await client.post(
+        f"/api/v1/admin/products/{product_id}/review-submissions",
+        headers={
+            **merchant_auth,
+            "If-Match": sensitive_edit.headers["etag"],
+            "Idempotency-Key": f"merchant-product-auto-reject-{suffix}",
+        },
+        json={"reason_code": "MERCHANT_OPERATION", "reason": "商家提交自动审核。"},
+    )
+    assert auto_rejected.status_code == 200, auto_rejected.text
+    assert auto_rejected.json()["data"]["status"] == "rejected"
+
+    safe_edit = await client.patch(
+        f"/api/v1/admin/products/{product_id}",
+        headers={**merchant_auth, "If-Match": auto_rejected.headers["etag"]},
+        json={"product_name": f"自动审核安全商品 {suffix}"},
+    )
+    assert safe_edit.status_code == 200, safe_edit.text
+    auto_published = await client.post(
+        f"/api/v1/admin/products/{product_id}/review-submissions",
+        headers={
+            **merchant_auth,
+            "If-Match": safe_edit.headers["etag"],
+            "Idempotency-Key": f"merchant-product-auto-publish-{suffix}",
+        },
+        json={"reason_code": "MERCHANT_OPERATION", "reason": "商家提交自动审核。"},
+    )
+    assert auto_published.status_code == 200, auto_published.text
+    assert auto_published.json()["data"]["status"] == "on_sale"
+    assert "publish" not in auto_published.json()["data"]["available_actions"]
+
     async for session in mysql_session():
         status_count = await session.scalar(
             select(func.count(ProductStatusLog.id))
@@ -545,7 +607,7 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
                 OutboxEvent.aggregate_no == product_id,
             )
         )
-        assert status_count is not None and status_count >= 5
+        assert status_count is not None and status_count >= 10
         assert product_event_count is not None and product_event_count >= 10
         traded_product = await session.scalar(
             select(Product).where(Product.product_no == product_id)

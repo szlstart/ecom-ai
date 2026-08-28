@@ -41212,8 +41212,42 @@
         ],
         "title": "CheckoutIssue"
       },
+      "CheckoutItemQuantity": {
+        "properties": {
+          "cart_item_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^ci_[0-9A-Z]+$",
+            "title": "Cart Item Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 99.0,
+            "minimum": 1.0,
+            "title": "Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "cart_item_id",
+          "quantity"
+        ],
+        "title": "CheckoutItemQuantity"
+      },
       "CheckoutItemView": {
         "properties": {
+          "cart_item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cart Item Id"
+          },
           "product_id": {
             "type": "string",
             "title": "Product Id"
@@ -41312,6 +41346,22 @@
               }
             ],
             "title": "Quantity"
+          },
+          "item_quantities": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CheckoutItemQuantity"
+                },
+                "type": "array",
+                "maxItems": 100,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Item Quantities"
           }
         },
         "additionalProperties": false,

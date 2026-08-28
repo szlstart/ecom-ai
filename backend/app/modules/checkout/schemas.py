@@ -50,23 +50,43 @@ class BuyerRemark(StrictRequest):
         return self
 
 
+class CheckoutItemQuantity(StrictRequest):
+    cart_item_id: CartItemId
+    quantity: int = Field(ge=1, le=99)
+
+
 class CheckoutPatchRequest(StrictRequest):
     address_id: str | None = Field(default=None, pattern=r"^addr_[0-9A-Z]+$", max_length=40)
     buyer_remarks: list[BuyerRemark] | None = Field(default=None, max_length=100)
     quantity: int | None = Field(default=None, ge=1, le=99)
+    item_quantities: list[CheckoutItemQuantity] | None = Field(
+        default=None, min_length=1, max_length=100
+    )
 
     @model_validator(mode="after")
     def require_change(self) -> CheckoutPatchRequest:
-        if self.address_id is None and self.buyer_remarks is None and self.quantity is None:
-            raise ValueError("address_id, buyer_remarks or quantity is required")
+        if (
+            self.address_id is None
+            and self.buyer_remarks is None
+            and self.quantity is None
+            and self.item_quantities is None
+        ):
+            raise ValueError("address_id, buyer_remarks, quantity or item_quantities is required")
+        if self.quantity is not None and self.item_quantities is not None:
+            raise ValueError("quantity and item_quantities cannot be used together")
         if self.buyer_remarks is not None:
             ids = [item.store_id for item in self.buyer_remarks]
             if len(ids) != len(set(ids)):
                 raise ValueError("buyer_remarks store_id must be unique")
+        if self.item_quantities is not None:
+            ids = [item.cart_item_id for item in self.item_quantities]
+            if len(ids) != len(set(ids)):
+                raise ValueError("item_quantities cart_item_id must be unique")
         return self
 
 
 class CheckoutItemView(StrictRequest):
+    cart_item_id: str | None = None
     product_id: str
     sku_id: str
     product_name: str

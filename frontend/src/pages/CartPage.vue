@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import { formatMoney } from '@/api/catalog'
 import {
@@ -16,14 +16,18 @@ import {
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { createCartCheckout } from '@/api/checkout'
 import PageState from '@/components/PageState.vue'
+import CheckoutPage from '@/pages/CheckoutPage.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const auth = useUserAuthStore()
-const router = useRouter()
 const cart = ref<CartData | null>(null)
 const loading = ref(true)
 const busyItem = ref('')
 const error = ref('')
+const cartCheckoutId = ref('')
+const cartCheckoutOpen = ref(false)
+const cartCheckoutChanged = ref(false)
+const checkoutDialog = ref<HTMLElement | null>(null)
 const selectedIds = computed(() => cart.value?.groups.flatMap((group) => group.items)
   .filter((item) => item.is_selected).map((item) => item.cart_item_id) ?? [])
 const validItems = computed(() => cart.value?.groups.flatMap((group) => group.items)
@@ -104,11 +108,34 @@ function clearInvalid() {
 async function checkoutSelected() {
   if (!selectedIds.value.length) return
   busyItem.value = 'checkout'; error.value = ''
-  try { const response = await createCartCheckout(selectedIds.value, token()); await router.push(`/checkout/${response.data.checkout_id}`) }
+  try {
+    const response = await createCartCheckout(selectedIds.value, token())
+    cartCheckoutId.value = response.data.checkout_id
+    cartCheckoutChanged.value = false
+    cartCheckoutOpen.value = true
+  }
   catch (cause) { error.value = errorMessage(cause) }
   finally { busyItem.value = '' }
 }
+function markCartCheckoutChanged() {
+  cartCheckoutChanged.value = true
+}
+function closeCartCheckout() {
+  cartCheckoutOpen.value = false
+  if (cartCheckoutChanged.value) {
+    cartCheckoutChanged.value = false
+    void load()
+  }
+}
 onMounted(load)
+watch(cartCheckoutOpen, async (open) => {
+  document.body.classList.toggle('modal-open', open)
+  if (open) {
+    await nextTick()
+    checkoutDialog.value?.focus()
+  }
+})
+onBeforeUnmount(() => document.body.classList.remove('modal-open'))
 </script>
 
 <template>
@@ -136,5 +163,16 @@ onMounted(load)
         <footer class="cart-summary-bar"><div class="cart-summary-actions"><button type="button" class="secondary" :disabled="busyItem !== '' || validItems.length === 0" @click="toggleAll">全选 / 取消全选</button><button v-if="hasInvalid" type="button" class="secondary" :disabled="busyItem !== ''" @click="clearInvalid">清理失效商品</button></div><div class="cart-checkout-summary"><span>已选 <b>{{ cart.selected_quantity }}</b> 件</span><span class="cart-total-copy">合计<small>全场包邮</small></span><strong>{{ formatMoney(cart.amount_summary.selected_goods_amount) }}</strong><button type="button" :disabled="busyItem !== '' || !selectedIds.length" @click="checkoutSelected">{{ busyItem === 'checkout' ? '创建结算…' : '去结算' }}</button></div></footer>
       </template>
     </PageState>
+    <Teleport to="body">
+      <div v-if="cartCheckoutOpen && cartCheckoutId" class="buy-now-checkout-overlay" @mousedown.self="closeCartCheckout" @keydown.esc="closeCartCheckout">
+        <section ref="checkoutDialog" class="buy-now-checkout-dialog cart-checkout-dialog" role="dialog" aria-modal="true" aria-labelledby="cart-checkout-title" tabindex="-1">
+          <header class="buy-now-checkout-dialog-header">
+            <div><p class="eyebrow">购物车结算</p><h2 id="cart-checkout-title">确认所选商品</h2><p class="muted">可在下方分别调整每种商品的购买数量。</p></div>
+            <button type="button" class="buy-now-checkout-close secondary" aria-label="关闭结算弹窗并返回购物车" @click="closeCartCheckout">×</button>
+          </header>
+          <CheckoutPage :checkout-id="cartCheckoutId" embedded @cart-changed="markCartCheckoutChanged" />
+        </section>
+      </div>
+    </Teleport>
   </section>
 </template>

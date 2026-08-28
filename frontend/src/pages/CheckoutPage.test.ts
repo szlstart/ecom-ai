@@ -53,6 +53,23 @@ function checkout(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function cartCheckout() {
+  return checkout({
+    source_type: 'cart',
+    store_groups: [{
+      store_id: 'sto_01', store_name: '文具专卖店',
+      items: [
+        { cart_item_id: 'ci_01', product_id: 'prd_01', sku_id: 'sku_01', product_name: '2B铅笔', sku_name: '6支', quantity: 2, unit_price: { minor_units: '600', currency: 'CNY' }, subtotal: { minor_units: '1200', currency: 'CNY' }, available_quantity: 10 },
+        { cart_item_id: 'ci_02', product_id: 'prd_02', sku_id: 'sku_02', product_name: '笔记本', sku_name: 'A5', quantity: 1, unit_price: { minor_units: '800', currency: 'CNY' }, subtotal: { minor_units: '800', currency: 'CNY' }, available_quantity: 5 },
+      ],
+      goods_amount: { minor_units: '2000', currency: 'CNY' }, freight_amount: { minor_units: '0', currency: 'CNY' },
+      delivery_options: [], selected_delivery_option: null, buyer_remark: null, policy_versions: {}, customer_service_context: {},
+    }],
+    amounts: { goods_amount: { minor_units: '2000', currency: 'CNY' }, freight_amount: { minor_units: '0', currency: 'CNY' }, payable_amount: { minor_units: '2000', currency: 'CNY' } },
+    available_actions: ['change_address', 'change_item_quantities', 'reprice', 'create_order'],
+  })
+}
+
 async function mountPage(embedded = false) {
   const pinia = createPinia()
   setActivePinia(pinia)
@@ -147,5 +164,34 @@ describe('CheckoutPage', () => {
     expect(details.attributes('open')).toBeUndefined()
     expect(details.get('summary').text()).toContain('给商家留言')
     expect(details.get('summary').text()).toContain('（更多）')
+  })
+
+  it('updates each cart item quantity and the payable total inside the embedded checkout', async () => {
+    const changed = cartCheckout()
+    changed.store_groups[0]!.items[1]!.quantity = 2
+    changed.store_groups[0]!.items[1]!.subtotal = { minor_units: '1600', currency: 'CNY' }
+    changed.store_groups[0]!.goods_amount = { minor_units: '2800', currency: 'CNY' }
+    changed.amounts = {
+      goods_amount: { minor_units: '2800', currency: 'CNY' },
+      freight_amount: { minor_units: '0', currency: 'CNY' },
+      payable_amount: { minor_units: '2800', currency: 'CNY' },
+    }
+    changed.version = 3
+    mocks.getCheckout.mockResolvedValue({ data: cartCheckout() })
+    mocks.patchCheckout.mockResolvedValue({ data: changed })
+
+    const wrapper = await mountPage(true)
+    await wrapper.get('button[aria-label="增加笔记本数量"]').trigger('click')
+    await flushPromises()
+
+    expect(mocks.patchCheckout).toHaveBeenCalledWith(
+      'chk_test',
+      { item_quantities: [{ cart_item_id: 'ci_02', quantity: 2 }] },
+      2,
+      'user-token',
+    )
+    expect((wrapper.get('input[aria-label="笔记本结算数量"]').element as HTMLInputElement).value).toBe('2')
+    expect(wrapper.get('.checkout-summary-bar').text()).toContain('¥28.00')
+    expect(wrapper.emitted('cartChanged')).toEqual([[]])
   })
 })

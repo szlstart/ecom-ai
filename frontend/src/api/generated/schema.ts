@@ -7441,8 +7441,17 @@ export interface components {
             /** Sku Id */
             sku_id?: string | null;
         };
+        /** CheckoutItemQuantity */
+        CheckoutItemQuantity: {
+            /** Cart Item Id */
+            cart_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
         /** CheckoutItemView */
         CheckoutItemView: {
+            /** Cart Item Id */
+            cart_item_id?: string | null;
             /** Product Id */
             product_id: string;
             /** Sku Id */
@@ -7468,6 +7477,8 @@ export interface components {
             buyer_remarks?: components["schemas"]["BuyerRemark"][] | null;
             /** Quantity */
             quantity?: number | null;
+            /** Item Quantities */
+            item_quantities?: components["schemas"]["CheckoutItemQuantity"][] | null;
         };
         /** CheckoutStoreGroupView */
         CheckoutStoreGroupView: {

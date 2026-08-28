@@ -136,9 +136,47 @@ class CheckoutService:
             if row.source_type != "buy_now":
                 raise _conflict(
                     "CHECKOUT_QUANTITY_CHANGE_UNSUPPORTED",
-                    "购物车结算的数量请返回购物车修改。",
+                    "购物车结算请按商品修改数量。",
                 )
             source = {**source, "quantity": payload.quantity}
+        if payload.item_quantities is not None:
+            if row.source_type != "cart":
+                raise _conflict(
+                    "CHECKOUT_ITEM_QUANTITY_CHANGE_UNSUPPORTED",
+                    "立即购买结算只能修改当前商品数量。",
+                )
+            item_nos = cast(list[str], source["cart_item_ids"])
+            requested = {item.cart_item_id: item.quantity for item in payload.item_quantities}
+            if not set(requested).issubset(item_nos):
+                raise _conflict(
+                    "CHECKOUT_CART_ITEM_MISMATCH",
+                    "要修改的商品不属于当前结算会话。",
+                )
+            cart = await self.repository.cart(user.id, for_update=True)
+            contexts = await self.repository.cart_contexts(user.id, item_nos, for_update=True)
+            if cart is None or len(contexts) != len(item_nos):
+                raise _conflict("CART_ITEMS_CHANGED", "购物车商品已变化，请重新结算。")
+            by_no = {
+                context[0].cart_item_no: context for context in contexts if context[0] is not None
+            }
+            if not set(requested).issubset(by_no):
+                raise _conflict("CART_ITEMS_CHANGED", "购物车商品已变化，请重新结算。")
+            changed = False
+            for item_no, quantity in requested.items():
+                context = by_no[item_no]
+                item = context[0]
+                if item is None:
+                    raise _conflict("CART_ITEMS_CHANGED", "购物车商品已变化，请重新结算。")
+                if item.quantity == quantity:
+                    continue
+                item.quantity = quantity
+                item.invalid_reason = _cart_item_invalid_reason(context, quantity)
+                item.sku_version = context[1].version
+                item.version += 1
+                changed = True
+            if changed:
+                cart.last_activity_at = utc_now()
+                cart.version += 1
         current_view = CheckoutView.model_validate(snapshot.snapshot_payload["view"])
         address_no = (
             payload.address_id if payload.address_id is not None else current_view.address_id
@@ -301,7 +339,7 @@ class CheckoutService:
                 CheckoutIssue(code="ADDRESS_REQUIRED", message="请选择有效的收货地址。")
             )
         for context, quantity in contexts:
-            _, sku, product, store, inventory, profile, template = context
+            cart_item, sku, product, store, inventory, profile, template = context
             available = _available(inventory)
             if store.store_status != "active":
                 blocking.append(
@@ -337,6 +375,7 @@ class CheckoutService:
             group["goods"] += subtotal
             group["items"].append(
                 CheckoutItemView(
+                    cart_item_id=cart_item.cart_item_no if cart_item is not None else None,
                     product_id=product.product_no,
                     sku_id=sku.sku_no,
                     product_name=product.product_name,
@@ -383,6 +422,8 @@ class CheckoutService:
         actions = ["change_address", "reprice"]
         if source_type == "buy_now":
             actions.append("change_quantity")
+        elif source_type == "cart":
+            actions.append("change_item_quantities")
         if not blocking:
             actions.append("create_order")
         return CheckoutView(
@@ -477,6 +518,21 @@ def _available(inventory: Inventory | None) -> int:
         0,
         inventory.on_hand_quantity - inventory.reserved_quantity - inventory.safety_stock_quantity,
     )
+
+
+def _cart_item_invalid_reason(context: ItemContext, quantity: int) -> str | None:
+    _, sku, product, store, inventory, _, _ = context
+    if store.store_status != "active":
+        return "STORE_UNAVAILABLE"
+    if product.product_status != "on_sale":
+        return "PRODUCT_OFF_SHELF"
+    if sku.sku_status != "active":
+        return "SKU_UNAVAILABLE"
+    if inventory is None or inventory.inventory_status != "active":
+        return "INVENTORY_UNAVAILABLE"
+    if _available(inventory) < quantity:
+        return "INSUFFICIENT_STOCK"
+    return None
 
 
 def _money(value: int) -> Money:

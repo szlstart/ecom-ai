@@ -107,34 +107,43 @@ class CheckoutRepository:
             return None
         return (None, *row)
 
-    async def cart_contexts(self, user_id: int, item_nos: list[str]) -> list[ItemContext]:
-        rows = (
-            await self.session.execute(
-                select(
-                    CartItem,
-                    ProductSku,
-                    Product,
-                    Store,
-                    Inventory,
-                    ProductFulfillmentProfile,
-                    ShippingTemplate,
-                )
-                .join(Cart, Cart.id == CartItem.cart_id)
-                .join(ProductSku, ProductSku.id == CartItem.sku_id)
-                .join(Product, Product.id == ProductSku.product_id)
-                .join(Store, Store.id == ProductSku.store_id)
-                .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
-                .outerjoin(
-                    ProductFulfillmentProfile, ProductFulfillmentProfile.product_id == Product.id
-                )
-                .outerjoin(
-                    ShippingTemplate,
-                    ShippingTemplate.id == ProductFulfillmentProfile.shipping_template_id,
-                )
-                .where(Cart.user_id == user_id, CartItem.cart_item_no.in_(item_nos))
-                .order_by(Store.id, CartItem.id)
+    async def cart(self, user_id: int, *, for_update: bool = False) -> Cart | None:
+        statement = select(Cart).where(Cart.user_id == user_id)
+        if for_update:
+            statement = statement.with_for_update()
+        return cast(Cart | None, await self.session.scalar(statement))
+
+    async def cart_contexts(
+        self, user_id: int, item_nos: list[str], *, for_update: bool = False
+    ) -> list[ItemContext]:
+        statement = (
+            select(
+                CartItem,
+                ProductSku,
+                Product,
+                Store,
+                Inventory,
+                ProductFulfillmentProfile,
+                ShippingTemplate,
             )
-        ).all()
+            .join(Cart, Cart.id == CartItem.cart_id)
+            .join(ProductSku, ProductSku.id == CartItem.sku_id)
+            .join(Product, Product.id == ProductSku.product_id)
+            .join(Store, Store.id == ProductSku.store_id)
+            .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
+            .outerjoin(
+                ProductFulfillmentProfile, ProductFulfillmentProfile.product_id == Product.id
+            )
+            .outerjoin(
+                ShippingTemplate,
+                ShippingTemplate.id == ProductFulfillmentProfile.shipping_template_id,
+            )
+            .where(Cart.user_id == user_id, CartItem.cart_item_no.in_(item_nos))
+            .order_by(Store.id, CartItem.id)
+        )
+        if for_update:
+            statement = statement.with_for_update()
+        rows = (await self.session.execute(statement)).all()
         return cast(list[ItemContext], rows)
 
     async def rules(self, template_ids: set[int]) -> dict[int, list[ShippingTemplateRule]]:

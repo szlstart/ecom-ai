@@ -580,6 +580,11 @@ tr.selected td { background: #f0f4ff; }
 .checkout-item-row { padding: 14px 0; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; border-top: 1px solid #eef1f6; }
 .checkout-store-card > header + .checkout-item-row { border-top: 0; }
 .checkout-item-row > div { display: grid; gap: 5px; }
+.checkout-line-quantity { width: min(330px, 100%); margin-top: 7px; padding: 10px 12px; display: grid; grid-template-columns: minmax(90px, 1fr) minmax(150px, 190px); align-items: center; gap: 14px; border: 1px solid #e3e7ef; border-radius: 12px; background: #f8f9fc; }
+.checkout-line-quantity > span:first-child { display: grid; gap: 2px; }
+.checkout-line-quantity small { color: #7b8498; }
+.checkout-line-quantity .checkout-quantity-stepper { grid-template-columns: 38px minmax(58px, 1fr) 38px; }
+.checkout-line-quantity .checkout-quantity-stepper button, .checkout-line-quantity .checkout-quantity-stepper input { padding: 8px 6px; }
 .checkout-item-thumb { width: 72px; height: 72px; display: grid; place-items: center; overflow: hidden; color: #53617e; border-radius: 12px; background: linear-gradient(145deg, #edf1fb, #f8f9fc); font-size: 1.4rem; font-weight: 800; }
 .checkout-item-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .address-choice-list { display: grid; gap: 10px; }
@@ -615,6 +620,7 @@ tr.selected td { background: #f0f4ff; }
 .checkout-embedded-total strong { color: #d43b36; font-size: 1.85rem; }
 .checkout-summary-bar > button { width: 100%; padding-block: 14px; font-size: 1rem; font-weight: 750; }
 .checkout-trust-note { margin: -8px 0 0; color: #7b8498; font-size: .75rem; line-height: 1.6; }
+.cart-checkout-dialog { width: min(1240px, 96vw); }
 .payment-bridge-page { min-width: 0; display: grid; gap: 24px; }
 .payment-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 410px); align-items: start; gap: 24px; }
 .payment-order-card, .payment-pay-card, .payment-result-card { padding: 28px; border: 1px solid #dfe4ed; border-radius: 20px; background: #fff; box-shadow: 0 14px 38px rgb(27 49 101 / 8%); }
@@ -1177,6 +1183,7 @@ tr.selected td { background: #f0f4ff; }
   .checkout-item-row { grid-template-columns: 58px minmax(0, 1fr); }
   .checkout-item-thumb { width: 58px; height: 58px; }
   .checkout-item-row > strong { grid-column: 2; justify-self: start; }
+  .checkout-line-quantity { grid-template-columns: 1fr; }
   .payment-layout { grid-template-columns: 1fr; }
   .payment-pay-card { position: static; }
   .payment-order-card, .payment-pay-card, .payment-result-card { padding: 20px; }

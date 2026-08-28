@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { formatMoney } from '@/api/catalog'
-import { createOrder, getCheckout, listAddresses, patchCheckout, repriceCheckout, type AddressSummary, type CheckoutData } from '@/api/checkout'
+import { createOrder, getCheckout, listAddresses, patchCheckout, repriceCheckout, type AddressSummary, type CheckoutData, type CheckoutItem } from '@/api/checkout'
 import { ApiProblem, createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{ checkoutId?: string; embedded?: boolean
   checkoutId: '',
   embedded: false,
 })
-const emit = defineEmits<{ quantityChanged: [quantity: number] }>()
+const emit = defineEmits<{ quantityChanged: [quantity: number]; cartChanged: [] }>()
 const route = useRoute(), router = useRouter(), auth = useUserAuthStore()
 const messageCenter = useMessageCenterStore()
 const checkout = ref<CheckoutData | null>(null), addresses = ref<AddressSummary[]>([])
@@ -66,6 +66,21 @@ async function changeQuantity(value: number) {
   const changed = await mutate(() => patchCheckout(checkout.value!.checkout_id, { quantity: nextQuantity }, checkout.value!.version, token()))
   if (changed && buyNowItem.value) emit('quantityChanged', buyNowItem.value.quantity)
 }
+function itemQuantityLimit(item: CheckoutItem): number {
+  return Math.max(1, Math.min(99, item.available_quantity || 1))
+}
+async function changeCartItemQuantity(item: CheckoutItem, value: number) {
+  if (!checkout.value || !item.cart_item_id || checkout.value.source_type !== 'cart' || busy.value) return
+  const nextQuantity = Math.min(itemQuantityLimit(item), Math.max(1, Math.trunc(value || 1)))
+  if (nextQuantity === item.quantity) return
+  const changed = await mutate(() => patchCheckout(
+    checkout.value!.checkout_id,
+    { item_quantities: [{ cart_item_id: item.cart_item_id!, quantity: nextQuantity }] },
+    checkout.value!.version,
+    token(),
+  ))
+  if (changed) emit('cartChanged')
+}
 async function submitOrder() {
   if (!checkout.value || !checkout.value.available_actions.includes('create_order')) return
   busy.value = true; error.value = ''
@@ -115,7 +130,13 @@ onMounted(load)
               <p v-else class="notice warning">还没有收货地址。<RouterLink to="/me/addresses">新增地址</RouterLink></p>
             </section>
             <article v-for="group in checkout.store_groups" :key="group.store_id" class="checkout-card checkout-store-card"><header><RouterLink :to="`/stores/${group.store_id}`"><strong>{{ group.store_name }}</strong> →</RouterLink><button type="button" class="secondary small" :disabled="busy" @click="contactStore(group.store_id)">联系商家</button></header>
-              <div v-for="item in group.items" :key="item.sku_id" class="checkout-item-row"><span class="checkout-item-thumb"><img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) || undefined" :alt="`${item.sku_name}款式图`" /><b v-else aria-hidden="true">{{ item.product_name.slice(0, 1) }}</b></span><div><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>款式：{{ item.sku_name }}</small><small>数量：{{ item.quantity }}</small></div><strong>{{ formatMoney(item.subtotal) }}</strong></div>
+              <div v-for="item in group.items" :key="item.sku_id" :class="['checkout-item-row', { 'checkout-item-row-editable': embedded && checkout.source_type === 'cart' }]">
+                <span class="checkout-item-thumb"><img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) || undefined" :alt="`${item.sku_name}款式图`" /><b v-else aria-hidden="true">{{ item.product_name.slice(0, 1) }}</b></span>
+                <div><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>款式：{{ item.sku_name }}</small><small v-if="!embedded || checkout.source_type !== 'cart'">数量：{{ item.quantity }}</small>
+                  <div v-else class="checkout-line-quantity"><span><b>数量</b><small>最多 {{ itemQuantityLimit(item) }} 件</small></span><span class="checkout-quantity-stepper"><button type="button" class="secondary" :disabled="busy || item.quantity <= 1" :aria-label="`减少${item.product_name}数量`" @click="changeCartItemQuantity(item, item.quantity - 1)">−</button><input :value="item.quantity" inputmode="numeric" :aria-label="`${item.product_name}结算数量`" :disabled="busy" @change="changeCartItemQuantity(item, Number(($event.target as HTMLInputElement).value))" /><button type="button" class="secondary" :disabled="busy || item.quantity >= itemQuantityLimit(item)" :aria-label="`增加${item.product_name}数量`" @click="changeCartItemQuantity(item, item.quantity + 1)">＋</button></span></div>
+                </div>
+                <strong>{{ formatMoney(item.subtotal) }}</strong>
+              </div>
               <div class="delivery-summary"><span>配送方式：邮寄</span><strong class="free-shipping">包邮</strong></div>
               <details class="checkout-remark-details">
                 <summary><span>给商家留言</span><small>{{ group.buyer_remark ? '已填写 · 点击修改' : '（更多）' }}</small></summary>

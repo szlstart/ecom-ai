@@ -8454,6 +8454,7 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 | `GET` | `/content/legal-documents/{document_type}` | 匿名 | 按 `version、locale、region_code` 返回注册配置引用的精确不可变用户协议/隐私政策安全正文；不得用新版静默替换旧版本 |
 | `POST` | `/auth/registrations` | 匿名 | 使用一次性算术验证码、用户名、密码和找回邮箱注册；邮箱加密存储并以 HMAC 保证唯一，不发送验证码；幂等；密码立即做 Argon2id 哈希且不记录明文 |
 | `POST` | `/auth/login` | 匿名 | 仅支持账号密码登录；成功在 JSON 返回短期 Access Token 与当前用户/Session 摘要，Refresh Token 仅通过安全 Cookie 返回 |
+| `POST` | `/auth/session-resume` | 持有当前用户刷新凭证 | 页面刷新或新标签页启动时，为同一有效 Session 重新签发仅存内存的短期 Access Token，不轮换 Refresh Token、不创建新 Session；必须校验 CSRF、用户身份类别和会话状态 |
 | `POST` | `/auth/token-refresh` | 持有刷新凭证 | Refresh Token 轮换；旧 Token 进入重用检测，发现重放时撤销该 Token Family |
 | `POST` | `/auth/logout` | 用户 | 撤销当前会话和刷新凭证；多次调用结果一致 |
 | `GET` | `/auth/sessions` | 用户 | 查询当前账号活跃设备/会话，不返回 Token；标记当前会话 |
@@ -9619,7 +9620,9 @@ Access Token 推荐使用非对称签名 JWT（如 EdDSA/ES256，具体算法经
 
 Access Token 不承载地址、手机号等个人信息，不把长期完整权限列表作为唯一事实。管理员角色/权限和店铺数据范围仍从短 TTL 授权缓存/数据库校验，并使用 `permission_version` 快速失效。
 
-Refresh Token 使用至少 256 bit CSPRNG 随机 opaque 值，只向客户端展示一次；数据库只保存其 HMAC/哈希，不保存明文。每次刷新在事务中原子消费旧 Session、创建子 Session、轮换 Refresh Token，并保留 `token_family_no` 关系。旧 Token 再次出现视为可能泄露，撤销整个 Family、清理缓存并要求重新登录。Refresh Session 设置绝对有效期和闲置有效期，不做永不过期滑动续期。
+Refresh Token 使用至少 256 bit CSPRNG 随机 opaque 值，只向客户端展示一次；数据库只保存其 HMAC/哈希，不保存明文。浏览器页面刷新或新标签页启动时，前端优先通过同源标签页通信取得仍有效的内存 Access Token；没有可用标签页时调用 `/auth/session-resume`，在完整校验 Refresh Cookie、CSRF、用户身份类别和 Session 状态后，为同一 Session 重新签发短期 Access Token。Resume 不消费 Refresh Token、不创建子 Session，解决多标签页因启动恢复而相互撤销的问题，也不得用于绕过已撤销或已过期会话。
+
+只有 Access Token 过期或受保护请求明确返回 401 时，才调用 `/auth/token-refresh` 执行真正续期：在事务中原子消费旧 Session、创建子 Session、轮换 Refresh Token，并保留 `token_family_no` 关系。旧 Token 再次出现视为可能泄露，撤销整个 Family、清理缓存并要求重新登录。多个同源标签页使用 BroadcastChannel 同步新 Access Token，并以 Web Locks 串行化轮换；Refresh Session 设置绝对有效期和闲置有效期，不做永不过期滑动续期。Access Token、Refresh Token 和 CSRF Token 均不得写入 Local Storage。
 
 #### 3.13.3 Cookie、CSRF 与 CORS
 
@@ -13807,9 +13810,9 @@ MySQL/PostgreSQL Migration 能从空库安装、从上一生产版本升级并�
 
 全部公开接口位于 `/api/v1`，OpenAPI 通过 Lint/Breaking Change，生成的 TypeScript Client 可编译并完成前端契约测试。所有资源 ID 满足 3.6.2/`docs/id_registry.yaml` 的前缀、资源类型和容量约束：普通公开资源 ID 按注册表使用 `VARCHAR(40)`，已登记的 `trd_/ord_/pay_/ref_/tkt_` 核心业务号使用 `VARCHAR(32)`，不得用统一 40 字符的断言覆盖该例外。Cart Item、File、Upload、Conversation 等路径均无内部自增主键泄漏。请求/响应、时间、金额、分页、Cursor、Problem Details、错误码、Request ID、ETag/Version、Idempotency-Key 和上传遵循 3.11；无 ORM/内部主键/敏感字段泄漏。
 
-三类身份的会话 Contract 必须分别覆盖用户端 `AuthToken_Refresh/Auth_Logout`、平台管理端 `AdminAuthToken_Refresh/AdminAuth_Logout` 与商家端 `MerchantAuthToken_Refresh/MerchantAuth_Logout`。三组端点使用独立 Cookie Namespace/Path 和 CSRF 上下文；交叉发送 Cookie、Token 或 `client_type` 均拒绝。登录、Refresh、Bearer 请求与 WebSocket 建连都必须重新验证当前 Active Grant 的纯身份类别，不得只依赖 Token 创建时的投影。
+三类身份的会话 Contract 必须分别覆盖用户端 `AuthSession_Resume/AuthToken_Refresh/Auth_Logout`、平台管理端 `AdminAuthToken_Refresh/AdminAuth_Logout` 与商家端 `MerchantAuthToken_Refresh/MerchantAuth_Logout`。用户端 Resume 必须保持原 Session 和 Refresh Token 不变，并拒绝已撤销、已过期及非消费者身份；三组端点使用独立 Cookie Namespace/Path 和 CSRF 上下文，交叉发送 Cookie、Token 或 `client_type` 均拒绝。登录、Resume、Refresh、Bearer 请求与 WebSocket 建连都必须重新验证当前 Active Grant 的纯身份类别，不得只依赖 Token 创建时的投影。
 
-认证 Contract 必须覆盖 `RegistrationConfig_Get、LegalDocument_Get、Registration_Create、Auth_Login、AdminAuth_PasswordLogin、MerchantAuth_Login、PasswordResetHint_Get、PasswordResetTicket_Create、PasswordReset_Complete、AuthToken_Refresh、AuthSession_ListMine/Revoke`：Login 只接受 Password Schema，Registration 必须携一次性算术 Captcha 和找回邮箱且禁止 Role/Permission/Store/Phone 字段，协议版本精确匹配且法务接口不会静默替换版本；找回密码只允许“用户名 → 脱敏邮箱提示 → 完整邮箱精确匹配 → 一次性 Ticket”，不提供短信/邮件验证码发送 API；认证响应 `no-store`，Refresh 仅用安全 Cookie，Open Redirect 与幂等结果未知有确定行为。Admin/User Audience 隔离、Platform/Store 管理入口双向隔离、近期密码确认、RBAC、Resource Scope、职责分离、管理员审批、限流、CSRF/CORS、Webhook 签名和重放测试通过；同一业务对象的用户与管理操作使用独立 Operation ID、专用路径和响应投影，互换 Audience 或管理入口的负向测试全部拒绝。所有 JSON/Query 为 snake_case，Vue camelCase 仅限 Route Placeholder；公开 Schema 不出现内部自增 ID。P0 Contract 额外验证物流、Read Cursor、退款占用、Context 和安全富文本投影。P1 Contract 验证首页聚合、店铺 Query、200 字买家备注、完整页面读取/命令、订单/Payment 双幂等及错误分支，以及 `checkout_store_group` 的 Store/Version/Expiry 最小投影。成功/失败/重复/并发/超时有明确状态码与相同幂等结果。管理 API 必须通过用户冻结、角色 Grant、敏感字段 Grant、认证补件、政策版本发布、商品发布、库存调整、包裹创建/纠错/作废、退款决定、评价屏蔽/恢复、客服等待/恢复、内容/AI/Tool Version 发布、索引父子 Job、管理员审批和死信重放 Contract Test，且不存在通用状态/金额写接口。P95/P99 达 3.33.2，错误率/SLO 达标；SSE Resume、WebSocket 重连和 Graceful Shutdown 通过。弃用接口有 Sunset/兼容窗口，生产 Debug Docs 按策略受控。
+认证 Contract 必须覆盖 `RegistrationConfig_Get、LegalDocument_Get、Registration_Create、Auth_Login、AdminAuth_PasswordLogin、MerchantAuth_Login、PasswordResetHint_Get、PasswordResetTicket_Create、PasswordReset_Complete、AuthSession_Resume、AuthToken_Refresh、AuthSession_ListMine/Revoke`：Login 只接受 Password Schema，Registration 必须携一次性算术 Captcha 和找回邮箱且禁止 Role/Permission/Store/Phone 字段，协议版本精确匹配且法务接口不会静默替换版本；找回密码只允许“用户名 → 脱敏邮箱提示 → 完整邮箱精确匹配 → 一次性 Ticket”，不提供短信/邮件验证码发送 API；认证响应 `no-store`，Session Resume 不轮换 Refresh Token，真正 Refresh 仅用安全 Cookie 并执行轮换，Open Redirect 与幂等结果未知有确定行为。Admin/User Audience 隔离、Platform/Store 管理入口双向隔离、近期密码确认、RBAC、Resource Scope、职责分离、管理员审批、限流、CSRF/CORS、Webhook 签名和重放测试通过；同一业务对象的用户与管理操作使用独立 Operation ID、专用路径和响应投影，互换 Audience 或管理入口的负向测试全部拒绝。所有 JSON/Query 为 snake_case，Vue camelCase 仅限 Route Placeholder；公开 Schema 不出现内部自增 ID。P0 Contract 额外验证物流、Read Cursor、退款占用、Context 和安全富文本投影。P1 Contract 验证首页聚合、店铺 Query、200 字买家备注、完整页面读取/命令、订单/Payment 双幂等及错误分支，以及 `checkout_store_group` 的 Store/Version/Expiry 最小投影。成功/失败/重复/并发/超时有明确状态码与相同幂等结果。管理 API 必须通过用户冻结、角色 Grant、敏感字段 Grant、认证补件、政策版本发布、商品发布、库存调整、包裹创建/纠错/作废、退款决定、评价屏蔽/恢复、客服等待/恢复、内容/AI/Tool Version 发布、索引父子 Job、管理员审批和死信重放 Contract Test，且不存在通用状态/金额写接口。P95/P99 达 3.33.2，错误率/SLO 达标；SSE Resume、WebSocket 重连和 Graceful Shutdown 通过。弃用接口有 Sunset/兼容窗口，生产 Debug Docs 按策略受控。
 
 #### 3.34.16 AI 安全验收标准
 

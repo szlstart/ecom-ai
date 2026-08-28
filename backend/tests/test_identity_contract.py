@@ -20,6 +20,7 @@ def test_identity_openapi_contract_has_stable_operation_ids() -> None:
         ("/api/v1/auth/password-reset-hints", "post"): "PasswordResetHint_Get",
         ("/api/v1/auth/registrations", "post"): "Registration_Create",
         ("/api/v1/auth/login", "post"): "Auth_Login",
+        ("/api/v1/auth/session-resume", "post"): "AuthSession_Resume",
         ("/api/v1/auth/token-refresh", "post"): "AuthToken_Refresh",
         ("/api/v1/auth/logout", "post"): "Auth_Logout",
         ("/api/v1/users/me", "get"): "UserProfile_Get",

@@ -51,6 +51,13 @@ export interface ApiResult<T> {
   status: number
 }
 
+type UserAuthRecoveryHandler = (failedAccessToken: string) => Promise<string | null>
+let userAuthRecoveryHandler: UserAuthRecoveryHandler | null = null
+
+export function registerUserAuthRecovery(handler: UserAuthRecoveryHandler | null): void {
+  userAuthRecoveryHandler = handler
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
@@ -59,11 +66,27 @@ export async function apiRequest<T>(
   const headers = new Headers(options.headers)
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`)
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  let response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
     credentials: 'include',
   })
+  if (
+    response.status === 401
+    && accessToken
+    && userAuthRecoveryHandler
+    && !path.startsWith('/auth/')
+  ) {
+    const recoveredToken = await userAuthRecoveryHandler(accessToken)
+    if (recoveredToken) {
+      headers.set('Authorization', `Bearer ${recoveredToken}`)
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers,
+        credentials: 'include',
+      })
+    }
+  }
   if (!response.ok) {
     const fallback: ApiProblemBody = {
       title: 'Request failed',

@@ -100,6 +100,27 @@ async def login(
 
 
 @auth_router.post(
+    "/session-resume",
+    response_model=Envelope[SessionBootstrap],
+    operation_id="AuthSession_Resume",
+)
+async def resume_session(
+    response: Response,
+    service: IdentityServiceDependency,
+    refresh_token: Annotated[str | None, Cookie(alias=USER_REFRESH_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> Envelope[SessionBootstrap]:
+    payload = await service.resume(
+        refresh_token,
+        csrf_token,
+        "user",
+        allowed_client_types=frozenset({"web"}),
+    )
+    _no_store(response)
+    return Envelope(data=payload)
+
+
+@auth_router.post(
     "/token-refresh",
     response_model=Envelope[SessionBootstrap],
     operation_id="AuthToken_Refresh",

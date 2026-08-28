@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "95abd8914f2080115f65d5255e261bb4949b37c9ac4363c898101c44aa379970"
+SOURCE_SHA256 = "73bc72d64b288bbb602a9970f24e52d78bb15360f1a3d4f82de949737530da37"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -2581,6 +2581,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["USR-SECURITY-01"],
         "x-scope-policy": ["current_user"],
         "x-test-case-ids": ["SECURITY-*"],
+    },
+    "AuthSession_Resume": {
+        "x-audit-event": "command.AuthSession_Resume",
+        "x-domain-command": "AuthSession_Resume",
+        "x-idempotency-policy": "read_only_command",
+        "x-owner-kind": ["global_ui"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["GLOBAL-USER-AUTH-00"],
+        "x-scope-policy": ["consumer_refresh_cookie"],
+        "x-test-case-ids": ["AUTH-REFRESH-*"],
     },
     "AuthSession_Revoke": {
         "x-audit-event": "command.AuthSession_Revoke",

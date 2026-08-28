@@ -288,6 +288,17 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     assert address_update.json()["data"]["recipient_name"] == "李"
     assert address_update.json()["data"]["label"] == "常用地址"
 
+    resumed_response = await client.post(
+        "/api/v1/auth/session-resume",
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert resumed_response.status_code == 200, resumed_response.text
+    resumed = resumed_response.json()["data"]
+    assert resumed["session"]["session_id"] == bootstrap["session"]["session_id"]
+    assert resumed["access_token"]
+    original_access_after_resume = await client.get("/api/v1/users/me", headers=auth_headers)
+    assert original_access_after_resume.status_code == 200
+
     changed_email = f"changed_{suffix}@example.com"
     contact_change_response = await client.post(
         "/api/v1/users/me/contact-changes",

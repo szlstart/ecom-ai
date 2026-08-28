@@ -51,6 +51,7 @@ idempotency_policy:
     AiConsent_Revoke: state_command_no_automatic_retry
     PasswordResetHint_Get: read_only_command
     Auth_Login: rate_limited_security_command_no_automatic_retry
+    AuthSession_Resume: read_only_command
     AuthToken_Refresh: refresh_token_rotation_replay_detection
     Auth_Logout: session_terminal_state_convergence
     PasswordResetTicket_Create: rate_limited_security_command_no_automatic_retry
@@ -138,6 +139,7 @@ global_components:
 operation_owners:
   - {requirement_id: SYS-HEALTH-01, operation_id: Health_Live, owner_kind: internal_only, authorization: internal_probe, domain_rules: [no_dependency_probe], tests: [HEALTH-*]}
   - {requirement_id: SYS-HEALTH-02, operation_id: Health_Ready, owner_kind: internal_only, authorization: internal_probe, domain_rules: [dependency_readiness], tests: [HEALTH-*]}
+  - {requirement_id: GLOBAL-USER-AUTH-00, operation_id: AuthSession_Resume, owner_kind: global_ui, authorization: consumer_refresh_cookie, domain_rules: [non_rotating_access_token_reissue, active_consumer_role_recheck, reject_management_identity], tests: [AUTH-REFRESH-*]}
   - {requirement_id: GLOBAL-USER-AUTH-01, operation_id: AuthToken_Refresh, owner_kind: global_ui, authorization: consumer_refresh_cookie, domain_rules: [rotation_and_reuse_detection, active_consumer_role_recheck, reject_management_identity], tests: [AUTH-REFRESH-*]}
   - {requirement_id: GLOBAL-USER-AUTH-02, operation_id: Auth_Logout, owner_kind: global_ui, authorization: user_session, domain_rules: [session_revocation], tests: [AUTH-LOGOUT-*]}
   - {requirement_id: GLOBAL-USER-AUTH-03, operation_id: AuthSession_RevokeOthers, owner_kind: global_ui, authorization: current_user, domain_rules: [recent_auth], tests: [SECURITY-*]}

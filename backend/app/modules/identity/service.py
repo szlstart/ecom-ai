@@ -638,6 +638,73 @@ class IdentityService:
         *,
         allowed_client_types: frozenset[str],
     ) -> BootstrapResult:
+        current, user, now, _validated_csrf = await self._validated_refresh_session(
+            refresh_token,
+            csrf_token,
+            audience,
+            allowed_client_types=allowed_client_types,
+        )
+        current.revoked_at = now
+        current.revoke_reason = "rotated"
+        return await self.issue_session(
+            user,
+            audience=audience,
+            client_type=current.client_type,
+            device_name=current.device_name or "Unknown device",
+            auth_methods=list(current.authentication_methods),
+            assurance_level=current.assurance_level,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            parent_session_id=current.id,
+            token_family_no=current.token_family_no,
+            authenticated_at=current.authenticated_at,
+        )
+
+    async def resume(
+        self,
+        refresh_token: str | None,
+        csrf_token: str | None,
+        audience: Literal["user", "admin"],
+        *,
+        allowed_client_types: frozenset[str],
+    ) -> SessionBootstrap:
+        """Restore an in-memory access token without rotating the browser session.
+
+        Access tokens intentionally live only in page memory. A reload or a newly
+        opened tab therefore needs a fresh access token, but that is not itself a
+        refresh-token renewal event. Keeping this operation non-rotating prevents
+        one tab from revoking the access token currently used by another tab.
+        """
+        current, user, now, validated_csrf = await self._validated_refresh_session(
+            refresh_token,
+            csrf_token,
+            audience,
+            allowed_client_types=allowed_client_types,
+        )
+        current.last_seen_at = now
+        access_token, _access_expires_at = self.security.create_access_token(
+            user_no=user.user_no,
+            session_no=current.session_no,
+            audience=audience,
+            permission_version=user.permission_version,
+        )
+        await self.session.commit()
+        return SessionBootstrap(
+            user=self._user_summary(user),
+            session=self._session_summary(current, is_current=True),
+            access_token=access_token,
+            expires_in=self.settings.access_token_ttl_seconds,
+            csrf_token=validated_csrf,
+        )
+
+    async def _validated_refresh_session(
+        self,
+        refresh_token: str | None,
+        csrf_token: str | None,
+        audience: Literal["user", "admin"],
+        *,
+        allowed_client_types: frozenset[str],
+    ) -> tuple[AuthSession, User, datetime, str]:
         if not refresh_token or not csrf_token:
             raise _invalid_refresh()
         token_hash = self.security.keyed_hash("refresh-token", refresh_token)
@@ -682,21 +749,7 @@ class IdentityService:
             )
             await self.session.commit()
             raise _invalid_refresh()
-        current.revoked_at = now
-        current.revoke_reason = "rotated"
-        return await self.issue_session(
-            user,
-            audience=audience,
-            client_type=current.client_type,
-            device_name=current.device_name or "Unknown device",
-            auth_methods=list(current.authentication_methods),
-            assurance_level=current.assurance_level,
-            ip_address=ip_address,
-            user_agent=user_agent,
-            parent_session_id=current.id,
-            token_family_no=current.token_family_no,
-            authenticated_at=current.authenticated_at,
-        )
+        return current, user, now, csrf_token
 
     async def logout(self, auth_session: AuthSession, csrf_token: str | None) -> None:
         self._validate_csrf(auth_session, csrf_token)

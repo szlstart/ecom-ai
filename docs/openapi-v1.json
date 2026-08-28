@@ -1952,6 +1952,99 @@
         ]
       }
     },
+    "/api/v1/auth/session-resume": {
+      "post": {
+        "tags": [
+          "authentication"
+        ],
+        "summary": "Resume Session",
+        "operationId": "AuthSession_Resume",
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "ecom_user_refresh",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ecom User Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SessionBootstrap_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AuthSession_Resume",
+        "x-domain-command": "AuthSession_Resume",
+        "x-idempotency-policy": "read_only_command",
+        "x-owner-kind": [
+          "global_ui"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "GLOBAL-USER-AUTH-00"
+        ],
+        "x-scope-policy": [
+          "consumer_refresh_cookie"
+        ],
+        "x-test-case-ids": [
+          "AUTH-REFRESH-*"
+        ]
+      }
+    },
     "/api/v1/auth/token-refresh": {
       "post": {
         "tags": [

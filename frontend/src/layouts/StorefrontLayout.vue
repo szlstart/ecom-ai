@@ -80,7 +80,7 @@ async function logout() {
 }
 
 onMounted(() => {
-  if (!auth.isAuthenticated) void auth.refresh()
+  if (!auth.isAuthenticated && auth.csrfToken) void auth.refresh()
   greetingEmojiTimer = window.setInterval(() => {
     greetingEmojiIndex.value = (greetingEmojiIndex.value + 1) % greetingEmojis.length
   }, 5_000)

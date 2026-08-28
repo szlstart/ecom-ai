@@ -46,6 +46,18 @@ def require_admin_permission(permission_code: str) -> object:
 
 
 def require_any_admin_permission(*permission_codes: str) -> object:
+    return _require_any_admin_permission(*permission_codes, enforce_step_up=True)
+
+
+def require_admin_permission_without_step_up(permission_code: str) -> object:
+    """Require permission and scope while leaving confirmation to the command payload."""
+    return _require_any_admin_permission(permission_code, enforce_step_up=False)
+
+
+def _require_any_admin_permission(
+    *permission_codes: str,
+    enforce_step_up: bool,
+) -> object:
     if not permission_codes:
         raise ValueError("At least one permission code is required")
 
@@ -71,13 +83,16 @@ def require_any_admin_permission(*permission_codes: str) -> object:
                 detail=f"当前管理身份缺少所需权限: {'、'.join(permission_codes)}。",
             )
         permission = matching[0][0]
-        if requires_mfa_for_session(
-            permission.requires_mfa, context.session.client_type
-        ) and context.session.assurance_level not in {
-            "aal2",
-            "aal3",
-            "password_admin",
-        }:
+        if (
+            enforce_step_up
+            and requires_mfa_for_session(permission.requires_mfa, context.session.client_type)
+            and context.session.assurance_level
+            not in {
+                "aal2",
+                "aal3",
+                "password_admin",
+            }
+        ):
             raise ApplicationError(
                 status=403,
                 code="AUTH_MFA_REQUIRED",
@@ -85,10 +100,13 @@ def require_any_admin_permission(*permission_codes: str) -> object:
                 detail="该操作需要多因素认证。",
             )
         settings = get_settings()
-        if requires_recent_auth_for_session(
-            permission.requires_recent_auth, context.session.client_type
-        ) and context.session.authenticated_at < utc_now() - timedelta(
-            seconds=settings.admin_recent_auth_seconds
+        if (
+            enforce_step_up
+            and requires_recent_auth_for_session(
+                permission.requires_recent_auth, context.session.client_type
+            )
+            and context.session.authenticated_at
+            < utc_now() - timedelta(seconds=settings.admin_recent_auth_seconds)
         ):
             raise ApplicationError(
                 status=428,

@@ -422,10 +422,27 @@ class AdminStoreService:
         allowed_from, next_status, event_type = transitions[payload.action]
         if store.store_status not in allowed_from:
             raise _invalid_transition(store.store_status, payload.action)
+        actor_is_merchant = access.context.session.client_type == "merchant"
+        if (
+            actor_is_merchant
+            and payload.action == "resume"
+            and store.suspension_source == "platform"
+        ):
+            raise ApplicationError(
+                status=403,
+                code="STORE_PLATFORM_SUSPENSION_ACTIVE",
+                title="Store suspended by platform",
+                detail="该店铺由平台暂停营业，商家不能自行恢复，请联系平台管理员处理。",
+            )
         now = utc_now()
         before_status = store.store_status
         store.store_status = next_status
         store.suspended_at = now if payload.action == "suspend" else None
+        store.suspension_source = (
+            ("merchant" if actor_is_merchant else "platform")
+            if payload.action == "suspend"
+            else None
+        )
         store.version += 1
         _add_outbox(
             self.session,
@@ -437,6 +454,7 @@ class AdminStoreService:
                 "store_id": store.store_no,
                 "from_status": before_status,
                 "to_status": next_status,
+                "suspension_source": store.suspension_source,
                 "reason_code": payload.reason_code,
             },
         )
@@ -1052,6 +1070,7 @@ def _store_view(store: Store, owner_user_no: str, logo: FileObject | None) -> Ad
         logo_file_id=logo.file_no if logo else None,
         logo_url=f"/api/v1/files/{logo.file_no}" if logo else None,
         status=store.store_status,
+        suspension_source=store.suspension_source,
         rating_score=format(store.rating_score, "f"),
         rating_count=store.rating_count,
         follower_count=store.follower_count,

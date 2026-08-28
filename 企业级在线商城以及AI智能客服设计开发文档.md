@@ -2805,7 +2805,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 库存 | `/merchant/inventory` / `AdminInventoryPage.vue(portal=merchant)` | 本店 SKU 库存查询和有据可查的增减调整 | `inventories:read/adjust` + Store |
 | 客户咨询 | `/merchant/support`、`/merchant/support/:ticketId` / `MerchantSupportListPage.vue`、`AdminSupportWorkspacePage.vue(portal=merchant)` | 店铺人工工单领取、回复、等待、恢复和解决 | `support:*` + Store Queue |
 | 评价回复 | `/merchant/reviews`、`/merchant/reviews/:reviewId` / `MerchantReview*Page.vue` | 查看本店已发布评价、发布一次商家回复 | `reviews:read/reply` + Store |
-| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、用户端预览、营业额和商家账号注销；店名可随时修改；Logo 同时支持本地选择与点击区域后 Command/Ctrl+V 粘贴，统一经过上传策略与安全扫描 | `stores:read/manage` + Store |
+| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、用户端预览、营业额、营业状态和商家账号注销；店名可随时修改；Logo 支持本地选择与 Command/Ctrl+V 粘贴；商家暂停/恢复营业必须经过页面确认，平台暂停时商家只能查看原因提示、不能自行恢复 | `stores:read/manage` + Store；ETag、确认字段、审计 |
 
 #### 2.14.4 工作台与任务优先级
 
@@ -2865,7 +2865,7 @@ SKU 价格在商家界面使用元，提交时转换为整数分。首版商家�
 | 我的订单 | `/merchant/orders` / `MerchantOrderListPage.vue` | 确认收货口径收益、订单状态分段、游标加载更多、售后详情入口和按剩余数量创建包裹；可见时每 15 秒静默刷新 | `orders:read`、`shipments:create`、`refunds:read` + Store |
 | 售后处理 | `/merchant/after-sales`、`/merchant/after-sales/:refundId` | 本店申请列表、领取、批准或拒绝；大额批准进入平台复核 | `refunds:read/review` + Store |
 | 顶栏消息中心 | `MerchantMessageCenter.vue` | 置顶平台专属客服、顾客咨询列表和回复；真实未读总数/分会话角标、实时更新、断线轮询与轻微新消息抖动 | Conversation Owner、`support:*` + Store Queue |
-| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、营业额、商家账号注销和用户端预览；店名可随时修改且全局唯一 | `stores:read/manage` + Store Owner |
+| 店铺资料 | `/merchant/store` / `MerchantStorePage.vue` | 店名、简介、Logo、营业额、营业状态、商家账号注销和用户端预览；店名可随时修改且全局唯一；商家可以确认暂停或恢复自己主动暂停的店铺，不能恢复平台暂停 | `stores:read/manage` + Store Owner；ETag + `confirmed=true` |
 | 兼容高级路由 | `/merchant/inventory`、`/merchant/reviews/*`、`/merchant/support/*` | 保留历史深链，不在一级导航展示 | `inventories:*`、`reviews:*`、`support:*` + Store/Queue |
 
 ---
@@ -5444,6 +5444,7 @@ MySQL 是 Grant 的权威来源，Redis 只缓存短时允许/撤销结果。Gra
 | `logo_object_key` | `VARCHAR(512)` | NULL |
 | `description` | `VARCHAR(2000)` | NULL |
 | `store_status` | `VARCHAR(32)` | 当前业务只写入 `active/suspended`；旧值 `pending/closed` 仅用于迁移兼容，开发环境完成数据清理后不得新建 |
+| `suspension_source` | `VARCHAR(32)` | NULL / `merchant` / `platform`；营业时必须为 NULL，暂停时记录发起方；平台暂停不得由商家自行恢复 |
 | `service_phone_ciphertext` | `VARBINARY(512)` | NULL |
 | `rating_score` | `DECIMAL(3,2)` | NOT NULL DEFAULT 0，可重建展示聚合值 |
 | `rating_count` / `follower_count` / `sales_count` | `BIGINT UNSIGNED` | NOT NULL DEFAULT 0，派生计数 |
@@ -9204,7 +9205,7 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 | `GET` | `/admin/stores`、`/admin/stores/{store_id}` | `stores:read` + Data Scope |
 | `POST` | `/admin/stores` | `stores:manage` + Platform Scope；原子创建全局唯一店铺、独立商家登录身份、密码/邮箱凭证和 Store Scope `store_operator` Grant；不得复用用户或管理员身份 |
 | `PATCH` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；修改名称、简介或已通过扫描且归属本店的 `store_logo` 派生文件，If-Match 必填；名称全局唯一但不设改名冷却，成功后当前店名投影与缓存同步更新 |
-| `POST` | `/admin/stores/{store_id}/status-changes` | `stores:manage`；只接受 `suspend/resume`，展示影响并写管理员审计；不接受待开通、启用或关闭命令 |
+| `POST` | `/admin/stores/{store_id}/status-changes` | `stores:manage`；只接受 `suspend/resume` 和 `confirmed=true`；使用页面二次确认，不要求重新输入密码或 MFA；保留 Scope、ETag、幂等、状态来源和审计；平台暂停不得由商家恢复 |
 | `GET` | `/admin/stores/{store_id}/revenue` | `stores:read` + 本店 Scope；按确认收货净额返回总营业额、今日/昨日/近 30 日收益与订单分类计数 |
 | `DELETE` | `/admin/stores/{store_id}` | `stores:manage` + 本店 Scope；If-Match、原因和 `DELETE_STORE` 确认；店铺及其商家账号从未产生交易时才允许受控物理删除，否则只允许暂停并保留交易事实 |
 | `GET/POST/PATCH` | `/admin/stores/{store_id}/product-groups` | 店铺运营权限；If-Match、店铺归属校验 |
@@ -13903,7 +13904,7 @@ Go/No-Go Meeting 逐项确认并保存签字证据：
 | `ADM-USER-01` 冻结/解冻 | `/admin/users/:userId` | `AdminUser_ChangeStatus` / `POST /api/v1/admin/users/{user_id}/status-changes` | `users:manage`；ETag；`user_status_records`；Session 撤销 | Audit+State+E2E `ADM-USER-STATUS-*` |
 | `ADM-USER-02` 敏感字段 | `/admin/users/:userId` | `AdminSensitiveGrant_Create/Consume/Revoke` | `users:read_sensitive`；Admin+Session+Target+Fields+Purpose+TTL | Security `ADM-SENSITIVE-*` |
 | `ADM-RBAC-01` 授权/撤销 | `/admin/users/:userId` | `AdminRoleGrant_Create/Revoke/List` | `rbac:manage`、`rbac:read`；Active UK；不恢复旧 Grant | Audit+Concurrency `ADM-RBAC-*` |
-| `ADM-STORE-DETAIL-01` 店铺资料、商品与订单监管 | `/admin/stores/:storeId` | `AdminStore_Update/ChangeStatus`、`AdminStoreRevenue_Get`、店铺范围内 `AdminProduct_*`、`AdminOrder_List` | `stores:*`、`products:*`、`orders:read` + Store Scope；仅暂停/恢复；ETag | Audit+State+UI `ADM-STORE-*` |
+| `ADM-STORE-DETAIL-01` 店铺资料、商品与订单监管 | `/admin/stores/:storeId` | `AdminStore_Update/ChangeStatus`、`AdminStoreRevenue_Get`、店铺范围内 `AdminProduct_*`、`AdminOrder_List` | `stores:*`、`products:*`、`orders:read` + Store Scope；仅暂停/恢复；页面确认而非密码/MFA升级；ETag；记录 `suspension_source` | Audit+State+UI `ADM-STORE-*` |
 | `ADM-POLICY-01` 店铺政策 | `/admin/stores/:storeId/policies` | `AdminStorePolicy_List/Create/Update/Publish/Withdraw` | `store_policies:read`、`store_policies:create`、`store_policies:update`、`store_policies:publish` + Store Scope；版本不可变 | Contract+RAG `ADM-POLICY-*` |
 | `ADM-PRODUCT-01` 商品编辑/发布 | `/admin/products/:productId` | `AdminProduct_Update/Submit/Publish` | `products:update`、`products:publish` + Store Scope；ETag/完整性 | Audit+E2E `ADM-PRODUCT-*` |
 | `ADM-INV-01` 库存调整 | `/admin/inventories` | `AdminInventory_Adjust` | `inventories:adjust` + Store Scope；Delta/原因/版本 | Concurrency `ADM-INV-*` |

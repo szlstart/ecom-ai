@@ -39240,6 +39240,11 @@
             ],
             "title": "Action"
           },
+          "confirmed": {
+            "type": "boolean",
+            "const": true,
+            "title": "Confirmed"
+          },
           "reason_code": {
             "type": "string",
             "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
@@ -39256,6 +39261,7 @@
         "type": "object",
         "required": [
           "action",
+          "confirmed",
           "reason_code",
           "reason"
         ],
@@ -39356,6 +39362,21 @@
             "type": "string",
             "title": "Status"
           },
+          "suspension_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "merchant",
+                  "platform"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspension Source"
+          },
           "rating_score": {
             "type": "string",
             "title": "Rating Score"
@@ -39447,6 +39468,7 @@
           "logo_file_id",
           "logo_url",
           "status",
+          "suspension_source",
           "rating_score",
           "rating_count",
           "follower_count",

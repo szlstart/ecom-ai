@@ -48,6 +48,7 @@ export interface AdminStore extends AdminVersioned {
   logo_file_id: string | null
   logo_url: string | null
   status: string
+  suspension_source: 'merchant' | 'platform' | null
   rating_score: string
   rating_count: number
   follower_count: number

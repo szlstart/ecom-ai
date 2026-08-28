@@ -171,6 +171,70 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
     assert renamed_again.status_code == 200, renamed_again.text
     assert renamed_again.json()["data"]["store_name"] == f"商家再次改名 {suffix}"
 
+    paused = await client.post(
+        f"/api/v1/admin/stores/{provisioning.store_no}/status-changes",
+        headers={
+            **headers,
+            "If-Match": renamed_again.headers["etag"],
+            "Idempotency-Key": f"merchant-pause-{suffix}-001",
+        },
+        json={
+            "action": "suspend",
+            "confirmed": True,
+            "reason_code": "MERCHANT_PAUSE",
+            "reason": "商家确认暂时停止接收新订单。",
+        },
+    )
+    assert paused.status_code == 200, paused.text
+    assert paused.json()["data"]["status"] == "suspended"
+    assert paused.json()["data"]["suspension_source"] == "merchant"
+
+    resumed_store = await client.post(
+        f"/api/v1/admin/stores/{provisioning.store_no}/status-changes",
+        headers={
+            **headers,
+            "If-Match": paused.headers["etag"],
+            "Idempotency-Key": f"merchant-resume-{suffix}-001",
+        },
+        json={
+            "action": "resume",
+            "confirmed": True,
+            "reason_code": "MERCHANT_RESUME",
+            "reason": "商家确认恢复接收新订单。",
+        },
+    )
+    assert resumed_store.status_code == 200, resumed_store.text
+    assert resumed_store.json()["data"]["status"] == "active"
+    assert resumed_store.json()["data"]["suspension_source"] is None
+
+    async for session in mysql_session():
+        current = await session.scalar(select(Store).where(Store.store_no == provisioning.store_no))
+        assert current is not None
+        current.store_status = "suspended"
+        current.suspension_source = "platform"
+        current.version += 1
+        await session.commit()
+
+    platform_paused = await client.get(
+        f"/api/v1/admin/stores/{provisioning.store_no}", headers=headers
+    )
+    blocked_resume = await client.post(
+        f"/api/v1/admin/stores/{provisioning.store_no}/status-changes",
+        headers={
+            **headers,
+            "If-Match": platform_paused.headers["etag"],
+            "Idempotency-Key": f"merchant-platform-resume-{suffix}-001",
+        },
+        json={
+            "action": "resume",
+            "confirmed": True,
+            "reason_code": "MERCHANT_RESUME",
+            "reason": "商家不得恢复平台暂停。",
+        },
+    )
+    assert blocked_resume.status_code == 403
+    assert blocked_resume.json()["code"] == "STORE_PLATFORM_SUSPENSION_ACTIVE"
+
     forbidden = await client.get(f"/api/v1/admin/stores/{foreign_store_no}", headers=headers)
     assert forbidden.status_code == 404
 

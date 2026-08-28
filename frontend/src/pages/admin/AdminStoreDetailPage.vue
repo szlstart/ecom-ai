@@ -35,6 +35,7 @@ const productQuery = ref('')
 const loading = ref(true); const panelLoading = ref(false); const saving = ref(false)
 const error = ref(''); const notice = ref('')
 const editingProfile = ref(false)
+const statusConfirmOpen = ref(false)
 const deleteOpen = ref(false); const deleteReason = ref(''); const deleteConfirmation = ref('')
 const profile = reactive({ store_name: '', description: '', logo_file_id: '' })
 
@@ -123,10 +124,11 @@ async function saveProfile() {
 
 async function toggleStoreStatus() {
   if (!store.value) return
+  statusConfirmOpen.value = false
   saving.value = true; error.value = ''; notice.value = ''
   const action = store.value.status === 'active' ? 'suspend' : 'resume'
   try {
-    store.value = (await adminCommand<AdminStore>(endpoint('/status-changes'), { action, reason_code: 'PLATFORM_OPERATIONS', reason: '超级管理员在店铺运营工作台调整经营状态。' }, token(), store.value.version, `admin-store-${action}`)).data
+    store.value = (await adminCommand<AdminStore>(endpoint('/status-changes'), { action, confirmed: true, reason_code: 'PLATFORM_OPERATIONS', reason: '超级管理员在店铺运营工作台确认调整经营状态。' }, token(), store.value.version, `admin-store-${action}`)).data
     notice.value = action === 'suspend' ? '店铺已暂停营业，顾客端不再开放新的购买。' : '店铺已恢复营业。'
   } catch (cause) { error.value = errorMessage(cause) }
   finally { saving.value = false }
@@ -172,7 +174,7 @@ onMounted(load)
       <template v-if="store">
         <header class="admin-store-workspace-hero">
           <div class="admin-store-workspace-brand"><span><img v-if="store.logo_url" :src="resolveApiAssetUrl(store.logo_url) || undefined" alt="" /><template v-else>{{ store.store_name.slice(0, 1) }}</template></span><div><p class="eyebrow">平台监管视角 · {{ store.store_id }}</p><h1>{{ store.store_name }}</h1><p>{{ store.description || '暂无店铺简介，管理员可以补充。' }}</p><small :class="store.status">● {{ statusLabel(store.status) }}</small></div></div>
-          <div class="actions"><RouterLink class="button-link secondary" :to="`/stores/${storeId}`" target="_blank">查看顾客端 ↗</RouterLink><button v-if="auth.has('stores:manage')" type="button" class="secondary" @click="editingProfile = !editingProfile">编辑店铺资料</button><button v-if="auth.has('stores:manage')" type="button" :class="store.status === 'active' ? 'danger' : ''" :disabled="saving" @click="toggleStoreStatus">{{ store.status === 'active' ? '暂停营业' : '恢复营业' }}</button></div>
+          <div class="actions"><RouterLink class="button-link secondary" :to="`/stores/${storeId}`" target="_blank">查看顾客端 ↗</RouterLink><button v-if="auth.has('stores:manage')" type="button" class="secondary" @click="editingProfile = !editingProfile">编辑店铺资料</button><button v-if="auth.has('stores:manage')" type="button" :class="store.status === 'active' ? 'danger' : ''" :disabled="saving" @click="statusConfirmOpen = true">{{ store.status === 'active' ? '暂停营业' : '恢复营业' }}</button></div>
         </header>
 
         <form v-if="editingProfile" class="admin-store-profile-editor" @submit.prevent="saveProfile">
@@ -205,6 +207,7 @@ onMounted(load)
         </section>
       </template>
     </PageState>
+    <Teleport to="body"><div v-if="statusConfirmOpen && store" class="admin-form-overlay" @click.self="statusConfirmOpen = false"><section class="admin-form-dialog admin-store-status-confirm" role="dialog" aria-modal="true" aria-labelledby="admin-store-status-title"><header><div><p class="eyebrow">营业状态确认</p><h2 id="admin-store-status-title">{{ store.status === 'active' ? '确认暂停该店铺营业？' : '确认恢复该店铺营业？' }}</h2><p>{{ store.status === 'active' ? '暂停后，顾客仍能查看历史订单，但不能从该店铺产生新的购买。' : '恢复后，该店铺销售中的商品将重新允许顾客浏览和购买。' }}</p></div><button type="button" aria-label="关闭" @click="statusConfirmOpen = false">×</button></header><footer><button type="button" class="secondary" @click="statusConfirmOpen = false">取消</button><button type="button" :class="store.status === 'active' ? 'danger' : ''" :disabled="saving" @click="toggleStoreStatus">{{ store.status === 'active' ? '确认暂停营业' : '确认恢复营业' }}</button></footer></section></div></Teleport>
     <Teleport to="body"><div v-if="deleteOpen" class="admin-form-overlay" @click.self="deleteOpen = false"><form class="admin-form-dialog" @submit.prevent="deleteStore"><header><div><p class="eyebrow">DANGER ZONE</p><h2>删除“{{ store?.store_name }}”及商家账号</h2><p>只有从未产生交易的店铺可以物理删除；已有订单时服务端会阻断，请改用“暂停营业”。</p></div><button type="button" @click="deleteOpen = false">×</button></header><label>删除原因<textarea v-model.trim="deleteReason" required minlength="2" maxlength="500" /></label><label>输入 DELETE_STORE 确认<input v-model.trim="deleteConfirmation" required /></label><footer><button type="button" class="secondary" @click="deleteOpen = false">取消</button><button class="danger" :disabled="saving || deleteConfirmation !== 'DELETE_STORE' || deleteReason.length < 2">{{ saving ? '正在删除…' : '永久删除无交易店铺' }}</button></footer></form></div></Teleport>
   </section>
 </template>

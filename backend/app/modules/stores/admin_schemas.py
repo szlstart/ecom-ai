@@ -16,6 +16,7 @@ class AdminStoreView(StrictRequest):
     logo_file_id: str | None
     logo_url: str | None
     status: str
+    suspension_source: Literal["merchant", "platform"] | None
     rating_score: str
     rating_count: int
     follower_count: int
@@ -31,9 +32,7 @@ class AdminStoreView(StrictRequest):
 class AdminStoreCreateRequest(StrictRequest):
     store_name: str = Field(min_length=2, max_length=128)
     description: str | None = Field(default=None, max_length=2000)
-    merchant_username: str = Field(
-        min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$"
-    )
+    merchant_username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
     merchant_password: str = Field(min_length=1, max_length=128)
     merchant_email: str = Field(min_length=3, max_length=254)
 
@@ -77,6 +76,7 @@ class AdminStoreList(StrictRequest):
 
 class AdminStoreStatusChangeRequest(StrictRequest):
     action: Literal["suspend", "resume"]
+    confirmed: Literal[True]
     reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
     reason: str = Field(min_length=2, max_length=500)
 

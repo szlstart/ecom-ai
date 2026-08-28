@@ -7,7 +7,7 @@ from decimal import Decimal
 import pyotp
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.bootstrap.admin import provision_platform_super_admin
 from app.core.config import get_settings
@@ -771,6 +771,7 @@ async def test_admin_store_status_and_policy_lifecycle(
 
         await session.commit()
         store_no = store.store_no
+        owner_id = owner.id
 
     login = await client.post(
         "/api/v1/admin/auth/login",
@@ -793,6 +794,16 @@ async def test_admin_store_status_and_policy_lifecycle(
     assert mfa.status_code == 200, mfa.text
     token = mfa.json()["data"]["session"]["access_token"]
     admin_headers = {"Authorization": f"Bearer {token}"}
+
+    # Store status changes deliberately use an explicit command confirmation instead
+    # of password/MFA step-up, even when the management session is no longer recent.
+    async for session in mysql_session():
+        await session.execute(
+            update(AuthSession)
+            .where(AuthSession.user_id == owner_id, AuthSession.audience == "admin")
+            .values(authenticated_at=now - timedelta(days=1))
+        )
+        await session.commit()
 
     first_store_page = await client.get(
         "/api/v1/admin/stores",
@@ -818,6 +829,20 @@ async def test_admin_store_status_and_policy_lifecycle(
 
     store_detail = await client.get(f"/api/v1/admin/stores/{store_no}", headers=admin_headers)
     assert store_detail.status_code == 200, store_detail.text
+    missing_confirmation = await client.post(
+        f"/api/v1/admin/stores/{store_no}/status-changes",
+        headers={
+            **admin_headers,
+            "If-Match": store_detail.headers["etag"],
+            "Idempotency-Key": f"store-unconfirmed-{suffix}-001",
+        },
+        json={
+            "action": "suspend",
+            "reason_code": "OPERATIONAL_REVIEW",
+            "reason": "缺少明确确认时不得执行。",
+        },
+    )
+    assert missing_confirmation.status_code == 422
     suspend = await client.post(
         f"/api/v1/admin/stores/{store_no}/status-changes",
         headers={
@@ -827,11 +852,13 @@ async def test_admin_store_status_and_policy_lifecycle(
         },
         json={
             "action": "suspend",
+            "confirmed": True,
             "reason_code": "OPERATIONAL_REVIEW",
             "reason": "运营复核期间暂停店铺。",
         },
     )
     assert suspend.status_code == 200, suspend.text
+    assert suspend.json()["data"]["suspension_source"] == "platform"
     resume = await client.post(
         f"/api/v1/admin/stores/{store_no}/status-changes",
         headers={
@@ -841,6 +868,7 @@ async def test_admin_store_status_and_policy_lifecycle(
         },
         json={
             "action": "resume",
+            "confirmed": True,
             "reason_code": "REVIEW_COMPLETED",
             "reason": "运营复核完成，恢复店铺。",
         },

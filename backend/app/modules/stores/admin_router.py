@@ -8,7 +8,11 @@ from app.api.dependencies import IdempotencyKey
 from app.api.schemas import Envelope
 from app.modules.finance.dependencies import AccountDeletionServiceDependency
 from app.modules.identity.router import _etag, _expected_version, _no_store
-from app.modules.rbac.dependencies import AdminAccess, require_admin_permission
+from app.modules.rbac.dependencies import (
+    AdminAccess,
+    require_admin_permission,
+    require_admin_permission_without_step_up,
+)
 from app.modules.stores.admin_schemas import (
     AdminPolicyCommandRequest,
     AdminStoreCreateRequest,
@@ -118,7 +122,7 @@ async def change_store_status(
     response: Response,
     service: AdminStoreServiceDependency,
     idempotency_key: IdempotencyKey,
-    access: Annotated[AdminAccess, require_admin_permission("stores:manage")],
+    access: Annotated[AdminAccess, require_admin_permission_without_step_up("stores:manage")],
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,
 ) -> Envelope[AdminStoreView]:
     item = await service.change_store_status(

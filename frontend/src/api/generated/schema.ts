@@ -6613,6 +6613,11 @@ export interface components {
              * @enum {string}
              */
             action: "suspend" | "resume";
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
             /** Reason Code */
             reason_code: string;
             /** Reason */
@@ -6643,6 +6648,8 @@ export interface components {
             logo_url: string | null;
             /** Status */
             status: string;
+            /** Suspension Source */
+            suspension_source: ("merchant" | "platform") | null;
             /** Rating Score */
             rating_score: string;
             /** Rating Count */

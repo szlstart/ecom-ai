@@ -2,7 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
-import { adminGet, adminUpdate, requireAdminToken, type AdminStore } from '@/api/admin-catalog'
+import { adminCommand, adminGet, adminUpdate, requireAdminToken, type AdminStore } from '@/api/admin-catalog'
 import { apiRequest, errorMessage } from '@/api/http'
 import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import PageState from '@/components/PageState.vue'
@@ -23,6 +23,7 @@ const deleting = ref(false)
 const error = ref('')
 const deleteError = ref('')
 const notice = ref('')
+const statusConfirmOpen = ref(false)
 const logoUpload = ref<FileUploadHandle | null>(null)
 const logoPasteBusy = ref(false)
 const logoPasteFocused = ref(false)
@@ -32,6 +33,11 @@ const profile = reactive({ store_name: '', description: '', logo_file_id: '' })
 
 function token() { return requireAdminToken(auth.accessToken) }
 function money(value?: Money) { return `¥${(Number(value?.minor_units ?? 0) / 100).toFixed(2)}` }
+function statusLabel() {
+  if (store.value?.status === 'active') return '营业中'
+  if (store.value?.suspension_source === 'platform') return '平台暂停'
+  return '已暂停'
+}
 
 async function load() {
   loading.value = true
@@ -58,6 +64,33 @@ async function save() {
     store.value = (await adminUpdate<AdminStore>(`/admin/stores/${encodeURIComponent(store.value.store_id)}`, payload, token(), store.value.version)).data
     profile.logo_file_id = ''
     notice.value = '店铺资料已保存，用户端相关位置会显示最新店铺名称。'
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { saving.value = false }
+}
+
+async function changeStoreStatus() {
+  if (!store.value || (store.value.status === 'suspended' && store.value.suspension_source === 'platform')) return
+  statusConfirmOpen.value = false
+  saving.value = true
+  error.value = ''
+  notice.value = ''
+  const action = store.value.status === 'active' ? 'suspend' : 'resume'
+  try {
+    store.value = (await adminCommand<AdminStore>(
+      `/admin/stores/${encodeURIComponent(store.value.store_id)}/status-changes`,
+      {
+        action,
+        confirmed: true,
+        reason_code: action === 'suspend' ? 'MERCHANT_PAUSE' : 'MERCHANT_RESUME',
+        reason: action === 'suspend' ? '商家确认暂时停止接收新订单。' : '商家确认恢复接收新订单。',
+      },
+      token(),
+      store.value.version,
+      `merchant-store-${action}`,
+    )).data
+    notice.value = action === 'suspend'
+      ? '店铺已暂停营业，暂时不会产生新的购买订单。'
+      : '店铺已恢复营业，销售中的商品已重新开放购买。'
   } catch (cause) { error.value = errorMessage(cause) }
   finally { saving.value = false }
 }
@@ -112,10 +145,11 @@ onMounted(load)
       <template v-if="store">
         <div class="merchant-store-settings">
           <form class="card" @submit.prevent="save"><h2>基础资料</h2><label>店铺名称<input v-model.trim="profile.store_name" required minlength="2" maxlength="128" /></label><small>名称不能与其他店铺重复，可随时修改。保存后，用户端商品、收藏和历史订单中的店铺名会同步显示最新名称。</small><label>店铺简介<textarea v-model.trim="profile.description" maxlength="2000" rows="8" placeholder="介绍你的店铺、品牌理念和主营商品" /></label><div class="merchant-logo-paste-zone" :class="{ focused: logoPasteFocused, busy: logoPasteBusy }" tabindex="0" role="button" aria-label="店铺 Logo 粘贴上传区" @focus="logoPasteFocused = true" @blur="logoPasteFocused = false" @paste="pasteLogo"><strong>{{ logoPasteBusy ? '正在读取、扫描并上传 Logo…' : '更换店铺 Logo' }}</strong><p>可从本地选择文件；也可先复制图片，点击这里后按 Command + V（macOS）或 Ctrl + V（Windows）粘贴。</p><AdminFileUpload ref="logoUpload" purpose="store_logo" :business-context-id="store.store_id" label="从本地选择 Logo" @uploaded="logoUploaded" /></div><small v-if="logoPasteNotice" class="success-text" role="status">{{ logoPasteNotice }}</small><small v-if="logoPasteError" class="error-text" role="alert">{{ logoPasteError }}</small><button :disabled="saving || logoPasteBusy">{{ saving ? '正在保存…' : '保存店铺资料' }}</button></form>
-          <aside class="card merchant-store-preview"><p class="eyebrow merchant-revenue-heading">营业额</p><div class="merchant-revenue-value">{{ money(revenue?.net_revenue) }}</div><p>仅在顾客确认收货或系统自动确认后计入，累计确认收货金额减累计退款</p><dl><dt>累计确认收货</dt><dd>{{ money(revenue?.gross_sales) }}</dd><dt>累计退款</dt><dd>{{ money(revenue?.refunded_amount) }}</dd><dt>已完成订单</dt><dd>{{ revenue?.completed_order_count ?? 0 }} 笔</dd><dt>营业状态</dt><dd>{{ store.status === 'active' ? '营业中' : store.status }}</dd></dl></aside>
+          <aside class="card merchant-store-preview"><p class="eyebrow merchant-revenue-heading">营业额</p><div class="merchant-revenue-value">{{ money(revenue?.net_revenue) }}</div><p>仅在顾客确认收货或系统自动确认后计入，累计确认收货金额减累计退款</p><dl><dt>累计确认收货</dt><dd>{{ money(revenue?.gross_sales) }}</dd><dt>累计退款</dt><dd>{{ money(revenue?.refunded_amount) }}</dd><dt>已完成订单</dt><dd>{{ revenue?.completed_order_count ?? 0 }} 笔</dd><dt>营业状态</dt><dd><span class="merchant-store-status-badge" :class="store.status">{{ statusLabel() }}</span></dd></dl><div class="merchant-store-status-control"><template v-if="store.status === 'suspended' && store.suspension_source === 'platform'"><strong>当前由平台暂停营业</strong><p>商家不能自行恢复，请通过消息联系平台管理员。</p></template><template v-else><strong>{{ store.status === 'active' ? '暂时不接收新订单？' : '准备继续营业？' }}</strong><p>{{ store.status === 'active' ? '暂停后保留商品、订单和店铺资料，可随时自行恢复。' : '恢复后，销售中的商品会重新开放购买。' }}</p><button type="button" :class="store.status === 'active' ? 'secondary' : ''" :disabled="saving" @click="statusConfirmOpen = true">{{ store.status === 'active' ? '暂停营业' : '恢复营业' }}</button></template></div></aside>
         </div>
         <article class="card danger-zone"><div><p class="eyebrow danger-text">不可恢复</p><h2>注销店铺账号</h2><p>仅未产生任何订单的店铺可以直接注销。确认后会永久删除店铺、商品、商家账号及其非交易数据。</p></div><button class="danger" type="button" :disabled="deleting" @click="deleteAccount">{{ deleting ? '正在注销…' : '注销店铺与账号' }}</button><p v-if="deleteError" class="alert error" role="alert">{{ deleteError }}</p></article>
       </template>
     </PageState>
+    <Teleport to="body"><div v-if="statusConfirmOpen && store" class="admin-form-overlay" @click.self="statusConfirmOpen = false"><section class="admin-form-dialog merchant-status-confirm" role="dialog" aria-modal="true" aria-labelledby="merchant-store-status-title"><header><div><p class="eyebrow">营业状态确认</p><h2 id="merchant-store-status-title">{{ store.status === 'active' ? '确认暂停营业？' : '确认恢复营业？' }}</h2><p>{{ store.status === 'active' ? '暂停后不再接收新订单，已有订单、售后和顾客消息仍需正常处理。' : '恢复后，所有销售中的商品会重新允许顾客购买。' }}</p></div><button type="button" aria-label="关闭" @click="statusConfirmOpen = false">×</button></header><footer><button type="button" class="secondary" @click="statusConfirmOpen = false">取消</button><button type="button" :class="store.status === 'active' ? 'danger' : ''" :disabled="saving" @click="changeStoreStatus">{{ store.status === 'active' ? '确认暂停营业' : '确认恢复营业' }}</button></footer></section></div></Teleport>
   </section>
 </template>

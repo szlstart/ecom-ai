@@ -60,6 +60,7 @@ class Store(MutableMySQLModel, MySQLBase):
     store_name_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    suspension_source: Mapped[str | None] = mapped_column(String(32))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
 
 

@@ -1227,6 +1227,13 @@ tr.selected td { background: #f0f4ff; }
 .merchant-store-preview { text-align: center; }
 .merchant-preview-logo { width: 82px; height: 82px; margin: 10px auto 18px; display: grid; place-items: center; color: #fff; border-radius: 24px; background: linear-gradient(145deg, #187657, #31ab7c); font-size: 2rem; font-weight: 850; }
 .merchant-store-preview dl { margin-top: 24px; text-align: left; }
+.merchant-store-status-badge { width: fit-content; padding: 4px 9px; display: inline-flex; border-radius: 999px; color: #9a5a15; background: #fff2dc; font-size: .78rem; font-weight: 800; }
+.merchant-store-status-badge.active { color: #167153; background: #e8f7f0; }
+.merchant-store-status-control { margin-top: 20px; padding: 17px; display: grid; gap: 8px; text-align: left; border: 1px solid #dce7e1; border-radius: 14px; background: linear-gradient(145deg, #f7fbf9, #eff7f3); }
+.merchant-store-status-control p { margin: 0; color: #62736a; font-size: .82rem; line-height: 1.55; }
+.merchant-store-status-control button { width: 100%; margin-top: 4px; }
+.merchant-status-confirm { border-top: 5px solid #19805d; }
+.admin-store-status-confirm { border-top: 5px solid #5367cd; }
 .merchant-revenue-value { margin: 12px 0 4px; color: #187657; font-size: clamp(2.2rem, 5vw, 3.5rem); font-weight: 850; letter-spacing: -.05em; }
 .merchant-revenue-heading { color: #173228; font-size: 1.05rem; font-weight: 850; letter-spacing: .08em; }
 .merchant-orders-page { gap: 22px; }

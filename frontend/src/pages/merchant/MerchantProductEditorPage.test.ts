@@ -80,7 +80,7 @@ const FileUploadStub = defineComponent({
   },
 })
 
-async function mountPage() {
+async function mountPage(initialPath = '/merchant/products/prd_test') {
   const pinia = createPinia()
   setActivePinia(pinia)
   useAdminAuthStore().accessToken = 'merchant-token'
@@ -89,9 +89,11 @@ async function mountPage() {
     routes: [
       { path: '/merchant/products', component: defineComponent({ render: () => h('div', '商品列表') }) },
       { path: '/merchant/products/:productId', component: MerchantProductEditorPage },
+      { path: '/admin/stores/:storeId', component: defineComponent({ render: () => h('div', '店铺运营详情') }) },
+      { path: '/admin/stores/:storeId/products/:productId', component: MerchantProductEditorPage },
     ],
   })
-  await router.push('/merchant/products/prd_test')
+  await router.push(initialPath)
   await router.isReady()
   const wrapper = mount(MerchantProductEditorPage, {
     global: { plugins: [pinia, router], stubs: { AdminFileUpload: FileUploadStub } },
@@ -129,6 +131,7 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     mocks.listAdminReviews.mockResolvedValue({ data: { items: [], next_cursor: null } })
     mocks.adminGet.mockImplementation(async (path: string) => {
       if (path === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
+      if (path === '/admin/stores/sto_test') return { data: store }
       if (path === '/admin/products/prd_test') return { data: product }
       if (path.endsWith('/skus')) return { data: [sku] }
       if (path.endsWith('/images')) return { data: mocks.persistedImages }
@@ -162,6 +165,19 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     wrapper.unmount()
     const refreshed = await mountPage()
     expect(refreshed.find('.merchant-main-image img').exists()).toBe(true)
+  })
+
+  it('reuses the visual merchant editor for a super-admin store-scoped product', async () => {
+    const wrapper = await mountPage('/admin/stores/sto_test/products/prd_test?return_to=/admin/stores/sto_test%3Ftab%3Dproducts')
+
+    expect(wrapper.find('.merchant-product-editor').exists()).toBe(true)
+    expect(wrapper.text()).toContain('超级管理员直接编辑')
+    expect(wrapper.text()).toContain('顾客购买区')
+    expect(wrapper.text()).toContain('款式与价格')
+    expect(wrapper.text()).toContain('商品详情')
+    expect(wrapper.get('.merchant-editor-header a').attributes('href')).toBe('/admin/stores/sto_test?tab=products')
+    expect(mocks.adminGet).toHaveBeenCalledWith('/admin/stores/sto_test', 'merchant-token')
+    expect(mocks.adminGet).not.toHaveBeenCalledWith('/admin/stores?limit=20', 'merchant-token')
   })
 
   it('shows a local explanation and keeps the editor visible when no image was copied', async () => {

@@ -44,7 +44,12 @@ interface FaqDraft { key: string; faq_id: string | null; question: string; answe
 
 const route = useRoute(); const router = useRouter(); const auth = useAdminAuthStore()
 const isNew = computed(() => route.path.endsWith('/new'))
+const adminMode = computed(() => route.path.startsWith('/admin/'))
 const productId = computed(() => String(route.params.productId || ''))
+const requestedStoreId = computed(() => {
+  if (typeof route.params.storeId === 'string' && route.params.storeId) return route.params.storeId
+  return typeof route.query.store_id === 'string' ? route.query.store_id : ''
+})
 const product = ref<AdminProduct | null>(null)
 const store = ref<AdminStore | null>(null)
 const skus = ref<AdminSku[]>([])
@@ -107,6 +112,15 @@ const activeImages = computed(() => {
 const displayImage = computed(() => activeImages.value[selectedImage.value] ?? activeImages.value[0] ?? null)
 const canEdit = computed(() => !product.value || ['draft', 'rejected', 'off_shelf', 'on_sale'].includes(product.value.status))
 const editorBusy = computed(() => saving.value || pasteBusy.value || uploadBusy.value || imageSaving.value || detailPasteBusy.value || detailUploadBusy.value)
+const returnTarget = computed(() => {
+  const requested = typeof route.query.return_to === 'string' ? route.query.return_to : ''
+  if (requested.startsWith(adminMode.value ? '/admin/' : '/merchant/')) return requested
+  if (adminMode.value && (store.value?.store_id || requestedStoreId.value)) {
+    return `/admin/stores/${encodeURIComponent(store.value?.store_id || requestedStoreId.value)}?tab=products`
+  }
+  return adminMode.value ? '/admin/products' : '/merchant/products'
+})
+const returnLabel = computed(() => adminMode.value ? `返回${store.value?.store_name || '店铺'}的商品` : '返回我的商品')
 let detailBlockSequence = 0
 let faqDraftSequence = 0
 
@@ -144,6 +158,14 @@ function restoreEditorDrafts(snapshot: ReturnType<typeof captureEditorDrafts>) {
 
 function token() { return requireAdminToken(auth.accessToken) }
 function path(suffix = '') { return `/admin/products/${encodeURIComponent(productId.value)}${suffix}` }
+function actionKey(name: string) { return `${adminMode.value ? 'admin' : 'merchant'}-${name}` }
+function editorLocation(id: string) {
+  const query = typeof route.query.return_to === 'string' ? { return_to: route.query.return_to } : undefined
+  if (adminMode.value && (store.value?.store_id || requestedStoreId.value)) {
+    return { path: `/admin/stores/${encodeURIComponent(store.value?.store_id || requestedStoreId.value)}/products/${encodeURIComponent(id)}`, query }
+  }
+  return { path: `${adminMode.value ? '/admin/products' : '/merchant/products'}/${encodeURIComponent(id)}`, query }
+}
 function flatten(nodes: Category[]): Category[] { return nodes.flatMap((item) => [item, ...flatten(item.children)]) }
 function minor(value: string) { return Math.round(Number(value || 0) * 100) }
 function statusLabel(value?: string) { return ({ draft: '草稿', pending_review: '审核中', approved: '审核通过，待上架', rejected: '审核退回', on_sale: '销售中', off_shelf: '已下架' } as Record<string, string>)[value || ''] ?? value }
@@ -194,10 +216,16 @@ function restoreOriginSelection(regionCode: string) {
 }
 
 async function loadReferences() {
-  const [categoryResult, storeResult] = await Promise.all([
-    getCategories(), adminGet<{ items: AdminStore[]; next_cursor: string | null }>('/admin/stores?limit=20', token()),
-  ])
-  categories.value = categoryResult.data; store.value = storeResult.data.items[0] ?? null
+  const categoryResult = await getCategories()
+  categories.value = categoryResult.data
+  if (requestedStoreId.value) {
+    store.value = (await adminGet<AdminStore>(`/admin/stores/${encodeURIComponent(requestedStoreId.value)}`, token())).data
+  } else if (!adminMode.value) {
+    const storeResult = await adminGet<{ items: AdminStore[]; next_cursor: string | null }>('/admin/stores?limit=20', token())
+    store.value = storeResult.data.items[0] ?? null
+  } else {
+    store.value = null
+  }
   if (store.value) basic.store_id = store.value.store_id
 }
 
@@ -211,8 +239,8 @@ async function load(options: { preserveDrafts?: boolean } = {}) {
     if (isNew.value) {
       const defaultCategory = flatCategories.value.find((item) => item.category_name.includes('其他')) ?? flatCategories.value.at(-1)
       if (!store.value || !defaultCategory) throw new Error('当前没有可用的店铺或商品基础归类，请联系平台管理员。')
-      const created = (await adminCreate<AdminProduct>('/admin/products', { store_id: store.value.store_id, category_id: defaultCategory.category_id, brand_id: null, product_name: '未命名商品', subtitle: null, description: null }, token(), 'merchant-product-create')).data
-      await router.replace(`/merchant/products/${created.product_id}`)
+      const created = (await adminCreate<AdminProduct>('/admin/products', { store_id: store.value.store_id, category_id: defaultCategory.category_id, brand_id: null, product_name: '未命名商品', subtitle: null, description: null }, token(), actionKey('product-create'))).data
+      await router.replace(editorLocation(created.product_id))
       return
     }
     const [detailResult, skuResult, imageResult, attributeResult, faqResult, inventoryResult, fulfillmentResult, reviewResult] = await Promise.all([
@@ -225,7 +253,12 @@ async function load(options: { preserveDrafts?: boolean } = {}) {
       adminGet<Fulfillment | null>(path('/fulfillment-profile'), token()),
       listAdminReviews(token(), 'published', productId.value),
     ])
-    product.value = detailResult.data; skus.value = skuResult.data; images.value = imageResult.data; attributes.value = attributeResult.data; faqs.value = faqResult.data; inventories.value = inventoryResult.data.items; reviews.value = reviewResult.data.items
+    product.value = detailResult.data
+    if (requestedStoreId.value && product.value.store_id !== requestedStoreId.value) throw new Error('该商品不属于当前店铺，已阻止跨店铺误编辑。')
+    if (!store.value || store.value.store_id !== product.value.store_id) {
+      store.value = (await adminGet<AdminStore>(`/admin/stores/${encodeURIComponent(product.value.store_id)}`, token())).data
+    }
+    skus.value = skuResult.data; images.value = imageResult.data; attributes.value = attributeResult.data; faqs.value = faqResult.data; inventories.value = inventoryResult.data.items; reviews.value = reviewResult.data.items
     faqDrafts.value = faqs.value.map((item) => ({ key: faqKey(), faq_id: item.faq_id, question: item.question, answer: item.current_answer_text ?? '' }))
     Object.assign(basic, { store_id: product.value.store_id, category_id: product.value.category_id, brand_id: product.value.brand_id ?? '', product_name: product.value.product_name })
     const firstSku = activeSkus.value[0]
@@ -273,7 +306,7 @@ async function confirmSkuDelete() {
   skuDeleting.value = true; skuDeleteError.value = ''; error.value = ''; notice.value = ''
   try {
     const targetSku = deletingSku.value
-    const disabledSku = (await adminCommand<AdminSku>(path(`/skus/${encodeURIComponent(targetSku.sku_id)}/status-changes`), { action: 'disable', reason_code: 'MERCHANT_STYLE_REMOVE', reason: '商家从商品编辑器删除款式；保留历史交易与审计记录。' }, token(), targetSku.version, 'merchant-style-delete')).data
+    const disabledSku = (await adminCommand<AdminSku>(path(`/skus/${encodeURIComponent(targetSku.sku_id)}/status-changes`), { action: 'disable', reason_code: adminMode.value ? 'PLATFORM_STYLE_REMOVE' : 'MERCHANT_STYLE_REMOVE', reason: `${adminMode.value ? '超级管理员' : '商家'}从所见即所得商品编辑器删除款式；保留历史交易与审计记录。` }, token(), targetSku.version, actionKey('style-delete'))).data
     skus.value = skus.value.map((item) => item.sku_id === disabledSku.sku_id ? disabledSku : item)
     const remainingSkus = activeSkus.value
     const remainingSkuIds = new Set(remainingSkus.map((item) => item.sku_id))
@@ -323,12 +356,12 @@ async function saveSku() {
       targetSku = (await adminUpdate<AdminSku>(path(`/skus/${encodeURIComponent(editing.sku_id)}`), payload, token(), editing.version)).data
       inventory = inventoryFor(editing.sku_id)
     } else {
-      targetSku = (await adminCreate<AdminSku>(path('/skus'), { ...payload, currency: 'CNY' }, token(), 'merchant-sku-create')).data
+      targetSku = (await adminCreate<AdminSku>(path('/skus'), { ...payload, currency: 'CNY' }, token(), actionKey('sku-create'))).data
       inventory = (await adminGet<{ items: AdminInventory[] }>(`/admin/inventories?product_id=${encodeURIComponent(productId.value)}&limit=100`, token())).data.items.find((item) => item.sku_id === targetSku.sku_id)
     }
     if (!inventory) throw new Error('款式已保存，但库存记录尚未准备好，请刷新后重新设置库存。')
     const delta = stock - inventory.on_hand_quantity
-    if (delta) await adminCreate('/admin/inventory-adjustments', { sku_id: targetSku.sku_id, on_hand_delta: delta, reason_code: 'MERCHANT_DIRECT_EDIT', reason: '商家在商品款式中直接修改库存', reference_no: `merchant-ui-${Date.now()}`, expected_version: inventory.version }, token(), 'merchant-stock-adjust')
+    if (delta) await adminCreate('/admin/inventory-adjustments', { sku_id: targetSku.sku_id, on_hand_delta: delta, reason_code: adminMode.value ? 'PLATFORM_DIRECT_EDIT' : 'MERCHANT_DIRECT_EDIT', reason: `${adminMode.value ? '超级管理员' : '商家'}在商品款式中直接修改库存`, reference_no: `${adminMode.value ? 'admin' : 'merchant'}-ui-${Date.now()}`, expected_version: inventory.version }, token(), actionKey('stock-adjust'))
     selectedSkuId.value = targetSku.sku_id
     closeSkuEditor()
     await load({ preserveDrafts: true })
@@ -457,8 +490,8 @@ async function ensureEffectiveShippingTemplate(): Promise<string> {
     dispatch_min_hours: fulfillment.dispatch_min_hours,
     dispatch_max_hours: fulfillment.dispatch_max_hours,
     rules: [{ region_scope: { include: [], exclude: [] }, first_unit: 1, additional_unit: 1, first_fee_amount: 0, additional_fee_amount: 0, estimated_min_days: 1, estimated_max_days: 7 }],
-  }, token(), 'merchant-default-shipping-create')).data
-  const published = (await adminCommand<AdminShippingTemplate>(`${storePath}/${encodeURIComponent(created.template_id)}/publications`, { reason: '商家首次保存商品发货设置，启用系统默认配送' }, token(), created.version, 'merchant-default-shipping-publish')).data
+  }, token(), actionKey('default-shipping-create'))).data
+  const published = (await adminCommand<AdminShippingTemplate>(`${storePath}/${encodeURIComponent(created.template_id)}/publications`, { reason: `${adminMode.value ? '超级管理员' : '商家'}首次保存商品发货设置，启用系统默认配送` }, token(), created.version, actionKey('default-shipping-publish'))).data
   shippingTemplates.value.push(published)
   return published.template_id
 }
@@ -492,7 +525,7 @@ async function finishEditing(label: string, requireComplete = true) {
     await adminReplace(path('/attributes'), { items: attributePayload() }, token(), product.value.version)
     await refreshProduct()
     if (blocks.length) {
-      await adminCreate(path('/detail-content-versions'), { source_format: 'structured', source_content: JSON.stringify(blocks) }, token(), `merchant-detail-finish-${Date.now()}`)
+      await adminCreate(path('/detail-content-versions'), { source_format: 'structured', source_content: JSON.stringify(blocks) }, token(), `${adminMode.value ? 'admin' : 'merchant'}-detail-finish-${Date.now()}`)
       await refreshProduct()
     }
     if (originProvinceCode.value) {
@@ -503,15 +536,16 @@ async function finishEditing(label: string, requireComplete = true) {
     }
     await adminReplace(path('/faqs'), { items: faqItems }, token(), product.value.version)
     notice.value = label
-    await router.push('/merchant/products')
+    await router.push(returnTarget.value)
   } catch (cause) { error.value = errorMessage(cause) }
   finally { saving.value = false }
 }
 async function productCommand(action: 'submit_review' | 'publish' | 'off_shelf') {
   const endpoint = { submit_review: '/review-submissions', publish: '/publications', off_shelf: '/off-shelf-commands' }[action]
-  const reason = { submit_review: '商家完成商品资料并提交审核', publish: '商家确认商品开始销售', off_shelf: '商家主动停止商品销售' }[action]
+  const actor = adminMode.value ? '超级管理员' : '商家'
+  const reason = { submit_review: `${actor}完成商品资料并提交审核`, publish: `${actor}确认商品开始销售`, off_shelf: `${actor}主动停止商品销售` }[action]
   await perform(
-    () => adminCommand<AdminProduct>(path(endpoint), { reason_code: 'MERCHANT_OPERATION', reason }, token(), product.value!.version, `merchant-product-${action}`),
+    () => adminCommand<AdminProduct>(path(endpoint), { reason_code: adminMode.value ? 'PLATFORM_OPERATIONS' : 'MERCHANT_OPERATION', reason }, token(), product.value!.version, actionKey(`product-${action}`)),
     action === 'submit_review'
       ? (result) => {
           const status = (result as { data?: AdminProduct }).data?.status
@@ -532,7 +566,7 @@ onMounted(() => { resetSku(); void load() })
 
 <template>
   <section class="merchant-page-stack merchant-product-editor">
-    <header class="merchant-editor-header"><RouterLink to="/merchant/products">← 返回我的商品</RouterLink><div v-if="product" class="merchant-editor-status"><span :class="`status-${product.status}`">{{ statusLabel(product.status) }}</span><small v-if="!canEdit">当前状态下资料只读；下架或审核退回后可继续编辑。</small></div></header>
+    <header class="merchant-editor-header"><RouterLink :to="returnTarget">← {{ returnLabel }}</RouterLink><div v-if="product" class="merchant-editor-status"><span v-if="adminMode" class="admin-editor-identity">超级管理员直接编辑</span><span :class="`status-${product.status}`">{{ statusLabel(product.status) }}</span><small v-if="!canEdit">当前状态下资料只读；下架或审核退回后可继续编辑。</small></div></header>
     <p v-if="notice" class="alert success" aria-live="polite">{{ notice }}</p>
     <p v-if="error && product" class="alert error" role="alert">{{ error }}</p>
     <PageState :loading="loading" :error="product ? '' : error" :empty="!loading && !product" empty-title="商品不存在" @retry="load">
@@ -558,7 +592,7 @@ onMounted(() => { resetSku(); void load() })
         <section class="merchant-product-reviews card"><header><div><p class="eyebrow">商品评价</p><h2>顾客在这件商品下看到的评价</h2><p>平均 {{ product.rating_score }} 分 · 共 {{ product.review_count }} 条</p></div></header><p v-if="!reviews.length" class="merchant-review-empty">这件商品暂时还没有顾客评价。</p><article v-for="item in reviews" :key="item.review_id"><header><span class="merchant-stars">{{ '★'.repeat(item.rating) }}{{ '☆'.repeat(5 - item.rating) }}</span><strong>{{ item.is_anonymous ? '匿名顾客' : item.user_name }}</strong><time>{{ new Date(item.submitted_at).toLocaleString('zh-CN') }}</time></header><p>{{ item.content || '顾客只留下了星级评分。' }}</p><small>购买款式：{{ item.sku_name }}</small><div v-if="item.merchant_reply" class="merchant-existing-reply"><strong>店铺回复</strong><p>{{ item.merchant_reply.content }}</p></div><form v-else @submit.prevent="replyReview(item)"><label>回复这条评价<textarea v-model="replyDrafts[item.review_id]" rows="3" minlength="2" maxlength="500" placeholder="感谢您的反馈……" /></label><div class="actions"><button type="button" class="secondary small" @click="replyDrafts[item.review_id] = '感谢您的支持与认可，我们会继续认真做好商品和服务。'">感谢好评</button><button :disabled="replyingReviewId === item.review_id || (replyDrafts[item.review_id]?.trim().length ?? 0) < 2">{{ replyingReviewId === item.review_id ? '正在回复…' : '发布回复' }}</button></div></form></article></section>
           </main>
 
-          <aside class="merchant-product-info-editor"><p class="eyebrow">顾客购买区 · 可直接编辑</p><label class="merchant-title-input">商品名称<input v-model.trim="basic.product_name" required maxlength="255" :disabled="!canEdit" /></label>
+          <aside class="merchant-product-info-editor"><p class="eyebrow">顾客购买区 · {{ adminMode ? '超级管理员直接编辑' : '可直接编辑' }}</p><label class="merchant-title-input">商品名称<input v-model.trim="basic.product_name" required maxlength="255" :disabled="!canEdit" /></label>
             <div class="merchant-style-picker"><header><div><strong class="merchant-style-title">款式与价格</strong><small>缩略图、名称、价格和库存与顾客页面保持一致</small></div><button v-if="canEdit" type="button" class="secondary small" :disabled="editorBusy" @click="startNewSku">＋ 新增款式</button></header><div><button v-for="sku in activeSkus" :key="sku.sku_id" type="button" :class="{ active: activeSku?.sku_id === sku.sku_id }" :disabled="editorBusy" @click="selectedSkuId = sku.sku_id; editSku(sku)"><span class="merchant-sku-thumb"><img v-if="skuImage(sku.sku_id)" :src="resolveApiAssetUrl(skuImage(sku.sku_id)?.image_url ?? null) || undefined" :alt="`${sku.sku_name}缩略图`" /><b v-else>{{ sku.sku_name.slice(0, 1) }}</b></span><span><strong>{{ sku.sku_name }}</strong><b>¥{{ sku.sale_price }}</b><small>库存 {{ inventoryFor(sku.sku_id)?.on_hand_quantity ?? 0 }} · 可售 {{ inventoryFor(sku.sku_id)?.available_quantity ?? 0 }}</small></span></button></div><p v-if="!activeSkus.length">还没有款式，点击“新增款式”后直接填写名称、价格和库存。</p></div>
             <form v-if="canEdit && showSkuEditor" class="merchant-inline-sku-form" :class="{ active: !skuEditing }" @submit.prevent="saveSku"><header><strong>{{ skuEditing ? `正在编辑：${skuEditing.sku_name}` : '新增一个款式' }}</strong><div class="actions"><button v-if="skuEditing" type="button" class="danger small" :disabled="editorBusy" @click="beginSkuDelete(skuEditing)">删除款式</button><button type="button" class="secondary small" @click="closeSkuEditor">取消</button></div></header><div class="merchant-simple-sku-fields"><label>款式名称<input ref="skuNameInput" v-model.trim="skuForm.name" required maxlength="255" placeholder="例如：曜石黑 / 42 码" /></label><label>价格（元）<input v-model="skuForm.sale_price" type="number" min="0" step="0.01" required /></label><label>库存<input v-model.number="skuForm.stock" type="number" min="0" step="1" required /></label></div><small v-if="skuEditing && (inventoryFor(skuEditing.sku_id)?.reserved_quantity ?? 0) > 0">其中 {{ inventoryFor(skuEditing.sku_id)?.reserved_quantity }} 件已被订单预占；修改账面库存不会取消已有订单。</small><button :disabled="editorBusy">完成</button></form>
             <div class="merchant-editor-rail-note"><strong>页面对应关系</strong><span>左侧：图片、参数、详情、问答和评价</span><span>右侧：商品名、款式、价格和库存</span></div>

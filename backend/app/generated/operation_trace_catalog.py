@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "196fcad2b7ceb451843e5b3eca670b877651cc2b102abf5c365b34efb5d23b8f"
+SOURCE_SHA256 = "4e004a0f4d75d42ae3611f9bebaa2a2a55c41510fb1dc70dcdcaeba21ca761a6"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -528,7 +528,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["inventories:adjust"],
-        "x-requirement-id": ["ADM-INV-01", "MCH-INVENTORY-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": [
+            "ADM-INV-01",
+            "ADM-PRODUCT-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "MCH-INVENTORY-01",
+            "MCH-PRODUCT-EDIT-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -541,7 +547,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "reviews:read",
             "reviews:reply",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminInventory_Get": {
         "x-audit-event": "access.AdminInventory_Get",
@@ -559,7 +571,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["inventories:read"],
-        "x-requirement-id": ["ADM-INV-01", "MCH-INVENTORY-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": [
+            "ADM-INV-01",
+            "ADM-PRODUCT-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "MCH-INVENTORY-01",
+            "MCH-PRODUCT-EDIT-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -572,7 +590,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "reviews:read",
             "reviews:reply",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminKnowledgeDocument_Create": {
         "x-audit-event": "command.AdminKnowledgeDocument_Create",
@@ -809,7 +833,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -821,9 +845,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductAttribute_Replace": {
         "x-audit-event": "command.AdminProductAttribute_Replace",
@@ -831,7 +860,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -843,9 +872,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductContentVersion_Create": {
         "x-audit-event": "command.AdminProductContentVersion_Create",
@@ -853,7 +887,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -865,9 +899,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductContentVersion_Get": {
         "x-audit-event": "access.AdminProductContentVersion_Get",
@@ -875,7 +914,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -887,9 +926,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductDeletionEligibility_Check": {
         "x-audit-event": "access.AdminProductDeletionEligibility_Check",
@@ -914,7 +958,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -926,9 +970,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductFaq_Create": {
         "x-audit-event": "command.AdminProductFaq_Create",
@@ -936,7 +985,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -948,9 +997,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductFaq_List": {
         "x-audit-event": "access.AdminProductFaq_List",
@@ -958,7 +1012,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -970,9 +1024,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductFaq_Publish": {
         "x-audit-event": "command.AdminProductFaq_Publish",
@@ -980,7 +1039,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:publish"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -992,9 +1051,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductFaq_Replace": {
         "x-audit-event": "command.AdminProductFaq_Replace",
@@ -1002,7 +1066,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1015,7 +1079,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "reviews:read",
             "reviews:reply",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductFulfillment_Get": {
         "x-audit-event": "access.AdminProductFulfillment_Get",
@@ -1023,7 +1093,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1035,9 +1105,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductFulfillment_Upsert": {
         "x-audit-event": "command.AdminProductFulfillment_Upsert",
@@ -1045,7 +1120,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1057,9 +1132,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductImage_List": {
         "x-audit-event": "access.AdminProductImage_List",
@@ -1067,7 +1147,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1079,9 +1159,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductImage_Replace": {
         "x-audit-event": "command.AdminProductImage_Replace",
@@ -1089,7 +1174,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1101,9 +1186,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductImportTemplate_Download": {
         "x-audit-event": "access.AdminProductImportTemplate_Download",
@@ -1131,7 +1221,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1143,9 +1233,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductSku_Create": {
         "x-audit-event": "command.AdminProductSku_Create",
@@ -1153,7 +1248,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1165,9 +1260,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductSku_List": {
         "x-audit-event": "access.AdminProductSku_List",
@@ -1175,7 +1275,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1187,9 +1287,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProductSku_Update": {
         "x-audit-event": "command.AdminProductSku_Update",
@@ -1197,7 +1302,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1209,9 +1314,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProduct_Create": {
         "x-audit-event": "command.AdminProduct_Create",
@@ -1219,9 +1329,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:create"],
-        "x-requirement-id": ["ADM-PRODUCT-NEW-01", "MCH-PRODUCT-NEW-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-NEW-01",
+            "ADM-STORE-PRODUCT-NEW-01",
+            "MCH-PRODUCT-NEW-01",
+        ],
         "x-scope-policy": ["public_reference_projection", "stores:read", "products:create"],
-        "x-test-case-ids": ["ADM-PRODUCT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-STORE-*", "MCH-PORTAL-*"],
     },
     "AdminProduct_Delete": {
         "x-audit-event": "command.AdminProduct_Delete",
@@ -1246,7 +1360,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:read"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1258,9 +1372,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminProduct_List": {
         "x-audit-event": "access.AdminProduct_List",
@@ -1294,7 +1413,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:review"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-DETAIL-01"],
+        "x-requirement-id": ["ADM-STORE-DETAIL-01"],
         "x-scope-policy": [
             "stores:read",
             "stores:manage",
@@ -1303,7 +1422,6 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "products:review",
             "products:publish",
             "orders:read",
-            "public_reference_projection",
         ],
         "x-test-case-ids": ["ADM-ORDER-*", "ADM-PRODUCT-*", "ADM-STORE-*"],
     },
@@ -1316,6 +1434,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": [
             "ADM-PRODUCT-01",
             "ADM-STORE-DETAIL-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
             "MCH-PRODUCT-EDIT-01",
             "MCH-PRODUCT-LIST-01",
         ],
@@ -1350,7 +1469,12 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:publish"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-DETAIL-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-01",
+            "ADM-STORE-DETAIL-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "MCH-PRODUCT-EDIT-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1380,7 +1504,12 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-DETAIL-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-01",
+            "ADM-STORE-DETAIL-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "MCH-PRODUCT-EDIT-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1410,7 +1539,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": ["ADM-PRODUCT-01", "ADM-STORE-PRODUCT-EDIT-01", "MCH-PRODUCT-EDIT-01"],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1422,9 +1551,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminRefundAppeal_Claim": {
         "x-audit-event": "command.AdminRefundAppeal_Claim",
@@ -1537,7 +1671,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["reviews:read"],
-        "x-requirement-id": ["ADM-REVIEW-LIST-01", "MCH-PRODUCT-EDIT-01", "MCH-REVIEW-LIST-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-01",
+            "ADM-REVIEW-LIST-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "MCH-PRODUCT-EDIT-01",
+            "MCH-REVIEW-LIST-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1550,7 +1690,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "reviews:read",
             "reviews:reply",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminReview_Moderate": {
         "x-audit-event": "command.AdminReview_Moderate",
@@ -1568,7 +1714,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["reviews:reply"],
-        "x-requirement-id": ["ADM-REVIEW-01", "MCH-PRODUCT-EDIT-01", "MCH-REVIEW-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-01",
+            "ADM-REVIEW-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "MCH-PRODUCT-EDIT-01",
+            "MCH-REVIEW-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1582,7 +1734,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "reviews:reply",
             "reviews:moderate",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "AdminRoleGrantEvent_List": {
         "x-audit-event": "access.AdminRoleGrantEvent_List",
@@ -1853,7 +2011,12 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
-        "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-01",
+            "ADM-STORE-DETAIL-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "MCH-PRODUCT-EDIT-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1883,7 +2046,12 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:read"],
-        "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-01",
+            "ADM-STORE-DETAIL-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "MCH-PRODUCT-EDIT-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -1913,7 +2081,12 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:manage"],
-        "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-PRODUCT-EDIT-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-01",
+            "ADM-STORE-DETAIL-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "MCH-PRODUCT-EDIT-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -2327,7 +2500,13 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["stores:read"],
-        "x-requirement-id": ["ADM-STORE-DETAIL-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-01",
+            "ADM-PRODUCT-NEW-01",
+            "ADM-STORE-DETAIL-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "ADM-STORE-PRODUCT-NEW-01",
+        ],
         "x-scope-policy": [
             "stores:read",
             "stores:manage",
@@ -2336,8 +2515,20 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "products:review",
             "products:publish",
             "orders:read",
+            "public_reference_projection",
+            "products:create",
+            "inventories:read",
+            "inventories:adjust",
+            "reviews:read",
+            "reviews:reply",
         ],
-        "x-test-case-ids": ["ADM-ORDER-*", "ADM-PRODUCT-*", "ADM-STORE-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-ORDER-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+        ],
     },
     "AdminStore_List": {
         "x-audit-event": "access.AdminStore_List",
@@ -2907,12 +3098,17 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["ADM-PRODUCT-01"],
         "x-scope-policy": [
             "public_reference_projection",
+            "stores:read",
+            "stores:manage",
             "products:read",
             "products:update",
-            "products:review",
             "products:publish",
+            "inventories:read",
+            "inventories:adjust",
+            "reviews:read",
+            "reviews:reply",
         ],
-        "x-test-case-ids": ["ADM-PRODUCT-*"],
+        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*"],
     },
     "CartInvalidItem_Clear": {
         "x-audit-event": "command.CartInvalidItem_Clear",
@@ -2980,7 +3176,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": [],
-        "x-requirement-id": ["ADM-PRODUCT-01", "MCH-PRODUCT-EDIT-01", "MCH-PRODUCT-NEW-01"],
+        "x-requirement-id": [
+            "ADM-PRODUCT-01",
+            "ADM-PRODUCT-NEW-01",
+            "ADM-STORE-PRODUCT-EDIT-01",
+            "ADM-STORE-PRODUCT-NEW-01",
+            "MCH-PRODUCT-EDIT-01",
+            "MCH-PRODUCT-NEW-01",
+        ],
         "x-scope-policy": [
             "public_reference_projection",
             "stores:read",
@@ -2993,9 +3196,14 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "inventories:adjust",
             "reviews:read",
             "reviews:reply",
-            "products:review",
         ],
-        "x-test-case-ids": ["ADM-INV-*", "ADM-PRODUCT-*", "ADM-REVIEW-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": [
+            "ADM-INV-*",
+            "ADM-PRODUCT-*",
+            "ADM-REVIEW-*",
+            "ADM-STORE-*",
+            "MCH-PORTAL-*",
+        ],
     },
     "CheckoutRepricing_Create": {
         "x-audit-event": "command.CheckoutRepricing_Create",

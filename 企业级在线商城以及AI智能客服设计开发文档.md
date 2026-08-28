@@ -2494,11 +2494,11 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 #### 2.13.6 店铺运营
 
-路由：`/admin/stores`、`/admin/stores/:storeId`。当前版本不建设商家认证申请流程，因此超级管理端不提供“店铺认证”页面、导航或审核 API；历史认证表仅作为未启用的兼容结构，不参与开店、营业或商品发布。
+路由：`/admin/stores`、`/admin/stores/:storeId`、`/admin/stores/:storeId/products/new`、`/admin/stores/:storeId/products/:productId`。当前版本不建设商家认证申请流程，因此超级管理端不提供“店铺认证”页面、导航或审核 API；历史认证表仅作为未启用的兼容结构，不参与开店、营业或商品发布。
 
 - 店铺列表只使用“全部、营业中、已暂停”三种筛选；新建店铺直接营业，不产生“待开通”，经营状态只允许“暂停、恢复”，不再提供“关闭”命令。
 - 点击店铺进入以该店为 Scope 的运营工作台：顶部展示并可编辑店铺名称、简介和 Logo，同时展示营业额、商品数量、累计销量和评分。
-- 工作台只设“店铺的商品”和“店铺的订单”两个主入口。商品支持状态分类、编辑、下架和重新上架；订单支持按履约/售后状态监管并进入详情处置。
+- 工作台只设“店铺的商品”和“店铺的订单”两个主入口。商品支持状态分类、编辑、下架和重新上架；点击新增或任意商品必须进入与商家端共用的 `MerchantProductEditorPage.vue` 所见即所得编辑器，不得回退到旧式多页签后台表单。编辑器保留超级管理员身份提示、精确 `storeId` 上下文、跨店误编辑阻断和返回当前店铺工作台的路径；订单支持按履约/售后状态监管并进入详情处置。
 - 页面明确显示“超级管理员监管视角”，使用“该店铺、顾客、管理员”等真实关系称谓，禁止复制商家端的“我的商品/我的订单”身份文案。
 - 左侧不再设置全平台“商品与交易”菜单；商品、库存、订单、支付、退款和评价能力从具体店铺或关联业务详情进入，后端仍按 Store Scope 与原子 Permission 校验。
 
@@ -2506,7 +2506,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 路由：`/admin/products`、`/admin/products/new`、`/admin/products/import`、`/admin/products/:productId`、`/admin/inventories`、`/admin/categories`、`/admin/brands`；导入预检与执行进度统一进入 `/admin/system/jobs`、`/admin/system/jobs/:jobId`。
 
-商品编辑使用分区表单：基础信息、分类品牌、规格与 SKU、图片、属性、履约资料、FAQ、富文本详情和发布检查。自动保存只保存草稿；上架必须点击明确发布命令并通过完整校验。
+超级管理员商品编辑与商家端共用顾客商品详情同构的所见即所得编辑器：左侧按顾客阅读顺序展示并编辑款式图片、商品参数、发货与购买须知、商品详情、常见问题和评价，右侧直接编辑商品名称、款式名称、价格与库存，底部集中提供暂存、完成编辑、审核/发布和下架动作。管理员从店铺运营进入时使用 `/admin/stores/:storeId/products/*`，服务端和前端同时校验 URL 店铺与商品真实 `store_id` 一致；从兼容深链 `/admin/products/:productId` 进入时先由商品事实解析所属店铺。界面共用不代表身份混用：管理员操作使用 Platform Scope、平台原因码和独立审计主体，不伪装成商家。自动保存仅用于款式图片等明确即时资源；其余草稿字段由“暂存为草稿/完成编辑”统一提交，上架仍必须走明确状态机命令并通过完整校验。
 
 | 功能 | 关键规则 |
 | :--- | :--- |
@@ -2702,11 +2702,11 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 ##### 2.13.17.4 商品与库存
 
 ```text
-┌─ 商品 prd_... [草稿] ETag:v21 完整度 7/9 ──────────────────┐
-│ [基础✓] [SKU✓] [图片✓] [属性✓] [履约✗] [FAQ✓] [详情✗]          │
-│ 字段编辑区… [保存草稿] [提交审核(禁用:缺履约资料)]             │
-│ SKU1 ¥129.00 在手/预占/可售=100/8/87 v9 [调整库存] [流水]    │
-└─ 调整=有符号增量+原因+业务号+调整前后；412 保留输入要求重确认 ─┘
+┌─ 超级管理员直接编辑 / 商品 prd_... [草稿] ETag:v21 ────────────┐
+│ 左：款式图片 → 参数 → 发货须知 → 详情 → FAQ → 评价               │
+│ 右：商品名称；款式缩略图 / 名称 / 价格 / 库存（直接编辑）          │
+│ [暂存为草稿] [完成编辑] [提交并自动审核] [下架] [查看顾客页面]     │
+└─ 与商家编辑器同构；Platform 身份、Store Scope、原因码与审计独立 ─┘
 ```
 
 ##### 2.13.17.5 订单、支付与包裹
@@ -13921,9 +13921,9 @@ Go/No-Go Meeting 逐项确认并保存签字证据：
 | `ADM-USER-01` 冻结/解冻 | `/admin/users/:userId` | `AdminUser_ChangeStatus` / `POST /api/v1/admin/users/{user_id}/status-changes` | `users:manage`；ETag；`user_status_records`；Session 撤销 | Audit+State+E2E `ADM-USER-STATUS-*` |
 | `ADM-USER-02` 敏感字段 | `/admin/users/:userId` | `AdminSensitiveGrant_Create/Consume/Revoke` | `users:read_sensitive`；Admin+Session+Target+Fields+Purpose+TTL | Security `ADM-SENSITIVE-*` |
 | `ADM-RBAC-01` 授权/撤销 | `/admin/users/:userId` | `AdminRoleGrant_Create/Revoke/List` | `rbac:manage`、`rbac:read`；Active UK；不恢复旧 Grant | Audit+Concurrency `ADM-RBAC-*` |
-| `ADM-STORE-DETAIL-01` 店铺资料、商品与订单监管 | `/admin/stores/:storeId` | `AdminStore_Update/ChangeStatus`、`AdminStoreRevenue_Get`、店铺范围内 `AdminProduct_*`、`AdminOrder_List` | `stores:*`、`products:*`、`orders:read` + Store Scope；仅暂停/恢复；页面确认而非密码/MFA升级；ETag；记录 `suspension_source` | Audit+State+UI `ADM-STORE-*` |
+| `ADM-STORE-DETAIL-01` 店铺资料、商品与订单监管 | `/admin/stores/:storeId`、`/admin/stores/:storeId/products/new`、`/admin/stores/:storeId/products/:productId` | `AdminStore_Update/ChangeStatus`、`AdminStoreRevenue_Get`、店铺范围内 `AdminProduct_*`、`AdminOrder_List` | `stores:*`、`products:*`、`orders:read` + Store Scope；商品编辑复用所见即所得编辑器但保持 Platform Actor；URL Store 与商品归属双重校验；仅暂停/恢复；页面确认而非密码/MFA升级；ETag；记录 `suspension_source` | Audit+State+UI `ADM-STORE-*`、`ADM-PRODUCT-*` |
 | `ADM-POLICY-01` 店铺政策 | `/admin/stores/:storeId/policies` | `AdminStorePolicy_List/Create/Update/Publish/Withdraw` | `store_policies:read`、`store_policies:create`、`store_policies:update`、`store_policies:publish` + Store Scope；版本不可变 | Contract+RAG `ADM-POLICY-*` |
-| `ADM-PRODUCT-01` 商品编辑/发布 | `/admin/products/:productId` | `AdminProduct_Update/Submit/Publish` | `products:update`、`products:publish` + Store Scope；ETag/完整性 | Audit+E2E `ADM-PRODUCT-*` |
+| `ADM-PRODUCT-01` 商品所见即所得编辑/发布 | `/admin/products/:productId`、`/admin/stores/:storeId/products/:productId` | `AdminProduct_Update/Submit/Publish`、SKU/Image/Attribute/Fulfillment/Detail/FAQ/Inventory/Review 相关 Operation | `products:update`、`products:publish`、`inventories:adjust`、`reviews:reply` + Store Scope；Platform Actor；ETag/完整性；跨店不一致 Fail Closed | Audit+E2E `ADM-PRODUCT-*` |
 | `ADM-INV-01` 库存调整 | `/admin/inventories` | `AdminInventory_Adjust` | `inventories:adjust` + Store Scope；Delta/原因/版本 | Concurrency `ADM-INV-*` |
 | `ADM-ORDER-01` 订单改价/取消 | `/admin/orders/:orderId` | `AdminOrder_AdjustAmount/Cancel` | `orders:adjust`、`orders:cancel` + Scope；支付/状态/职责分离 | Audit+State `ADM-ORDER-*` |
 | `ADM-SHIP-01` 创建包裹 | `/admin/orders/:orderId` | `AdminShipment_Create` | `shipments:create` + Store Scope；创建即发货，无草稿 | Transaction `ADM-SHIP-CREATE-*` |

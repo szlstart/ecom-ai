@@ -98,6 +98,8 @@ describe('phase two route contract', () => {
     const expected = new Map([
       ['/admin/stores', 'ADM-STORE-LIST-01'],
       ['/admin/stores/:storeId', 'ADM-STORE-DETAIL-01'],
+      ['/admin/stores/:storeId/products/new', 'ADM-STORE-PRODUCT-NEW-01'],
+      ['/admin/stores/:storeId/products/:productId', 'ADM-STORE-PRODUCT-EDIT-01'],
       ['/admin/stores/:storeId/policies', 'ADM-POLICY-01'],
       ['/admin/products', 'ADM-PRODUCT-LIST-01'],
       ['/admin/products/new', 'ADM-PRODUCT-NEW-01'],

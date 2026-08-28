@@ -1382,6 +1382,7 @@ tr.selected td { background: #f0f4ff; }
 .merchant-editor-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .merchant-editor-status { display: flex; align-items: center; gap: 12px; }
 .merchant-editor-status > span { position: static; }
+.merchant-editor-status > .admin-editor-identity { color: #fff; background: linear-gradient(135deg, #243b68, #3463a9); box-shadow: 0 5px 14px rgb(36 59 104 / 18%); }
 .merchant-new-product { max-width: 840px; margin: 10px auto; padding: 36px; display: grid; gap: 18px; }
 .merchant-new-product > span { font-size: 4rem; color: #2d9870; }
 .merchant-new-product h1 { margin: 4px 0 10px; }

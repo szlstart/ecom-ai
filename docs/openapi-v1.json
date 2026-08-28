@@ -6827,6 +6827,9 @@
         "x-permission-codes": [],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-PRODUCT-NEW-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
+          "ADM-STORE-PRODUCT-NEW-01",
           "MCH-PRODUCT-EDIT-01",
           "MCH-PRODUCT-NEW-01"
         ],
@@ -6841,13 +6844,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -6934,13 +6937,20 @@
         ],
         "x-scope-policy": [
           "public_reference_projection",
+          "stores:read",
+          "stores:manage",
           "products:read",
           "products:update",
-          "products:review",
-          "products:publish"
+          "products:publish",
+          "inventories:read",
+          "inventories:adjust",
+          "reviews:read",
+          "reviews:reply"
         ],
         "x-test-case-ids": [
-          "ADM-PRODUCT-*"
+          "ADM-INV-*",
+          "ADM-PRODUCT-*",
+          "ADM-REVIEW-*"
         ]
       }
     },
@@ -7899,7 +7909,9 @@
           "reviews:read"
         ],
         "x-requirement-id": [
+          "ADM-PRODUCT-01",
           "ADM-REVIEW-LIST-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01",
           "MCH-REVIEW-LIST-01"
         ],
@@ -7919,6 +7931,7 @@
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -8134,7 +8147,9 @@
           "reviews:reply"
         ],
         "x-requirement-id": [
+          "ADM-PRODUCT-01",
           "ADM-REVIEW-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01",
           "MCH-REVIEW-01"
         ],
@@ -8155,6 +8170,7 @@
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -22594,6 +22610,8 @@
         ],
         "x-requirement-id": [
           "ADM-INV-01",
+          "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-INVENTORY-01",
           "MCH-PRODUCT-EDIT-01"
         ],
@@ -22613,6 +22631,7 @@
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -22794,6 +22813,8 @@
         ],
         "x-requirement-id": [
           "ADM-INV-01",
+          "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-INVENTORY-01",
           "MCH-PRODUCT-EDIT-01"
         ],
@@ -22813,6 +22834,7 @@
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -23073,6 +23095,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-NEW-01",
+          "ADM-STORE-PRODUCT-NEW-01",
           "MCH-PRODUCT-NEW-01"
         ],
         "x-scope-policy": [
@@ -23082,6 +23105,7 @@
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -23160,6 +23184,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -23172,13 +23197,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -23290,6 +23315,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -23302,13 +23328,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -23656,6 +23682,7 @@
         "x-requirement-id": [
           "ADM-PRODUCT-01",
           "ADM-STORE-DETAIL-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -23806,7 +23833,6 @@
           "products:review"
         ],
         "x-requirement-id": [
-          "ADM-PRODUCT-01",
           "ADM-STORE-DETAIL-01"
         ],
         "x-scope-policy": [
@@ -23816,8 +23842,7 @@
           "products:update",
           "products:review",
           "products:publish",
-          "orders:read",
-          "public_reference_projection"
+          "orders:read"
         ],
         "x-test-case-ids": [
           "ADM-ORDER-*",
@@ -23952,6 +23977,7 @@
         "x-requirement-id": [
           "ADM-PRODUCT-01",
           "ADM-STORE-DETAIL-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -24104,6 +24130,7 @@
         "x-requirement-id": [
           "ADM-PRODUCT-01",
           "ADM-STORE-DETAIL-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01",
           "MCH-PRODUCT-LIST-01"
         ],
@@ -24207,6 +24234,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -24219,13 +24247,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -24331,6 +24359,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -24343,13 +24372,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24472,6 +24501,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -24484,13 +24514,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24629,6 +24659,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -24641,13 +24672,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24726,6 +24757,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -24738,13 +24770,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -24856,6 +24888,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -24868,13 +24901,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -24953,6 +24986,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -24965,13 +24999,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -25083,6 +25117,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -25095,13 +25130,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -25180,6 +25215,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -25192,13 +25228,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -25310,6 +25346,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -25322,13 +25359,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -25436,6 +25473,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -25448,13 +25486,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -25542,6 +25580,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -25554,13 +25593,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -25639,6 +25678,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -25651,13 +25691,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -25763,6 +25803,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -25775,13 +25816,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -25892,6 +25933,8 @@
           "products:update"
         ],
         "x-requirement-id": [
+          "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -25910,6 +25953,7 @@
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -26026,6 +26070,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -26038,13 +26083,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -26161,6 +26206,7 @@
         ],
         "x-requirement-id": [
           "ADM-PRODUCT-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -26173,13 +26219,13 @@
           "inventories:read",
           "inventories:adjust",
           "reviews:read",
-          "reviews:reply",
-          "products:review"
+          "reviews:reply"
         ],
         "x-test-case-ids": [
           "ADM-INV-*",
           "ADM-PRODUCT-*",
           "ADM-REVIEW-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -26526,7 +26572,11 @@
           "stores:read"
         ],
         "x-requirement-id": [
-          "ADM-STORE-DETAIL-01"
+          "ADM-PRODUCT-01",
+          "ADM-PRODUCT-NEW-01",
+          "ADM-STORE-DETAIL-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
+          "ADM-STORE-PRODUCT-NEW-01"
         ],
         "x-scope-policy": [
           "stores:read",
@@ -26535,11 +26585,19 @@
           "products:update",
           "products:review",
           "products:publish",
-          "orders:read"
+          "orders:read",
+          "public_reference_projection",
+          "products:create",
+          "inventories:read",
+          "inventories:adjust",
+          "reviews:read",
+          "reviews:reply"
         ],
         "x-test-case-ids": [
+          "ADM-INV-*",
           "ADM-ORDER-*",
           "ADM-PRODUCT-*",
+          "ADM-REVIEW-*",
           "ADM-STORE-*"
         ]
       },
@@ -28198,7 +28256,9 @@
           "stores:read"
         ],
         "x-requirement-id": [
+          "ADM-PRODUCT-01",
           "ADM-STORE-DETAIL-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -28325,7 +28385,9 @@
           "stores:manage"
         ],
         "x-requirement-id": [
+          "ADM-PRODUCT-01",
           "ADM-STORE-DETAIL-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [
@@ -28620,7 +28682,9 @@
           "stores:manage"
         ],
         "x-requirement-id": [
+          "ADM-PRODUCT-01",
           "ADM-STORE-DETAIL-01",
+          "ADM-STORE-PRODUCT-EDIT-01",
           "MCH-PRODUCT-EDIT-01"
         ],
         "x-scope-policy": [

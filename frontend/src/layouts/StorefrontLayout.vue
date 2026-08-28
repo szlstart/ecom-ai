@@ -121,7 +121,22 @@ watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
       </nav>
     </header>
     <main id="main-content" class="page-content"><RouterView /></main>
-    <footer class="site-footer">企业级在线商城 · 安全交易与智能客服</footer>
+    <footer class="site-footer">
+      <div class="site-footer-inner">
+        <div class="site-footer-copy">
+          <span class="site-footer-mark" aria-hidden="true">E</span>
+          <span><strong>Ecom AI</strong><small>安全交易与智能客服</small></span>
+        </div>
+        <nav class="site-console-links" aria-label="管理端入口">
+          <RouterLink class="site-console-link merchant" to="/merchant">
+            <span aria-hidden="true">店</span><span><strong>商铺管理端</strong><small>经营店铺</small></span>
+          </RouterLink>
+          <RouterLink class="site-console-link admin" to="/admin/login">
+            <span aria-hidden="true">管</span><span><strong>超级管理端</strong><small>平台管理</small></span>
+          </RouterLink>
+        </nav>
+      </div>
+    </footer>
     <AuthModal v-if="authModalOpen" :key="authMode" :initial-mode="authMode" @close="closeAuth" @authenticated="finishAuth" />
   </div>
 </template>

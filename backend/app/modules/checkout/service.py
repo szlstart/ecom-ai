@@ -283,6 +283,9 @@ class CheckoutService:
         policy_versions = await self.repository.policy_versions(
             {item[0][3].id for item in contexts}
         )
+        sku_image_urls = await self.repository.sku_image_urls(
+            {item[0][1].id for item in contexts}
+        )
         groups: OrderedDict[str, dict[str, Any]] = OrderedDict()
         blocking: list[CheckoutIssue] = []
         goods_total = freight_total = 0
@@ -331,6 +334,7 @@ class CheckoutService:
                     sku_id=sku.sku_no,
                     product_name=product.product_name,
                     sku_name=sku.sku_name,
+                    image_url=sku_image_urls.get(sku.id),
                     quantity=quantity,
                     unit_price=_money(sku.sale_price_amount),
                     subtotal=_money(subtotal),

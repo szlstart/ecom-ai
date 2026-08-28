@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import utc_now
 from app.modules.cart.models import Cart, CartItem
-from app.modules.catalog.models import Product, ProductFulfillmentProfile, ProductSku
+from app.modules.catalog.models import Product, ProductFulfillmentProfile, ProductImage, ProductSku
 from app.modules.checkout.models import CheckoutSession, CheckoutSnapshot
+from app.modules.files.models import FileObject
 from app.modules.identity.models import UserAddress
 from app.modules.inventory.models import Inventory
 from app.modules.stores.models import (
@@ -154,6 +155,28 @@ class CheckoutRepository:
         result: dict[int, list[ShippingTemplateRule]] = {}
         for row in rows:
             result.setdefault(row.shipping_template_id, []).append(row)
+        return result
+
+    async def sku_image_urls(self, sku_ids: set[int]) -> dict[int, str]:
+        if not sku_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(ProductImage.sku_id, FileObject.file_no)
+                .join(FileObject, FileObject.id == ProductImage.file_id)
+                .where(
+                    ProductImage.sku_id.in_(sku_ids),
+                    ProductImage.image_type == "spec",
+                    ProductImage.image_status == "active",
+                    FileObject.file_status == "active",
+                    FileObject.scan_status == "safe",
+                )
+                .order_by(ProductImage.sku_id, ProductImage.sort_order, ProductImage.id)
+            )
+        ).all()
+        result: dict[int, str] = {}
+        for sku_id, file_no in rows:
+            result.setdefault(sku_id, f"/api/v1/files/{file_no}")
         return result
 
     async def policy_versions(self, store_ids: set[int]) -> dict[int, dict[str, int]]:

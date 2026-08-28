@@ -186,17 +186,51 @@ watch(() => auth.accessToken, () => void load())
     <article v-if="product" class="product-detail-page">
       <RouterLink :to="returnTo" class="back-link">← 返回上一页</RouterLink>
       <div class="product-detail-layout">
-        <section class="gallery" aria-label="商品图片">
-          <div class="gallery-stage">
-            <img v-if="selectedImage" :src="resolveApiAssetUrl(selectedImage.url) || undefined" :alt="selectedImage.alt_text || product.product_name" />
-            <span v-else class="image-placeholder">暂无商品图片</span>
-          </div>
-          <div v-if="gallery.length > 1" class="thumbnail-row">
-            <button v-for="image in gallery" :key="image.file_id" type="button" :class="{ selected: image.file_id === selectedImage?.file_id }" @click="selectedImageId = image.file_id">
-              <img :src="resolveApiAssetUrl(image.thumbnail_url) || undefined" :alt="image.alt_text || '商品缩略图'" width="72" height="72" />
-            </button>
-          </div>
-        </section>
+        <main class="product-detail-main">
+          <section class="gallery" aria-label="商品图片">
+            <div class="gallery-stage">
+              <img v-if="selectedImage" :src="resolveApiAssetUrl(selectedImage.url) || undefined" :alt="selectedImage.alt_text || product.product_name" />
+              <span v-else class="image-placeholder">暂无商品图片</span>
+            </div>
+            <div v-if="gallery.length > 1" class="thumbnail-row">
+              <button v-for="image in gallery" :key="image.file_id" type="button" :class="{ selected: image.file_id === selectedImage?.file_id }" @click="selectedImageId = image.file_id">
+                <img :src="resolveApiAssetUrl(image.thumbnail_url) || undefined" :alt="image.alt_text || '商品缩略图'" width="72" height="72" />
+              </button>
+            </div>
+          </section>
+
+          <nav class="detail-tabs" aria-label="商品详情导航">
+            <a href="#reviews">评价</a><a v-if="product.attributes.length" href="#specifications">规格参数</a><a href="#details">商品详情</a><a href="#faqs">常见问题</a>
+          </nav>
+
+          <section id="reviews" class="content-section">
+            <div class="section-heading"><div><p class="eyebrow">真实反馈</p><h2>商品评价</h2></div><RouterLink :to="`/products/${product.product_id}/reviews`">全部评价 →</RouterLink></div>
+            <div v-if="product.review_count" class="product-review-overview"><strong>{{ product.rating_score }}</strong><span>综合评分</span><p>已有 {{ product.review_count }} 条真实购买评价</p></div>
+            <p v-else class="muted">暂无评价，购买并完成订单后可以分享使用感受。</p>
+          </section>
+
+          <section v-if="product.attributes.length" id="specifications" class="content-section">
+            <p class="eyebrow">商品信息</p><h2>规格参数</h2>
+            <dl class="attribute-list">
+              <template v-for="(attribute, index) in product.attributes" :key="index">
+                <dt>{{ String(attribute.name || attribute.attribute_name || '属性') }}</dt>
+                <dd>{{ String(attribute.value || attribute.attribute_value || '—') }}</dd>
+              </template>
+            </dl>
+          </section>
+
+          <section id="details" class="content-section">
+            <p class="eyebrow">商品展示</p><h2>商品详情</h2>
+            <SafeContentRenderer v-if="product.detail_content" :content="product.detail_content" />
+            <p v-else class="muted">商家暂未补充详细说明。</p>
+          </section>
+
+          <section id="faqs" class="content-section">
+            <p class="eyebrow">购买前须知</p><h2>常见问题</h2>
+            <details v-for="faq in faqs" :key="faq.faq_id"><summary>{{ faq.question }}</summary><p>{{ faq.answer_content.safe_text_fallback }}</p></details>
+            <p v-if="!faqs.length" class="muted">暂无常见问题。</p>
+          </section>
+        </main>
 
         <aside class="purchase-panel">
           <RouterLink :to="`/stores/${product.store.store_id}`" class="store-summary">
@@ -204,13 +238,13 @@ watch(() => auth.accessToken, () => void load())
             <span><strong>{{ product.store.store_name }}</strong><small>店铺评分 {{ product.store.rating_score }} · 进店逛逛 →</small></span>
           </RouterLink>
           <div><p class="eyebrow">商品信息</p><h1>{{ product.product_name }}</h1></div>
-          <p class="detail-price">{{ formatMoney(selectedSku?.sale_price ?? product.price_range[0]) }}</p>
-          <p class="product-meta"><span>已售 {{ selectedSku?.sales_count ?? product.sales_count }}</span><span>评分 {{ product.rating_score }}</span></p>
+          <div class="purchase-price-card"><span>到手价</span><p class="detail-price">{{ formatMoney(selectedSku?.sale_price ?? product.price_range[0]) }}</p><small>全场包邮</small></div>
+          <p class="product-meta"><span>已售 {{ selectedSku?.sales_count ?? product.sales_count }}</span><span>{{ product.review_count }} 条评价</span><span>评分 {{ product.rating_score }}</span></p>
 
           <fieldset v-if="skus.length" class="sku-fieldset">
             <legend>选择款式</legend>
             <button v-for="sku in skus" :key="sku.sku_id" type="button" class="sku-option" :class="{ selected: sku.sku_id === selectedSkuId }" :aria-pressed="sku.sku_id === selectedSkuId" :disabled="sku.sku_status !== 'active'" @click="selectSku(sku)">
-              <span>{{ sku.sku_name }}</span><small>{{ formatMoney(sku.sale_price) }} · {{ sku.stock_status === 'out_of_stock' ? '缺货' : '可选' }}</small>
+              <span class="sku-option-thumb"><img v-if="sku.images[0]" :src="resolveApiAssetUrl(sku.images[0].thumbnail_url) || undefined" :alt="`${sku.sku_name}缩略图`" /><b v-else>{{ sku.sku_name.slice(0, 1) }}</b></span><span class="sku-option-copy"><strong>{{ sku.sku_name }}</strong><small>{{ formatMoney(sku.sale_price) }} · {{ sku.stock_status === 'out_of_stock' ? '缺货' : '可选' }}</small></span>
             </button>
           </fieldset>
 
@@ -223,6 +257,7 @@ watch(() => auth.accessToken, () => void load())
             <span><button type="button" class="secondary" :disabled="quantity <= 1" @click="setQuantity(quantity - 1)">−</button><input :value="quantity" inputmode="numeric" aria-label="购买数量" @change="setQuantity(Number(($event.target as HTMLInputElement).value))" /><button type="button" class="secondary" :disabled="quantity >= maxQuantity" @click="setQuantity(quantity + 1)">＋</button></span>
           </label>
           <small v-if="quantity >= maxQuantity">已达本次可购买上限，结算时仍会重新校验。</small>
+          <div class="purchase-benefits"><span>✓ 邮寄包邮</span><span>✓ 库存实时校验</span><span>✓ 支持售后申请</span></div>
           <div class="purchase-actions">
             <button type="button" class="secondary" :disabled="contactBusy" @click="contactStore">{{ contactBusy ? '进入客服…' : '联系客服' }}</button>
             <button type="button" class="secondary" :disabled="favoriteBusy" @click="toggleFavorite">{{ product.is_favorited ? '取消收藏' : '收藏商品' }}</button>
@@ -232,40 +267,6 @@ watch(() => auth.accessToken, () => void load())
           <p v-if="cartNotice" class="notice success" aria-live="polite">{{ cartNotice }} <RouterLink to="/cart">查看购物车</RouterLink></p>
           <p v-if="product.purchase_notice" class="alert info">{{ product.purchase_notice }}</p>
         </aside>
-      </div>
-
-      <div class="product-detail-main">
-        <nav class="detail-tabs" aria-label="商品详情导航">
-          <a href="#reviews">评价</a><a v-if="product.attributes.length" href="#specifications">规格参数</a><a href="#details">商品详情</a><a href="#faqs">常见问题</a>
-        </nav>
-
-        <section id="reviews" class="content-section">
-          <div class="section-heading"><div><p class="eyebrow">真实反馈</p><h2>商品评价</h2></div><RouterLink :to="`/products/${product.product_id}/reviews`">全部评价 →</RouterLink></div>
-          <p v-if="product.review_count">已有 {{ product.review_count }} 条评价，综合评分 {{ product.rating_score }}。</p>
-          <p v-else class="muted">暂无评价，购买并完成订单后可以分享使用感受。</p>
-        </section>
-
-        <section v-if="product.attributes.length" id="specifications" class="content-section">
-          <p class="eyebrow">商品信息</p><h2>规格参数</h2>
-          <dl class="attribute-list">
-            <template v-for="(attribute, index) in product.attributes" :key="index">
-              <dt>{{ String(attribute.name || attribute.attribute_name || '属性') }}</dt>
-              <dd>{{ String(attribute.value || attribute.attribute_value || '—') }}</dd>
-            </template>
-          </dl>
-        </section>
-
-        <section id="details" class="content-section">
-          <p class="eyebrow">已审核内容</p><h2>商品详情</h2>
-          <SafeContentRenderer v-if="product.detail_content" :content="product.detail_content" />
-          <p v-else class="muted">商家暂未补充详细说明。</p>
-        </section>
-
-        <section id="faqs" class="content-section">
-          <p class="eyebrow">购买前须知</p><h2>常见问题</h2>
-          <details v-for="faq in faqs" :key="faq.faq_id"><summary>{{ faq.question }}</summary><p>{{ faq.answer_content.safe_text_fallback }}</p></details>
-          <p v-if="!faqs.length" class="muted">暂无常见问题。</p>
-        </section>
       </div>
       <div class="mobile-purchase-bar" aria-label="移动端购买操作">
         <button type="button" class="secondary" :disabled="contactBusy" @click="contactStore">客服</button><button type="button" :disabled="cartBusy || !canPurchase" @click="addToCart">加入购物车</button><button type="button" :disabled="buyBusy || !canPurchase" @click="buyNow">立即购买</button>

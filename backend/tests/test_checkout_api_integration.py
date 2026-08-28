@@ -30,7 +30,13 @@ from app.modules.after_sale.schemas import (
 )
 from app.modules.after_sale.service import AfterSaleService
 from app.modules.cart.models import CartItem
-from app.modules.catalog.models import Category, Product, ProductFulfillmentProfile, ProductSku
+from app.modules.catalog.models import (
+    Category,
+    Product,
+    ProductFulfillmentProfile,
+    ProductImage,
+    ProductSku,
+)
 from app.modules.checkout.models import CheckoutSession
 from app.modules.files.models import FileObject
 from app.modules.finance.models import WalletTransaction
@@ -373,6 +379,44 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         )
         session.add(sku)
         await session.flush()
+        sku_image_file = FileObject(
+            file_no=new_prefixed_ulid("file_"),
+            bucket="public-assets",
+            object_key=f"tests/products/{suffix}/standard.webp",
+            purpose="product_image",
+            owner_type="store",
+            owner_no=store.store_no,
+            variant="original",
+            declared_mime_type="image/webp",
+            detected_mime_type="image/webp",
+            size_bytes=1024,
+            sha256=hashlib.sha256(f"checkout-image-{suffix}".encode()).digest(),
+            width=800,
+            height=800,
+            visibility="public",
+            sensitivity_level="L1",
+            scan_status="safe",
+            file_status="active",
+            reference_count=1,
+            activated_at=now,
+        )
+        session.add(sku_image_file)
+        await session.flush()
+        session.add(
+            ProductImage(
+                product_id=product.id,
+                sku_id=sku.id,
+                file_id=sku_image_file.id,
+                object_key=sku_image_file.object_key,
+                image_type="spec",
+                alt_text="标准款结算图",
+                width=800,
+                height=800,
+                sort_order=0,
+                image_status="active",
+            )
+        )
+        sku_image_file_no = sku_image_file.file_no
         second_sku = ProductSku(
             sku_no=new_prefixed_ulid("sku_"),
             product_id=second_product.id,
@@ -444,6 +488,9 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     }
     assert data["blocking_issues"] == []
     assert "spec_values" not in data["store_groups"][0]["items"][0]
+    assert data["store_groups"][0]["items"][0]["image_url"] == (
+        f"/api/v1/files/{sku_image_file_no}"
+    )
     replay = await client.post(
         "/api/v1/checkout-sessions",
         headers={**auth, "Idempotency-Key": f"checkout-{suffix}"},

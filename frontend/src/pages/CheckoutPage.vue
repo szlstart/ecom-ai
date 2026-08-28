@@ -4,11 +4,12 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { formatMoney } from '@/api/catalog'
 import { createOrder, getCheckout, listAddresses, patchCheckout, repriceCheckout, type AddressSummary, type CheckoutData } from '@/api/checkout'
-import { ApiProblem, createIdempotencyKey, errorMessage } from '@/api/http'
+import { ApiProblem, createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { useMessageCenterStore } from '@/stores/message-center'
+import { formatChinaRegion } from '@/utils/china-regions'
 
 const route = useRoute(), router = useRouter(), auth = useUserAuthStore()
 const messageCenter = useMessageCenterStore()
@@ -92,17 +93,26 @@ onMounted(load)
     <div v-if="error" class="notice error" role="alert">{{ error }}</div>
     <PageState :loading="loading" :error="''" :empty="false" @retry="load">
       <template v-if="checkout">
-        <section class="checkout-card"><div class="section-heading"><div><p class="eyebrow">配送地址</p><h2>收货信息</h2></div><RouterLink to="/me/addresses">管理地址</RouterLink></div>
-          <div v-if="addresses.length" class="address-choice-list"><label v-for="address in addresses" :key="address.address_id" :class="{ selected: selectedAddressId === address.address_id }"><input type="radio" name="address" :checked="selectedAddressId === address.address_id" :disabled="busy" @change="changeAddress(address.address_id)" /><span><strong>{{ address.recipient_name }} · {{ address.phone_masked }}</strong><small>{{ address.province_code }} {{ address.city_code }} {{ address.district_code }} {{ address.address }}</small></span></label></div>
-          <p v-else class="notice warning">还没有收货地址。<RouterLink to="/me/addresses">新增地址</RouterLink></p>
-        </section>
-        <article v-for="group in checkout.store_groups" :key="group.store_id" class="checkout-card"><header><RouterLink :to="`/stores/${group.store_id}`"><strong>{{ group.store_name }}</strong> →</RouterLink><button type="button" class="secondary small" :disabled="busy" @click="contactStore(group.store_id)">联系商家</button></header>
-          <div v-for="item in group.items" :key="item.sku_id" class="checkout-item-row"><div><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>款式：{{ item.sku_name }} · × {{ item.quantity }}</small></div><strong>{{ formatMoney(item.subtotal) }}</strong></div>
-          <div class="delivery-summary"><span>配送方式：邮寄</span><strong class="free-shipping">包邮</strong></div>
-          <label class="remark-field">给商家留言（最多 200 字）<textarea maxlength="200" :value="group.buyer_remark || ''" :disabled="busy" @change="saveRemark(group.store_id, ($event.target as HTMLTextAreaElement).value)" /></label>
-        </article>
-        <section v-if="checkout.blocking_issues.length" class="notice error"><strong>暂时无法提交订单</strong><ul><li v-for="issue in checkout.blocking_issues" :key="`${issue.code}-${issue.sku_id}`">{{ issue.message }}</li></ul></section>
-        <footer class="checkout-summary-bar"><dl><div><dt>商品金额</dt><dd>{{ formatMoney(checkout.amounts.goods_amount) }}</dd></div><div><dt>运费</dt><dd class="free-shipping">包邮</dd></div><div class="total"><dt>应付</dt><dd>{{ formatMoney(checkout.amounts.payable_amount) }}</dd></div></dl><button type="button" :disabled="busy || !checkout.available_actions.includes('create_order')" @click="submitOrder">{{ busy ? '提交中…' : '提交订单' }}</button></footer>
+        <div class="checkout-layout">
+          <main class="checkout-main">
+            <section class="checkout-card"><div class="section-heading"><div><p class="eyebrow">配送地址</p><h2>收货信息</h2></div><RouterLink to="/me/addresses">管理地址</RouterLink></div>
+              <div v-if="addresses.length" class="address-choice-list"><label v-for="address in addresses" :key="address.address_id" :class="{ selected: selectedAddressId === address.address_id }"><input type="radio" name="address" :checked="selectedAddressId === address.address_id" :disabled="busy" @change="changeAddress(address.address_id)" /><span><strong>{{ address.recipient_name }} · {{ address.phone_masked }}</strong><small>{{ formatChinaRegion(address) }} {{ address.address }}</small></span></label></div>
+              <p v-else class="notice warning">还没有收货地址。<RouterLink to="/me/addresses">新增地址</RouterLink></p>
+            </section>
+            <article v-for="group in checkout.store_groups" :key="group.store_id" class="checkout-card checkout-store-card"><header><RouterLink :to="`/stores/${group.store_id}`"><strong>{{ group.store_name }}</strong> →</RouterLink><button type="button" class="secondary small" :disabled="busy" @click="contactStore(group.store_id)">联系商家</button></header>
+              <div v-for="item in group.items" :key="item.sku_id" class="checkout-item-row"><span class="checkout-item-thumb"><img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) || undefined" :alt="`${item.sku_name}款式图`" /><b v-else aria-hidden="true">{{ item.product_name.slice(0, 1) }}</b></span><div><RouterLink :to="`/products/${item.product_id}?sku_id=${item.sku_id}`"><strong>{{ item.product_name }}</strong></RouterLink><small>款式：{{ item.sku_name }}</small><small>数量：{{ item.quantity }}</small></div><strong>{{ formatMoney(item.subtotal) }}</strong></div>
+              <div class="delivery-summary"><span>配送方式：邮寄</span><strong class="free-shipping">包邮</strong></div>
+              <label class="remark-field">给商家留言（最多 200 字）<textarea maxlength="200" :value="group.buyer_remark || ''" :disabled="busy" placeholder="选填，可填写对发货或包装的说明" @change="saveRemark(group.store_id, ($event.target as HTMLTextAreaElement).value)" /></label>
+            </article>
+            <section v-if="checkout.blocking_issues.length" class="notice error"><strong>暂时无法提交订单</strong><ul><li v-for="issue in checkout.blocking_issues" :key="`${issue.code}-${issue.sku_id}`">{{ issue.message }}</li></ul></section>
+          </main>
+          <aside class="checkout-summary-bar" aria-label="订单汇总">
+            <div><p class="eyebrow">订单汇总</p><h2>确认金额</h2><small>共 {{ checkout.store_groups.reduce((total, group) => total + group.items.reduce((count, item) => count + item.quantity, 0), 0) }} 件商品</small></div>
+            <dl><div><dt>商品金额</dt><dd>{{ formatMoney(checkout.amounts.goods_amount) }}</dd></div><div><dt>运费</dt><dd class="free-shipping">包邮</dd></div><div class="total"><dt>应付</dt><dd>{{ formatMoney(checkout.amounts.payable_amount) }}</dd></div></dl>
+            <button type="button" :disabled="busy || !checkout.available_actions.includes('create_order')" @click="submitOrder">{{ busy ? '提交中…' : '提交订单' }}</button>
+            <p class="checkout-trust-note">提交即表示你已确认商品、款式、数量和收货信息。支付前不会扣款。</p>
+          </aside>
+        </div>
       </template>
     </PageState>
   </section>

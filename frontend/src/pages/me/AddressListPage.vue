@@ -4,6 +4,7 @@ import areaData from 'china-area-data'
 
 import { ApiProblem, apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
 import { useUserAuthStore } from '@/stores/user-auth'
+import { formatChinaRegion } from '@/utils/china-regions'
 
 interface Address {
   address_id: string
@@ -143,17 +144,8 @@ function showRequestError(reason: unknown) {
   error.value = errorMessage(reason)
 }
 
-function regionName(code: string): string {
-  for (const regions of Object.values(areaData)) {
-    if (regions[code]) return regions[code]
-  }
-  return code
-}
-
 function displayRegion(item: Address): string {
-  return [regionName(item.province_code), regionName(item.city_code), regionName(item.district_code)]
-    .filter((name, index, values) => name !== '市辖区' && values.indexOf(name) === index)
-    .join(' ')
+  return formatChinaRegion(item)
 }
 
 function resetForm() {

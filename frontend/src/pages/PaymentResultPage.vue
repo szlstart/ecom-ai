@@ -36,14 +36,15 @@ onBeforeUnmount(stop)
 </script>
 
 <template>
-  <section class="content-section payment-bridge-page">
+  <section class="payment-bridge-page payment-result-page">
     <PageState :loading="loading" :error="error" :empty="!payment" empty-title="支付单不可用" empty-message="请返回订单列表重试。" @retry="load">
-      <article v-if="payment" class="card" aria-live="polite">
+      <article v-if="payment" class="payment-result-card" :class="`is-${payment.display_status}`" aria-live="polite">
+        <span class="payment-result-icon" aria-hidden="true">{{ payment.display_status === 'succeeded' ? '✓' : payment.display_status === 'confirming' ? '…' : '!' }}</span>
         <p class="eyebrow">支付结果</p><h1>{{ title }}</h1>
-        <p>支付单 <strong>{{ payment.payment_id }}</strong></p>
-        <p>支付金额 <strong>{{ formatMoney(payment.requested_amount) }}</strong></p>
-        <div v-if="payment.display_status === 'confirming'" class="notice info">渠道尚未给出可信终态。系统将有限轮询；离开本页不会取消支付，也不会重复创建订单。</div>
-        <div class="actions"><button v-if="payment.display_status === 'confirming'" type="button" class="secondary" :disabled="closing" @click="closeAttempt">{{ closing ? '正在关闭…' : '关闭本次支付' }}</button><RouterLink :to="`/pay/${payment.trade_order_id}`">返回收银台</RouterLink><RouterLink to="/me/orders?view=all">查看订单</RouterLink></div>
+        <p class="payment-result-amount">{{ formatMoney(payment.requested_amount) }}</p>
+        <dl><div><dt>支付单号</dt><dd>{{ payment.payment_id }}</dd></div><div><dt>交易单号</dt><dd>{{ payment.trade_order_id }}</dd></div><div><dt>支付方式</dt><dd>商城账户余额</dd></div></dl>
+        <div v-if="payment.display_status === 'confirming'" class="notice info">系统正在确认最终结果。离开本页不会取消支付，也不会重复创建订单。</div>
+        <div class="payment-result-actions"><button v-if="payment.display_status === 'confirming'" type="button" class="secondary" :disabled="closing" @click="closeAttempt">{{ closing ? '正在关闭…' : '关闭本次支付' }}</button><RouterLink v-if="payment.display_status !== 'succeeded'" :to="`/pay/${payment.trade_order_id}`">返回收银台</RouterLink><RouterLink class="button-link" to="/me/orders?view=all">查看我的订单</RouterLink><RouterLink to="/">继续购物</RouterLink></div>
       </article>
     </PageState>
   </section>

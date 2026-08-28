@@ -70,6 +70,7 @@ class CheckoutItemView(StrictRequest):
     sku_id: str
     product_name: str
     sku_name: str
+    image_url: str | None = None
     quantity: int
     unit_price: Money
     subtotal: Money

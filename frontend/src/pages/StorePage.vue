@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
@@ -13,7 +13,7 @@ import {
   type StoreHomeContent,
   type StorePolicy,
 } from '@/api/catalog'
-import { errorMessage, resolveApiAssetUrl, type PaginationMeta } from '@/api/http'
+import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import ProductCard from '@/components/ProductCard.vue'
@@ -28,11 +28,15 @@ const store = ref<StoreData | null>(null)
 const home = ref<StoreHomeContent | null>(null)
 const policies = ref<StorePolicy[]>([])
 const products = ref<ProductCardData[]>([])
-const pagination = ref<PaginationMeta | null>(null)
+const nextCursor = ref<string | null>(null)
+const loadMoreSentinel = ref<HTMLElement | null>(null)
 const q = ref('')
 const sort = ref('relevance')
 const loading = ref(true)
 const productLoading = ref(false)
+const loadingMore = ref(false)
+const loadMoreError = ref('')
+const infiniteScrollSupported = ref(true)
 const error = ref('')
 const partialWarning = ref('')
 const followBusy = ref(false)
@@ -44,6 +48,8 @@ const sortOptions = [
   { value: 'price_asc', label: '价格从低到高' },
   { value: 'price_desc', label: '价格从高到低' },
 ] as const
+let productRequestVersion = 0
+let loadMoreObserver: IntersectionObserver | null = null
 
 function one(value: unknown): string { return typeof value === 'string' ? value : '' }
 function storeId(): string { return String(route.params.storeId) }
@@ -71,22 +77,62 @@ async function loadStore() {
 }
 
 async function loadProducts() {
+  const requestVersion = ++productRequestVersion
   productLoading.value = true
+  loadingMore.value = false
+  loadMoreError.value = ''
+  nextCursor.value = null
   try {
     const response = await getStoreProducts(storeId(), {
       q: one(route.query.q) || undefined,
       sort: one(route.query.sort) || 'relevance',
-      cursor: one(route.query.cursor) || undefined,
       limit: 20,
     }, auth.accessToken)
+    if (requestVersion !== productRequestVersion) return
     products.value = response.data.items
-    pagination.value = response.meta.pagination
+    nextCursor.value = response.meta.pagination?.next_cursor ?? null
   } catch (cause) {
+    if (requestVersion !== productRequestVersion) return
     partialWarning.value = errorMessage(cause)
     products.value = []
   } finally {
-    productLoading.value = false
+    if (requestVersion === productRequestVersion) productLoading.value = false
   }
+}
+
+async function loadMoreProducts() {
+  const cursor = nextCursor.value
+  if (!cursor || productLoading.value || loadingMore.value) return
+  const requestVersion = productRequestVersion
+  loadingMore.value = true
+  loadMoreError.value = ''
+  try {
+    const response = await getStoreProducts(storeId(), {
+      q: one(route.query.q) || undefined,
+      sort: one(route.query.sort) || 'relevance',
+      cursor,
+      limit: 20,
+    }, auth.accessToken)
+    if (requestVersion !== productRequestVersion || cursor !== nextCursor.value) return
+    const existingIds = new Set(products.value.map((product) => product.product_id))
+    products.value.push(...response.data.items.filter((product) => !existingIds.has(product.product_id)))
+    nextCursor.value = response.meta.pagination?.next_cursor ?? null
+  } catch (cause) {
+    if (requestVersion === productRequestVersion) loadMoreError.value = errorMessage(cause)
+  } finally {
+    if (requestVersion === productRequestVersion) {
+      loadingMore.value = false
+      await rearmLoadMoreObserver()
+    }
+  }
+}
+
+async function rearmLoadMoreObserver() {
+  await nextTick()
+  const sentinel = loadMoreSentinel.value
+  if (!sentinel || !loadMoreObserver) return
+  loadMoreObserver.unobserve(sentinel)
+  loadMoreObserver.observe(sentinel)
 }
 
 async function contactStore() {
@@ -122,10 +168,6 @@ function changeSort(value: string) {
   applyFilters()
 }
 
-function changeCursor(cursor: string | null | undefined) {
-  if (cursor) void router.push({ path: route.path, query: { ...route.query, cursor }, hash: '#store-products' })
-}
-
 async function toggleFollow() {
   if (!store.value) return
   if (!auth.accessToken) {
@@ -145,20 +187,43 @@ async function toggleFollow() {
   }
 }
 
-onMounted(() => { syncFilters(); void Promise.all([loadStore(), loadProducts()]) })
-watch(() => route.params.storeId, () => { syncFilters(); void Promise.all([loadStore(), loadProducts()]) })
-watch(() => route.fullPath, (current, previous) => {
-  if (current !== previous && String(route.params.storeId)) { syncFilters(); void loadProducts() }
+onMounted(() => {
+  if ('IntersectionObserver' in window) {
+    loadMoreObserver = new IntersectionObserver((entries) => {
+      if (!loadMoreError.value && entries.some((entry) => entry.isIntersecting)) void loadMoreProducts()
+    }, { rootMargin: '500px 0px' })
+    if (loadMoreSentinel.value) loadMoreObserver.observe(loadMoreSentinel.value)
+  } else {
+    infiniteScrollSupported.value = false
+  }
+  syncFilters()
+  void Promise.all([loadStore(), loadProducts()])
 })
-watch(() => auth.accessToken, () => void Promise.all([loadStore(), loadProducts()]))
+watch(loadMoreSentinel, (current, previous) => {
+  if (previous) loadMoreObserver?.unobserve(previous)
+  if (current) loadMoreObserver?.observe(current)
+})
+watch(
+  () => [String(route.params.storeId), one(route.query.q), one(route.query.sort)] as const,
+  (current, previous) => {
+    if (!previous) return
+    syncFilters()
+    if (current[0] !== previous[0]) void Promise.all([loadStore(), loadProducts()])
+    else void loadProducts()
+  },
+)
+watch(() => auth.accessToken, (current, previous) => {
+  if (current !== previous) void Promise.all([loadStore(), loadProducts()])
+})
+onBeforeUnmount(() => loadMoreObserver?.disconnect())
 </script>
 
 <template>
   <PageState :loading="loading" :error="error" @retry="loadStore">
-    <div v-if="store" class="storefront-stack">
+    <div v-if="store" class="storefront-stack store-page-stack">
       <header class="store-header-card">
         <div class="store-identity">
-          <img v-if="store.logo_url" :src="resolveApiAssetUrl(store.logo_url) || undefined" alt="" width="88" height="88" />
+          <img v-if="store.logo_url" :src="resolveApiAssetUrl(store.logo_url) || undefined" alt="" width="68" height="68" />
           <span v-else class="store-logo-placeholder" aria-hidden="true">店</span>
           <div><p class="eyebrow">认证店铺</p><h1>{{ store.store_name }}</h1><p class="muted">{{ store.description || '店铺暂未填写简介' }}</p></div>
         </div>
@@ -192,7 +257,13 @@ watch(() => auth.accessToken, () => void Promise.all([loadStore(), loadProducts(
         </div>
         <PageState :loading="productLoading" :empty="!productLoading && products.length === 0" empty-title="店铺暂无匹配商品" empty-detail="可以尝试其他关键词或切换排序方式。">
           <div class="product-grid"><ProductCard v-for="product in products" :key="product.product_id" :product="product" :return-to="route.fullPath" /></div>
-          <nav v-if="pagination" class="pagination" aria-label="店铺商品分页"><button class="secondary" type="button" :disabled="!pagination.has_previous" @click="changeCursor(pagination.previous_cursor)">上一页</button><span>每页 {{ pagination.limit }} 件</span><button class="secondary" type="button" :disabled="!pagination.has_next" @click="changeCursor(pagination.next_cursor)">下一页</button></nav>
+          <div ref="loadMoreSentinel" class="infinite-scroll-status" role="status" aria-live="polite">
+            <span v-if="loadingMore" class="infinite-loading-line"><span class="spinner" aria-hidden="true"></span>正在加载更多商品…</span>
+            <button v-else-if="loadMoreError" type="button" class="secondary small" @click="loadMoreProducts">加载失败，点击重试</button>
+            <button v-else-if="nextCursor && !infiniteScrollSupported" type="button" class="secondary small" @click="loadMoreProducts">加载更多商品</button>
+            <span v-else-if="nextCursor">继续向下浏览，将自动加载更多商品</span>
+            <span v-else-if="products.length" class="infinite-scroll-end">已经到底了，共展示 {{ products.length }} 件商品</span>
+          </div>
         </PageState>
       </section>
 

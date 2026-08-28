@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { getHomepage, type HomepageData } from '@/api/catalog'
+import { getHomepage, searchProducts, type HomepageData } from '@/api/catalog'
 import { errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
 import ProductCard from '@/components/ProductCard.vue'
@@ -12,17 +12,64 @@ const auth = useUserAuthStore()
 const homepage = ref<HomepageData | null>(null)
 const loading = ref(true)
 const error = ref('')
+const loadingMore = ref(false)
+const loadMoreError = ref('')
+const loadMoreSentinel = ref<HTMLElement | null>(null)
+const infiniteScrollSupported = ref(true)
+let feedRequestVersion = 0
+let loadMoreObserver: IntersectionObserver | null = null
 
 async function load() {
+  const requestVersion = ++feedRequestVersion
   loading.value = true
+  loadingMore.value = false
+  loadMoreError.value = ''
   error.value = ''
   try {
-    homepage.value = (await getHomepage(auth.accessToken)).data
+    const response = await getHomepage(auth.accessToken)
+    if (requestVersion !== feedRequestVersion) return
+    homepage.value = response.data
   } catch (cause) {
+    if (requestVersion !== feedRequestVersion) return
     error.value = errorMessage(cause)
   } finally {
-    loading.value = false
+    if (requestVersion === feedRequestVersion) loading.value = false
   }
+}
+
+async function loadMoreRecommended() {
+  const section = homepage.value?.sections.find((item) => item.section === 'recommended')
+  const cursor = section?.next_cursor
+  if (!section || !cursor || loading.value || loadingMore.value) return
+  const requestVersion = feedRequestVersion
+  loadingMore.value = true
+  loadMoreError.value = ''
+  try {
+    const response = await searchProducts({ sort: 'relevance', cursor, limit: 12 }, auth.accessToken)
+    if (requestVersion !== feedRequestVersion || cursor !== section.next_cursor) return
+    const existingIds = new Set(section.items.map((product) => product.product_id))
+    section.items.push(...response.data.items.filter((product) => !existingIds.has(product.product_id)))
+    section.next_cursor = response.meta.pagination?.next_cursor ?? null
+  } catch (cause) {
+    if (requestVersion === feedRequestVersion) loadMoreError.value = errorMessage(cause)
+  } finally {
+    if (requestVersion === feedRequestVersion) {
+      loadingMore.value = false
+      await rearmLoadMoreObserver()
+    }
+  }
+}
+
+async function rearmLoadMoreObserver() {
+  await nextTick()
+  const sentinel = loadMoreSentinel.value
+  if (!sentinel || !loadMoreObserver) return
+  loadMoreObserver.unobserve(sentinel)
+  loadMoreObserver.observe(sentinel)
+}
+
+function setLoadMoreSentinel(element: unknown) {
+  loadMoreSentinel.value = element instanceof HTMLElement ? element : null
 }
 
 function text(record: Record<string, unknown>, key: string): string {
@@ -30,10 +77,25 @@ function text(record: Record<string, unknown>, key: string): string {
   return typeof value === 'string' ? value : ''
 }
 
-onMounted(load)
+onMounted(() => {
+  if ('IntersectionObserver' in window) {
+    loadMoreObserver = new IntersectionObserver((entries) => {
+      if (!loadMoreError.value && entries.some((entry) => entry.isIntersecting)) void loadMoreRecommended()
+    }, { rootMargin: '500px 0px' })
+    if (loadMoreSentinel.value) loadMoreObserver.observe(loadMoreSentinel.value)
+  } else {
+    infiniteScrollSupported.value = false
+  }
+  void load()
+})
+watch(loadMoreSentinel, (current, previous) => {
+  if (previous) loadMoreObserver?.unobserve(previous)
+  if (current) loadMoreObserver?.observe(current)
+})
 watch(() => auth.accessToken, (current, previous) => {
   if (current !== previous) void load()
 })
+onBeforeUnmount(() => loadMoreObserver?.disconnect())
 </script>
 
 <template>
@@ -69,6 +131,13 @@ watch(() => auth.accessToken, (current, previous) => {
           <ProductCard v-for="product in section.items" :key="product.product_id" :product="product" return-to="/" />
         </div>
         <p v-else class="muted">这个区域暂时没有已发布商品。</p>
+        <div v-if="section.status === 'available' && section.items.length" :ref="setLoadMoreSentinel" class="infinite-scroll-status" role="status" aria-live="polite">
+          <span v-if="loadingMore" class="infinite-loading-line"><span class="spinner" aria-hidden="true"></span>正在加载更多商品…</span>
+          <button v-else-if="loadMoreError" type="button" class="secondary small" @click="loadMoreRecommended">加载失败，点击重试</button>
+          <button v-else-if="section.next_cursor && !infiniteScrollSupported" type="button" class="secondary small" @click="loadMoreRecommended">加载更多商品</button>
+          <span v-else-if="section.next_cursor">继续向下浏览，将自动加载更多商品</span>
+          <span v-else class="infinite-scroll-end">已经到底了，共展示 {{ section.items.length }} 件商品</span>
+        </div>
       </section>
     </div>
   </PageState>

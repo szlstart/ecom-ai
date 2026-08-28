@@ -2524,7 +2524,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 路由：`/admin/orders`、`/admin/orders/:orderId`、`/admin/payments`、`/admin/payments/:paymentId`。
 
-- 订单列表支持订单号、店铺、用户掩码、状态、支付、履约、售后和时间筛选。店铺员工始终附加本店 Scope；平台跨店查询需要独立权限。
+- 订单列表支持订单号、精确 `store_id`、店铺、用户掩码、状态、支付、履约、售后和时间筛选。店铺运营工作台使用统一 `view=all/pending_payment/pending_shipment/in_transit/completed/after_sale/cancelled` 口径；`cancelled` 同时包含取消与系统关闭订单。店铺员工始终附加本店 Scope；平台跨店查询需要独立权限。
 - 详情按“订单事实、支付、包裹、售后、用户可见时间线、受控操作”分区。收货信息只在履约必要期和权限范围内解密，访问行为写审计。
 - 未支付改价使用专用命令，展示原金额、调整额、分摊结果和影响；存在进行中或结果未知的支付尝试时按钮不可用。支付后资金修正只能进入退款/补偿流程。
 - 发货按包裹提交 `order_item_id + quantity`、承运商和运单号；多包裹数量合计不得超过可发数量。提交前展示完整影响，成功后返回包裹和订单最新状态。
@@ -9254,7 +9254,7 @@ Tool 权限分为：只读自动执行、低风险可撤销写入、需用户确
 
 | 方法 | 路径 | 权限与行为 |
 | --- | --- | --- |
-| `GET` | `/admin/orders`、`/admin/orders/{order_id}` | `orders:read` + Store Scope；用户/地址按 Purpose 投影和审计 |
+| `GET` | `/admin/orders`、`/admin/orders/{order_id}` | `orders:read` + Store Scope；列表支持精确 `store_id` 和统一 `view`；游标包含全部筛选条件；用户/地址按 Purpose 投影和审计 |
 | `POST` | `/admin/orders/{order_id}/amount-adjustments` | `orders:adjust`；仅未支付且不存在进行中/结果未知的支付尝试；金额、原因、订单版本、幂等和职责分离 |
 | `POST` | `/admin/orders/{order_id}/cancellations` | `orders:cancel`；只允许领域状态机定义的受控取消，支付后不能绕过售后 |
 | `GET` | `/admin/payments`、`/admin/payments/{payment_id}` | `payments:read`；不返回渠道 Secret/完整报文 |

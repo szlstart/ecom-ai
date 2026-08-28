@@ -18558,6 +18558,8 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
+                store_id?: string | null;
+                view?: ("all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "after_sale" | "cancelled") | null;
                 order_status?: string | null;
                 payment_status?: string | null;
                 fulfillment_status?: string | null;

@@ -69,15 +69,19 @@ describe('MerchantOrderListPage', () => {
     expect(wrapper.text()).toContain('总营业额')
     expect(wrapper.text()).toContain('¥100.00')
     expect(wrapper.text()).toContain('顾客确认收货后才计入营业额')
-    expect(mocks.listOrders).toHaveBeenCalledWith({}, 'merchant-token')
+    expect(mocks.listOrders).toHaveBeenCalledWith({ view: 'all' }, 'merchant-token')
 
     await wrapper.findAll('.merchant-order-tabs button')[4]!.trigger('click')
     await flushPromises()
-    expect(mocks.listOrders).toHaveBeenLastCalledWith({ order_status: 'completed' }, 'merchant-token')
+    expect(mocks.listOrders).toHaveBeenLastCalledWith({ view: 'completed' }, 'merchant-token')
 
     await wrapper.findAll('.merchant-order-tabs button')[5]!.trigger('click')
     await flushPromises()
-    expect(mocks.listOrders).toHaveBeenLastCalledWith({ after_sale_status: 'in_progress' }, 'merchant-token')
+    expect(mocks.listOrders).toHaveBeenLastCalledWith({ view: 'after_sale' }, 'merchant-token')
+
+    await wrapper.findAll('.merchant-order-tabs button')[6]!.trigger('click')
+    await flushPromises()
+    expect(mocks.listOrders).toHaveBeenLastCalledWith({ view: 'cancelled' }, 'merchant-token')
     wrapper.unmount()
   })
 

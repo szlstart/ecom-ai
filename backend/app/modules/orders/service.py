@@ -451,6 +451,8 @@ class OrderService:
         access: AdminAccess,
         *,
         query: str | None,
+        store_no: str | None,
+        view: str | None,
         order_status: str | None,
         payment_status: str | None,
         fulfillment_status: str | None,
@@ -463,6 +465,8 @@ class OrderService:
             {
                 "scopes": access.scopes,
                 "q": normalized_query or None,
+                "store_id": store_no,
+                "view": view,
                 "order_status": order_status,
                 "payment_status": payment_status,
                 "fulfillment_status": fulfillment_status,
@@ -476,6 +480,8 @@ class OrderService:
         rows, has_more = await self.repository.admin_orders(
             scopes=access.scopes,
             query=normalized_query or None,
+            store_no=store_no,
+            view=view,
             order_status=order_status,
             payment_status=payment_status,
             fulfillment_status=fulfillment_status,
@@ -1043,9 +1049,7 @@ class OrderService:
 
     async def auto_confirm_due(self, *, days: int = 7, limit: int = 100) -> int:
         now = utc_now()
-        orders = await self.repository.auto_confirmable_orders(
-            now - timedelta(days=days), limit
-        )
+        orders = await self.repository.auto_confirmable_orders(now - timedelta(days=days), limit)
         for order in orders:
             request_id = new_prefixed_ulid("req_")
             self._complete_receipt(
@@ -1561,9 +1565,7 @@ def _admin_order_summary(
         shippable_quantities={
             item.order_item_id: max(
                 0,
-                item.quantity
-                - item.refunded_quantity
-                - allocations.get(item.order_item_id, 0),
+                item.quantity - item.refunded_quantity - allocations.get(item.order_item_id, 0),
             )
             for item in view.items
         },

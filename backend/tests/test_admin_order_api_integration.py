@@ -191,6 +191,7 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
         session.add(reservation)
         await session.commit()
         order_no = order.order_no
+        store_no = store.store_no
         trade_id = trade.id
         order_id = order.id
         item_id = order_item.id
@@ -218,7 +219,11 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
     assert mfa.status_code == 200, mfa.text
     headers = {"Authorization": f"Bearer {mfa.json()['data']['session']['access_token']}"}
 
-    order_list = await client.get("/api/v1/admin/orders", headers=headers)
+    order_list = await client.get(
+        "/api/v1/admin/orders",
+        headers=headers,
+        params={"store_id": store_no, "view": "pending_payment"},
+    )
     assert order_list.status_code == 200, order_list.text
     assert "next_cursor" in order_list.json()["data"]
     listed_order = next(
@@ -261,6 +266,24 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
     assert cancelled.status_code == 200, cancelled.text
     assert cancelled.json()["data"]["order"]["order_status"] == "cancelled"
 
+    cancelled_list = await client.get(
+        "/api/v1/admin/orders",
+        headers=headers,
+        params={"store_id": store_no, "view": "cancelled"},
+    )
+    assert cancelled_list.status_code == 200, cancelled_list.text
+    assert [item["order"]["order_id"] for item in cancelled_list.json()["data"]["items"]] == [
+        order_no
+    ]
+
+    another_store = await client.get(
+        "/api/v1/admin/orders",
+        headers=headers,
+        params={"store_id": f"sto_missing_{suffix}", "view": "all"},
+    )
+    assert another_store.status_code == 200, another_store.text
+    assert another_store.json()["data"]["items"] == []
+
     async for session in mysql_session():
         stored_trade = await session.get(TradeOrder, trade_id)
         stored_order = await session.get(Order, order_id)
@@ -286,3 +309,13 @@ async def test_admin_order_adjustment_and_cancellation_invariants(
             )
             == 2
         )
+        stored_order.order_status = "closed"
+        await session.commit()
+
+    closed_list = await client.get(
+        "/api/v1/admin/orders",
+        headers=headers,
+        params={"store_id": store_no, "view": "cancelled"},
+    )
+    assert closed_list.status_code == 200, closed_list.text
+    assert [item["order"]["order_id"] for item in closed_list.json()["data"]["items"]] == [order_no]

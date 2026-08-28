@@ -48,10 +48,7 @@ const tabs = computed(() => [
 
 function token() { return requireAdminToken(auth.accessToken) }
 function filters(): Record<string, string> {
-  if (view.value === 'after_sale') return { after_sale_status: 'in_progress' }
-  if (view.value === 'in_transit') return { order_status: 'shipped' }
-  if (view.value === 'all') return {}
-  return { order_status: view.value }
+  return { view: view.value }
 }
 function statusLabel(order: AdminOrderSummary['order']) {
   if (order.after_sale_status === 'in_progress') return '售后处理中'

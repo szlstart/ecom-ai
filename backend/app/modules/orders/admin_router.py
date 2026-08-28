@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Query, Response
 
@@ -23,6 +23,20 @@ async def list_orders(
     service: OrderServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("orders:read")],
     q: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
+    store_id: Annotated[str | None, Query(min_length=1, max_length=40)] = None,
+    view: Annotated[
+        Literal[
+            "all",
+            "pending_payment",
+            "pending_shipment",
+            "in_transit",
+            "completed",
+            "after_sale",
+            "cancelled",
+        ]
+        | None,
+        Query(),
+    ] = None,
     order_status: Annotated[str | None, Query(max_length=32)] = None,
     payment_status: Annotated[str | None, Query(max_length=32)] = None,
     fulfillment_status: Annotated[str | None, Query(max_length=32)] = None,
@@ -33,6 +47,8 @@ async def list_orders(
     result = await service.admin_list(
         access,
         query=q,
+        store_no=store_id,
+        view=view,
         order_status=order_status,
         payment_status=payment_status,
         fulfillment_status=fulfillment_status,

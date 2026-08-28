@@ -28,6 +28,8 @@ const store = ref<AdminStore | null>(null)
 const revenue = ref<RevenueDashboard | null>(null)
 const products = ref<AdminProductSummary[]>([])
 const orders = ref<AdminOrderSummary[]>([])
+const orderNextCursor = ref<string | null>(null)
+const orderLoadingMore = ref(false)
 const section = ref<WorkspaceSection>(route.query.tab === 'orders' ? 'orders' : 'products')
 const productStatus = ref<ProductStatus>('')
 const orderView = ref<OrderView>('all')
@@ -63,11 +65,7 @@ function orderStatusLabel(item: AdminOrderSummary) {
 }
 function dateTime(value: string) { return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) }
 function orderFilters(): Record<string, string> {
-  const result: Record<string, string> = { q: storeId.value }
-  if (orderView.value === 'after_sale') result.after_sale_status = 'in_progress'
-  else if (orderView.value === 'in_transit') result.order_status = 'shipped'
-  else if (orderView.value !== 'all') result.order_status = orderView.value
-  return result
+  return { store_id: storeId.value, view: orderView.value }
 }
 
 async function load() {
@@ -96,9 +94,25 @@ async function loadProducts() {
 
 async function loadOrders() {
   panelLoading.value = true; error.value = ''
-  try { orders.value = (await listAdminOrders(orderFilters(), token())).data.items.filter((item) => item.order.store.store_id === storeId.value) }
+  try {
+    const response = await listAdminOrders(orderFilters(), token())
+    orders.value = response.data.items
+    orderNextCursor.value = response.data.next_cursor
+  }
   catch (cause) { error.value = errorMessage(cause) }
   finally { panelLoading.value = false }
+}
+
+async function loadMoreOrders() {
+  if (!orderNextCursor.value || orderLoadingMore.value) return
+  orderLoadingMore.value = true; error.value = ''
+  try {
+    const response = await listAdminOrders(orderFilters(), token(), orderNextCursor.value)
+    const existing = new Set(orders.value.map((item) => item.order.order_id))
+    orders.value.push(...response.data.items.filter((item) => !existing.has(item.order.order_id)))
+    orderNextCursor.value = response.data.next_cursor
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { orderLoadingMore.value = false }
 }
 
 async function chooseSection(value: WorkspaceSection) {
@@ -203,7 +217,7 @@ onMounted(load)
           <header><div><p class="eyebrow">STORE ORDERS</p><h2>该店铺的订单</h2><p>超级管理员负责监管和异常处置；页面中的“顾客”与“店铺”角色保持真实关系。</p></div></header>
           <section v-if="revenue" class="merchant-income-grid"><article class="primary"><span>总营业额</span><strong>{{ formatMoney(revenue.net_revenue) }}</strong><small>确认收货金额减退款</small></article><article><span>今日收益</span><strong>{{ formatMoney(revenue.today_revenue) }}</strong></article><article><span>昨日收益</span><strong>{{ formatMoney(revenue.yesterday_revenue) }}</strong></article><article><span>近 30 日收益</span><strong>{{ formatMoney(revenue.last_30_days_revenue) }}</strong></article></section>
           <nav class="merchant-order-tabs"><button v-for="tab in orderTabs" :key="tab.value" type="button" :class="{ active: orderView === tab.value, urgent: tab.value === 'after_sale' && tab.count > 0 }" @click="chooseOrderView(tab.value)"><span>{{ tab.label }}</span><b>{{ tab.count }}</b></button></nav>
-          <PageState :loading="panelLoading" :error="''" :empty="!orders.length" empty-title="当前分类没有订单" @retry="loadOrders"><div class="merchant-order-list"><article v-for="item in orders" :key="item.order.order_id" class="merchant-order-card" :class="{ aftersale: item.order.after_sale_status === 'in_progress' }"><header><div><strong>{{ orderStatusLabel(item) }}</strong><small>{{ dateTime(item.order.created_at) }} · 订单 {{ item.order.order_id }}</small></div><span>顾客 {{ item.user_name_masked }}</span></header><div class="merchant-order-lines"><div v-for="line in item.order.items" :key="line.order_item_id"><img v-if="line.image_url" :src="resolveApiAssetUrl(line.image_url) || undefined" alt="" /><div v-else class="order-image-placeholder">商品</div><span><strong>{{ line.product_name }}</strong><small>{{ line.sku_name }} · × {{ line.quantity }}</small></span><b>{{ formatMoney(line.payable_amount) }}</b></div></div><footer><span>实付 {{ formatMoney(item.order.amounts.paid_amount) }}<small v-if="item.order.amounts.refunded_amount.minor_units !== '0'">已退款 {{ formatMoney(item.order.amounts.refunded_amount) }}</small></span><div class="actions"><RouterLink class="button-link secondary" :to="{ path: `/admin/orders/${item.order.order_id}`, query: { return_to: route.fullPath } }">监管订单详情</RouterLink></div></footer></article></div></PageState>
+          <PageState :loading="panelLoading" :error="''" :empty="!orders.length" empty-title="当前分类没有订单" @retry="loadOrders"><div class="merchant-order-list"><article v-for="item in orders" :key="item.order.order_id" class="merchant-order-card" :class="{ aftersale: item.order.after_sale_status === 'in_progress' }"><header><div><strong>{{ orderStatusLabel(item) }}</strong><small>{{ dateTime(item.order.created_at) }} · 订单 {{ item.order.order_id }}</small></div><span>顾客 {{ item.user_name_masked }}</span></header><div class="merchant-order-lines"><div v-for="line in item.order.items" :key="line.order_item_id"><img v-if="line.image_url" :src="resolveApiAssetUrl(line.image_url) || undefined" alt="" /><div v-else class="order-image-placeholder">商品</div><span><strong>{{ line.product_name }}</strong><small>{{ line.sku_name }} · × {{ line.quantity }}</small></span><b>{{ formatMoney(line.payable_amount) }}</b></div></div><footer><span>实付 {{ formatMoney(item.order.amounts.paid_amount) }}<small v-if="item.order.amounts.refunded_amount.minor_units !== '0'">已退款 {{ formatMoney(item.order.amounts.refunded_amount) }}</small></span><div class="actions"><RouterLink class="button-link secondary" :to="{ path: `/admin/orders/${item.order.order_id}`, query: { return_to: route.fullPath } }">监管订单详情</RouterLink></div></footer></article></div><button v-if="orderNextCursor" type="button" class="secondary admin-store-orders-more" :disabled="orderLoadingMore" @click="loadMoreOrders">{{ orderLoadingMore ? '正在加载…' : '加载更多订单' }}</button></PageState>
         </section>
       </template>
     </PageState>

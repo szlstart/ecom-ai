@@ -146,6 +146,8 @@ class OrderRepository:
         *,
         scopes: Sequence[tuple[str, int]],
         query: str | None,
+        store_no: str | None,
+        view: str | None,
         order_status: str | None,
         payment_status: str | None,
         fulfillment_status: str | None,
@@ -164,6 +166,8 @@ class OrderRepository:
             if not store_ids:
                 return [], False
             statement = statement.where(Order.store_id.in_(store_ids))
+        if store_no:
+            statement = statement.where(Store.store_no == store_no)
         if query:
             pattern = f"%{query}%"
             statement = statement.where(
@@ -182,6 +186,8 @@ class OrderRepository:
             statement = statement.where(Order.fulfillment_status == fulfillment_status)
         if after_sale_status:
             statement = statement.where(Order.after_sale_status == after_sale_status)
+        if view and view != "all":
+            statement = _admin_order_view(statement, view)
         if position is not None:
             if position.direction != "next" or len(position.values) != 2:
                 raise ValueError("unsupported admin order cursor")
@@ -204,9 +210,7 @@ class OrderRepository:
         rows = rows[:limit]
         return [(row[0], row[1], row[2], row[3]) for row in rows], has_more
 
-    async def shipment_allocations(
-        self, order_ids: Sequence[int]
-    ) -> dict[int, dict[str, int]]:
+    async def shipment_allocations(self, order_ids: Sequence[int]) -> dict[int, dict[str, int]]:
         """Return non-voided shipment quantities keyed by order and public order-item ID."""
         if not order_ids:
             return {}
@@ -246,9 +250,7 @@ class OrderRepository:
         row = (await self.session.execute(statement)).one_or_none()
         return (row[0], row[1], row[2], row[3]) if row else None
 
-    async def auto_confirmable_orders(
-        self, cutoff: datetime, limit: int
-    ) -> list[Order]:
+    async def auto_confirmable_orders(self, cutoff: datetime, limit: int) -> list[Order]:
         delivered_in_time = exists().where(
             Shipment.order_id == Order.id,
             Shipment.shipment_status == "delivered",
@@ -601,6 +603,24 @@ def _order_view(
             Order.order_status.in_(("cancelled", "closed")), Order.paid_amount == 0
         )
     raise ValueError(f"unsupported order view: {view}")
+
+
+def _admin_order_view(
+    statement: Select[tuple[Order, Store, TradeOrder, User]], view: str
+) -> Select[tuple[Order, Store, TradeOrder, User]]:
+    if view == "pending_payment":
+        return statement.where(Order.order_status == "pending_payment")
+    if view == "pending_shipment":
+        return statement.where(Order.order_status == "pending_shipment")
+    if view == "in_transit":
+        return statement.where(Order.order_status == "shipped")
+    if view == "completed":
+        return statement.where(Order.order_status == "completed")
+    if view == "after_sale":
+        return statement.where(Order.after_sale_status == "in_progress")
+    if view == "cancelled":
+        return statement.where(Order.order_status.in_(("cancelled", "closed")))
+    raise ValueError(f"unsupported admin order view: {view}")
 
 
 def _order_cursor(

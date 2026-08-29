@@ -223,7 +223,7 @@ class CatalogService:
             else:
                 stock_status = "in_stock"
             images = [
-                _public_image(image, file_object)
+                _public_image(image, file_object, product.product_name)
                 for image, file_object in sku_images.get(sku.id, [])
             ]
             items.append(
@@ -440,17 +440,22 @@ def _product_card(
         else None,
         sales_count=product.sales_count,
         rating_score=_decimal_string(product.rating_score),
-        main_image=_public_image(*image_row) if image_row else None,
+        main_image=_public_image(*image_row, product.product_name) if image_row else None,
         is_favorited=is_favorited,
     )
 
 
-def _public_image(image: ProductImage, file_object: FileObject) -> PublicImage:
+def _public_image(
+    image: ProductImage, file_object: FileObject, product_name: str
+) -> PublicImage:
+    alt_text = image.alt_text
+    if not alt_text or alt_text.strip() in {"未命名商品", "商品图片"}:
+        alt_text = product_name
     return PublicImage(
         file_id=file_object.file_no,
         url=f"/api/v1/files/{file_object.file_no}",
         thumbnail_url=f"/api/v1/files/{file_object.file_no}?variant=thumbnail",
-        alt_text=image.alt_text,
+        alt_text=alt_text,
         width=image.width,
         height=image.height,
         sort_order=image.sort_order,

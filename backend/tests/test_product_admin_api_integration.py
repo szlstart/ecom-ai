@@ -346,6 +346,11 @@ async def test_product_draft_review_publish_and_off_shelf_lifecycle(
     edited_public_detail = await client.get(f"/api/v1/products/{product_id}")
     assert edited_public_detail.status_code == 200, edited_public_detail.text
     assert edited_public_detail.json()["data"]["product_name"] == f"在售商品就地编辑 {suffix}"
+    edited_skus = await client.get(f"/api/v1/products/{product_id}/skus")
+    assert edited_skus.status_code == 200
+    assert edited_skus.json()["data"]["items"][0]["images"][0]["alt_text"] == (
+        f"在售商品就地编辑 {suffix}"
+    )
 
     async for session in mysql_session():
         traded_product = await session.scalar(

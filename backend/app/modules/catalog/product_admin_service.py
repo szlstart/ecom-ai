@@ -190,7 +190,16 @@ class ProductAdminService:
                 _, brand = await self._references(category.category_no, payload.brand_id)
                 product.brand_id = brand.id if brand else None
         if payload.product_name is not None:
+            old_product_name = product.product_name
             product.product_name = payload.product_name
+            if payload.product_name != old_product_name:
+                for image, _file in await self.repository.images(product.id):
+                    if not image.alt_text or image.alt_text.strip() in {
+                        "未命名商品",
+                        "商品图片",
+                        old_product_name,
+                    }:
+                        image.alt_text = payload.product_name
         if "subtitle" in payload.model_fields_set:
             product.subtitle = payload.subtitle
         if "description" in payload.model_fields_set:

@@ -9,6 +9,8 @@ import {
 } from '@/api/messaging'
 import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import ConversationPage from '@/pages/ConversationPage.vue'
+import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
+import type { ChatMessage } from '@/api/messaging'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
 
@@ -19,6 +21,7 @@ const loading = ref(false)
 const error = ref('')
 const connectionState = ref<RealtimeState>('polling')
 const shaking = ref(false)
+const traceMessages = ref<ChatMessage[]>([])
 const trigger = ref<HTMLButtonElement | null>(null)
 let realtime: RealtimeConnection | undefined
 let refreshTimer: number | undefined
@@ -91,6 +94,7 @@ async function show() {
 }
 function selectConversation(item: Conversation) {
   center.selectedConversationId = item.conversation_id
+  traceMessages.value = []
 }
 function close() {
   center.close()
@@ -154,9 +158,10 @@ onBeforeUnmount(() => {
           </button>
         </aside>
         <main class="user-chat-main">
-          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded />
+          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" />
           <div v-else class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>消息中心</h2><p>选择左侧会话开始沟通。</p></div>
         </main>
+        <AgentTracePanel :messages="traceMessages" />
       </section>
     </div>
   </Teleport>

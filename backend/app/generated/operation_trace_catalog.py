@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "366bdf7dde66714e09912ffa49b71c1b1a7d59136e715a7f90ebaaec81df1969"
+SOURCE_SHA256 = "4f85b17fd11a64e7ab5a4212323c06f1d7b85f19c2f86ffdcf33531729b790e1"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -132,6 +132,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["ai_agents:read", "ai_agents:manage", "ai_agents:publish"],
         "x-test-case-ids": ["ADM-AGENT-*"],
     },
+    "AdminAiConversation_PutMine": {
+        "x-audit-event": "command.AdminAiConversation_PutMine",
+        "x-domain-command": "AdminAiConversation_PutMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": ["global_ui"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["GLOBAL-ADMIN-AI-CHAT-01"],
+        "x-scope-policy": ["platform_super_admin_conversation_owner"],
+        "x-test-case-ids": ["ADM-SUPPORT-*"],
+    },
     "AdminAiEvaluation_List": {
         "x-audit-event": "access.AdminAiEvaluation_List",
         "x-domain-command": "none",
@@ -181,6 +191,36 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["ADM-AI-POLICY-01"],
         "x-scope-policy": ["ai_policies:read", "ai_runtime:kill"],
         "x-test-case-ids": ["ADM-AI-POLICY-*"],
+    },
+    "AdminAiMessage_CreateMine": {
+        "x-audit-event": "command.AdminAiMessage_CreateMine",
+        "x-domain-command": "AdminAiMessage_CreateMine",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
+        "x-owner-kind": ["global_ui"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["GLOBAL-ADMIN-AI-CHAT-01"],
+        "x-scope-policy": ["platform_super_admin_conversation_owner"],
+        "x-test-case-ids": ["ADM-SUPPORT-*"],
+    },
+    "AdminAiMessage_ListMine": {
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": ["global_ui"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["GLOBAL-ADMIN-AI-CHAT-01"],
+        "x-scope-policy": ["platform_super_admin_conversation_owner"],
+        "x-test-case-ids": ["ADM-SUPPORT-*"],
+    },
+    "AdminAiReadCursor_PutMine": {
+        "x-audit-event": "command.AdminAiReadCursor_PutMine",
+        "x-domain-command": "AdminAiReadCursor_PutMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": ["global_ui"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["GLOBAL-ADMIN-AI-CHAT-01"],
+        "x-scope-policy": ["platform_super_admin_conversation_owner"],
+        "x-test-case-ids": ["ADM-SUPPORT-*"],
     },
     "AdminApproval_Decide": {
         "x-audit-event": "command.AdminApproval_Decide",

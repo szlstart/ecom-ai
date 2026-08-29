@@ -1,4 +1,4 @@
-import { createClientMessageId, type ChatMessage, type ConversationContext } from '@/api/messaging'
+import { createClientMessageId, type ChatMessage, type Conversation, type ConversationContext } from '@/api/messaging'
 import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
 
 export type SupportTicketStatus = 'queued' | 'assigned' | 'active' | 'waiting_user' | 'resolved' | 'closed'
@@ -86,5 +86,33 @@ export function putSupportReadCursor(conversationId: string, message: ChatMessag
   return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}/read-cursor`, {
     method: 'PUT',
     body: JSON.stringify({ last_read_message_id: message.message_id, last_read_sequence_no: message.sequence_no }),
+  }, token)
+}
+
+export function getAdminAiConversation(token: string): Promise<ApiResult<Conversation>> {
+  return apiRequest('/admin/support/ai-conversation', { method: 'PUT' }, token)
+}
+
+export function listAdminAiMessages(token: string): Promise<ApiResult<{ items: ChatMessage[] }>> {
+  return apiRequest('/admin/support/ai-conversation/messages?limit=100', {}, token)
+}
+
+export function sendAdminAiMessage(text: string, token: string): Promise<ApiResult<ChatMessage>> {
+  return apiRequest('/admin/support/ai-conversation/messages', {
+    method: 'POST',
+    body: JSON.stringify({
+      client_message_id: createClientMessageId(),
+      content: { type: 'text', text },
+    }),
+  }, token)
+}
+
+export function putAdminAiReadCursor(message: ChatMessage, token: string): Promise<ApiResult<{ unread_count: number }>> {
+  return apiRequest('/admin/support/ai-conversation/read-cursor', {
+    method: 'PUT',
+    body: JSON.stringify({
+      last_read_message_id: message.message_id,
+      last_read_sequence_no: message.sequence_no,
+    }),
   }, token)
 }

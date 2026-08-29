@@ -55,6 +55,18 @@ MCP_SERVERS = {
                 if code.startswith("memory.")
             ),
         ),
+        McpServerDefinition(
+            "store-ops-mcp",
+            frozenset(code for code in READ_ONLY_TOOLS if code.startswith("store_ops.")),
+        ),
+        McpServerDefinition(
+            "governance-mcp",
+            frozenset(code for code in READ_ONLY_TOOLS if code.startswith("governance.")),
+        ),
+        McpServerDefinition(
+            "observability-mcp",
+            frozenset(code for code in READ_ONLY_TOOLS if code.startswith("observability.")),
+        ),
     )
 }
 

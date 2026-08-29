@@ -26,6 +26,7 @@ from app.modules.agent_runtime.schemas import (
     AgentRunStatus,
     AgentRunView,
 )
+from app.modules.identity.access_policy import load_identity_eligibility
 from app.modules.identity.models import User
 from app.modules.messaging.models import Conversation, Message
 
@@ -60,11 +61,7 @@ class AgentRuntimeService:
         )
         if existing is not None:
             return existing
-        agent_code = (
-            "exclusive_support"
-            if conversation.conversation_type == "exclusive"
-            else "store_support"
-        )
+        agent_code = await self._agent_code(conversation)
         row = (
             await self.session.execute(
                 select(AgentVersion, AgentDefinition)
@@ -106,6 +103,23 @@ class AgentRuntimeService:
             run.context_version = context_version
         self.session.add(run)
         return run
+
+    async def _agent_code(self, conversation: Conversation) -> str:
+        if conversation.conversation_type == "store":
+            return "store_support"
+        eligibility = await load_identity_eligibility(self.session, conversation.user_id)
+        if eligibility.merchant:
+            return "merchant_copilot"
+        if eligibility.platform_admin:
+            return "admin_copilot"
+        if eligibility.consumer:
+            return "exclusive_support"
+        raise ApplicationError(
+            status=403,
+            code="AGENT_IDENTITY_SCOPE_INVALID",
+            title="Agent identity unavailable",
+            detail="当前身份不能使用此智能助理。",
+        )
 
     @staticmethod
     def _definition_scope(conversation: Conversation) -> ColumnElement[bool]:

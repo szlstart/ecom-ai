@@ -26,6 +26,7 @@ from app.modules.knowledge.router import ai_router
 from app.modules.knowledge.router import router as knowledge_router
 from app.modules.logistics.admin_router import router as admin_logistics_router
 from app.modules.logistics.router import router as logistics_router
+from app.modules.messaging.router import admin_ai_router as admin_ai_messaging_router
 from app.modules.messaging.router import merchant_router as merchant_messaging_router
 from app.modules.messaging.router import router as messaging_router
 from app.modules.messaging.support_router import router as support_router
@@ -67,6 +68,7 @@ api_router.include_router(after_sale_router)
 api_router.include_router(admin_after_sale_router)
 api_router.include_router(messaging_router)
 api_router.include_router(merchant_messaging_router)
+api_router.include_router(admin_ai_messaging_router)
 api_router.include_router(support_router)
 api_router.include_router(realtime_router)
 api_router.include_router(support_realtime_router)

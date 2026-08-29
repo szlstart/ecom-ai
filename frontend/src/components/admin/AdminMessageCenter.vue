@@ -4,10 +4,14 @@ import { RouterLink } from 'vue-router'
 
 import {
   claimSupportTicket,
+  getAdminAiConversation,
   getSupportWorkspace,
+  listAdminAiMessages,
   listSupportMessages,
   listSupportTickets,
+  putAdminAiReadCursor,
   putSupportReadCursor,
+  sendAdminAiMessage,
   sendSupportMessage,
   type SupportTicket,
   type SupportWorkspace,
@@ -15,6 +19,7 @@ import {
 import { errorMessage } from '@/api/http'
 import { createClientMessageId, type ChatMessage } from '@/api/messaging'
 import { useAdminAuthStore } from '@/stores/admin-auth'
+import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 
 const emit = defineEmits<{ close: []; 'unread-change': [count: number] }>()
 const auth = useAdminAuthStore()
@@ -22,6 +27,7 @@ const tickets = ref<SupportTicket[]>([])
 const selected = ref<'ai' | string>('ai')
 const workspace = ref<SupportWorkspace | null>(null)
 const messages = ref<ChatMessage[]>([])
+const aiMessages = ref<ChatMessage[]>([])
 const loading = ref(true)
 const busy = ref(false)
 const error = ref('')
@@ -29,6 +35,7 @@ const reply = ref('')
 const search = ref('')
 const userGroupOpen = ref(true)
 const storeGroupOpen = ref(true)
+let refreshTimer: number | undefined
 
 const selectedTicket = computed(() => tickets.value.find((item) => item.ticket_id === selected.value) ?? null)
 const assignedToMe = computed(() => selectedTicket.value?.assigned_user_id === auth.userId)
@@ -57,6 +64,20 @@ async function loadTickets() {
     emit('unread-change', tickets.value.reduce((total, item) => total + item.unread_count, 0))
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
+}
+
+async function loadAiMessages() {
+  try {
+    const conversation = (await getAdminAiConversation(token())).data
+    aiMessages.value = (await listAdminAiMessages(token())).data.items
+    const latest = aiMessages.value.at(-1)
+    if (latest && conversation.unread_count) await putAdminAiReadCursor(latest, token())
+  } catch (cause) { error.value = errorMessage(cause) }
+}
+
+async function selectAi() {
+  selected.value = 'ai'; workspace.value = null; messages.value = []; error.value = ''; loading.value = true
+  try { await loadAiMessages() } finally { loading.value = false }
 }
 
 async function selectTicket(ticket: SupportTicket) {
@@ -89,18 +110,33 @@ async function claim() {
 
 async function send() {
   const text = reply.value.trim()
-  if (!text || !selectedTicket.value || busy.value) return
+  if (!text || busy.value) return
   busy.value = true; error.value = ''; reply.value = ''
   try {
-    const result = await sendSupportMessage(selectedTicket.value.conversation_id, text, token(), createClientMessageId())
-    messages.value.push(result.data)
+    if (selected.value === 'ai') {
+      aiMessages.value.push((await sendAdminAiMessage(text, token())).data)
+    } else if (selectedTicket.value) {
+      const result = await sendSupportMessage(selectedTicket.value.conversation_id, text, token(), createClientMessageId())
+      messages.value.push(result.data)
+    }
   } catch (cause) { reply.value = text; error.value = errorMessage(cause) }
   finally { busy.value = false }
 }
 
 function closeOnEscape(event: KeyboardEvent) { if (event.key === 'Escape') emit('close') }
-onMounted(async () => { window.addEventListener('keydown', closeOnEscape); await loadTickets() })
-onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
+onMounted(async () => {
+  window.addEventListener('keydown', closeOnEscape)
+  await Promise.all([loadTickets(), loadAiMessages()])
+  refreshTimer = window.setInterval(() => {
+    void loadTickets()
+    if (selected.value === 'ai') void loadAiMessages()
+    else if (selectedTicket.value) void selectTicket(selectedTicket.value)
+  }, 5_000)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', closeOnEscape)
+  if (refreshTimer) window.clearInterval(refreshTimer)
+})
 </script>
 
 <template>
@@ -110,7 +146,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
         <header><div><strong>消息中心</strong><small>用户、店铺与 AI 管家</small></div><button aria-label="关闭消息中心" @click="emit('close')">×</button></header>
         <label class="admin-chat-search"><span>⌕</span><input v-model="search" placeholder="搜索会话" /></label>
         <div class="admin-chat-list">
-          <button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click="selected = 'ai'; workspace = null; messages = []"><span class="admin-chat-avatar ai">✦</span><span><strong>AI 管家</strong><small>管理工作助手 · 固定置顶</small></span><time>置顶</time></button>
+          <button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click="selectAi"><span class="admin-chat-avatar ai">✦</span><span><strong>AI 管家</strong><small>只读诊断助手 · 固定置顶</small></span><time>置顶</time></button>
           <section class="admin-chat-group"><button class="admin-chat-group-title" @click="userGroupOpen = !userGroupOpen"><span>{{ userGroupOpen ? '⌄' : '›' }} 用户消息</span><b>{{ userTickets.length }}</b></button><template v-if="userGroupOpen"><button v-for="ticket in userTickets" :key="ticket.ticket_id" class="admin-chat-item" :class="{ active: selected === ticket.ticket_id }" @click="selectTicket(ticket)"><span class="admin-chat-avatar">{{ (ticket.handoff_summary || '用').slice(0, 1) }}</span><span><strong>{{ ticket.handoff_summary || '用户咨询' }}</strong><small>{{ ticket.ticket_status === 'queued' ? '等待领取' : ticket.queue_code }}</small></span><b v-if="ticket.unread_count">{{ ticket.unread_count }}</b><time>{{ dateTime(ticket.updated_at) }}</time></button><p v-if="!userTickets.length">暂无用户会话</p></template></section>
           <section class="admin-chat-group"><button class="admin-chat-group-title" @click="storeGroupOpen = !storeGroupOpen"><span>{{ storeGroupOpen ? '⌄' : '›' }} 店铺消息</span><b>{{ storeTickets.length }}</b></button><template v-if="storeGroupOpen"><button v-for="ticket in storeTickets" :key="ticket.ticket_id" class="admin-chat-item" :class="{ active: selected === ticket.ticket_id }" @click="selectTicket(ticket)"><span class="admin-chat-avatar store">店</span><span><strong>{{ ticket.handoff_summary || '店铺咨询' }}</strong><small>{{ ticket.ticket_status === 'queued' ? '等待领取' : ticket.queue_code }}</small></span><b v-if="ticket.unread_count">{{ ticket.unread_count }}</b><time>{{ dateTime(ticket.updated_at) }}</time></button><p v-if="!storeTickets.length">暂无店铺会话</p></template></section>
         </div>
@@ -119,10 +155,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
       <main class="admin-chat-main">
         <template v-if="selected === 'ai'">
           <header class="admin-chat-header"><div><strong>AI 管家</strong><small><span />在线 · 默认只读</small></div></header>
-          <section class="admin-ai-concierge">
+          <section v-if="!aiMessages.length && !loading" class="admin-ai-concierge">
             <div class="admin-ai-orb">✦</div><p class="eyebrow">ADMIN COPILOT</p><h2>今天想先处理什么？</h2><p>我可以帮助你快速定位用户、店铺、订单和 AI 运行问题。涉及资金、冻结、删除或发布的操作仍会要求人工确认。</p>
             <div class="admin-ai-suggestions"><RouterLink to="/admin/users"><span>♙</span><strong>查看异常用户</strong><small>账号状态与登录会话</small></RouterLink><RouterLink to="/admin/orders"><span>▤</span><strong>检查异常订单</strong><small>支付、履约与售后</small></RouterLink><RouterLink to="/admin/observability"><span>⌇</span><strong>分析 AI 告警</strong><small>延迟、错误与工具调用</small></RouterLink><RouterLink to="/admin/approval-requests"><span>✓</span><strong>查看待办审批</strong><small>高风险操作复核</small></RouterLink></div>
-            <div class="alert info">AI 管家的自然语言执行能力将在受控 Agent Runtime 接入；当前入口先提供安全的只读导航与诊断捷径，不会伪造执行结果。</div>
+            <div class="alert info">AI 管家已接入受控 Agent Runtime。当前仅开放脱敏、只读诊断，不会修改用户、店铺、订单或资金数据。</div>
+          </section>
+          <p v-if="error" class="alert error">{{ error }}</p>
+          <div v-if="loading" class="admin-chat-loading">正在读取 AI 会话…</div>
+          <section v-else class="admin-chat-conversation admin-ai-chat">
+            <div v-if="aiMessages.length" class="admin-chat-timeline"><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user' }"><span class="admin-chat-bubble-avatar">{{ message.sender_type === 'user' ? initials : '✦' }}</span><div><strong>{{ message.sender_type === 'user' ? '我' : 'AI 管家' }}</strong><p>{{ messageText(message) }}</p><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
+            <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" placeholder="询问平台概况、用户、店铺、订单或 Agent 运行状态…" @keydown.enter.exact.prevent="send" /><div><span>默认只读 · 不展示模型原始思维链</span><button :disabled="!reply.trim() || busy">{{ busy ? '发送中…' : '发送' }}</button></div></form>
           </section>
         </template>
 
@@ -139,6 +181,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', closeOnEscape))
           </section>
         </template>
       </main>
+      <AgentTracePanel :messages="selected === 'ai' ? aiMessages : messages" title="AI 运行轨迹" />
     </section>
   </div>
 </template>

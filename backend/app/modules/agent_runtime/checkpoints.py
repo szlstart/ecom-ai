@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.id_generator import new_prefixed_ulid
 from app.modules.agent_runtime.exclusive_context import TrustedExclusiveAgentContext
+from app.modules.agent_runtime.operations_context import TrustedOperationsContext
 from app.modules.agent_runtime.store_context import TrustedStoreAgentContext
 
 
@@ -37,6 +38,18 @@ class AgentCheckpointStore:
             store_no=None,
             agent_version_no=str(context.agent_version.version_no),
             graph_version="exclusive-agent-v1",
+            trace_id=context.run.trace_id,
+        )
+
+    async def initialize_operations(self, context: TrustedOperationsContext) -> None:
+        await self._initialize(
+            run_no=context.run.run_no,
+            conversation_no=context.conversation.conversation_no,
+            trigger_message_no=context.trigger.message_no,
+            user_no=context.user.user_no,
+            store_no=context.store.store_no if context.store else None,
+            agent_version_no=str(context.agent_version.version_no),
+            graph_version=f"{context.agent_definition.agent_code}-v1",
             trace_id=context.run.trace_id,
         )
 

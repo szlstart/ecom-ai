@@ -99,11 +99,10 @@ SKILLS: tuple[SkillSeed, ...] = (
         "商家经营助手",
         "只分析当前商家所属店铺的商品、订单、库存、物流与评价。默认只读。",
         (
-            "catalog.search_store_products",
-            "catalog.get_inventory_availability",
-            "order.get_store_order_summary",
-            "logistics.get_store_order_shipments",
-            "catalog.get_store_policy",
+            "store_ops.overview",
+            "store_ops.catalog_summary",
+            "store_ops.order_summary",
+            "store_ops.inventory_risks",
         ),
     ),
     SkillSeed(
@@ -116,7 +115,13 @@ SKILLS: tuple[SkillSeed, ...] = (
         "admin_readonly_diagnostics",
         "管理端只读诊断",
         "聚合脱敏的商城运行信息并给出处置建议。不得读取密码、密钥或绕过审批执行写操作。",
-        tuple(sorted(READ_ONLY_TOOLS)),
+        (
+            "governance.platform_overview",
+            "governance.user_summary",
+            "governance.store_summary",
+            "governance.order_summary",
+            "observability.runtime_health",
+        ),
     ),
 )
 
@@ -155,7 +160,7 @@ AGENTS: tuple[AgentSeed, ...] = (
         COMMON_SAFETY_PROMPT
         + "\n你面向当前店铺经营人员，只分析其有权管理的店铺并提供经营协作，不代替平台审批。",
         ("merchant_operations_assist", "merchant_platform_support"),
-        executable=False,
+        executable=True,
     ),
     AgentSeed(
         "admin_copilot",
@@ -164,7 +169,7 @@ AGENTS: tuple[AgentSeed, ...] = (
         COMMON_SAFETY_PROMPT
         + "\n你面向超级管理员，默认只读诊断。任何治理写操作都必须进入独立确认或审批资源。",
         ("admin_readonly_diagnostics",),
-        executable=False,
+        executable=True,
     ),
 )
 
@@ -323,14 +328,14 @@ async def _seed_agents(
                 AgentVersion.version_no == 1,
             )
         )
+        allowed_tools = sorted(
+            {
+                tool
+                for skill_code in item.skills
+                for tool in skill_by_code[skill_code].tools
+            }
+        )
         if version is None:
-            allowed_tools = sorted(
-                {
-                    tool
-                    for skill_code in item.skills
-                    for tool in skill_by_code[skill_code].tools
-                }
-            )
             version = AgentVersion(
                 agent_id=definition.id,
                 version_no=1,
@@ -349,6 +354,20 @@ async def _seed_agents(
             )
             session.add(version)
             await session.flush()
+        elif version.version_status == "draft" and item.executable:
+            # Bootstrap drafts can be completed in place. Published versions are immutable.
+            version.system_prompt = item.prompt
+            version.model_profile = "moonshot-openai-compatible-v1"
+            version.tool_allowlist = allowed_tools
+            version.policy_config = {
+                "prompt_version": "safe-agent-v1",
+                "max_tool_calls": 6,
+                "max_delegations": 4,
+                "max_delegation_depth": 1,
+                "raw_chain_of_thought_exposed": False,
+            }
+            version.version_status = "published"
+            version.published_at = published_at
         for skill_code in item.skills:
             skill_version = skill_versions[skill_code]
             binding = await session.scalar(

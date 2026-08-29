@@ -65,6 +65,7 @@ idempotency_policy:
     RefundEligibility_Check: read_only_command
     Message_CreateMine: payload_client_message_id_deduplication
     MerchantExclusiveMessage_CreateMine: payload_client_message_id_deduplication
+    AdminAiMessage_CreateMine: payload_client_message_id_deduplication
     SupportConversationMessage_Send: payload_client_message_id_deduplication
     SupportMessage_Send: payload_client_message_id_deduplication
     RealtimeTicket_CreateMine: short_lived_single_use_ticket
@@ -139,6 +140,10 @@ global_components:
     domain_rules: [presigned_temporary_key, immutable_source_copy, malware_scan, safe_derivative_only]
     tests: [FILE-UPLOAD-*]
 operation_owners:
+  - {requirement_id: GLOBAL-ADMIN-AI-CHAT-01, operation_id: AdminAiConversation_PutMine, owner_kind: global_ui, authorization: platform_super_admin_conversation_owner, domain_rules: [fixed_admin_copilot_conversation, identity_scoped_agent_routing], tests: [ADM-SUPPORT-*]}
+  - {requirement_id: GLOBAL-ADMIN-AI-CHAT-01, operation_id: AdminAiMessage_ListMine, owner_kind: global_ui, authorization: platform_super_admin_conversation_owner, domain_rules: [conversation_owner, safe_public_agent_trace], tests: [ADM-SUPPORT-*]}
+  - {requirement_id: GLOBAL-ADMIN-AI-CHAT-01, operation_id: AdminAiMessage_CreateMine, owner_kind: global_ui, authorization: platform_super_admin_conversation_owner, domain_rules: [client_message_id_deduplication, read_only_admin_copilot], tests: [ADM-SUPPORT-*]}
+  - {requirement_id: GLOBAL-ADMIN-AI-CHAT-01, operation_id: AdminAiReadCursor_PutMine, owner_kind: global_ui, authorization: platform_super_admin_conversation_owner, domain_rules: [monotonic_read_cursor], tests: [ADM-SUPPORT-*]}
   - {requirement_id: SYS-HEALTH-01, operation_id: Health_Live, owner_kind: internal_only, authorization: internal_probe, domain_rules: [no_dependency_probe], tests: [HEALTH-*]}
   - {requirement_id: SYS-HEALTH-02, operation_id: Health_Ready, owner_kind: internal_only, authorization: internal_probe, domain_rules: [dependency_readiness], tests: [HEALTH-*]}
   - {requirement_id: GLOBAL-USER-AUTH-00, operation_id: AuthSession_Resume, owner_kind: global_ui, authorization: consumer_refresh_cookie, domain_rules: [non_rotating_access_token_reissue, active_consumer_role_recheck, reject_management_identity], tests: [AUTH-REFRESH-*]}

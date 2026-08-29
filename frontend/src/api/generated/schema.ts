@@ -2094,6 +2094,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/support/ai-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Admin Ai Conversation */
+        put: operations["AdminAiConversation_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/ai-conversation/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin Ai Messages */
+        get: operations["AdminAiMessage_ListMine"];
+        put?: never;
+        /** Send Admin Ai Message */
+        post: operations["AdminAiMessage_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/ai-conversation/read-cursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Admin Ai Read Cursor */
+        put: operations["AdminAiReadCursor_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support/human-service-tickets": {
         parameters: {
             query?: never;
@@ -17391,6 +17443,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiConversation_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiMessage_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiMessage_CreateMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiReadCursor_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCursorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReadCursorView_"];
                 };
             };
             401: components["responses"]["Problem401"];

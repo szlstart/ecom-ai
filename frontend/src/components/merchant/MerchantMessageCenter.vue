@@ -13,13 +13,13 @@ import {
 } from '@/api/admin-support'
 import { errorMessage } from '@/api/http'
 import {
-  ensureMerchantHumanService,
   getMerchantExclusiveConversation,
   listMerchantExclusiveMessages,
   putMerchantExclusiveReadCursor,
   sendMerchantExclusiveMessage,
 } from '@/api/merchant-support'
 import type { ChatMessage } from '@/api/messaging'
+import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
@@ -53,7 +53,7 @@ const activeMessages = computed(() => selectedKey.value === 'exclusive' ? exclus
 const unreadCount = computed(() => exclusiveUnread.value + tickets.value.reduce((total, item) => total + item.unread_count, 0))
 const title = computed(() => selectedKey.value === 'exclusive' ? '专属客服' : workspace.value?.user.nickname || '顾客咨询')
 const subtitle = computed(() => {
-  if (selectedKey.value === 'exclusive') return '平台商家支持 · 工作日优先响应'
+  if (selectedKey.value === 'exclusive') return 'AI 经营助理 · 默认只读'
   return activeTicket.value ? statusLabel(activeTicket.value.ticket_status) : '顾客咨询'
 })
 
@@ -166,7 +166,6 @@ async function send() {
     if (selectedKey.value === 'exclusive') {
       const sent = (await sendMerchantExclusiveMessage(text, token())).data
       exclusiveMessages.value.push(sent)
-      await ensureMerchantHumanService(text, sent.message_id, token())
     } else if (activeTicket.value) {
       messages.value.push((await sendSupportMessage(activeTicket.value.conversation_id, text, token())).data)
     }
@@ -205,7 +204,7 @@ onBeforeUnmount(() => {
         <aside class="merchant-chat-list">
           <header><div><strong>消息</strong><small><span class="connection-dot" :class="connectionState" />{{ unreadCount ? `${unreadCount} 条未读` : '消息已读' }}</small></div><button type="button" aria-label="关闭消息中心" @click="close">×</button></header>
           <button class="merchant-chat-item pinned" :class="{ active: selectedKey === 'exclusive' }" type="button" @click="selectConversation('exclusive')">
-            <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>平台商家支持</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
+            <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>AI 经营助理 · 可随时转人工</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
           </button>
           <p v-if="!tickets.length" class="merchant-chat-empty">暂时没有顾客咨询</p>
           <button v-for="ticket in tickets" :key="ticket.ticket_id" class="merchant-chat-item" :class="{ active: selectedKey === ticket.ticket_id }" type="button" @click="selectConversation(ticket.ticket_id)">
@@ -216,12 +215,13 @@ onBeforeUnmount(() => {
           <header><div><strong>{{ title }}</strong><small>{{ subtitle }}</small></div></header>
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>
           <div ref="timeline" class="merchant-chat-timeline">
-            <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>你好，我是你的专属客服</h2><p>店铺经营、商品审核、订单履约或平台规则方面遇到问题，都可以直接在这里留言。消息会进入平台商家支持队列。</p></div>
+            <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>你好，我是你的专属客服</h2><p>我可以在当前店铺范围内分析商品、订单、库存和经营概况。默认只读，不会替你修改业务数据。</p></div>
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>
             <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isMine(item) }"><span v-if="!isMine(item)" class="merchant-chat-avatar">{{ selectedKey === 'exclusive' ? '专' : '客' }}</span><div><p>{{ messageText(item) }}</p><time>{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
           </div>
           <form class="merchant-chat-composer" @submit.prevent="send"><textarea v-model="draft" rows="3" maxlength="4000" :placeholder="selectedKey === 'exclusive' ? '向平台专属客服描述你的问题…' : '回复顾客…'" @keydown.enter.exact.prevent="send" /><footer><small>Enter 发送 · Shift + Enter 换行</small><button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button></footer></form>
         </main>
+        <AgentTracePanel :messages="activeMessages" title="AI 协作台" />
       </section>
     </div>
   </Teleport>

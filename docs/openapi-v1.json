@@ -12308,6 +12308,293 @@
         ]
       }
     },
+    "/api/v1/admin/support/ai-conversation": {
+      "put": {
+        "tags": [
+          "admin-support"
+        ],
+        "summary": "Put Admin Ai Conversation",
+        "operationId": "AdminAiConversation_PutMine",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "command.AdminAiConversation_PutMine",
+        "x-domain-command": "AdminAiConversation_PutMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "global_ui"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "GLOBAL-ADMIN-AI-CHAT-01"
+        ],
+        "x-scope-policy": [
+          "platform_super_admin_conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*"
+        ]
+      }
+    },
+    "/api/v1/admin/support/ai-conversation/messages": {
+      "get": {
+        "tags": [
+          "admin-support"
+        ],
+        "summary": "List Admin Ai Messages",
+        "operationId": "AdminAiMessage_ListMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "global_ui"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "GLOBAL-ADMIN-AI-CHAT-01"
+        ],
+        "x-scope-policy": [
+          "platform_super_admin_conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*"
+        ]
+      },
+      "post": {
+        "tags": [
+          "admin-support"
+        ],
+        "summary": "Send Admin Ai Message",
+        "operationId": "AdminAiMessage_CreateMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminAiMessage_CreateMine",
+        "x-domain-command": "AdminAiMessage_CreateMine",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
+        "x-owner-kind": [
+          "global_ui"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "GLOBAL-ADMIN-AI-CHAT-01"
+        ],
+        "x-scope-policy": [
+          "platform_super_admin_conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*"
+        ]
+      }
+    },
+    "/api/v1/admin/support/ai-conversation/read-cursor": {
+      "put": {
+        "tags": [
+          "admin-support"
+        ],
+        "summary": "Put Admin Ai Read Cursor",
+        "operationId": "AdminAiReadCursor_PutMine",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadCursorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ReadCursorView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "command.AdminAiReadCursor_PutMine",
+        "x-domain-command": "AdminAiReadCursor_PutMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "global_ui"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "GLOBAL-ADMIN-AI-CHAT-01"
+        ],
+        "x-scope-policy": [
+          "platform_super_admin_conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*"
+        ]
+      }
+    },
     "/api/v1/support/human-service-tickets": {
       "get": {
         "tags": [

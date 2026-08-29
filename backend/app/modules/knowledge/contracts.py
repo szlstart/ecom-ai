@@ -51,6 +51,15 @@ READ_ONLY_TOOLS = frozenset(
         "after_sale.get_user_refund_detail",
         "support.get_ticket_status",
         "memory.list_mine",
+        "store_ops.overview",
+        "store_ops.catalog_summary",
+        "store_ops.order_summary",
+        "store_ops.inventory_risks",
+        "governance.platform_overview",
+        "governance.user_summary",
+        "governance.store_summary",
+        "governance.order_summary",
+        "observability.runtime_health",
     }
 )
 

@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Query, Response, status
 
-from app.api.dependencies import IdempotencyKey, MerchantContext, UserContext
+from app.api.dependencies import IdempotencyKey, MerchantContext, PlatformAdminContext, UserContext
 from app.api.schemas import Envelope
 from app.modules.identity.router import _etag, _expected_version, _no_store
 from app.modules.messaging.dependencies import (
@@ -31,6 +31,75 @@ from app.modules.messaging.schemas import (
 
 router = APIRouter(tags=["messaging"])
 merchant_router = APIRouter(prefix="/merchant/support", tags=["merchant-support"])
+admin_ai_router = APIRouter(prefix="/admin/support/ai-conversation", tags=["admin-support"])
+
+
+@admin_ai_router.put(
+    "",
+    response_model=Envelope[ConversationView],
+    operation_id="AdminAiConversation_PutMine",
+)
+async def put_admin_ai_conversation(
+    response: Response,
+    context: PlatformAdminContext,
+    service: MessagingServiceDependency,
+) -> Envelope[ConversationView]:
+    result = await service.get_or_create_exclusive(context.user)
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@admin_ai_router.get(
+    "/messages",
+    response_model=Envelope[MessageList],
+    operation_id="AdminAiMessage_ListMine",
+)
+async def list_admin_ai_messages(
+    response: Response,
+    context: PlatformAdminContext,
+    service: MessagingServiceDependency,
+    limit: Annotated[int, Query(ge=1, le=100)] = 100,
+) -> Envelope[MessageList]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await service.messages(context.user, conversation.conversation_id, limit, 0)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@admin_ai_router.post(
+    "/messages",
+    response_model=Envelope[MessageView],
+    status_code=status.HTTP_201_CREATED,
+    operation_id="AdminAiMessage_CreateMine",
+)
+async def send_admin_ai_message(
+    payload: MessageCreateRequest,
+    response: Response,
+    context: PlatformAdminContext,
+    service: MessagingServiceDependency,
+) -> Envelope[MessageView]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await service.send(context.user, conversation.conversation_id, payload)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@admin_ai_router.put(
+    "/read-cursor",
+    response_model=Envelope[ReadCursorView],
+    operation_id="AdminAiReadCursor_PutMine",
+)
+async def put_admin_ai_read_cursor(
+    payload: ReadCursorRequest,
+    response: Response,
+    context: PlatformAdminContext,
+    service: MessagingServiceDependency,
+) -> Envelope[ReadCursorView]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await service.read(context.user, conversation.conversation_id, payload)
+    _no_store(response)
+    return Envelope(data=result)
 
 
 @merchant_router.put(

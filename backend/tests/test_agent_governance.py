@@ -49,7 +49,7 @@ def test_hybrid_retrieval_fuses_duplicate_chunks() -> None:
     assert reranked[0].document_no == "doc_2"
 
 
-def test_mcp_registry_has_six_non_overlapping_servers() -> None:
+def test_mcp_registry_has_non_overlapping_servers() -> None:
     assert set(MCP_SERVERS) == {
         "catalog-mcp",
         "order-mcp",
@@ -57,6 +57,9 @@ def test_mcp_registry_has_six_non_overlapping_servers() -> None:
         "after-sale-mcp",
         "support-mcp",
         "memory-mcp",
+        "store-ops-mcp",
+        "governance-mcp",
+        "observability-mcp",
     }
     assert server_for_tool("catalog.get_product").server_code == "catalog-mcp"
 

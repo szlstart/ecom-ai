@@ -13,6 +13,7 @@ from app.database.mysql import mysql_session
 from app.database.postgres import postgres_session
 from app.modules.agent_runtime.models import AiMemoryCleanupTask, UserAgentConsent
 from app.modules.identity.models import AuthSession, User
+from app.modules.rbac.models import Role, UserRole
 from app.workers.ai_memory_cleanup_worker import process_one
 
 pytestmark = [
@@ -36,6 +37,26 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
         other, other_session = _identity(security, f"other_{suffix}", now)
         session.add_all([user, other])
         await session.flush()
+        consumer_role = await session.scalar(select(Role).where(Role.role_code == "user"))
+        assert consumer_role is not None
+        session.add_all(
+            UserRole(
+                user_id=consumer.id,
+                role_id=consumer_role.id,
+                grant_no=new_prefixed_ulid("grt_"),
+                scope_type="platform",
+                scope_id=0,
+                grant_status="active",
+                active_grant_key=security.keyed_hash(
+                    "active-role-grant",
+                    f"{consumer.id}:{consumer_role.id}:platform:0",
+                ),
+                granted_by=user.id,
+                granted_at=now,
+                grant_reason="AI privacy integration consumer",
+            )
+            for consumer in (user, other)
+        )
         auth_session.user_id = user.id
         other_session.user_id = other.id
         consent = UserAgentConsent(
@@ -75,7 +96,7 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
                  dedupe_fingerprint,key_version,source_type,source_ref,consent_policy_version,
                  validation_snapshot,salience,data_classification,memory_risk_level,valid_from,version)
                 VALUES (:memory_no,:user_no,'exclusive',NULL,'preference',0.900,
-                 'active',:consent_no,now()+interval '180 days','shopping.preferred_colors',
+                 'candidate',:consent_no,now()+interval '180 days','shopping.preferred_colors',
                  :ciphertext,:content_hash,:dedupe,1,'user_confirmation','integration',
                  'ai-personalization-v1','{}'::jsonb,0.800,'L2','low',now(),0)"""
             ),
@@ -101,9 +122,18 @@ async def test_ai_memory_owner_revision_tombstone_disable_and_retry(
     )
     assert foreign.status_code == 200 and foreign.json()["data"]["items"] == []
 
+    activated = await client.post(
+        f"/api/v1/users/me/ai-memory-items/{memory_no}/activations",
+        headers={**headers, "If-Match": '"v0"'},
+        json={"confirmed": True},
+    )
+    assert activated.status_code == 200, activated.text
+    assert activated.json()["data"]["status"] == "active"
+    assert activated.json()["data"]["version"] == 1
+
     revised = await client.post(
         f"/api/v1/users/me/ai-memory-items/{memory_no}/revisions",
-        headers={**headers, "If-Match": '"v0"'},
+        headers={**headers, "If-Match": '"v1"'},
         json={"new_value": "偏好墨绿色商品", "reason_code": "USER_CORRECTION", "confirmed": True},
     )
     assert revised.status_code == 201, revised.text

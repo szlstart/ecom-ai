@@ -232,6 +232,120 @@
         ]
       }
     },
+    "/api/v1/users/me/ai-memory-items/{memory_id}/activations": {
+      "post": {
+        "tags": [
+          "agent-runtime"
+        ],
+        "summary": "Activate Ai Memory Item",
+        "operationId": "AiMemory_Activate",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "memory_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Memory Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiMemoryActivationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AiMemoryView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AiMemory_Activate",
+        "x-domain-command": "AiMemory_Activate",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-AI-PRIVACY-01"
+        ],
+        "x-scope-policy": [
+          "current_user_and_scope"
+        ],
+        "x-test-case-ids": [
+          "AI-CONSENT-*",
+          "AI-MEMORY-*"
+        ]
+      }
+    },
     "/api/v1/users/me/ai-memory-items/{memory_id}/revisions": {
       "post": {
         "tags": [
@@ -43124,6 +43238,21 @@
           "created_at"
         ],
         "title": "AiFeedbackView"
+      },
+      "AiMemoryActivationRequest": {
+        "properties": {
+          "confirmed": {
+            "type": "boolean",
+            "const": true,
+            "title": "Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirmed"
+        ],
+        "title": "AiMemoryActivationRequest"
       },
       "AiMemoryDeleteRequest": {
         "properties": {

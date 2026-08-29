@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "ec36d2e4d47ca0ceaaa507616044c3032538bdb0370e32f30268c502fc19c5c6"
+SOURCE_SHA256 = "80ce32fcf4a8598467ba3c01365d9c29a87f00de7327720ca8aee6772232f9cb"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -3331,6 +3331,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["USR-MSG-02"],
         "x-scope-policy": ["conversation_owner"],
         "x-test-case-ids": ["AI-FEEDBACK-*", "MSG-USER-*"],
+    },
+    "AiMemory_Activate": {
+        "x-audit-event": "command.AiMemory_Activate",
+        "x-domain-command": "AiMemory_Activate",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["USR-AI-PRIVACY-01"],
+        "x-scope-policy": ["current_user_and_scope"],
+        "x-test-case-ids": ["AI-CONSENT-*", "AI-MEMORY-*"],
     },
     "AiMemory_Delete": {
         "x-audit-event": "command.AiMemory_Delete",

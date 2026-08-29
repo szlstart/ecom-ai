@@ -11,6 +11,7 @@ from app.modules.agent_runtime.dependencies import (
 )
 from app.modules.agent_runtime.privacy_schemas import (
     AiCleanupTaskView,
+    AiMemoryActivationRequest,
     AiMemoryDeleteRequest,
     AiMemoryList,
     AiMemoryRevisionRequest,
@@ -54,6 +55,27 @@ async def list_ai_memory_items(
         memory_type=memory_type,
         status=memory_status,
     )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/users/me/ai-memory-items/{memory_id}/activations",
+    response_model=Envelope[AiMemoryView],
+    operation_id="AiMemory_Activate",
+)
+async def activate_ai_memory_item(
+    memory_id: str,
+    payload: AiMemoryActivationRequest,
+    response: Response,
+    context: UserContext,
+    service: AiPrivacyServiceDependency,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AiMemoryView]:
+    result = await service.activate_memory(
+        context.user, memory_id, payload, _expected_version(if_match)
+    )
+    response.headers["ETag"] = _etag(result.version)
     _no_store(response)
     return Envelope(data=result)
 

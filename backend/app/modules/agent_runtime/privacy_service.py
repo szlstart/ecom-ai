@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal, cast
 
-from sqlalchemy import select, text
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import request_id_context
@@ -14,6 +14,7 @@ from app.core.security import SecurityService, utc_now
 from app.modules.agent_runtime.models import AiMemoryCleanupTask, UserAgentConsent
 from app.modules.agent_runtime.privacy_schemas import (
     AiCleanupTaskView,
+    AiMemoryActivationRequest,
     AiMemoryDeleteRequest,
     AiMemoryList,
     AiMemoryRevisionRequest,
@@ -78,12 +79,14 @@ class AiPrivacyService:
         payload: AiMemoryRevisionRequest,
         expected_version: int,
     ) -> AiMemoryView:
-        await self._require_personalization(user)
+        consent = await self._require_personalization(user)
         row = await self._memory_row(user, memory_no, for_update=True)
         if int(row["version"]) != expected_version:
             raise _version_conflict(int(row["version"]))
         if row["memory_status"] not in {"active", "candidate"}:
             raise _state_conflict()
+        if row["consent_no"] != consent.consent_no:
+            raise _consent_conflict()
         new_value = payload.new_value.strip()
         if _looks_sensitive(new_value):
             raise ApplicationError(
@@ -153,6 +156,92 @@ class AiPrivacyService:
         )
         await self.postgres.commit()
         return self._memory_view(await self._memory_row(user, new_no))
+
+    async def activate_memory(
+        self,
+        user: User,
+        memory_no: str,
+        payload: AiMemoryActivationRequest,
+        expected_version: int,
+    ) -> AiMemoryView:
+        del payload
+        consent = await self._require_personalization(user)
+        row = await self._memory_row(user, memory_no, for_update=True)
+        if int(row["version"]) != expected_version:
+            raise _version_conflict(int(row["version"]))
+        if row["memory_status"] == "active":
+            return self._memory_view(row)
+        if row["memory_status"] != "candidate":
+            raise _state_conflict()
+        if row["consent_no"] != consent.consent_no:
+            raise _consent_conflict()
+        conflict_params = {
+            "user_no": user.user_no,
+            "namespace": row["namespace"],
+            "store_no": row["store_no"],
+            "memory_type": row["memory_type"],
+            "memory_key": row["memory_key"],
+            "id": row["id"],
+        }
+        conflicts = list(
+            (
+                await self.postgres.execute(
+                    text(
+                        """SELECT memory_no,content_hash FROM memory.items
+                        WHERE user_no=:user_no AND namespace=:namespace
+                          AND store_no IS NOT DISTINCT FROM :store_no
+                          AND memory_type=:memory_type AND memory_key=:memory_key
+                          AND memory_status='active' AND id<>:id FOR UPDATE"""
+                    ),
+                    conflict_params,
+                )
+            )
+            .mappings()
+            .all()
+        )
+        if conflicts:
+            await self.postgres.execute(
+                text(
+                    """UPDATE memory.items SET memory_status='superseded',version=version+1,
+                    updated_at=now() WHERE user_no=:user_no AND namespace=:namespace
+                      AND store_no IS NOT DISTINCT FROM :store_no
+                      AND memory_type=:memory_type AND memory_key=:memory_key
+                      AND memory_status='active' AND id<>:id"""
+                ),
+                conflict_params,
+            )
+            for conflict in conflicts:
+                await self._memory_event(
+                    new_prefixed_ulid("mev_"),
+                    str(conflict["memory_no"]),
+                    user.user_no,
+                    "superseded",
+                    "active",
+                    "superseded",
+                    "USER_CONFIRMED_REPLACEMENT",
+                    conflict["content_hash"],
+                    None,
+                )
+        await self.postgres.execute(
+            text(
+                """UPDATE memory.items SET memory_status='active',version=version+1,
+                updated_at=now() WHERE id=:id AND version=:version"""
+            ),
+            {"id": row["id"], "version": expected_version},
+        )
+        await self._memory_event(
+            new_prefixed_ulid("mev_"),
+            memory_no,
+            user.user_no,
+            "confirmed",
+            "candidate",
+            "active",
+            "EXPLICIT_USER_CONFIRMATION",
+            row["content_hash"],
+            row["content_hash"],
+        )
+        await self.postgres.commit()
+        return self._memory_view(await self._memory_row(user, memory_no))
 
     async def delete_memory(
         self,
@@ -339,12 +428,17 @@ class AiPrivacyService:
             raise _not_found()
         return dict(row)
 
-    async def _require_personalization(self, user: User) -> None:
+    async def _require_personalization(self, user: User) -> UserAgentConsent:
+        now = utc_now()
         consent = await self.mysql.scalar(
             select(UserAgentConsent).where(
                 UserAgentConsent.user_id == user.id,
                 UserAgentConsent.consent_type == "personalization",
                 UserAgentConsent.consent_status == "active",
+                or_(
+                    UserAgentConsent.expires_at.is_(None),
+                    UserAgentConsent.expires_at > now,
+                ),
             )
         )
         if consent is None:
@@ -354,6 +448,7 @@ class AiPrivacyService:
                 title="AI consent required",
                 detail="更正长期记忆前需要有效的个性化授权。",
             )
+        return consent
 
     async def _memory_event(
         self,
@@ -552,4 +647,13 @@ def _state_conflict() -> ApplicationError:
         code="AI_PRIVACY_STATE_CONFLICT",
         title="State conflict",
         detail="当前状态不允许该操作。",
+    )
+
+
+def _consent_conflict() -> ApplicationError:
+    return ApplicationError(
+        status=409,
+        code="AI_MEMORY_CONSENT_CHANGED",
+        title="Consent changed",
+        detail="创建候选记忆时的授权已变化，请删除该候选后重新明确表达偏好。",
     )

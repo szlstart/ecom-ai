@@ -4,13 +4,17 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import { ApiProblem, errorMessage } from '@/api/http'
 import {
+  activateAiMemory,
   decideAgentToolApproval,
+  deleteAiMemory,
   getAgentToolApproval,
   grantAfterSaleAgentConsent,
   listAgentConsents,
+  listAiMemories,
   revokeAgentConsent,
   type AgentConsent,
   type AgentToolApproval,
+  type AiMemoryItem,
 } from '@/api/agent-runtime'
 import { RealtimeConnection, type RealtimeEvent } from '@/api/realtime'
 import {
@@ -83,6 +87,8 @@ const feedbackComposer = ref<{
   comment: string
 } | null>(null)
 const selectedTraceRunId = ref<string | null>(null)
+const memoryStates = ref<Record<string, Pick<AiMemoryItem, 'status' | 'version'>>>({})
+const memoryBusy = ref<string | null>(null)
 watch(messages, (value) => emit('trace-update', value), { immediate: true })
 const conversationId = computed(() => props.conversationId || String(route.params.conversationId))
 const activeContext = computed(() => conversation.value?.active_contexts.find((item) => item.status === 'active') ?? null)
@@ -162,6 +168,14 @@ function evidenceLabel(message: ChatMessage): string {
   return Array.isArray(value) && value.length ? `${value.length} 个凭证文件` : '未提供'
 }
 function approvalId(message: ChatMessage): string { return contentString(message, 'approval_id') }
+function memoryId(message: ChatMessage): string { return contentString(message, 'memory_id') }
+function memoryState(message: ChatMessage): Pick<AiMemoryItem, 'status' | 'version'> {
+  const id = memoryId(message)
+  return memoryStates.value[id] ?? {
+    status: contentString(message, 'memory_status') as AiMemoryItem['status'] || 'candidate',
+    version: contentNumber(message, 'memory_version') ?? 0,
+  }
+}
 function approvalFor(message: ChatMessage): AgentToolApproval | null {
   return approvalStates.value[approvalId(message)] ?? null
 }
@@ -222,6 +236,30 @@ async function refreshApprovals(candidates: ChatMessage[] = messages.value) {
       if (!(cause instanceof ApiProblem) || cause.body.status !== 404) throw cause
     }
   }))
+}
+async function refreshMemoryCards(candidates: ChatMessage[] = messages.value) {
+  if (!candidates.some((item) => item.message_type === 'memory_candidate')) return
+  const items = (await listAiMemories(token())).data.items
+  memoryStates.value = Object.fromEntries(items.map((item) => [item.memory_id, { status: item.status, version: item.version }]))
+}
+async function decideMemory(message: ChatMessage, decision: 'activate' | 'reject') {
+  const id = memoryId(message)
+  const state = memoryState(message)
+  if (!id || state.status !== 'candidate' || memoryBusy.value) return
+  memoryBusy.value = id
+  error.value = ''; consentNotice.value = ''
+  try {
+    if (decision === 'activate') {
+      const activated = (await activateAiMemory(id, state.version, token())).data
+      memoryStates.value = { ...memoryStates.value, [id]: { status: activated.status, version: activated.version } }
+      consentNotice.value = '偏好已在你的明确确认后写入长期记忆，可随时在 AI 个性化与记忆中更正或删除。'
+    } else {
+      await deleteAiMemory(id, state.version, token())
+      memoryStates.value = { ...memoryStates.value, [id]: { status: 'deleted', version: state.version + 1 } }
+      consentNotice.value = '候选偏好已拒绝并停止使用。'
+    }
+  } catch (cause) { error.value = errorMessage(cause); await refreshMemoryCards([message]) }
+  finally { memoryBusy.value = null }
 }
 async function grantAfterSaleConsent() {
   if (consentBusy.value || !window.confirm('授权专属客服在未来 30 天内协助准备售后申请草稿？实际提交仍必须由你逐次点击确认。')) return
@@ -292,6 +330,7 @@ async function load() {
       refreshHumanTicket(),
       detail.data.conversation_type === 'exclusive' ? refreshAgentConsents() : Promise.resolve(),
       refreshApprovals(history.data.items),
+      refreshMemoryCards(history.data.items),
     ])
     restoreDraft()
     await nextTick()
@@ -675,6 +714,13 @@ onBeforeUnmount(() => {
               <button type="button" class="secondary" :disabled="approvalBusy === approvalId(message)" @click="decideApproval(message, 'reject')">拒绝</button>
               <button type="button" :disabled="approvalBusy === approvalId(message)" @click="decideApproval(message, 'approve')">{{ approvalBusy === approvalId(message) ? '处理中…' : '核对无误，确认提交' }}</button>
             </div>
+          </section>
+          <section v-if="message.message_type === 'memory_candidate' && message.content" class="memory-candidate-card" :aria-label="`长期记忆候选：${memoryState(message).status}`">
+            <header><div><span>◉</span><strong>长期记忆候选</strong></div><b>{{ memoryState(message).status === 'candidate' ? '等待你确认' : memoryState(message).status === 'active' ? '已记住' : '未采用' }}</b></header>
+            <blockquote>{{ contentString(message, 'memory_value') }}</blockquote>
+            <dl><div><dt>类型</dt><dd>{{ contentString(message, 'memory_type') === 'constraint' ? '购物约束' : '购物偏好' }}</dd></div><div><dt>有效期</dt><dd>{{ dateTimeLabel(contentString(message, 'expires_at')) }}</dd></div></dl>
+            <p>只有点击“确认记住”才会生效；订单、价格、库存等实时事实不会从长期记忆读取。</p>
+            <div v-if="memoryState(message).status === 'candidate'" class="actions"><button type="button" class="secondary" :disabled="memoryBusy === memoryId(message)" @click.stop="decideMemory(message, 'reject')">不记住</button><button type="button" :disabled="memoryBusy === memoryId(message)" @click.stop="decideMemory(message, 'activate')">{{ memoryBusy === memoryId(message) ? '处理中…' : '确认记住' }}</button></div>
           </section>
           <div v-if="message.sender_type === 'agent'" class="actions ai-feedback-actions" aria-label="评价智能客服回复">
             <button type="button" class="small secondary" :aria-pressed="message.viewer_reaction === 'thumb_up'" :disabled="feedbackBusy === message.message_id" @click="react(message, 'thumb_up')">有帮助</button>

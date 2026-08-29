@@ -32,6 +32,10 @@ class AiMemoryRevisionRequest(StrictRequest):
     confirmed: Literal[True]
 
 
+class AiMemoryActivationRequest(StrictRequest):
+    confirmed: Literal[True]
+
+
 class AiMemoryDeleteRequest(StrictRequest):
     reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
     confirmed: Literal[True]

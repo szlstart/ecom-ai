@@ -1159,6 +1159,13 @@ tr.selected td { background: #f0f4ff; }
 .refund-approval-card dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
 .refund-approval-card .approval-warning { padding: 9px 11px; color: #7b5212; border-radius: 8px; background: #fff7e6; font-size: .86rem; }
 .refund-approval-card .actions { justify-content: flex-end; }
+.memory-candidate-card { min-width: min(410px, 64vw); padding: 15px; display: grid; gap: 11px; color: #172033; border: 1px solid #cfd8f1; border-radius: 13px; background: linear-gradient(145deg, #fff, #f7f8ff); }
+.memory-candidate-card header, .memory-candidate-card header > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.memory-candidate-card header > div > span { width: 28px; height: 28px; display: grid; place-items: center; color: #fff; border-radius: 9px; background: linear-gradient(145deg, #6f5cda, #3158d8); }
+.memory-candidate-card header > b { color: #6a55c4; font-size: .7rem; }
+.memory-candidate-card blockquote { margin: 0; padding: 12px 14px; border-left: 3px solid #6b5bd1; border-radius: 4px 10px 10px 4px; background: #f0eeff; font-weight: 700; line-height: 1.55; }
+.memory-candidate-card dl { margin: 0; display: grid; gap: 5px; }.memory-candidate-card dl div { display: flex; justify-content: space-between; gap: 10px; }.memory-candidate-card dt { color: #788295; }.memory-candidate-card dd { margin: 0; }
+.memory-candidate-card > p { margin: 0; color: #687287; font-size: .72rem; line-height: 1.55; }.memory-candidate-card .actions { justify-content: flex-end; }
 .pending-message { opacity: .86; }
 .pending-message button { justify-self: end; }
 .new-message-button { position: sticky; z-index: 3; bottom: 92px; width: fit-content; margin: -66px auto 18px; box-shadow: 0 8px 24px rgb(49 88 216 / 24%); }

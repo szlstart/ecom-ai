@@ -80,6 +80,16 @@ export function reviseAiMemory(
   }, token)
 }
 
+export function activateAiMemory(
+  memoryId: string, version: number, token: string,
+): Promise<ApiResult<AiMemoryItem>> {
+  return apiRequest(`/users/me/ai-memory-items/${encodeURIComponent(memoryId)}/activations`, {
+    method: 'POST',
+    headers: { 'If-Match': `"v${version}"` },
+    body: JSON.stringify({ confirmed: true }),
+  }, token)
+}
+
 export function deleteAiMemory(
   memoryId: string, version: number, token: string,
 ): Promise<ApiResult<AiCleanupTask>> {

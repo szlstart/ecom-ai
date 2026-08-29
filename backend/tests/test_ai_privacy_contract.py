@@ -5,6 +5,7 @@ def test_ai_privacy_operations_require_confirmation_and_hide_storage_details() -
     schema = create_app().openapi()
     expected = {
         ("/api/v1/users/me/ai-memory-items", "get"): "AiMemory_ListMine",
+        ("/api/v1/users/me/ai-memory-items/{memory_id}/activations", "post"): "AiMemory_Activate",
         ("/api/v1/users/me/ai-memory-items/{memory_id}/revisions", "post"): "AiMemory_Revise",
         ("/api/v1/users/me/ai-memory-items/{memory_id}", "delete"): "AiMemory_Delete",
         ("/api/v1/users/me/ai-personalization/disable-all", "post"): "AiPersonalization_DisableAll",

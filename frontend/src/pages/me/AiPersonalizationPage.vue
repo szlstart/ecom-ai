@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import {
+  activateAiMemory,
   changeAgentConsent,
   deleteAiMemory,
   disableAllAiPersonalization,
@@ -61,6 +62,16 @@ async function reviseMemory(item: AiMemoryItem) {
     const revised = (await reviseAiMemory(item.memory_id, item.version, value.trim(), token())).data
     memories.value = [revised, ...memories.value.filter((candidate) => candidate.memory_id !== item.memory_id)]
     notice.value = '记忆已更正并生成新版本。'
+  } catch (cause) { error.value = errorMessage(cause); await load() }
+  finally { memoryBusy.value = null }
+}
+async function activateMemory(item: AiMemoryItem) {
+  if (memoryBusy.value) return
+  memoryBusy.value = item.memory_id; error.value = ''; notice.value = ''
+  try {
+    const active = (await activateAiMemory(item.memory_id, item.version, token())).data
+    memories.value = memories.value.map((candidate) => candidate.memory_id === item.memory_id ? active : candidate)
+    notice.value = '候选记忆已确认生效。'
   } catch (cause) { error.value = errorMessage(cause); await load() }
   finally { memoryBusy.value = null }
 }
@@ -162,7 +173,7 @@ onMounted(load)
         <p v-if="!memories.length">当前没有可管理的长期记忆。授权本身不代表已经写入任何记忆。</p>
         <article v-for="memory in memories" :key="memory.memory_id" class="admin-list-row">
           <div><strong>{{ memory.value }}</strong><p>{{ memory.memory_type }} · {{ memory.namespace === 'store' ? `店铺 ${memory.store_id}` : '专属客服' }} · {{ memory.status }}</p><small>来源：{{ memory.source_type }} · 更新于 {{ memory.updated_at }}</small></div>
-          <div v-if="['active','candidate'].includes(memory.status)" class="actions"><button type="button" class="small secondary" :disabled="memoryBusy === memory.memory_id" @click="reviseMemory(memory)">更正</button><button type="button" class="small danger" :disabled="memoryBusy === memory.memory_id" @click="removeMemory(memory)">删除</button></div>
+          <div v-if="['active','candidate'].includes(memory.status)" class="actions"><button v-if="memory.status === 'candidate'" type="button" class="small" :disabled="memoryBusy === memory.memory_id" @click="activateMemory(memory)">确认记住</button><button type="button" class="small secondary" :disabled="memoryBusy === memory.memory_id" @click="reviseMemory(memory)">更正</button><button type="button" class="small danger" :disabled="memoryBusy === memory.memory_id" @click="removeMemory(memory)">删除</button></div>
         </article>
       </section>
       <section v-if="cleanupTasks.length" class="card" aria-labelledby="cleanup-title">

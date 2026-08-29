@@ -24,7 +24,7 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
     ExclusiveModelGateway,
 )
 from app.modules.agent_runtime.exclusive_tools import ExclusiveToolGateway
-from app.modules.agent_runtime.memory_runtime import AgentMemoryRuntime
+from app.modules.agent_runtime.memory_runtime import AgentMemoryRuntime, explicit_memory_request
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
@@ -83,6 +83,73 @@ async def process_exclusive_run(
             degraded_reason="prompt_injection_blocked",
         )
         await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
+    requested_memory = explicit_memory_request(trigger_text)
+    if requested_memory is not None:
+        try:
+            candidate = await AgentMemoryRuntime(
+                session, checkpoint_store.session, security
+            ).propose_exclusive(
+                context.user,
+                source_message_no=context.trigger.message_no,
+                value=requested_memory,
+            )
+        except SQLAlchemyError:
+            await checkpoint_store.session.rollback()
+            candidate = None
+        if candidate is None:
+            await _complete(
+                session,
+                context,
+                "这条内容没有写入长期记忆。请先在“我的 → AI 个性化与记忆”开启授权，"
+                "并且只提交低敏、稳定的购物偏好。密码、证件、支付、地址和订单事实均不会记忆。",
+                degraded_reason="memory_candidate_rejected",
+                execution_trace={
+                    "version": "public-agent-trace-v1",
+                    "run_id": context.run.run_no,
+                    "agent": "专属客服",
+                    "status": "completed",
+                    "intent": "memory_candidate",
+                    "steps": [
+                        {
+                            "kind": "security",
+                            "label": "检查个性化授权与记忆安全范围",
+                            "status": "completed",
+                        }
+                    ],
+                    "raw_reasoning_exposed": False,
+                },
+            )
+        else:
+            await _complete(
+                session,
+                context,
+                "我已把你明确表达的购物偏好整理为候选。它现在还不会被召回，只有你点击下方“确认记住”后才会生效。",
+                message_type="memory_candidate",
+                extra_content={
+                    "memory_id": candidate.memory_no,
+                    "memory_type": candidate.memory_type,
+                    "memory_key": candidate.memory_key,
+                    "memory_value": candidate.value,
+                    "memory_status": "candidate",
+                    "memory_version": candidate.version,
+                    "expires_at": candidate.expires_at.isoformat(),
+                },
+                execution_trace={
+                    "version": "public-agent-trace-v1",
+                    "run_id": context.run.run_no,
+                    "agent": "专属客服",
+                    "status": "completed",
+                    "intent": "memory_candidate",
+                    "steps": [
+                        {"kind": "security", "label": "检查授权与敏感信息", "status": "completed"},
+                        {"kind": "memory", "label": "创建加密候选记忆", "status": "completed"},
+                        {"kind": "answer", "label": "等待用户明确确认", "status": "completed"},
+                    ],
+                    "raw_reasoning_exposed": False,
+                },
+            )
+        await _finish_checkpoint(checkpoint_store, context, "memory_candidate")
         return
     approval = await session.scalar(
         select(AgentToolApproval).where(AgentToolApproval.run_id == run.id)
@@ -404,6 +471,8 @@ async def _complete(
     error_code: str | None = None,
     degraded_reason: str | None = None,
     execution_trace: Mapping[str, Any] | None = None,
+    message_type: str = "text",
+    extra_content: Mapping[str, Any] | None = None,
 ) -> None:
     now = utc_now()
     conversation = context.conversation
@@ -417,13 +486,14 @@ async def _complete(
         client_message_no=None,
         sender_type="agent",
         sender_id=None,
-        message_type="text",
+        message_type=message_type,
         text_content=text[:4000],
         content_payload={
             "run_id": context.run.run_no,
             "sources": _source_refs(data or {}),
             "data_scope": context.trusted_scope,
             "execution_trace": dict(execution_trace or {}),
+            **dict(extra_content or {}),
         },
         agent_version_id=context.agent_version.id,
         ai_run_no=context.run.run_no,

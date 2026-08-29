@@ -273,6 +273,35 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
         for item in steps
     )
 
+    candidate_value = "我喜欢海盐蓝色的商品"
+    candidate_message = await _send(
+        client, headers, conversation_no, f"请记住\uff1a{candidate_value}"
+    )
+    await _drain_agent()
+    candidate_reply = _reply_after(
+        await _messages(client, headers, conversation_no), candidate_message
+    )
+    assert candidate_reply["message_type"] == "memory_candidate"
+    candidate_content = cast(dict[str, object], candidate_reply["content"])
+    candidate_no = cast(str, candidate_content["memory_id"])
+    assert candidate_content["memory_value"] == candidate_value
+    async for postgres in postgres_session():
+        assert (
+            await postgres.scalar(
+                text("SELECT memory_status FROM memory.items WHERE memory_no=:memory_no"),
+                {"memory_no": candidate_no},
+            )
+            == "candidate"
+        )
+        break
+    activated = await client.post(
+        f"/api/v1/users/me/ai-memory-items/{candidate_no}/activations",
+        headers={**headers, "If-Match": '"v0"'},
+        json={"confirmed": True},
+    )
+    assert activated.status_code == 200, activated.text
+    assert activated.json()["data"]["status"] == "active"
+
     async for session in mysql_session():
         await session.execute(
             update(UserAgentConsent)

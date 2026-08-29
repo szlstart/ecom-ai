@@ -153,8 +153,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_wallet_transactions_wallet_time", table_name="wallet_transactions")
+    # The composite indexes are also valid supporting indexes for their foreign keys.
+    # Let DROP TABLE remove constraints and indexes together; dropping them first fails
+    # on MySQL with error 1553.
     op.drop_table("wallet_transactions")
-    op.drop_index("idx_wallet_recharges_user_time", table_name="wallet_recharges")
     op.drop_table("wallet_recharges")
     op.drop_table("user_wallets")

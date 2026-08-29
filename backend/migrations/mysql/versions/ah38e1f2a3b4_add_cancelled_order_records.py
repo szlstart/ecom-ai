@@ -240,5 +240,7 @@ def downgrade() -> None:
     # CancelledOrderRecord is intentionally a user navigation snapshot, not a recoverable
     # transactional order. Recreating business orders from it would violate inventory and
     # payment invariants, so downgrade removes only the derived records and schema.
-    op.drop_index("idx_cancelled_order_records_user_time", table_name="cancelled_order_records")
+    # MySQL may use the composite user/time index to enforce the user_id foreign key.
+    # Dropping the index first therefore fails with error 1553. DROP TABLE removes
+    # the foreign key and all of its indexes atomically in the correct engine order.
     op.drop_table("cancelled_order_records")

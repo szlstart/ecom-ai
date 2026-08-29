@@ -22,6 +22,8 @@ import {
   putReadCursor,
   requestHumanService,
   removeAiMessageReaction,
+  sendOrderCard,
+  sendProductCard,
   sendText,
   setAiMessageReaction,
   submitAiMessageFeedback,
@@ -30,6 +32,7 @@ import {
   type HumanServiceTicket,
 } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
+import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
 
@@ -52,6 +55,7 @@ const pending = ref<PendingMessage[]>([])
 const draft = ref('')
 const loading = ref(true)
 const sending = ref(false)
+const sendingCard = ref(false)
 const error = ref('')
 const connectionState = ref<'connected' | 'polling' | 'offline'>('polling')
 const humanOpen = ref(false)
@@ -402,6 +406,24 @@ async function send() {
   try { await deliver(item) }
   finally { sending.value = false }
 }
+async function sendActiveContextCard() {
+  const context = activeContext.value
+  if (!context || sendingCard.value || !['product', 'order'].includes(context.context_type)) return
+  sendingCard.value = true
+  error.value = ''
+  try {
+    const response = context.context_type === 'product'
+      ? await sendProductCard(
+        conversationId.value,
+        context.resource_id,
+        typeof context.display_snapshot.sku_id === 'string' ? context.display_snapshot.sku_id : null,
+        token(),
+      )
+      : await sendOrderCard(conversationId.value, context.resource_id, token())
+    mergeMessages([response.data], true)
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { sendingCard.value = false }
+}
 async function react(message: ChatMessage, reaction: 'thumb_up' | 'thumb_down') {
   if (feedbackBusy.value) return
   feedbackBusy.value = message.message_id
@@ -618,9 +640,7 @@ onBeforeUnmount(() => {
           <span class="message-avatar" :class="{ agent: message.sender_type === 'agent' }" aria-hidden="true">{{ message.sender_type === 'user' ? '我' : message.sender_type === 'agent' ? 'AI' : message.sender_type === 'human' ? '客' : '系' }}</span>
           <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'user' ? 'mine' : 'theirs']">
           <strong>{{ senderLabel(message.sender_type) }}</strong>
-          <p v-if="message.text">{{ message.text }}</p>
-          <RouterLink v-if="message.message_type === 'product_card' && message.content" class="message-card" :to="`/products/${message.content.product_id}`" @click="closeEmbeddedNavigation"><span>商品卡片</span><strong>{{ message.content.product_name }}</strong><small>{{ message.content.sku_name || '查看商品详情' }}</small></RouterLink>
-          <RouterLink v-if="message.message_type === 'order_card' && message.content" class="message-card" :to="`/me/orders/${message.content.order_id}`" @click="closeEmbeddedNavigation"><span>订单卡片</span><strong>{{ message.content.order_id }}</strong><small>状态：{{ message.content.order_status }}</small></RouterLink>
+          <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" />
           <section v-if="message.message_type === 'refund_approval' && message.content" class="refund-approval-card" :aria-label="`退款申请确认：${approvalStatusLabel(message)}`">
             <header><strong>退款申请确认</strong><span class="badge">{{ approvalStatusLabel(message) }}</span></header>
             <dl>
@@ -665,8 +685,12 @@ onBeforeUnmount(() => {
       <label>{{ feedbackComposer.kind === 'reports' ? '问题说明' : '你认为正确的说法或来源' }}<textarea v-model.trim="feedbackComposer.comment" minlength="2" maxlength="2000" required /></label>
       <div class="actions"><button type="button" class="secondary" @click="feedbackComposer = null">取消</button><button :disabled="feedbackBusy === feedbackComposer.messageId">提交</button></div>
     </form>
-    <form class="message-composer" @submit.prevent="send">
-      <label><span class="sr-only">输入消息</span><textarea v-model="draft" maxlength="4000" placeholder="输入消息，Enter 换行" required /></label>
+    <form class="message-composer rich-message-composer" @submit.prevent="send">
+      <div class="message-composer-toolbar">
+        <button v-if="activeContext && ['product','order'].includes(activeContext.context_type)" type="button" class="small secondary" :disabled="sendingCard" @click="sendActiveContextCard">{{ sendingCard ? '发送中…' : activeContext.context_type === 'product' ? '▧ 发送当前商品' : '▤ 发送当前订单' }}</button>
+        <span>Enter 发送 · Shift + Enter 换行</span>
+      </div>
+      <label><span class="sr-only">输入消息</span><textarea v-model="draft" maxlength="4000" placeholder="输入消息…" required @keydown.enter.exact.prevent="send" /></label>
       <button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button>
     </form>
   </section>

@@ -142,6 +142,37 @@ export function sendText(
   }, token)
 }
 
+export function sendProductCard(
+  conversationId: string,
+  productId: string,
+  skuId: string | null,
+  token: string,
+  clientMessageId = createClientMessageId(),
+): Promise<ApiResult<ChatMessage>> {
+  return apiRequest(`/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({
+      client_message_id: clientMessageId,
+      content: { type: 'product_card', product_id: productId, sku_id: skuId },
+    }),
+  }, token)
+}
+
+export function sendOrderCard(
+  conversationId: string,
+  orderId: string,
+  token: string,
+  clientMessageId = createClientMessageId(),
+): Promise<ApiResult<ChatMessage>> {
+  return apiRequest(`/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({
+      client_message_id: clientMessageId,
+      content: { type: 'order_card', order_id: orderId },
+    }),
+  }, token)
+}
+
 export function setAiMessageReaction(
   conversationId: string,
   messageId: string,

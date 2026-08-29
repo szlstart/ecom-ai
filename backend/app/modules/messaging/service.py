@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Literal, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -14,6 +14,7 @@ from app.core.idempotency import IdempotencyService
 from app.core.pagination import CursorCodec
 from app.core.security import utc_now
 from app.modules.agent_runtime.models import AiFeedback
+from app.modules.files.models import FileObject
 from app.modules.identity.models import User
 from app.modules.messaging.content_safety import blocks_message
 from app.modules.messaging.human_schemas import HumanHandoffRequest, HumanTicketView
@@ -416,13 +417,9 @@ class MessagingService:
                     title="Invalid pagination cursor",
                     detail="消息分页位置无效，请重新加载会话。",
                 ) from exc
-            rows = await self.repository.messages_before(
-                conversation.id, before_sequence, limit
-            )
+            rows = await self.repository.messages_before(conversation.id, before_sequence, limit)
         elif after_sequence:
-            rows = await self.repository.messages_after(
-                conversation.id, after_sequence, limit
-            )
+            rows = await self.repository.messages_after(conversation.id, after_sequence, limit)
         else:
             rows = await self.repository.messages(conversation.id, limit)
         reactions: dict[int, str] = {}
@@ -441,8 +438,10 @@ class MessagingService:
                 ).all()
             }
         previous_cursor = None
-        if not after_sequence and rows and await self.repository.has_message_before(
-            conversation.id, rows[0].sequence_no
+        if (
+            not after_sequence
+            and rows
+            and await self.repository.has_message_before(conversation.id, rows[0].sequence_no)
         ):
             previous_cursor = self.cursor.encode(
                 filter_key=filter_key,
@@ -892,7 +891,8 @@ class MessagingService:
         if content.type == "text":
             return "text", content.text, None
         if content.type == "product_card":
-            from app.modules.catalog.models import Product, ProductSku
+            from app.modules.catalog.models import Product, ProductImage, ProductSku
+            from app.modules.inventory.models import Inventory
 
             statement = select(Product).where(
                 Product.product_no == content.product_id,
@@ -902,6 +902,9 @@ class MessagingService:
                 statement = statement.where(Product.store_id == conversation.store_id)
             product = await self.session.scalar(statement)
             if product is None:
+                raise _not_found()
+            store = await self.session.get(Store, product.store_id)
+            if store is None:
                 raise _not_found()
             sku = None
             if content.sku_id is not None:
@@ -914,11 +917,56 @@ class MessagingService:
                 )
                 if sku is None:
                     raise _not_found()
+            else:
+                sku = await self.session.scalar(
+                    select(ProductSku)
+                    .where(
+                        ProductSku.product_id == product.id,
+                        ProductSku.sku_status == "active",
+                    )
+                    .order_by(
+                        case((ProductSku.id == product.default_sku_id, 0), else_=1),
+                        ProductSku.id,
+                    )
+                    .limit(1)
+                )
+            inventory = (
+                await self.session.scalar(select(Inventory).where(Inventory.sku_id == sku.id))
+                if sku
+                else None
+            )
+            image_file = (
+                await self.session.scalar(
+                    select(FileObject)
+                    .join(ProductImage, ProductImage.file_id == FileObject.id)
+                    .where(
+                        ProductImage.product_id == product.id,
+                        ProductImage.image_status == "active",
+                        FileObject.file_status == "active",
+                        FileObject.scan_status == "safe",
+                    )
+                    .order_by(
+                        case((ProductImage.sku_id == sku.id, 0), else_=1),
+                        ProductImage.sort_order,
+                        ProductImage.id,
+                    )
+                    .limit(1)
+                )
+                if sku
+                else None
+            )
+            logo_file = await self._public_file_by_object_key(store.logo_object_key)
+            available_quantity = max(
+                0,
+                (inventory.on_hand_quantity - inventory.reserved_quantity)
+                if inventory and inventory.inventory_status == "active"
+                else 0,
+            )
             return (
                 "product_card",
                 None,
                 {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "product_id": product.product_no,
                     "product_name": product.product_name,
                     "product_status": product.product_status,
@@ -929,9 +977,19 @@ class MessagingService:
                         if sku
                         else None
                     ),
+                    "image_url": self._file_url(image_file, thumbnail=True),
+                    "available_quantity": available_quantity,
+                    "stock_status": "available" if available_quantity > 0 else "sold_out",
+                    "sales_count": product.sales_count,
+                    "store": {
+                        "store_id": store.store_no,
+                        "store_name": store.store_name,
+                        "store_status": store.store_status,
+                        "logo_url": self._file_url(logo_file),
+                    },
                 },
             )
-        from app.modules.orders.models import Order
+        from app.modules.orders.models import Order, OrderItem
 
         order_statement = select(Order).where(
             Order.order_no == content.order_id,
@@ -943,21 +1001,102 @@ class MessagingService:
         if order is None:
             raise _not_found()
         store = await self.session.get(Store, order.store_id)
+        items = list(
+            (
+                await self.session.scalars(
+                    select(OrderItem).where(OrderItem.order_id == order.id).order_by(OrderItem.id)
+                )
+            ).all()
+        )
+        object_keys = {
+            value
+            for value in [store.logo_object_key if store else None]
+            + [item.image_object_key for item in items[:2]]
+            if value
+        }
+        file_rows = (
+            list(
+                (
+                    await self.session.scalars(
+                        select(FileObject).where(
+                            FileObject.object_key.in_(object_keys),
+                            FileObject.file_status == "active",
+                            FileObject.scan_status == "safe",
+                        )
+                    )
+                ).all()
+            )
+            if object_keys
+            else []
+        )
+        files = {item.object_key: item for item in file_rows}
         return (
             "order_card",
             None,
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "order_id": order.order_no,
+                "display_order_id": self._masked_order_no(order.order_no),
                 "order_status": order.order_status,
-                "store_id": store.store_no if store else None,
-                "store_name": store.store_name if store else "店铺",
+                "payment_status": order.payment_status,
+                "fulfillment_status": order.fulfillment_status,
+                "after_sale_status": order.after_sale_status,
+                "store": {
+                    "store_id": store.store_no if store else None,
+                    "store_name": store.store_name if store else "店铺",
+                    "logo_url": self._file_url(
+                        files.get(store.logo_object_key or "") if store else None
+                    ),
+                },
+                "items": [
+                    {
+                        "product_id": item.product_no,
+                        "sku_id": item.sku_no,
+                        "product_name": item.product_name,
+                        "sku_name": item.sku_name,
+                        "quantity": item.quantity,
+                        "image_url": self._file_url(
+                            files.get(item.image_object_key or ""), thumbnail=True
+                        ),
+                    }
+                    for item in items[:2]
+                ],
+                "item_count": len(items),
+                "total_quantity": sum(item.quantity for item in items),
                 "payable_amount": {
                     "minor_units": str(order.payable_amount),
                     "currency": order.currency,
                 },
+                "created_at": order.created_at.isoformat(),
             },
         )
+
+    async def _public_file_by_object_key(self, object_key: str | None) -> FileObject | None:
+        if not object_key:
+            return None
+        return cast(
+            FileObject | None,
+            await self.session.scalar(
+                select(FileObject).where(
+                    FileObject.object_key == object_key,
+                    FileObject.file_status == "active",
+                    FileObject.scan_status == "safe",
+                )
+            ),
+        )
+
+    @staticmethod
+    def _file_url(file_object: FileObject | None, *, thumbnail: bool = False) -> str | None:
+        if file_object is None:
+            return None
+        suffix = "?variant=thumbnail" if thumbnail else ""
+        return f"/api/v1/files/{file_object.file_no}{suffix}"
+
+    @staticmethod
+    def _masked_order_no(order_no: str) -> str:
+        if len(order_no) <= 10:
+            return order_no
+        return f"{order_no[:6]}…{order_no[-4:]}"
 
     async def read(
         self, user: User, conversation_no: str, payload: ReadCursorRequest

@@ -1162,6 +1162,8 @@ tr.selected td { background: #f0f4ff; }
 .new-message-button { position: sticky; z-index: 3; bottom: 92px; width: fit-content; margin: -66px auto 18px; box-shadow: 0 8px 24px rgb(49 88 216 / 24%); }
 .message-composer { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; border: 1px solid #dfe4ed; border-radius: 16px; background: #fff; }
 .message-composer textarea { min-height: 72px; }
+.rich-message-composer .message-composer-toolbar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rich-message-composer .message-composer-toolbar > span { color: #8992a0; font-size: .68rem; }
 .support-summary { max-width: 360px; white-space: normal; }
 .support-workspace-grid { display: grid; grid-template-columns: minmax(250px, .75fr) minmax(360px, 1.4fr) minmax(280px, .85fr); align-items: start; gap: 16px; }
 .support-ticket-panel, .support-conversation-panel, .support-assist-panel { min-width: 0; display: grid; gap: 16px; }
@@ -1580,8 +1582,9 @@ tr.selected td { background: #f0f4ff; }
 .merchant-chat-bubble-row { margin: 12px 0; display: flex; align-items: flex-start; gap: 10px; }
 .merchant-chat-bubble-row.mine { justify-content: flex-end; }
 .merchant-chat-bubble-row > div { max-width: 68%; }
-.merchant-chat-bubble-row p { margin: 0; padding: 10px 13px; color: #2c3731; border-radius: 4px 11px 11px; background: #fff; box-shadow: 0 1px 2px rgb(25 45 35 / 8%); line-height: 1.55; white-space: pre-wrap; }
-.merchant-chat-bubble-row.mine p { background: #95e16f; border-radius: 11px 4px 11px 11px; }
+.merchant-chat-bubble { padding: 10px 13px; color: #2c3731; border-radius: 4px 11px 11px; background: #fff; box-shadow: 0 1px 2px rgb(25 45 35 / 8%); line-height: 1.55; }
+.merchant-chat-bubble-row.mine .merchant-chat-bubble { background: #95e16f; border-radius: 11px 4px 11px 11px; }
+.merchant-chat-bubble :is(.rich-message-card) { margin: -7px -10px 2px; }
 .merchant-chat-bubble-row time { margin-top: 4px; display: block; color: #9aa19d; font-size: .62rem; }
 .merchant-chat-bubble-row.mine time { text-align: right; }
 .merchant-chat-composer { padding: 12px 18px; display: grid; grid-template-rows: 1fr auto; border-top: 1px solid #dce0dc; background: #fff; }

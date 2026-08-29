@@ -20,6 +20,7 @@ import {
 } from '@/api/merchant-support'
 import type { ChatMessage } from '@/api/messaging'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
+import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
@@ -64,7 +65,6 @@ function token() { return auth.accessToken! }
 function statusLabel(value: string) {
   return ({ queued: '等待接待', assigned: '已分配', active: '正在沟通', waiting_user: '等待顾客', resolved: '已解决', closed: '已关闭' } as Record<string, string>)[value] ?? value
 }
-function messageText(item: ChatMessage) { return item.text || (item.message_type === 'product_card' ? '[商品卡片]' : item.message_type === 'order_card' ? '[订单卡片]' : '[系统消息]') }
 function isMine(item: ChatMessage) {
   return selectedKey.value === 'exclusive' ? item.sender_type === 'user' : item.sender_type === 'human'
 }
@@ -269,7 +269,7 @@ onBeforeUnmount(() => {
             <button v-if="selectedKey === 'exclusive' ? exclusivePreviousCursor : supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
             <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>你好，我是你的专属客服</h2><p>我可以在当前店铺范围内分析商品、订单、库存和经营概况。默认只读，不会替你修改业务数据。</p></div>
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>
-            <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isMine(item) }"><span v-if="!isMine(item)" class="merchant-chat-avatar">{{ selectedKey === 'exclusive' ? '专' : '客' }}</span><div><p>{{ messageText(item) }}</p><time>{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
+            <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isMine(item) }"><span v-if="!isMine(item)" class="merchant-chat-avatar">{{ selectedKey === 'exclusive' ? '专' : '客' }}</span><div class="merchant-chat-bubble"><ChatMessageContent :message="item" audience="merchant" /><time>{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
           </div>
           <form class="merchant-chat-composer" @submit.prevent="send"><textarea v-model="draft" rows="3" maxlength="4000" :placeholder="selectedKey === 'exclusive' ? '向平台专属客服描述你的问题…' : '回复顾客…'" @keydown.enter.exact.prevent="send" /><footer><small>Enter 发送 · Shift + Enter 换行</small><button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button></footer></form>
         </main>

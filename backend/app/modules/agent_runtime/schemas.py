@@ -42,6 +42,22 @@ class AdminAgentRunCancelRequest(StrictRequest):
     reason: str = Field(min_length=3, max_length=500)
 
 
+class ModelProviderHealthView(StrictRequest):
+    status: Literal["unconfigured", "available", "degraded", "unavailable"]
+    provider: str
+    configured_model: str | None
+    model_available: bool
+    available_models: list[str]
+    chat_completions: bool
+    structured_output: bool
+    streaming: bool
+    usage_reporting: bool
+    checked_at: datetime
+    latency_ms: int
+    cache_hit: bool
+    error_code: str | None
+
+
 class AgentConsentGrantRequest(StrictRequest):
     consent_type: Literal["personalization", "order_read", "after_sale_write"]
     scope_type: Literal["user", "conversation", "store"]

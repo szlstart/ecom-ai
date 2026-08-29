@@ -10,6 +10,7 @@ from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.provider_gateway import (
     OpenAICompatiblePlanner,
     configured_model_gateways,
+    probe_model_provider,
 )
 
 
@@ -63,9 +64,7 @@ async def test_provider_uses_model_specific_temperature() -> None:
         return httpx.Response(
             200,
             json={
-                "choices": [
-                    {"message": {"content": '{"intent":"policy_qa","search_text":null}'}}
-                ]
+                "choices": [{"message": {"content": '{"intent":"policy_qa","search_text":null}'}}]
             },
         )
 
@@ -87,11 +86,7 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
                 200,
                 json={
                     "choices": [
-                        {
-                            "message": {
-                                "content": '{"supported":true,"unsupported_claims":[]}'
-                            }
-                        }
+                        {"message": {"content": '{"supported":true,"unsupported_claims":[]}'}}
                     ]
                 },
             )
@@ -208,3 +203,52 @@ def test_gateway_factory_is_deterministic_by_default_and_configured_explicitly()
     store, exclusive = configured_model_gateways(settings)
     assert store is not None
     assert exclusive is not None
+
+
+@pytest.mark.asyncio
+async def test_provider_health_probes_models_structured_stream_and_usage() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer model-secret"
+        if request.method == "GET":
+            assert request.url == httpx.URL("https://models.invalid/v1/models")
+            return httpx.Response(
+                200,
+                json={"data": [{"id": "approved-model"}, {"id": "other-model"}]},
+            )
+        payload = json.loads(request.content)
+        if payload.get("stream") is True:
+            return httpx.Response(
+                200,
+                headers={"content-type": "text/event-stream"},
+                content=('data: {"choices":[{"delta":{"content":"OK"}}]}\n\ndata: [DONE]\n\n'),
+            )
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": '{"ok":true}'}}],
+                "usage": {"total_tokens": 9},
+            },
+        )
+
+    settings = Settings(
+        _env_file=None,
+        agent_model_api_url="https://models.invalid/v1/chat/completions",
+        agent_model_api_key="model-secret",
+        agent_model_name="approved-model",
+    )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        health = await probe_model_provider(settings, client=client)
+    assert health.status == "available"
+    assert health.model_available is True
+    assert health.structured_output is True
+    assert health.streaming is True
+    assert health.usage_reporting is True
+    assert health.available_models == ("approved-model", "other-model")
+    assert "model-secret" not in json.dumps(health.cache_payload())
+
+
+@pytest.mark.asyncio
+async def test_provider_health_reports_unconfigured_without_network() -> None:
+    health = await probe_model_provider(Settings(_env_file=None))
+    assert health.status == "unconfigured"
+    assert health.error_code == "MODEL_PROVIDER_NOT_CONFIGURED"

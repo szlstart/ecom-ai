@@ -512,6 +512,21 @@ kbd { padding: 3px 7px; color: #788195; border: 1px solid #d8dde7; border-radius
 .admin-ai-center-hero a { color: #fff; font-size: .72rem; font-weight: 750; }
 .admin-ai-hero-orb { width: 104px; height: 104px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 25%); border-radius: 34px; background: rgb(255 255 255 / 10%); box-shadow: inset 0 1px rgb(255 255 255 / 20%), 0 20px 50px rgb(24 22 87 / 25%); font-size: 2.5rem; backdrop-filter: blur(12px); }
 .admin-ai-module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.admin-provider-health { overflow: hidden; }
+.admin-provider-health > header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.admin-provider-health > header h2 { margin: 3px 0 0; }
+.admin-provider-health-grid { display: grid; grid-template-columns: minmax(230px, .75fr) minmax(440px, 1.4fr); gap: 14px 22px; align-items: center; }
+.provider-health-state { min-height: 88px; padding: 16px; display: flex; align-items: center; gap: 13px; border-radius: 15px; background: #f2f6f5; }
+.provider-health-state > span { width: 42px; height: 42px; display: grid; place-items: center; color: #fff; border-radius: 50%; background: #238c66; font-weight: 900; }
+.admin-provider-health.degraded .provider-health-state > span { background: #c78725; }
+.admin-provider-health.unavailable .provider-health-state > span, .admin-provider-health.unconfigured .provider-health-state > span { background: #c45361; }
+.provider-health-state > div { display: grid; gap: 5px; }
+.provider-health-state small { color: #778397; }
+.admin-provider-health dl { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.admin-provider-health dl div { padding: 12px; display: grid; gap: 5px; border: 1px solid #e0e6eb; border-radius: 12px; background: #fff; }
+.admin-provider-health dt { color: #8490a2; font-size: .68rem; }
+.admin-provider-health dd { margin: 0; font-size: .75rem; font-weight: 800; }
+.admin-provider-health-grid > p { grid-column: 1 / -1; margin: 0; color: #7b8798; font-size: .68rem; }
 .admin-ai-module-card { min-height: 145px; padding: 21px; display: grid; grid-template-columns: 48px minmax(0, 1fr); grid-template-rows: 1fr auto; gap: 12px 14px; color: #303a4f; border: 1px solid #e0e4ec; border-radius: 17px; background: #fff; box-shadow: 0 8px 26px rgb(28 42 76 / 5%); }
 .admin-ai-module-card:hover { border-color: #bac6e6; text-decoration: none; transform: translateY(-2px); box-shadow: 0 14px 34px rgb(28 43 82 / 10%); }
 .admin-ai-module-card > span { width: 48px; height: 48px; grid-row: 1; display: grid; place-items: center; border-radius: 14px; font-size: 1.2rem; }
@@ -1597,6 +1612,8 @@ tr.selected td { background: #f0f4ff; }
 }
 
 @media (max-width: 720px) {
+  .admin-provider-health-grid { grid-template-columns: 1fr; }
+  .admin-provider-health dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-store-workspace-hero { padding: 20px; align-items: flex-start; flex-direction: column; }
   .admin-store-workspace-brand { align-items: flex-start; }
   .admin-store-workspace-brand > span { width: 68px; height: 68px; border-radius: 19px; }

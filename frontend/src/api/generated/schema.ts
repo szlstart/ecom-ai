@@ -277,6 +277,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/ai/runs/provider-health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Model Provider Health */
+        get: operations["AdminAgentProviderHealth_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ai/runs/{run_id}": {
         parameters: {
             query?: never;
@@ -8684,6 +8701,11 @@ export interface components {
             data: components["schemas"]["MessageView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[ModelProviderHealthView] */
+        Envelope_ModelProviderHealthView_: {
+            data: components["schemas"]["ModelProviderHealthView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[MyReviewList] */
         Envelope_MyReviewList_: {
             data: components["schemas"]["MyReviewList"];
@@ -9741,6 +9763,41 @@ export interface components {
              * Format: date-time
              */
             sent_at: string;
+        };
+        /** ModelProviderHealthView */
+        ModelProviderHealthView: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unconfigured" | "available" | "degraded" | "unavailable";
+            /** Provider */
+            provider: string;
+            /** Configured Model */
+            configured_model: string | null;
+            /** Model Available */
+            model_available: boolean;
+            /** Available Models */
+            available_models: string[];
+            /** Chat Completions */
+            chat_completions: boolean;
+            /** Structured Output */
+            structured_output: boolean;
+            /** Streaming */
+            streaming: boolean;
+            /** Usage Reporting */
+            usage_reporting: boolean;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Cache Hit */
+            cache_hit: boolean;
+            /** Error Code */
+            error_code: string | null;
         };
         /** Money */
         Money: {
@@ -13049,6 +13106,42 @@ export interface operations {
                 };
             };
             428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAgentProviderHealth_Get: {
+        parameters: {
+            query?: {
+                force?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ModelProviderHealthView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
             429: components["responses"]["Problem429"];
             500: components["responses"]["Problem500"];
             503: components["responses"]["Problem503"];

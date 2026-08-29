@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "4f85b17fd11a64e7ab5a4212323c06f1d7b85f19c2f86ffdcf33531729b790e1"
+SOURCE_SHA256 = "ec36d2e4d47ca0ceaaa507616044c3032538bdb0370e32f30268c502fc19c5c6"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -71,6 +71,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["USR-ADDRESS-01"],
         "x-scope-policy": ["current_user"],
         "x-test-case-ids": ["ADDRESS-*"],
+    },
+    "AdminAgentProviderHealth_Get": {
+        "x-audit-event": "access.AdminAgentProviderHealth_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": ["ai_observability:read"],
+        "x-requirement-id": ["ADM-AI-CENTER-01"],
+        "x-scope-policy": ["ai_agents:read", "ai_observability:read"],
+        "x-test-case-ids": ["AGENT-PROVIDER-*"],
     },
     "AdminAgentRun_Get": {
         "x-audit-event": "access.AdminAgentRun_Get",

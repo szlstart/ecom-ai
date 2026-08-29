@@ -90,6 +90,22 @@ export interface ApprovalRequired {
   expires_at: string
 }
 
+export interface ModelProviderHealth {
+  status: 'unconfigured' | 'available' | 'degraded' | 'unavailable'
+  provider: string
+  configured_model: string | null
+  model_available: boolean
+  available_models: string[]
+  chat_completions: boolean
+  structured_output: boolean
+  streaming: boolean
+  usage_reporting: boolean
+  checked_at: string
+  latency_ms: number
+  cache_hit: boolean
+  error_code: string | null
+}
+
 function get<T>(path: string, token: string): Promise<ApiResult<T>> {
   return apiRequest(path, {}, token)
 }
@@ -127,6 +143,8 @@ export const cancelKnowledgeIndexJob = (id: string, token: string) =>
     token,
   )
 export const listAgents = (token: string) => get<{ items: AgentSummary[] }>('/admin/ai/agents', token)
+export const getModelProviderHealth = (token: string, force = false) =>
+  get<ModelProviderHealth>(`/admin/ai/runs/provider-health${force ? '?force=true' : ''}`, token)
 export const createAgentVersion = (id: string, payload: Record<string, unknown>, token: string) =>
   post<AgentSummary>(`/admin/ai/agents/${encodeURIComponent(id)}/versions`, payload, token)
 export const bindAgentSkill = (

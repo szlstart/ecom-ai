@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
 from app.core.config import Settings
+from app.core.security import utc_now
 from app.modules.agent_runtime.exclusive_model_gateway import (
     ExclusiveAgentPlan,
     ExclusiveIntent,
@@ -82,6 +88,39 @@ class GroundedAnswer:
     cited_source_ids: tuple[str, ...]
     confidence: str
     limitation: str | None
+
+
+@dataclass(frozen=True)
+class ModelProviderHealth:
+    status: str
+    provider: str
+    configured_model: str | None
+    model_available: bool
+    available_models: tuple[str, ...]
+    chat_completions: bool
+    structured_output: bool
+    streaming: bool
+    usage_reporting: bool
+    checked_at: datetime
+    latency_ms: int
+    cache_hit: bool
+    error_code: str | None = None
+
+    def cache_payload(self) -> dict[str, object]:
+        return {
+            "status": self.status,
+            "provider": self.provider,
+            "configured_model": self.configured_model,
+            "model_available": self.model_available,
+            "available_models": list(self.available_models),
+            "chat_completions": self.chat_completions,
+            "structured_output": self.structured_output,
+            "streaming": self.streaming,
+            "usage_reporting": self.usage_reporting,
+            "checked_at": self.checked_at.isoformat(),
+            "latency_ms": self.latency_ms,
+            "error_code": self.error_code,
+        }
 
 
 class OpenAICompatiblePlanner:
@@ -470,6 +509,279 @@ class ProviderOperationsModelGateway:
             evidence=evidence,
             source_ids=source_ids,
         )
+
+
+async def probe_model_provider(
+    settings: Settings,
+    redis: Redis | None = None,
+    *,
+    force: bool = False,
+    client: httpx.AsyncClient | None = None,
+) -> ModelProviderHealth:
+    """Probe the configured OpenAI-compatible provider without exposing credentials.
+
+    A successful result proves model discovery, a minimal structured Chat Completion,
+    streaming delivery, and usage accounting. Results are cached briefly so opening the
+    management page does not repeatedly spend tokens or pressure the provider.
+    """
+
+    configured = (
+        settings.agent_model_api_url is not None
+        and settings.agent_model_api_key is not None
+        and settings.agent_model_name is not None
+    )
+    if not configured:
+        return ModelProviderHealth(
+            status="unconfigured",
+            provider="openai_compatible",
+            configured_model=None,
+            model_available=False,
+            available_models=(),
+            chat_completions=False,
+            structured_output=False,
+            streaming=False,
+            usage_reporting=False,
+            checked_at=utc_now(),
+            latency_ms=0,
+            cache_hit=False,
+            error_code="MODEL_PROVIDER_NOT_CONFIGURED",
+        )
+    assert settings.agent_model_api_url is not None
+    assert settings.agent_model_api_key is not None
+    assert settings.agent_model_name is not None
+
+    cache_key = f"ecom:{settings.environment}:agent:model-provider-health:v1"
+    if redis is not None and not force:
+        try:
+            cached = await redis.get(cache_key)
+            if cached:
+                payload = json.loads(cached)
+                return _health_from_cache(payload)
+        except (RedisError, json.JSONDecodeError, TypeError, ValueError):
+            pass
+
+    started = time.monotonic()
+    owned_client = client is None
+    active_client = client or httpx.AsyncClient(timeout=settings.agent_model_timeout_seconds)
+    try:
+        headers = {"Authorization": (f"Bearer {settings.agent_model_api_key.get_secret_value()}")}
+        models_response = await active_client.get(
+            _models_url(settings.agent_model_api_url), headers=headers
+        )
+        models_response.raise_for_status()
+        models = _model_ids(models_response.json())
+        model_available = settings.agent_model_name in models
+        if not model_available:
+            health = _provider_failure(
+                settings,
+                started,
+                "MODEL_PROVIDER_CONFIGURED_MODEL_UNAVAILABLE",
+                available_models=models,
+            )
+        else:
+            structured, usage = await _probe_structured_completion(active_client, settings, headers)
+            streaming = await _probe_streaming_completion(active_client, settings, headers)
+            health = ModelProviderHealth(
+                status=("available" if structured and streaming else "degraded"),
+                provider=_provider_name(settings.agent_model_api_url),
+                configured_model=settings.agent_model_name,
+                model_available=True,
+                available_models=models,
+                chat_completions=structured,
+                structured_output=structured,
+                streaming=streaming,
+                usage_reporting=usage,
+                checked_at=utc_now(),
+                latency_ms=int((time.monotonic() - started) * 1000),
+                cache_hit=False,
+                error_code=(
+                    None if structured and streaming else "MODEL_PROVIDER_CAPABILITY_PROBE_FAILED"
+                ),
+            )
+    except httpx.TimeoutException:
+        health = _provider_failure(settings, started, "MODEL_PROVIDER_TIMEOUT")
+    except httpx.HTTPStatusError as exc:
+        health = _provider_failure(
+            settings,
+            started,
+            _provider_http_error(exc.response.status_code),
+        )
+    except (httpx.HTTPError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        health = _provider_failure(settings, started, "MODEL_PROVIDER_INVALID_RESPONSE")
+    finally:
+        if owned_client:
+            await active_client.aclose()
+
+    if redis is not None:
+        try:
+            ttl = 600 if health.status == "available" else 30
+            await redis.setex(
+                cache_key,
+                ttl,
+                json.dumps(health.cache_payload(), separators=(",", ":")),
+            )
+        except RedisError:
+            pass
+    return health
+
+
+async def _probe_structured_completion(
+    client: httpx.AsyncClient,
+    settings: Settings,
+    headers: Mapping[str, str],
+) -> tuple[bool, bool]:
+    assert settings.agent_model_api_url is not None
+    response = await client.post(
+        settings.agent_model_api_url,
+        headers=headers,
+        json={
+            "model": settings.agent_model_name,
+            "temperature": 0,
+            "max_tokens": 64,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "Return the required health-check JSON only.",
+                },
+                {"role": "user", "content": "health check"},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "provider_health",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {"ok": {"type": "boolean"}},
+                        "required": ["ok"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+        },
+    )
+    response.raise_for_status()
+    body = response.json()
+    content = body["choices"][0]["message"]["content"]
+    parsed = json.loads(content)
+    usage = body.get("usage")
+    has_usage = isinstance(usage, dict) and isinstance(usage.get("total_tokens"), int)
+    return parsed == {"ok": True}, has_usage
+
+
+async def _probe_streaming_completion(
+    client: httpx.AsyncClient,
+    settings: Settings,
+    headers: Mapping[str, str],
+) -> bool:
+    assert settings.agent_model_api_url is not None
+    saw_delta = False
+    saw_done = False
+    async with client.stream(
+        "POST",
+        settings.agent_model_api_url,
+        headers=headers,
+        json={
+            "model": settings.agent_model_name,
+            "temperature": 0,
+            "max_tokens": 8,
+            "stream": True,
+            "messages": [{"role": "user", "content": "Reply OK"}],
+        },
+    ) as response:
+        response.raise_for_status()
+        async for line in response.aiter_lines():
+            if not line.startswith("data:"):
+                continue
+            payload = line.removeprefix("data:").strip()
+            if payload == "[DONE]":
+                saw_done = True
+                break
+            frame = json.loads(payload)
+            delta = frame["choices"][0].get("delta", {}).get("content")
+            if isinstance(delta, str) and delta:
+                saw_delta = True
+    return saw_delta and saw_done
+
+
+def _models_url(chat_url: str) -> str:
+    parsed = urlsplit(chat_url)
+    path = parsed.path.rstrip("/")
+    suffix = "/chat/completions"
+    base_path = path[: -len(suffix)] if path.endswith(suffix) else path
+    return urlunsplit((parsed.scheme, parsed.netloc, f"{base_path}/models", "", ""))
+
+
+def _model_ids(payload: object) -> tuple[str, ...]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+        raise ValueError("provider model list is invalid")
+    values = {
+        str(item["id"])
+        for item in payload["data"][:500]
+        if isinstance(item, dict) and isinstance(item.get("id"), str) and 0 < len(item["id"]) <= 128
+    }
+    return tuple(sorted(values))
+
+
+def _provider_name(api_url: str) -> str:
+    host = (urlsplit(api_url).hostname or "").casefold()
+    return "moonshot" if host == "api.moonshot.cn" else "openai_compatible"
+
+
+def _provider_http_error(status_code: int) -> str:
+    if status_code in {401, 403}:
+        return "MODEL_PROVIDER_AUTH_FAILED"
+    if status_code == 429:
+        return "MODEL_PROVIDER_RATE_LIMITED"
+    if status_code >= 500:
+        return "MODEL_PROVIDER_UPSTREAM_UNAVAILABLE"
+    return "MODEL_PROVIDER_REQUEST_REJECTED"
+
+
+def _provider_failure(
+    settings: Settings,
+    started: float,
+    error_code: str,
+    *,
+    available_models: tuple[str, ...] = (),
+) -> ModelProviderHealth:
+    return ModelProviderHealth(
+        status="unavailable",
+        provider=_provider_name(settings.agent_model_api_url or ""),
+        configured_model=settings.agent_model_name,
+        model_available=settings.agent_model_name in available_models,
+        available_models=available_models,
+        chat_completions=False,
+        structured_output=False,
+        streaming=False,
+        usage_reporting=False,
+        checked_at=utc_now(),
+        latency_ms=int((time.monotonic() - started) * 1000),
+        cache_hit=False,
+        error_code=error_code,
+    )
+
+
+def _health_from_cache(payload: Mapping[str, Any]) -> ModelProviderHealth:
+    return ModelProviderHealth(
+        status=str(payload["status"]),
+        provider=str(payload["provider"]),
+        configured_model=(
+            str(payload["configured_model"])
+            if payload.get("configured_model") is not None
+            else None
+        ),
+        model_available=bool(payload["model_available"]),
+        available_models=tuple(str(item) for item in payload["available_models"]),
+        chat_completions=bool(payload["chat_completions"]),
+        structured_output=bool(payload["structured_output"]),
+        streaming=bool(payload["streaming"]),
+        usage_reporting=bool(payload["usage_reporting"]),
+        checked_at=datetime.fromisoformat(str(payload["checked_at"])),
+        latency_ms=int(payload["latency_ms"]),
+        cache_hit=True,
+        error_code=str(payload["error_code"]) if payload.get("error_code") else None,
+    )
 
 
 def configured_model_gateways(

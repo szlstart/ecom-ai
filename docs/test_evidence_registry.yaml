@@ -16,6 +16,7 @@ families:
   ADM-APPROVAL: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_admin_approval_separation_of_duties_and_executor]}
   ADM-AUDIT: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_admin_password_mfa_audience_and_reauthentication_lifecycle]}
   ADM-AUTH: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_admin_password_mfa_audience_and_reauthentication_lifecycle]}
+  AGENT-PROVIDER: {layers: [unit], selectors: [backend/tests/test_agent_provider_gateway.py::test_provider_health_probes_models_structured_stream_and_usage, backend/tests/test_agent_provider_gateway.py::test_provider_health_reports_unconfigured_without_network]}
   ADM-BATCH: {layers: [integration], selectors: [backend/tests/test_batch_job_api_integration.py::test_product_import_precheck_confirm_and_execute]}
   ADM-CATALOG: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_admin_taxonomy_and_inventory_adjustment_invariants]}
   ADM-CONTENT: {layers: [contract, integration, security], selectors: [backend/tests/test_content_api_integration.py::test_admin_content_version_publish_public_projection_and_withdrawal]}

@@ -75,7 +75,7 @@ go-no-go-validate:
 	@test -n "$(MANIFEST)" || (echo "Usage: make go-no-go-validate MANIFEST=artifacts/acceptance/<release>/go-no-go.json" && exit 2)
 	$(PYTHON) scripts/validate-go-no-go.py "$(MANIFEST)"
 
-openapi:
+openapi: trace-catalog
 	PYTHONPATH=backend $(PYTHON) scripts/export_openapi.py
 	cd frontend && pnpm generate:api
 

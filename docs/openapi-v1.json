@@ -1533,6 +1533,88 @@
         ]
       }
     },
+    "/api/v1/admin/ai/runs/provider-health": {
+      "get": {
+        "tags": [
+          "admin-agent-runtime"
+        ],
+        "summary": "Get Model Provider Health",
+        "operationId": "AdminAgentProviderHealth_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Force"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ModelProviderHealthView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "access.AdminAgentProviderHealth_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "ai_observability:read"
+        ],
+        "x-requirement-id": [
+          "ADM-AI-CENTER-01"
+        ],
+        "x-scope-policy": [
+          "ai_agents:read",
+          "ai_observability:read"
+        ],
+        "x-test-case-ids": [
+          "AGENT-PROVIDER-*"
+        ]
+      }
+    },
     "/api/v1/admin/ai/runs/{run_id}": {
       "get": {
         "tags": [
@@ -47046,6 +47128,21 @@
         ],
         "title": "Envelope[MessageView]"
       },
+      "Envelope_ModelProviderHealthView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ModelProviderHealthView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ModelProviderHealthView]"
+      },
       "Envelope_MyReviewList_": {
         "properties": {
           "data": {
@@ -50227,6 +50324,104 @@
           "sent_at"
         ],
         "title": "MessageView"
+      },
+      "ModelProviderHealthView": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "unconfigured",
+              "available",
+              "degraded",
+              "unavailable"
+            ],
+            "title": "Status"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "configured_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Configured Model"
+          },
+          "model_available": {
+            "type": "boolean",
+            "title": "Model Available"
+          },
+          "available_models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Models"
+          },
+          "chat_completions": {
+            "type": "boolean",
+            "title": "Chat Completions"
+          },
+          "structured_output": {
+            "type": "boolean",
+            "title": "Structured Output"
+          },
+          "streaming": {
+            "type": "boolean",
+            "title": "Streaming"
+          },
+          "usage_reporting": {
+            "type": "boolean",
+            "title": "Usage Reporting"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "cache_hit": {
+            "type": "boolean",
+            "title": "Cache Hit"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "provider",
+          "configured_model",
+          "model_available",
+          "available_models",
+          "chat_completions",
+          "structured_output",
+          "streaming",
+          "usage_reporting",
+          "checked_at",
+          "latency_ms",
+          "cache_hit",
+          "error_code"
+        ],
+        "title": "ModelProviderHealthView"
       },
       "Money": {
         "properties": {

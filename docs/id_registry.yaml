@@ -78,6 +78,7 @@ resources:
   sensitive_access_grant: {prefix: sag_, owner: admin_governance}
   ai_feedback: {prefix: fdb_, owner: ai_governance}
   file: {prefix: file_, url_allowed: true, owner: files}
+  file_reconciliation_finding: {prefix: frf_, owner: files}
   upload_session: {prefix: upl_, owner: files}
   outbox_event: {prefix: evt_, owner: events}
   audit: {prefix: aud_, owner: audit}

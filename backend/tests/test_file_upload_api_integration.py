@@ -3,6 +3,7 @@ import io
 import os
 import secrets
 from decimal import Decimal
+from typing import cast
 from urllib.parse import unquote, urlparse
 
 import httpx
@@ -21,6 +22,7 @@ from app.database.mysql import mysql_session
 from app.integrations.object_storage import get_object_storage
 from app.modules.files.models import FileObject
 from app.modules.files.processor import FileProcessor
+from app.modules.files.reconciliation import FileReconciler, ObjectInventoryStorage
 from app.modules.files.scanner import ClamAvScanner
 from app.modules.identity.models import User
 from app.modules.stores.models import Store
@@ -239,3 +241,19 @@ async def test_presigned_upload_scan_derivation_and_store_logo_binding(
     assert import_bindable["status"] == "active"
     assert import_bindable["scan_status"] == "safe"
     assert import_bindable["url"] is None
+
+    # The periodic reconciliation uses the actual isolated MinIO inventory,
+    # repairs reference counters and must keep a currently bound store logo.
+    async for session in mysql_session():
+        result = await FileReconciler(
+            session,
+            cast(ObjectInventoryStorage, storage),
+            settings,
+        ).reconcile()
+        logo_file = await session.scalar(
+            select(FileObject).where(FileObject.file_no == bindable["file_id"])
+        )
+        assert logo_file is not None
+        assert logo_file.reference_count == 1
+        assert logo_file.file_status == "active"
+        assert result.metadata_files >= 2

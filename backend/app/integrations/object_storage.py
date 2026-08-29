@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Protocol
 from urllib.parse import urlparse
@@ -23,6 +23,15 @@ class ObjectMetadata:
     etag: str | None
     version_id: str | None
     metadata: dict[str, str]
+
+
+@dataclass(frozen=True)
+class StoredObject:
+    bucket: str
+    object_key: str
+    size: int
+    etag: str | None
+    last_modified: datetime | None
 
 
 class ObjectStorage(Protocol):
@@ -141,6 +150,29 @@ class MinioObjectStorage:
         await self._call(
             lambda: self.internal.remove_object(physical_bucket, object_key)
         )
+
+    async def list_objects(self, bucket: str, *, limit: int) -> list[StoredObject]:
+        physical_bucket = self._physical_bucket(bucket)
+
+        def operation() -> list[StoredObject]:
+            if not self.internal.bucket_exists(physical_bucket):
+                return []
+            result: list[StoredObject] = []
+            for item in self.internal.list_objects(physical_bucket, recursive=True):
+                if len(result) >= limit:
+                    raise RuntimeError("object storage inventory exceeds reconciliation limit")
+                result.append(
+                    StoredObject(
+                        bucket=bucket,
+                        object_key=str(item.object_name),
+                        size=int(item.size or 0),
+                        etag=str(item.etag) if item.etag else None,
+                        last_modified=item.last_modified,
+                    )
+                )
+            return result
+
+        return await self._call(operation)
 
     def _physical_bucket(self, bucket: str) -> str:
         return f"{self.settings.object_storage_bucket_prefix}{bucket}"

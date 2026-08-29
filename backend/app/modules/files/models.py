@@ -116,3 +116,38 @@ class FileObject(MutableMySQLModel, MySQLBase):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+
+
+class FileReconciliationFinding(MutableMySQLModel, MySQLBase):
+    __tablename__ = "file_reconciliation_findings"
+    __table_args__ = (
+        UniqueConstraint("finding_no", name="uk_file_reconciliation_findings_no"),
+        UniqueConstraint("finding_key", name="uk_file_reconciliation_findings_key"),
+        Index(
+            "idx_file_reconciliation_findings_status",
+            "finding_status",
+            "last_seen_at",
+            "id",
+        ),
+        Index(
+            "idx_file_reconciliation_findings_storage",
+            "bucket",
+            "finding_type",
+            "id",
+        ),
+    )
+
+    finding_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    finding_key: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
+    finding_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    bucket: Mapped[str] = mapped_column(String(64), nullable=False)
+    object_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    file_no: Mapped[str | None] = mapped_column(String(40))
+    expected_reference_count: Mapped[int | None] = mapped_column(INTEGER(unsigned=True))
+    actual_reference_count: Mapped[int | None] = mapped_column(INTEGER(unsigned=True))
+    finding_status: Mapped[str] = mapped_column(String(24), nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    quarantine_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    resolution_code: Mapped[str | None] = mapped_column(String(64))

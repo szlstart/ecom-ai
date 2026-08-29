@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from app.modules.events.dispatcher import DomainEventDispatcher, _redact
+from app.modules.system.models import OutboxEvent
 
 
 def test_outbox_projection_redacts_sensitive_values_recursively() -> None:
@@ -36,15 +38,18 @@ async def test_outbox_projection_publishes_redacted_payload_atomically() -> None
     redis = MagicMock()
     redis.eval = AsyncMock(return_value="1-0")
     dispatcher = DomainEventDispatcher(AsyncMock(), redis, "test")
-    event = SimpleNamespace(
-        event_no="evt_01",
-        event_type="order.created.v1",
-        aggregate_type="order",
-        aggregate_no="ord_01",
-        aggregate_version=1,
-        trace_id="trace_01",
-        created_at=datetime(2026, 1, 1),
-        payload={"order_id": "ord_01", "email": "private@example.com"},
+    event = cast(
+        OutboxEvent,
+        SimpleNamespace(
+            event_no="evt_01",
+            event_type="order.created.v1",
+            aggregate_type="order",
+            aggregate_no="ord_01",
+            aggregate_version=1,
+            trace_id="trace_01",
+            created_at=datetime(2026, 1, 1),
+            payload={"order_id": "ord_01", "email": "private@example.com"},
+        ),
     )
 
     await dispatcher._publish(event)

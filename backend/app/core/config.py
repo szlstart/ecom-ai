@@ -86,6 +86,9 @@ class Settings(BaseSettings):
     file_scanner_host: str = "127.0.0.1"
     file_scanner_port: int = Field(default=13310, ge=1, le=65535)
     file_scanner_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    file_reconciliation_interval_seconds: int = Field(default=3600, ge=60, le=86_400)
+    file_reconciliation_max_objects: int = Field(default=100_000, ge=100, le=1_000_000)
+    file_orphan_grace_days: int = Field(default=14, ge=1, le=90)
     order_timeout_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)
     order_timeout_batch_size: int = Field(default=100, ge=1, le=1000)
     order_auto_confirm_days: int = Field(default=7, ge=1, le=30)

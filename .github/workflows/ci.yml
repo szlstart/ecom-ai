@@ -128,7 +128,7 @@ jobs:
         run: make lint acceptance-test
       - name: Upload acceptance evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: acceptance-evidence-${{ github.sha }}
           path: artifacts/acceptance/current

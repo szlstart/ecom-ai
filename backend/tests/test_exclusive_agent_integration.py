@@ -26,6 +26,7 @@ from app.modules.catalog.models import Category, Product, ProductSku
 from app.modules.identity.models import AuthSession, User
 from app.modules.messaging.models import Conversation, Message
 from app.modules.orders.models import Order, OrderItem, TradeOrder
+from app.modules.rbac.models import Role, UserRole
 from app.modules.stores.models import Store
 from app.workers.agent_runtime_worker import dispatch_response_requests, process_batch
 
@@ -59,6 +60,24 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
         )
         session.add_all([user, foreign_user])
         await session.flush()
+        consumer_role = await session.scalar(select(Role).where(Role.role_code == "user"))
+        assert consumer_role is not None
+        session.add(
+            UserRole(
+                user_id=user.id,
+                role_id=consumer_role.id,
+                grant_no=new_prefixed_ulid("grt_"),
+                scope_type="platform",
+                scope_id=0,
+                grant_status="active",
+                active_grant_key=security.keyed_hash(
+                    "active-role-grant", f"{user.id}:{consumer_role.id}:platform:0"
+                ),
+                granted_by=user.id,
+                granted_at=now,
+                grant_reason="exclusive_agent_integration_consumer",
+            )
+        )
         auth_session.user_id = user.id
         store = Store(
             store_no=new_prefixed_ulid("sto_"),

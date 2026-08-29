@@ -30,6 +30,7 @@ from app.modules.messaging.models import (
     Message,
 )
 from app.modules.orders.models import Order, OrderItem, TradeOrder
+from app.modules.rbac.models import Role, UserRole
 from app.modules.realtime.channels import user_channel
 from app.modules.realtime.relay import RealtimeOutboxRelay
 from app.modules.stores.models import Store, StoreServicePolicy
@@ -52,6 +53,24 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
         user, auth_session = _identity(security, suffix, now)
         session.add(user)
         await session.flush()
+        consumer_role = await session.scalar(select(Role).where(Role.role_code == "user"))
+        assert consumer_role is not None
+        session.add(
+            UserRole(
+                user_id=user.id,
+                role_id=consumer_role.id,
+                grant_no=new_prefixed_ulid("grt_"),
+                scope_type="platform",
+                scope_id=0,
+                grant_status="active",
+                active_grant_key=security.keyed_hash(
+                    "active-role-grant", f"{user.id}:{consumer_role.id}:platform:0"
+                ),
+                granted_by=user.id,
+                granted_at=now,
+                grant_reason="store_agent_integration_consumer",
+            )
+        )
         auth_session.user_id = user.id
         store = _store(user.id, f"agent-main-{suffix}", now)
         foreign_store = _store(user.id, f"agent-foreign-{suffix}", now)

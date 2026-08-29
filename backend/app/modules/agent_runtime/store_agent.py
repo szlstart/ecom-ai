@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ApplicationError
@@ -20,6 +21,7 @@ from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, sa
 from app.modules.agent_runtime.provider_gateway import ProviderStoreModelGateway
 from app.modules.agent_runtime.store_context import StoreContextBuilder, TrustedStoreAgentContext
 from app.modules.agent_runtime.store_tools import StoreToolGateway, StoreToolResult
+from app.modules.knowledge.service import KnowledgeService
 from app.modules.messaging.models import Message
 from app.modules.system.models import OutboxEvent
 
@@ -105,6 +107,13 @@ async def process_store_run(
         await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
     if outcome.status == "succeeded":
+        await _attach_store_knowledge(
+            session,
+            checkpoint_store,
+            context,
+            plan.intent,
+            outcome.data,
+        )
         answer, trace = await _grounded_answer(
             context,
             gateway,
@@ -306,6 +315,27 @@ async def _grounded_answer(
         for item in sources
         if isinstance(item.get("type"), str) and isinstance(item.get("id"), str)
     ) or (f"tool:{tool_code}",)
+    steps: list[dict[str, object]] = [
+        {"kind": "plan", "label": "理解问题", "status": "completed"},
+        {
+            "kind": "tool",
+            "label": "查询店铺可信数据",
+            "tool_code": tool_code,
+            "status": "completed",
+        },
+        {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
+    ]
+    if isinstance(data.get("rag"), dict):
+        rag = data["rag"]
+        steps.insert(
+            1,
+            {
+                "kind": "rag",
+                "label": "检索当前店铺公开知识",
+                "status": "completed",
+                "degraded": bool(rag.get("degraded")),
+            },
+        )
     trace: dict[str, object] = {
         "version": "public-agent-trace-v1",
         "run_id": context.run.run_no,
@@ -313,16 +343,7 @@ async def _grounded_answer(
         "model": context.agent_version.model_profile,
         "status": "completed",
         "intent": plan.intent,
-        "steps": [
-            {"kind": "plan", "label": "理解问题", "status": "completed"},
-            {
-                "kind": "tool",
-                "label": "查询店铺可信数据",
-                "tool_code": tool_code,
-                "status": "completed",
-            },
-            {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
-        ],
+        "steps": steps,
         "source_ids": list(source_ids),
         "raw_reasoning_exposed": False,
     }
@@ -391,15 +412,25 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
         return "\n".join(lines)
     if plan.intent == "policy_qa":
         items = data.get("items")
-        if not isinstance(items, list) or not items:
+        knowledge = data.get("knowledge_sources")
+        if (not isinstance(items, list) or not items) and not (
+            isinstance(knowledge, list) and knowledge
+        ):
             return "本店暂未发布可用于回答该问题的有效政策，请转人工客服核实。"
         lines = ["根据本店当前生效政策:"]
-        for item in items[:3]:
+        for item in items[:3] if isinstance(items, list) else []:
             if isinstance(item, dict):
                 excerpt = safe_untrusted_excerpt(item.get("content"), 240)
                 lines.append(
                     f"- {item.get('title', '店铺政策')} "
                     f"(版本 {item.get('source_version')}): {excerpt}"
+                )
+        for item in knowledge[:4] if isinstance(knowledge, list) else []:
+            if isinstance(item, dict):
+                lines.append(
+                    f"- {safe_untrusted_excerpt(item.get('title'), 160)} "
+                    f"(知识版本 {item.get('version')}): "
+                    f"{safe_untrusted_excerpt(item.get('excerpt'), 500)}"
                 )
         lines.append("如需政策外例外或商家承诺，请转人工客服确认。")
         return "\n".join(lines)
@@ -543,7 +574,67 @@ def _source_refs(data: Mapping[str, Any]) -> list[dict[str, object]]:
                 refs.append({"type": "store_policy", "id": item["policy_id"]})
             elif isinstance(item.get("product_id"), str):
                 refs.append({"type": "product", "id": item["product_id"]})
+    knowledge = data.get("knowledge_sources")
+    if isinstance(knowledge, list):
+        for item in knowledge[:8]:
+            if not isinstance(item, dict) or not isinstance(item.get("document_id"), str):
+                continue
+            refs.append(
+                {
+                    "type": "knowledge",
+                    "id": item["document_id"],
+                    "title": safe_untrusted_excerpt(item.get("title"), 160),
+                    "version": item.get("version"),
+                    "score": item.get("score"),
+                }
+            )
     return refs
+
+
+async def _attach_store_knowledge(
+    mysql: AsyncSession,
+    checkpoint_store: AgentCheckpointStore | None,
+    context: TrustedStoreAgentContext,
+    intent: str,
+    data: dict[str, object],
+) -> None:
+    if checkpoint_store is None or intent not in {"policy_qa", "product_qa"}:
+        return
+    context.run.current_phase = "retrieving"
+    context.run.version += 1
+    try:
+        result = await KnowledgeService(mysql, checkpoint_store.session).search_for_agent(
+            query=context.trigger.text_content or "店铺公开信息",
+            scope_type="store",
+            scope_no=context.store.store_no,
+            limit=6,
+            trace_id=context.run.trace_id,
+        )
+    except SQLAlchemyError:
+        await checkpoint_store.session.rollback()
+        data["rag"] = {
+            "scope": f"store:{context.store.store_no}",
+            "returned_count": 0,
+            "degraded": True,
+            "error_code": "RAG_RETRIEVAL_UNAVAILABLE",
+        }
+        return
+    data["knowledge_sources"] = [
+        {
+            "document_id": item.document_id,
+            "title": item.title,
+            "version": item.content_version,
+            "excerpt": item.excerpt,
+            "score": round(item.score, 6),
+        }
+        for item in result.items
+    ]
+    data["rag"] = {
+        "scope": f"store:{context.store.store_no}",
+        "returned_count": len(result.items),
+        "degraded": result.degraded,
+        "retrieval_mode": "keyword_only" if result.degraded else "hybrid",
+    }
 
 
 def _money(amount: object, currency: object) -> str:

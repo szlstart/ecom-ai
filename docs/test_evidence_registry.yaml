@@ -25,7 +25,7 @@ families:
   ADM-EVAL: {layers: [contract, integration], selectors: [backend/tests/test_evaluation_runner.py::test_missing_observations_never_fabricate_a_pass, backend/tests/test_admin_ai_governance_api_integration.py::test_admin_dashboard_observability_evaluation_policy_and_skill_lifecycle]}
   ADM-INDEX: {layers: [integration], selectors: [backend/tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval]}
   ADM-INV: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_admin_taxonomy_and_inventory_adjustment_invariants]}
-  ADM-KNOW: {layers: [integration, security], selectors: [backend/tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval]}
+  ADM-KNOW: {layers: [integration, security], selectors: [backend/tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval, backend/tests/test_knowledge_postgres_integration.py::test_agent_retrieval_rechecks_trusted_scope_version_and_publication]}
   ADM-OBS: {layers: [unit, contract, integration, security], selectors: [backend/tests/test_observability.py::test_telemetry_span_attributes_reject_sensitive_keys, backend/tests/test_admin_ai_governance_api_integration.py::test_admin_dashboard_observability_evaluation_policy_and_skill_lifecycle]}
   ADM-ORDER: {layers: [integration], selectors: [backend/tests/test_admin_order_api_integration.py::test_admin_order_adjustment_and_cancellation_invariants]}
   ADM-PAYMENT: {layers: [integration], selectors: [backend/tests/test_admin_payment_api_integration.py::test_admin_payment_read_and_provider_reconciliation]}

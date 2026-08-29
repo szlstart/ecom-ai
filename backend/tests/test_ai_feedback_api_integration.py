@@ -13,6 +13,7 @@ from app.database.mysql import mysql_session
 from app.modules.agent_runtime.models import AiFeedback
 from app.modules.identity.models import AuthSession, User
 from app.modules.messaging.models import Conversation, Message
+from app.modules.rbac.models import Role, UserRole
 
 pytestmark = [
     pytest.mark.integration,
@@ -34,6 +35,26 @@ async def test_ai_feedback_is_owned_versioned_idempotent_and_agent_only(
         other, other_session = _identity(security, f"other_{suffix}", now)
         session.add_all([user, other])
         await session.flush()
+        consumer_role = await session.scalar(select(Role).where(Role.role_code == "user"))
+        assert consumer_role is not None
+        for consumer in (user, other):
+            session.add(
+                UserRole(
+                    user_id=consumer.id,
+                    role_id=consumer_role.id,
+                    grant_no=new_prefixed_ulid("grt_"),
+                    scope_type="platform",
+                    scope_id=0,
+                    grant_status="active",
+                    active_grant_key=security.keyed_hash(
+                        "active-role-grant",
+                        f"{consumer.id}:{consumer_role.id}:platform:0",
+                    ),
+                    granted_by=consumer.id,
+                    granted_at=now,
+                    grant_reason="ai_feedback_integration_consumer",
+                )
+            )
         auth_session.user_id = user.id
         other_session.user_id = other.id
         conversation = Conversation(

@@ -255,12 +255,26 @@ async def test_merchant_self_registration_creates_isolated_store_identity(
     username = f"merchant_signup_{suffix}"
     password = f"Merchant-{suffix}-Password!"
     store_name = f"自主注册店铺 {suffix}"
-    payload = {
-        "username": username,
-        "password": password,
-        "store_name": store_name,
-        "client": {"client_type": "web", "device_name": "Merchant registration test"},
-    }
+
+    async def registration_payload(
+        *, next_username: str, next_store_name: str
+    ) -> dict[str, object]:
+        config = await client.get("/api/v1/auth/registration-config")
+        assert config.status_code == 200, config.text
+        captcha = config.json()["data"]["captcha"]
+        left, operator, right, _, _ = captcha["question"].split()
+        answer = int(left) + int(right) if operator == "+" else int(left) - int(right)
+        return {
+            "username": next_username,
+            "email": f"{next_username}@example.com",
+            "password": password,
+            "store_name": next_store_name,
+            "captcha_id": captcha["captcha_id"],
+            "captcha_answer": str(answer),
+            "client": {"client_type": "web", "device_name": "Merchant registration test"},
+        }
+
+    payload = await registration_payload(next_username=username, next_store_name=store_name)
 
     registered = await client.post("/api/v1/merchant/auth/registrations", json=payload)
     assert registered.status_code == 201, registered.text
@@ -299,14 +313,20 @@ async def test_merchant_self_registration_creates_isolated_store_identity(
 
     duplicate_username = await client.post(
         "/api/v1/merchant/auth/registrations",
-        json={**payload, "store_name": f"另一个店铺 {suffix}"},
+        json=await registration_payload(
+            next_username=username,
+            next_store_name=f"另一个店铺 {suffix}",
+        ),
     )
     assert duplicate_username.status_code == 409
     assert duplicate_username.json()["code"] == "MERCHANT_USERNAME_ALREADY_EXISTS"
 
     duplicate_store = await client.post(
         "/api/v1/merchant/auth/registrations",
-        json={**payload, "username": f"merchant_second_{suffix}"},
+        json=await registration_payload(
+            next_username=f"merchant_second_{suffix}",
+            next_store_name=store_name,
+        ),
     )
     assert duplicate_store.status_code == 409
     assert duplicate_store.json()["code"] == "STORE_NAME_ALREADY_EXISTS"

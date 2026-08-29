@@ -6,7 +6,7 @@ ACCEPTANCE_ENV := ECOM_ENVIRONMENT=testing ECOM_RUN_INTEGRATION_TESTS=1 ECOM_RUN
 BACKEND_RUNTIME_SERVICES := api file-worker lifecycle-worker batch-worker order-timeout-worker payment-reconcile-worker logistics-sync-worker admin-approval-worker realtime-outbox-worker agent-runtime-worker knowledge-indexer ai-memory-cleanup-worker account-deletion-worker
 APP_RUNTIME_SERVICES := $(BACKEND_RUNTIME_SERVICES) frontend
 
-.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-evidence agent-security-test security-check build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap merchant-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
+.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-test-isolated acceptance-evidence agent-security-test security-check build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap merchant-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -48,6 +48,12 @@ acceptance-test: build
 	$(MAKE) agent-security-test
 	$(PYTHON) scripts/evaluate-agent.py eval/golden.json --allow-missing-observations --output artifacts/acceptance/current/agent/evaluation-report.json
 	$(MAKE) acceptance-evidence
+
+# Preferred local entry point: exact test-only database/cache/object namespaces
+# are created and removed even when a test fails. CI already supplies isolated
+# service containers and therefore continues to call acceptance-test directly.
+acceptance-test-isolated:
+	./scripts/run-isolated-acceptance.sh
 
 acceptance-evidence:
 	$(PYTHON) scripts/generate_acceptance_evidence.py

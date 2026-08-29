@@ -102,7 +102,12 @@ async def test_agent_runtime_requires_published_agent_for_every_portal(monkeypat
 
     monkeypatch.setattr(health_service, "mysql_session", sessions)
     result = await health_service._agent_runtime_status(
-        Settings(agent_model_required=True)
+        Settings(
+            agent_model_required=True,
+            agent_model_api_url="https://model.test/v1/chat/completions",
+            agent_model_api_key="test-only-key",
+            agent_model_name="test-model",
+        )
     )
 
     assert result.status == "down"

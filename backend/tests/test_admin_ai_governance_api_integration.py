@@ -68,7 +68,8 @@ async def test_admin_dashboard_observability_evaluation_policy_and_skill_lifecyc
     assert dashboard.status_code == 200, dashboard.text
     dashboard_data = dashboard.json()["data"]
     assert {"scope_type": "platform", "scope_id": 0} in dashboard_data["scopes"]
-    assert dashboard_data["active_user_count"] >= 1
+    # A platform administrator is deliberately not a consumer identity.
+    assert dashboard_data["active_user_count"] == 0
     assert dashboard.headers["cache-control"] == "no-store"
 
     observability = await client.get("/api/v1/admin/observability", headers=auth)
@@ -173,9 +174,7 @@ async def test_admin_dashboard_observability_evaluation_policy_and_skill_lifecyc
     assert activated.status_code == 200, activated.text
     assert activated.json()["data"]["is_active"] is True
     switches = await client.get("/api/v1/admin/ai/kill-switches", headers=auth)
-    assert kill_target in {
-        item["target_code"] for item in switches.json()["data"]["items"]
-    }
+    assert kill_target in {item["target_code"] for item in switches.json()["data"]["items"]}
     deactivated = await client.post(
         f"/api/v1/admin/ai/kill-switches/skill/{kill_target}/deactivations",
         headers=auth,

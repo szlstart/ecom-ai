@@ -14,6 +14,8 @@
 
 `docs/test_evidence_registry.yaml` 把追踪矩阵中的测试族绑定到精确的 Pytest/Vitest 选择器，并声明证据层级。`make acceptance-gate` 会解析测试源文件，拒绝不存在或已改名的选择器、未知/孤立测试族，以及没有测试归属的领域聚合；仅在 OpenAPI 中填写 `*-*` 标签不再被视为测试证据。CI 的验收工件同时保存后端和前端 JUnit 报告。
 
+`make acceptance-scenario` 只允许在 `ECOM_ENVIRONMENT=testing`、MySQL/PostgreSQL 数据库名带 `_test` 且 Redis 使用非 0 DB 时运行。它幂等创建版本化的三端场景 `commerce-three-portal-v1`：一个消费者、一个店铺人员、一个平台管理员、一件可售商品、库存、包邮规则、默认地址和模拟余额，并把不含密码或 Token 的公开资源清单写入 `artifacts/acceptance/current/scenario.json`。固定测试密码仅存在于测试工厂源码中，不得复制到非测试环境。
+
 测试完成后，`make acceptance-evidence` 会把已执行的 JUnit Case 与测试注册表逐项求交，为 Route、全局组件、Webhook 和内部 Operation 的每个稳定 Requirement ID 生成 `requirements/<requirement-id>/evidence.json`、`contract-snapshot.json` 和裁剪后的 `test-report.xml`，并生成总索引 `requirement-evidence-index.json`。选择器没有实际执行、Case 失败或 Operation 缺失时命令立即失败；证据只含测试名称、公开契约与哈希，不含请求/响应正文、Cookie、Token 或用户数据。
 
 同一验收命令还会单独执行 Prompt Injection、跨用户/跨店、Consent/Approval、RAG ACL 和记忆隔离安全套件并生成 `agent/security-tests.xml`。未提供真实候选模型 Observation 时仍生成 `agent/evaluation-report.json`，但其结论必须精确为 `insufficient_evidence / observations_missing`；`--allow-missing-observations` 只允许 CI 保存这一 Fail-Closed 事实，不会把它改写为 `pass`。提供候选 Observation 的正式准入仍使用不带该参数的 `make evaluate-agent AGENT_OBSERVATIONS=...`。

@@ -1,6 +1,11 @@
+from collections.abc import AsyncIterator, Awaitable, Callable
+
+import pytest
 from httpx import AsyncClient
 
 from app.core.config import Settings
+from app.database.mysql import probe_mysql
+from app.database.postgres import probe_postgres
 from app.modules.health import service as health_service
 from app.modules.health.schemas import DependencyStatus
 
@@ -43,16 +48,23 @@ async def test_metrics_is_visible_only_to_configured_monitoring_networks(
     assert "http_requests_total" not in external.text
 
 
-async def test_optional_dependency_failure_is_degraded_not_unready(monkeypatch) -> None:
-    async def database_probe(probe, settings, *, required):
+async def test_optional_dependency_failure_is_degraded_not_unready(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def database_probe(
+        probe: Callable[[float], Awaitable[None]],
+        settings: Settings,
+        *,
+        required: bool,
+    ) -> DependencyStatus:
         del settings
-        status = "down" if probe is health_service.probe_postgres else "up"
+        status = "down" if probe is probe_postgres else "up"
         return DependencyStatus(status=status, required=required)
 
-    async def skipped(_settings):
+    async def skipped(_settings: Settings) -> DependencyStatus:
         return DependencyStatus(status="skipped")
 
-    async def up(_settings):
+    async def up(_settings: Settings) -> DependencyStatus:
         return DependencyStatus(status="up")
 
     monkeypatch.setattr(health_service, "_database_probe", database_probe)
@@ -67,13 +79,20 @@ async def test_optional_dependency_failure_is_degraded_not_unready(monkeypatch) 
     assert result.dependencies["postgres"].required is False
 
 
-async def test_required_dependency_failure_is_not_ready(monkeypatch) -> None:
-    async def database_probe(probe, settings, *, required):
+async def test_required_dependency_failure_is_not_ready(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def database_probe(
+        probe: Callable[[float], Awaitable[None]],
+        settings: Settings,
+        *,
+        required: bool,
+    ) -> DependencyStatus:
         del settings
-        status = "down" if probe is health_service.probe_mysql else "up"
+        status = "down" if probe is probe_mysql else "up"
         return DependencyStatus(status=status, required=required)
 
-    async def skipped(_settings):
+    async def skipped(_settings: Settings) -> DependencyStatus:
         return DependencyStatus(status="skipped")
 
     monkeypatch.setattr(health_service, "_database_probe", database_probe)
@@ -88,16 +107,18 @@ async def test_required_dependency_failure_is_not_ready(monkeypatch) -> None:
     assert result.dependencies["mysql"].required is True
 
 
-async def test_agent_runtime_requires_published_agent_for_every_portal(monkeypatch) -> None:
+async def test_agent_runtime_requires_published_agent_for_every_portal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class ScalarRows:
-        def all(self):
+        def all(self) -> list[str]:
             return ["exclusive_support", "store_support", "merchant_copilot"]
 
     class Session:
-        async def scalars(self, _statement):
+        async def scalars(self, _statement: object) -> ScalarRows:
             return ScalarRows()
 
-    async def sessions():
+    async def sessions() -> AsyncIterator[Session]:
         yield Session()
 
     monkeypatch.setattr(health_service, "mysql_session", sessions)

@@ -43,26 +43,30 @@ class AiPrivacyService:
         memory_type: str | None,
         status: str | None,
     ) -> AiMemoryList:
-        clauses = ["user_no = :user_no", "content_ciphertext IS NOT NULL"]
-        params: dict[str, object] = {"user_no": user.user_no}
-        for column, value in (
-            ("namespace", namespace),
-            ("store_no", store_no),
-            ("memory_type", memory_type),
-            ("memory_status", status),
-        ):
-            if value is not None:
-                clauses.append(f"{column} = :{column}")
-                params[column] = value
+        params: dict[str, object] = {
+            "user_no": user.user_no,
+            "namespace": namespace,
+            "namespace_filter": namespace is not None,
+            "store_no": store_no,
+            "store_no_filter": store_no is not None,
+            "memory_type": memory_type,
+            "memory_type_filter": memory_type is not None,
+            "memory_status": status,
+            "memory_status_filter": status is not None,
+        }
         rows = (
             (
                 await self.postgres.execute(
                     text(
-                        "SELECT memory_no, namespace, store_no, memory_type, memory_key, "
-                        "content_ciphertext, source_type, consent_no, memory_status, expires_at, "
-                        "created_at, updated_at, version FROM memory.items WHERE "
-                        + " AND ".join(clauses)
-                        + " ORDER BY updated_at DESC, id DESC LIMIT 200"
+                        """SELECT memory_no, namespace, store_no, memory_type, memory_key,
+                        content_ciphertext, source_type, consent_no, memory_status, expires_at,
+                        created_at, updated_at, version FROM memory.items
+                        WHERE user_no = :user_no AND content_ciphertext IS NOT NULL
+                        AND (:namespace_filter = false OR namespace = :namespace)
+                        AND (:store_no_filter = false OR store_no = :store_no)
+                        AND (:memory_type_filter = false OR memory_type = :memory_type)
+                        AND (:memory_status_filter = false OR memory_status = :memory_status)
+                        ORDER BY updated_at DESC, id DESC LIMIT 200"""
                     ),
                     params,
                 )
@@ -406,18 +410,27 @@ class AiPrivacyService:
     async def _memory_row(
         self, user: User, memory_no: str, *, for_update: bool = False
     ) -> dict[str, Any]:
-        suffix = " FOR UPDATE" if for_update else ""
+        statement = (
+            text(
+                """SELECT id,memory_no,user_no,namespace,store_no,memory_type,memory_key,
+                content_ciphertext,content_hash,confidence,salience,memory_status,consent_no,
+                consent_policy_version,source_type,expires_at,valid_until,created_at,updated_at,
+                version FROM memory.items WHERE memory_no=:memory_no AND user_no=:user_no
+                AND content_ciphertext IS NOT NULL FOR UPDATE"""
+            )
+            if for_update
+            else text(
+                """SELECT id,memory_no,user_no,namespace,store_no,memory_type,memory_key,
+                content_ciphertext,content_hash,confidence,salience,memory_status,consent_no,
+                consent_policy_version,source_type,expires_at,valid_until,created_at,updated_at,
+                version FROM memory.items WHERE memory_no=:memory_no AND user_no=:user_no
+                AND content_ciphertext IS NOT NULL"""
+            )
+        )
         row = (
             (
                 await self.postgres.execute(
-                    text(
-                        """SELECT id,memory_no,user_no,namespace,store_no,memory_type,memory_key,
-                    content_ciphertext,content_hash,confidence,salience,memory_status,consent_no,
-                    consent_policy_version,source_type,expires_at,valid_until,created_at,updated_at,
-                    version FROM memory.items WHERE memory_no=:memory_no AND user_no=:user_no
-                    AND content_ciphertext IS NOT NULL"""
-                        + suffix
-                    ),
+                    statement,
                     {"memory_no": memory_no, "user_no": user.user_no},
                 )
             )

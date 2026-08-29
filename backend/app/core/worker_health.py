@@ -4,13 +4,14 @@ import argparse
 import asyncio
 import json
 import os
+import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 
 from app.core.config import Settings
 
-HEARTBEAT_PATH = Path("/tmp/ecom-ai-worker-heartbeat.json")
+HEARTBEAT_PATH = Path(tempfile.gettempdir()) / "ecom-ai-worker-heartbeat.json"
 _HEARTBEAT_TASKS: set[asyncio.Task[None]] = set()
 
 

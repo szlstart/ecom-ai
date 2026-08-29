@@ -38,6 +38,9 @@ class MemoryObjectStorage:
     def __init__(self) -> None:
         self.objects: dict[tuple[str, str], tuple[bytes, str]] = {}
 
+    async def probe(self) -> None:
+        return None
+
     async def ensure_bucket(self, _bucket: str) -> None:
         return None
 

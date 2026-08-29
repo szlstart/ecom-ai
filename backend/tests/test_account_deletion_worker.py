@@ -15,6 +15,9 @@ class FakeStorage:
         self.missing = missing or set()
         self.removed: list[tuple[str, str]] = []
 
+    async def probe(self) -> None:
+        return None
+
     async def ensure_bucket(self, bucket: str) -> None:
         del bucket
 

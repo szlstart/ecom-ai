@@ -156,8 +156,7 @@ class AccountDeletionService:
                 for row in rows
             ]
         objects = {
-            (item["bucket"], item["object_key"]): item
-            for item in [*file_objects, *upload_objects]
+            (item["bucket"], item["object_key"]): item for item in [*file_objects, *upload_objects]
         }
         return {
             "mysql_ids": {
@@ -228,7 +227,10 @@ class AccountDeletionService:
                 ids = ",".join(str(value) for value in sorted(parent_ids))
                 rows = (
                     await self.mysql.execute(
-                        text(f"SELECT id FROM `{child}` WHERE `{child_column}` IN ({ids})")
+                        text(
+                            # Identifiers are validated information_schema values; ids are ints.
+                            f"SELECT id FROM `{child}` WHERE `{child_column}` IN ({ids})"  # nosec B608
+                        )
                     )
                 ).scalars()
                 bucket = selected[str(child)]
@@ -247,7 +249,8 @@ class AccountDeletionService:
                 await self.mysql.execute(
                     text(
                         "SELECT id FROM knowledge_documents WHERE scope_type='store' "
-                        f"AND scope_no IN ({store_nos})"
+                        # Store numbers are server-generated ULIDs loaded from Store rows.
+                        f"AND scope_no IN ({store_nos})"  # nosec B608
                     )
                 )
             ).scalars()
@@ -301,7 +304,12 @@ class AccountDeletionService:
                 if not values:
                     continue
                 ids = ",".join(str(value) for value in sorted(values))
-                await self.mysql.execute(text(f"DELETE FROM `{table_name}` WHERE id IN ({ids})"))
+                await self.mysql.execute(
+                    text(
+                        # table_name is validated by selected_ids; ids are parsed integers.
+                        f"DELETE FROM `{table_name}` WHERE id IN ({ids})"  # nosec B608
+                    )
+                )
             await self.mysql.execute(
                 text("DELETE FROM idempotency_records WHERE scope_key LIKE :needle"),
                 {"needle": f"%{user_no}%"},

@@ -110,9 +110,7 @@ class FileReconciler:
             stored.update({(item.bucket, item.object_key): item for item in objects})
 
         known = {(item.bucket, item.object_key) for item in files}
-        known.update(
-            (item.reserved_bucket, item.reserved_object_key) for item in active_uploads
-        )
+        known.update((item.reserved_bucket, item.reserved_object_key) for item in active_uploads)
         references = await self.reference_counts()
         encountered: set[bytes] = set()
         missing_count = 0
@@ -217,7 +215,8 @@ class FileReconciler:
             rows = (
                 await self.session.execute(
                     text(
-                        f"SELECT `{column}`, COUNT(*) FROM `{table}` "
+                        # Identifiers are information_schema values validated by _IDENTIFIER.
+                        f"SELECT `{column}`, COUNT(*) FROM `{table}` "  # nosec B608
                         f"WHERE `{column}` IS NOT NULL GROUP BY `{column}`"
                     )
                 )
@@ -225,12 +224,8 @@ class FileReconciler:
             for file_id, count in rows:
                 counts[int(file_id)] += int(count)
 
-        key_rows = (
-            await self.session.execute(
-                select(FileObject.object_key, FileObject.id).where(
-                    FileObject.file_status != "deleted"
-                )
-            )
+        key_rows = await self.session.execute(
+            select(FileObject.object_key, FileObject.id).where(FileObject.file_status != "deleted")
         )
         key_to_id: dict[str, int] = {
             str(object_key): int(file_id) for object_key, file_id in key_rows.tuples()
@@ -239,7 +234,8 @@ class FileReconciler:
             rows = (
                 await self.session.execute(
                     text(
-                        f"SELECT `{column}`, COUNT(*) FROM `{table}` "
+                        # Identifiers come from the immutable module allowlist.
+                        f"SELECT `{column}`, COUNT(*) FROM `{table}` "  # nosec B608
                         f"WHERE `{column}` IS NOT NULL GROUP BY `{column}`"
                     )
                 )
@@ -262,9 +258,7 @@ class FileReconciler:
         status: str,
         now: datetime,
     ) -> FileReconciliationFinding:
-        finding_key = hashlib.sha256(
-            f"{finding_type}\0{bucket}\0{object_key}".encode()
-        ).digest()
+        finding_key = hashlib.sha256(f"{finding_type}\0{bucket}\0{object_key}".encode()).digest()
         finding = await self.session.scalar(
             select(FileReconciliationFinding)
             .where(FileReconciliationFinding.finding_key == finding_key)
@@ -307,9 +301,7 @@ class FileReconciler:
             (
                 await self.session.scalars(
                     select(FileReconciliationFinding)
-                    .where(
-                        FileReconciliationFinding.finding_status.in_(("open", "quarantined"))
-                    )
+                    .where(FileReconciliationFinding.finding_status.in_(("open", "quarantined")))
                     .with_for_update()
                 )
             ).all()
@@ -350,9 +342,7 @@ class FileGarbageCollector:
                                 (FileObject.file_status == "active")
                                 & (FileObject.reference_count == 0)
                                 & (
-                                    func.coalesce(
-                                        FileObject.activated_at, FileObject.created_at
-                                    )
+                                    func.coalesce(FileObject.activated_at, FileObject.created_at)
                                     <= cutoff
                                 )
                             ),

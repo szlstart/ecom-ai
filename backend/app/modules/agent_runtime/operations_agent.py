@@ -10,9 +10,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.id_generator import new_prefixed_ulid
-from app.core.security import utc_now
+from app.core.security import SecurityService, utc_now
 from app.database.mysql import mysql_session, mysql_session_factory
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
+from app.modules.agent_runtime.context_window import ContextWindowBuilder
+from app.modules.agent_runtime.conversation_summary import attach_rolling_summary
 from app.modules.agent_runtime.delegation import (
     DelegationBudget,
     DelegationPacket,
@@ -58,6 +60,7 @@ async def process_operations_run(
     *,
     checkpoint_store: AgentCheckpointStore,
     model_gateway: ProviderOperationsModelGateway | None,
+    security: SecurityService | None = None,
 ) -> None:
     try:
         context = await OperationsContextBuilder(session).build(run)
@@ -104,10 +107,28 @@ async def process_operations_run(
         await _finish_checkpoint(checkpoint_store, context, "security_refusal")
         return
 
+    # Keep the parent AgentRun row unflushed here. Delegation ledger rows use a
+    # foreign key to it from isolated sessions and must not wait on our row lock.
+    with session.no_autoflush:
+        context_window = await ContextWindowBuilder(session).build(
+            context.conversation, context.trigger
+        )
+        if security is not None:
+            context_window = await attach_rolling_summary(
+                context_window,
+                mysql=session,
+                postgres=checkpoint_store.session,
+                security=security,
+                conversation=context.conversation,
+                trigger=context.trigger,
+                user_no=context.user.user_no,
+                store_no=context.store.store_no if context.store else None,
+            )
+    planning_input = context_window.planning_input(user_text)
     intent = _deterministic_intent(user_text, context.audience)
     if model_gateway is not None:
         try:
-            intent = await model_gateway.plan(user_text, context.agent_definition.agent_code)
+            intent = await model_gateway.plan(planning_input, context.agent_definition.agent_code)
         except (ModelGatewayError, TimeoutError):
             run.degraded_reason = "planner_model_unavailable"
     admin_domains = _admin_complex_domains(user_text) if context.audience == "admin" else ()
@@ -179,7 +200,9 @@ async def process_operations_run(
         await _finish_checkpoint(checkpoint_store, context, intent)
         return
 
-    evidence = result.safe_data
+    evidence = dict(result.safe_data)
+    if context_window.recent_turns or context_window.summary_no:
+        evidence["conversation_window"] = context_window.evidence_projection()
     answer = _render(context, intent, evidence)
     answer_mode = "deterministic_fallback"
     confidence = "high"

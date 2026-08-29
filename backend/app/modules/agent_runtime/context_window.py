@@ -26,18 +26,33 @@ class ContextWindow:
     recent_turns: tuple[RecentTurn, ...]
     omitted_count: int
     character_count: int
+    rolling_summary: str | None = None
+    summary_no: str | None = None
+    summarized_message_count: int = 0
+
+    def with_summary(self, summary: str, *, summary_no: str, message_count: int) -> ContextWindow:
+        return ContextWindow(
+            recent_turns=self.recent_turns,
+            omitted_count=self.omitted_count,
+            character_count=self.character_count,
+            rolling_summary=safe_untrusted_excerpt(summary, 3000),
+            summary_no=summary_no,
+            summarized_message_count=message_count,
+        )
 
     def planning_input(self, current_text: str) -> str:
         current = safe_untrusted_excerpt(current_text, 4000)
-        if not self.recent_turns:
+        if not self.recent_turns and not self.rolling_summary:
             return current
-        history = "\n".join(f"{item.role}: {item.text}" for item in self.recent_turns)
-        return (
-            "CURRENT_UNTRUSTED_MESSAGE:\n"
-            + current
-            + "\n\nRECENT_UNTRUSTED_DIALOGUE_FOR_COREFERENCE_ONLY:\n"
-            + history
-        )[:8000]
+        sections = ["CURRENT_UNTRUSTED_MESSAGE:\n" + current]
+        if self.rolling_summary:
+            sections.append(
+                "ROLLING_UNTRUSTED_SUMMARY_FOR_CONTINUITY_ONLY:\n" + self.rolling_summary
+            )
+        if self.recent_turns:
+            history = "\n".join(f"{item.role}: {item.text}" for item in self.recent_turns)
+            sections.append("RECENT_UNTRUSTED_DIALOGUE_FOR_COREFERENCE_ONLY:\n" + history)
+        return "\n\n".join(sections)[:8000]
 
     def evidence_projection(self) -> dict[str, object]:
         return {
@@ -50,6 +65,16 @@ class ContextWindow:
             "included_count": len(self.recent_turns),
             "omitted_count": self.omitted_count,
             "character_count": self.character_count,
+            "rolling_summary": (
+                {
+                    "summary_id": self.summary_no,
+                    "message_count": self.summarized_message_count,
+                    "trust_level": "untrusted_dialogue",
+                    "content_exposed": False,
+                }
+                if self.summary_no
+                else None
+            ),
         }
 
 

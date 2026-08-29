@@ -336,6 +336,7 @@ class MultiAgentOrchestrator:
                     delegation_no=packet.delegation_no,
                     specialist=packet.specialist_code,
                     error_type=type(exc).__name__,
+                    error=str(exc)[:500],
                 )
                 result = _failed_result(packet, "AI_DELEGATION_AUDIT_FAILED")
                 return result, _trace(packet, result, started, dependency_nos)
@@ -365,6 +366,7 @@ class MultiAgentOrchestrator:
                     delegation_no=packet.delegation_no,
                     specialist=packet.specialist_code,
                     error_type=type(exc).__name__,
+                    error=str(exc)[:500],
                 )
                 result = _failed_result(packet, "AI_DELEGATION_AUDIT_FAILED")
             return result, _trace(packet, result, started, dependency_nos)

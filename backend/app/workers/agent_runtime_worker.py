@@ -173,6 +173,7 @@ async def process_batch(limit: int = 20) -> int:
                                 run,
                                 checkpoint_store=checkpoint_store,
                                 model_gateway=store_model_gateway,
+                                security=security,
                             )
                         elif agent_code in {"merchant_copilot", "admin_copilot"}:
                             await process_operations_run(
@@ -180,6 +181,7 @@ async def process_batch(limit: int = 20) -> int:
                                 run,
                                 checkpoint_store=checkpoint_store,
                                 model_gateway=operations_model_gateway,
+                                security=security,
                             )
                         else:
                             run.run_status = "failed"

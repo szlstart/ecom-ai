@@ -8,9 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
-from app.core.security import utc_now
+from app.core.security import SecurityService, utc_now
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.context_window import ContextWindow, ContextWindowBuilder
+from app.modules.agent_runtime.conversation_summary import attach_rolling_summary
 from app.modules.agent_runtime.model_gateway import (
     DeterministicStoreModelGateway,
     ModelGatewayError,
@@ -33,6 +34,7 @@ async def process_store_run(
     *,
     model_gateway: StoreModelGateway | None = None,
     checkpoint_store: AgentCheckpointStore | None = None,
+    security: SecurityService | None = None,
 ) -> None:
     builder = StoreContextBuilder(session)
     try:
@@ -78,6 +80,17 @@ async def process_store_run(
     context_window = await ContextWindowBuilder(session).build(
         context.conversation, context.trigger
     )
+    if checkpoint_store is not None and security is not None:
+        context_window = await attach_rolling_summary(
+            context_window,
+            mysql=session,
+            postgres=checkpoint_store.session,
+            security=security,
+            conversation=context.conversation,
+            trigger=context.trigger,
+            user_no=context.user.user_no,
+            store_no=context.store.store_no,
+        )
     planning_input = (
         context_window.planning_input(trigger_text)
         if isinstance(gateway, ProviderStoreModelGateway)

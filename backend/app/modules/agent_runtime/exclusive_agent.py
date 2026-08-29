@@ -14,6 +14,7 @@ from app.core.security import SecurityService, utc_now
 from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.context_window import ContextWindow, ContextWindowBuilder
+from app.modules.agent_runtime.conversation_summary import attach_rolling_summary
 from app.modules.agent_runtime.exclusive_context import (
     ExclusiveContextBuilder,
     TrustedExclusiveAgentContext,
@@ -168,6 +169,16 @@ async def process_exclusive_run(
     gateway = model_gateway or DeterministicExclusiveModelGateway()
     context_window = await ContextWindowBuilder(session).build(
         context.conversation, context.trigger
+    )
+    context_window = await attach_rolling_summary(
+        context_window,
+        mysql=session,
+        postgres=checkpoint_store.session,
+        security=security,
+        conversation=context.conversation,
+        trigger=context.trigger,
+        user_no=context.user.user_no,
+        store_no=None,
     )
     planning_input = (
         context_window.planning_input(trigger_text)

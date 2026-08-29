@@ -42,11 +42,11 @@ from app.modules.rbac.repository import RbacRepository
 from app.modules.rbac.schemas import (
     AdminDashboardSummary,
     AdminUserCreateRequest,
-    AdminUserDeleteRequest,
     AdminUserList,
     AdminUserPasswordReplaceRequest,
     AdminUserSummary,
     AdminUserUpdateRequest,
+    AdminUserWorkspace,
     AdminWalletAdjustmentRequest,
     AdminWalletAdjustmentResult,
     ApprovalDecisionRequest,
@@ -168,6 +168,68 @@ class RbacService:
     async def get_user(self, user_no: str) -> AdminUserSummary:
         return self._user_view(await self._require_user(user_no))
 
+    async def get_user_workspace(self, user_no: str) -> AdminUserWorkspace:
+        target = await self._require_user(user_no)
+        credentials = await self.identity.credentials_for_user(target.id)
+        email_credential = next(
+            (
+                item
+                for item in credentials
+                if item.credential_type == "email" and item.identifier_ciphertext is not None
+            ),
+            None,
+        )
+        current_email = (
+            self.security.decrypt("user-credential:email", email_credential.identifier_ciphertext)
+            if email_credential is not None and email_credential.identifier_ciphertext is not None
+            else None
+        )
+        wallet = await self.session.scalar(
+            select(UserWallet).where(UserWallet.user_id == target.id)
+        )
+        active_session_count = int(
+            await self.session.scalar(
+                select(func.count(AuthSession.id)).where(
+                    AuthSession.user_id == target.id,
+                    AuthSession.audience == "user",
+                    AuthSession.revoked_at.is_(None),
+                    AuthSession.expires_at > utc_now(),
+                )
+            )
+            or 0
+        )
+        presence = (
+            "frozen"
+            if target.user_status == "suspended"
+            else "online"
+            if active_session_count
+            else "offline"
+        )
+        return AdminUserWorkspace(
+            user_id=target.user_no,
+            username=target.username,
+            current_email=current_email,
+            presence_status=presence,
+            balance_minor=str(wallet.balance_amount if wallet is not None else 0),
+            currency=wallet.currency if wallet is not None else "CNY",
+        )
+
+    async def require_consumer_user(self, user_no: str) -> User:
+        """Resolve a consumer for delegated administration operations."""
+        target = await self._require_user(user_no)
+        grants = await self.repository.active_grants(target.id, utc_now())
+        if not any(
+            role.role_code == "user" and grant.scope_type == "platform" and grant.scope_id == 0
+            for grant, role in grants
+        ):
+            raise ApplicationError(
+                status=404,
+                code="RESOURCE_NOT_FOUND",
+                title="Resource not found",
+                detail="未找到该普通用户。",
+            )
+        return target
+
     async def create_user(
         self,
         access: AdminAccess,
@@ -265,9 +327,7 @@ class RbacService:
                 ),
             ]
         )
-        grant_key = self.security.keyed_hash(
-            "active-role-grant", f"{user.id}:{role.id}:platform:0"
-        )
+        grant_key = self.security.keyed_hash("active-role-grant", f"{user.id}:{role.id}:platform:0")
         self.session.add(
             UserRole(
                 user_id=user.id,
@@ -434,7 +494,7 @@ class RbacService:
             action="replace_user_password",
             target_type="user",
             target_no=user_no,
-            reason=request.reason,
+            reason="超级管理员直接重置密码",
             after={"require_change_on_next_login": request.require_change_on_next_login},
         )
         self.idempotency.complete(claim, response_status=200, resource_no=user_no)
@@ -516,7 +576,7 @@ class RbacService:
             business_type="admin_adjustment",
             business_no=new_prefixed_ulid("wadj_"),
             channel="admin",
-            description=request.reason,
+            description="超级管理员直接调整账户余额",
             occurred_at=utc_now(),
         )
         self.session.add(transaction)
@@ -527,7 +587,7 @@ class RbacService:
             action="adjust_user_wallet",
             target_type="user_wallet",
             target_no=wallet.wallet_no,
-            reason=request.reason,
+            reason="超级管理员直接调整账户余额",
             before={"balance_minor": before, "currency": wallet.currency},
             after={"balance_minor": after, "currency": wallet.currency},
         )
@@ -545,7 +605,6 @@ class RbacService:
         self,
         access: AdminAccess,
         user_no: str,
-        request: AdminUserDeleteRequest,
         expected_version: int,
     ) -> User:
         access.require_scope("platform", 0)
@@ -553,8 +612,7 @@ class RbacService:
         self._check_version(target.version, expected_version)
         grants = await self.repository.active_grants(target.id, utc_now())
         if any(
-            role.role_code != "user" or grant.scope_type != "platform"
-            for grant, role in grants
+            role.role_code != "user" or grant.scope_type != "platform" for grant, role in grants
         ):
             raise ApplicationError(
                 status=409,
@@ -567,7 +625,7 @@ class RbacService:
             action="delete_user",
             target_type="user",
             target_no=user_no,
-            reason=request.reason,
+            reason="超级管理员确认删除用户",
             before={"username": target.username, "status": target.user_status},
         )
         await self.session.flush()

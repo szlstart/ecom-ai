@@ -14,7 +14,14 @@ from app.api.schemas import Envelope
 from app.core.config import get_settings
 from app.modules.identity.dependencies import IdentityServiceDependency
 from app.modules.identity.router import _client_ip, _no_store
-from app.modules.identity.schemas import SessionBootstrap, SessionSummary
+from app.modules.identity.schemas import (
+    ContactChangeRequest,
+    MessageResult,
+    PasswordChangeRequest,
+    SecuritySummary,
+    SessionBootstrap,
+    SessionSummary,
+)
 from app.modules.rbac.auth_dependencies import AdminAuthServiceDependency
 from app.modules.rbac.schemas import (
     AdminBootstrap,
@@ -126,6 +133,56 @@ async def merchant_login(
     _set_merchant_refresh_cookie(response, refresh_token, bootstrap.session.csrf_token)
     _no_store(response)
     return Envelope(data=bootstrap)
+
+
+@merchant_router.get(
+    "/account/security",
+    response_model=Envelope[SecuritySummary],
+    operation_id="MerchantAccountSecurity_Get",
+)
+async def get_merchant_account_security(
+    response: Response,
+    context: MerchantContext,
+    service: IdentityServiceDependency,
+) -> Envelope[SecuritySummary]:
+    _no_store(response)
+    return Envelope(data=await service.security_summary(context.user))
+
+
+@merchant_router.put(
+    "/account/password",
+    response_model=Envelope[MessageResult],
+    operation_id="MerchantAccountPassword_Replace",
+)
+async def replace_merchant_account_password(
+    payload: PasswordChangeRequest,
+    response: Response,
+    context: MerchantContext,
+    idempotency_key: IdempotencyKey,
+    service: IdentityServiceDependency,
+) -> Envelope[MessageResult]:
+    await service.change_password(context.user, context.session, payload, idempotency_key)
+    _no_store(response)
+    return Envelope(data=MessageResult(message="商家密码已修改，其他登录会话已退出。"))
+
+
+@merchant_router.put(
+    "/account/email",
+    response_model=Envelope[MessageResult],
+    operation_id="MerchantAccountEmail_Replace",
+)
+async def replace_merchant_account_email(
+    payload: ContactChangeRequest,
+    response: Response,
+    context: MerchantContext,
+    idempotency_key: IdempotencyKey,
+    service: IdentityServiceDependency,
+) -> Envelope[MessageResult]:
+    await service.complete_contact_change(
+        context.user, context.session, payload, idempotency_key
+    )
+    _no_store(response)
+    return Envelope(data=MessageResult(message="商家邮箱已更新。"))
 
 
 @merchant_router.post(

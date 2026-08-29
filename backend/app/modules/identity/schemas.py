@@ -96,6 +96,7 @@ class VerificationCodeAccepted(StrictRequest):
 
 class PasswordResetHintRequest(StrictRequest):
     username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    audience: Literal["consumer", "merchant"] = "consumer"
 
 
 class PasswordResetHintResult(StrictRequest):
@@ -105,6 +106,7 @@ class PasswordResetHintResult(StrictRequest):
 class PasswordResetTicketRequest(StrictRequest):
     username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
     email: str = Field(min_length=3, max_length=254)
+    audience: Literal["consumer", "merchant"] = "consumer"
 
 
 class PasswordResetTicketResult(StrictRequest):

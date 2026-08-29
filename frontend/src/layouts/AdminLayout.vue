@@ -29,7 +29,6 @@ const groupDefinitions = [
   { key: 'people', title: '用户与店铺', icon: '◎', codes: ['users', 'stores'] },
   { key: 'service', title: '服务与内容', icon: '◌', codes: ['support', 'content'] },
   { key: 'ai', title: 'AI 智能中心', icon: '✦', codes: ['ai-center', 'ai-agents', 'ai-skills', 'ai-tools', 'ai-policies', 'knowledge', 'ai-evaluations', 'observability'] },
-  { key: 'system', title: '安全与系统', icon: '□', codes: ['roles', 'approvals', 'audit', 'batch-jobs', 'dead-letter-events', 'categories', 'brands'] },
 ] as const
 
 const groups = computed(() => groupDefinitions.map((definition) => ({
@@ -105,7 +104,6 @@ watch(() => route.fullPath, () => { sidebarOpen.value = false; profileOpen.value
           <p><span>{{ group.icon }}</span>{{ group.title }}</p>
           <RouterLink v-for="item in group.items" :key="item.code" :to="item.route"><span class="admin-nav-icon">{{ iconFor(item.code) }}</span><span>{{ item.title }}</span></RouterLink>
         </section>
-        <section class="admin-nav-group"><p><span>⚙</span>账号设置</p><RouterLink to="/admin/security"><span class="admin-nav-icon">♢</span><span>登录与安全</span></RouterLink></section>
       </nav>
       <div class="admin-sidebar-footer"><div class="admin-help-card"><span>?</span><div><strong>需要帮助？</strong><small>使用顶部 AI 管家快速定位功能</small></div></div><button class="admin-sidebar-logout" @click="logout"><span>↪</span>退出管理端</button></div>
     </aside>
@@ -116,7 +114,7 @@ watch(() => route.fullPath, () => { sidebarOpen.value = false; profileOpen.value
         <button class="admin-search-trigger" @click="openSearch"><span>⌕</span><span>搜索功能、用户、店铺或订单</span><kbd>⌘ K</kbd></button>
         <div class="admin-topbar-actions">
           <button v-if="auth.has('support:queue_read')" class="admin-message-trigger" :class="{ unread: unreadCount > 0 }" aria-label="打开消息中心" @click="messageOpen = true"><span>◍</span><span>消息</span><b v-if="unreadCount">{{ unreadCount > 99 ? '99+' : unreadCount }}</b></button>
-          <div class="admin-profile-menu" @click.stop><button @click="profileOpen = !profileOpen"><span class="admin-profile-avatar">{{ initials }}</span><span class="admin-profile-copy"><strong>{{ profile?.nickname || '平台管理员' }}</strong><small>{{ profile?.username || '正在载入…' }}</small></span><span>⌄</span></button><div v-if="profileOpen" class="admin-profile-dropdown"><RouterLink to="/admin/security">登录与安全</RouterLink><RouterLink v-if="auth.has('audit:read')" to="/admin/audit-logs">我的操作记录</RouterLink><button @click="logout">退出登录</button></div></div>
+          <div class="admin-profile-menu" @click.stop><button @click="profileOpen = !profileOpen"><span class="admin-profile-avatar">{{ initials }}</span><span class="admin-profile-copy"><strong>{{ profile?.nickname || '平台管理员' }}</strong><small>{{ profile?.username || '正在载入…' }}</small></span><span>⌄</span></button><div v-if="profileOpen" class="admin-profile-dropdown"><button @click="logout">退出登录</button></div></div>
         </div>
       </header>
       <main class="admin-content"><RouterView /></main>

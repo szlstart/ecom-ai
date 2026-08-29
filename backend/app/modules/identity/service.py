@@ -809,7 +809,9 @@ class IdentityService:
         )
         email = (
             await self._recovery_email_for_user(user.id)
-            if user is not None and eligibility is not None and eligibility.consumer
+            if user is not None
+            and eligibility is not None
+            and (eligibility.consumer if request.audience == "consumer" else eligibility.merchant)
             else None
         )
         if email is None:
@@ -840,7 +842,9 @@ class IdentityService:
         )
         registered_email = (
             await self._recovery_email_for_user(user.id)
-            if user is not None and eligibility is not None and eligibility.consumer
+            if user is not None
+            and eligibility is not None
+            and (eligibility.consumer if request.audience == "consumer" else eligibility.merchant)
             else None
         )
         matches = registered_email is not None and hmac.compare_digest(
@@ -1302,6 +1306,9 @@ class IdentityService:
         if address.version != expected_version:
             raise _version_mismatch()
         values = request.model_dump(exclude_unset=True)
+        if values.get("is_default") is True and not address.is_default:
+            await self._clear_default_address(user_id)
+            await self.session.flush()
         if "recipient_name" in values:
             address.recipient_name_ciphertext = self.security.encrypt(
                 "address-recipient", values.pop("recipient_name")
@@ -1612,6 +1619,10 @@ class IdentityService:
                 detail="注册验证码暂不可用，请稍后重试。",
                 retryable=True,
             ) from exc
+
+    async def verify_registration_captcha(self, captcha_id: str, answer: str) -> None:
+        """Consume the shared arithmetic captcha for another registration audience."""
+        await self._verify_registration_captcha(captcha_id, answer)
 
     def _idempotency_payload(self, purpose: str, value: object) -> dict[str, str]:
         return {

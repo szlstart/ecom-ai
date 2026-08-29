@@ -54,7 +54,6 @@ async function logout() {
         <div><p class="eyebrow">Personal center</p><h1>你好，{{ auth.user?.nickname || auth.user?.username }}</h1><p>订单、地址、收藏和账户安全，都在这里统一管理。</p></div>
       </div>
       <div class="my-center-hero-actions">
-        <RouterLink class="my-profile-button" to="/me/profile">编辑个人资料</RouterLink>
         <button class="my-logout-button" type="button" :disabled="loggingOut" @click="logout">{{ loggingOut ? '正在退出…' : '退出登录' }}</button>
       </div>
       <div class="my-wallet-panel">

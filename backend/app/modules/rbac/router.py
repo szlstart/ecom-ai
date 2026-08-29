@@ -6,9 +6,22 @@ from fastapi import APIRouter, Header, Query, Response, status
 
 from app.api.dependencies import IdempotencyKey
 from app.api.schemas import Envelope
+from app.modules.cart.dependencies import CartServiceDependency
+from app.modules.cart.schemas import CartItemPatchRequest, CartView
+from app.modules.catalog.dependencies import CatalogServiceDependency
+from app.modules.catalog.schemas import ProductList
 from app.modules.finance.dependencies import AccountDeletionServiceDependency
+from app.modules.identity.dependencies import IdentityServiceDependency
 from app.modules.identity.router import _etag, _expected_version, _no_store
-from app.modules.identity.schemas import MessageResult
+from app.modules.identity.schemas import (
+    AddressList,
+    AddressPatch,
+    AddressView,
+    AddressWrite,
+    MessageResult,
+)
+from app.modules.orders.dependencies import OrderServiceDependency
+from app.modules.orders.schemas import OrderCancellationRequest, OrderCommandResult
 from app.modules.rbac.dependencies import (
     AdminAccess,
     require_admin_permission,
@@ -17,11 +30,11 @@ from app.modules.rbac.dependencies import (
 from app.modules.rbac.schemas import (
     AdminDashboardSummary,
     AdminUserCreateRequest,
-    AdminUserDeleteRequest,
     AdminUserList,
     AdminUserPasswordReplaceRequest,
     AdminUserSummary,
     AdminUserUpdateRequest,
+    AdminUserWorkspace,
     AdminWalletAdjustmentRequest,
     AdminWalletAdjustmentResult,
     ApprovalDecisionRequest,
@@ -44,6 +57,8 @@ from app.modules.rbac.schemas import (
     UserStatusEventView,
 )
 from app.modules.rbac.service_dependencies import RbacServiceDependency
+from app.modules.stores.dependencies import StoreServiceDependency
+from app.modules.stores.schemas import FollowedStoreList
 
 router = APIRouter(prefix="/admin", tags=["administration"])
 
@@ -114,6 +129,257 @@ async def get_user(
     return Envelope(data=item)
 
 
+@router.get(
+    "/users/{user_id}/workspace",
+    response_model=Envelope[AdminUserWorkspace],
+    operation_id="AdminUserWorkspace_Get",
+)
+async def get_user_workspace(
+    user_id: str,
+    response: Response,
+    service: RbacServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:read")],
+) -> Envelope[AdminUserWorkspace]:
+    _no_store(response)
+    return Envelope(data=await service.get_user_workspace(user_id))
+
+
+@router.get(
+    "/users/{user_id}/addresses",
+    response_model=Envelope[AddressList],
+    operation_id="AdminUserAddress_List",
+)
+async def list_admin_user_addresses(
+    user_id: str,
+    response: Response,
+    service: RbacServiceDependency,
+    identity_service: IdentityServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:read")],
+) -> Envelope[AddressList]:
+    target = await service.require_consumer_user(user_id)
+    _no_store(response)
+    return Envelope(data=await identity_service.list_addresses(target.id))
+
+
+@router.post(
+    "/users/{user_id}/addresses",
+    response_model=Envelope[AddressView],
+    status_code=status.HTTP_201_CREATED,
+    operation_id="AdminUserAddress_Create",
+)
+async def create_admin_user_address(
+    user_id: str,
+    payload: AddressWrite,
+    service: RbacServiceDependency,
+    identity_service: IdentityServiceDependency,
+    idempotency_key: IdempotencyKey,
+    _access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+) -> Envelope[AddressView]:
+    target = await service.require_consumer_user(user_id)
+    return Envelope(data=await identity_service.create_address(target, payload, idempotency_key))
+
+
+@router.patch(
+    "/users/{user_id}/addresses/{address_id}",
+    response_model=Envelope[AddressView],
+    operation_id="AdminUserAddress_Update",
+)
+async def update_admin_user_address(
+    user_id: str,
+    address_id: str,
+    payload: AddressPatch,
+    service: RbacServiceDependency,
+    identity_service: IdentityServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AddressView]:
+    target = await service.require_consumer_user(user_id)
+    return Envelope(
+        data=await identity_service.update_address(
+            target.id, address_id, payload, _expected_version(if_match)
+        )
+    )
+
+
+@router.delete(
+    "/users/{user_id}/addresses/{address_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="AdminUserAddress_Delete",
+)
+async def delete_admin_user_address(
+    user_id: str,
+    address_id: str,
+    service: RbacServiceDependency,
+    identity_service: IdentityServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> None:
+    target = await service.require_consumer_user(user_id)
+    await identity_service.delete_address(target.id, address_id, _expected_version(if_match))
+
+
+@router.get(
+    "/users/{user_id}/cart",
+    response_model=Envelope[CartView],
+    operation_id="AdminUserCart_Get",
+)
+async def get_admin_user_cart(
+    user_id: str,
+    service: RbacServiceDependency,
+    cart_service: CartServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:read")],
+) -> Envelope[CartView]:
+    target = await service.require_consumer_user(user_id)
+    return Envelope(data=await cart_service.get(target))
+
+
+@router.patch(
+    "/users/{user_id}/cart/items/{item_id}",
+    response_model=Envelope[CartView],
+    operation_id="AdminUserCartItem_Update",
+)
+async def update_admin_user_cart_item(
+    user_id: str,
+    item_id: str,
+    payload: CartItemPatchRequest,
+    service: RbacServiceDependency,
+    cart_service: CartServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[CartView]:
+    target = await service.require_consumer_user(user_id)
+    return Envelope(
+        data=await cart_service.patch(target, item_id, payload, _expected_version(if_match))
+    )
+
+
+@router.delete(
+    "/users/{user_id}/cart/items/{item_id}",
+    response_model=Envelope[CartView],
+    operation_id="AdminUserCartItem_Delete",
+)
+async def delete_admin_user_cart_item(
+    user_id: str,
+    item_id: str,
+    service: RbacServiceDependency,
+    cart_service: CartServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[CartView]:
+    target = await service.require_consumer_user(user_id)
+    return Envelope(data=await cart_service.delete(target, item_id, _expected_version(if_match)))
+
+
+@router.get(
+    "/users/{user_id}/favorite-products",
+    response_model=Envelope[ProductList],
+    operation_id="AdminUserFavoriteProduct_List",
+)
+async def list_admin_user_favorite_products(
+    user_id: str,
+    service: RbacServiceDependency,
+    catalog_service: CatalogServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:read")],
+) -> Envelope[ProductList]:
+    target = await service.require_consumer_user(user_id)
+    return Envelope(data=await catalog_service.favorite_products(target.id, 50))
+
+
+@router.delete(
+    "/users/{user_id}/favorite-products/{product_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="AdminUserFavoriteProduct_Delete",
+)
+async def delete_admin_user_favorite_product(
+    user_id: str,
+    product_id: str,
+    service: RbacServiceDependency,
+    catalog_service: CatalogServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+) -> None:
+    target = await service.require_consumer_user(user_id)
+    await catalog_service.set_favorite(target.id, product_id, False)
+
+
+@router.get(
+    "/users/{user_id}/followed-stores",
+    response_model=Envelope[FollowedStoreList],
+    operation_id="AdminUserFollowedStore_List",
+)
+async def list_admin_user_followed_stores(
+    user_id: str,
+    service: RbacServiceDependency,
+    store_service: StoreServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:read")],
+) -> Envelope[FollowedStoreList]:
+    target = await service.require_consumer_user(user_id)
+    return Envelope(data=await store_service.followed_stores(target.id, 50))
+
+
+@router.delete(
+    "/users/{user_id}/followed-stores/{store_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="AdminUserFollowedStore_Delete",
+)
+async def delete_admin_user_followed_store(
+    user_id: str,
+    store_id: str,
+    service: RbacServiceDependency,
+    store_service: StoreServiceDependency,
+    _access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+) -> None:
+    target = await service.require_consumer_user(user_id)
+    await store_service.set_follow(target.id, store_id, False)
+
+
+@router.post(
+    "/users/{user_id}/orders/{order_id}/cancellations",
+    response_model=Envelope[OrderCommandResult],
+    operation_id="AdminUserOrder_CancelAsUser",
+)
+async def cancel_admin_user_order(
+    user_id: str,
+    order_id: str,
+    service: RbacServiceDependency,
+    order_service: OrderServiceDependency,
+    idempotency_key: IdempotencyKey,
+    _access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[OrderCommandResult]:
+    target = await service.require_consumer_user(user_id)
+    return Envelope(
+        data=await order_service.cancel(
+            target,
+            order_id,
+            OrderCancellationRequest(reason_code="other", description="超级管理员代用户取消"),
+            _expected_version(if_match),
+            idempotency_key,
+        )
+    )
+
+
+@router.post(
+    "/users/{user_id}/orders/{order_id}/receipt-confirmations",
+    response_model=Envelope[OrderCommandResult],
+    operation_id="AdminUserOrder_ConfirmReceiptAsUser",
+)
+async def confirm_admin_user_order_receipt(
+    user_id: str,
+    order_id: str,
+    service: RbacServiceDependency,
+    order_service: OrderServiceDependency,
+    idempotency_key: IdempotencyKey,
+    _access: Annotated[AdminAccess, require_admin_permission("users:manage")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[OrderCommandResult]:
+    target = await service.require_consumer_user(user_id)
+    return Envelope(
+        data=await order_service.confirm_receipt(
+            target, order_id, _expected_version(if_match), idempotency_key
+        )
+    )
+
+
 @router.patch(
     "/users/{user_id}",
     response_model=Envelope[AdminUserSummary],
@@ -143,9 +409,7 @@ async def replace_user_password(
     payload: AdminUserPasswordReplaceRequest,
     service: RbacServiceDependency,
     idempotency_key: IdempotencyKey,
-    access: Annotated[
-        AdminAccess, require_admin_permission("users:force_password_reset")
-    ],
+    access: Annotated[AdminAccess, require_admin_permission("users:force_password_reset")],
 ) -> Envelope[MessageResult]:
     await service.replace_user_password(access, user_id, payload, idempotency_key)
     return Envelope(data=MessageResult(message="临时密码已设置，目标账号的全部会话已撤销。"))
@@ -178,7 +442,6 @@ async def adjust_user_wallet(
 )
 async def delete_user(
     user_id: str,
-    payload: AdminUserDeleteRequest,
     service: RbacServiceDependency,
     deletion_service: AccountDeletionServiceDependency,
     access: Annotated[AdminAccess, require_admin_permission("users:manage")],
@@ -187,7 +450,6 @@ async def delete_user(
     target = await service.prepare_user_deletion(
         access,
         user_id,
-        payload,
         _expected_version(if_match),
     )
     await deletion_service.delete_consumer(target)

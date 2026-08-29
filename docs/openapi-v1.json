@@ -1783,14 +1783,18 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "MCH-AUTH-01",
           "USR-AUTH-REGISTER-01"
         ],
         "x-scope-policy": [
-          "user_audience"
+          "user_audience",
+          "store_operator_with_store_scope"
         ],
         "x-test-case-ids": [
           "AUTH-CAPTCHA-*",
-          "AUTH-REGISTER-*"
+          "AUTH-REGISTER-*",
+          "AUTH-RESET-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -2451,13 +2455,17 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "MCH-AUTH-01",
           "USR-AUTH-FORGOT-01"
         ],
         "x-scope-policy": [
-          "user_audience"
+          "user_audience",
+          "store_operator_with_store_scope"
         ],
         "x-test-case-ids": [
-          "AUTH-RESET-*"
+          "AUTH-CAPTCHA-*",
+          "AUTH-RESET-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -2520,13 +2528,17 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "MCH-AUTH-01",
           "USR-AUTH-FORGOT-01"
         ],
         "x-scope-policy": [
-          "user_audience"
+          "user_audience",
+          "store_operator_with_store_scope"
         ],
         "x-test-case-ids": [
-          "AUTH-RESET-*"
+          "AUTH-CAPTCHA-*",
+          "AUTH-RESET-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -2607,13 +2619,17 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "MCH-AUTH-01",
           "USR-AUTH-RESET-01"
         ],
         "x-scope-policy": [
-          "ticket_owner"
+          "ticket_owner",
+          "store_operator_with_store_scope"
         ],
         "x-test-case-ids": [
-          "AUTH-RESET-*"
+          "AUTH-CAPTCHA-*",
+          "AUTH-RESET-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -16256,6 +16272,7 @@
         "x-requirement-id": [
           "ADM-ORDER-LIST-01",
           "ADM-STORE-DETAIL-01",
+          "ADM-USER-01",
           "MCH-ORDER-01"
         ],
         "x-scope-policy": [
@@ -16264,6 +16281,13 @@
           "shipments:create",
           "refunds:read",
           "store_scope",
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
           "stores:manage",
           "products:read",
           "products:update",
@@ -16273,9 +16297,12 @@
         "x-test-case-ids": [
           "ADM-ORDER-*",
           "ADM-PRODUCT-*",
+          "ADM-RBAC-*",
           "ADM-REFUND-*",
+          "ADM-SENSITIVE-*",
           "ADM-SHIP-CREATE-*",
           "ADM-STORE-*",
+          "ADM-USER-STATUS-*",
           "FINANCE-*",
           "MCH-ORDER-*",
           "MCH-PORTAL-*",
@@ -30183,6 +30210,8 @@
           "store_operator_with_store_scope"
         ],
         "x-test-case-ids": [
+          "AUTH-CAPTCHA-*",
+          "AUTH-RESET-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -30252,6 +30281,267 @@
           "store_operator_with_store_scope"
         ],
         "x-test-case-ids": [
+          "AUTH-CAPTCHA-*",
+          "AUTH-RESET-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/account/security": {
+      "get": {
+        "tags": [
+          "merchant-authentication"
+        ],
+        "summary": "Get Merchant Account Security",
+        "operationId": "MerchantAccountSecurity_Get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SecuritySummary_"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "none",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-STORE-01"
+        ],
+        "x-scope-policy": [
+          "stores:read",
+          "stores:manage",
+          "store_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-STORE-*",
+          "FILE-UPLOAD-*",
+          "FINANCE-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/account/password": {
+      "put": {
+        "tags": [
+          "merchant-authentication"
+        ],
+        "summary": "Replace Merchant Account Password",
+        "operationId": "MerchantAccountPassword_Replace",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantAccountPassword_Replace",
+        "x-domain-command": "MerchantAccountPassword_Replace",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-STORE-01"
+        ],
+        "x-scope-policy": [
+          "stores:read",
+          "stores:manage",
+          "store_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-STORE-*",
+          "FILE-UPLOAD-*",
+          "FINANCE-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/merchant/account/email": {
+      "put": {
+        "tags": [
+          "merchant-authentication"
+        ],
+        "summary": "Replace Merchant Account Email",
+        "operationId": "MerchantAccountEmail_Replace",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactChangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantAccountEmail_Replace",
+        "x-domain-command": "MerchantAccountEmail_Replace",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-STORE-01"
+        ],
+        "x-scope-policy": [
+          "stores:read",
+          "stores:manage",
+          "store_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-STORE-*",
+          "FILE-UPLOAD-*",
+          "FINANCE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -31586,9 +31876,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -31710,9 +32002,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -31756,16 +32050,6 @@
             }
           }
         ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AdminUserDeleteRequest"
-              }
-            }
-          }
-        },
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -31827,9 +32111,1595 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/workspace": {
+      "get": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Get User Workspace",
+        "operationId": "AdminUserWorkspace_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminUserWorkspace_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "access.AdminUserWorkspace_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:read"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/addresses": {
+      "get": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "List Admin User Addresses",
+        "operationId": "AdminUserAddress_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AddressList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "access.AdminUserAddress_List",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:read"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      },
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Create Admin User Address",
+        "operationId": "AdminUserAddress_Create",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AddressView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminUserAddress_Create",
+        "x-domain-command": "AdminUserAddress_Create",
+        "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/addresses/{address_id}": {
+      "patch": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Update Admin User Address",
+        "operationId": "AdminUserAddress_Update",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "address_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Address Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AddressView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminUserAddress_Update",
+        "x-domain-command": "AdminUserAddress_Update",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Delete Admin User Address",
+        "operationId": "AdminUserAddress_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "address_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Address Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminUserAddress_Delete",
+        "x-domain-command": "AdminUserAddress_Delete",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/cart": {
+      "get": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Get Admin User Cart",
+        "operationId": "AdminUserCart_Get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "access.AdminUserCart_Get",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:read"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/cart/items/{item_id}": {
+      "patch": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Update Admin User Cart Item",
+        "operationId": "AdminUserCartItem_Update",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartItemPatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminUserCartItem_Update",
+        "x-domain-command": "AdminUserCartItem_Update",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Delete Admin User Cart Item",
+        "operationId": "AdminUserCartItem_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminUserCartItem_Delete",
+        "x-domain-command": "AdminUserCartItem_Delete",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/favorite-products": {
+      "get": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "List Admin User Favorite Products",
+        "operationId": "AdminUserFavoriteProduct_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ProductList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "access.AdminUserFavoriteProduct_List",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:read"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/favorite-products/{product_id}": {
+      "delete": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Delete Admin User Favorite Product",
+        "operationId": "AdminUserFavoriteProduct_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "product_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminUserFavoriteProduct_Delete",
+        "x-domain-command": "AdminUserFavoriteProduct_Delete",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/followed-stores": {
+      "get": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "List Admin User Followed Stores",
+        "operationId": "AdminUserFollowedStore_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_FollowedStoreList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "access.AdminUserFollowedStore_List",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:read"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/followed-stores/{store_id}": {
+      "delete": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Delete Admin User Followed Store",
+        "operationId": "AdminUserFollowedStore_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "store_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Store Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminUserFollowedStore_Delete",
+        "x-domain-command": "AdminUserFollowedStore_Delete",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/orders/{order_id}/cancellations": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Cancel Admin User Order",
+        "operationId": "AdminUserOrder_CancelAsUser",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OrderCommandResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminUserOrder_CancelAsUser",
+        "x-domain-command": "AdminUserOrder_CancelAsUser",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
+          "ADM-RBAC-*",
+          "ADM-SENSITIVE-*",
+          "ADM-USER-STATUS-*"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/orders/{order_id}/receipt-confirmations": {
+      "post": {
+        "tags": [
+          "administration"
+        ],
+        "summary": "Confirm Admin User Order Receipt",
+        "operationId": "AdminUserOrder_ConfirmReceiptAsUser",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_OrderCommandResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminUserOrder_ConfirmReceiptAsUser",
+        "x-domain-command": "AdminUserOrder_ConfirmReceiptAsUser",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "users:manage"
+        ],
+        "x-requirement-id": [
+          "ADM-USER-01"
+        ],
+        "x-scope-policy": [
+          "users:read",
+          "users:manage",
+          "users:read_sensitive",
+          "users:sessions_revoke",
+          "users:force_password_reset",
+          "rbac:read",
+          "rbac:manage",
+          "orders:read"
+        ],
+        "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -31947,9 +33817,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -32067,9 +33939,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -32170,9 +34044,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -32312,9 +34188,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -32432,9 +34310,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -32552,9 +34432,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -33122,9 +35004,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -33262,9 +35146,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -33365,9 +35251,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -33516,9 +35404,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -33636,9 +35526,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -33779,9 +35671,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -33879,9 +35773,11 @@
           "users:sessions_revoke",
           "users:force_password_reset",
           "rbac:read",
-          "rbac:manage"
+          "rbac:manage",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-RBAC-*",
           "ADM-SENSITIVE-*",
           "ADM-USER-STATUS-*"
@@ -39678,28 +41574,6 @@
         ],
         "title": "AdminUserCreateRequest"
       },
-      "AdminUserDeleteRequest": {
-        "properties": {
-          "confirmation": {
-            "type": "string",
-            "pattern": "^DELETE_USER$",
-            "title": "Confirmation"
-          },
-          "reason": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 2,
-            "title": "Reason"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "confirmation",
-          "reason"
-        ],
-        "title": "AdminUserDeleteRequest"
-      },
       "AdminUserList": {
         "properties": {
           "items": {
@@ -39740,20 +41614,13 @@
           "require_change_on_next_login": {
             "type": "boolean",
             "title": "Require Change On Next Login",
-            "default": true
-          },
-          "reason": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 2,
-            "title": "Reason"
+            "default": false
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "temporary_password",
-          "reason"
+          "temporary_password"
         ],
         "title": "AdminUserPasswordReplaceRequest"
       },
@@ -39862,6 +41729,57 @@
         "type": "object",
         "title": "AdminUserUpdateRequest"
       },
+      "AdminUserWorkspace": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "current_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Email"
+          },
+          "presence_status": {
+            "type": "string",
+            "enum": [
+              "online",
+              "offline",
+              "frozen"
+            ],
+            "title": "Presence Status"
+          },
+          "balance_minor": {
+            "type": "string",
+            "title": "Balance Minor"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id",
+          "username",
+          "current_email",
+          "presence_status",
+          "balance_minor",
+          "currency"
+        ],
+        "title": "AdminUserWorkspace"
+      },
       "AdminWalletAdjustmentRequest": {
         "properties": {
           "direction": {
@@ -39877,20 +41795,13 @@
             "maximum": 100000000.0,
             "minimum": 1.0,
             "title": "Amount Minor"
-          },
-          "reason": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 2,
-            "title": "Reason"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "direction",
-          "amount_minor",
-          "reason"
+          "amount_minor"
         ],
         "title": "AdminWalletAdjustmentRequest"
       },
@@ -43919,6 +45830,21 @@
         ],
         "title": "Envelope[AdminUserSummary]"
       },
+      "Envelope_AdminUserWorkspace_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AdminUserWorkspace"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AdminUserWorkspace]"
+      },
       "Envelope_AdminWalletAdjustmentResult_": {
         "properties": {
           "data": {
@@ -47537,6 +49463,12 @@
             "pattern": "^[A-Za-z0-9_]+$",
             "title": "Username"
           },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email"
+          },
           "password": {
             "type": "string",
             "maxLength": 128,
@@ -47549,6 +49481,17 @@
             "minLength": 2,
             "title": "Store Name"
           },
+          "captcha_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 16,
+            "title": "Captcha Id"
+          },
+          "captcha_answer": {
+            "type": "string",
+            "pattern": "^[0-9]{1,3}$",
+            "title": "Captcha Answer"
+          },
           "client": {
             "$ref": "#/components/schemas/ClientDescriptor"
           }
@@ -47557,8 +49500,11 @@
         "type": "object",
         "required": [
           "username",
+          "email",
           "password",
           "store_name",
+          "captcha_id",
+          "captcha_answer",
           "client"
         ],
         "title": "MerchantRegistrationRequest"
@@ -49244,6 +51190,15 @@
             "minLength": 4,
             "pattern": "^[A-Za-z0-9_]+$",
             "title": "Username"
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "consumer",
+              "merchant"
+            ],
+            "title": "Audience",
+            "default": "consumer"
           }
         },
         "additionalProperties": false,
@@ -49319,6 +51274,15 @@
             "maxLength": 254,
             "minLength": 3,
             "title": "Email"
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "consumer",
+              "merchant"
+            ],
+            "title": "Audience",
+            "default": "consumer"
           }
         },
         "additionalProperties": false,
@@ -52527,14 +54491,12 @@
             "type": "string",
             "maxLength": 500,
             "minLength": 2,
-            "title": "Reason"
+            "title": "Reason",
+            "default": "超级管理员强制下线"
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "reason"
-        ],
         "title": "SessionRevocationRequest"
       },
       "SessionSummary": {
@@ -54649,13 +56611,15 @@
             "type": "string",
             "maxLength": 64,
             "minLength": 2,
-            "title": "Reason Code"
+            "title": "Reason Code",
+            "default": "ADMIN_DIRECT_ACTION"
           },
           "reason": {
             "type": "string",
             "maxLength": 500,
             "minLength": 2,
-            "title": "Reason"
+            "title": "Reason",
+            "default": "超级管理员直接操作"
           },
           "expires_at": {
             "anyOf": [
@@ -54673,9 +56637,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "action",
-          "reason_code",
-          "reason"
+          "action"
         ],
         "title": "UserStatusChangeRequest"
       },

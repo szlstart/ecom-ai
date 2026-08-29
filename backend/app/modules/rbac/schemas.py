@@ -17,8 +17,11 @@ class AdminLoginRequest(StrictRequest):
 
 class MerchantRegistrationRequest(StrictRequest):
     username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=128)
     store_name: str = Field(min_length=2, max_length=128)
+    captcha_id: str = Field(min_length=16, max_length=128)
+    captcha_answer: str = Field(pattern=r"^[0-9]{1,3}$")
     client: ClientDescriptor
 
     @field_validator("password")
@@ -116,6 +119,15 @@ class AdminUserSummary(StrictRequest):
     version: int
 
 
+class AdminUserWorkspace(StrictRequest):
+    user_id: str
+    username: str
+    current_email: str | None
+    presence_status: Literal["online", "offline", "frozen"]
+    balance_minor: str
+    currency: str
+
+
 class AdminUserList(StrictRequest):
     items: list[AdminUserSummary]
     next_cursor: str | None
@@ -154,8 +166,7 @@ class AdminUserUpdateRequest(StrictRequest):
 
 class AdminUserPasswordReplaceRequest(StrictRequest):
     temporary_password: str = Field(min_length=1, max_length=128)
-    require_change_on_next_login: bool = True
-    reason: str = Field(min_length=2, max_length=500)
+    require_change_on_next_login: bool = False
 
     @field_validator("temporary_password")
     @classmethod
@@ -165,15 +176,9 @@ class AdminUserPasswordReplaceRequest(StrictRequest):
         return value
 
 
-class AdminUserDeleteRequest(StrictRequest):
-    confirmation: str = Field(pattern=r"^DELETE_USER$")
-    reason: str = Field(min_length=2, max_length=500)
-
-
 class AdminWalletAdjustmentRequest(StrictRequest):
     direction: Literal["credit", "debit"]
     amount_minor: int = Field(ge=1, le=100_000_000)
-    reason: str = Field(min_length=2, max_length=500)
 
 
 class AdminWalletAdjustmentResult(StrictRequest):
@@ -197,14 +202,14 @@ class UserStatusEventView(StrictRequest):
 
 class UserStatusChangeRequest(StrictRequest):
     action: Literal["suspend", "resume"]
-    reason_code: str = Field(min_length=2, max_length=64)
-    reason: str = Field(min_length=2, max_length=500)
+    reason_code: str = Field(default="ADMIN_DIRECT_ACTION", min_length=2, max_length=64)
+    reason: str = Field(default="超级管理员直接操作", min_length=2, max_length=500)
     expires_at: datetime | None = None
 
 
 class SessionRevocationRequest(StrictRequest):
     scope: Literal["all"] = "all"
-    reason: str = Field(min_length=2, max_length=500)
+    reason: str = Field(default="超级管理员强制下线", min_length=2, max_length=500)
 
 
 class PasswordResetRequirementRequest(StrictRequest):

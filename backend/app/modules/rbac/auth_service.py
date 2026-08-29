@@ -268,6 +268,9 @@ class AdminAuthService:
             5,
             3600,
         )
+        await self.identity_service.verify_registration_captcha(
+            request.captcha_id, request.captcha_answer
+        )
         normalized_username = normalize_username(request.username)
         if await self.identity.user_by_username(normalized_username) is not None:
             raise ApplicationError(
@@ -275,6 +278,37 @@ class AdminAuthService:
                 code="MERCHANT_USERNAME_ALREADY_EXISTS",
                 title="Merchant username already exists",
                 detail=f"用户名“{request.username}”已被注册，请更换一个用户名。",
+            )
+        try:
+            normalized_email = normalize_target("email", request.email)
+        except ValueError as exc:
+            raise ApplicationError(
+                status=422,
+                code="INVALID_EMAIL",
+                title="Invalid email",
+                detail="请输入有效的邮箱地址。",
+                errors=[
+                    {
+                        "pointer": "/email",
+                        "code": "INVALID_EMAIL",
+                        "message": "请输入有效的邮箱地址。",
+                    }
+                ],
+            ) from exc
+        email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
+        if await self.identity.credential_by_identifier("email", email_hash) is not None:
+            raise ApplicationError(
+                status=409,
+                code="MERCHANT_EMAIL_ALREADY_EXISTS",
+                title="Merchant email already exists",
+                detail="该邮箱已经绑定其他账号，请更换邮箱。",
+                errors=[
+                    {
+                        "pointer": "/email",
+                        "code": "MERCHANT_EMAIL_ALREADY_EXISTS",
+                        "message": "该邮箱已经绑定其他账号，请更换邮箱。",
+                    }
+                ],
             )
         normalized_store_name = " ".join(request.store_name.casefold().split())
         if (
@@ -321,18 +355,32 @@ class AdminAuthService:
         self.session.add(user)
         try:
             await self.session.flush()
-            self.session.add(
-                UserCredential(
-                    user_id=user.id,
-                    credential_type="password",
-                    secret_hash=self.security.hash_password(request.password),
-                    algorithm="argon2id",
-                    is_primary=True,
-                    is_verified=True,
-                    verified_at=now,
-                    password_changed_at=now,
-                    credential_status="active",
-                )
+            self.session.add_all(
+                [
+                    UserCredential(
+                        user_id=user.id,
+                        credential_type="password",
+                        secret_hash=self.security.hash_password(request.password),
+                        algorithm="argon2id",
+                        is_primary=True,
+                        is_verified=True,
+                        verified_at=now,
+                        password_changed_at=now,
+                        credential_status="active",
+                    ),
+                    UserCredential(
+                        user_id=user.id,
+                        credential_type="email",
+                        identifier_ciphertext=self.security.encrypt(
+                            "user-credential:email", normalized_email
+                        ),
+                        identifier_hash=email_hash,
+                        key_version=1,
+                        is_primary=True,
+                        is_verified=False,
+                        credential_status="active",
+                    ),
+                ]
             )
             store = Store(
                 store_no=new_prefixed_ulid("sto_"),

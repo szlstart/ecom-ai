@@ -2,121 +2,61 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import {
-  adjustAdminUserWallet,
-  deleteAdminUser,
-  replaceAdminUserPassword,
-  updateAdminUser,
-  type AdminUserSummary,
-} from '@/api/admin-users'
-import { ApiProblem, apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
+import { formatMoney, type ProductCardData, type StoreData } from '@/api/catalog'
+import type { CartData } from '@/api/cart'
+import { adjustAdminUserWallet, deleteAdminUser, getAdminUserWorkspace, replaceAdminUserPassword, updateAdminUser, type AdminUserSummary, type AdminUserWorkspace } from '@/api/admin-users'
+import { apiRequest, createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { listAdminOrders, type AdminOrderSummary, type OrderAction, type OrderSummary } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
-interface Grant { grant_id: string; role_id: string; role_name: string; scope_type: string; scope_id: number; status: string; version: number }
-interface TimelineEvent { event_id?: string; status_event_id?: string; event_type?: string; to_status?: string; reason: string; created_at?: string; effective_at?: string }
+interface Address { address_id: string; recipient_name: string; phone: string; province_code: string; city_code: string; district_code: string; address: string; is_default: boolean; version: number }
 
-const route = useRoute()
-const router = useRouter()
-const auth = useAdminAuthStore()
-const userId = String(route.params.userId)
-const user = ref<AdminUserSummary | null>(null)
-const grants = ref<Grant[]>([])
-const statusEvents = ref<TimelineEvent[]>([])
-const grantEvents = ref<TimelineEvent[]>([])
-const etag = ref('')
-const loading = ref(true)
-const busy = ref(false)
-const error = ref('')
-const notice = ref('')
-const controlReason = ref('')
-const sensitiveReason = ref('')
-const profile = reactive({ username: '', nickname: '', email: '' })
-const password = reactive({ temporary_password: '', require_change_on_next_login: true, reason: '' })
-const wallet = reactive<{ direction: 'credit' | 'debit'; amount_yuan: number | null; reason: string }>({ direction: 'credit', amount_yuan: null, reason: '' })
-const walletResult = ref<{ balance_minor: string; currency: string } | null>(null)
-const deleteOpen = ref(false)
-const deleteReason = ref('')
-const deleteConfirmation = ref('')
-const activityOpen = ref(false)
-const fieldErrors = ref<Record<string, string>>({})
-const sensitiveGrant = ref('')
-const sensitive = ref<Record<string, string> | null>(null)
+const route = useRoute(), router = useRouter(), auth = useAdminAuthStore(), userId = String(route.params.userId)
+const user = ref<AdminUserSummary | null>(null), workspace = ref<AdminUserWorkspace | null>(null)
+const addresses = ref<Address[]>([]), products = ref<ProductCardData[]>([]), stores = ref<StoreData[]>([]), cart = ref<CartData | null>(null), orders = ref<AdminOrderSummary[]>([])
+const loading = ref(true), busy = ref(false), error = ref(''), notice = ref(''), deleteOpen = ref(false), ordersOpen = ref(false), addressOpen = ref(false), orderBusy = ref('')
+const editingAddress = ref<Address | null>(null)
+const profile = reactive({ username: '', email: '' }), password = ref(''), recharge = ref<number | null>(null)
+const addressForm = reactive({ recipient_name: '', phone: '', province_code: '', city_code: '', district_code: '', address: '', is_default: false })
+const initials = computed(() => (user.value?.username || '用').slice(0, 1).toUpperCase())
+const presenceLabel = computed(() => ({ online: '在线', offline: '离线', frozen: '冻结' }[workspace.value?.presence_status ?? 'offline']))
+const cartItems = computed(() => cart.value?.groups.flatMap((group) => group.items.map((item) => ({ ...item, store_name: group.store_name }))) ?? [])
 
-const initials = computed(() => (user.value?.nickname || user.value?.username || '用').slice(0, 1).toUpperCase())
-const activeGrantCount = computed(() => grants.value.filter((item) => item.status === 'active').length)
-function statusLabel(value: string): string { return ({ active: '正常使用', suspended: '已冻结', closed: '已注销' } as Record<string, string>)[value] ?? value }
-function dateTime(value: string | null | undefined): string { return value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—' }
+function token() { if (!auth.accessToken) throw new Error('missing admin token'); return auth.accessToken }
+function dateTime(value: string | null | undefined) { return value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '从未登录' }
+function statusLabel(value: string) { return ({ pending_payment: '待付款', paid: '已支付', pending_shipment: '待发货', shipped: '运输中', completed: '已完成' } as Record<string, string>)[value] ?? value }
+function actionLabel(code: string) { return ({ pay: '去支付', cancel_order: '取消订单', apply_after_sale: '发起售后', view_after_sale: '查看售后', view_logistics: '查看物流', review: '评价', delete_order: '删除订单', confirm_receipt: '确认收货', contact_store: '联系商家', repurchase: '再次购买' } as Record<string, string>)[code] ?? code }
 
 async function load() {
   loading.value = true; error.value = ''
   try {
-    const userResult = await apiRequest<AdminUserSummary>(`/admin/users/${userId}`, {}, auth.accessToken)
-    user.value = userResult.data; etag.value = userResult.headers.get('etag') ?? `"v${user.value.version}"`
-    Object.assign(profile, { username: user.value.username, nickname: user.value.nickname, email: '' })
-    const tasks: Array<Promise<void>> = []
-    if (auth.has('rbac:read')) tasks.push(apiRequest<Grant[]>(`/admin/users/${userId}/role-grants`, {}, auth.accessToken).then((result) => { grants.value = result.data }))
-    tasks.push(apiRequest<TimelineEvent[]>(`/admin/users/${userId}/status-events`, {}, auth.accessToken).then((result) => { statusEvents.value = result.data }))
-    if (auth.has('rbac:read')) tasks.push(apiRequest<TimelineEvent[]>(`/admin/users/${userId}/role-grant-events`, {}, auth.accessToken).then((result) => { grantEvents.value = result.data }))
-    await Promise.allSettled(tasks)
-  } catch (cause) { error.value = errorMessage(cause) }
-  finally { loading.value = false }
+    const [a, b, c, d, e, f] = await Promise.all([
+      apiRequest<AdminUserSummary>(`/admin/users/${userId}`, {}, token()), getAdminUserWorkspace(userId, token()),
+      apiRequest<{ items: Address[] }>(`/admin/users/${userId}/addresses`, {}, token()), apiRequest<{ items: ProductCardData[] }>(`/admin/users/${userId}/favorite-products`, {}, token()),
+      apiRequest<{ items: StoreData[] }>(`/admin/users/${userId}/followed-stores`, {}, token()), apiRequest<CartData>(`/admin/users/${userId}/cart`, {}, token()),
+    ])
+    user.value = a.data; workspace.value = b.data; addresses.value = c.data.items; products.value = d.data.items; stores.value = e.data.items; cart.value = f.data
+    profile.username = user.value.username; profile.email = workspace.value.current_email ?? ''
+  } catch (cause) { error.value = errorMessage(cause) } finally { loading.value = false }
 }
-
-async function run(action: () => Promise<unknown>, success: string, reload = true) {
-  busy.value = true; error.value = ''; notice.value = ''; fieldErrors.value = {}
-  try { await action(); notice.value = success; if (reload) await load() }
-  catch (cause) { if (cause instanceof ApiProblem) for (const item of cause.body.errors ?? []) fieldErrors.value[item.pointer.replace('/', '')] = item.message; error.value = errorMessage(cause) }
-  finally { busy.value = false }
-}
-
-async function saveProfile() {
-  if (!user.value) return
-  const payload: { username?: string; nickname?: string; email?: string } = {}
-  if (profile.username !== user.value.username) payload.username = profile.username
-  if (profile.nickname !== user.value.nickname) payload.nickname = profile.nickname
-  if (profile.email.trim()) payload.email = profile.email.trim()
-  if (!Object.keys(payload).length) { error.value = '请先修改至少一项资料。'; return }
-  await run(() => updateAdminUser(userId, payload, user.value!.version, auth.accessToken!), '用户资料已保存。')
-}
-
-async function changeStatus(action: 'suspend' | 'resume') {
-  if (!user.value || controlReason.value.trim().length < 2) { error.value = '请先填写至少 2 个字的操作原因。'; return }
-  await run(() => apiRequest(`/admin/users/${userId}/status-changes`, { method: 'POST', headers: { 'If-Match': etag.value, 'Idempotency-Key': createIdempotencyKey('user-status') }, body: JSON.stringify({ action, reason_code: 'ADMIN_DECISION', reason: controlReason.value.trim(), expires_at: null }) }, auth.accessToken), action === 'suspend' ? '用户已冻结并退出所有设备。' : '用户账号已恢复。')
-}
-
-async function revokeSessions() {
-  await run(() => apiRequest(`/admin/users/${userId}/session-revocations`, { method: 'POST', headers: { 'Idempotency-Key': createIdempotencyKey('session-revoke') }, body: JSON.stringify({ scope: 'all', reason: controlReason.value.trim() || '管理员执行安全下线' }) }, auth.accessToken), '用户已从所有设备强制下线。', false)
-}
-
-async function savePassword() {
-  if (!password.reason.trim()) { error.value = '请填写重置密码的原因。'; return }
-  await run(() => replaceAdminUserPassword(userId, password, auth.accessToken!), '临时密码已设置，用户已从所有设备退出。', false)
-  password.temporary_password = ''; password.reason = ''
-}
-
-async function adjustWallet() {
-  if (!wallet.amount_yuan || wallet.amount_yuan <= 0 || !wallet.reason.trim()) { error.value = '请输入大于 0 的金额并填写调整原因。'; return }
-  const amountMinor = Math.round(wallet.amount_yuan * 100)
-  await run(async () => { walletResult.value = (await adjustAdminUserWallet(userId, { direction: wallet.direction, amount_minor: amountMinor, reason: wallet.reason.trim() }, auth.accessToken!)).data }, '余额调整已完成并生成不可修改的资金流水。', false)
-  wallet.amount_yuan = null; wallet.reason = ''
-}
-
-async function createSensitiveGrant() {
-  await run(async () => { const result = await apiRequest<{ grant_id: string }>(`/admin/users/${userId}/sensitive-field-access-grants`, { method: 'POST', headers: { 'Idempotency-Key': createIdempotencyKey('sensitive') }, body: JSON.stringify({ fields: ['email'], purpose_code: 'user_support', reason: sensitiveReason.value.trim() || '核对用户账号资料', ttl_seconds: 300 }) }, auth.accessToken); sensitiveGrant.value = result.data.grant_id }, '已创建 5 分钟有效的一次性查看凭据。', false)
-}
-async function reveal() {
-  await run(async () => { sensitive.value = (await apiRequest<{ values: Record<string, string> }>(`/admin/users/${userId}/sensitive-fields`, { headers: { 'X-Sensitive-Access-Grant': sensitiveGrant.value } }, auth.accessToken)).data.values; sensitiveGrant.value = '' }, '敏感信息已读取，本次凭据已自动失效。', false)
-}
-
-async function removeUser() {
-  if (!user.value || deleteConfirmation.value !== 'DELETE_USER' || deleteReason.value.trim().length < 2) return
-  busy.value = true; error.value = ''
-  try { await deleteAdminUser(userId, user.value.version, deleteReason.value.trim(), auth.accessToken!); await router.replace({ path: '/admin/users', query: { deleted: userId } }) }
-  catch (cause) { error.value = errorMessage(cause); deleteOpen.value = false }
-  finally { busy.value = false }
-}
-
+async function run(action: () => Promise<unknown>, success: string, reload = true) { busy.value = true; error.value = ''; notice.value = ''; try { await action(); notice.value = success; if (reload) await load() } catch (cause) { error.value = errorMessage(cause) } finally { busy.value = false } }
+async function saveAccount() { if (!user.value) return; const payload: { username?: string; email?: string } = {}; if (profile.username !== user.value.username) payload.username = profile.username; if (profile.email !== (workspace.value?.current_email ?? '')) payload.email = profile.email; if (!Object.keys(payload).length) { error.value = '没有需要保存的账号资料。'; return }; await run(() => updateAdminUser(userId, payload, user.value!.version, token()), '账号资料已保存。') }
+async function savePassword() { if (!password.value) return; await run(() => replaceAdminUserPassword(userId, { temporary_password: password.value }, token()), '密码已更新，用户需要使用新密码重新登录。'); password.value = '' }
+async function changeStatus(action: 'suspend' | 'resume') { if (!user.value) return; await run(() => apiRequest(`/admin/users/${userId}/status-changes`, { method: 'POST', headers: { 'If-Match': `"v${user.value!.version}"`, 'Idempotency-Key': createIdempotencyKey('admin-user-status') }, body: JSON.stringify({ action }) }, token()), action === 'suspend' ? '账号已冻结。' : '账号已恢复。') }
+async function forceOffline() { await run(() => apiRequest(`/admin/users/${userId}/session-revocations`, { method: 'POST', headers: { 'Idempotency-Key': createIdempotencyKey('admin-user-offline') }, body: JSON.stringify({ scope: 'all' }) }, token()), '用户已强制下线。') }
+async function addBalance() { if (!recharge.value || recharge.value <= 0) return; await run(() => adjustAdminUserWallet(userId, { direction: 'credit', amount_minor: Math.round(recharge.value! * 100) }, token()), '充值成功。'); recharge.value = null }
+function openNewAddress() { editingAddress.value = null; Object.assign(addressForm, { recipient_name: '', phone: '', province_code: '', city_code: '', district_code: '', address: '', is_default: false }); addressOpen.value = true }
+function openEditAddress(item: Address) { editingAddress.value = item; Object.assign(addressForm, { recipient_name: item.recipient_name, phone: item.phone, province_code: item.province_code, city_code: item.city_code, district_code: item.district_code, address: item.address, is_default: item.is_default }); addressOpen.value = true }
+async function saveAddress() { const item = editingAddress.value; const payload = { ...addressForm, country_code: 'CN', postal_code: null, label: null }; await run(() => item ? apiRequest(`/admin/users/${userId}/addresses/${item.address_id}`, { method: 'PATCH', headers: { 'If-Match': `"v${item.version}"` }, body: JSON.stringify(payload) }, token()) : apiRequest(`/admin/users/${userId}/addresses`, { method: 'POST', headers: { 'Idempotency-Key': createIdempotencyKey('admin-address') }, body: JSON.stringify(payload) }, token()), item ? '收货地址已更新。' : '收货地址已新增。'); addressOpen.value = false; editingAddress.value = null }
+async function deleteAddress(item: Address) { if (confirm('确认删除这个收货地址？')) await run(() => apiRequest(`/admin/users/${userId}/addresses/${item.address_id}`, { method: 'DELETE', headers: { 'If-Match': `"v${item.version}"` } }, token()), '收货地址已删除。') }
+async function removeProduct(id: string) { await run(() => apiRequest(`/admin/users/${userId}/favorite-products/${id}`, { method: 'DELETE' }, token()), '已取消商品收藏。') }
+async function removeStore(id: string) { await run(() => apiRequest(`/admin/users/${userId}/followed-stores/${id}`, { method: 'DELETE' }, token()), '已取消店铺收藏。') }
+async function cartQuantity(itemId: string, quantity: number) { if (!cart.value) return; await run(() => apiRequest(`/admin/users/${userId}/cart/items/${itemId}`, { method: 'PATCH', headers: { 'If-Match': `"v${cart.value!.version}"` }, body: JSON.stringify({ quantity }) }, token()), '购物车数量已更新。') }
+async function removeCart(itemId: string) { if (!cart.value) return; await run(() => apiRequest(`/admin/users/${userId}/cart/items/${itemId}`, { method: 'DELETE', headers: { 'If-Match': `"v${cart.value!.version}"` } }, token()), '购物车商品已删除。') }
+async function openOrders() { ordersOpen.value = true; orderBusy.value = 'loading'; error.value = ''; try { orders.value = (await listAdminOrders({ q: userId }, token())).data.items.filter((item) => item.order.order_status !== 'cancelled') } catch (cause) { error.value = errorMessage(cause) } finally { orderBusy.value = '' } }
+async function runOrderAction(action: OrderAction, order: OrderSummary) { if (!action.enabled) return; if (action.code === 'cancel_order' || action.code === 'confirm_receipt') { if (!confirm(`确认${actionLabel(action.code)}？`)) return; orderBusy.value = order.order_id; try { const command = action.code === 'cancel_order' ? 'cancellations' : 'receipt-confirmations'; await apiRequest(`/admin/users/${userId}/orders/${order.order_id}/${command}`, { method: 'POST', headers: { 'If-Match': `"v${order.version}"`, 'Idempotency-Key': createIdempotencyKey(`admin-order-${command}`) } }, token()); await openOrders(); notice.value = `${actionLabel(action.code)}成功。` } catch (cause) { error.value = errorMessage(cause) } finally { orderBusy.value = '' }; return }; await router.push(`/admin/orders/${order.order_id}`) }
+async function removeUser() { if (!user.value) return; busy.value = true; try { await deleteAdminUser(userId, user.value.version, token()); await router.replace({ path: '/admin/users', query: { deleted: userId } }) } catch (cause) { deleteOpen.value = false; error.value = errorMessage(cause) } finally { busy.value = false } }
 onMounted(load)
 </script>
 
@@ -124,108 +64,30 @@ onMounted(load)
   <section class="admin-page-stack admin-user-detail-page">
     <RouterLink class="admin-back-link" to="/admin/users">← 返回用户列表</RouterLink>
     <PageState :loading="loading" :error="error && !user ? error : ''" :empty="!loading && !user" empty-title="没有找到该用户" @retry="load">
-      <template v-if="user">
-        <header class="admin-user-detail-hero">
-          <div class="admin-user-detail-profile">
-            <span>{{ initials }}</span>
-            <div><p class="eyebrow">用户工作台</p><h1>{{ user.nickname }}</h1><p>@{{ user.username }} · {{ user.user_id }}</p></div>
-          </div>
-          <div class="admin-user-detail-status"><span><i :class="user.account_status" />{{ statusLabel(user.account_status) }}</span><small>注册于 {{ dateTime(user.registered_at) }}</small></div>
-        </header>
-        <p v-if="notice" class="alert success">{{ notice }}</p>
-        <p v-if="error" class="alert error">{{ error }}</p>
+      <template v-if="user && workspace">
+        <header class="admin-user-detail-hero"><div class="admin-user-detail-profile"><span>{{ initials }}</span><div><p class="eyebrow">用户工作台</p><h1>{{ user.username }}</h1><p>{{ user.user_id }}</p></div></div><div class="admin-user-detail-status"><span><i :class="workspace.presence_status" />{{ presenceLabel }}</span><small>注册于 {{ dateTime(user.registered_at) }}</small></div></header>
+        <p v-if="notice" class="alert success" role="status">{{ notice }}</p><p v-if="error" class="alert error" role="alert">{{ error }}</p>
+        <section class="admin-user-fact-strip"><article><small>最近登录</small><strong>{{ dateTime(user.last_login_at) }}</strong></article><article><small>账号状态</small><strong>{{ presenceLabel }}</strong></article><article><small>用户编号</small><strong>{{ user.user_id }}</strong></article></section>
+        <button type="button" class="admin-user-orders-entry" @click="openOrders"><span>▤</span><div><strong>购买订单</strong><small>弹窗查看该用户的有效订单、物流、评价和售后操作</small></div><b>查看订单 →</b></button>
 
-        <section class="admin-user-fact-strip" aria-label="用户概况">
-          <article><small>最近登录</small><strong>{{ dateTime(user.last_login_at) }}</strong></article>
-          <article><small>账号状态</small><strong>{{ statusLabel(user.account_status) }}</strong></article>
-          <article><small>有效角色</small><strong>{{ activeGrantCount }} 个</strong></article>
-          <article><small>用户编号</small><strong>{{ user.user_id }}</strong></article>
-        </section>
+        <section class="admin-user-workspace-section"><header class="admin-user-section-heading"><div><p class="eyebrow">01 · 账号资料</p><h2>账号与安全</h2><p>超级管理员可直接维护资料和状态；系统不保存可还原的明文密码。</p></div></header><div class="admin-detail-two-column">
+          <form class="admin-panel admin-editor" @submit.prevent="saveAccount"><label>用户名<input v-model.trim="profile.username" required /></label><label>当前密码<input value="不可查看（仅保存不可逆密码哈希）" disabled /></label><label>当前邮箱<input :value="workspace.current_email ?? ''" disabled placeholder="尚未绑定邮箱" /></label><label>更改邮箱<input v-model.trim="profile.email" type="email" placeholder="输入完整新邮箱" /></label><button :disabled="busy">保存账号资料</button></form>
+          <div class="admin-panel admin-editor"><form @submit.prevent="savePassword"><label>更改密码<input v-model="password" type="password" autocomplete="new-password" placeholder="输入新密码" required /></label><button :disabled="busy">直接设置新密码</button></form><hr/><strong>账号当前状态：{{ presenceLabel }}</strong><div class="actions"><button v-if="user.account_status === 'active'" class="danger" type="button" @click="changeStatus('suspend')">冻结</button><button v-else type="button" @click="changeStatus('resume')">恢复</button><button class="secondary" type="button" @click="forceOffline">强制下线</button></div></div>
+        </div></section>
 
-        <nav class="admin-user-context-links" aria-label="用户关联业务">
-          <RouterLink :to="{ path: '/admin/orders', query: { q: user.user_id } }"><span>▤</span><div><strong>购买订单</strong><small>订单、支付、物流和售后</small></div><b>→</b></RouterLink>
-          <RouterLink to="/admin/support/tickets"><span>◍</span><div><strong>客服消息</strong><small>查看用户的平台服务记录</small></div><b>→</b></RouterLink>
-          <button type="button" @click="activityOpen = true"><span>↺</span><div><strong>操作记录</strong><small>状态与权限变更时间线</small></div><b>弹窗查看</b></button>
-        </nav>
+        <section class="admin-user-workspace-section"><header class="admin-user-section-heading"><div><p class="eyebrow">02 · 账户余额</p><h2>余额与充值</h2></div></header><form class="admin-panel admin-inline-money" @submit.prevent="addBalance"><div><small>当前余额</small><strong>¥{{ (Number(workspace.balance_minor) / 100).toFixed(2) }}</strong></div><label>充值金额（元）<input v-model.number="recharge" type="number" min="0.01" max="1000000" step="0.01" required /></label><button :disabled="busy">确认充值</button></form></section>
 
-        <section class="admin-user-workspace-section">
-          <header class="admin-user-section-heading"><div><p class="eyebrow">01 · 账号资料</p><h2>资料直接编辑</h2><p>页面中直接修改常用资料；敏感邮箱按需授权查看，不重复展示账号摘要。</p></div></header>
-          <div class="admin-detail-two-column">
-            <form class="admin-panel admin-editor" @submit.prevent="saveProfile">
-              <header><div><p class="eyebrow">基本资料</p><h2>编辑用户资料</h2></div></header>
-              <label>用户名<input v-model.trim="profile.username" required minlength="4" maxlength="32" /><small v-if="fieldErrors.username" class="error-text">{{ fieldErrors.username }}</small></label>
-              <label>昵称<input v-model.trim="profile.nickname" required maxlength="64" /></label>
-              <label>更换邮箱（不修改请留空）<input v-model.trim="profile.email" type="email" placeholder="输入新的完整邮箱" /><small v-if="fieldErrors.email" class="error-text">{{ fieldErrors.email }}</small></label>
-              <button :disabled="busy">保存资料</button>
-            </form>
-            <article class="admin-panel admin-editor">
-              <header><div><p class="eyebrow">隐私信息</p><h2>查看当前邮箱</h2></div></header>
-              <p class="muted">邮箱属于敏感信息。一次性查看凭据与当前会话绑定，读取后立即失效。</p>
-              <label>查看原因<textarea v-model.trim="sensitiveReason" maxlength="500" placeholder="例如：协助用户核对找回邮箱" /></label>
-              <button v-if="!sensitiveGrant" type="button" :disabled="busy" @click="createSensitiveGrant">创建一次性查看凭据</button>
-              <button v-else type="button" class="secondary" :disabled="busy" @click="reveal">查看并立即销毁凭据</button>
-              <dl v-if="sensitive" class="admin-clean-dl"><template v-for="(value, key) in sensitive" :key="key"><dt>{{ key === 'email' ? '当前邮箱' : key }}</dt><dd>{{ value }}</dd></template></dl>
-            </article>
-          </div>
-        </section>
+        <section class="admin-user-workspace-section"><header class="admin-user-section-heading"><div><p class="eyebrow">03 · 收货地址</p><h2>收货地址</h2></div><button @click="openNewAddress">＋ 新增地址</button></header><div class="admin-address-grid"><article v-for="item in addresses" :key="item.address_id" class="admin-panel"><strong>{{ item.recipient_name }} · {{ item.phone }}</strong><p>{{ item.province_code }} {{ item.city_code }} {{ item.district_code }} {{ item.address }}</p><span v-if="item.is_default">默认地址</span><div class="actions"><button type="button" @click="openEditAddress(item)">编辑</button><button class="danger-link" type="button" @click="deleteAddress(item)">删除</button></div></article><p v-if="!addresses.length" class="empty-state">该用户暂无收货地址</p></div></section>
 
-        <section class="admin-user-workspace-section">
-          <header class="admin-user-section-heading"><div><p class="eyebrow">02 · 安全控制</p><h2>账号状态与登录安全</h2><p>冻结、恢复、强制下线和密码重置都保留独立审计原因。</p></div></header>
-          <div class="admin-detail-two-column">
-            <article class="admin-panel admin-editor">
-              <header><div><p class="eyebrow">账号控制</p><h2>冻结、恢复与下线</h2></div></header>
-              <label>操作原因<textarea v-model.trim="controlReason" maxlength="500" placeholder="执行冻结、恢复或下线前填写原因" /></label>
-              <div class="actions"><button v-if="user.account_status === 'active'" type="button" class="danger" :disabled="busy" @click="changeStatus('suspend')">冻结账号</button><button v-else type="button" :disabled="busy" @click="changeStatus('resume')">恢复账号</button><button type="button" class="secondary" :disabled="busy" @click="revokeSessions">强制下线</button></div>
-            </article>
-            <form class="admin-panel admin-editor" @submit.prevent="savePassword">
-              <header><div><p class="eyebrow">密码安全</p><h2>设置临时密码</h2></div></header>
-              <p class="alert warning">密码不会被展示或记录。提交后用户的所有登录会话立即失效。</p>
-              <label>临时密码<input v-model="password.temporary_password" required type="password" autocomplete="new-password" placeholder="不能为空且不能包含空白字符" /></label>
-              <label class="check-row"><input v-model="password.require_change_on_next_login" type="checkbox" />要求用户下次登录时修改密码</label>
-              <label>操作原因<textarea v-model.trim="password.reason" required maxlength="500" /></label>
-              <button :disabled="busy || !auth.has('users:force_password_reset')">确认重置密码</button>
-              <small v-if="!auth.has('users:force_password_reset')" class="muted">当前管理员没有重置用户密码的权限。</small>
-            </form>
-          </div>
-        </section>
+        <section class="admin-user-workspace-section"><header class="admin-user-section-heading"><div><p class="eyebrow">04 · 用户收藏</p><h2>收藏的商品与店铺</h2></div></header><div class="admin-detail-two-column"><article class="admin-panel"><h3>商品收藏</h3><div class="admin-mini-list"><div v-for="item in products" :key="item.product_id"><img v-if="item.main_image" :src="resolveApiAssetUrl(item.main_image.thumbnail_url) ?? ''" alt=""/><span><strong>{{ item.product_name }}</strong><small>{{ item.store_name }} · {{ formatMoney(item.price) }}</small></span><button @click="removeProduct(item.product_id)">取消收藏</button></div><p v-if="!products.length" class="empty-state">暂无商品收藏</p></div></article><article class="admin-panel"><h3>店铺收藏</h3><div class="admin-mini-list"><div v-for="item in stores" :key="item.store_id"><span><strong>{{ item.store_name }}</strong><small>评分 {{ item.rating_score }} · 销量 {{ item.sales_count }}</small></span><button @click="removeStore(item.store_id)">取消收藏</button></div><p v-if="!stores.length" class="empty-state">暂无店铺收藏</p></div></article></div></section>
 
-        <section class="admin-user-workspace-section">
-          <header class="admin-user-section-heading"><div><p class="eyebrow">03 · 资金与权限</p><h2>余额和角色范围</h2><p>余额仅通过不可修改的资金流水调整；角色信息在同一页完整展示。</p></div></header>
-          <div class="admin-detail-two-column">
-            <form class="admin-panel admin-editor" @submit.prevent="adjustWallet">
-              <header><div><p class="eyebrow">账户资金</p><h2>调整账户余额</h2></div></header>
-              <p class="muted">不能直接覆盖余额。每次调整都会生成资金流水和管理员审计记录。</p>
-              <div class="field-grid"><label>调整方式<select v-model="wallet.direction"><option value="credit">增加余额</option><option value="debit">扣减余额</option></select></label><label>金额（元）<input v-model.number="wallet.amount_yuan" required type="number" min="0.01" max="1000000" step="0.01" /></label></div>
-              <label>调整原因<textarea v-model.trim="wallet.reason" required maxlength="500" /></label>
-              <p v-if="walletResult" class="alert success">调整后余额：¥{{ (Number(walletResult.balance_minor) / 100).toFixed(2) }}</p>
-              <button :disabled="busy">确认并生成资金流水</button>
-            </form>
-            <article class="admin-panel admin-editor">
-              <header><div><p class="eyebrow">角色权限</p><h2>角色与数据范围</h2></div></header>
-              <p class="alert info">普通消费者不应获得商家或平台管理角色。权限变更属于高级安全操作。</p>
-              <div class="admin-role-cards"><article v-for="grant in grants" :key="grant.grant_id"><span>♜</span><div><strong>{{ grant.role_name }}</strong><small>{{ grant.scope_type }}:{{ grant.scope_id }} · {{ grant.status }}</small></div></article><p v-if="!grants.length" class="empty-state">没有可见角色授权</p></div>
-            </article>
-          </div>
-        </section>
-
-        <article class="admin-panel admin-danger-zone">
-          <header><div><p class="eyebrow">04 · 危险操作</p><h2>删除用户</h2></div></header>
-          <p>只有从未产生交易且不属于商家或管理员身份的用户才能物理删除；存在历史订单时系统会自动阻止。</p>
-          <button type="button" class="danger" @click="deleteOpen = true">删除这个用户</button>
-        </article>
+        <section class="admin-user-workspace-section"><header class="admin-user-section-heading"><div><p class="eyebrow">05 · 用户购物车</p><h2>购物车商品</h2></div></header><div class="admin-panel admin-cart-manager"><div v-for="item in cartItems" :key="item.cart_item_id"><img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) ?? ''" alt=""/><span><strong>{{ item.product_name }}</strong><small>{{ item.store_name }} · {{ item.sku_name }}</small></span><input :value="item.quantity" type="number" min="1" max="99" @change="cartQuantity(item.cart_item_id, Number(($event.target as HTMLInputElement).value))"/><button class="danger-link" @click="removeCart(item.cart_item_id)">删除</button></div><p v-if="!cartItems.length" class="empty-state">购物车为空</p></div></section>
+        <article class="admin-panel admin-danger-zone"><div><p class="eyebrow">不可恢复</p><h2>删除用户</h2><p>无交易历史时可物理删除；存在订单等法定留存数据时，后端会明确阻止。</p></div><button class="danger" @click="deleteOpen = true">删除这个用户</button></article>
       </template>
     </PageState>
 
-    <div v-if="activityOpen" class="admin-form-overlay" @click.self="activityOpen = false">
-      <section class="admin-form-dialog admin-activity-dialog" role="dialog" aria-modal="true" aria-labelledby="activity-dialog-title">
-        <header><div><p class="eyebrow">操作记录</p><h2 id="activity-dialog-title">用户状态与权限时间线</h2><p>较长的审计信息集中在弹窗中，不打断日常资料编辑。</p></div><button type="button" aria-label="关闭" @click="activityOpen = false">×</button></header>
-        <div class="admin-activity-dialog-body">
-          <article><h3>账号状态记录</h3><ol class="timeline"><li v-for="item in statusEvents" :key="item.status_event_id"><strong>{{ item.to_status }}</strong><p>{{ item.reason }}</p><time>{{ dateTime(item.effective_at) }}</time></li></ol><p v-if="!statusEvents.length" class="empty-state">暂无状态变更</p></article>
-          <article><h3>权限变更记录</h3><ol class="timeline"><li v-for="item in grantEvents" :key="item.event_id"><strong>{{ item.event_type }}</strong><p>{{ item.reason }}</p><time>{{ dateTime(item.created_at) }}</time></li></ol><p v-if="!grantEvents.length" class="empty-state">暂无权限变更</p></article>
-        </div>
-        <footer><button type="button" class="secondary" @click="activityOpen = false">关闭</button></footer>
-      </section>
-    </div>
-    <div v-if="deleteOpen" class="admin-form-overlay" @click.self="deleteOpen = false"><form class="admin-form-dialog admin-delete-dialog" @submit.prevent="removeUser"><header><div><p class="eyebrow">DANGEROUS ACTION</p><h2>确认删除用户</h2><p>该操作不可恢复。存在任何历史交易时，后端会拒绝删除。</p></div><button type="button" @click="deleteOpen = false">×</button></header><div class="admin-form-fields"><label class="wide">删除原因<textarea v-model.trim="deleteReason" required minlength="2" maxlength="500" /></label><label class="wide">输入 DELETE_USER 确认<input v-model.trim="deleteConfirmation" required autocomplete="off" /></label></div><footer><button type="button" class="secondary" @click="deleteOpen = false">取消</button><button class="danger" :disabled="busy || deleteConfirmation !== 'DELETE_USER'">永久删除</button></footer></form></div>
+    <Teleport to="body"><div v-if="deleteOpen" class="admin-form-overlay" @click.self="deleteOpen = false"><section class="admin-form-dialog"><header><div><p class="eyebrow">确认操作</p><h2>确认删除这个用户？</h2><p>删除后无法恢复，不需要填写原因或输入确认口令。</p></div><button @click="deleteOpen = false">×</button></header><footer><button class="secondary" @click="deleteOpen = false">取消</button><button class="danger" :disabled="busy" @click="removeUser">确认删除</button></footer></section></div></Teleport>
+    <Teleport to="body"><div v-if="addressOpen" class="admin-form-overlay" @click.self="addressOpen = false"><form class="admin-form-dialog" @submit.prevent="saveAddress"><header><div><p class="eyebrow">ADDRESS</p><h2>{{ editingAddress ? '编辑收货地址' : '新增收货地址' }}</h2></div><button type="button" @click="addressOpen = false">×</button></header><div class="admin-form-fields"><label>收货人<input v-model.trim="addressForm.recipient_name" required /></label><label>联系电话<input v-model.trim="addressForm.phone" required minlength="7" /></label><label>省<input v-model.trim="addressForm.province_code" required /></label><label>市<input v-model.trim="addressForm.city_code" required /></label><label>区/县<input v-model.trim="addressForm.district_code" required /></label><label class="wide">详细地址<input v-model.trim="addressForm.address" required /></label><label class="wide check-row"><input v-model="addressForm.is_default" type="checkbox"/>设为默认地址</label></div><footer><button type="button" class="secondary" @click="addressOpen = false">取消</button><button>保存地址</button></footer></form></div></Teleport>
+    <Teleport to="body"><div v-if="ordersOpen" class="admin-form-overlay" @click.self="ordersOpen = false"><section class="admin-form-dialog admin-user-orders-dialog"><header><div><p class="eyebrow">USER ORDERS</p><h2>{{ user?.username }} 的购买订单</h2><p>已取消订单不在管理端展示。</p></div><button @click="ordersOpen = false">×</button></header><div class="admin-user-order-list"><p v-if="orderBusy === 'loading'">正在载入订单…</p><article v-for="entry in orders" :key="entry.order.order_id"><header><span><strong>{{ entry.order.store.store_name }}</strong><small>{{ dateTime(entry.order.created_at) }} · {{ entry.order.order_id }}</small></span><b>{{ statusLabel(entry.order.order_status) }}</b></header><div v-for="item in entry.order.items" :key="item.order_item_id" class="admin-user-order-item"><img v-if="item.image_url" :src="resolveApiAssetUrl(item.image_url) ?? ''" alt=""/><span><strong>{{ item.product_name }}</strong><small>{{ item.sku_name }} × {{ item.quantity }}</small></span><b>{{ formatMoney(item.payable_amount) }}</b></div><footer><strong>实付 {{ formatMoney(entry.order.amounts.paid_amount) }}</strong><div><RouterLink :to="`/admin/orders/${entry.order.order_id}`">查看详情</RouterLink><button v-for="action in entry.order.available_actions.filter((item) => item.enabled)" :key="action.code" :disabled="Boolean(orderBusy)" @click="runOrderAction(action, entry.order)">{{ orderBusy === entry.order.order_id ? '处理中…' : actionLabel(action.code) }}</button></div></footer></article><p v-if="!orderBusy && !orders.length" class="empty-state">该用户暂无有效订单</p></div></section></div></Teleport>
   </section>
 </template>

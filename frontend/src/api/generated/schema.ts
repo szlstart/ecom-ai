@@ -4437,6 +4437,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/merchant/account/security": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Merchant Account Security */
+        get: operations["MerchantAccountSecurity_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Merchant Account Password */
+        put: operations["MerchantAccountPassword_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/account/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Merchant Account Email */
+        put: operations["MerchantAccountEmail_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/merchant/auth/reauthentications": {
         parameters: {
             query?: never;
@@ -4710,6 +4761,196 @@ export interface paths {
         head?: never;
         /** Update User */
         patch: operations["AdminUser_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get User Workspace */
+        get: operations["AdminUserWorkspace_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/addresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin User Addresses */
+        get: operations["AdminUserAddress_List"];
+        put?: never;
+        /** Create Admin User Address */
+        post: operations["AdminUserAddress_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/addresses/{address_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Admin User Address */
+        delete: operations["AdminUserAddress_Delete"];
+        options?: never;
+        head?: never;
+        /** Update Admin User Address */
+        patch: operations["AdminUserAddress_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/cart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Admin User Cart */
+        get: operations["AdminUserCart_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/cart/items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Admin User Cart Item */
+        delete: operations["AdminUserCartItem_Delete"];
+        options?: never;
+        head?: never;
+        /** Update Admin User Cart Item */
+        patch: operations["AdminUserCartItem_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/favorite-products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin User Favorite Products */
+        get: operations["AdminUserFavoriteProduct_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/favorite-products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Admin User Favorite Product */
+        delete: operations["AdminUserFavoriteProduct_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/followed-stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin User Followed Stores */
+        get: operations["AdminUserFollowedStore_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/followed-stores/{store_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Admin User Followed Store */
+        delete: operations["AdminUserFollowedStore_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/orders/{order_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Admin User Order */
+        post: operations["AdminUserOrder_CancelAsUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/orders/{order_id}/receipt-confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Admin User Order Receipt */
+        post: operations["AdminUserOrder_ConfirmReceiptAsUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/admin/users/{user_id}/password-replacements": {
@@ -6692,13 +6933,6 @@ export interface components {
             /** Nickname */
             nickname?: string | null;
         };
-        /** AdminUserDeleteRequest */
-        AdminUserDeleteRequest: {
-            /** Confirmation */
-            confirmation: string;
-            /** Reason */
-            reason: string;
-        };
         /** AdminUserList */
         AdminUserList: {
             /** Items */
@@ -6712,11 +6946,9 @@ export interface components {
             temporary_password: string;
             /**
              * Require Change On Next Login
-             * @default true
+             * @default false
              */
             require_change_on_next_login: boolean;
-            /** Reason */
-            reason: string;
         };
         /** AdminUserSummary */
         AdminUserSummary: {
@@ -6749,6 +6981,24 @@ export interface components {
             /** Email */
             email?: string | null;
         };
+        /** AdminUserWorkspace */
+        AdminUserWorkspace: {
+            /** User Id */
+            user_id: string;
+            /** Username */
+            username: string;
+            /** Current Email */
+            current_email: string | null;
+            /**
+             * Presence Status
+             * @enum {string}
+             */
+            presence_status: "online" | "offline" | "frozen";
+            /** Balance Minor */
+            balance_minor: string;
+            /** Currency */
+            currency: string;
+        };
         /** AdminWalletAdjustmentRequest */
         AdminWalletAdjustmentRequest: {
             /**
@@ -6758,8 +7008,6 @@ export interface components {
             direction: "credit" | "debit";
             /** Amount Minor */
             amount_minor: number;
-            /** Reason */
-            reason: string;
         };
         /** AdminWalletAdjustmentResult */
         AdminWalletAdjustmentResult: {
@@ -8112,6 +8360,11 @@ export interface components {
             data: components["schemas"]["AdminUserSummary"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AdminUserWorkspace] */
+        Envelope_AdminUserWorkspace_: {
+            data: components["schemas"]["AdminUserWorkspace"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AdminWalletAdjustmentResult] */
         Envelope_AdminWalletAdjustmentResult_: {
             data: components["schemas"]["AdminWalletAdjustmentResult"];
@@ -9326,10 +9579,16 @@ export interface components {
         MerchantRegistrationRequest: {
             /** Username */
             username: string;
+            /** Email */
+            email: string;
             /** Password */
             password: string;
             /** Store Name */
             store_name: string;
+            /** Captcha Id */
+            captcha_id: string;
+            /** Captcha Answer */
+            captcha_answer: string;
             client: components["schemas"]["ClientDescriptor"];
         };
         /** MerchantRevenueView */
@@ -9924,6 +10183,12 @@ export interface components {
         PasswordResetHintRequest: {
             /** Username */
             username: string;
+            /**
+             * Audience
+             * @default consumer
+             * @enum {string}
+             */
+            audience: "consumer" | "merchant";
         };
         /** PasswordResetHintResult */
         PasswordResetHintResult: {
@@ -9948,6 +10213,12 @@ export interface components {
             username: string;
             /** Email */
             email: string;
+            /**
+             * Audience
+             * @default consumer
+             * @enum {string}
+             */
+            audience: "consumer" | "merchant";
         };
         /** PasswordResetTicketResult */
         PasswordResetTicketResult: {
@@ -11056,7 +11327,10 @@ export interface components {
              * @constant
              */
             scope: "all";
-            /** Reason */
+            /**
+             * Reason
+             * @default 超级管理员强制下线
+             */
             reason: string;
         };
         /** SessionSummary */
@@ -11801,9 +12075,15 @@ export interface components {
              * @enum {string}
              */
             action: "suspend" | "resume";
-            /** Reason Code */
+            /**
+             * Reason Code
+             * @default ADMIN_DIRECT_ACTION
+             */
             reason_code: string;
-            /** Reason */
+            /**
+             * Reason
+             * @default 超级管理员直接操作
+             */
             reason: string;
             /** Expires At */
             expires_at?: string | null;
@@ -23829,6 +24109,110 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    MerchantAccountSecurity_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SecuritySummary_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAccountPassword_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAccountEmail_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     MerchantAuth_Reauthenticate: {
         parameters: {
             query?: never;
@@ -24416,11 +24800,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminUserDeleteRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             204: {
@@ -24473,6 +24853,575 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_AdminUserSummary_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserWorkspace_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminUserWorkspace_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserAddress_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AddressList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserAddress_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddressWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AddressView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserAddress_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+                address_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserAddress_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+                address_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddressPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AddressView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserCart_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserCartItem_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserCartItem_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartItemPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserFavoriteProduct_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserFavoriteProduct_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserFollowedStore_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FollowedStoreList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserFollowedStore_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserOrder_CancelAsUser: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserOrder_ConfirmReceiptAsUser: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
                 };
             };
             401: components["responses"]["Problem401"];

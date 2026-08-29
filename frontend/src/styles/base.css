@@ -1850,3 +1850,46 @@ tr.selected td { background: #f0f4ff; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+.admin-user-orders-entry {
+  width: 100%; min-height: 112px; display: grid; grid-template-columns: 54px 1fr auto;
+  gap: 18px; align-items: center; padding: 22px 26px; text-align: left;
+  border: 1px solid #dbe6df; border-radius: 20px; background: linear-gradient(135deg, #f7fffa, #fff);
+  color: #17231c; box-shadow: 0 12px 30px rgba(23, 65, 42, .08);
+}
+.admin-user-orders-entry > span { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: #128653; color: #fff; font-size: 25px; }
+.admin-user-orders-entry div { display: grid; gap: 5px; }
+.admin-user-orders-entry div strong { font-size: 20px; }
+.admin-user-orders-entry div small { color: #66736b; }
+.admin-user-orders-entry b { color: #128653; }
+.admin-user-fact-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.admin-inline-money { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(240px, 1fr) auto; gap: 22px; align-items: end; }
+.admin-inline-money > div { display: grid; gap: 6px; }
+.admin-inline-money > div strong { font-size: 30px; color: #d23b31; }
+.admin-address-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.admin-address-grid article { display: grid; gap: 10px; }
+.admin-address-grid article > span { width: fit-content; padding: 3px 9px; border-radius: 999px; background: #e6f7ed; color: #087642; font-size: 12px; }
+.admin-mini-list, .admin-cart-manager { display: grid; gap: 12px; }
+.admin-mini-list > div, .admin-cart-manager > div { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #edf0ee; }
+.admin-mini-list img, .admin-cart-manager img, .admin-user-order-item img { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: #f2f4f3; }
+.admin-mini-list span, .admin-cart-manager span, .admin-user-order-item span { min-width: 0; flex: 1; display: grid; gap: 4px; }
+.admin-mini-list small, .admin-cart-manager small, .admin-user-order-item small { color: #6b756f; }
+.admin-cart-manager input { width: 76px; }
+.admin-user-detail-page .danger-link { color: #b93232; border-color: #efcaca; background: #fff7f7; }
+.admin-user-detail-page .danger-link:hover { color: #941f1f; border-color: #e5a9a9; background: #fff0f0; }
+.admin-user-orders-dialog { width: min(1040px, calc(100vw - 32px)); max-height: min(860px, calc(100vh - 32px)); }
+.admin-user-order-list { display: grid; gap: 16px; padding: 22px; overflow: auto; }
+.admin-user-order-list > article { overflow: hidden; border: 1px solid #dfe7e2; border-radius: 16px; background: #fff; }
+.admin-user-order-list > article > header, .admin-user-order-list > article > footer { display: flex; justify-content: space-between; gap: 18px; align-items: center; padding: 14px 18px; background: #f7faf8; }
+.admin-user-order-list > article > header span { display: grid; gap: 4px; }
+.admin-user-order-list > article > footer div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.admin-user-order-item { display: flex; gap: 12px; align-items: center; padding: 12px 18px; border-top: 1px solid #edf0ee; }
+.merchant-store-account-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 20px; }
+.merchant-store-account-settings form { display: grid; gap: 14px; align-content: start; }
+.admin-success-toast { position: fixed; z-index: 1200; top: 84px; left: 50%; transform: translateX(-50%); min-width: 220px; text-align: center; box-shadow: 0 16px 40px rgba(16, 74, 43, .2); animation: admin-toast-in .2s ease-out; }
+@keyframes admin-toast-in { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (max-width: 760px) {
+  .admin-inline-money { grid-template-columns: 1fr; }
+  .admin-user-orders-entry { grid-template-columns: 46px 1fr; }
+  .admin-user-orders-entry > b { grid-column: 2; }
+  .merchant-store-account-settings { grid-template-columns: 1fr; }
+}

@@ -79,13 +79,16 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     accept(response.data, 'merchant')
   }
 
-  async function merchantRegister(username: string, password: string, storeName: string, deviceName: string) {
+  async function merchantRegister(username: string, email: string, password: string, storeName: string, captchaId: string, captchaAnswer: string, deviceName: string) {
     const response = await apiRequest<AdminBootstrap>('/merchant/auth/registrations', {
       method: 'POST',
       body: JSON.stringify({
         username,
+        email,
         password,
         store_name: storeName,
+        captcha_id: captchaId,
+        captcha_answer: captchaAnswer,
         client: { client_type: 'web', device_name: deviceName },
       }),
     })

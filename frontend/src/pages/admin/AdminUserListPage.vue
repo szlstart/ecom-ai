@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { createAdminUser, listAdminUsers, type AdminUserSummary } from '@/api/admin-users'
 import { ApiProblem, errorMessage } from '@/api/http'
@@ -8,6 +8,8 @@ import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
 const auth = useAdminAuthStore()
+const route = useRoute()
+const router = useRouter()
 const items = ref<AdminUserSummary[]>([])
 const loading = ref(true)
 const saving = ref(false)
@@ -19,7 +21,7 @@ const status = ref('')
 const sortBy = ref<'default' | 'registered_desc' | 'registered_asc' | 'login_desc' | 'username'>('default')
 const createOpen = ref(false)
 const fieldErrors = ref<Record<string, string>>({})
-const form = reactive({ username: '', nickname: '', email: '', password: '' })
+const form = reactive({ username: '', email: '', password: '' })
 
 const filtered = computed(() => {
   const keyword = appliedQuery.value.toLocaleLowerCase()
@@ -52,12 +54,12 @@ async function load() {
   finally { loading.value = false }
 }
 
-function resetForm() { Object.assign(form, { username: '', nickname: '', email: '', password: '' }); fieldErrors.value = {} }
+function resetForm() { Object.assign(form, { username: '', email: '', password: '' }); fieldErrors.value = {} }
 function closeCreate() { createOpen.value = false; resetForm() }
 async function createUser() {
   saving.value = true; error.value = ''; fieldErrors.value = {}
   try {
-    await createAdminUser({ username: form.username, nickname: form.nickname || null, email: form.email, password: form.password }, auth.accessToken!)
+    await createAdminUser({ username: form.username, email: form.email, password: form.password }, auth.accessToken!)
     notice.value = `用户“${form.username}”已创建。`
     closeCreate(); await load()
   } catch (cause) {
@@ -66,13 +68,21 @@ async function createUser() {
   } finally { saving.value = false }
 }
 
-onMounted(load)
+onMounted(async () => {
+  if (route.query.deleted) {
+    notice.value = '删除成功。'
+    const query = { ...route.query }
+    delete query.deleted
+    await router.replace({ path: route.path, query })
+  }
+  await load()
+})
 </script>
 
 <template>
   <section class="admin-page-stack admin-entity-page">
     <header class="admin-entity-hero"><div><p class="eyebrow">用户中心</p><h1>用户管理</h1><p>从账号资料、安全状态到交易关系，集中查看并执行受控操作。</p></div><button v-if="auth.has('users:manage')" @click="createOpen = true">＋ 创建用户</button></header>
-    <p v-if="notice" class="alert success">{{ notice }}</p><p v-if="error && !createOpen" class="alert error">{{ error }}</p>
+    <p v-if="notice" class="alert success admin-success-toast" role="status">{{ notice }}</p><p v-if="error && !createOpen" class="alert error">{{ error }}</p>
     <section class="admin-operations-board">
       <div class="admin-entity-stats admin-store-status-filters admin-operations-status" aria-label="用户状态筛选"><button type="button" :class="{ active: status === '' }" :aria-pressed="status === ''" @click="chooseStatus('')"><span class="blue">♙</span><div><small>全部用户</small><strong>{{ items.length }}</strong></div></button><button type="button" :class="{ active: status === 'active' }" :aria-pressed="status === 'active'" @click="chooseStatus('active')"><span class="green">✓</span><div><small>正常用户</small><strong>{{ activeCount }}</strong></div></button><button type="button" :class="{ active: status === 'suspended' }" :aria-pressed="status === 'suspended'" @click="chooseStatus('suspended')"><span class="red">!</span><div><small>已冻结</small><strong>{{ suspendedCount }}</strong></div></button></div>
       <header class="admin-list-toolbar admin-operations-toolbar">
@@ -85,6 +95,6 @@ onMounted(load)
       </PageState>
     </section>
 
-    <div v-if="createOpen" class="admin-form-overlay" @click.self="closeCreate"><form class="admin-form-dialog" @submit.prevent="createUser"><header><div><p class="eyebrow">CREATE USER</p><h2>创建普通用户</h2><p>创建后用户可以立即登录；商家和管理员请使用各自独立入口。</p></div><button type="button" aria-label="关闭" @click="closeCreate">×</button></header><p v-if="error" class="alert error">{{ error }}</p><div class="admin-form-fields"><label>用户名<input v-model.trim="form.username" required minlength="4" maxlength="32" autocomplete="off" placeholder="4–32 位字母、数字或下划线" /><small v-if="fieldErrors.username" class="error-text">{{ fieldErrors.username }}</small></label><label>昵称（选填）<input v-model.trim="form.nickname" maxlength="64" placeholder="用户在商城展示的名称" /></label><label class="wide">找回邮箱<input v-model.trim="form.email" required type="email" autocomplete="off" placeholder="用于忘记密码时重置密码" /><small v-if="fieldErrors.email" class="error-text">{{ fieldErrors.email }}</small></label><label class="wide">初始密码<input v-model="form.password" required type="password" autocomplete="new-password" placeholder="不能为空且不能包含空格" /><small v-if="fieldErrors.password" class="error-text">{{ fieldErrors.password }}</small></label></div><footer><button type="button" class="secondary" @click="closeCreate">取消</button><button :disabled="saving">{{ saving ? '正在创建…' : '确认创建' }}</button></footer></form></div>
+    <div v-if="createOpen" class="admin-form-overlay" @click.self="closeCreate"><form class="admin-form-dialog" @submit.prevent="createUser"><header><div><p class="eyebrow">CREATE USER</p><h2>创建普通用户</h2><p>创建后用户可以立即登录；商家和管理员请使用各自独立入口。</p></div><button type="button" aria-label="关闭" @click="closeCreate">×</button></header><p v-if="error" class="alert error">{{ error }}</p><div class="admin-form-fields"><label>用户名<input v-model.trim="form.username" required minlength="4" maxlength="32" autocomplete="off" placeholder="4–32 位字母、数字或下划线" /><small v-if="fieldErrors.username" class="error-text">{{ fieldErrors.username }}</small></label><label>找回邮箱<input v-model.trim="form.email" required type="email" autocomplete="off" placeholder="用于忘记密码时重置密码" /><small v-if="fieldErrors.email" class="error-text">{{ fieldErrors.email }}</small></label><label class="wide">初始密码<input v-model="form.password" required type="password" autocomplete="new-password" placeholder="不能为空且不能包含空格" /><small v-if="fieldErrors.password" class="error-text">{{ fieldErrors.password }}</small></label></div><footer><button type="button" class="secondary" @click="closeCreate">取消</button><button :disabled="saving">{{ saving ? '正在创建…' : '确认创建' }}</button></footer></form></div>
   </section>
 </template>

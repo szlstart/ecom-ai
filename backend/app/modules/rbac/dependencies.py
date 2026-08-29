@@ -32,13 +32,13 @@ class AdminAccess:
 
 
 def requires_recent_auth_for_session(policy_requires_recent_auth: bool, client_type: str) -> bool:
-    """Merchant sessions keep permission, scope and audit checks without password step-up."""
-    return policy_requires_recent_auth and client_type != "merchant"
+    """Time-based password step-up is disabled for both management portals."""
+    return False
 
 
 def requires_mfa_for_session(policy_requires_mfa: bool, client_type: str) -> bool:
-    """The password-only merchant portal has no MFA step-up route by product design."""
-    return policy_requires_mfa and client_type != "merchant"
+    """Neither management portal exposes an MFA step-up interaction."""
+    return False
 
 
 def require_admin_permission(permission_code: str) -> object:
@@ -46,7 +46,11 @@ def require_admin_permission(permission_code: str) -> object:
 
 
 def require_any_admin_permission(*permission_codes: str) -> object:
-    return _require_any_admin_permission(*permission_codes, enforce_step_up=True)
+    # The platform super-administrator portal uses an explicit confirmation at
+    # the point of mutation.  Product requirements deliberately removed the
+    # time-based password/MFA step-up flow because it interrupted long-running
+    # administration sessions.  Permission and scope checks still run here.
+    return _require_any_admin_permission(*permission_codes, enforce_step_up=False)
 
 
 def require_admin_permission_without_step_up(permission_code: str) -> object:

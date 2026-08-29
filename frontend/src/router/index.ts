@@ -74,7 +74,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'store', component: () => import('@/pages/merchant/MerchantStorePage.vue'), meta: { ...merchantMeta, title: '店铺资料', requirementId: 'MCH-STORE-01', requiredPermission: 'stores:read' } },
   ] },
   { path: '/admin/login', component: () => import('@/layouts/AdminAuthLayout.vue'), meta: { layout: 'admin-auth', audience: 'admin', requiresAuth: false, title: '管理端登录', requirementId: 'ADM-AUTH-01' }, children: [{ path: '', component: () => import('@/pages/admin/AdminLoginPage.vue') }] },
-  { path: '/admin/reauthenticate', component: () => import('@/layouts/AdminAuthLayout.vue'), meta: { layout: 'admin-auth', audience: 'admin', requiresAuth: true, title: '确认管理员密码', requirementId: 'ADM-AUTH-02' }, children: [{ path: '', component: () => import('@/pages/admin/AdminReauthenticatePage.vue'), meta: { layout: 'admin-auth', audience: 'admin', requiresAuth: true, title: '确认管理员密码', requirementId: 'ADM-AUTH-02' } }] },
+  { path: '/admin/reauthenticate', redirect: '/admin/dashboard', meta: { ...adminMeta, title: '管理端', requirementId: 'ADM-AUTH-02' } },
   { path: '/admin', component: () => import('@/layouts/AdminLayout.vue'), meta: { ...adminMeta, title: '管理后台', requirementId: 'ADM-SHELL-01' }, children: [
     { path: '', redirect: '/admin/dashboard' },
     { path: 'dashboard', component: () => import('@/pages/admin/AdminDashboardPage.vue'), meta: { ...adminMeta, title: '管理仪表盘', requirementId: 'ADM-DASH-01', requiredPermission: 'dashboard:read' } },
@@ -85,7 +85,7 @@ const routes: RouteRecordRaw[] = [
     { path: 'approval-requests', component: () => import('@/pages/admin/AdminApprovalListPage.vue'), meta: { ...adminMeta, title: '审批中心', requirementId: 'ADM-APPROVAL-LIST-01', requiredPermission: 'admin_approvals:read' } },
     { path: 'approval-requests/:approvalRequestId', component: () => import('@/pages/admin/AdminApprovalDetailPage.vue'), meta: { ...adminMeta, title: '审批详情', requirementId: 'ADM-APPROVAL-01', requiredPermission: 'admin_approvals:read' } },
     { path: 'audit-logs', component: () => import('@/pages/admin/AdminAuditLogPage.vue'), meta: { ...adminMeta, title: '审计日志', requirementId: 'ADM-AUDIT-01', requiredPermission: 'audit:read' } },
-    { path: 'security', component: () => import('@/pages/admin/AdminSecurityPage.vue'), meta: { ...adminMeta, title: '管理身份安全', requirementId: 'ADM-AUTH-03' } },
+    { path: 'security', redirect: '/admin/dashboard', meta: { ...adminMeta, title: '管理端', requirementId: 'ADM-AUTH-03' } },
     { path: 'stores', component: () => import('@/pages/admin/AdminStoreListPage.vue'), meta: { ...adminMeta, title: '店铺运营', requirementId: 'ADM-STORE-LIST-01', requiredPermission: 'stores:read' } },
     { path: 'stores/:storeId', component: () => import('@/pages/admin/AdminStoreDetailPage.vue'), meta: { ...adminMeta, title: '店铺运营详情', requirementId: 'ADM-STORE-DETAIL-01', requiredPermission: 'stores:read' } },
     { path: 'stores/:storeId/products/new', component: () => import('@/pages/merchant/MerchantProductEditorPage.vue'), meta: { ...adminMeta, title: '为店铺新增商品', requirementId: 'ADM-STORE-PRODUCT-NEW-01', requiredPermission: 'products:create' } },

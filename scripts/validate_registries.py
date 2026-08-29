@@ -56,6 +56,7 @@ def validate() -> None:
         "amount_based",
         "dual_control",
         "single_use_grant",
+        "operator_confirmation",
     }
     allowed_delegation_policies = {"role_policy", "non_delegable"}
     for permission in permissions["permissions"]:

@@ -70,7 +70,7 @@ jobs:
       ECOM_FILE_SCANNER_PORT: "3310"
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13.14"
           cache: pip

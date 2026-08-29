@@ -13,6 +13,7 @@ from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.logging import configure_logging
 from app.core.security import utc_now
+from app.core.worker_health import start_worker_heartbeat
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.database.postgres import close_postgres, initialize_postgres, postgres_session
 from app.database.redis import close_redis, get_redis, initialize_redis
@@ -198,6 +199,7 @@ async def run() -> None:
     initialize_redis(settings.redis_url)
     storage = get_object_storage() if settings.object_storage_enabled else None
     stopping = asyncio.Event()
+    start_worker_heartbeat("account-deletion-worker", settings, stopping)
     loop = asyncio.get_running_loop()
     for signal_name in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signal_name, stopping.set)

@@ -26,6 +26,21 @@ def test_compose_uses_loopback_ports_and_observability_profiles() -> None:
     assert services["otel-collector"]["profiles"] == ["observability"]
     assert services["loki"]["profiles"] == ["observability"]
     assert services["tempo"]["profiles"] == ["observability"]
+    for service in (
+        "file-worker",
+        "lifecycle-worker",
+        "batch-worker",
+        "order-timeout-worker",
+        "payment-reconcile-worker",
+        "logistics-sync-worker",
+        "admin-approval-worker",
+        "realtime-outbox-worker",
+        "agent-runtime-worker",
+        "knowledge-indexer",
+        "ai-memory-cleanup-worker",
+        "account-deletion-worker",
+    ):
+        assert services[service]["healthcheck"]["test"][-1] == "--check"
 
 
 def test_local_app_up_recreates_and_verifies_every_backend_runtime() -> None:

@@ -9,6 +9,7 @@ import structlog
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.core.worker_health import start_worker_heartbeat
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.integrations.object_storage import get_object_storage
 from app.modules.files.processor import FileProcessor
@@ -30,6 +31,7 @@ async def run() -> None:
     scanner = ClamAvScanner(settings)
     inventory_storage = cast(ObjectInventoryStorage, storage)
     stopping = asyncio.Event()
+    start_worker_heartbeat("file-worker", settings, stopping)
     loop = asyncio.get_running_loop()
     for signal_name in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signal_name, stopping.set)

@@ -9,6 +9,7 @@ from sqlalchemy import select, text
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.security import utc_now
+from app.core.worker_health import start_worker_heartbeat
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.database.postgres import close_postgres, initialize_postgres, postgres_session
 from app.modules.knowledge.embedding import embedding_provider
@@ -88,6 +89,7 @@ async def run() -> None:
     initialize_mysql(settings.mysql_dsn)
     initialize_postgres(settings.postgres_dsn)
     stopping = asyncio.Event()
+    start_worker_heartbeat("knowledge-indexer", settings, stopping)
     loop = asyncio.get_running_loop()
     for signal_name in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signal_name, stopping.set)

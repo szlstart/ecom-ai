@@ -14,8 +14,10 @@ from app.core.logging import configure_logging
 from app.core.observability import AiMetric, metrics
 from app.core.security import SecurityService, utc_now
 from app.core.telemetry import configure_telemetry, shutdown_telemetry, traced_operation
+from app.core.worker_health import start_worker_heartbeat
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.database.postgres import close_postgres, initialize_postgres, postgres_session
+from app.database.redis import close_redis, get_redis, initialize_redis
 from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.exclusive_agent import process_exclusive_run
@@ -24,6 +26,7 @@ from app.modules.agent_runtime.operations_agent import process_operations_run
 from app.modules.agent_runtime.provider_gateway import (
     configured_model_gateways,
     configured_operations_gateway,
+    probe_model_provider,
 )
 from app.modules.agent_runtime.service import AgentRuntimeService
 from app.modules.agent_runtime.store_agent import process_store_run
@@ -237,13 +240,29 @@ async def run() -> None:
     configure_telemetry(settings)
     initialize_mysql(settings.mysql_dsn)
     initialize_postgres(settings.postgres_dsn)
+    initialize_redis(settings.redis_url)
     stopping = asyncio.Event()
+    start_worker_heartbeat("agent-runtime-worker", settings, stopping)
     loop = asyncio.get_running_loop()
     for signal_name in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signal_name, stopping.set)
     logger.info("agent_runtime_worker_started")
+    next_provider_probe = 0.0
     try:
         while not stopping.is_set():
+            if time.monotonic() >= next_provider_probe:
+                provider_health = await probe_model_provider(
+                    settings, get_redis(), force=True
+                )
+                logger.info(
+                    "agent_model_provider_probed",
+                    status=provider_health.status,
+                    error_code=provider_health.error_code,
+                    latency_ms=provider_health.latency_ms,
+                )
+                next_provider_probe = (
+                    time.monotonic() + settings.agent_provider_health_interval_seconds
+                )
             dispatched = await dispatch_response_requests()
             processed = await process_batch()
             if dispatched or processed:
@@ -253,6 +272,7 @@ async def run() -> None:
             except TimeoutError:
                 pass
     finally:
+        await close_redis()
         await close_postgres()
         await close_mysql()
         shutdown_telemetry()

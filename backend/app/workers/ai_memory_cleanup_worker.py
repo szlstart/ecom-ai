@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.id_generator import new_prefixed_ulid
 from app.core.logging import configure_logging
 from app.core.security import utc_now
+from app.core.worker_health import start_worker_heartbeat
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.database.postgres import close_postgres, initialize_postgres, postgres_session
 from app.modules.agent_runtime.models import AiMemoryCleanupTask
@@ -142,6 +143,7 @@ async def run() -> None:
     initialize_mysql(settings.mysql_dsn)
     initialize_postgres(settings.postgres_dsn)
     stopping = asyncio.Event()
+    start_worker_heartbeat("ai-memory-cleanup-worker", settings, stopping)
     loop = asyncio.get_running_loop()
     for signal_name in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signal_name, stopping.set)

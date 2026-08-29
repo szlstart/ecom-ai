@@ -35,6 +35,8 @@ class StoredObject:
 
 
 class ObjectStorage(Protocol):
+    async def probe(self) -> None: ...
+
     async def ensure_bucket(self, bucket: str) -> None: ...
 
     async def presign_put(self, bucket: str, object_key: str, expires: timedelta) -> str: ...
@@ -57,6 +59,10 @@ class MinioObjectStorage:
         self.settings = settings
         self.internal = _client(settings.object_storage_endpoint, settings)
         self.public = _client(settings.object_storage_public_endpoint, settings)
+
+    async def probe(self) -> None:
+        bucket = self._physical_bucket("temporary-uploads")
+        await self._call(lambda: self.internal.bucket_exists(bucket))
 
     async def ensure_bucket(self, bucket: str) -> None:
         physical_bucket = self._physical_bucket(bucket)

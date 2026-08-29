@@ -45975,9 +45975,27 @@
             "enum": [
               "up",
               "down",
+              "degraded",
+              "unknown",
               "skipped"
             ],
             "title": "Status"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
           }
         },
         "type": "object",
@@ -53326,6 +53344,7 @@
             "type": "string",
             "enum": [
               "ready",
+              "degraded",
               "not_ready"
             ],
             "title": "Status"

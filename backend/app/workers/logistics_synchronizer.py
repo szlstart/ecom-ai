@@ -8,6 +8,7 @@ import structlog
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.security import SecurityService
+from app.core.worker_health import start_worker_heartbeat
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.modules.logistics.service import LogisticsService
 
@@ -20,6 +21,7 @@ async def run() -> None:
     initialize_mysql(settings.mysql_dsn)
     security = SecurityService(settings)
     stopping = asyncio.Event()
+    start_worker_heartbeat("logistics-sync-worker", settings, stopping)
     loop = asyncio.get_running_loop()
     for signal_name in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signal_name, stopping.set)

@@ -1,5 +1,12 @@
 name: ecom-ai
 
+x-worker-healthcheck: &worker-healthcheck
+  test: ["CMD", "python", "-m", "app.core.worker_health", "--check"]
+  interval: 15s
+  timeout: 3s
+  retries: 4
+  start_period: 30s
+
 services:
   mysql:
     image: mysql:8.4.11
@@ -163,6 +170,7 @@ services:
       ECOM_OTEL_ENABLED: ${ECOM_OTEL_ENABLED:-false}
       ECOM_OTEL_EXPORTER_OTLP_ENDPOINT: ${ECOM_OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
     command: ["python", "-m", "app.workers.file_processor"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
       minio: {condition: service_healthy}
@@ -180,6 +188,7 @@ services:
     environment:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
     command: ["python", "-m", "app.workers.lifecycle_worker"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
     networks: [backend]
@@ -200,6 +209,7 @@ services:
       ECOM_OBJECT_STORAGE_ACCESS_KEY: ${ECOM_OBJECT_STORAGE_ACCESS_KEY:-local-minio-admin}
       ECOM_OBJECT_STORAGE_SECRET_KEY: ${ECOM_OBJECT_STORAGE_SECRET_KEY:-local-minio-change-me}
     command: ["python", "-m", "app.workers.batch_job_processor"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
       minio: {condition: service_healthy}
@@ -217,6 +227,7 @@ services:
     environment:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
     command: ["python", "-m", "app.workers.order_timeout_closer"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
     networks: [backend]
@@ -232,6 +243,7 @@ services:
     environment:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
     command: ["python", "-m", "app.workers.payment_reconciler"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
     networks: [backend]
@@ -247,6 +259,7 @@ services:
     environment:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
     command: ["python", "-m", "app.workers.logistics_synchronizer"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
     networks: [backend]
@@ -262,6 +275,7 @@ services:
     environment:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
     command: ["python", "-m", "app.workers.admin_approval_worker"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
     networks: [backend]
@@ -278,6 +292,7 @@ services:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
       ECOM_REDIS_URL: redis://:${REDIS_PASSWORD:-local-redis-change-me}@redis:6379/0
     command: ["python", "-m", "app.workers.realtime_outbox_relay"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -294,13 +309,16 @@ services:
     environment:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
       ECOM_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-ecom_ai}:${POSTGRES_PASSWORD:-local-postgres-change-me}@postgres:5432/${POSTGRES_DB:-ecom_ai_ai}
+      ECOM_REDIS_URL: redis://:${REDIS_PASSWORD:-local-redis-change-me}@redis:6379/0
       ECOM_OTEL_ENABLED: ${ECOM_OTEL_ENABLED:-false}
       ECOM_OTEL_SERVICE_NAME: ecom-ai-agent-worker
       ECOM_OTEL_EXPORTER_OTLP_ENDPOINT: ${ECOM_OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
     command: ["python", "-m", "app.workers.agent_runtime_worker"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
       postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
     networks: [backend]
 
   knowledge-indexer:
@@ -315,6 +333,7 @@ services:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
       ECOM_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-ecom_ai}:${POSTGRES_PASSWORD:-local-postgres-change-me}@postgres:5432/${POSTGRES_DB:-ecom_ai_ai}
     command: ["python", "-m", "app.workers.knowledge_indexer"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
       postgres: {condition: service_healthy}
@@ -332,6 +351,7 @@ services:
       ECOM_MYSQL_DSN: mysql+asyncmy://${MYSQL_APP_USER:-ecom_app}:${MYSQL_APP_PASSWORD:-local-app-change-me}@mysql:3306/${MYSQL_DATABASE:-ecom_ai}?charset=utf8mb4
       ECOM_POSTGRES_DSN: postgresql+asyncpg://${POSTGRES_USER:-ecom_ai}:${POSTGRES_PASSWORD:-local-postgres-change-me}@postgres:5432/${POSTGRES_DB:-ecom_ai_ai}
     command: ["python", "-m", "app.workers.ai_memory_cleanup_worker"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
       postgres: {condition: service_healthy}
@@ -355,6 +375,7 @@ services:
       ECOM_OBJECT_STORAGE_ACCESS_KEY: ${ECOM_OBJECT_STORAGE_ACCESS_KEY:-local-minio-admin}
       ECOM_OBJECT_STORAGE_SECRET_KEY: ${ECOM_OBJECT_STORAGE_SECRET_KEY:-local-minio-change-me}
     command: ["python", "-m", "app.workers.account_deletion_worker"]
+    healthcheck: *worker-healthcheck
     depends_on:
       mysql: {condition: service_healthy}
       postgres: {condition: service_healthy}

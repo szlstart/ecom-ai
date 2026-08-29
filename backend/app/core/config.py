@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     readiness_checks_enabled: bool = True
     dependency_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
+    readiness_outbox_lag_seconds: int = Field(default=120, ge=10, le=3600)
     public_origin: str = "http://127.0.0.1:8080"
 
     mysql_dsn: str = (
@@ -53,6 +54,7 @@ class Settings(BaseSettings):
     agent_model_name: str | None = None
     agent_model_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     agent_model_timeout_seconds: float = Field(default=30.0, gt=0, le=90)
+    agent_provider_health_interval_seconds: int = Field(default=1800, ge=300, le=86_400)
     redis_url: str = "redis://:local-redis-change-me@127.0.0.1:16379/0"
     redis_max_connections: int = Field(default=50, ge=5, le=1000)
     realtime_ticket_ttl_seconds: int = Field(default=30, ge=10, le=120)

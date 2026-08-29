@@ -20,6 +20,6 @@ async def readiness(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ReadinessResponse:
     result = await get_readiness(settings)
-    if result.status != "ready":
+    if result.status == "not_ready":
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return result

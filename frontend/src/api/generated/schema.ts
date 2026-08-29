@@ -8299,7 +8299,14 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "up" | "down" | "skipped";
+            status: "up" | "down" | "degraded" | "unknown" | "skipped";
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /** Code */
+            code?: string | null;
         };
         /** Envelope[AccountDeletionTaskView] */
         Envelope_AccountDeletionTaskView_: {
@@ -10806,7 +10813,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "ready" | "not_ready";
+            status: "ready" | "degraded" | "not_ready";
             /** Dependencies */
             dependencies: {
                 [key: string]: components["schemas"]["DependencyStatus"];

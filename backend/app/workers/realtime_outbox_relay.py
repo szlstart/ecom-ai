@@ -8,6 +8,7 @@ from redis.exceptions import RedisError
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.core.worker_health import start_worker_heartbeat
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.database.redis import close_redis, get_redis, initialize_redis
 from app.modules.events.dispatcher import DomainEventDispatcher
@@ -23,6 +24,7 @@ async def run() -> None:
     initialize_mysql(settings.mysql_dsn)
     initialize_redis(settings.redis_url)
     stopping = asyncio.Event()
+    start_worker_heartbeat("realtime-outbox-worker", settings, stopping)
     loop = asyncio.get_running_loop()
     for signal_name in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(signal_name, stopping.set)

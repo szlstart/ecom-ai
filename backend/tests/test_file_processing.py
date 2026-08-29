@@ -4,6 +4,7 @@ import pytest
 from PIL import Image
 
 from app.core.exceptions import ApplicationError
+from app.modules.files.policies import upload_policy
 from app.modules.files.scanner import detect_private_content_type, process_public_image
 
 
@@ -39,3 +40,11 @@ def test_private_file_type_detection_rejects_declared_pdf_with_wrong_magic() -> 
         detect_private_content_type(b"not-a-pdf", "application/pdf")
 
     assert captured.value.code == "FILE_TYPE_MISMATCH"
+
+
+def test_retired_store_certification_upload_policy_is_not_exposed() -> None:
+    with pytest.raises(ApplicationError) as captured:
+        upload_policy("store_certification")
+
+    assert captured.value.status == 404
+    assert captured.value.code == "FILE_UPLOAD_POLICY_NOT_FOUND"

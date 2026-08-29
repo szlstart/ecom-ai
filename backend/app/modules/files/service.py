@@ -114,6 +114,10 @@ class FileService:
         initial = await self.repository.upload_session(upload_no)
         if initial is None or initial.uploader_user_id != actor.context.user.id:
             raise _not_found()
+        # Certification is retired. Completed historical files remain readable,
+        # but an unfinished legacy session may not create a new object.
+        if initial.upload_status != "completed":
+            upload_policy(initial.purpose)
         if initial.upload_status == "completed":
             claim = await self.idempotency.begin(
                 scope_key=f"file-upload-complete:{upload_no}",
@@ -407,8 +411,6 @@ def _upload_can_complete(item: FileUploadSession) -> None:
 
 
 def _source_bucket(purpose: str) -> str:
-    if purpose == "store_certification":
-        return "private-certifications"
     if purpose == "admin_import":
         return "admin-job-artifacts"
     return "private-image-sources"

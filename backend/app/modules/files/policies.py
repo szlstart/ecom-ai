@@ -81,18 +81,6 @@ POLICIES = {
         permissions=("catalog_taxonomy:manage",),
         processor="public_image",
     ),
-    "store_certification": UploadPolicy(
-        purpose="store_certification",
-        version="store-certification-v1",
-        allowed_mime_types=("image/jpeg", "image/png", "image/webp", "application/pdf"),
-        allowed_extensions=("jpg", "jpeg", "png", "webp", "pdf"),
-        max_size_bytes=20 * MIB,
-        max_count=20,
-        max_pixels=40_000_000,
-        owner_type="store",
-        permissions=("stores:manage", "stores:review"),
-        processor="private_evidence",
-    ),
     "admin_import": UploadPolicy(
         purpose="admin_import",
         version="admin-import-v1",

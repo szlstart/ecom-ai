@@ -7235,7 +7235,7 @@ Tool Version 是运行、绑定、权限、审计和回滚的不可变单位。�
 | :--- | :--- | :--- |
 | `file_no` | `VARCHAR(40)` | NOT NULL，UK，对外 `file_id`，使用 `file_` 前缀 |
 | `bucket` / `object_key` | `VARCHAR(64)` / `VARCHAR(512)` | NOT NULL，服务端生成，不包含用户隐私或自增 ID |
-| `purpose` | `VARCHAR(32)` | `product/store_logo/brand_logo/category_icon/store_certification/avatar/review/refund/knowledge/platform_content/admin_import/admin_export` |
+| `purpose` | `VARCHAR(32)` | 当前可写用途为 `product/store_logo/brand_logo/category_icon/avatar/review/refund/knowledge/platform_content/admin_import/admin_export`；历史 `store_certification` 仅兼容读取，不提供上传策略 |
 | `owner_type` / `owner_no` | `VARCHAR(32)` / `VARCHAR(64)` | 当前归属主体类型和公开 ID；待绑定时归属 Upload Session |
 | `upload_session_id` | `BIGINT UNSIGNED` | NULL，FK `file_upload_sessions.id` |
 | `parent_file_id` | `BIGINT UNSIGNED` | NULL，FK `file_objects.id`，派生图指向受控原图 |

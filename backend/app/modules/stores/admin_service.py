@@ -498,6 +498,7 @@ class AdminStoreService:
         cursor: str | None,
         limit: int,
     ) -> AdminCertificationList:
+        _certification_feature_retired()
         filter_key = _cursor_filter(
             "admin-store-certifications",
             review_status=review_status,
@@ -528,6 +529,7 @@ class AdminStoreService:
     async def get_certification(
         self, access: AdminAccess, certification_no: str
     ) -> AdminCertificationDetail:
+        _certification_feature_retired()
         row = await self.repository.certification_by_no(certification_no)
         if row is None:
             raise _not_found()
@@ -550,6 +552,7 @@ class AdminStoreService:
     async def certification_events(
         self, access: AdminAccess, certification_no: str
     ) -> list[AdminCertificationEventView]:
+        _certification_feature_retired()
         row = await self.repository.certification_by_no(certification_no)
         if row is None:
             raise _not_found()
@@ -568,6 +571,7 @@ class AdminStoreService:
         expected_version: int,
         idempotency_key: str,
     ) -> AdminCertificationDetail:
+        _certification_feature_retired()
         claim = await self.idempotency.begin(
             scope_key=f"admin:certification-decision:{certification_no}",
             idempotency_key=idempotency_key,
@@ -674,6 +678,7 @@ class AdminStoreService:
         expected_version: int,
         idempotency_key: str,
     ) -> AdminCertificationDetail:
+        _certification_feature_retired()
         claim = await self.idempotency.begin(
             scope_key=f"admin:certification-material:{certification_no}",
             idempotency_key=idempotency_key,
@@ -1247,6 +1252,15 @@ def _not_found() -> ApplicationError:
         code="RESOURCE_NOT_FOUND",
         title="Resource not found",
         detail="未找到该资源。",
+    )
+
+
+def _certification_feature_retired() -> None:
+    raise ApplicationError(
+        status=410,
+        code="STORE_CERTIFICATION_RETIRED",
+        title="Store certification retired",
+        detail="当前版本未启用店铺认证申请或审核能力。",
     )
 
 

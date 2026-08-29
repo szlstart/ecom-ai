@@ -62,8 +62,8 @@ async def provision_store_operator(
     """Create one store-scoped operator for bootstrap and local development.
 
     Existing stores can be selected by public ID. When no public ID is supplied,
-    a new active store is created and owned by the new operator. Production store
-    onboarding remains subject to the certification workflow.
+    a new active store is created and owned by the new operator. The current product
+    does not expose or require a store-certification workflow.
     """
 
     normalized_username = normalize_username(username)

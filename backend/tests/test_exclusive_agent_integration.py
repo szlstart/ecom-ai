@@ -7,12 +7,13 @@ from typing import cast
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text, update
 
 from app.core.config import get_settings
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
 from app.database.mysql import mysql_session
+from app.database.postgres import postgres_session
 from app.modules.after_sale.models import RefundApplication
 from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.models import (
@@ -21,6 +22,7 @@ from app.modules.agent_runtime.models import (
     AgentToolAction,
     AgentToolApproval,
     AgentToolAudit,
+    UserAgentConsent,
 )
 from app.modules.catalog.models import Category, Product, ProductSku
 from app.modules.identity.models import AuthSession, User
@@ -76,6 +78,19 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
                 granted_by=user.id,
                 granted_at=now,
                 grant_reason="exclusive_agent_integration_consumer",
+            )
+        )
+        personalization_consent_no = new_prefixed_ulid("cns_")
+        session.add(
+            UserAgentConsent(
+                consent_no=personalization_consent_no,
+                user_id=user.id,
+                consent_type="personalization",
+                scope_type="user",
+                scope_no=user.user_no,
+                policy_version="ai-personalization-v1",
+                consent_status="active",
+                expires_at=now + timedelta(days=180),
             )
         )
         auth_session.user_id = user.id
@@ -149,6 +164,64 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
         )
         order_no = order.order_no
         foreign_order_no = foreign_order.order_no
+        user_no = user.user_no
+        foreign_user_no = foreign_user.user_no
+        break
+
+    memory_no = new_prefixed_ulid("mem_")
+    memory_value = "偏好静音的深蓝色键盘"
+    async for postgres in postgres_session():
+        await postgres.execute(
+            text(
+                """INSERT INTO memory.items
+                (memory_no,user_no,namespace,store_no,memory_type,confidence,
+                 memory_status,consent_no,expires_at,memory_key,content_ciphertext,content_hash,
+                 dedupe_fingerprint,key_version,source_type,source_ref,consent_policy_version,
+                 validation_snapshot,salience,data_classification,memory_risk_level,valid_from,version)
+                VALUES (:memory_no,:user_no,'exclusive',NULL,'preference',0.950,
+                 'active',:consent_no,now()+interval '180 days','shopping.keyboard.preference',
+                 :ciphertext,:content_hash,:dedupe,1,'user_confirmation','integration',
+                 'ai-personalization-v1',CAST(:validation AS JSONB),
+                 0.900,'L2','low',now(),0)"""
+            ),
+            {
+                "memory_no": memory_no,
+                "user_no": user_no,
+                "consent_no": personalization_consent_no,
+                "ciphertext": security.encrypt("ai-memory-content", memory_value),
+                "content_hash": security.keyed_hash("ai-memory-content-hash", memory_value),
+                "dedupe": security.keyed_hash("ai-memory-dedupe", f"{user_no}:{memory_value}"),
+                "validation": '{"explicit_confirmation":true}',
+            },
+        )
+        foreign_memory_no = new_prefixed_ulid("mem_")
+        foreign_memory_value = "FOREIGN-MEMORY-MUST-NOT-LEAK"
+        await postgres.execute(
+            text(
+                """INSERT INTO memory.items
+                (memory_no,user_no,namespace,store_no,memory_type,confidence,
+                 memory_status,consent_no,expires_at,memory_key,content_ciphertext,content_hash,
+                 dedupe_fingerprint,key_version,source_type,source_ref,consent_policy_version,
+                 validation_snapshot,salience,data_classification,memory_risk_level,valid_from,version)
+                VALUES (:memory_no,:user_no,'exclusive',NULL,'preference',0.990,
+                 'active',:consent_no,now()+interval '180 days','shopping.foreign.preference',
+                 :ciphertext,:content_hash,:dedupe,1,'user_confirmation','integration',
+                 'ai-personalization-v1',CAST(:validation AS JSONB),
+                 0.990,'L2','low',now(),0)"""
+            ),
+            {
+                "memory_no": foreign_memory_no,
+                "user_no": foreign_user_no,
+                "consent_no": personalization_consent_no,
+                "ciphertext": security.encrypt("ai-memory-content", foreign_memory_value),
+                "content_hash": security.keyed_hash("ai-memory-content-hash", foreign_memory_value),
+                "dedupe": security.keyed_hash(
+                    "ai-memory-dedupe", f"{foreign_user_no}:{foreign_memory_value}"
+                ),
+                "validation": '{"explicit_confirmation":true}',
+            },
+        )
+        await postgres.commit()
         break
 
     headers = {"Authorization": f"Bearer {token}"}
@@ -179,6 +252,38 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
     await _drain_agent()
     search_reply = _reply_after(await _messages(client, headers, conversation_no), search_message)
     assert "退款测试键盘" in str(search_reply["text"])
+
+    recommendation_message = await _send(client, headers, conversation_no, "推荐退款测试键盘")
+    await _drain_agent()
+    recommendation_reply = _reply_after(
+        await _messages(client, headers, conversation_no), recommendation_message
+    )
+    assert memory_value in str(recommendation_reply["text"])
+    assert foreign_memory_value not in str(recommendation_reply["text"])
+    recommendation_content = cast(dict[str, object], recommendation_reply["content"])
+    sources = cast(list[dict[str, object]], recommendation_content["sources"])
+    assert any(item.get("type") == "memory" and item.get("id") == memory_no for item in sources)
+    trace = cast(dict[str, object], recommendation_content["execution_trace"])
+    steps = cast(list[dict[str, object]], trace["steps"])
+    assert any(item.get("kind") == "memory" and item.get("used_count") == 1 for item in steps)
+
+    async for session in mysql_session():
+        await session.execute(
+            update(UserAgentConsent)
+            .where(UserAgentConsent.consent_no == personalization_consent_no)
+            .values(consent_status="revoked", revoked_at=utc_now())
+        )
+        await session.commit()
+        break
+    after_revoke_message = await _send(client, headers, conversation_no, "推荐退款测试键盘")
+    await _drain_agent()
+    after_revoke_reply = _reply_after(
+        await _messages(client, headers, conversation_no), after_revoke_message
+    )
+    assert memory_value not in str(after_revoke_reply["text"])
+    revoked_content = cast(dict[str, object], after_revoke_reply["content"])
+    revoked_sources = cast(list[dict[str, object]], revoked_content["sources"])
+    assert all(item.get("type") != "memory" for item in revoked_sources)
 
     order_message = await _send(client, headers, conversation_no, "查询这个订单")
     await _drain_agent()

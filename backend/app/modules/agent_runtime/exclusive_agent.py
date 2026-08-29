@@ -23,6 +23,7 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
     ExclusiveModelGateway,
 )
 from app.modules.agent_runtime.exclusive_tools import ExclusiveToolGateway
+from app.modules.agent_runtime.memory_runtime import AgentMemoryRuntime
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
@@ -96,8 +97,9 @@ async def process_exclusive_run(
         )
         return
 
+    gateway = model_gateway or DeterministicExclusiveModelGateway()
     try:
-        plan = await (model_gateway or DeterministicExclusiveModelGateway()).plan(trigger_text)
+        plan = await gateway.plan(trigger_text)
     except (ModelGatewayError, TimeoutError):
         await _handoff(session, context, settings, security, "MODEL_UNAVAILABLE")
         await _finish_checkpoint(checkpoint_store, context, "human_handoff")
@@ -187,7 +189,15 @@ async def process_exclusive_run(
             plan.intent,
             result.data,
         )
-        answer, trace = await _grounded_answer(context, model_gateway, plan, result.data)
+        await _attach_exclusive_memories(
+            session,
+            checkpoint_store,
+            security,
+            context,
+            plan.intent,
+            result.data,
+        )
+        answer, trace = await _grounded_answer(context, gateway, plan, result.data)
         await _complete(
             session,
             context,
@@ -491,6 +501,18 @@ async def _grounded_answer(
                 "degraded": bool(rag.get("degraded")),
             },
         )
+    if isinstance(data.get("memory"), dict):
+        memory = data["memory"]
+        steps.insert(
+            1,
+            {
+                "kind": "memory",
+                "label": "读取已授权的购物偏好",
+                "status": "completed",
+                "used_count": int(memory.get("used_count", 0)),
+                "degraded": bool(memory.get("degraded")),
+            },
+        )
     trace: dict[str, object] = {
         "version": "public-agent-trace-v1",
         "run_id": context.run.run_no,
@@ -546,7 +568,17 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
     if plan.intent in {"product_search", "personalized_recommendation"}:
         if not isinstance(items, list) or not items:
             return "暂未找到符合当前条件的公开在售商品。你可以补充品类、用途或预算。"
-        lines = ["找到这些公开在售商品候选:"]
+        lines: list[str] = []
+        memories = data.get("recalled_memories")
+        if isinstance(memories, list) and memories:
+            remembered = [
+                safe_untrusted_excerpt(item.get("value"), 160)
+                for item in memories[:3]
+                if isinstance(item, dict)
+            ]
+            if remembered:
+                lines.append("根据你之前允许我记住的偏好: " + "、".join(remembered) + "。")
+        lines.append("找到这些公开在售商品候选:")
         for item in items[:8]:
             if isinstance(item, dict):
                 price_value = item.get("price")
@@ -642,6 +674,18 @@ def _source_refs(data: Mapping[str, Any]) -> list[dict[str, object]]:
                     "score": item.get("score"),
                 }
             )
+    memories = data.get("recalled_memories")
+    if isinstance(memories, list):
+        for item in memories[:5]:
+            if not isinstance(item, dict) or not isinstance(item.get("memory_id"), str):
+                continue
+            refs.append(
+                {
+                    "type": "memory",
+                    "id": item["memory_id"],
+                    "memory_type": item.get("memory_type"),
+                }
+            )
     return refs
 
 
@@ -688,6 +732,56 @@ async def _attach_platform_knowledge(
         "returned_count": len(result.items),
         "degraded": result.degraded,
         "retrieval_mode": "keyword_only" if result.degraded else "hybrid",
+    }
+
+
+async def _attach_exclusive_memories(
+    mysql: AsyncSession,
+    checkpoint_store: AgentCheckpointStore,
+    security: SecurityService,
+    context: TrustedExclusiveAgentContext,
+    intent: str,
+    data: dict[str, object],
+) -> None:
+    if intent != "personalized_recommendation":
+        return
+    context.run.current_phase = "recalling"
+    context.run.version += 1
+    try:
+        recall = await AgentMemoryRuntime(
+            mysql, checkpoint_store.session, security
+        ).recall_exclusive(
+            context.user,
+            query=context.trigger.text_content or "购物偏好",
+            limit=3,
+        )
+    except SQLAlchemyError:
+        await checkpoint_store.session.rollback()
+        data["memory"] = {
+            "scope": "exclusive",
+            "authorized": True,
+            "used_count": 0,
+            "degraded": True,
+            "error_code": "MEMORY_RECALL_UNAVAILABLE",
+        }
+        return
+    data["recalled_memories"] = [
+        {
+            "memory_id": item.memory_no,
+            "memory_type": item.memory_type,
+            "memory_key": item.memory_key,
+            "value": item.value,
+            "relevance": round(item.relevance, 4),
+            "expires_at": item.expires_at.isoformat(),
+            "freshness_notice": "偏好可能已变化，不作为订单、库存或价格事实",
+        }
+        for item in recall.items
+    ]
+    data["memory"] = {
+        "scope": "exclusive",
+        "authorized": recall.authorized,
+        "used_count": len(recall.items),
+        "degraded": recall.degraded,
     }
 
 

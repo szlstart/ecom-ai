@@ -45,7 +45,7 @@ families:
   ADM-USER-STATUS: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_admin_password_mfa_audience_and_reauthentication_lifecycle]}
   AI-CONSENT: {layers: [contract, integration, security], selectors: [backend/tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry]}
   AI-FEEDBACK: {layers: [contract, integration], selectors: [backend/tests/test_ai_feedback_api_integration.py::test_ai_feedback_is_owned_versioned_idempotent_and_agent_only]}
-  AI-MEMORY: {layers: [integration, security], selectors: [backend/tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry]}
+  AI-MEMORY: {layers: [integration, security], selectors: [backend/tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry, backend/tests/test_exclusive_agent_integration.py::test_exclusive_agent_refund_requires_consent_and_button_approval]}
   AUTH-LOGIN: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-CAPTCHA: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-LOGOUT: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}

@@ -23478,6 +23478,7 @@
           "products:update"
         ],
         "x-requirement-id": [
+          "ADM-STORE-DETAIL-01",
           "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
@@ -23486,10 +23487,15 @@
           "products:update",
           "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner"
+          "merchant_exclusive_conversation_owner",
+          "stores:manage",
+          "products:review",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-PRODUCT-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -23567,6 +23573,7 @@
           "products:update"
         ],
         "x-requirement-id": [
+          "ADM-STORE-DETAIL-01",
           "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
@@ -23575,10 +23582,15 @@
           "products:update",
           "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner"
+          "merchant_exclusive_conversation_owner",
+          "stores:manage",
+          "products:review",
+          "orders:read"
         ],
         "x-test-case-ids": [
+          "ADM-ORDER-*",
           "ADM-PRODUCT-*",
+          "ADM-STORE-*",
           "MCH-PORTAL-*"
         ]
       }

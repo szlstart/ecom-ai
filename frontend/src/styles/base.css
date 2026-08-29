@@ -622,7 +622,7 @@ kbd { padding: 3px 7px; color: #788195; border: 1px solid #d8dde7; border-radius
 .address-editor-card > footer { justify-content: flex-start; }
 .address-list-section { display: grid; gap: 16px; }
 .address-list-section > header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
-.address-list-section > header > span { color: #7a8497; font-size: .84rem; }
+.address-list-section > header > span { color: #566174; font-size: .84rem; }
 .address-book-grid { display: grid; gap: 14px; }
 .address-book-card { position: relative; min-height: 142px; padding: 24px; display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 20px; border: 1px solid #e0e5ee; border-radius: 18px; background: #fff; box-shadow: 0 9px 28px rgb(27 49 101 / 5%); transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
 .address-book-card:hover { border-color: #bac7ea; box-shadow: 0 15px 36px rgb(27 49 101 / 9%); transform: translateY(-1px); }

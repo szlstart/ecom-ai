@@ -24,7 +24,7 @@ async function installPublicApi(page: Page) {
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request()
     const url = new URL(request.url())
-    if (url.pathname.endsWith('/auth/token-refresh')) {
+    if (url.pathname.endsWith('/auth/token-refresh') || url.pathname.endsWith('/auth/session-resume')) {
       await json(route, {
         title: 'Authentication required',
         status: 401,
@@ -127,7 +127,7 @@ test('SEARCH-BROWSER preserves URL filters and exposes an empty recovery state',
 
 test('NAV-BROWSER opens the same authentication modal for every protected navigation entry', async ({ page }) => {
   await page.goto('/')
-  for (const name of ['购物车', '消息', '收藏', '地址', '我的']) {
+  for (const name of ['购物车', '消息', '收藏', '收货地址', '我的']) {
     await page.getByRole('button', { name, exact: true }).click()
     await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible()
     await page.getByRole('button', { name: '关闭注册登录弹窗' }).click()
@@ -148,7 +148,7 @@ test('ACCOUNT-ADDRESS-BROWSER keeps messaging active and exposes the three-level
   await page.unroute('**/api/v1/**')
   await page.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url())
-    if (url.pathname.endsWith('/auth/token-refresh')) {
+    if (url.pathname.endsWith('/auth/token-refresh') || url.pathname.endsWith('/auth/session-resume')) {
       await json(route, {
         user: { user_id: 'usr_BROWSER', username: 'browser_user', nickname: '验收用户', avatar_url: null, account_status: 'active' },
         session: {
@@ -170,9 +170,15 @@ test('ACCOUNT-ADDRESS-BROWSER keeps messaging active and exposes the three-level
     }, 503)
   })
 
+  await page.context().addCookies([{
+    name: 'ecom_user_csrf',
+    value: 'browser-csrf',
+    domain: '127.0.0.1',
+    path: '/',
+  }])
   await page.goto('/me/addresses')
   await expect(page.getByRole('button', { name: '消息', exact: true })).toBeVisible()
-  await expect(page.getByText(/(早上|中午|下午|晚上)好，验收用户/)).toBeVisible()
+  await expect(page.getByText(/(早上|中午|下午|晚上)好.+，browser_user/)).toBeVisible()
   await page.getByRole('button', { name: '新增地址' }).click()
   await expect(page.getByLabel('省份').locator('option')).toHaveCount(33)
   await page.getByLabel('省份').selectOption('440000')

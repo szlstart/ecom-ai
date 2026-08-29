@@ -12,6 +12,7 @@ import {
 } from '@/api/admin-catalog'
 import { downloadApiResource, errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
+import { promptAction } from '@/composables/confirmation'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
 const auth = useAdminAuthStore()
@@ -57,7 +58,7 @@ async function confirm() {
 }
 async function cancel() {
   if (!job.value) return
-  const reason = window.prompt('请输入取消原因（至少 2 个字符）')?.trim()
+  const reason = (await promptAction('取消中的任务会在当前安全检查点停止。', { title: '取消批处理任务', label: '取消原因', minLength: 2, maxLength: 500, confirmText: '确认取消', tone: 'danger' }))?.trim()
   if (!reason || reason.length < 2) return
   busy.value = true; error.value = ''; notice.value = ''
   try {

@@ -9,6 +9,7 @@ import {
 } from '@/api/admin-observability'
 import { errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
 const auth = useAdminAuthStore()
@@ -43,7 +44,7 @@ async function load() {
 
 async function cancelRun() {
   if (!item.value || reason.value.trim().length < 3) return
-  if (!window.confirm('仅未执行或等待确认的 Run 可取消。确认提交取消命令吗？')) return
+  if (!await confirmAction('仅未执行或等待确认的 Run 可取消。确认提交取消命令吗？', { title: '取消 Agent Run', confirmText: '确认取消', tone: 'danger' })) return
   submitting.value = true
   error.value = ''
   try {

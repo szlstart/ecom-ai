@@ -6,6 +6,7 @@ import { checkRefundEligibility, createRefundApplication, type RefundEligibility
 import { formatMoney } from '@/api/catalog'
 import { errorMessage } from '@/api/http'
 import { getMyOrder, type OrderDetail } from '@/api/orders'
+import { confirmAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const route = useRoute()
@@ -52,7 +53,7 @@ async function preview() {
 
 async function submit() {
   if (!input.value || !eligibility.value?.eligible || !auth.accessToken) return
-  if (!window.confirm(`确认提交 ${formatMoney(eligibility.value.suggested_refund_amount)} 的售后申请？`)) return
+  if (!await confirmAction(`确认提交 ${formatMoney(eligibility.value.suggested_refund_amount)} 的售后申请？`, { title: '提交售后申请', confirmText: '确认提交' })) return
   busy.value = true
   try {
     const result = await createRefundApplication(input.value, eligibility.value, reasonDetail.value.trim() || null, auth.accessToken)

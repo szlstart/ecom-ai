@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { apiRequest, errorMessage } from '@/api/http'
+import { confirmAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const auth = useUserAuthStore()
@@ -12,7 +13,7 @@ const pending = ref(false)
 const error = ref('')
 
 async function submit() {
-  if (!confirm('确认永久删除账号吗？该操作没有冷静期，也无法恢复。')) return
+  if (!await confirmAction('确认永久删除账号吗？该操作没有冷静期，也无法恢复。', { title: '永久删除账号', confirmText: '确认永久删除', tone: 'danger' })) return
   pending.value = true
   error.value = ''
   try {

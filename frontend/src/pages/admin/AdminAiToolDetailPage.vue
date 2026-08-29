@@ -12,6 +12,7 @@ import {
 } from '@/api/admin-ai'
 import { errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
 const auth = useAdminAuthStore()
@@ -62,7 +63,7 @@ async function addVersion() {
 }
 
 async function publish(version: ToolVersionSummary) {
-  if (!window.confirm(`确认发起 v${version.version_no} 的双人发布审批？`)) return
+  if (!await confirmAction(`确认发起 v${version.version_no} 的双人发布审批？`)) return
   error.value = ''
   try {
     const approval = (await publishToolVersion(toolCode, version.version_no, token())).data
@@ -73,7 +74,7 @@ async function publish(version: ToolVersionSummary) {
 }
 
 async function rollback(version: ToolVersionSummary) {
-  if (!window.confirm(`确认申请从当前版本回滚到历史 v${version.version_no}？该操作需要双人审批。`)) return
+  if (!await confirmAction(`确认申请从当前版本回滚到历史 v${version.version_no}？该操作需要双人审批。`, { tone: 'danger' })) return
   error.value = ''
   try {
     const approval = (await rollbackToolVersion(toolCode, version.version_no, token())).data

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 
 import { apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
+import { confirmAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 interface Money { minor_units: string; currency: string }
@@ -45,7 +46,7 @@ async function recharge() {
     error.value = '充值金额需为 1.00 至 50,000.00 元，最多保留两位小数。'
     return
   }
-  if (!confirm(`这是模拟充值，不会调用真实${channel.value === 'wechat' ? '微信' : '支付宝'}。确认模拟充值 ¥${yuan.toFixed(2)} 吗？`)) return
+  if (!await confirmAction(`这是模拟充值，不会调用真实${channel.value === 'wechat' ? '微信' : '支付宝'}。确认模拟充值 ¥${yuan.toFixed(2)} 吗？`, { title: '确认模拟充值', confirmText: '确认充值' })) return
   charging.value = true
   try {
     const result = await apiRequest<RechargeResult>('/users/me/wallet/recharges', {

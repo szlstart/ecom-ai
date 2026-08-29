@@ -6,6 +6,7 @@ import { formatMoney } from '@/api/catalog'
 import { errorMessage } from '@/api/http'
 import { closePayment, getPayment, type Payment } from '@/api/payments'
 import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const route = useRoute(), auth = useUserAuthStore(), payment = ref<Payment | null>(null)
@@ -25,7 +26,7 @@ async function load() {
 function stop() { if (timer !== undefined) window.clearInterval(timer); timer = undefined }
 async function closeAttempt() {
   if (!payment.value || closing.value || terminal.value) return
-  if (!window.confirm('确定关闭当前支付尝试吗？关闭后可返回收银台重新发起。')) return
+  if (!await confirmAction('确定关闭当前支付尝试吗？关闭后可返回收银台重新发起。')) return
   closing.value = true; error.value = ''; stop()
   try { payment.value = (await closePayment(payment.value, token())).data }
   catch (cause) { error.value = errorMessage(cause); await load() }

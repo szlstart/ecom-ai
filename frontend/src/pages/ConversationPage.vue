@@ -37,6 +37,7 @@ import {
 } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
 
@@ -262,7 +263,7 @@ async function decideMemory(message: ChatMessage, decision: 'activate' | 'reject
   finally { memoryBusy.value = null }
 }
 async function grantAfterSaleConsent() {
-  if (consentBusy.value || !window.confirm('授权专属客服在未来 30 天内协助准备售后申请草稿？实际提交仍必须由你逐次点击确认。')) return
+  if (consentBusy.value || !await confirmAction('授权专属客服在未来 30 天内协助准备售后申请草稿？实际提交仍必须由你逐次点击确认。')) return
   consentBusy.value = true
   error.value = ''
   try {
@@ -275,7 +276,7 @@ async function grantAfterSaleConsent() {
 }
 async function revokeAfterSaleConsent() {
   const consent = activeAfterSaleConsent.value
-  if (!consent || consentBusy.value || !window.confirm('确认撤销专属客服的售后协助授权吗？未提交的审批将无法继续执行。')) return
+  if (!consent || consentBusy.value || !await confirmAction('确认撤销专属客服的售后协助授权吗？未提交的审批将无法继续执行。', { tone: 'danger' })) return
   consentBusy.value = true
   error.value = ''
   try {
@@ -294,7 +295,7 @@ async function decideApproval(message: ChatMessage, decision: 'approve' | 'rejec
   const prompt = decision === 'approve'
     ? `确认提交订单 ${contentString(message, 'order_id')} 的退款申请，申请金额 ${requestedAmountLabel(message)}？`
     : '确认拒绝并关闭这份退款申请草稿吗？'
-  if (!window.confirm(prompt)) return
+  if (!await confirmAction(prompt, { tone: decision === 'reject' ? 'danger' : 'default' })) return
   approvalBusy.value = id
   error.value = ''
   try {
@@ -539,7 +540,7 @@ async function requestHuman() {
   finally { humanBusy.value = false }
 }
 async function cancelHuman() {
-  if (!humanTicket.value?.can_cancel || humanBusy.value || !window.confirm('确认取消仍在排队的人工服务请求吗？')) return
+  if (!humanTicket.value?.can_cancel || humanBusy.value || !await confirmAction('确认取消仍在排队的人工服务请求吗？')) return
   humanBusy.value = true
   error.value = ''
   try {

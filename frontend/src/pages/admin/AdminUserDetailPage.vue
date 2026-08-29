@@ -9,6 +9,7 @@ import { adjustAdminUserWallet, deleteAdminUser, getAdminUserWorkspace, replaceA
 import { ApiProblem, apiRequest, createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { listAdminOrders, type AdminOrderSummary, type OrderAction, type OrderSummary } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import { formatChinaRegion } from '@/utils/china-regions'
 
@@ -102,13 +103,13 @@ async function saveAddress() {
     } else addressError.value = errorMessage(cause)
   } finally { busy.value = false }
 }
-async function deleteAddress(item: Address) { if (confirm('确认删除这个收货地址？')) await run(() => apiRequest(`/admin/users/${userId}/addresses/${item.address_id}`, { method: 'DELETE', headers: { 'If-Match': `"v${item.version}"` } }, token()), '收货地址已删除。') }
+async function deleteAddress(item: Address) { if (await confirmAction('确认删除这个收货地址？', { title: '删除收货地址', confirmText: '确认删除', tone: 'danger' })) await run(() => apiRequest(`/admin/users/${userId}/addresses/${item.address_id}`, { method: 'DELETE', headers: { 'If-Match': `"v${item.version}"` } }, token()), '收货地址已删除。') }
 async function removeProduct(id: string) { await run(() => apiRequest(`/admin/users/${userId}/favorite-products/${id}`, { method: 'DELETE' }, token()), '已取消商品收藏。') }
 async function removeStore(id: string) { await run(() => apiRequest(`/admin/users/${userId}/followed-stores/${id}`, { method: 'DELETE' }, token()), '已取消店铺收藏。') }
 async function cartQuantity(itemId: string, quantity: number) { if (!cart.value) return; await run(() => apiRequest(`/admin/users/${userId}/cart/items/${itemId}`, { method: 'PATCH', headers: { 'If-Match': `"v${cart.value!.version}"` }, body: JSON.stringify({ quantity }) }, token()), '购物车数量已更新。') }
 async function removeCart(itemId: string) { if (!cart.value) return; await run(() => apiRequest(`/admin/users/${userId}/cart/items/${itemId}`, { method: 'DELETE', headers: { 'If-Match': `"v${cart.value!.version}"` } }, token()), '购物车商品已删除。') }
 async function openOrders() { ordersOpen.value = true; orderBusy.value = 'loading'; error.value = ''; try { orders.value = (await listAdminOrders({ q: userId }, token())).data.items.filter((item) => item.order.order_status !== 'cancelled') } catch (cause) { error.value = errorMessage(cause) } finally { orderBusy.value = '' } }
-async function runOrderAction(action: OrderAction, order: OrderSummary) { if (!action.enabled) return; if (action.code === 'cancel_order' || action.code === 'confirm_receipt') { if (!confirm(`确认${actionLabel(action.code)}？`)) return; orderBusy.value = order.order_id; try { const command = action.code === 'cancel_order' ? 'cancellations' : 'receipt-confirmations'; await apiRequest(`/admin/users/${userId}/orders/${order.order_id}/${command}`, { method: 'POST', headers: { 'If-Match': `"v${order.version}"`, 'Idempotency-Key': createIdempotencyKey(`admin-order-${command}`) } }, token()); await openOrders(); notice.value = `${actionLabel(action.code)}成功。` } catch (cause) { error.value = errorMessage(cause) } finally { orderBusy.value = '' }; return }; await router.push(`/admin/orders/${order.order_id}`) }
+async function runOrderAction(action: OrderAction, order: OrderSummary) { if (!action.enabled) return; if (action.code === 'cancel_order' || action.code === 'confirm_receipt') { if (!await confirmAction(`确认${actionLabel(action.code)}？`)) return; orderBusy.value = order.order_id; try { const command = action.code === 'cancel_order' ? 'cancellations' : 'receipt-confirmations'; await apiRequest(`/admin/users/${userId}/orders/${order.order_id}/${command}`, { method: 'POST', headers: { 'If-Match': `"v${order.version}"`, 'Idempotency-Key': createIdempotencyKey(`admin-order-${command}`) } }, token()); await openOrders(); notice.value = `${actionLabel(action.code)}成功。` } catch (cause) { error.value = errorMessage(cause) } finally { orderBusy.value = '' }; return }; await router.push(`/admin/orders/${order.order_id}`) }
 async function removeUser() { if (!user.value) return; busy.value = true; try { await deleteAdminUser(userId, user.value.version, token()); await router.replace({ path: '/admin/users', query: { deleted: userId } }) } catch (cause) { deleteOpen.value = false; error.value = errorMessage(cause) } finally { busy.value = false } }
 onMounted(load)
 </script>

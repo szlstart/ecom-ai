@@ -10,6 +10,7 @@ import {
 } from '@/api/admin-ai'
 import { errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
 const auth = useAdminAuthStore()
@@ -39,7 +40,7 @@ async function load() {
 }
 
 async function publish() {
-  if (!item.value || !window.confirm('确认发布并创建影子索引任务吗？')) return
+  if (!item.value || !await confirmAction('确认发布并创建影子索引任务吗？')) return
   error.value = ''
   try {
     item.value = (await publishKnowledgeDocument(documentId, token())).data
@@ -52,7 +53,7 @@ async function publish() {
 }
 
 async function withdraw() {
-  if (!item.value || !window.confirm('确认撤回文档并立即从检索范围删除吗？')) return
+  if (!item.value || !await confirmAction('确认撤回文档并立即从检索范围删除吗？', { tone: 'danger' })) return
   error.value = ''
   try {
     item.value = (await withdrawKnowledgeDocument(documentId, token())).data

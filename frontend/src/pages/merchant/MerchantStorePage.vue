@@ -6,6 +6,7 @@ import { adminCommand, adminGet, adminUpdate, requireAdminToken, type AdminStore
 import { apiRequest, errorMessage } from '@/api/http'
 import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import { imageFileFromClipboard } from '@/utils/clipboard-image'
 import { publishStoreStatus } from '@/utils/store-status-sync'
@@ -151,7 +152,7 @@ async function pasteLogo(event: ClipboardEvent) {
 }
 
 async function deleteAccount() {
-  if (!store.value || !confirm(`确定永久注销“${store.value.store_name}”及其商家账号吗？\n\n提交后会立即退出，后台将按可重试清理任务删除未产生交易的店铺、商品、文件和账号数据。`)) return
+  if (!store.value || !await confirmAction(`确定永久注销“${store.value.store_name}”及其商家账号吗？\n\n提交后会立即退出，后台将按可重试清理任务删除未产生交易的店铺、商品、文件和账号数据。`, { title: '永久注销商家账号', confirmText: '确认永久注销', tone: 'danger' })) return
   deleting.value = true
   deleteError.value = ''
   try {

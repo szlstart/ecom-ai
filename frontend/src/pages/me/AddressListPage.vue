@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import areaData from 'china-area-data'
 
 import { ApiProblem, apiRequest, createIdempotencyKey, errorMessage } from '@/api/http'
+import { confirmAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { formatChinaRegion } from '@/utils/china-regions'
 
@@ -235,7 +236,7 @@ async function save() {
 }
 
 async function remove(item: Address) {
-  if (!confirm('确定删除这个地址吗？')) return
+  if (!await confirmAction('确定删除这个地址吗？', { title: '删除收货地址', confirmText: '确认删除', tone: 'danger' })) return
   try {
     await apiRequest(`/users/me/addresses/${item.address_id}`, {
       method: 'DELETE',

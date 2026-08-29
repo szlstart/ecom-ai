@@ -18,6 +18,7 @@ import {
 } from '@/api/agent-runtime'
 import { errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
+import { confirmAction, promptAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const auth = useUserAuthStore()
@@ -54,9 +55,9 @@ function upsertTask(task: AiCleanupTask) {
   cleanupTasks.value = [task, ...cleanupTasks.value.filter((item) => item.cleanup_task_id !== task.cleanup_task_id)]
 }
 async function reviseMemory(item: AiMemoryItem) {
-  const value = window.prompt('请输入更正后的低敏偏好。密码、证件、支付信息和完整地址禁止写入。', item.value)
+  const value = await promptAction('密码、证件、支付信息和完整地址禁止写入。', { title: '更正低敏偏好', label: '偏好内容', initialValue: item.value, minLength: 1, maxLength: 500 })
   if (value === null || !value.trim() || value.trim() === item.value || memoryBusy.value) return
-  if (!window.confirm('确认以新版本替换这条记忆吗？旧版本将保留最小审计链但不再召回。')) return
+  if (!await confirmAction('确认以新版本替换这条记忆吗？旧版本将保留最小审计链但不再召回。')) return
   memoryBusy.value = item.memory_id; error.value = ''; notice.value = ''
   try {
     const revised = (await reviseAiMemory(item.memory_id, item.version, value.trim(), token())).data
@@ -76,7 +77,7 @@ async function activateMemory(item: AiMemoryItem) {
   finally { memoryBusy.value = null }
 }
 async function removeMemory(item: AiMemoryItem) {
-  if (memoryBusy.value || !window.confirm('确认删除这条长期记忆吗？它会立即停止召回，派生向量和缓存进入可追踪清理任务。')) return
+  if (memoryBusy.value || !await confirmAction('确认删除这条长期记忆吗？它会立即停止召回，派生向量和缓存进入可追踪清理任务。', { title: '删除长期记忆', confirmText: '确认删除', tone: 'danger' })) return
   memoryBusy.value = item.memory_id; error.value = ''; notice.value = ''
   try {
     const task = (await deleteAiMemory(item.memory_id, item.version, token())).data
@@ -87,7 +88,7 @@ async function removeMemory(item: AiMemoryItem) {
   finally { memoryBusy.value = null }
 }
 async function disableAll() {
-  if (memoryBusy.value || !window.confirm('确认关闭全部 AI 个性化吗？所有当前授权会立即撤销，长期记忆停止召回并进入清理流程。')) return
+  if (memoryBusy.value || !await confirmAction('确认关闭全部 AI 个性化吗？所有当前授权会立即撤销，长期记忆停止召回并进入清理流程。', { title: '关闭 AI 个性化', confirmText: '确认关闭', tone: 'danger' })) return
   memoryBusy.value = 'disable-all'; error.value = ''; notice.value = ''
   try {
     const task = (await disableAllAiPersonalization(token())).data
@@ -122,7 +123,7 @@ async function enable() {
 async function command(commandName: 'pauses' | 'resumes' | 'revocations') {
   const item = personalization.value
   if (!item) return
-  if (commandName === 'revocations' && !window.confirm('确认撤销个性化授权吗？撤销会立即停止新记忆写入，已有记忆将进入清理流程。')) return
+  if (commandName === 'revocations' && !await confirmAction('确认撤销个性化授权吗？撤销会立即停止新记忆写入，已有记忆将进入清理流程。', { tone: 'danger' })) return
   error.value = ''; notice.value = ''
   try {
     await changeAgentConsent(item.consent_id, commandName, token())

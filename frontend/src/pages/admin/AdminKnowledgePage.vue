@@ -10,6 +10,7 @@ import {
 } from '@/api/admin-ai'
 import { errorMessage } from '@/api/http'
 import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
 const auth = useAdminAuthStore()
@@ -18,8 +19,8 @@ const form = reactive({ scope_type: 'platform', scope_id: 'platform', title: '',
 const token = () => { if (!auth.accessToken) throw new Error('管理会话不可用'); return auth.accessToken }
 async function load() { loading.value = true; error.value = ''; try { items.value = (await listKnowledgeDocuments(token())).data.items } catch (cause) { error.value = errorMessage(cause) } finally { loading.value = false } }
 async function create() { error.value = ''; notice.value = ''; try { await createKnowledgeDocument(form, token()); notice.value = '知识文档草稿已创建。'; form.title = ''; form.safe_text = ''; await load() } catch (cause) { error.value = errorMessage(cause) } }
-async function publish(item: KnowledgeDocument) { if (!window.confirm('确认发布并创建影子索引任务吗？旧索引会持续服务到切换完成。')) return; try { const result = (await publishKnowledgeDocument(item.document_id, token())).data; notice.value = `索引任务 ${result.index_job_no ?? ''} 已创建。`; await load() } catch (cause) { error.value = errorMessage(cause) } }
-async function withdraw(item: KnowledgeDocument) { if (!window.confirm('确认撤回文档并立即从检索范围删除吗？')) return; try { await withdrawKnowledgeDocument(item.document_id, token()); notice.value = '文档已撤回。'; await load() } catch (cause) { error.value = errorMessage(cause) } }
+async function publish(item: KnowledgeDocument) { if (!await confirmAction('确认发布并创建影子索引任务吗？旧索引会持续服务到切换完成。')) return; try { const result = (await publishKnowledgeDocument(item.document_id, token())).data; notice.value = `索引任务 ${result.index_job_no ?? ''} 已创建。`; await load() } catch (cause) { error.value = errorMessage(cause) } }
+async function withdraw(item: KnowledgeDocument) { if (!await confirmAction('确认撤回文档并立即从检索范围删除吗？', { tone: 'danger' })) return; try { await withdrawKnowledgeDocument(item.document_id, token()); notice.value = '文档已撤回。'; await load() } catch (cause) { error.value = errorMessage(cause) } }
 onMounted(load)
 </script>
 

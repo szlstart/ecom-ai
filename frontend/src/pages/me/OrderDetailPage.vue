@@ -10,6 +10,7 @@ import { cancelOrder, confirmOrderReceipt, getMyOrder, hideOrder, repurchaseOrde
 import PageState from '@/components/PageState.vue'
 import OrderProductEntry from '@/components/OrderProductEntry.vue'
 import OrderLogisticsDialog from '@/components/OrderLogisticsDialog.vue'
+import { confirmAction, promptAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { formatChinaRegion } from '@/utils/china-regions'
@@ -70,13 +71,13 @@ async function runAction(action: OrderAction) {
     finally { busy.value = false }
     return
   }
-  if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !window.confirm(`${actionLabel(action.code)}？服务端会再次校验订单状态。`)) return
+  if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !await confirmAction(`${actionLabel(action.code)}？服务端会再次校验订单状态。`, { tone: action.code === 'delete_order' ? 'danger' : 'default' })) return
   busy.value = true
   error.value = ''
   message.value = ''
   try {
     if (action.code === 'cancel_order') {
-      const description = window.prompt('可选：请补充取消原因（最多 200 字）')?.trim() || undefined
+      const description = (await promptAction('可以补充本次取消原因，也可以直接确认。', { title: '取消订单', label: '取消原因（选填）', confirmText: '继续取消', maxLength: 200 }))?.trim() || undefined
       await cancelOrder(order.value.order_id, order.value.version, token(), 'no_longer_needed', description)
       await router.replace({ path: '/me/orders', query: { view: 'cancelled' } })
     } else if (action.code === 'confirm_receipt') {

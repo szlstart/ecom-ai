@@ -10,6 +10,7 @@ import { cancelOrder, confirmOrderReceipt, hideOrder, listMyOrders, ORDER_VIEWS,
 import PageState from '@/components/PageState.vue'
 import OrderProductEntry from '@/components/OrderProductEntry.vue'
 import OrderLogisticsDialog from '@/components/OrderLogisticsDialog.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { useMessageCenterStore } from '@/stores/message-center'
 
@@ -104,7 +105,7 @@ async function runAction(action: OrderAction, order: OrderSummary) {
   const confirmation = action.code === 'delete_order' && order.order_status === 'cancelled'
     ? '永久删除这条已取消记录？删除后无法恢复。'
     : `${actionLabel(action.code)}？此操作将以服务器最终结果为准。`
-  if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !window.confirm(confirmation)) return
+  if (['cancel_order', 'confirm_receipt', 'delete_order'].includes(action.code) && !await confirmAction(confirmation, { tone: action.code === 'delete_order' ? 'danger' : 'default' })) return
   busyOrder.value = order.order_id
   error.value = ''
   message.value = ''

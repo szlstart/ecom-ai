@@ -11,6 +11,7 @@ import {
   type Conversation,
 } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const auth = useUserAuthStore()
@@ -61,7 +62,7 @@ function handleRealtime(event: RealtimeEvent) {
 function toggleMenu(conversationId: string) { openMenuId.value = openMenuId.value === conversationId ? '' : conversationId }
 async function archive(item: Conversation) {
   openMenuId.value = ''
-  if (!window.confirm('确认从列表隐藏该会话吗？重新咨询或收到新消息时，该会话会恢复显示。')) return
+  if (!await confirmAction('确认从列表隐藏该会话吗？重新咨询或收到新消息时，该会话会恢复显示。')) return
   busyId.value = item.conversation_id
   error.value = ''
   try {

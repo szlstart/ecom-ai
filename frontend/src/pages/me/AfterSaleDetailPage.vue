@@ -5,6 +5,7 @@ import { cancelRefund, createRefundAppeal, getMyRefund, listRefundEvents, type R
 import { formatMoney } from '../../api/catalog'
 import { errorMessage } from '../../api/http'
 import { useUserAuthStore } from '../../stores/user-auth'
+import { confirmAction } from '@/composables/confirmation'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,7 +31,7 @@ async function load() {
 }
 
 async function cancel() {
-  if (!item.value || !auth.accessToken || !window.confirm('确定撤销售后申请吗？')) return
+  if (!item.value || !auth.accessToken || !await confirmAction('确定撤销售后申请吗？', { title: '撤销售后申请', confirmText: '确认撤销', tone: 'danger' })) return
   busy.value = true
   try {
     await cancelRefund(item.value.refund_id, '用户主动撤销售后申请', auth.accessToken)

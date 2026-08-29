@@ -21,6 +21,7 @@ import { errorMessage } from '@/api/http'
 import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { createClientMessageId, type ChatMessage } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
 const props = withDefaults(defineProps<{ portal?: 'admin' | 'merchant' }>(), { portal: 'admin' })
@@ -116,8 +117,8 @@ async function run(action: () => Promise<unknown>, success: string) {
 async function claim() { if (ticket.value) await run(() => claimSupportTicket(ticket.value!, token()), '工单领取成功，AI 面向用户的自动回复保持暂停。') }
 async function waitUser() { if (ticket.value && waitReason.value.trim()) await run(() => waitSupportTicket(ticket.value!, 'NEED_MORE_INFO', waitReason.value.trim(), token()), '已进入等待用户状态，SLA 已暂停。') }
 async function resume() { if (ticket.value) await run(() => resumeSupportTicket(ticket.value!, token()), '工单已恢复处理。') }
-async function transfer() { if (ticket.value && transferUserId.value.trim() && transferReason.value.trim() && window.confirm('确认将工单转派给该客服吗？')) await run(() => transferSupportTicket(ticket.value!, transferUserId.value.trim(), transferReason.value.trim(), token()), '工单已转派。') }
-async function resolve() { if (ticket.value && resolutionSummary.value.trim() && window.confirm('确认结束人工服务吗？结束后只恢复 AI 可用状态，不会自动生成回复。')) await run(() => resolveSupportTicket(ticket.value!, 'ANSWERED', resolutionSummary.value.trim(), resolutionInternalNote.value.trim() || null, token()), '人工服务已结束。') }
+async function transfer() { if (ticket.value && transferUserId.value.trim() && transferReason.value.trim() && await confirmAction('确认将工单转派给该客服吗？')) await run(() => transferSupportTicket(ticket.value!, transferUserId.value.trim(), transferReason.value.trim(), token()), '工单已转派。') }
+async function resolve() { if (ticket.value && resolutionSummary.value.trim() && await confirmAction('确认结束人工服务吗？结束后只恢复 AI 可用状态，不会自动生成回复。')) await run(() => resolveSupportTicket(ticket.value!, 'ANSWERED', resolutionSummary.value.trim(), resolutionInternalNote.value.trim() || null, token()), '人工服务已结束。') }
 async function saveNote() { if (ticket.value && noteText.value.trim()) await run(async () => { await createSupportNote(ticket.value!, noteText.value.trim(), noteType.value, token()); noteText.value = '' }, '内部备注已保存，仅授权客服可见。') }
 async function deliverReply(id: string, text: string) {
   if (!ticket.value) return

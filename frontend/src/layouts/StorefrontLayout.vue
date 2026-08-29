@@ -121,7 +121,7 @@ watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
         </div>
       </nav>
     </header>
-    <main id="main-content" class="page-content"><RouterView /></main>
+    <main id="main-content" class="page-content"><RouterView :key="route.path" /></main>
     <footer v-if="showHomepageFooter" class="site-footer">
       <div class="site-footer-inner">
         <div class="site-footer-copy">

@@ -75,6 +75,11 @@ export async function apiRequest<T>(
     ...options,
     headers,
     credentials: 'include',
+    // MySQL/Redis remain the authority for changing commerce data. Public API
+    // responses may carry short CDN cache headers, but the SPA must not reuse a
+    // browser memory/disk copy after a user clicks a filter, returns from an
+    // editor, or another portal changes the same resource.
+    cache: 'no-store',
   })
   if (
     response.status === 401
@@ -90,6 +95,7 @@ export async function apiRequest<T>(
         ...options,
         headers,
         credentials: 'include',
+        cache: 'no-store',
       })
     }
   }
@@ -133,6 +139,7 @@ export async function downloadApiResource(
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     credentials: 'include',
+    cache: 'no-store',
   })
   if (!response.ok) {
     const fallback: ApiProblemBody = {

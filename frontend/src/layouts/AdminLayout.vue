@@ -117,7 +117,7 @@ watch(() => route.fullPath, () => { sidebarOpen.value = false; profileOpen.value
           <div class="admin-profile-menu" @click.stop><button @click="profileOpen = !profileOpen"><span class="admin-profile-avatar">{{ initials }}</span><span class="admin-profile-copy"><strong>{{ profile?.nickname || '平台管理员' }}</strong><small>{{ profile?.username || '正在载入…' }}</small></span><span>⌄</span></button><div v-if="profileOpen" class="admin-profile-dropdown"><button @click="logout">退出登录</button></div></div>
         </div>
       </header>
-      <main class="admin-content"><RouterView /></main>
+      <main class="admin-content"><RouterView :key="route.path" /></main>
     </div>
 
     <div v-if="searchOpen" class="admin-command-overlay" @click.self="searchOpen = false"><section class="admin-command-panel" role="dialog" aria-modal="true" aria-label="全局功能搜索"><header><span>⌕</span><input v-model="searchQuery" class="admin-command-input" placeholder="输入功能名称，例如：用户、订单、Skill" /><kbd>ESC</kbd></header><div class="admin-command-results"><p>{{ searchQuery ? '搜索结果' : '常用功能' }}</p><button v-for="item in searchResults" :key="item.code" @click="chooseSearchResult(item)"><span class="admin-nav-icon">{{ iconFor(item.code) }}</span><span><strong>{{ item.title }}</strong><small>{{ item.route }}</small></span><b>↵</b></button><div v-if="!searchResults.length" class="empty-state">没有找到对应功能</div></div></section></div>

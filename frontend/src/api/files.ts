@@ -75,6 +75,7 @@ export async function loadProtectedFileObjectUrl(path: string, accessToken: stri
   const response = await fetch(`${apiBaseUrl}${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     credentials: 'include',
+    cache: 'no-store',
   })
   if (!response.ok) throw new Error(`图片读取失败（${response.status}）`)
   return URL.createObjectURL(await response.blob())

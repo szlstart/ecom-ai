@@ -20,8 +20,21 @@ describe('API client', () => {
     expect(result.meta).toEqual({ request_id: 'req_test', pagination: null })
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/health'),
-      expect.objectContaining({ credentials: 'include' }),
+      expect.objectContaining({ credentials: 'include', cache: 'no-store' }),
     )
+  })
+
+  it('never reuses browser-cached business responses during SPA interactions', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: { fresh: true }, meta: { request_id: 'req_fresh', pagination: null } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=60' },
+      }),
+    )
+
+    await apiRequest('/products?limit=20')
+
+    expect(fetchMock.mock.calls[0]?.[1]?.cache).toBe('no-store')
   })
 
   it('surfaces RFC problem details without leaking transport internals', async () => {

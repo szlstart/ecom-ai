@@ -115,6 +115,39 @@ class MessagingRepository:
             ).all()
         )
 
+    async def messages_before(
+        self, conversation_id: int, before_sequence: int, limit: int
+    ) -> list[Message]:
+        rows = list(
+            (
+                await self.session.scalars(
+                    select(Message)
+                    .where(
+                        Message.conversation_id == conversation_id,
+                        Message.sequence_no < before_sequence,
+                        Message.message_status != "hidden",
+                    )
+                    .order_by(Message.sequence_no.desc())
+                    .limit(limit)
+                )
+            ).all()
+        )
+        rows.reverse()
+        return rows
+
+    async def has_message_before(self, conversation_id: int, sequence_no: int) -> bool:
+        return bool(
+            await self.session.scalar(
+                select(Message.id)
+                .where(
+                    Message.conversation_id == conversation_id,
+                    Message.sequence_no < sequence_no,
+                    Message.message_status != "hidden",
+                )
+                .limit(1)
+            )
+        )
+
     async def active_context(
         self, conversation_id: int, context_type: str, *, for_update: bool = False
     ) -> ConversationContext | None:

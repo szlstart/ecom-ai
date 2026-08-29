@@ -76,6 +76,7 @@ class MessageView(StrictRequest):
 
 class MessageList(StrictRequest):
     items: list[MessageView]
+    previous_cursor: str | None = None
 
 
 class ConversationContextRequest(StrictRequest):

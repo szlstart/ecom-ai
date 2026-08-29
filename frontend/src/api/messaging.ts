@@ -40,6 +40,11 @@ export interface ChatMessage {
   sent_at: string
 }
 
+export interface MessagePage {
+  items: ChatMessage[]
+  previous_cursor: string | null
+}
+
 export interface AiFeedback {
   feedback_id: string | null
   message_id: string
@@ -113,10 +118,11 @@ export function setConversationContext(
 export function listMessages(
   conversationId: string,
   token: string,
-  options: { afterSequence?: number; limit?: number } = {},
-): Promise<ApiResult<{ items: ChatMessage[] }>> {
+  options: { afterSequence?: number; cursor?: string; limit?: number } = {},
+): Promise<ApiResult<MessagePage>> {
   const query = new URLSearchParams({ limit: String(options.limit ?? 50) })
   if (options.afterSequence) query.set('after_sequence', String(options.afterSequence))
+  if (options.cursor) query.set('cursor', options.cursor)
   return apiRequest(`/conversations/${encodeURIComponent(conversationId)}/messages?${query}`, {}, token)
 }
 

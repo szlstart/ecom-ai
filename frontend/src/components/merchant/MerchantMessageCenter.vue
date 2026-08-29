@@ -36,6 +36,9 @@ const selectedKey = ref('exclusive')
 const workspace = ref<SupportWorkspace | null>(null)
 const messages = ref<ChatMessage[]>([])
 const exclusiveMessages = ref<ChatMessage[]>([])
+const exclusivePreviousCursor = ref<string | null>(null)
+const supportPreviousCursor = ref<string | null>(null)
+const loadingEarlier = ref(false)
 const exclusiveConversationId = ref('')
 const exclusiveUnread = ref(0)
 const timeline = ref<HTMLElement | null>(null)
@@ -84,7 +87,9 @@ async function loadExclusive(markRead = open.value && selectedKey.value === 'exc
     exclusiveConversationId.value = conversation.conversation_id
     exclusiveUnread.value = conversation.unread_count
     if (initialized && exclusiveUnread.value > previousUnread) shake()
-    exclusiveMessages.value = (await listMerchantExclusiveMessages(token())).data.items
+    const history = (await listMerchantExclusiveMessages(token())).data
+    exclusiveMessages.value = history.items
+    exclusivePreviousCursor.value = history.previous_cursor
     const lastMessage = exclusiveMessages.value.at(-1)
     if (markRead && lastMessage && exclusiveUnread.value) {
       exclusiveUnread.value = (await putMerchantExclusiveReadCursor(lastMessage, token())).data.unread_count
@@ -95,7 +100,7 @@ async function loadExclusive(markRead = open.value && selectedKey.value === 'exc
 }
 
 async function selectConversation(key: string) {
-  selectedKey.value = key; workspace.value = null; messages.value = []; error.value = ''
+  selectedKey.value = key; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; error.value = ''
   if (key === 'exclusive') { await loadExclusive(); return }
   const ticket = tickets.value.find((item) => item.ticket_id === key)
   if (!ticket) return
@@ -111,6 +116,7 @@ async function selectConversation(key: string) {
     ])
     workspace.value = workspaceResult.data
     messages.value = messageResult.data.items
+    supportPreviousCursor.value = messageResult.data.previous_cursor
     const lastMessage = messages.value.at(-1)
     if (lastMessage && ticket.unread_count) {
       ticket.unread_count = (await putSupportReadCursor(ticket.conversation_id, lastMessage, token())).data.unread_count
@@ -118,6 +124,47 @@ async function selectConversation(key: string) {
     await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
+}
+
+async function loadEarlier() {
+  const cursor = selectedKey.value === 'exclusive' ? exclusivePreviousCursor.value : supportPreviousCursor.value
+  const active = activeTicket.value
+  const element = timeline.value
+  if (!cursor || !element || loadingEarlier.value || (selectedKey.value !== 'exclusive' && !active)) return
+  loadingEarlier.value = true
+  const previousHeight = element.scrollHeight
+  const previousTop = element.scrollTop
+  try {
+    const page = selectedKey.value === 'exclusive'
+      ? (await listMerchantExclusiveMessages(token(), { cursor })).data
+      : (await listSupportMessages(active!.conversation_id, token(), { cursor })).data
+    const target = selectedKey.value === 'exclusive' ? exclusiveMessages : messages
+    const known = new Set(target.value.map((item) => item.message_id))
+    target.value = [...page.items.filter((item) => !known.has(item.message_id)), ...target.value]
+    if (selectedKey.value === 'exclusive') exclusivePreviousCursor.value = page.previous_cursor
+    else supportPreviousCursor.value = page.previous_cursor
+    await nextTick()
+    element.scrollTop = previousTop + element.scrollHeight - previousHeight
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { loadingEarlier.value = false }
+}
+
+async function refreshActiveMessages() {
+  try {
+    const activeKey = selectedKey.value
+    const target = activeKey === 'exclusive' ? exclusiveMessages : messages
+    const afterSequence = target.value.at(-1)?.sequence_no ?? 0
+    const active = activeTicket.value
+    if (activeKey !== 'exclusive' && !active) return
+    const shouldScroll = !timeline.value || timeline.value.scrollHeight - timeline.value.scrollTop - timeline.value.clientHeight < 90
+    const page = activeKey === 'exclusive'
+      ? (await listMerchantExclusiveMessages(token(), { afterSequence })).data
+      : (await listSupportMessages(active!.conversation_id, token(), { afterSequence })).data
+    if (selectedKey.value !== activeKey) return
+    const known = new Set(target.value.map((item) => item.message_id))
+    target.value = [...target.value, ...page.items.filter((item) => !known.has(item.message_id))]
+    if (shouldScroll) await scrollBottom()
+  } catch (cause) { error.value = errorMessage(cause) }
 }
 
 async function show() {
@@ -142,11 +189,15 @@ function scheduleRefresh() {
   if (refreshTimer) return
   refreshTimer = window.setTimeout(() => {
     refreshTimer = undefined
-    void Promise.all([loadTickets(), loadExclusive(false)])
+    void Promise.all([loadTickets(), refreshActiveMessages()])
   }, 120)
 }
 
 function handleRealtime(event: RealtimeEvent) {
+  if (event.type === 'unread.updated' && String(event.data.conversation_id ?? '') === exclusiveConversationId.value) {
+    const unread = Number(event.data.conversation_unread)
+    if (Number.isFinite(unread) && unread >= 0) exclusiveUnread.value = unread
+  }
   if (event.type === 'message.created') {
     const conversationId = String(event.data.conversation_id ?? '')
     const message = event.data.message as { sender_type?: string } | undefined
@@ -181,10 +232,10 @@ onMounted(async () => {
   realtime = new RealtimeConnection({
     audience: 'admin', token, onEvent: handleRealtime,
     onState: (state) => { connectionState.value = state },
-    beforeReconnect: () => Promise.all([loadTickets(), loadExclusive(false)]).then(() => undefined),
+    beforeReconnect: () => Promise.all([loadTickets(), refreshActiveMessages()]).then(() => undefined),
   })
   realtime.start()
-  pollingTimer = window.setInterval(() => void Promise.all([loadTickets(), loadExclusive(false)]), 10_000)
+  pollingTimer = window.setInterval(() => void Promise.all([loadTickets(), refreshActiveMessages()]), 10_000)
 })
 onBeforeUnmount(() => {
   realtime?.stop()
@@ -215,6 +266,7 @@ onBeforeUnmount(() => {
           <header><div><strong>{{ title }}</strong><small>{{ subtitle }}</small></div></header>
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>
           <div ref="timeline" class="merchant-chat-timeline">
+            <button v-if="selectedKey === 'exclusive' ? exclusivePreviousCursor : supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
             <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>你好，我是你的专属客服</h2><p>我可以在当前店铺范围内分析商品、订单、库存和经营概况。默认只读，不会替你修改业务数据。</p></div>
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>
             <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isMine(item) }"><span v-if="!isMine(item)" class="merchant-chat-avatar">{{ selectedKey === 'exclusive' ? '专' : '客' }}</span><div><p>{{ messageText(item) }}</p><time>{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>

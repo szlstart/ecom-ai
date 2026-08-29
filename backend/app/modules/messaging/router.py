@@ -60,9 +60,17 @@ async def list_admin_ai_messages(
     context: PlatformAdminContext,
     service: MessagingServiceDependency,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+    after_sequence: Annotated[int, Query(ge=0)] = 0,
 ) -> Envelope[MessageList]:
     conversation = await service.get_or_create_exclusive(context.user)
-    result = await service.messages(context.user, conversation.conversation_id, limit, 0)
+    result = await service.messages(
+        context.user,
+        conversation.conversation_id,
+        limit,
+        after_sequence,
+        cursor,
+    )
     _no_store(response)
     return Envelope(data=result)
 
@@ -126,9 +134,17 @@ async def list_merchant_exclusive_messages(
     context: MerchantContext,
     service: MessagingServiceDependency,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+    after_sequence: Annotated[int, Query(ge=0)] = 0,
 ) -> Envelope[MessageList]:
     conversation = await service.get_or_create_exclusive(context.user)
-    result = await service.messages(context.user, conversation.conversation_id, limit, 0)
+    result = await service.messages(
+        context.user,
+        conversation.conversation_id,
+        limit,
+        after_sequence,
+        cursor,
+    )
     _no_store(response)
     return Envelope(data=result)
 
@@ -340,8 +356,11 @@ async def list_messages(
     service: MessagingServiceDependency,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     after_sequence: Annotated[int, Query(ge=0)] = 0,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
 ) -> Envelope[MessageList]:
-    result = await service.messages(context.user, conversation_id, limit, after_sequence)
+    result = await service.messages(
+        context.user, conversation_id, limit, after_sequence, cursor
+    )
     _no_store(response)
     return Envelope(data=result)
 

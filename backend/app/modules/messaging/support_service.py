@@ -11,6 +11,7 @@ from app.core.context import request_id_context
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyClaim, IdempotencyService
+from app.core.pagination import CursorCodec
 from app.core.security import SecurityService, utc_now
 from app.modules.identity.models import User
 from app.modules.messaging.content_safety import blocks_message
@@ -60,6 +61,7 @@ class SupportService:
         self.repository = MessagingRepository(session)
         self.security = SecurityService(get_settings())
         self.idempotency = IdempotencyService(session)
+        self.cursor = CursorCodec(get_settings().security_hmac_secret.get_secret_value())
 
     async def list(
         self,
@@ -160,14 +162,61 @@ class SupportService:
         )
 
     async def conversation_messages(
-        self, access: AdminAccess, conversation_no: str, limit: int
+        self,
+        access: AdminAccess,
+        conversation_no: str,
+        limit: int,
+        cursor: str | None = None,
+        after_sequence: int = 0,
     ) -> MessageList:
         _ticket, conversation = await self._assigned_conversation(access, conversation_no)
+        if after_sequence and cursor is not None:
+            raise ApplicationError(
+                status=400,
+                code="MESSAGE_PAGINATION_CONFLICT",
+                title="Message pagination conflict",
+                detail="实时补拉位置和历史分页游标不能同时使用。",
+            )
+        filter_key = f"support-messages:{conversation.conversation_no}"
+        position = self.cursor.decode(cursor, filter_key=filter_key)
+        if position is not None:
+            try:
+                if position.direction != "previous" or len(position.values) != 1:
+                    raise ValueError
+                before_sequence = int(position.values[0])
+                if before_sequence < 1:
+                    raise ValueError
+            except ValueError as exc:
+                raise ApplicationError(
+                    status=400,
+                    code="PAGINATION_CURSOR_INVALID",
+                    title="Invalid pagination cursor",
+                    detail="消息分页位置无效，请重新加载会话。",
+                ) from exc
+            rows = await self.repository.messages_before(
+                conversation.id, before_sequence, limit
+            )
+        elif after_sequence:
+            rows = await self.repository.messages_after(
+                conversation.id, after_sequence, limit
+            )
+        else:
+            rows = await self.repository.messages(conversation.id, limit)
+        previous_cursor = None
+        if not after_sequence and rows and await self.repository.has_message_before(
+            conversation.id, rows[0].sequence_no
+        ):
+            previous_cursor = self.cursor.encode(
+                filter_key=filter_key,
+                values=(str(rows[0].sequence_no),),
+                direction="previous",
+            )
         return MessageList(
             items=[
                 _support_visible_message_view(item)
-                for item in await self.repository.messages(conversation.id, limit)
-            ]
+                for item in rows
+            ],
+            previous_cursor=previous_cursor,
         )
 
     async def internal_notes(self, access: AdminAccess, ticket_no: str) -> SupportInternalNoteList:

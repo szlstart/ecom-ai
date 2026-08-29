@@ -58,18 +58,43 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
     async for session in mysql_session():
         user, user_session = _identity(security, suffix, now)
         other_user, other_session = _identity(security, f"other_{suffix}", now)
+        merchant_user, _merchant_session = _identity(security, f"merchant_{suffix}", now)
         target_user, target_admin_session = _identity(security, f"support_{suffix}", now)
         target_admin_session.audience = "admin"
         target_admin_session.authentication_methods = ["password", "totp"]
         target_admin_session.assurance_level = "aal2"
-        session.add_all([user, other_user, target_user])
+        session.add_all([user, other_user, merchant_user, target_user])
         await session.flush()
+        consumer_role = await session.scalar(
+            select(Role).where(Role.role_code == "user")
+        )
+        assert consumer_role is not None
+        session.add_all(
+            [
+                UserRole(
+                    user_id=consumer.id,
+                    role_id=consumer_role.id,
+                    grant_no=new_prefixed_ulid("grt_"),
+                    scope_type="platform",
+                    scope_id=0,
+                    grant_status="active",
+                    active_grant_key=security.keyed_hash(
+                        "active-role-grant",
+                        f"{consumer.id}:{consumer_role.id}:platform:0",
+                    ),
+                    granted_by=user.id,
+                    granted_at=now,
+                    grant_reason="Messaging integration consumer",
+                )
+                for consumer in (user, other_user)
+            ]
+        )
         user_session.user_id = user.id
         other_session.user_id = other_user.id
         target_admin_session.user_id = target_user.id
         store = Store(
             store_no=new_prefixed_ulid("sto_"),
-            owner_user_id=user.id,
+            owner_user_id=merchant_user.id,
             store_name=f"消息店铺 {suffix}",
             store_name_normalized=f"messaging-store-{suffix}",
             store_status="active",
@@ -234,6 +259,31 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
         },
     )
     assert after_handoff.status_code == 201
+
+    recent_page = await client.get(
+        f"/api/v1/conversations/{conversation_no}/messages?limit=1",
+        headers=headers,
+    )
+    assert recent_page.status_code == 200, recent_page.text
+    assert recent_page.json()["data"]["items"][0]["message_id"] == (
+        after_handoff.json()["data"]["message_id"]
+    )
+    previous_cursor = recent_page.json()["data"]["previous_cursor"]
+    assert previous_cursor
+    older_page = await client.get(
+        f"/api/v1/conversations/{conversation_no}/messages",
+        headers=headers,
+        params={"limit": 1, "cursor": previous_cursor},
+    )
+    assert older_page.status_code == 200, older_page.text
+    assert older_page.json()["data"]["items"][0]["message_id"] == sent.json()["data"]["message_id"]
+    pagination_conflict = await client.get(
+        f"/api/v1/conversations/{conversation_no}/messages",
+        headers=headers,
+        params={"after_sequence": 1, "cursor": previous_cursor},
+    )
+    assert pagination_conflict.status_code == 400
+    assert pagination_conflict.json()["code"] == "MESSAGE_PAGINATION_CONFLICT"
 
     async for session in mysql_session():
         ticket = await session.scalar(

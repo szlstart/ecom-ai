@@ -46,6 +46,8 @@ const auth = useUserAuthStore()
 const messageCenter = useMessageCenterStore()
 const conversation = ref<Conversation | null>(null)
 const messages = ref<ChatMessage[]>([])
+const previousCursor = ref<string | null>(null)
+const loadingEarlier = ref(false)
 const pending = ref<PendingMessage[]>([])
 const draft = ref('')
 const loading = ref(true)
@@ -265,6 +267,7 @@ async function load() {
     ])
     conversation.value = detail.data
     messages.value = history.data.items
+    previousCursor.value = history.data.previous_cursor
     await Promise.all([
       refreshHumanTicket(),
       detail.data.conversation_type === 'exclusive' ? refreshAgentConsents() : Promise.resolve(),
@@ -278,6 +281,29 @@ async function load() {
   } catch (cause) {
     error.value = errorMessage(cause)
   } finally { loading.value = false }
+}
+async function loadEarlier() {
+  const cursor = previousCursor.value
+  const element = messageList.value
+  if (!cursor || !element || loadingEarlier.value) return
+  loadingEarlier.value = true
+  const previousHeight = element.scrollHeight
+  const previousTop = element.scrollTop
+  try {
+    const response = await listMessages(conversationId.value, token(), { cursor, limit: 100 })
+    const known = new Set(messages.value.map((item) => item.message_id))
+    const additions = response.data.items.filter((item) => !known.has(item.message_id))
+    messages.value = [...additions, ...messages.value]
+    previousCursor.value = response.data.previous_cursor
+    await refreshApprovals(additions)
+    await nextTick()
+    element.scrollTop = previousTop + element.scrollHeight - previousHeight
+    observeRenderedMessages()
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { loadingEarlier.value = false }
+}
+function timelineScrolled() {
+  if ((messageList.value?.scrollTop ?? 999) < 48) void loadEarlier()
 }
 async function poll() {
   if (loading.value || !navigator.onLine) { connectionState.value = 'offline'; return }
@@ -525,7 +551,7 @@ function onlineChanged() {
 }
 
 watch(draft, persistDraft)
-watch(conversationId, async () => { pending.value = []; streamingReply.value = null; newBelowCount.value = 0; agentConsents.value = []; approvalStates.value = {}; await load() })
+watch(conversationId, async () => { pending.value = []; streamingReply.value = null; newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; await load() })
 onMounted(async () => {
   await load()
   realtime = new RealtimeConnection({
@@ -585,7 +611,8 @@ onBeforeUnmount(() => {
       <div class="actions"><button type="button" class="secondary" @click="humanOpen = false">取消</button><button :disabled="humanBusy">{{ humanBusy ? '提交中…' : '进入人工队列' }}</button></div>
     </form>
     <PageState :loading="loading" :error="''" :empty="false" @retry="load">
-      <div ref="messageList" class="message-timeline" aria-label="聊天消息">
+      <div ref="messageList" class="message-timeline" aria-label="聊天消息" @scroll.passive="timelineScrolled">
+        <button v-if="previousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
         <p v-if="messages.length === 0 && pending.length === 0" class="conversation-welcome">{{ conversation?.conversation_type === 'exclusive' ? '您好，我是专属客服。您可以咨询平台规则、订单、物流和售后问题。' : '您好，请描述您想咨询的商品或订单问题。' }}</p>
         <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'user' ? 'mine' : 'theirs']">
           <span class="message-avatar" :class="{ agent: message.sender_type === 'agent' }" aria-hidden="true">{{ message.sender_type === 'user' ? '我' : message.sender_type === 'agent' ? 'AI' : message.sender_type === 'human' ? '客' : '系' }}</span>

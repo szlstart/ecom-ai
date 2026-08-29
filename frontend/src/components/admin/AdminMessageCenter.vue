@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import {
@@ -18,6 +18,7 @@ import {
 } from '@/api/admin-support'
 import { errorMessage } from '@/api/http'
 import { createClientMessageId, type ChatMessage } from '@/api/messaging'
+import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 
@@ -28,6 +29,9 @@ const selected = ref<'ai' | string>('ai')
 const workspace = ref<SupportWorkspace | null>(null)
 const messages = ref<ChatMessage[]>([])
 const aiMessages = ref<ChatMessage[]>([])
+const aiPreviousCursor = ref<string | null>(null)
+const supportPreviousCursor = ref<string | null>(null)
+const loadingEarlier = ref(false)
 const loading = ref(true)
 const busy = ref(false)
 const error = ref('')
@@ -35,6 +39,11 @@ const reply = ref('')
 const search = ref('')
 const userGroupOpen = ref(true)
 const storeGroupOpen = ref(true)
+const aiConversationId = ref('')
+const timeline = ref<HTMLElement | null>(null)
+const connectionState = ref<RealtimeState>('polling')
+let realtime: RealtimeConnection | undefined
+let pollingTimer: number | undefined
 let refreshTimer: number | undefined
 
 const selectedTicket = computed(() => tickets.value.find((item) => item.ticket_id === selected.value) ?? null)
@@ -57,44 +66,117 @@ function dateTime(value: string): string { return new Intl.DateTimeFormat('zh-CN
 function messageText(message: ChatMessage): string { return message.text || (message.message_type === 'product_card' ? '[商品卡片]' : message.message_type === 'order_card' ? '[订单卡片]' : '[系统消息]') }
 function senderName(message: ChatMessage): string { return ({ user: '用户', human: '平台客服', agent: 'AI 客服', system: '系统', tool: '工具' } as Record<string, string>)[message.sender_type] ?? message.sender_type }
 
-async function loadTickets() {
-  loading.value = true; error.value = ''
+async function loadTickets(showLoading = false) {
+  if (showLoading) loading.value = true
   try {
     tickets.value = (await listSupportTickets({}, token())).data.items
     emit('unread-change', tickets.value.reduce((total, item) => total + item.unread_count, 0))
   } catch (cause) { error.value = errorMessage(cause) }
-  finally { loading.value = false }
+  finally { if (showLoading) loading.value = false }
 }
 
-async function loadAiMessages() {
+async function loadAiMessages(replace = true) {
   try {
     const conversation = (await getAdminAiConversation(token())).data
-    aiMessages.value = (await listAdminAiMessages(token())).data.items
+    aiConversationId.value = conversation.conversation_id
+    const afterSequence = replace ? 0 : (aiMessages.value.at(-1)?.sequence_no ?? 0)
+    const page = (await listAdminAiMessages(token(), afterSequence ? { afterSequence } : {})).data
+    if (replace) {
+      aiMessages.value = page.items
+      aiPreviousCursor.value = page.previous_cursor
+    } else {
+      appendUnique(aiMessages.value, page.items)
+    }
     const latest = aiMessages.value.at(-1)
-    if (latest && conversation.unread_count) await putAdminAiReadCursor(latest, token())
+    if (selected.value === 'ai' && latest && conversation.unread_count) await putAdminAiReadCursor(latest, token())
   } catch (cause) { error.value = errorMessage(cause) }
 }
 
+function appendUnique(target: ChatMessage[], incoming: ChatMessage[]) {
+  const known = new Set(target.map((item) => item.message_id))
+  target.push(...incoming.filter((item) => !known.has(item.message_id)))
+}
+
+async function scrollBottom() {
+  await nextTick()
+  timeline.value?.scrollTo({ top: timeline.value.scrollHeight })
+}
+
 async function selectAi() {
-  selected.value = 'ai'; workspace.value = null; messages.value = []; error.value = ''; loading.value = true
-  try { await loadAiMessages() } finally { loading.value = false }
+  selected.value = 'ai'; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; error.value = ''; loading.value = true
+  try { await loadAiMessages(); await scrollBottom() } finally { loading.value = false }
 }
 
 async function selectTicket(ticket: SupportTicket) {
-  selected.value = ticket.ticket_id; workspace.value = null; messages.value = []; error.value = ''; loading.value = true
+  selected.value = ticket.ticket_id; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; error.value = ''; loading.value = true
   try {
     workspace.value = (await getSupportWorkspace(ticket.ticket_id, token())).data
     const current = workspace.value.ticket
     const mine = current.assigned_user_id === auth.userId
     if (mine && ['assigned', 'active', 'waiting_user'].includes(current.ticket_status)) {
-      messages.value = (await listSupportMessages(current.conversation_id, token())).data.items
+      const page = (await listSupportMessages(current.conversation_id, token())).data
+      messages.value = page.items
+      supportPreviousCursor.value = page.previous_cursor
       const latest = [...messages.value].reverse().find((item) => item.sender_type === 'user')
       if (latest) await putSupportReadCursor(current.conversation_id, latest, token())
       ticket.unread_count = 0
       emit('unread-change', tickets.value.reduce((total, item) => total + item.unread_count, 0))
+      await scrollBottom()
     }
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
+}
+
+async function loadEarlier() {
+  const cursor = selected.value === 'ai' ? aiPreviousCursor.value : supportPreviousCursor.value
+  const current = selectedTicket.value
+  const element = timeline.value
+  if (!cursor || !element || loadingEarlier.value || (selected.value !== 'ai' && !current)) return
+  loadingEarlier.value = true
+  const previousHeight = element.scrollHeight
+  const previousTop = element.scrollTop
+  try {
+    const page = selected.value === 'ai'
+      ? (await listAdminAiMessages(token(), { cursor })).data
+      : (await listSupportMessages(current!.conversation_id, token(), { cursor })).data
+    const target = selected.value === 'ai' ? aiMessages.value : messages.value
+    const known = new Set(target.map((item) => item.message_id))
+    target.unshift(...page.items.filter((item) => !known.has(item.message_id)))
+    if (selected.value === 'ai') aiPreviousCursor.value = page.previous_cursor
+    else supportPreviousCursor.value = page.previous_cursor
+    await nextTick()
+    element.scrollTop = previousTop + element.scrollHeight - previousHeight
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { loadingEarlier.value = false }
+}
+
+async function refreshActiveMessages() {
+  try {
+    const activeKey = selected.value
+    const current = selectedTicket.value
+    if (activeKey !== 'ai' && (!current || !assignedToMe.value)) return
+    const target = activeKey === 'ai' ? aiMessages.value : messages.value
+    const afterSequence = target.at(-1)?.sequence_no ?? 0
+    const shouldScroll = !timeline.value || timeline.value.scrollHeight - timeline.value.scrollTop - timeline.value.clientHeight < 90
+    const page = activeKey === 'ai'
+      ? (await listAdminAiMessages(token(), { afterSequence })).data
+      : (await listSupportMessages(current!.conversation_id, token(), { afterSequence })).data
+    if (selected.value !== activeKey) return
+    appendUnique(target, page.items)
+    if (shouldScroll) await scrollBottom()
+  } catch (cause) { error.value = errorMessage(cause) }
+}
+
+function scheduleRefresh() {
+  if (refreshTimer) return
+  refreshTimer = window.setTimeout(() => {
+    refreshTimer = undefined
+    void Promise.all([loadTickets(), refreshActiveMessages()])
+  }, 120)
+}
+
+function handleRealtime(event: RealtimeEvent) {
+  if (['message.created', 'unread.updated', 'support.ticket.updated'].includes(event.type)) scheduleRefresh()
 }
 
 async function claim() {
@@ -119,6 +201,7 @@ async function send() {
       const result = await sendSupportMessage(selectedTicket.value.conversation_id, text, token(), createClientMessageId())
       messages.value.push(result.data)
     }
+    await scrollBottom()
   } catch (cause) { reply.value = text; error.value = errorMessage(cause) }
   finally { busy.value = false }
 }
@@ -127,15 +210,21 @@ function closeOnEscape(event: KeyboardEvent) { if (event.key === 'Escape') emit(
 onMounted(async () => {
   window.addEventListener('keydown', closeOnEscape)
   await Promise.all([loadTickets(), loadAiMessages()])
-  refreshTimer = window.setInterval(() => {
-    void loadTickets()
-    if (selected.value === 'ai') void loadAiMessages()
-    else if (selectedTicket.value) void selectTicket(selectedTicket.value)
-  }, 5_000)
+  loading.value = false
+  await scrollBottom()
+  realtime = new RealtimeConnection({
+    audience: 'admin', token, onEvent: handleRealtime,
+    onState: (state) => { connectionState.value = state },
+    beforeReconnect: () => Promise.all([loadTickets(), refreshActiveMessages()]).then(() => undefined),
+  })
+  realtime.start()
+  pollingTimer = window.setInterval(() => void Promise.all([loadTickets(), refreshActiveMessages()]), 10_000)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', closeOnEscape)
-  if (refreshTimer) window.clearInterval(refreshTimer)
+  realtime?.stop()
+  if (pollingTimer) window.clearInterval(pollingTimer)
+  if (refreshTimer) window.clearTimeout(refreshTimer)
 })
 </script>
 
@@ -154,7 +243,7 @@ onBeforeUnmount(() => {
 
       <main class="admin-chat-main">
         <template v-if="selected === 'ai'">
-          <header class="admin-chat-header"><div><strong>AI 管家</strong><small><span />在线 · 默认只读</small></div></header>
+          <header class="admin-chat-header"><div><strong>AI 管家</strong><small><span />{{ connectionState === 'connected' ? '实时在线' : connectionState === 'offline' ? '网络离线' : '正在连接' }} · 默认只读</small></div></header>
           <section v-if="!aiMessages.length && !loading" class="admin-ai-concierge">
             <div class="admin-ai-orb">✦</div><p class="eyebrow">ADMIN COPILOT</p><h2>今天想先处理什么？</h2><p>我可以帮助你快速定位用户、店铺、订单和 AI 运行问题。涉及资金、冻结、删除或发布的操作仍会要求人工确认。</p>
             <div class="admin-ai-suggestions"><RouterLink to="/admin/users"><span>♙</span><strong>查看异常用户</strong><small>账号状态与登录会话</small></RouterLink><RouterLink to="/admin/orders"><span>▤</span><strong>检查异常订单</strong><small>支付、履约与售后</small></RouterLink><RouterLink to="/admin/observability"><span>⌇</span><strong>分析 AI 告警</strong><small>延迟、错误与工具调用</small></RouterLink><RouterLink to="/admin/approval-requests"><span>✓</span><strong>查看待办审批</strong><small>高风险操作复核</small></RouterLink></div>
@@ -163,7 +252,7 @@ onBeforeUnmount(() => {
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取 AI 会话…</div>
           <section v-else class="admin-chat-conversation admin-ai-chat">
-            <div v-if="aiMessages.length" class="admin-chat-timeline"><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user' }"><span class="admin-chat-bubble-avatar">{{ message.sender_type === 'user' ? initials : '✦' }}</span><div><strong>{{ message.sender_type === 'user' ? '我' : 'AI 管家' }}</strong><p>{{ messageText(message) }}</p><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
+            <div v-if="aiMessages.length" ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user' }"><span class="admin-chat-bubble-avatar">{{ message.sender_type === 'user' ? initials : '✦' }}</span><div><strong>{{ message.sender_type === 'user' ? '我' : 'AI 管家' }}</strong><p>{{ messageText(message) }}</p><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
             <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" placeholder="询问平台概况、用户、店铺、订单或 Agent 运行状态…" @keydown.enter.exact.prevent="send" /><div><span>默认只读 · 不展示模型原始思维链</span><button :disabled="!reply.trim() || busy">{{ busy ? '发送中…' : '发送' }}</button></div></form>
           </section>
         </template>
@@ -175,7 +264,7 @@ onBeforeUnmount(() => {
           <section v-else-if="workspace" class="admin-chat-conversation">
             <div v-if="!assignedToMe" class="admin-chat-claim"><span>◍</span><h2>{{ selectedTicket?.ticket_status === 'queued' ? '这条会话正在等待客服' : '会话由其他客服处理' }}</h2><p>领取后才能读取完整聊天内容并向对方回复，避免多个管理员同时处理。</p><button v-if="selectedTicket?.ticket_status === 'queued' && auth.has('support:claim')" :disabled="busy" @click="claim">领取并开始处理</button></div>
             <template v-else>
-              <div class="admin-chat-timeline"><article v-for="message in messages" :key="message.message_id" :class="{ mine: message.sender_type === 'human' }"><span class="admin-chat-bubble-avatar">{{ message.sender_type === 'human' ? initials : selectedTicket?.queue_type === 'store' ? '店' : '用' }}</span><div><strong>{{ senderName(message) }}</strong><p>{{ messageText(message) }}</p><time>{{ dateTime(message.sent_at) }}</time></div></article><p v-if="!messages.length" class="empty-state">暂无聊天消息</p></div>
+              <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: message.sender_type === 'human' }"><span class="admin-chat-bubble-avatar">{{ message.sender_type === 'human' ? initials : selectedTicket?.queue_type === 'store' ? '店' : '用' }}</span><div><strong>{{ senderName(message) }}</strong><p>{{ messageText(message) }}</p><time>{{ dateTime(message.sent_at) }}</time></div></article><p v-if="!messages.length" class="empty-state">暂无聊天消息</p></div>
               <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" :disabled="!canChat" :placeholder="canChat ? '输入回复，Enter 换行，点击发送提交' : '当前会话状态暂不可回复'" /><div><span>回复会对用户或店铺立即可见</span><button :disabled="!canChat || !reply.trim() || busy">发送</button></div></form>
             </template>
           </section>

@@ -1,4 +1,4 @@
-import { createClientMessageId, type ChatMessage, type Conversation, type ConversationContext } from '@/api/messaging'
+import { createClientMessageId, type ChatMessage, type Conversation, type ConversationContext, type MessagePage } from '@/api/messaging'
 import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
 
 export type SupportTicketStatus = 'queued' | 'assigned' | 'active' | 'waiting_user' | 'resolved' | 'closed'
@@ -52,8 +52,11 @@ export function getSupportWorkspace(ticketId: string, token: string): Promise<Ap
   return apiRequest(`/support/human-service-tickets/${encodeURIComponent(ticketId)}/workspace`, {}, token)
 }
 
-export function listSupportMessages(conversationId: string, token: string): Promise<ApiResult<{ items: ChatMessage[] }>> {
-  return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}/messages?limit=100`, {}, token)
+export function listSupportMessages(conversationId: string, token: string, options: { cursor?: string; afterSequence?: number } = {}): Promise<ApiResult<MessagePage>> {
+  const query = new URLSearchParams({ limit: '100' })
+  if (options.cursor) query.set('cursor', options.cursor)
+  if (options.afterSequence) query.set('after_sequence', String(options.afterSequence))
+  return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}/messages?${query}`, {}, token)
 }
 
 export function listSupportNotes(ticketId: string, token: string): Promise<ApiResult<{ items: SupportInternalNote[] }>> {
@@ -93,8 +96,11 @@ export function getAdminAiConversation(token: string): Promise<ApiResult<Convers
   return apiRequest('/admin/support/ai-conversation', { method: 'PUT' }, token)
 }
 
-export function listAdminAiMessages(token: string): Promise<ApiResult<{ items: ChatMessage[] }>> {
-  return apiRequest('/admin/support/ai-conversation/messages?limit=100', {}, token)
+export function listAdminAiMessages(token: string, options: { cursor?: string; afterSequence?: number } = {}): Promise<ApiResult<MessagePage>> {
+  const query = new URLSearchParams({ limit: '100' })
+  if (options.cursor) query.set('cursor', options.cursor)
+  if (options.afterSequence) query.set('after_sequence', String(options.afterSequence))
+  return apiRequest(`/admin/support/ai-conversation/messages?${query}`, {}, token)
 }
 
 export function sendAdminAiMessage(text: string, token: string): Promise<ApiResult<ChatMessage>> {

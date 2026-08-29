@@ -1121,6 +1121,7 @@ tr.selected td { background: #f0f4ff; }
 .agent-consent-card > div { display: grid; gap: 6px; }
 .agent-consent-card p { margin: 0; color: #59657b; line-height: 1.55; }
 .message-timeline { height: min(64vh, 720px); min-height: 360px; padding: 22px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; border: 1px solid #dfe4ed; border-radius: 18px; background: #f5f7fb; overscroll-behavior: contain; }
+.message-history-button { align-self: center; min-height: 32px; padding: 6px 14px; color: #607083; border: 1px solid #d7dee8; border-radius: 999px; background: rgb(255 255 255 / 88%); font-size: .78rem; box-shadow: 0 4px 14px rgb(30 48 75 / 7%); }
 .message-row { width: 100%; display: flex; align-items: flex-start; gap: 9px; }
 .message-row.mine { flex-direction: row-reverse; }
 .message-avatar { width: 36px; height: 36px; flex: 0 0 auto; display: grid; place-items: center; color: #fff; border-radius: 10px; background: linear-gradient(145deg, #6e7b94, #4b5870); box-shadow: 0 4px 12px rgb(34 46 72 / 15%); font-size: .68rem; font-weight: 800; }

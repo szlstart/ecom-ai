@@ -1,12 +1,15 @@
-import { createClientMessageId, type ChatMessage, type Conversation, type ReadCursor } from '@/api/messaging'
+import { createClientMessageId, type ChatMessage, type Conversation, type MessagePage, type ReadCursor } from '@/api/messaging'
 import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
 
 export function getMerchantExclusiveConversation(token: string): Promise<ApiResult<Conversation>> {
   return apiRequest('/merchant/support/exclusive-conversation', { method: 'PUT' }, token)
 }
 
-export function listMerchantExclusiveMessages(token: string): Promise<ApiResult<{ items: ChatMessage[] }>> {
-  return apiRequest('/merchant/support/exclusive-conversation/messages?limit=100', {}, token)
+export function listMerchantExclusiveMessages(token: string, options: { cursor?: string; afterSequence?: number } = {}): Promise<ApiResult<MessagePage>> {
+  const query = new URLSearchParams({ limit: '100' })
+  if (options.cursor) query.set('cursor', options.cursor)
+  if (options.afterSequence) query.set('after_sequence', String(options.afterSequence))
+  return apiRequest(`/merchant/support/exclusive-conversation/messages?${query}`, {}, token)
 }
 
 export function putMerchantExclusiveReadCursor(message: ChatMessage, token: string): Promise<ApiResult<ReadCursor>> {

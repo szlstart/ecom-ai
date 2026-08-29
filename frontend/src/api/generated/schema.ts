@@ -9703,6 +9703,8 @@ export interface components {
         MessageList: {
             /** Items */
             items: components["schemas"]["MessageView"][];
+            /** Previous Cursor */
+            previous_cursor?: string | null;
         };
         /** MessageResult */
         MessageResult: {
@@ -16947,6 +16949,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 after_sequence?: number;
+                cursor?: string | null;
             };
             header?: never;
             path: {
@@ -17340,6 +17343,8 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                cursor?: string | null;
+                after_sequence?: number;
             };
             header?: never;
             path?: never;
@@ -17516,6 +17521,8 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                cursor?: string | null;
+                after_sequence?: number;
             };
             header?: never;
             path?: never;
@@ -17739,6 +17746,8 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                cursor?: string | null;
+                after_sequence?: number;
             };
             header?: never;
             path: {

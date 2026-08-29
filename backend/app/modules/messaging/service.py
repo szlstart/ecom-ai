@@ -6,10 +6,12 @@ from typing import Literal, cast
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.context import request_id_context
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
+from app.core.pagination import CursorCodec
 from app.core.security import utc_now
 from app.modules.agent_runtime.models import AiFeedback
 from app.modules.identity.models import User
@@ -47,6 +49,7 @@ class MessagingService:
         self.session = session
         self.repository = MessagingRepository(session)
         self.idempotency = IdempotencyService(session)
+        self.cursor = CursorCodec(get_settings().security_hmac_secret.get_secret_value())
 
     async def get_or_create_exclusive(self, user: User) -> ConversationView:
         conversation = await self.repository.exclusive(user.id)
@@ -380,16 +383,48 @@ class MessagingService:
         return await self._view(conversation, title, store_no, include_contexts=True)
 
     async def messages(
-        self, user: User, conversation_no: str, limit: int, after_sequence: int = 0
+        self,
+        user: User,
+        conversation_no: str,
+        limit: int,
+        after_sequence: int = 0,
+        cursor: str | None = None,
     ) -> MessageList:
         conversation = await self.repository.by_no(user.id, conversation_no)
         if conversation is None:
             raise _not_found()
-        rows = (
-            await self.repository.messages_after(conversation.id, after_sequence, limit)
-            if after_sequence
-            else await self.repository.messages(conversation.id, limit)
-        )
+        if after_sequence and cursor is not None:
+            raise ApplicationError(
+                status=400,
+                code="MESSAGE_PAGINATION_CONFLICT",
+                title="Message pagination conflict",
+                detail="实时补拉位置和历史分页游标不能同时使用。",
+            )
+        filter_key = f"messages:{conversation.conversation_no}"
+        position = self.cursor.decode(cursor, filter_key=filter_key)
+        if position is not None:
+            try:
+                if position.direction != "previous" or len(position.values) != 1:
+                    raise ValueError
+                before_sequence = int(position.values[0])
+                if before_sequence < 1:
+                    raise ValueError
+            except ValueError as exc:
+                raise ApplicationError(
+                    status=400,
+                    code="PAGINATION_CURSOR_INVALID",
+                    title="Invalid pagination cursor",
+                    detail="消息分页位置无效，请重新加载会话。",
+                ) from exc
+            rows = await self.repository.messages_before(
+                conversation.id, before_sequence, limit
+            )
+        elif after_sequence:
+            rows = await self.repository.messages_after(
+                conversation.id, after_sequence, limit
+            )
+        else:
+            rows = await self.repository.messages(conversation.id, limit)
         reactions: dict[int, str] = {}
         if rows:
             reactions = {
@@ -405,8 +440,18 @@ class MessagingService:
                     )
                 ).all()
             }
+        previous_cursor = None
+        if not after_sequence and rows and await self.repository.has_message_before(
+            conversation.id, rows[0].sequence_no
+        ):
+            previous_cursor = self.cursor.encode(
+                filter_key=filter_key,
+                values=(str(rows[0].sequence_no),),
+                direction="previous",
+            )
         return MessageList(
-            items=[_message_view(message, reactions.get(message.id)) for message in rows]
+            items=[_message_view(message, reactions.get(message.id)) for message in rows],
+            previous_cursor=previous_cursor,
         )
 
     async def set_context(

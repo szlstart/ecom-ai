@@ -90,8 +90,12 @@ async def list_support_messages(
     session: DatabaseSession,
     access: Annotated[AdminAccess, require_admin_permission("support:queue_read")],
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
+    cursor: Annotated[str | None, Query(max_length=2048)] = None,
+    after_sequence: Annotated[int, Query(ge=0)] = 0,
 ) -> Envelope[MessageList]:
-    result = await _service(session).conversation_messages(access, conversation_id, limit)
+    result = await _service(session).conversation_messages(
+        access, conversation_id, limit, cursor, after_sequence
+    )
     _no_store(response)
     return Envelope(data=result)
 

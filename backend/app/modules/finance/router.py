@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Query, Response, status
 
@@ -10,6 +10,7 @@ from app.modules.finance.dependencies import (
 )
 from app.modules.finance.schemas import (
     AccountDeletionRequest,
+    AccountDeletionTaskStatus,
     AccountDeletionTaskView,
     AdminStoreRevenueView,
     MerchantAccountDeletionRequest,
@@ -46,7 +47,7 @@ async def delete_user_account(
     return Envelope(
         data=AccountDeletionTaskView(
             task_id=task.task_no,
-            status=task.task_status,
+            status=cast(AccountDeletionTaskStatus, task.task_status),
             phase=task.current_phase,
             requested_at=task.created_at,
         )
@@ -69,7 +70,7 @@ async def delete_merchant_account(
     return Envelope(
         data=AccountDeletionTaskView(
             task_id=task.task_no,
-            status=task.task_status,
+            status=cast(AccountDeletionTaskStatus, task.task_status),
             phase=task.current_phase,
             requested_at=task.created_at,
         )

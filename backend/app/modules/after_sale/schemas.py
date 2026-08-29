@@ -10,6 +10,26 @@ from app.modules.catalog.schemas import Money
 from app.modules.rbac.schemas import ApprovalRequiredView
 
 RefundType = Literal["refund_only", "return_and_refund"]
+RefundEligibilityAction = Literal["apply_after_sale", "view_active_after_sale"]
+RefundApplicationAction = Literal[
+    "cancel", "view_events", "create_refund_appeal", "create_new_refund_application"
+]
+RefundStatus = Literal[
+    "submitted",
+    "merchant_review",
+    "approved",
+    "waiting_return",
+    "returning",
+    "received",
+    "refunding",
+    "succeeded",
+    "rejected",
+    "cancelled",
+    "closed",
+]
+RefundShipmentStatus = Literal["submitted", "in_transit", "delivered", "received", "exception"]
+RefundPaymentStatus = Literal["pending", "succeeded", "failed", "unknown"]
+RefundAppealStatus = Literal["submitted", "reviewing", "upheld", "rejected", "cancelled", "closed"]
 
 
 class RefundEligibilityItem(StrictRequest):
@@ -19,7 +39,7 @@ class RefundEligibilityItem(StrictRequest):
     active_reserved_quantity: int
     available_quantity: int
     available_refundable_amount: Money
-    available_actions: list[Literal["apply_after_sale", "view_active_after_sale"]]
+    available_actions: list[RefundEligibilityAction]
 
 
 class RefundEligibilityItemRequest(StrictRequest):
@@ -88,27 +108,13 @@ class RefundApplicationView(StrictRequest):
     refund_id: str
     order_id: str
     refund_type: RefundType
-    refund_status: Literal[
-        "submitted",
-        "merchant_review",
-        "approved",
-        "waiting_return",
-        "returning",
-        "received",
-        "refunding",
-        "succeeded",
-        "rejected",
-        "cancelled",
-        "closed",
-    ]
+    refund_status: RefundStatus
     reason_code: str
     reason_detail: str | None
     requested_amount: Money
     approved_amount: Money
     items: list[RefundApplicationItemView]
-    available_actions: list[
-        Literal["cancel", "view_events", "create_refund_appeal", "create_new_refund_application"]
-    ]
+    available_actions: list[RefundApplicationAction]
     submitted_at: datetime
     decided_at: datetime | None
     version: int
@@ -161,14 +167,14 @@ class RefundReturnShipmentView(StrictRequest):
     carrier_code: str
     carrier_name: str
     tracking_no_masked: str
-    shipment_status: Literal["submitted", "in_transit", "delivered", "received", "exception"]
+    shipment_status: RefundShipmentStatus
     version: int
 
 
 class RefundPaymentCallbackAck(StrictRequest):
     accepted: bool
     duplicate: bool = False
-    status: Literal["pending", "succeeded", "failed", "unknown"]
+    status: RefundPaymentStatus
 
 
 class FakeRefundWebhook(StrictRequest):
@@ -186,7 +192,7 @@ class RefundAppealCreateRequest(StrictRequest):
 class RefundAppealView(StrictRequest):
     appeal_id: str
     refund_id: str
-    appeal_status: Literal["submitted", "reviewing", "upheld", "rejected", "cancelled", "closed"]
+    appeal_status: RefundAppealStatus
     reason: str
     submitted_at: datetime
     decided_at: datetime | None

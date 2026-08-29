@@ -39,19 +39,26 @@ from app.modules.after_sale.schemas import (
     RefundAppealCreateRequest,
     RefundAppealEventList,
     RefundAppealEventView,
+    RefundAppealStatus,
     RefundAppealView,
+    RefundApplicationAction,
     RefundApplicationCreateRequest,
     RefundApplicationItemView,
     RefundApplicationList,
     RefundApplicationView,
+    RefundEligibilityAction,
     RefundEligibilityCheck,
     RefundEligibilityItem,
     RefundEligibilityRequest,
     RefundEventList,
     RefundEventView,
     RefundPaymentCallbackAck,
+    RefundPaymentStatus,
     RefundReturnShipmentRequest,
     RefundReturnShipmentView,
+    RefundShipmentStatus,
+    RefundStatus,
+    RefundType,
 )
 from app.modules.catalog.schemas import Money
 from app.modules.identity.models import User
@@ -120,9 +127,10 @@ class AfterSaleService:
                         max(0, item.payable_amount - item.refunded_amount - active_amount),
                         item.currency,
                     ),
-                    available_actions=(
+                    available_actions=cast(
+                        list[RefundEligibilityAction],
                         (["view_active_after_sale"] if active_quantity else [])
-                        + (["apply_after_sale"] if available_qty else [])
+                        + (["apply_after_sale"] if available_qty else []),
                     ),
                 )
             )
@@ -451,13 +459,9 @@ class AfterSaleService:
     async def admin_list(
         self, access: AdminAccess, limit: int, cursor: str | None
     ) -> AdminRefundList:
-        filter_key = json.dumps(
-            {"scopes": access.scopes}, separators=(",", ":"), sort_keys=True
-        )
+        filter_key = json.dumps({"scopes": access.scopes}, separators=(",", ":"), sort_keys=True)
         position = self.cursor.decode(cursor, filter_key=filter_key)
-        rows, has_more = await self.repository.admin_applications(
-            limit, access.scopes, position
-        )
+        rows, has_more = await self.repository.admin_applications(limit, access.scopes, position)
         return AdminRefundList(
             items=await self._views(rows),
             next_cursor=(
@@ -708,12 +712,8 @@ class AfterSaleService:
             if payload.approved_amount is not None
             else refund.requested_amount
         )
-        requires_approval = (
-            payload.decision == "approve"
-            and (
-                refund.currency != "CNY"
-                or amount >= self.settings.refund_dual_approval_threshold_minor
-            )
+        requires_approval = payload.decision == "approve" and (
+            refund.currency != "CNY" or amount >= self.settings.refund_dual_approval_threshold_minor
         )
         if not requires_approval:
             return await self.decide(
@@ -1154,7 +1154,9 @@ class AfterSaleService:
         )
         if existing is not None:
             return RefundPaymentCallbackAck(
-                accepted=True, duplicate=True, status=record.payment_status
+                accepted=True,
+                duplicate=True,
+                status=cast(RefundPaymentStatus, record.payment_status),
             )
         if record.payment_status == "succeeded":
             return RefundPaymentCallbackAck(accepted=True, duplicate=True, status="succeeded")
@@ -1335,7 +1337,7 @@ class AfterSaleService:
             carrier_code=shipment.carrier_code,
             carrier_name=shipment.carrier_name,
             tracking_no_masked=shipment.tracking_no_masked,
-            shipment_status=shipment.shipment_status,
+            shipment_status=cast(RefundShipmentStatus, shipment.shipment_status),
             version=refund.version,
         )
 
@@ -1367,7 +1369,7 @@ class AfterSaleService:
     ) -> RefundApplicationView:
         if items is None:
             items = await self.repository.items_for_refund(refund.id)
-        actions: list[str] = ["view_events"]
+        actions: list[RefundApplicationAction] = ["view_events"]
         if refund.refund_status in {"submitted", "merchant_review"}:
             actions.insert(0, "cancel")
         if refund.refund_status == "rejected":
@@ -1379,8 +1381,8 @@ class AfterSaleService:
         return RefundApplicationView(
             refund_id=refund.refund_no,
             order_id=order.order_no,
-            refund_type=refund.refund_type,
-            refund_status=refund.refund_status,
+            refund_type=cast(RefundType, refund.refund_type),
+            refund_status=cast(RefundStatus, refund.refund_status),
             reason_code=refund.reason_code,
             reason_detail=refund.reason_detail,
             requested_amount=_money(refund.requested_amount, refund.currency),
@@ -1447,7 +1449,7 @@ def _appeal_view(appeal: RefundAppeal, refund_no: str) -> RefundAppealView:
     return RefundAppealView(
         appeal_id=appeal.appeal_no,
         refund_id=refund_no,
-        appeal_status=appeal.appeal_status,
+        appeal_status=cast(RefundAppealStatus, appeal.appeal_status),
         reason=appeal.reason,
         submitted_at=appeal.created_at,
         decided_at=appeal.decided_at,

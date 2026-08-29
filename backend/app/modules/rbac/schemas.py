@@ -8,6 +8,9 @@ from pydantic import Field, field_validator, model_validator
 from app.api.schemas import StrictRequest
 from app.modules.identity.schemas import ClientDescriptor, SessionBootstrap
 
+UserPresenceStatus = Literal["online", "offline", "frozen"]
+WalletAdjustmentDirection = Literal["credit", "debit"]
+
 
 class AdminLoginRequest(StrictRequest):
     identifier: str = Field(min_length=1, max_length=254)
@@ -123,7 +126,7 @@ class AdminUserWorkspace(StrictRequest):
     user_id: str
     username: str
     current_email: str | None
-    presence_status: Literal["online", "offline", "frozen"]
+    presence_status: UserPresenceStatus
     balance_minor: str
     currency: str
 
@@ -177,13 +180,13 @@ class AdminUserPasswordReplaceRequest(StrictRequest):
 
 
 class AdminWalletAdjustmentRequest(StrictRequest):
-    direction: Literal["credit", "debit"]
+    direction: WalletAdjustmentDirection
     amount_minor: int = Field(ge=1, le=100_000_000)
 
 
 class AdminWalletAdjustmentResult(StrictRequest):
     transaction_id: str
-    direction: Literal["credit", "debit"]
+    direction: WalletAdjustmentDirection
     amount_minor: str
     balance_minor: str
     currency: str

@@ -8,6 +8,8 @@ from pydantic import Field, field_validator, model_validator
 from app.api.schemas import StrictRequest
 from app.modules.catalog.schemas import Money
 
+StoreSuspensionSource = Literal["merchant", "platform"]
+
 
 class AdminStoreView(StrictRequest):
     store_id: str
@@ -17,7 +19,7 @@ class AdminStoreView(StrictRequest):
     logo_file_id: str | None
     logo_url: str | None
     status: str
-    suspension_source: Literal["merchant", "platform"] | None
+    suspension_source: StoreSuspensionSource | None
     rating_score: str
     rating_count: int
     follower_count: int

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from typing import cast
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.exc import IntegrityError
@@ -16,9 +17,12 @@ from app.modules.finance.repository import FinanceRepository
 from app.modules.finance.schemas import (
     AdminStoreRevenueView,
     MerchantRevenueView,
+    WalletDirection,
+    WalletRechargeChannel,
     WalletRechargeRequest,
     WalletRechargeResult,
     WalletRechargeView,
+    WalletStatus,
     WalletTransactionList,
     WalletTransactionView,
     WalletView,
@@ -119,7 +123,7 @@ class FinanceService:
                 WalletTransactionView(
                     transaction_id=row.transaction_no,
                     transaction_type=row.transaction_type,
-                    direction=row.direction,
+                    direction=cast(WalletDirection, row.direction),
                     amount=_money(row.amount, row.currency),
                     balance_after=_money(row.balance_after, row.currency),
                     channel=row.channel,
@@ -217,7 +221,7 @@ def _wallet_view(wallet: UserWallet) -> WalletView:
         wallet_id=wallet.wallet_no,
         balance=_money(wallet.balance_amount, wallet.currency),
         total_recharged=_money(wallet.total_recharged_amount, wallet.currency),
-        wallet_status=wallet.wallet_status,
+        wallet_status=cast(WalletStatus, wallet.wallet_status),
         version=wallet.version,
     )
 
@@ -225,7 +229,7 @@ def _wallet_view(wallet: UserWallet) -> WalletView:
 def _recharge_view(recharge: WalletRecharge) -> WalletRechargeView:
     return WalletRechargeView(
         recharge_id=recharge.recharge_no,
-        channel=recharge.channel,
+        channel=cast(WalletRechargeChannel, recharge.channel),
         amount=_money(recharge.amount, recharge.currency),
         recharge_status="succeeded",
         is_simulated=recharge.is_simulated,

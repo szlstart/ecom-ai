@@ -53,7 +53,9 @@ from app.modules.reviews.schemas import (
     ReviewCreateRequest,
     ReviewEligibility,
     ReviewImageView,
+    ReviewModerationStatus,
     ReviewReplyView,
+    ReviewStatus,
     ReviewUpdateRequest,
 )
 from app.modules.stores.models import Store
@@ -1226,8 +1228,8 @@ def _my_review_view(
         rating=review.rating,
         content=review.content,
         is_anonymous=review.is_anonymous,
-        review_status=review.review_status,
-        moderation_status=review.moderation_status,
+        review_status=cast(ReviewStatus, review.review_status),
+        moderation_status=cast(ReviewModerationStatus, review.moderation_status),
         images=[
             MyReviewImageView(
                 file_id=file.file_no,
@@ -1239,8 +1241,8 @@ def _my_review_view(
         append=MyReviewAppendView(
             append_id=append.append_no,
             content=append.content,
-            append_status=append.append_status,
-            moderation_status=append.moderation_status,
+            append_status=cast(ReviewStatus, append.append_status),
+            moderation_status=cast(ReviewModerationStatus, append.moderation_status),
             images=[
                 MyReviewImageView(
                     file_id=file.file_no,

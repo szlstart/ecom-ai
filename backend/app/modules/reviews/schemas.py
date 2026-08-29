@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field, field_validator
 from app.api.schemas import StrictRequest
 
 ReviewAction = Literal["create", "view", "edit", "append"]
+ReviewStatus = Literal["pending", "published", "hidden", "rejected"]
+ReviewModerationStatus = Literal["pending", "passed", "blocked", "manual"]
 
 
 class ReviewImageView(BaseModel):
@@ -119,8 +121,8 @@ class MyReviewImageView(StrictRequest):
 class MyReviewAppendView(StrictRequest):
     append_id: str
     content: str
-    append_status: Literal["pending", "published", "hidden", "rejected"]
-    moderation_status: Literal["pending", "passed", "blocked", "manual"]
+    append_status: ReviewStatus
+    moderation_status: ReviewModerationStatus
     images: list[MyReviewImageView]
     submitted_at: datetime
     published_at: datetime | None
@@ -137,8 +139,8 @@ class MyReviewView(StrictRequest):
     rating: int
     content: str | None
     is_anonymous: bool
-    review_status: Literal["pending", "published", "hidden", "rejected"]
-    moderation_status: Literal["pending", "passed", "blocked", "manual"]
+    review_status: ReviewStatus
+    moderation_status: ReviewModerationStatus
     images: list[MyReviewImageView]
     append: MyReviewAppendView | None = None
     merchant_reply: ReviewReplyView | None = None

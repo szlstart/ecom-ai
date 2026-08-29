@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import cast
 
 from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
@@ -62,8 +63,10 @@ from app.modules.rbac.schemas import (
     SensitiveFields,
     SensitiveGrantCreateRequest,
     SensitiveGrantResult,
+    UserPresenceStatus,
     UserStatusChangeRequest,
     UserStatusEventView,
+    WalletAdjustmentDirection,
 )
 from app.modules.system.models import OutboxEvent
 
@@ -209,7 +212,7 @@ class RbacService:
             user_id=target.user_no,
             username=target.username,
             current_email=current_email,
-            presence_status=presence,
+            presence_status=cast(UserPresenceStatus, presence),
             balance_minor=str(wallet.balance_amount if wallet is not None else 0),
             currency=wallet.currency if wallet is not None else "CNY",
         )
@@ -524,7 +527,7 @@ class RbacService:
             if transaction is not None:
                 return AdminWalletAdjustmentResult(
                     transaction_id=transaction.transaction_no,
-                    direction=transaction.direction,
+                    direction=cast(WalletAdjustmentDirection, transaction.direction),
                     amount_minor=str(transaction.amount),
                     balance_minor=str(transaction.balance_after),
                     currency=transaction.currency,

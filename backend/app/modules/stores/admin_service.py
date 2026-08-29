@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from decimal import Decimal
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +16,7 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.pagination import CursorCodec
 from app.core.security import SecurityService, normalize_target, normalize_username, utc_now
+from app.modules.catalog.schemas import Money
 from app.modules.files.models import FileObject
 from app.modules.identity.models import User, UserCredential
 from app.modules.rbac.audit import record_admin_operation
@@ -38,6 +40,7 @@ from app.modules.stores.admin_schemas import (
     AdminStoreStatusChangeRequest,
     AdminStoreUpdateRequest,
     AdminStoreView,
+    StoreSuspensionSource,
 )
 from app.modules.stores.models import (
     Store,
@@ -1084,14 +1087,14 @@ def _store_view(
         logo_file_id=logo.file_no if logo else None,
         logo_url=f"/api/v1/files/{logo.file_no}" if logo else None,
         status=store.store_status,
-        suspension_source=store.suspension_source,
+        suspension_source=cast(StoreSuspensionSource | None, store.suspension_source),
         rating_score=format(store.rating_score, "f"),
         rating_count=store.rating_count,
         follower_count=store.follower_count,
         sales_count=store.sales_count,
         product_count=product_count,
         net_revenue=(
-            {"currency": "CNY", "minor_units": str(net_revenue_minor)}
+            Money(currency="CNY", minor_units=str(net_revenue_minor))
             if net_revenue_minor is not None
             else None
         ),

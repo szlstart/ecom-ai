@@ -16,6 +16,7 @@ from app.modules.after_sale.schemas import (
     RefundApplicationCreateRequest,
     RefundEligibilityItemRequest,
     RefundEligibilityRequest,
+    RefundType,
 )
 from app.modules.after_sale.service import AfterSaleService
 from app.modules.agent_runtime.consent import require_active_consent
@@ -210,7 +211,7 @@ class AgentApprovalService:
                         quantity=quantity,
                     )
                 ],
-                requested_type=refund_type,
+                requested_type=cast(RefundType, refund_type),
                 reason_code=reason_code,
             ),
         )

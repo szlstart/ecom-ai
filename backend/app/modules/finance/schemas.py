@@ -6,17 +6,24 @@ from pydantic import Field, model_validator
 from app.api.schemas import StrictRequest
 from app.modules.catalog.schemas import Money
 
+WalletStatus = Literal["active", "frozen"]
+WalletDirection = Literal["credit", "debit"]
+WalletRechargeChannel = Literal["wechat", "alipay"]
+AccountDeletionTaskStatus = Literal[
+    "requested", "running", "retryable", "manual_review", "completed"
+]
+
 
 class WalletView(StrictRequest):
     wallet_id: str
     balance: Money
     total_recharged: Money
-    wallet_status: Literal["active", "frozen"]
+    wallet_status: WalletStatus
     version: int
 
 
 class WalletRechargeRequest(StrictRequest):
-    channel: Literal["wechat", "alipay"]
+    channel: WalletRechargeChannel
     amount: Money
 
     @model_validator(mode="after")
@@ -31,7 +38,7 @@ class WalletRechargeRequest(StrictRequest):
 
 class WalletRechargeView(StrictRequest):
     recharge_id: str
-    channel: Literal["wechat", "alipay"]
+    channel: WalletRechargeChannel
     amount: Money
     recharge_status: Literal["succeeded"]
     is_simulated: bool
@@ -46,7 +53,7 @@ class WalletRechargeResult(StrictRequest):
 class WalletTransactionView(StrictRequest):
     transaction_id: str
     transaction_type: str
-    direction: Literal["credit", "debit"]
+    direction: WalletDirection
     amount: Money
     balance_after: Money
     channel: str | None
@@ -88,6 +95,6 @@ class MerchantAccountDeletionRequest(StrictRequest):
 
 class AccountDeletionTaskView(StrictRequest):
     task_id: str
-    status: Literal["requested", "running", "retryable", "manual_review", "completed"]
+    status: AccountDeletionTaskStatus
     phase: str
     requested_at: datetime

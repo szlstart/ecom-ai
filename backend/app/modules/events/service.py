@@ -271,8 +271,20 @@ class DeadLetterService:
             raise _conflict("DEAD_LETTER_VERSION_CONFLICT", "死信版本已变化，请刷新后重试。")
         if item.dead_status != "open":
             raise _conflict("DEAD_LETTER_NOT_OPEN", "只有待处理死信可以标记为忽略。")
+        source = (
+            await self.repository.outbox_by_no(item.source_no, for_update=True)
+            if item.source_type == "outbox"
+            else None
+        )
+        if source is None or source.event_status != "failed":
+            raise _conflict(
+                "DEAD_LETTER_SOURCE_CHANGED",
+                "原始事件状态已变化，请刷新后重新判断。",
+            )
         now = utc_now()
         before_version = item.version
+        source.event_status = "ignored"
+        source.published_at = now
         item.dead_status = "ignored"
         item.resolved_by = access.context.user.id
         item.resolved_at = now
@@ -290,6 +302,7 @@ class DeadLetterService:
                 "status": "ignored",
                 "version": item.version,
                 "reason_code": payload.reason_code,
+                "source_status": "ignored",
             },
             scope_type=item.scope_type,
             scope_id=item.scope_id,

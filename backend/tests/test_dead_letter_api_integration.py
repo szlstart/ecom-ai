@@ -146,7 +146,7 @@ async def test_dead_letter_preview_requires_immutable_payload_and_dual_control(
                 AdminApprovalRequest.approval_request_no == approval_no
             )
         )
-        assert loaded_source is not None and loaded_source.event_status == "failed"
+        assert loaded_source is not None and loaded_source.event_status == "ignored"
         assert (
             loaded_dead is not None
             and loaded_dead.dead_status == "open"

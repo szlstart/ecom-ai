@@ -36,6 +36,7 @@ def test_local_app_up_recreates_and_verifies_every_backend_runtime() -> None:
     for service in (
         "api",
         "file-worker",
+        "lifecycle-worker",
         "batch-worker",
         "order-timeout-worker",
         "payment-reconcile-worker",

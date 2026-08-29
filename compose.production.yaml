@@ -79,6 +79,13 @@ services:
       ECOM_FILE_SCANNER_HOST: ${ECOM_FILE_SCANNER_HOST:?external malware scanner host required}
       ECOM_FILE_SCANNER_PORT: ${ECOM_FILE_SCANNER_PORT:-3310}
 
+  lifecycle-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
   batch-worker:
     <<: *api-runtime
     build: !reset null

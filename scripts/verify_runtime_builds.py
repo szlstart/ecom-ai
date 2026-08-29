@@ -7,6 +7,7 @@ import sys
 BACKEND_SERVICES = (
     "api",
     "file-worker",
+    "lifecycle-worker",
     "batch-worker",
     "order-timeout-worker",
     "payment-reconcile-worker",

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
-from sqlalchemy import select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -54,6 +54,13 @@ class ReconciliationResult:
     orphan_objects: int
     reference_mismatches: int
     deleted_expired_orphans: int
+
+
+@dataclass(frozen=True)
+class FileGarbageCollectionResult:
+    deleted_files: int
+    retained_referenced_files: int
+    failed_deletions: int
 
 
 class FileReconciler:
@@ -106,7 +113,7 @@ class FileReconciler:
         known.update(
             (item.reserved_bucket, item.reserved_object_key) for item in active_uploads
         )
-        references = await self._reference_counts()
+        references = await self.reference_counts()
         encountered: set[bytes] = set()
         missing_count = 0
         mismatch_count = 0
@@ -129,6 +136,8 @@ class FileReconciler:
                 encountered.add(finding.finding_key)
                 item.reference_count = actual_count
                 item.version += 1
+            if item.file_status == "deleting":
+                continue
             if storage_key not in stored:
                 missing_count += 1
                 finding = await self._record(
@@ -184,7 +193,7 @@ class FileReconciler:
             deleted_expired_orphans=deleted_orphans,
         )
 
-    async def _reference_counts(self) -> dict[int, int]:
+    async def reference_counts(self) -> dict[int, int]:
         counts: defaultdict[int, int] = defaultdict(int)
         relations = (
             (
@@ -312,3 +321,94 @@ class FileReconciler:
             finding.resolved_at = now
             finding.resolution_code = "reconciled"
             finding.version += 1
+
+
+class FileGarbageCollector:
+    """Deletes unreferenced objects through a durable, retryable tombstone state."""
+
+    def __init__(
+        self,
+        session: AsyncSession,
+        storage: ObjectInventoryStorage,
+        settings: Settings,
+    ) -> None:
+        self.session = session
+        self.storage = storage
+        self.settings = settings
+
+    async def collect(self, limit: int = 100) -> FileGarbageCollectionResult:
+        now = utc_now()
+        cutoff = now - timedelta(days=self.settings.file_unreferenced_grace_days)
+        candidates = list(
+            (
+                await self.session.scalars(
+                    select(FileObject)
+                    .where(
+                        or_(
+                            FileObject.file_status == "deleting",
+                            (
+                                (FileObject.file_status == "active")
+                                & (FileObject.reference_count == 0)
+                                & (
+                                    func.coalesce(
+                                        FileObject.activated_at, FileObject.created_at
+                                    )
+                                    <= cutoff
+                                )
+                            ),
+                        )
+                    )
+                    .order_by(FileObject.id)
+                    .with_for_update(skip_locked=True)
+                    .limit(limit)
+                )
+            ).all()
+        )
+        if not candidates:
+            return FileGarbageCollectionResult(0, 0, 0)
+
+        references = await FileReconciler(
+            self.session, self.storage, self.settings
+        ).reference_counts()
+        retained = 0
+        pending: list[tuple[int, str, str]] = []
+        for item in candidates:
+            actual_count = references.get(item.id, 0)
+            if actual_count > 0:
+                item.reference_count = actual_count
+                if item.file_status == "deleting":
+                    item.file_status = "active"
+                item.version += 1
+                retained += 1
+                continue
+            item.reference_count = 0
+            item.file_status = "deleting"
+            item.version += 1
+            pending.append((item.id, item.bucket, item.object_key))
+        await self.session.commit()
+
+        deleted = 0
+        failed = 0
+        for file_id, bucket, object_key in pending:
+            try:
+                await self.storage.remove(bucket, object_key)
+            except Exception as exc:
+                if getattr(exc, "code", None) != "OBJECT_STORAGE_OBJECT_NOT_FOUND":
+                    failed += 1
+                    continue
+            locked = await self.session.scalar(
+                select(FileObject).where(FileObject.id == file_id).with_for_update()
+            )
+            if locked is None or locked.file_status == "deleted":
+                continue
+            if locked.file_status != "deleting" or locked.reference_count != 0:
+                retained += 1
+                await self.session.commit()
+                continue
+            locked.file_status = "deleted"
+            locked.deleted_at = now
+            locked.expires_at = None
+            locked.version += 1
+            await self.session.commit()
+            deleted += 1
+        return FileGarbageCollectionResult(deleted, retained, failed)

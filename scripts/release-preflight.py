@@ -129,6 +129,7 @@ def validate_compose(rendered: str) -> None:
         "api",
         "frontend",
         "file-worker",
+        "lifecycle-worker",
         "batch-worker",
         "order-timeout-worker",
         "payment-reconcile-worker",

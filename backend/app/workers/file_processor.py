@@ -12,7 +12,11 @@ from app.core.logging import configure_logging
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.integrations.object_storage import get_object_storage
 from app.modules.files.processor import FileProcessor
-from app.modules.files.reconciliation import FileReconciler, ObjectInventoryStorage
+from app.modules.files.reconciliation import (
+    FileGarbageCollector,
+    FileReconciler,
+    ObjectInventoryStorage,
+)
 from app.modules.files.scanner import ClamAvScanner
 
 logger = structlog.get_logger(__name__)
@@ -31,6 +35,7 @@ async def run() -> None:
         loop.add_signal_handler(signal_name, stopping.set)
     logger.info("file_processor_started")
     next_reconciliation = 0.0
+    next_gc = 0.0
     try:
         while not stopping.is_set():
             processed = 0
@@ -39,6 +44,17 @@ async def run() -> None:
                 processor = FileProcessor(session, storage, scanner)
                 processed = await processor.process_batch()
                 expired = await processor.expire_uploads()
+                if time.monotonic() >= next_gc:
+                    next_gc = time.monotonic() + settings.file_gc_interval_seconds
+                    try:
+                        gc_result = await FileGarbageCollector(
+                            session, inventory_storage, settings
+                        ).collect(settings.file_gc_batch_size)
+                        if gc_result.deleted_files or gc_result.failed_deletions:
+                            logger.info("file_gc_completed", **gc_result.__dict__)
+                    except Exception:
+                        await session.rollback()
+                        logger.exception("file_gc_failed")
                 if time.monotonic() >= next_reconciliation:
                     next_reconciliation = (
                         time.monotonic() + settings.file_reconciliation_interval_seconds

@@ -37,14 +37,19 @@ class IdempotencyService:
         existing = cast(
             IdempotencyRecord | None,
             await self.session.scalar(
-                select(IdempotencyRecord).where(
+                select(IdempotencyRecord)
+                .where(
                     IdempotencyRecord.scope_key == scope_key,
                     IdempotencyRecord.idempotency_key == idempotency_key,
                 )
+                .with_for_update()
             ),
         )
         if existing is not None:
-            return self._existing_claim(existing, request_hash)
+            if existing.expires_at > utc_now():
+                return self._existing_claim(existing, request_hash)
+            await self.session.delete(existing)
+            await self.session.flush()
 
         # The initial read cannot serialize two transactions when the row does not yet exist.
         # A savepoint lets the database unique constraint choose the winner without aborting the

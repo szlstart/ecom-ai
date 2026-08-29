@@ -95,7 +95,7 @@ onMounted(load)
 <template>
   <section class="admin-page-stack admin-store-list-page">
     <header class="admin-entity-hero admin-store-hero">
-      <div><p class="eyebrow">MERCHANT OPERATIONS</p><h1>店铺与商家</h1><p>从建店、资料维护、商品运营到停业处理，在一个清晰入口完成。</p></div>
+      <div><p class="eyebrow">店铺运营</p><h1>店铺与商家</h1><p>从建店、资料维护、商品运营到停业处理，在一个清晰入口完成。</p></div>
       <button v-if="auth.has('stores:manage')" @click="createOpen = true">＋ 创建店铺</button>
     </header>
 
@@ -130,7 +130,7 @@ onMounted(load)
 
     <div v-if="createOpen" class="admin-form-overlay" @click.self="closeCreate">
       <form class="admin-form-dialog" @submit.prevent="createStore">
-        <header><div><p class="eyebrow">CREATE MERCHANT</p><h2>创建店铺与商家账号</h2><p>一次创建独立商家身份和所属店铺；该账号不能登录用户端或超级管理端。</p></div><button type="button" @click="closeCreate">×</button></header>
+        <header><div><p class="eyebrow">创建店铺</p><h2>创建店铺与商家账号</h2><p>一次创建独立商家身份和所属店铺；该账号不能登录用户端或超级管理端。</p></div><button type="button" @click="closeCreate">×</button></header>
         <p v-if="formError" class="alert error">{{ formError }}</p>
         <div class="admin-form-fields">
           <label>店铺名称<input v-model.trim="form.store_name" required minlength="2" maxlength="128" /><small v-if="fieldErrors.store_name" class="error-text">{{ fieldErrors.store_name }}</small></label>

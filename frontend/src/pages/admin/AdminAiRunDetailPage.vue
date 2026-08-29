@@ -66,7 +66,7 @@ onMounted(load)
 <template>
   <section class="admin-page-stack">
     <header class="page-heading">
-      <div><p class="eyebrow">Redacted Agent Trace</p><h1>Agent Run 详情</h1><p class="muted">{{ runId }}</p></div>
+      <div><p class="eyebrow">脱敏 Agent 轨迹</p><h1>Agent Run 详情</h1><p class="muted">{{ runId }}</p></div>
       <RouterLink class="button-link secondary" to="/admin/observability">返回可观测性</RouterLink>
     </header>
     <p v-if="notice" class="alert success">{{ notice }}</p>

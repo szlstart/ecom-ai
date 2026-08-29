@@ -70,7 +70,7 @@ onMounted(load)
   <section class="admin-page-stack">
     <header class="page-heading">
       <div>
-        <p class="eyebrow">Knowledge Document</p>
+        <p class="eyebrow">知识文档</p>
         <h1>{{ item?.title ?? '知识文档详情' }}</h1>
         <p class="muted">文档编号 {{ documentId }}</p>
       </div>

@@ -90,7 +90,7 @@ onMounted(load)
 <template>
   <section class="admin-page-stack">
     <header class="page-heading">
-      <div><p class="eyebrow">MCP Tool Version</p><h1>{{ toolCode }}</h1><p class="muted">已发布版本不可原地编辑；发布与回滚均进入双人审批。</p></div>
+      <div><p class="eyebrow">MCP 工具版本</p><h1>{{ toolCode }}</h1><p class="muted">已发布版本不可原地编辑；发布与回滚均进入双人审批。</p></div>
       <RouterLink class="button-link secondary" to="/admin/ai/tools">返回 Tool 列表</RouterLink>
     </header>
     <p v-if="error" class="alert error">{{ error }}</p>

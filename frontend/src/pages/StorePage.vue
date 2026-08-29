@@ -225,7 +225,7 @@ onBeforeUnmount(() => loadMoreObserver?.disconnect())
         <div class="store-identity">
           <img v-if="store.logo_url" :src="resolveApiAssetUrl(store.logo_url) || undefined" alt="" width="68" height="68" />
           <span v-else class="store-logo-placeholder" aria-hidden="true">店</span>
-          <div><p class="eyebrow">认证店铺</p><h1>{{ store.store_name }}</h1><p class="muted">{{ store.description || '店铺暂未填写简介' }}</p></div>
+          <div><p class="eyebrow">品质店铺</p><h1>{{ store.store_name }}</h1><p class="muted">{{ store.description || '店铺暂未填写简介' }}</p></div>
         </div>
         <div class="store-actions">
           <button type="button" class="secondary" :disabled="followBusy || store.visibility_mode !== 'public'" @click="toggleFollow">{{ store.is_followed ? '已收藏' : '收藏店铺' }}</button>

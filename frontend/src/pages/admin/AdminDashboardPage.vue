@@ -60,7 +60,7 @@ onMounted(load)
 
     <div class="admin-dashboard-grid">
       <article class="admin-panel admin-priority-panel">
-        <header><div><p class="eyebrow">TODAY</p><h2>今日优先处理</h2></div><span>按风险排序</span></header>
+        <header><div><p class="eyebrow">今日</p><h2>今日优先处理</h2></div><span>按风险排序</span></header>
         <div class="admin-priority-list">
           <RouterLink v-if="summary?.pending_approval_count" to="/admin/approval-requests"><span class="warning">!</span><div><strong>{{ summary.pending_approval_count }} 项高风险操作等待复核</strong><small>审批超时前需要独立管理员完成决定</small></div><b>立即处理</b></RouterLink>
           <RouterLink v-if="pendingTickets" to="/admin/support/tickets"><span class="message">◍</span><div><strong>{{ pendingTickets }} 个用户或店铺会话待处理</strong><small>顶部“消息”可以直接打开微信式工作台</small></div><b>打开消息</b></RouterLink>
@@ -70,12 +70,12 @@ onMounted(load)
       </article>
 
       <article class="admin-panel admin-ai-status-panel">
-        <header><div><p class="eyebrow">AI CONTROL</p><h2>AI 智能中心</h2></div><span class="healthy"><i />运行中</span></header>
+        <header><div><p class="eyebrow">AI 控制</p><h2>AI 智能中心</h2></div><span class="healthy"><i />运行中</span></header>
         <div class="admin-ai-status-visual"><span>✦</span><div><strong>Agent、MCP、Skill、RAG</strong><small>版本化配置和权限边界集中治理</small></div></div>
         <nav><RouterLink v-if="auth.has('ai_agents:read')" to="/admin/ai/agents">Agent 管理 <b>→</b></RouterLink><RouterLink v-if="auth.has('ai_tools:read')" to="/admin/ai/tools">MCP 工具 <b>→</b></RouterLink><RouterLink v-if="auth.has('ai_skills:read')" to="/admin/ai/skills">Skill 管理 <b>→</b></RouterLink><RouterLink v-if="auth.has('knowledge:read')" to="/admin/knowledge/documents">RAG 知识库 <b>→</b></RouterLink></nav>
       </article>
     </div>
 
-    <article class="admin-panel admin-quick-panel"><header><div><p class="eyebrow">QUICK ACCESS</p><h2>常用管理入口</h2></div></header><div class="admin-quick-grid"><RouterLink v-if="auth.has('users:read')" to="/admin/users"><span>♙</span><strong>管理用户</strong><small>资料、安全与交易关系</small></RouterLink><RouterLink v-if="auth.has('stores:read')" to="/admin/stores"><span>▣</span><strong>管理店铺</strong><small>资料、商品与经营状态</small></RouterLink><RouterLink v-if="auth.has('orders:read')" to="/admin/stores"><span>▤</span><strong>店铺订单监管</strong><small>选择店铺后查看支付、履约与售后</small></RouterLink><RouterLink v-if="auth.has('audit:read')" to="/admin/audit-logs"><span>◎</span><strong>审计追踪</strong><small>查看所有管理操作</small></RouterLink></div></article>
+    <article class="admin-panel admin-quick-panel"><header><div><p class="eyebrow">快捷入口</p><h2>常用管理入口</h2></div></header><div class="admin-quick-grid"><RouterLink v-if="auth.has('users:read')" to="/admin/users"><span>♙</span><strong>管理用户</strong><small>资料、安全与交易关系</small></RouterLink><RouterLink v-if="auth.has('stores:read')" to="/admin/stores"><span>▣</span><strong>管理店铺</strong><small>资料、商品与经营状态</small></RouterLink><RouterLink v-if="auth.has('orders:read')" to="/admin/stores"><span>▤</span><strong>店铺订单监管</strong><small>选择店铺后查看支付、履约与售后</small></RouterLink><RouterLink v-if="auth.has('audit:read')" to="/admin/audit-logs"><span>◎</span><strong>审计追踪</strong><small>查看所有管理操作</small></RouterLink></div></article>
   </section>
 </template>

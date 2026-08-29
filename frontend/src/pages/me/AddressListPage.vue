@@ -267,7 +267,7 @@ onMounted(() => load().catch((reason) => { error.value = errorMessage(reason) })
   <section class="address-book-page">
     <header class="address-book-hero">
       <div>
-        <p class="eyebrow">Delivery address</p>
+        <p class="eyebrow">收货地址</p>
         <h1>收货地址</h1>
         <p>妥善管理常用地址，下单时可更快完成配送信息确认。</p>
       </div>
@@ -280,7 +280,7 @@ onMounted(() => load().catch((reason) => { error.value = errorMessage(reason) })
 
     <form v-if="showForm" class="address-editor-card" novalidate @submit.prevent="save">
       <header>
-        <div><p class="eyebrow">{{ isEditing ? 'Edit address' : 'New address' }}</p><h2>{{ isEditing ? '编辑收货地址' : '新增收货地址' }}</h2><p>请填写真实、准确的信息，以免影响配送。</p></div>
+        <div><p class="eyebrow">{{ isEditing ? '编辑地址' : '新增地址' }}</p><h2>{{ isEditing ? '编辑收货地址' : '新增收货地址' }}</h2><p>请填写真实、准确的信息，以免影响配送。</p></div>
         <button class="address-editor-close" type="button" aria-label="关闭地址编辑" @click="cancelForm">×</button>
       </header>
       <div class="address-form-grid">
@@ -305,7 +305,7 @@ onMounted(() => load().catch((reason) => { error.value = errorMessage(reason) })
 
     <section class="address-list-section">
       <header>
-        <div><p class="eyebrow">Address book</p><h2>地址簿</h2></div>
+        <div><p class="eyebrow">地址簿</p><h2>地址簿</h2></div>
         <span>默认地址将在结算时优先选中</span>
       </header>
       <div class="address-book-grid">

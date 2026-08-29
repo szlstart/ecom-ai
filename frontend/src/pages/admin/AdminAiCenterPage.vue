@@ -42,9 +42,9 @@ onMounted(() => void loadProvider())
 </script>
 
 <template><section class="admin-page-stack admin-ai-center-page">
-  <header class="admin-ai-center-hero"><div><p class="eyebrow">AI CONTROL PLANE</p><h1>AI 智能客服控制中心</h1><p>用业务语言管理 Agent、Skill、MCP 和 RAG。配置变更先评估、再审批、后发布，生产问题可追踪、可回滚。</p><div><span><i />运行保护已启用</span><RouterLink to="/admin/observability">查看实时运行状态 →</RouterLink></div></div><span class="admin-ai-hero-orb">✦</span></header>
+  <header class="admin-ai-center-hero"><div><p class="eyebrow">AI 控制中心</p><h1>AI 智能客服控制中心</h1><p>用业务语言管理 Agent、Skill、MCP 和 RAG。配置变更先评估、再审批、后发布，生产问题可追踪、可回滚。</p><div><span><i />运行保护已启用</span><RouterLink to="/admin/observability">查看实时运行状态 →</RouterLink></div></div><span class="admin-ai-hero-orb">✦</span></header>
   <section v-if="auth.has('ai_observability:read')" class="admin-provider-health admin-panel" :class="provider?.status || 'loading'" aria-live="polite">
-    <header><div><p class="eyebrow">MODEL PROVIDER</p><h2>Kimi 模型服务</h2></div><button type="button" class="secondary" :disabled="providerLoading" @click="loadProvider(true)">{{ providerLoading ? '正在检测…' : '重新检测' }}</button></header>
+    <header><div><p class="eyebrow">模型供应商</p><h2>Kimi 模型服务</h2></div><button type="button" class="secondary" :disabled="providerLoading" @click="loadProvider(true)">{{ providerLoading ? '正在检测…' : '重新检测' }}</button></header>
     <p v-if="providerError" class="alert error">{{ providerError }}</p>
     <div v-else-if="provider" class="admin-provider-health-grid">
       <div class="provider-health-state"><span aria-hidden="true">{{ provider.status === 'available' ? '✓' : provider.status === 'degraded' ? '!' : '×' }}</span><div><strong>{{ providerLabel }}</strong><small>{{ provider.provider === 'moonshot' ? 'Moonshot' : 'OpenAI 兼容服务' }} · {{ provider.configured_model || '未选择模型' }}</small></div></div>
@@ -54,5 +54,5 @@ onMounted(() => void loadProvider())
     <p v-else class="muted">正在核对模型发现、结构化输出、流式输出与用量统计…</p>
   </section>
   <section class="admin-ai-module-grid"><RouterLink v-for="item in modules.filter((entry) => auth.has(entry.permission))" :key="item.title" :to="item.route" class="admin-ai-module-card" :class="item.tone"><span>{{ item.icon }}</span><div><h2>{{ item.title }}</h2><p>{{ item.copy }}</p></div><b>进入 →</b></RouterLink></section>
-  <section class="admin-ai-workflow admin-panel"><header><div><p class="eyebrow">SAFE RELEASE</p><h2>AI 配置如何安全上线</h2></div><RouterLink to="/admin/approval-requests">打开审批中心</RouterLink></header><ol><li><span>1</span><div><strong>创建草稿</strong><small>修改 Prompt、Skill、工具或知识</small></div></li><li><span>2</span><div><strong>自动与人工评估</strong><small>验证事实、权限、安全与成本</small></div></li><li><span>3</span><div><strong>独立审批</strong><small>高风险变更由另一位管理员复核</small></div></li><li><span>4</span><div><strong>发布并观测</strong><small>灰度生效，异常时快速回滚</small></div></li></ol></section>
+  <section class="admin-ai-workflow admin-panel"><header><div><p class="eyebrow">安全发布</p><h2>AI 配置如何安全上线</h2></div><RouterLink to="/admin/approval-requests">打开审批中心</RouterLink></header><ol><li><span>1</span><div><strong>创建草稿</strong><small>修改 Prompt、Skill、工具或知识</small></div></li><li><span>2</span><div><strong>自动与人工评估</strong><small>验证事实、权限、安全与成本</small></div></li><li><span>3</span><div><strong>独立审批</strong><small>高风险变更由另一位管理员复核</small></div></li><li><span>4</span><div><strong>发布并观测</strong><small>灰度生效，异常时快速回滚</small></div></li></ol></section>
 </section></template>

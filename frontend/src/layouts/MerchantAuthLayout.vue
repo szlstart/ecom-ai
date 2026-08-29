@@ -7,7 +7,7 @@ import { RouterLink, RouterView } from 'vue-router'
     <section class="merchant-auth-intro">
       <RouterLink class="merchant-wordmark" to="/merchant">Ecom AI 商家中心</RouterLink>
       <div>
-        <p class="eyebrow">STORE CONSOLE</p>
+        <p class="eyebrow">店铺工作台</p>
         <h1>认真经营每一件商品，及时回应每一位顾客。</h1>
         <p>商品、库存、客服和评价集中处理；店铺之间的数据严格隔离。</p>
       </div>

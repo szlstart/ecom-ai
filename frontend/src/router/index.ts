@@ -59,6 +59,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/merchant/reauthenticate', redirect: '/merchant/products' },
   { path: '/merchant', component: () => import('@/layouts/MerchantGatewayLayout.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: false, title: '商家登录与注册', requirementId: 'MCH-AUTH-01' }, children: [
     { path: '', component: () => import('@/pages/merchant/MerchantLoginPage.vue'), meta: { layout: 'merchant-auth', audience: 'merchant', requiresAuth: false, title: '商家登录与注册', requirementId: 'MCH-AUTH-01' } },
+    { path: 'forbidden', component: () => import('@/pages/ForbiddenPage.vue'), props: { returnPath: '', returnLabel: '' }, meta: { ...merchantMeta, title: '商家端无权访问', requirementId: 'MCH-SYSTEM-403' } },
     { path: 'dashboard', component: () => import('@/pages/merchant/MerchantProductListPage.vue'), meta: { ...merchantMeta, title: '我的商品', requirementId: 'MCH-DASH-01', requiredPermission: 'stores:read' } },
     { path: 'products', component: () => import('@/pages/merchant/MerchantProductListPage.vue'), meta: { ...merchantMeta, title: '商品管理', requirementId: 'MCH-PRODUCT-LIST-01', requiredPermission: 'products:read' } },
     { path: 'products/new', component: () => import('@/pages/merchant/MerchantProductEditorPage.vue'), meta: { ...merchantMeta, title: '新增商品', requirementId: 'MCH-PRODUCT-NEW-01', requiredPermission: 'products:create' } },
@@ -77,6 +78,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/admin/reauthenticate', redirect: '/admin/dashboard', meta: { ...adminMeta, title: '管理端', requirementId: 'ADM-AUTH-02' } },
   { path: '/admin', component: () => import('@/layouts/AdminLayout.vue'), meta: { ...adminMeta, title: '管理后台', requirementId: 'ADM-SHELL-01' }, children: [
     { path: '', redirect: '/admin/dashboard' },
+    { path: 'forbidden', component: () => import('@/pages/ForbiddenPage.vue'), props: { returnPath: '', returnLabel: '' }, meta: { ...adminMeta, title: '管理端无权访问', requirementId: 'ADM-SYSTEM-403' } },
     { path: 'dashboard', component: () => import('@/pages/admin/AdminDashboardPage.vue'), meta: { ...adminMeta, title: '管理仪表盘', requirementId: 'ADM-DASH-01', requiredPermission: 'dashboard:read' } },
     { path: 'users', component: () => import('@/pages/admin/AdminUserListPage.vue'), meta: { ...adminMeta, title: '用户治理', requirementId: 'ADM-USER-LIST-01', requiredPermission: 'users:read' } },
     { path: 'users/:userId', component: () => import('@/pages/admin/AdminUserDetailPage.vue'), meta: { ...adminMeta, title: '用户详情', requirementId: 'ADM-USER-01', requiredPermission: 'users:read' } },
@@ -163,8 +165,8 @@ router.beforeEach(async (to) => {
   if (to.meta.audience === 'admin') {
     const auth = useAdminAuthStore()
     if (!auth.isAuthenticatedFor('admin') && !(await auth.refresh('admin'))) return { path: '/admin/login' }
-    if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/admin/dashboard', query: { denied: to.meta.requiredAnyPermission.join('|') } }
-    if (to.meta.requiredPermission && !auth.has(to.meta.requiredPermission)) return { path: '/admin/dashboard', query: { denied: to.meta.requiredPermission } }
+    if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/admin/forbidden', query: { denied: to.meta.requiredAnyPermission.join('|') } }
+    if (to.meta.requiredPermission && !auth.has(to.meta.requiredPermission)) return { path: '/admin/forbidden', query: { denied: to.meta.requiredPermission } }
   }
   if (to.meta.audience === 'merchant') {
     const auth = useAdminAuthStore()
@@ -173,8 +175,8 @@ router.beforeEach(async (to) => {
       await auth.logout('merchant')
       return { path: '/merchant', query: { denied: 'store_scope' } }
     }
-    if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/merchant/dashboard', query: { denied: to.meta.requiredAnyPermission.join('|') } }
-    if (to.meta.requiredPermission && !auth.has(to.meta.requiredPermission)) return { path: '/merchant/dashboard', query: { denied: to.meta.requiredPermission } }
+    if (to.meta.requiredAnyPermission && !to.meta.requiredAnyPermission.some((permission: string) => auth.has(permission))) return { path: '/merchant/forbidden', query: { denied: to.meta.requiredAnyPermission.join('|') } }
+    if (to.meta.requiredPermission && !auth.has(to.meta.requiredPermission)) return { path: '/merchant/forbidden', query: { denied: to.meta.requiredPermission } }
   }
   return true
 })

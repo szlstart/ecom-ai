@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import router from '@/router'
+import { useAdminAuthStore } from '@/stores/admin-auth'
 
 describe('phase two route contract', () => {
   beforeEach(() => setActivePinia(createPinia()))
@@ -53,13 +54,14 @@ describe('phase two route contract', () => {
     for (const route of protectedRoutes) {
       expect(route.meta.audience).toBe('admin')
       expect(route.meta.requiresAuth).toBe(true)
-      if (!['/admin/security', '/admin/reauthenticate'].includes(route.path)) expect(route.meta.requiredPermission || route.meta.requiredAnyPermission).toBeTruthy()
+      if (!['/admin/security', '/admin/reauthenticate', '/admin/forbidden'].includes(route.path)) expect(route.meta.requiredPermission || route.meta.requiredAnyPermission).toBeTruthy()
     }
   })
 
   it('keeps the merchant portal isolated from platform administration', () => {
     const expected = new Map([
       ['/merchant', 'MCH-AUTH-01'],
+      ['/merchant/forbidden', 'MCH-SYSTEM-403'],
       ['/merchant/dashboard', 'MCH-DASH-01'],
       ['/merchant/products', 'MCH-PRODUCT-LIST-01'],
       ['/merchant/products/new', 'MCH-PRODUCT-NEW-01'],
@@ -187,5 +189,27 @@ describe('phase two route contract', () => {
     expect(routes.get('/error')?.meta.requirementId).toBe('USR-SYSTEM-ERROR')
     expect(routes.get('/maintenance')?.meta.requirementId).toBe('USR-SYSTEM-MAINT')
     expect(routes.get('/:pathMatch(.*)*')?.meta.requirementId).toBe('USR-SYSTEM-404')
+  })
+
+  it('routes restricted management pages to a permission-free portal fallback', async () => {
+    const auth = useAdminAuthStore()
+    auth.accessToken = 'test-admin-token'
+    auth.portal = 'admin'
+    auth.permissions = []
+
+    await router.push('/admin/users')
+    expect(router.currentRoute.value.path).toBe('/admin/forbidden')
+    expect(router.currentRoute.value.query.denied).toBe('users:read')
+
+    await router.push('/admin/forbidden?denied=dashboard:read')
+    expect(router.currentRoute.value.path).toBe('/admin/forbidden')
+
+    auth.accessToken = 'test-merchant-token'
+    auth.portal = 'merchant'
+    auth.scopes = [{ scope_type: 'store', scope_id: 1 }]
+    await router.push('/merchant/orders')
+    expect(router.currentRoute.value.path).toBe('/merchant/forbidden')
+    expect(router.currentRoute.value.query.denied).toBe('orders:read')
+    auth.clear()
   })
 })

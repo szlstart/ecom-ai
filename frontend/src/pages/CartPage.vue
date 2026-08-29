@@ -140,7 +140,7 @@ onBeforeUnmount(() => document.body.classList.remove('modal-open'))
 
 <template>
   <section class="cart-page">
-    <header class="cart-hero"><div><p class="eyebrow">SHOPPING CART</p><h1>我的购物车</h1><p>核对商品、款式和数量，选中后即可统一结算。价格与库存会在下单前再次确认。</p></div><div class="cart-hero-summary"><strong>{{ cart?.cart_total_quantity ?? 0 }}</strong><span>件商品</span><RouterLink class="button-link" to="/search">继续购物</RouterLink></div></header>
+    <header class="cart-hero"><div><p class="eyebrow">购物车</p><h1>我的购物车</h1><p>核对商品、款式和数量，选中后即可统一结算。价格与库存会在下单前再次确认。</p></div><div class="cart-hero-summary"><strong>{{ cart?.cart_total_quantity ?? 0 }}</strong><span>件商品</span><RouterLink class="button-link" to="/search">继续购物</RouterLink></div></header>
     <div v-if="error" class="notice error" role="alert">{{ error }}</div>
     <PageState :loading="loading" :error="''" :empty="!cart || cart.groups.length === 0" empty-title="购物车还是空的" empty-message="去挑选喜欢的商品吧。" @retry="load">
       <template v-if="cart && cart.groups.length">

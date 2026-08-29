@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - uses: actions/setup-python@v6
         with: { python-version: "3.13.14", cache: pip, cache-dependency-path: backend/requirements/dev.txt }
@@ -47,7 +47,7 @@ jobs:
       matrix:
         language: [python, javascript-typescript]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v4
         with: { languages: "${{ matrix.language }}" }
       - uses: github/codeql-action/analyze@v4

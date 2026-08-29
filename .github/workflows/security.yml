@@ -35,7 +35,7 @@ jobs:
       - name: Audit frontend production dependencies
         run: pnpm --dir frontend audit --prod --audit-level high --registry=https://registry.npmjs.org
       - name: Scan Git history for committed secrets
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

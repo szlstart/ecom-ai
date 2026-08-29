@@ -15,10 +15,14 @@ from app.database.mysql import mysql_session, probe_mysql
 from app.database.postgres import probe_postgres
 from app.database.redis import get_redis, probe_redis
 from app.integrations.object_storage import get_object_storage
+from app.modules.agent_runtime.models import AgentDefinition, AgentVersion
 from app.modules.health.schemas import DependencyStatus, ReadinessResponse
 from app.modules.system.models import OutboxEvent
 
 Probe = Callable[[], Awaitable[DependencyStatus]]
+REQUIRED_AGENT_CODES = frozenset(
+    {"exclusive_support", "store_support", "merchant_copilot", "admin_copilot"}
+)
 
 
 async def get_readiness(settings: Settings) -> ReadinessResponse:
@@ -28,6 +32,7 @@ async def get_readiness(settings: Settings) -> ReadinessResponse:
         "postgres": lambda: _database_probe(probe_postgres, settings, required=False),
         "object_storage": lambda: _object_storage_probe(settings),
         "malware_scanner": lambda: _scanner_probe(settings),
+        "agent_runtime": lambda: _agent_runtime_status(settings),
         "agent_model": lambda: _agent_model_status(settings),
         "embedding": lambda: _embedding_status(settings),
         "outbox": lambda: _outbox_status(settings),
@@ -117,6 +122,40 @@ async def _agent_model_status(settings: Settings) -> DependencyStatus:
         required=False,
         code=str(payload.get("error_code") or "MODEL_PROVIDER_DEGRADED"),
     )
+
+
+async def _agent_runtime_status(settings: Settings) -> DependencyStatus:
+    """Verify that every portal has an active Agent with a published version."""
+    try:
+        async for session in mysql_session():
+            codes = set(
+                (
+                    await session.scalars(
+                        select(AgentDefinition.agent_code)
+                        .join(AgentVersion, AgentVersion.agent_id == AgentDefinition.id)
+                        .where(
+                            AgentDefinition.agent_code.in_(REQUIRED_AGENT_CODES),
+                            AgentDefinition.agent_status == "active",
+                            AgentVersion.version_status == "published",
+                        )
+                        .distinct()
+                    )
+                ).all()
+            )
+            break
+        else:
+            raise RuntimeError("MySQL session unavailable")
+    except Exception:
+        return DependencyStatus(
+            status="unknown", required=False, code="AGENT_RUNTIME_STATUS_UNAVAILABLE"
+        )
+    if missing := REQUIRED_AGENT_CODES - codes:
+        return DependencyStatus(
+            status=("down" if settings.agent_model_required else "degraded"),
+            required=False,
+            code=f"AGENT_VERSION_UNAVAILABLE:{','.join(sorted(missing))}",
+        )
+    return DependencyStatus(status="up", required=False)
 
 
 async def _embedding_status(settings: Settings) -> DependencyStatus:

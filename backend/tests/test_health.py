@@ -58,6 +58,7 @@ async def test_optional_dependency_failure_is_degraded_not_unready(monkeypatch) 
     monkeypatch.setattr(health_service, "_database_probe", database_probe)
     monkeypatch.setattr(health_service, "_object_storage_probe", skipped)
     monkeypatch.setattr(health_service, "_scanner_probe", skipped)
+    monkeypatch.setattr(health_service, "_agent_runtime_status", skipped)
     monkeypatch.setattr(health_service, "_agent_model_status", skipped)
     monkeypatch.setattr(health_service, "_embedding_status", skipped)
     monkeypatch.setattr(health_service, "_outbox_status", up)
@@ -78,9 +79,31 @@ async def test_required_dependency_failure_is_not_ready(monkeypatch) -> None:
     monkeypatch.setattr(health_service, "_database_probe", database_probe)
     monkeypatch.setattr(health_service, "_object_storage_probe", skipped)
     monkeypatch.setattr(health_service, "_scanner_probe", skipped)
+    monkeypatch.setattr(health_service, "_agent_runtime_status", skipped)
     monkeypatch.setattr(health_service, "_agent_model_status", skipped)
     monkeypatch.setattr(health_service, "_embedding_status", skipped)
     monkeypatch.setattr(health_service, "_outbox_status", skipped)
     result = await health_service.get_readiness(Settings(readiness_checks_enabled=True))
     assert result.status == "not_ready"
     assert result.dependencies["mysql"].required is True
+
+
+async def test_agent_runtime_requires_published_agent_for_every_portal(monkeypatch) -> None:
+    class ScalarRows:
+        def all(self):
+            return ["exclusive_support", "store_support", "merchant_copilot"]
+
+    class Session:
+        async def scalars(self, _statement):
+            return ScalarRows()
+
+    async def sessions():
+        yield Session()
+
+    monkeypatch.setattr(health_service, "mysql_session", sessions)
+    result = await health_service._agent_runtime_status(
+        Settings(agent_model_required=True)
+    )
+
+    assert result.status == "down"
+    assert result.code == "AGENT_VERSION_UNAVAILABLE:admin_copilot"

@@ -4,6 +4,8 @@ import { RouterLink } from 'vue-router'
 
 import { listSupportTickets, type SupportTicket } from '@/api/admin-support'
 import { adminGet, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
+import { getModelProviderHealth, type ModelProviderHealth } from '@/api/admin-ai'
+import { getReadinessHealth, resolveAgentHealth, type ReadinessHealth } from '@/api/health'
 import { apiRequest, errorMessage } from '@/api/http'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
@@ -16,6 +18,9 @@ const users = ref<UserList['items']>([])
 const stores = ref<AdminStore[]>([])
 const products = ref<AdminProductSummary[]>([])
 const tickets = ref<SupportTicket[]>([])
+const provider = ref<ModelProviderHealth | null>(null)
+const readiness = ref<ReadinessHealth | null>(null)
+const healthRequestFailed = ref(false)
 const loading = ref(true)
 const error = ref('')
 const scopeText = computed(() => auth.scopes.some((item) => item.scope_type === 'platform') ? '平台全局视图' : `${auth.scopes.length} 个授权范围`)
@@ -25,6 +30,17 @@ const pendingStores = computed(() => stores.value.filter((item) => item.status =
 const riskyProducts = computed(() => products.value.filter((item) => ['pending_review', 'rejected', 'needs_changes'].includes(item.status)).length)
 const pendingTickets = computed(() => tickets.value.filter((item) => ['queued', 'assigned', 'active'].includes(item.ticket_status)).length)
 const unreadMessages = computed(() => tickets.value.reduce((total, item) => total + item.unread_count, 0))
+const aiHealthLabel = computed(() => {
+  if (!auth.has('ai_observability:read')) return '状态受限'
+  if (healthRequestFailed.value) return '暂时不可用'
+  if (provider.value?.status === 'unconfigured') return '尚未配置'
+  const state = resolveAgentHealth(readiness.value)
+  if (state === 'unavailable') return '暂时不可用'
+  if (state === 'degraded' || provider.value?.status === 'degraded') return '部分降级'
+  if (state === 'available' && provider.value?.status === 'available') return '运行正常'
+  return '正在检测'
+})
+const aiHealthClass = computed(() => aiHealthLabel.value === '运行正常' ? 'healthy' : aiHealthLabel.value === '部分降级' || aiHealthLabel.value === '正在检测' ? 'warning' : 'danger')
 
 async function load() {
   loading.value = true; error.value = ''
@@ -35,6 +51,10 @@ async function load() {
     if (auth.has('stores:read')) tasks.push(adminGet<{ items: AdminStore[] }>('/admin/stores?limit=100', auth.accessToken!).then((result) => { stores.value = result.data.items }))
     if (auth.has('products:read')) tasks.push(adminGet<{ items: AdminProductSummary[] }>('/admin/products?limit=100', auth.accessToken!).then((result) => { products.value = result.data.items }))
     if (auth.has('support:queue_read')) tasks.push(listSupportTickets({}, auth.accessToken!).then((result) => { tickets.value = result.data.items }))
+    if (auth.has('ai_observability:read')) {
+      tasks.push(getModelProviderHealth(auth.accessToken!).then((result) => { provider.value = result.data }))
+      tasks.push(getReadinessHealth().then((result) => { readiness.value = result }).catch(() => { healthRequestFailed.value = true }))
+    }
     await Promise.allSettled(tasks)
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
@@ -70,7 +90,7 @@ onMounted(load)
       </article>
 
       <article class="admin-panel admin-ai-status-panel">
-        <header><div><p class="eyebrow">AI 控制</p><h2>AI 智能中心</h2></div><span class="healthy"><i />运行中</span></header>
+        <header><div><p class="eyebrow">AI 控制</p><h2>AI 智能中心</h2></div><span :class="aiHealthClass"><i />{{ aiHealthLabel }}</span></header>
         <div class="admin-ai-status-visual"><span>✦</span><div><strong>Agent、MCP、Skill、RAG</strong><small>版本化配置和权限边界集中治理</small></div></div>
         <nav><RouterLink v-if="auth.has('ai_agents:read')" to="/admin/ai/agents">Agent 管理 <b>→</b></RouterLink><RouterLink v-if="auth.has('ai_tools:read')" to="/admin/ai/tools">MCP 工具 <b>→</b></RouterLink><RouterLink v-if="auth.has('ai_skills:read')" to="/admin/ai/skills">Skill 管理 <b>→</b></RouterLink><RouterLink v-if="auth.has('knowledge:read')" to="/admin/knowledge/documents">RAG 知识库 <b>→</b></RouterLink></nav>
       </article>

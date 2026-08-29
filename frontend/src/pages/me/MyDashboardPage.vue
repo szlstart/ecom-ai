@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import { apiRequest, errorMessage } from '@/api/http'
+import { getReadinessHealth, resolveAgentHealth } from '@/api/health'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 interface Dashboard {
@@ -13,11 +14,11 @@ interface Dashboard {
   unavailable_sections: string[]
 }
 interface Wallet { balance: { minor_units: string; currency: string }; total_recharged: { minor_units: string; currency: string } }
-
 const auth = useUserAuthStore()
 const router = useRouter()
 const data = ref<Dashboard | null>(null)
 const wallet = ref<Wallet | null>(null)
+const agentHealth = ref<'available' | 'degraded' | 'unavailable' | 'unknown'>('unknown')
 const error = ref('')
 const loggingOut = ref(false)
 const orderCountLabels: Record<string, string> = {
@@ -27,12 +28,21 @@ const orderCountLabels: Record<string, string> = {
   pending_review: '待评价',
   after_sale: '售后中',
 }
+const agentHealthLabel = computed(() => ({
+  available: 'AI 专属客服在线',
+  degraded: 'AI 专属客服部分能力降级',
+  unavailable: 'AI 暂时不可用，可联系人工客服',
+  unknown: '正在确认 AI 服务状态',
+}[agentHealth.value]))
 
 onMounted(async () => {
   try {
     const [dashboardResult, walletResult] = await Promise.all([apiRequest<Dashboard>('/users/me/dashboard', {}, auth.accessToken), apiRequest<Wallet>('/users/me/wallet', {}, auth.accessToken)])
     data.value = dashboardResult.data
     wallet.value = walletResult.data
+    try {
+      agentHealth.value = resolveAgentHealth(await getReadinessHealth())
+    } catch { agentHealth.value = 'unavailable' }
   } catch (reason) {
     error.value = errorMessage(reason)
   }
@@ -60,7 +70,7 @@ async function logout() {
         <div><p>账户余额</p><strong>{{ money(wallet?.balance.minor_units) }}</strong><small>模拟充值余额，可用于商城内支付</small></div>
         <RouterLink to="/me/wallet">充值与明细 <span aria-hidden="true">→</span></RouterLink>
       </div>
-      <div v-if="data" class="my-ai-service-pill"><span aria-hidden="true">✦</span> AI 专属客服在线<span v-if="data.unread_message_count"> · {{ data.unread_message_count }} 条未读消息</span></div>
+      <div v-if="data" class="my-ai-service-pill" :class="`is-${agentHealth}`" aria-live="polite"><span aria-hidden="true">✦</span> {{ agentHealthLabel }}<span v-if="data.unread_message_count"> · {{ data.unread_message_count }} 条未读消息</span></div>
     </header>
     <p v-if="error" class="alert error">{{ error }}</p>
     <div v-if="data" class="dashboard-sections">

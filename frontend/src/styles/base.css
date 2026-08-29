@@ -269,7 +269,9 @@ kbd { padding: 3px 7px; color: #788195; border: 1px solid #d8dde7; border-radius
 .admin-all-clear { grid-template-columns: 40px 1fr; border-bottom: 0; }
 .admin-all-clear > span { color: #258762; background: #eaf8f2; }
 .admin-ai-status-panel > header .healthy { color: #217959; background: #eaf8f2; }
-.admin-ai-status-panel .healthy i { width: 6px; height: 6px; margin-right: 5px; display: inline-block; border-radius: 50%; background: #39b881; }
+.admin-ai-status-panel > header .warning { color: #986600; background: #fff5d8; }
+.admin-ai-status-panel > header .danger { color: #a33f47; background: #ffeaec; }
+.admin-ai-status-panel > header span i { width: 6px; height: 6px; margin-right: 5px; display: inline-block; border-radius: 50%; background: currentColor; }
 .admin-ai-status-visual { padding: 18px; display: flex; align-items: center; gap: 13px; color: #fff; border-radius: 14px; background: radial-gradient(circle at 80% 0, rgb(174 154 255 / 40%), transparent 35%), linear-gradient(135deg, #3d52ad, #7253bf); }
 .admin-ai-status-visual > span { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 19%); border-radius: 13px; background: rgb(255 255 255 / 10%); }
 .admin-ai-status-visual > div { display: grid; gap: 4px; }
@@ -571,6 +573,9 @@ kbd { padding: 3px 7px; color: #788195; border: 1px solid #d8dde7; border-radius
 .my-wallet-panel a { padding-bottom: 4px; color: #fff; font-size: .88rem; font-weight: 750; white-space: nowrap; }
 .my-ai-service-pill { position: relative; z-index: 1; align-self: end; justify-self: end; padding: 9px 13px; color: #e8edff; border: 1px solid rgb(255 255 255 / 20%); border-radius: 999px; background: rgb(255 255 255 / 9%); font-size: .78rem; font-weight: 650; }
 .my-ai-service-pill > span:first-child { color: #aee7ce; }
+.my-ai-service-pill.is-degraded { color: #fff0b8; border-color: rgb(255 222 123 / 45%); }
+.my-ai-service-pill.is-unavailable { color: #ffd4d7; border-color: rgb(255 157 166 / 48%); }
+.my-ai-service-pill.is-unknown { color: #e0e5f6; }
 .dashboard-sections { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .dashboard-card { width: 100%; display: grid; align-content: start; gap: 14px; }
 .dashboard-card h2, .dashboard-card p { margin-block: 0; }

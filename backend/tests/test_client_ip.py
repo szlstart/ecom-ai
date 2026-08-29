@@ -1,6 +1,6 @@
 import ipaddress
 
-from app.core.client_ip import resolve_client_ip
+from app.core.client_ip import ip_in_cidrs, resolve_client_ip
 
 TRUSTED = (
     ipaddress.ip_network("127.0.0.1/32"),
@@ -33,3 +33,8 @@ def test_ipv6_client_is_normalized() -> None:
     client, source = resolve_client_ip("::1", "2001:db8::1234", TRUSTED)
     assert client == "2001:db8::1234"
     assert source == "trusted_proxy_chain"
+
+
+def test_metrics_network_matching_is_explicit() -> None:
+    assert ip_in_cidrs("10.30.0.12", "10.30.0.0/24") is True
+    assert ip_in_cidrs("10.31.0.12", "10.30.0.0/24") is False

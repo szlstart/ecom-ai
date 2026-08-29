@@ -1,9 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
 from app.api.v1.router import api_router
-from app.core.client_ip import TrustedProxyMiddleware
+from app.core.client_ip import TrustedProxyMiddleware, ip_in_cidrs, request_client_ip
 from app.core.config import get_settings
 from app.core.exceptions import install_exception_handlers
 from app.core.lifespan import application_lifespan
@@ -54,7 +54,9 @@ def create_app() -> FastAPI:
     install_traced_openapi(app)
 
     @app.get("/metrics", include_in_schema=False)
-    async def prometheus_metrics() -> PlainTextResponse:
+    async def prometheus_metrics(request: Request) -> PlainTextResponse:
+        if not ip_in_cidrs(request_client_ip(request), settings.metrics_allowed_cidrs):
+            return PlainTextResponse("Not Found\n", status_code=404)
         return PlainTextResponse(
             metrics.render_prometheus(), media_type="text/plain; version=0.0.4"
         )

@@ -33,6 +33,16 @@ async def test_untrusted_request_id_is_replaced(client: AsyncClient) -> None:
     assert len(response.headers["x-request-id"]) == 30
 
 
+async def test_metrics_is_visible_only_to_configured_monitoring_networks(
+    client: AsyncClient,
+) -> None:
+    internal = await client.get("/metrics")
+    assert internal.status_code == 200
+    external = await client.get("/metrics", headers={"X-Forwarded-For": "203.0.113.9"})
+    assert external.status_code == 404
+    assert "http_requests_total" not in external.text
+
+
 async def test_optional_dependency_failure_is_degraded_not_unready(monkeypatch) -> None:
     async def database_probe(probe, settings, *, required):
         del settings

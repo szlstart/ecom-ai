@@ -32,6 +32,11 @@ def request_client_ip(request: Request) -> str:
     return request.client.host if request.client is not None else "unknown"
 
 
+def ip_in_cidrs(address: str, cidrs: str) -> bool:
+    parsed = _address(address)
+    return parsed is not None and _trusted(parsed, _networks(cidrs.split(",")))
+
+
 def resolve_client_ip(
     peer_ip: str,
     forwarded_for: str | None,

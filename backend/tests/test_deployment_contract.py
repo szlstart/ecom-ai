@@ -14,6 +14,20 @@ def test_runtime_container_is_non_root_and_reproducible() -> None:
     assert ":latest" not in dockerfile
 
 
+def test_spa_document_has_browser_security_headers() -> None:
+    nginx = (ROOT / "frontend/nginx.conf").read_text(encoding="utf-8")
+    for directive in (
+        "Content-Security-Policy",
+        "frame-ancestors 'none'",
+        "X-Frame-Options",
+        "X-Content-Type-Options",
+        "Referrer-Policy",
+        "Permissions-Policy",
+    ):
+        assert directive in nginx
+    assert "add_header_inherit merge" in nginx
+
+
 def test_compose_uses_loopback_ports_and_observability_profiles() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
@@ -167,6 +181,7 @@ def test_release_preflight_accepts_synthetic_tls_configuration(tmp_path: Path) -
                 "ECOM_PUBLIC_ORIGIN=https://shop.invalid",
                     "ECOM_ALLOWED_ORIGINS=https://shop.invalid",
                     "ECOM_TRUSTED_PROXY_CIDRS=10.20.0.0/24",
+                    "ECOM_METRICS_ALLOWED_CIDRS=10.30.0.0/24",
                 "ECOM_MYSQL_DSN=mysql+asyncmy://runtime:secret@mysql.private.invalid:3306/ecom?ssl=true",
                 "ECOM_POSTGRES_DSN=postgresql+asyncpg://runtime:secret@postgres.private.invalid:5432/ecom?ssl=require",
                 "ECOM_MYSQL_MIGRATION_DSN=mysql+asyncmy://migration:secret@mysql.private.invalid:3306/ecom?ssl=true",

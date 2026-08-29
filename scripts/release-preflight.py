@@ -19,6 +19,7 @@ REQUIRED = {
     "ECOM_PUBLIC_ORIGIN",
     "ECOM_ALLOWED_ORIGINS",
     "ECOM_TRUSTED_PROXY_CIDRS",
+    "ECOM_METRICS_ALLOWED_CIDRS",
     "ECOM_MYSQL_DSN",
     "ECOM_POSTGRES_DSN",
     "ECOM_MYSQL_MIGRATION_DSN",
@@ -122,6 +123,16 @@ def validate(values: dict[str, str]) -> None:
         raise ValueError("ECOM_TRUSTED_PROXY_CIDRS contains an invalid CIDR") from exc
     if not proxy_networks:
         raise ValueError("ECOM_TRUSTED_PROXY_CIDRS must not be empty")
+    try:
+        metrics_networks = [
+            ipaddress.ip_network(item.strip(), strict=False)
+            for item in values["ECOM_METRICS_ALLOWED_CIDRS"].split(",")
+            if item.strip()
+        ]
+    except ValueError as exc:
+        raise ValueError("ECOM_METRICS_ALLOWED_CIDRS contains an invalid CIDR") from exc
+    if not metrics_networks:
+        raise ValueError("ECOM_METRICS_ALLOWED_CIDRS must not be empty")
 
     access_secret = values["ECOM_ACCESS_TOKEN_SECRET"]
     hmac_secret = values["ECOM_SECURITY_HMAC_SECRET"]

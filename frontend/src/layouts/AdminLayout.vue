@@ -29,6 +29,8 @@ const groupDefinitions = [
   { key: 'people', title: '用户与店铺', icon: '◎', codes: ['users', 'stores'] },
   { key: 'service', title: '服务与内容', icon: '◌', codes: ['support', 'content'] },
   { key: 'ai', title: 'AI 智能中心', icon: '✦', codes: ['ai-center', 'ai-agents', 'ai-skills', 'ai-tools', 'ai-policies', 'knowledge', 'ai-evaluations', 'observability'] },
+  { key: 'governance', title: '运营治理', icon: '◇', codes: ['roles', 'approvals', 'audit'] },
+  { key: 'system', title: '系统运维', icon: '⌘', codes: ['batch-jobs', 'dead-letter-events'] },
 ] as const
 
 const groups = computed(() => groupDefinitions.map((definition) => ({
@@ -111,7 +113,7 @@ watch(() => route.fullPath, () => { sidebarOpen.value = false; profileOpen.value
     <div class="admin-workspace">
       <header class="admin-topbar">
         <div class="admin-topbar-title"><button class="admin-mobile-menu" aria-label="打开导航" @click="sidebarOpen = true">☰</button><div><small>管理工作区</small><strong>{{ currentTitle }}</strong></div></div>
-        <button class="admin-search-trigger" @click="openSearch"><span>⌕</span><span>搜索功能、用户、店铺或订单</span><kbd>⌘ K</kbd></button>
+        <button class="admin-search-trigger" @click="openSearch"><span>⌕</span><span>搜索管理功能</span><kbd>⌘ K</kbd></button>
         <div class="admin-topbar-actions">
           <button v-if="auth.has('support:queue_read')" class="admin-message-trigger" :class="{ unread: unreadCount > 0 }" aria-label="打开消息中心" @click="messageOpen = true"><span>◍</span><span>消息</span><b v-if="unreadCount">{{ unreadCount > 99 ? '99+' : unreadCount }}</b></button>
           <div class="admin-profile-menu" @click.stop><button @click="profileOpen = !profileOpen"><span class="admin-profile-avatar">{{ initials }}</span><span class="admin-profile-copy"><strong>{{ profile?.nickname || '平台管理员' }}</strong><small>{{ profile?.username || '正在载入…' }}</small></span><span>⌄</span></button><div v-if="profileOpen" class="admin-profile-dropdown"><button @click="logout">退出登录</button></div></div>
@@ -120,7 +122,7 @@ watch(() => route.fullPath, () => { sidebarOpen.value = false; profileOpen.value
       <main class="admin-content"><RouterView :key="route.path" /></main>
     </div>
 
-    <div v-if="searchOpen" class="admin-command-overlay" @click.self="searchOpen = false"><section class="admin-command-panel" role="dialog" aria-modal="true" aria-label="全局功能搜索"><header><span>⌕</span><input v-model="searchQuery" class="admin-command-input" placeholder="输入功能名称，例如：用户、订单、Skill" /><kbd>ESC</kbd></header><div class="admin-command-results"><p>{{ searchQuery ? '搜索结果' : '常用功能' }}</p><button v-for="item in searchResults" :key="item.code" @click="chooseSearchResult(item)"><span class="admin-nav-icon">{{ iconFor(item.code) }}</span><span><strong>{{ item.title }}</strong><small>{{ item.route }}</small></span><b>↵</b></button><div v-if="!searchResults.length" class="empty-state">没有找到对应功能</div></div></section></div>
+    <div v-if="searchOpen" class="admin-command-overlay" @click.self="searchOpen = false"><section class="admin-command-panel" role="dialog" aria-modal="true" aria-label="管理功能搜索"><header><span>⌕</span><input v-model="searchQuery" class="admin-command-input" placeholder="输入功能名称，例如：用户治理、审批、Skill" /><kbd>ESC</kbd></header><div class="admin-command-results"><p>{{ searchQuery ? '功能搜索结果' : '常用功能' }}</p><button v-for="item in searchResults" :key="item.code" @click="chooseSearchResult(item)"><span class="admin-nav-icon">{{ iconFor(item.code) }}</span><span><strong>{{ item.title }}</strong><small>{{ item.route }}</small></span><b>↵</b></button><div v-if="!searchResults.length" class="empty-state">没有找到对应管理功能</div></div></section></div>
     <AdminMessageCenter v-if="messageOpen" @close="messageOpen = false" @unread-change="unreadCount = $event" />
   </div>
 </template>

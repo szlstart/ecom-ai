@@ -138,6 +138,7 @@ def validate_compose(rendered: str) -> None:
         "agent-runtime-worker",
         "knowledge-indexer",
         "ai-memory-cleanup-worker",
+        "account-deletion-worker",
     }
     if set(services) != expected:
         raise ValueError(

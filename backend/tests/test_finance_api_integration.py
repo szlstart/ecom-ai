@@ -11,6 +11,7 @@ from app.core.security import SecurityService
 from app.database.mysql import mysql_session
 from app.modules.identity.models import User
 from app.modules.stores.models import Store
+from app.workers.account_deletion_worker import process_one
 
 pytestmark = [
     pytest.mark.integration,
@@ -74,7 +75,9 @@ async def test_merchant_zero_revenue_and_physical_account_deletion(
         headers=headers,
         json={"confirmation": "DELETE_MY_STORE_AND_ACCOUNT"},
     )
-    assert deletion.status_code == 204, deletion.text
+    assert deletion.status_code == 202, deletion.text
+    assert deletion.json()["data"]["status"] == "requested"
+    assert await process_one(None) is True
     async for session in mysql_session():
         assert await session.scalar(select(User).where(User.username == username)) is None
         assert (

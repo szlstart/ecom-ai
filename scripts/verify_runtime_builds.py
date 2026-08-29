@@ -16,6 +16,7 @@ BACKEND_SERVICES = (
     "agent-runtime-worker",
     "knowledge-indexer",
     "ai-memory-cleanup-worker",
+    "account-deletion-worker",
 )
 
 

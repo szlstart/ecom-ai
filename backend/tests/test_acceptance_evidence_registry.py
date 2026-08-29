@@ -29,4 +29,4 @@ def test_acceptance_audit_resolves_exact_test_and_domain_evidence(tmp_path: Path
     assert report["summary"]["finding_count"] == 0
     assert report["summary"]["registered_test_families"] >= 77
     assert report["summary"]["collected_test_selectors"] >= 231
-    assert report["summary"]["domain_aggregates_with_evidence"] == 14
+    assert report["summary"]["domain_aggregates_with_evidence"] == 15

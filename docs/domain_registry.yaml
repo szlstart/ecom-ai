@@ -15,6 +15,15 @@ defaults:
     lock_aggregate_for_write: true
     idempotency_returns_first_result: true
 aggregates:
+  account_deletion_task:
+    field: task_status
+    states: [requested, running, retryable, manual_review, completed]
+    terminal_states: [manual_review, completed]
+    transitions:
+      - {command: StartAccountDeletion, from: [requested, retryable], to: running, event: account.deletion_started}
+      - {command: RetryAccountDeletion, from: [running], to: retryable, event: account.deletion_retry_scheduled}
+      - {command: EscalateAccountDeletion, from: [running], to: manual_review, event: account.deletion_manual_review_requested}
+      - {command: CompleteAccountDeletion, from: [running], to: completed, event: account.deletion_completed}
   store:
     field: store_status
     states: [active, suspended]

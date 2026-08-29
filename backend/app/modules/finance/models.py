@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -98,3 +99,39 @@ class WalletTransaction(AppendOnlyMySQLModel, MySQLBase):
     channel: Mapped[str | None] = mapped_column(String(16))
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+
+
+class AccountDeletionTask(MutableMySQLModel, MySQLBase):
+    """Durable cross-system account deletion saga.
+
+    Deliberately has no foreign key to ``users`` or ``stores``: the task is the
+    audit/recovery record that must remain after the subject rows are removed.
+    """
+
+    __tablename__ = "account_deletion_tasks"
+    __table_args__ = (
+        UniqueConstraint("task_no", name="uk_account_deletion_tasks_no"),
+        UniqueConstraint("user_no", name="uk_account_deletion_tasks_user"),
+        Index(
+            "idx_account_deletion_tasks_delivery",
+            "task_status",
+            "available_at",
+            "id",
+        ),
+    )
+
+    task_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    subject_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    user_no: Mapped[str] = mapped_column(String(40), nullable=False)
+    store_nos: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    task_status: Mapped[str] = mapped_column(String(24), nullable=False, default="requested")
+    current_phase: Mapped[str] = mapped_column(String(32), nullable=False)
+    inventory: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    attempt_count: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    max_attempts: Mapped[int] = mapped_column(nullable=False, default=12, server_default="12")
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    last_error_code: Mapped[str | None] = mapped_column(String(64))
+    last_error: Mapped[str | None] = mapped_column(String(1000))
+    trace_id: Mapped[str] = mapped_column(String(64), nullable=False)

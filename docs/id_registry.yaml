@@ -83,6 +83,7 @@ resources:
   audit: {prefix: aud_, owner: audit}
   notification_task: {prefix: ntf_, owner: notifications}
   batch_job: {prefix: job_, url_allowed: true, owner: jobs}
+  account_deletion_task: {prefix: adt_, url_allowed: true, owner: finance}
   dead_letter: {prefix: dlq_, url_allowed: true, owner: events}
   knowledge_document: {prefix: doc_, url_allowed: true, owner: knowledge}
   knowledge_chunk: {prefix: kch_, owner: knowledge}

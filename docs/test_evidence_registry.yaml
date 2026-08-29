@@ -8,6 +8,7 @@ description: >-
 allowed_layers: [unit, contract, integration, ui, e2e, accessibility, security, migration, operations]
 families:
   ADDRESS: {layers: [integration], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
+  ACCOUNT-DELETION: {layers: [unit, integration], selectors: [backend/tests/test_account_deletion_worker.py::test_account_deletion_object_cleanup_is_idempotent_for_missing_objects, backend/tests/test_finance_api_integration.py::test_merchant_zero_revenue_and_physical_account_deletion]}
   ADM-AGENT: {layers: [integration], selectors: [backend/tests/test_admin_agent_runtime_integration.py::test_admin_can_cancel_only_unexecuted_agent_run_with_audit_and_idempotency]}
   ADM-AI-POLICY: {layers: [contract, integration, security], selectors: [backend/tests/test_admin_ai_governance_api_integration.py::test_admin_dashboard_observability_evaluation_policy_and_skill_lifecycle]}
   ADM-AI-RUN: {layers: [contract, integration], selectors: [backend/tests/test_agent_runtime_contract.py::test_admin_agent_run_contract_is_redacted_and_concurrency_guarded, backend/tests/test_admin_agent_runtime_integration.py::test_admin_can_cancel_only_unexecuted_agent_run_with_audit_and_idempotency]}
@@ -87,6 +88,7 @@ families:
   STORE: {layers: [contract, integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}
   SYSTEM-STATE: {layers: [ui], selectors: ["frontend/src/router/routes.test.ts::registers deterministic recovery routes"]}
 domain_aggregates:
+  account_deletion_task: [ACCOUNT-DELETION]
   store: [ADM-STORE]
   store_service_policy: [ADM-POLICY]
   shipping_template: [ADM-STORE]

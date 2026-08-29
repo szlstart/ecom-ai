@@ -45,6 +45,7 @@ def test_local_app_up_recreates_and_verifies_every_backend_runtime() -> None:
         "agent-runtime-worker",
         "knowledge-indexer",
         "ai-memory-cleanup-worker",
+        "account-deletion-worker",
     ):
         assert f'"{service}"' in verifier
 

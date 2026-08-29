@@ -10,6 +10,7 @@ from app.modules.finance.dependencies import (
 )
 from app.modules.finance.schemas import (
     AccountDeletionRequest,
+    AccountDeletionTaskView,
     AdminStoreRevenueView,
     MerchantAccountDeletionRequest,
     MerchantRevenueView,
@@ -31,30 +32,48 @@ account_router = APIRouter(prefix="/users/me", tags=["current-user"])
 
 @account_router.delete(
     "",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=Envelope[AccountDeletionTaskView],
     operation_id="UserAccount_DeleteMine",
 )
 async def delete_user_account(
     payload: AccountDeletionRequest,
     context: UserContext,
     service: AccountDeletionServiceDependency,
-) -> None:
+) -> Envelope[AccountDeletionTaskView]:
     del payload
-    await service.delete_consumer(context.user)
+    task = await service.delete_consumer(context.user)
+    return Envelope(
+        data=AccountDeletionTaskView(
+            task_id=task.task_no,
+            status=task.task_status,
+            phase=task.current_phase,
+            requested_at=task.created_at,
+        )
+    )
 
 
 @merchant_router.delete(
     "/account",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=Envelope[AccountDeletionTaskView],
     operation_id="MerchantAccount_DeleteMine",
 )
 async def delete_merchant_account(
     payload: MerchantAccountDeletionRequest,
     context: MerchantContext,
     service: AccountDeletionServiceDependency,
-) -> None:
+) -> Envelope[AccountDeletionTaskView]:
     del payload
-    await service.delete_merchant(context.user)
+    task = await service.delete_merchant(context.user)
+    return Envelope(
+        data=AccountDeletionTaskView(
+            task_id=task.task_no,
+            status=task.task_status,
+            phase=task.current_phase,
+            requested_at=task.created_at,
+        )
+    )
 
 
 @router.get("", response_model=Envelope[WalletView], operation_id="UserWallet_GetMine")

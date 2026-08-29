@@ -150,6 +150,13 @@ services:
     depends_on: !reset {}
     environment: *api-environment
 
+  account-deletion-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
   frontend:
     build: !reset null
     image: ${ECOM_FRONTEND_IMAGE:?ECOM_FRONTEND_IMAGE must be pinned by sha256 digest}

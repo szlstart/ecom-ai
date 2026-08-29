@@ -2862,8 +2862,15 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "Successful Response"
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AccountDeletionTaskView_"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -6163,8 +6170,15 @@
           "required": true
         },
         "responses": {
-          "204": {
-            "description": "Successful Response"
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AccountDeletionTaskView_"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -36462,6 +36476,43 @@
         ],
         "title": "AccountDeletionRequest"
       },
+      "AccountDeletionTaskView": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "running",
+              "retryable",
+              "manual_review",
+              "completed"
+            ],
+            "title": "Status"
+          },
+          "phase": {
+            "type": "string",
+            "title": "Phase"
+          },
+          "requested_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Requested At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_id",
+          "status",
+          "phase",
+          "requested_at"
+        ],
+        "title": "AccountDeletionTaskView"
+      },
       "AddressList": {
         "properties": {
           "items": {
@@ -45543,6 +45594,21 @@
           "status"
         ],
         "title": "DependencyStatus"
+      },
+      "Envelope_AccountDeletionTaskView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AccountDeletionTaskView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[AccountDeletionTaskView]"
       },
       "Envelope_AddressList_": {
         "properties": {

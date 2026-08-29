@@ -151,7 +151,7 @@ async function pasteLogo(event: ClipboardEvent) {
 }
 
 async function deleteAccount() {
-  if (!store.value || !confirm(`确定永久注销“${store.value.store_name}”及其商家账号吗？\n\n未产生订单时，店铺、商品和账号数据会立即从数据库删除，且无法恢复。`)) return
+  if (!store.value || !confirm(`确定永久注销“${store.value.store_name}”及其商家账号吗？\n\n提交后会立即退出，后台将按可重试清理任务删除未产生交易的店铺、商品、文件和账号数据。`)) return
   deleting.value = true
   deleteError.value = ''
   try {
@@ -179,7 +179,7 @@ onMounted(load)
           <form class="card" @submit.prevent="changeEmail"><p class="eyebrow">账号安全</p><h2>更换邮箱</h2><label>当前邮箱<input :value="account.current_email" disabled placeholder="尚未设置邮箱" /></label><label>新的邮箱<input v-model.trim="account.new_email" type="email" required placeholder="输入新的完整邮箱" /></label><button :disabled="saving">确认更换邮箱</button></form>
           <form class="card" @submit.prevent="changePassword"><p class="eyebrow">登录密码</p><h2>修改密码</h2><label>当前密码<input v-model="account.current_password" type="password" autocomplete="current-password" required /></label><label>新密码<input v-model="account.new_password" type="password" autocomplete="new-password" required placeholder="不能为空且不能包含空白字符" /></label><button :disabled="saving">确认修改密码</button></form>
         </section>
-        <article class="card danger-zone"><div><p class="eyebrow danger-text">不可恢复</p><h2>注销店铺账号</h2><p>仅未产生任何订单的店铺可以直接注销。确认后会永久删除店铺、商品、商家账号及其非交易数据。</p></div><button class="danger" type="button" :disabled="deleting" @click="deleteAccount">{{ deleting ? '正在注销…' : '注销店铺与账号' }}</button><p v-if="deleteError" class="alert error" role="alert">{{ deleteError }}</p></article>
+        <article class="card danger-zone"><div><p class="eyebrow danger-text">不可恢复</p><h2>注销店铺账号</h2><p>仅未产生任何订单的店铺可以物理注销。提交后立即退出并禁止再次登录，后台会按可审计、可重试的清理任务删除店铺、商品、文件和账号数据。</p></div><button class="danger" type="button" :disabled="deleting" @click="deleteAccount">{{ deleting ? '正在提交注销任务…' : '注销店铺与账号' }}</button><p v-if="deleteError" class="alert error" role="alert">{{ deleteError }}</p></article>
       </template>
     </PageState>
     <Teleport to="body"><div v-if="statusConfirmOpen && store" class="admin-form-overlay" @click.self="statusConfirmOpen = false"><section class="admin-form-dialog merchant-status-confirm" role="dialog" aria-modal="true" aria-labelledby="merchant-store-status-title"><header><div><p class="eyebrow">营业状态确认</p><h2 id="merchant-store-status-title">{{ store.status === 'active' ? '确认暂停营业？' : '确认恢复营业？' }}</h2><p>{{ store.status === 'active' ? '暂停后不再接收新订单，已有订单、售后和顾客消息仍需正常处理。' : '恢复后，所有销售中的商品会重新允许顾客购买。' }}</p></div><button type="button" aria-label="关闭" @click="statusConfirmOpen = false">×</button></header><footer><button type="button" class="secondary" @click="statusConfirmOpen = false">取消</button><button type="button" :class="store.status === 'active' ? 'danger' : ''" :disabled="saving" @click="changeStoreStatus">{{ store.status === 'active' ? '确认暂停营业' : '确认恢复营业' }}</button></footer></section></div></Teleport>

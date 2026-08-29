@@ -84,3 +84,10 @@ class AccountDeletionRequest(StrictRequest):
 
 class MerchantAccountDeletionRequest(StrictRequest):
     confirmation: Literal["DELETE_MY_STORE_AND_ACCOUNT"]
+
+
+class AccountDeletionTaskView(StrictRequest):
+    task_id: str
+    status: Literal["requested", "running", "retryable", "manual_review", "completed"]
+    phase: str
+    requested_at: datetime

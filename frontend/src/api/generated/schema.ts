@@ -5343,6 +5343,23 @@ export interface components {
              */
             confirmation: "DELETE_MY_ACCOUNT";
         };
+        /** AccountDeletionTaskView */
+        AccountDeletionTaskView: {
+            /** Task Id */
+            task_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "requested" | "running" | "retryable" | "manual_review" | "completed";
+            /** Phase */
+            phase: string;
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+        };
         /** AddressList */
         AddressList: {
             /** Items */
@@ -8216,6 +8233,11 @@ export interface components {
              * @enum {string}
              */
             status: "up" | "down" | "skipped";
+        };
+        /** Envelope[AccountDeletionTaskView] */
+        Envelope_AccountDeletionTaskView_: {
+            data: components["schemas"]["AccountDeletionTaskView"];
+            meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AddressList] */
         Envelope_AddressList_: {
@@ -13578,11 +13600,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Envelope_AccountDeletionTaskView_"];
+                };
             };
             401: components["responses"]["Problem401"];
             409: components["responses"]["Problem409"];
@@ -15039,11 +15063,13 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["Envelope_AccountDeletionTaskView_"];
+                };
             };
             401: components["responses"]["Problem401"];
             409: components["responses"]["Problem409"];

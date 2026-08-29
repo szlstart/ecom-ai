@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     object_storage_access_key: str = ""
     object_storage_secret_key: str = ""
     object_storage_region: str = "us-east-1"
+    object_storage_bucket_prefix: str = ""
     object_storage_presign_seconds: int = Field(default=600, ge=60, le=3600)
     file_scanner_enabled: bool = False
     file_scanner_host: str = "127.0.0.1"
@@ -111,6 +112,21 @@ class Settings(BaseSettings):
     @classmethod
     def empty_agent_model_values_are_unconfigured(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("object_storage_bucket_prefix")
+    @classmethod
+    def valid_object_storage_bucket_prefix(cls, value: str) -> str:
+        if not value:
+            return value
+        if len(value) > 32 or not value.endswith("-"):
+            raise ValueError(
+                "object storage bucket prefix must end with '-' and be at most 32 chars"
+            )
+        if not all(char.islower() or char.isdigit() or char == "-" for char in value):
+            raise ValueError(
+                "object storage bucket prefix may contain lowercase letters, digits and '-'"
+            )
+        return value
 
     @model_validator(mode="after")
     def reject_development_secrets_in_production(self) -> "Settings":

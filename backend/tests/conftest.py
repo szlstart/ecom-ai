@@ -8,8 +8,14 @@ os.environ["ECOM_READINESS_CHECKS_ENABLED"] = "false"
 os.environ.setdefault("ECOM_DEBUG_VERIFICATION_CODE", "000000")
 
 from app.core.config import get_settings
+from app.core.testing_safety import validate_requested_test_environment
 from app.database.redis import get_redis
 from app.main import create_app
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    del session
+    validate_requested_test_environment()
 
 
 async def _clear_test_auth_rate_limits() -> None:

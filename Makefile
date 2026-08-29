@@ -2,6 +2,7 @@ CONDA_ENV ?= ecom-ai
 CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
 PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
+ACCEPTANCE_ENV := ECOM_ENVIRONMENT=testing ECOM_RUN_INTEGRATION_TESTS=1 ECOM_RUN_FILE_INTEGRATION_TESTS=1 ECOM_OBJECT_STORAGE_ENABLED=true ECOM_OBJECT_STORAGE_ACCESS_KEY=$${ECOM_OBJECT_STORAGE_ACCESS_KEY:-local-minio-admin} ECOM_OBJECT_STORAGE_SECRET_KEY=$${ECOM_OBJECT_STORAGE_SECRET_KEY:-local-minio-change-me} ECOM_OBJECT_STORAGE_BUCKET_PREFIX=$${ECOM_OBJECT_STORAGE_BUCKET_PREFIX:-test-acceptance-} ECOM_FILE_SCANNER_ENABLED=true ECOM_FILE_SCANNER_HOST=$${ECOM_FILE_SCANNER_HOST:-127.0.0.1} ECOM_FILE_SCANNER_PORT=$${ECOM_FILE_SCANNER_PORT:-13310}
 
 .PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-evidence agent-security-test build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap merchant-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
 
@@ -34,11 +35,12 @@ test:
 
 acceptance-test: build
 	mkdir -p artifacts/acceptance/current/quality artifacts/acceptance/current/database artifacts/acceptance/current/agent
+	cd backend && $(ACCEPTANCE_ENV) $(PYTHON) -m app.core.testing_safety
 	cd backend && $(PYTHON) -m alembic -c alembic.mysql.ini current > ../artifacts/acceptance/current/database/mysql-schema-drift.txt
 	cd backend && $(PYTHON) -m alembic -c alembic.mysql.ini check >> ../artifacts/acceptance/current/database/mysql-schema-drift.txt 2>&1
 	cd backend && $(PYTHON) -m alembic -c alembic.postgres.ini current > ../artifacts/acceptance/current/database/postgres-schema-drift.txt
 	cd backend && $(PYTHON) -m alembic -c alembic.postgres.ini check >> ../artifacts/acceptance/current/database/postgres-schema-drift.txt 2>&1
-	cd backend && ECOM_RUN_INTEGRATION_TESTS=1 ECOM_RUN_FILE_INTEGRATION_TESTS=1 ECOM_OBJECT_STORAGE_ENABLED=true ECOM_OBJECT_STORAGE_ACCESS_KEY=$${ECOM_OBJECT_STORAGE_ACCESS_KEY:-local-minio-admin} ECOM_OBJECT_STORAGE_SECRET_KEY=$${ECOM_OBJECT_STORAGE_SECRET_KEY:-local-minio-change-me} ECOM_FILE_SCANNER_ENABLED=true ECOM_FILE_SCANNER_HOST=$${ECOM_FILE_SCANNER_HOST:-127.0.0.1} ECOM_FILE_SCANNER_PORT=$${ECOM_FILE_SCANNER_PORT:-13310} $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/quality/backend-junit.xml --cov=app --cov-fail-under=60 --cov-report=term:skip-covered --cov-report=xml:../artifacts/acceptance/current/quality/backend-coverage.xml
+	cd backend && $(ACCEPTANCE_ENV) $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/quality/backend-junit.xml --cov=app --cov-fail-under=60 --cov-report=term:skip-covered --cov-report=xml:../artifacts/acceptance/current/quality/backend-coverage.xml
 	cd frontend && pnpm test --reporter=junit --outputFile=../artifacts/acceptance/current/quality/frontend-junit.xml
 	cd frontend && pnpm test:e2e
 	$(MAKE) agent-security-test
@@ -50,7 +52,7 @@ acceptance-evidence:
 
 agent-security-test:
 	mkdir -p artifacts/acceptance/current/agent
-	cd backend && ECOM_RUN_INTEGRATION_TESTS=1 $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/agent/security-tests.xml tests/test_prompt_safety.py tests/test_store_agent_integration.py::test_store_agent_scope_context_tools_and_handoff tests/test_exclusive_agent_integration.py::test_exclusive_agent_refund_requires_consent_and_button_approval tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry
+	cd backend && $(ACCEPTANCE_ENV) $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/agent/security-tests.xml tests/test_prompt_safety.py tests/test_store_agent_integration.py::test_store_agent_scope_context_tools_and_handoff tests/test_exclusive_agent_integration.py::test_exclusive_agent_refund_requires_consent_and_button_approval tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry
 
 build:
 	cd frontend && pnpm build

@@ -50,24 +50,37 @@ class MinioObjectStorage:
         self.public = _client(settings.object_storage_public_endpoint, settings)
 
     async def ensure_bucket(self, bucket: str) -> None:
+        physical_bucket = self._physical_bucket(bucket)
+
         def operation() -> None:
-            if not self.internal.bucket_exists(bucket):
-                self.internal.make_bucket(bucket, location=self.settings.object_storage_region)
+            if not self.internal.bucket_exists(physical_bucket):
+                self.internal.make_bucket(
+                    physical_bucket, location=self.settings.object_storage_region
+                )
 
         await self._call(operation)
 
     async def presign_put(self, bucket: str, object_key: str, expires: timedelta) -> str:
+        physical_bucket = self._physical_bucket(bucket)
         return await self._call(
-            lambda: self.public.presigned_put_object(bucket, object_key, expires=expires)
+            lambda: self.public.presigned_put_object(
+                physical_bucket, object_key, expires=expires
+            )
         )
 
     async def presign_get(self, bucket: str, object_key: str, expires: timedelta) -> str:
+        physical_bucket = self._physical_bucket(bucket)
         return await self._call(
-            lambda: self.public.presigned_get_object(bucket, object_key, expires=expires)
+            lambda: self.public.presigned_get_object(
+                physical_bucket, object_key, expires=expires
+            )
         )
 
     async def stat(self, bucket: str, object_key: str) -> ObjectMetadata:
-        item = await self._call(lambda: self.internal.stat_object(bucket, object_key))
+        physical_bucket = self._physical_bucket(bucket)
+        item = await self._call(
+            lambda: self.internal.stat_object(physical_bucket, object_key)
+        )
         if item.size is None:
             raise _unavailable()
         return ObjectMetadata(
@@ -79,8 +92,10 @@ class MinioObjectStorage:
         )
 
     async def read(self, bucket: str, object_key: str, max_bytes: int) -> bytes:
+        physical_bucket = self._physical_bucket(bucket)
+
         def operation() -> bytes:
-            response = self.internal.get_object(bucket, object_key)
+            response = self.internal.get_object(physical_bucket, object_key)
             try:
                 payload = response.read(max_bytes + 1)
             finally:
@@ -101,10 +116,11 @@ class MinioObjectStorage:
         self, bucket: str, object_key: str, data: bytes, content_type: str
     ) -> ObjectMetadata:
         await self.ensure_bucket(bucket)
+        physical_bucket = self._physical_bucket(bucket)
 
         def operation() -> ObjectMetadata:
             result = self.internal.put_object(
-                bucket,
+                physical_bucket,
                 object_key,
                 io.BytesIO(data),
                 len(data),
@@ -121,7 +137,13 @@ class MinioObjectStorage:
         return await self._call(operation)
 
     async def remove(self, bucket: str, object_key: str) -> None:
-        await self._call(lambda: self.internal.remove_object(bucket, object_key))
+        physical_bucket = self._physical_bucket(bucket)
+        await self._call(
+            lambda: self.internal.remove_object(physical_bucket, object_key)
+        )
+
+    def _physical_bucket(self, bucket: str) -> str:
+        return f"{self.settings.object_storage_bucket_prefix}{bucket}"
 
     async def _call[ResultT](self, operation: Callable[[], ResultT]) -> ResultT:
         try:

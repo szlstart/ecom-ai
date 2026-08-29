@@ -99,16 +99,24 @@ onMounted(load)
       <button v-if="auth.has('stores:manage')" @click="createOpen = true">＋ 创建店铺</button>
     </header>
 
-    <div class="admin-entity-stats admin-store-status-filters" aria-label="按经营状态筛选店铺">
-      <button type="button" :class="{ active: status === '' }" :aria-pressed="status === ''" @click="chooseStatus('')"><span class="blue">店</span><div><small>全部</small><strong>{{ items.length }}</strong></div></button>
-      <button type="button" :class="{ active: status === 'active' }" :aria-pressed="status === 'active'" @click="chooseStatus('active')"><span class="green">营</span><div><small>营业中</small><strong>{{ activeCount }}</strong></div></button>
-      <button type="button" :class="{ active: status === 'suspended' }" :aria-pressed="status === 'suspended'" @click="chooseStatus('suspended')"><span class="red">停</span><div><small>已暂停</small><strong>{{ pausedCount }}</strong></div></button>
-    </div>
-
-    <section class="admin-list-panel">
-      <header class="admin-list-toolbar">
+    <section class="admin-operations-board">
+      <div class="admin-entity-stats admin-store-status-filters admin-operations-status" aria-label="按经营状态筛选店铺">
+        <button type="button" :class="{ active: status === '' }" :aria-pressed="status === ''" @click="chooseStatus('')"><span class="blue">店</span><div><small>全部</small><strong>{{ items.length }}</strong></div></button>
+        <button type="button" :class="{ active: status === 'active' }" :aria-pressed="status === 'active'" @click="chooseStatus('active')"><span class="green">营</span><div><small>营业中</small><strong>{{ activeCount }}</strong></div></button>
+        <button type="button" :class="{ active: status === 'suspended' }" :aria-pressed="status === 'suspended'" @click="chooseStatus('suspended')"><span class="red">停</span><div><small>已暂停</small><strong>{{ pausedCount }}</strong></div></button>
+      </div>
+      <header class="admin-list-toolbar admin-operations-toolbar">
         <form class="admin-store-search-form" role="search" @submit.prevent="applySearch"><label class="admin-inline-search"><span>⌕</span><input v-model="searchInput" aria-label="搜索店铺名称" placeholder="搜索店铺名称" /></label><button type="submit">搜索</button></form>
-        <div class="admin-store-sort"><label>排序<select v-model="sortBy" aria-label="店铺排序"><option value="default">默认排序</option><option value="revenue">营业额</option><option value="sales">销量</option><option value="products">商品数量</option><option value="rating_desc">评价从高到低</option><option value="rating_asc">评价从低到高</option></select></label><small class="admin-filter-summary">{{ status ? statusLabel(status) : '全部店铺' }} · {{ visible.length }} 家</small></div>
+        <div class="admin-visible-sort" role="group" aria-label="店铺排序">
+          <span>排序</span>
+          <button type="button" :class="{ active: sortBy === 'default' }" :aria-pressed="sortBy === 'default'" @click="sortBy = 'default'">综合排序</button>
+          <button type="button" :class="{ active: sortBy === 'revenue' }" :aria-pressed="sortBy === 'revenue'" @click="sortBy = 'revenue'">营业额</button>
+          <button type="button" :class="{ active: sortBy === 'sales' }" :aria-pressed="sortBy === 'sales'" @click="sortBy = 'sales'">销量</button>
+          <button type="button" :class="{ active: sortBy === 'products' }" :aria-pressed="sortBy === 'products'" @click="sortBy = 'products'">商品数量</button>
+          <button type="button" :class="{ active: sortBy === 'rating_desc' }" :aria-pressed="sortBy === 'rating_desc'" @click="sortBy = 'rating_desc'">评价从高到低</button>
+          <button type="button" :class="{ active: sortBy === 'rating_asc' }" :aria-pressed="sortBy === 'rating_asc'" @click="sortBy = 'rating_asc'">评价从低到高</button>
+        </div>
+        <small class="admin-filter-summary">{{ status ? statusLabel(status) : '全部店铺' }} · {{ visible.length }} 家</small>
       </header>
       <PageState :loading="loading" :error="error" :empty="!loading && !error && visible.length === 0" empty-title="没有匹配的店铺" @retry="load">
         <div class="admin-store-grid">

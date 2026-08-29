@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "3bea556a8a6a8c68b83ce171496b9e25f72ab9d7aac84c94cec13d3e5964e4b8"
+SOURCE_SHA256 = "bb3f1e24d8b29e6e325a2b11835e546109a293bc6c4e37400b485d984eac9e78"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",

@@ -59,8 +59,12 @@ describe('AdminStoreListPage', () => {
 
     await wrapper.get('input[aria-label="搜索店铺名称"]').setValue('')
     await wrapper.get('.admin-store-search-form').trigger('submit')
-    await wrapper.get('select[aria-label="店铺排序"]').setValue('revenue')
+    await wrapper.get('.admin-visible-sort button:nth-of-type(2)').trigger('click')
     expect(wrapper.findAll('.admin-store-card h2').map((node) => node.text())).toEqual(['生活杂货铺', '晨光文具店'])
+    expect(wrapper.get('.admin-visible-sort button:nth-of-type(2)').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('select[aria-label="店铺排序"]').exists()).toBe(false)
+    expect(wrapper.get('.admin-operations-board').find('.admin-operations-status').exists()).toBe(true)
+    expect(wrapper.get('.admin-operations-board').find('.admin-store-grid').exists()).toBe(true)
     expect(wrapper.text()).toContain('¥1260.00')
     expect(wrapper.text()).toContain('商品数量')
     expect(wrapper.text()).toContain('评价从低到高')

@@ -26,7 +26,7 @@ class DeadLetterView(StrictRequest):
     last_replay_at: datetime | None
     original_trace_id: str | None
     replay_trace_id: str | None
-    available_actions: list[Literal["preview_replay"]]
+    available_actions: list[Literal["preview_replay", "ignore"]]
     version: int
 
 
@@ -48,5 +48,10 @@ class DeadLetterReplayPreview(StrictRequest):
 
 class DeadLetterReplayRequest(StrictRequest):
     preview_token: str = Field(min_length=40, max_length=4096)
+    reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
+    reason: str = Field(min_length=5, max_length=1000)
+
+
+class DeadLetterIgnoreRequest(StrictRequest):
     reason_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
     reason: str = Field(min_length=5, max_length=1000)

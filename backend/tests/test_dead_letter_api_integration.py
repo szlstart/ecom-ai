@@ -159,3 +159,26 @@ async def test_dead_letter_preview_requires_immutable_payload_and_dual_control(
             "events.dead_letter.replay.v1"
             in AdminApprovalWorker(session, settings, security).executor.handlers
         )
+
+    ignored = await client.post(
+        f"/api/v1/admin/dead-letter-events/{dead_no}/ignore",
+        headers={**headers, "If-Match": preview.headers["etag"]},
+        json={
+            "reason_code": "OBSOLETE_EVENT",
+            "reason": "集成测试确认该历史事件不再对应有效业务主体",
+        },
+    )
+    assert ignored.status_code == 200, ignored.text
+    assert ignored.json()["data"]["status"] == "ignored"
+    assert ignored.json()["data"]["available_actions"] == []
+    async for session in mysql_session():
+        loaded_source = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.event_no == source_no)
+        )
+        loaded_dead = await session.scalar(
+            select(DeadLetterEvent).where(DeadLetterEvent.dead_letter_no == dead_no)
+        )
+        assert loaded_source is not None and loaded_source.event_status == "failed"
+        assert loaded_dead is not None and loaded_dead.dead_status == "ignored"
+        assert loaded_dead.resolved_by is not None
+        assert loaded_dead.resolved_at is not None

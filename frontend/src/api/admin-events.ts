@@ -20,7 +20,7 @@ export interface DeadLetterEvent {
   last_replay_at: string | null
   original_trace_id: string | null
   replay_trace_id: string | null
-  available_actions: Array<'preview_replay'>
+  available_actions: Array<'preview_replay' | 'ignore'>
   version: number
 }
 export interface DeadLetterReplayPreview {
@@ -38,3 +38,4 @@ export function listAdminDeadLetters(filters: Record<string, string>, token: str
 export function getAdminDeadLetter(id: string, token: string): Promise<ApiResult<DeadLetterEvent>> { return apiRequest(`/admin/dead-letter-events/${encodeURIComponent(id)}`, {}, token) }
 export function previewAdminDeadLetterReplay(id: string, token: string): Promise<ApiResult<DeadLetterReplayPreview>> { return apiRequest(`/admin/dead-letter-events/${encodeURIComponent(id)}/replay-previews`, { method: 'POST' }, token) }
 export function replayAdminDeadLetter(id: string, etag: string, previewToken: string, reasonCode: string, reason: string, token: string): Promise<ApiResult<{ command_status: 'approval_required'; approval_request_id: string; required_approval_count: number; approved_count: number; expires_at: string }>> { return apiRequest(`/admin/dead-letter-events/${encodeURIComponent(id)}/replays`, { method: 'POST', headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey('admin-dead-letter-replay') }, body: JSON.stringify({ preview_token: previewToken, reason_code: reasonCode, reason }) }, token) }
+export function ignoreAdminDeadLetter(id: string, etag: string, reason: string, token: string): Promise<ApiResult<DeadLetterEvent>> { return apiRequest(`/admin/dead-letter-events/${encodeURIComponent(id)}/ignore`, { method: 'POST', headers: { 'If-Match': etag }, body: JSON.stringify({ reason_code: 'OBSOLETE_EVENT', reason }) }, token) }

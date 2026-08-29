@@ -5422,6 +5422,125 @@
         ]
       }
     },
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}/ignore": {
+      "post": {
+        "tags": [
+          "event-administration"
+        ],
+        "summary": "Ignore Dead Letter",
+        "operationId": "AdminDeadLetter_Ignore",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dead_letter_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dead Letter Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeadLetterIgnoreRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_DeadLetterView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminDeadLetter_Ignore",
+        "x-domain-command": "AdminDeadLetter_Ignore",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "events:operate"
+        ],
+        "x-requirement-id": [
+          "ADM-DLQ-01"
+        ],
+        "x-scope-policy": [
+          "events:read",
+          "events:operate"
+        ],
+        "x-test-case-ids": [
+          "ADM-DLQ-*"
+        ]
+      }
+    },
     "/api/v1/file-upload-policies/{purpose}": {
       "get": {
         "tags": [
@@ -45583,6 +45702,28 @@
         ],
         "title": "ConversationView"
       },
+      "DeadLetterIgnoreRequest": {
+        "properties": {
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$",
+            "title": "Reason Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 5,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason_code",
+          "reason"
+        ],
+        "title": "DeadLetterIgnoreRequest"
+      },
       "DeadLetterList": {
         "properties": {
           "items": {
@@ -45810,7 +45951,10 @@
           "available_actions": {
             "items": {
               "type": "string",
-              "const": "preview_replay"
+              "enum": [
+                "preview_replay",
+                "ignore"
+              ]
             },
             "type": "array",
             "title": "Available Actions"

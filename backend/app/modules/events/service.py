@@ -13,6 +13,7 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, canonical_request_hash, utc_now
 from app.modules.events.repository import DeadLetterRepository
 from app.modules.events.schemas import (
+    DeadLetterIgnoreRequest,
     DeadLetterList,
     DeadLetterReplayPreview,
     DeadLetterReplayRequest,
@@ -255,6 +256,47 @@ class DeadLetterService:
         await self.session.flush()
         return item
 
+    async def ignore(
+        self,
+        access: AdminAccess,
+        dead_letter_no: str,
+        payload: DeadLetterIgnoreRequest,
+        expected_version: int,
+    ) -> DeadLetterView:
+        item = await self.repository.by_no(dead_letter_no, for_update=True)
+        if item is None:
+            raise _not_found()
+        access.require_scope(item.scope_type, item.scope_id)
+        if item.version != expected_version:
+            raise _conflict("DEAD_LETTER_VERSION_CONFLICT", "死信版本已变化，请刷新后重试。")
+        if item.dead_status != "open":
+            raise _conflict("DEAD_LETTER_NOT_OPEN", "只有待处理死信可以标记为忽略。")
+        now = utc_now()
+        before_version = item.version
+        item.dead_status = "ignored"
+        item.resolved_by = access.context.user.id
+        item.resolved_at = now
+        item.resolution_note = f"{payload.reason_code}: {payload.reason}"[:1000]
+        item.version += 1
+        record_admin_operation(
+            self.session,
+            access,
+            action="ignore_dead_letter",
+            target_type="dead_letter_event",
+            target_no=item.dead_letter_no,
+            reason=payload.reason,
+            before={"status": "open", "version": before_version},
+            after={
+                "status": "ignored",
+                "version": item.version,
+                "reason_code": payload.reason_code,
+            },
+            scope_type=item.scope_type,
+            scope_id=item.scope_id,
+        )
+        await self.session.commit()
+        return _view(item)
+
     def _decode_preview(self, value: str) -> dict[str, object]:
         try:
             ciphertext = base64.urlsafe_b64decode(value.encode())
@@ -307,8 +349,8 @@ def _view(item: DeadLetterEvent) -> DeadLetterView:
         original_trace_id=item.original_trace_id,
         replay_trace_id=item.replay_trace_id,
         available_actions=cast(
-            list[Literal["preview_replay"]],
-            ["preview_replay"] if item.dead_status == "open" else [],
+            list[Literal["preview_replay", "ignore"]],
+            ["preview_replay", "ignore"] if item.dead_status == "open" else [],
         ),
         version=item.version,
     )

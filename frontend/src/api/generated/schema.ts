@@ -966,6 +966,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}/ignore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ignore Dead Letter */
+        post: operations["AdminDeadLetter_Ignore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/file-upload-policies/{purpose}": {
         parameters: {
             query?: never;
@@ -8161,6 +8178,13 @@ export interface components {
             /** Active Contexts */
             active_contexts?: components["schemas"]["ConversationContextView"][];
         };
+        /** DeadLetterIgnoreRequest */
+        DeadLetterIgnoreRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
         /** DeadLetterList */
         DeadLetterList: {
             /** Items */
@@ -8248,7 +8272,7 @@ export interface components {
             /** Replay Trace Id */
             replay_trace_id: string | null;
             /** Available Actions */
-            available_actions: "preview_replay"[];
+            available_actions: ("preview_replay" | "ignore")[];
             /** Version */
             version: number;
         };
@@ -14837,6 +14861,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminDeadLetter_Ignore: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                dead_letter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeadLetterIgnoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DeadLetterView_"];
                 };
             };
             401: components["responses"]["Problem401"];

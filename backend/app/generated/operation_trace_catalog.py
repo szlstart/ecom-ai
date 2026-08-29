@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "aafe440e3a04193cc9a5b7b45246e022485d313a8a2143aa3b4bf0454ab2ade7"
+SOURCE_SHA256 = "9a711fd0a6348cf921d91b3b4046d807eab54ae8e99a64ff7632ba37d91bc3dc"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -538,6 +538,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["events:read"],
+        "x-requirement-id": ["ADM-DLQ-01"],
+        "x-scope-policy": ["events:read", "events:operate"],
+        "x-test-case-ids": ["ADM-DLQ-*"],
+    },
+    "AdminDeadLetter_Ignore": {
+        "x-audit-event": "command.AdminDeadLetter_Ignore",
+        "x-domain-command": "AdminDeadLetter_Ignore",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": ["events:operate"],
         "x-requirement-id": ["ADM-DLQ-01"],
         "x-scope-policy": ["events:read", "events:operate"],
         "x-test-case-ids": ["ADM-DLQ-*"],

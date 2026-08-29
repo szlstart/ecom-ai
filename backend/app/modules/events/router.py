@@ -6,6 +6,7 @@ from app.api.dependencies import IdempotencyKey
 from app.api.schemas import Envelope
 from app.modules.events.dependencies import DeadLetterServiceDependency
 from app.modules.events.schemas import (
+    DeadLetterIgnoreRequest,
     DeadLetterList,
     DeadLetterReplayPreview,
     DeadLetterReplayRequest,
@@ -88,5 +89,29 @@ async def replay_dead_letter(
         _expected_version(if_match),
         idempotency_key,
     )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/{dead_letter_id}/ignore",
+    response_model=Envelope[DeadLetterView],
+    operation_id="AdminDeadLetter_Ignore",
+)
+async def ignore_dead_letter(
+    dead_letter_id: str,
+    payload: DeadLetterIgnoreRequest,
+    response: Response,
+    service: DeadLetterServiceDependency,
+    access: Annotated[AdminAccess, require_admin_permission("events:operate")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[DeadLetterView]:
+    result = await service.ignore(
+        access,
+        dead_letter_id,
+        payload,
+        _expected_version(if_match),
+    )
+    response.headers["ETag"] = _etag(result.version)
     _no_store(response)
     return Envelope(data=result)

@@ -42,7 +42,10 @@ const props = withDefaults(defineProps<{ conversationId?: string; embedded?: boo
   conversationId: undefined,
   embedded: false,
 })
-const emit = defineEmits<{ 'trace-update': [messages: ChatMessage[]] }>()
+const emit = defineEmits<{
+  'trace-update': [messages: ChatMessage[]]
+  'trace-select': [runId: string | null]
+}>()
 
 const route = useRoute()
 const auth = useUserAuthStore()
@@ -79,6 +82,7 @@ const feedbackComposer = ref<{
   reasonCode: string
   comment: string
 } | null>(null)
+const selectedTraceRunId = ref<string | null>(null)
 watch(messages, (value) => emit('trace-update', value), { immediate: true })
 const conversationId = computed(() => props.conversationId || String(route.params.conversationId))
 const activeContext = computed(() => conversation.value?.active_contexts.find((item) => item.status === 'active') ?? null)
@@ -136,6 +140,18 @@ function apiDate(value: string): Date {
 function contentString(message: ChatMessage, key: string): string {
   const value = message.content?.[key]
   return typeof value === 'string' ? value : ''
+}
+function traceRunId(message: ChatMessage): string | null {
+  const trace = message.content?.execution_trace
+  if (!trace || typeof trace !== 'object' || Array.isArray(trace)) return null
+  const runId = (trace as Record<string, unknown>).run_id
+  return typeof runId === 'string' ? runId : null
+}
+function selectTrace(message: ChatMessage) {
+  const runId = traceRunId(message)
+  if (!runId) return
+  selectedTraceRunId.value = runId
+  emit('trace-select', runId)
 }
 function contentNumber(message: ChatMessage, key: string): number | null {
   const value = message.content?.[key]
@@ -573,7 +589,7 @@ function onlineChanged() {
 }
 
 watch(draft, persistDraft)
-watch(conversationId, async () => { pending.value = []; streamingReply.value = null; newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; await load() })
+watch(conversationId, async () => { pending.value = []; streamingReply.value = null; newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; selectedTraceRunId.value = null; emit('trace-select', null); await load() })
 onMounted(async () => {
   await load()
   realtime = new RealtimeConnection({
@@ -638,7 +654,7 @@ onBeforeUnmount(() => {
         <p v-if="messages.length === 0 && pending.length === 0" class="conversation-welcome">{{ conversation?.conversation_type === 'exclusive' ? '您好，我是专属客服。您可以咨询平台规则、订单、物流和售后问题。' : '您好，请描述您想咨询的商品或订单问题。' }}</p>
         <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'user' ? 'mine' : 'theirs']">
           <span class="message-avatar" :class="{ agent: message.sender_type === 'agent' }" aria-hidden="true">{{ message.sender_type === 'user' ? '我' : message.sender_type === 'agent' ? 'AI' : message.sender_type === 'human' ? '客' : '系' }}</span>
-          <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'user' ? 'mine' : 'theirs']">
+          <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
           <strong>{{ senderLabel(message.sender_type) }}</strong>
           <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" />
           <section v-if="message.message_type === 'refund_approval' && message.content" class="refund-approval-card" :aria-label="`退款申请确认：${approvalStatusLabel(message)}`">

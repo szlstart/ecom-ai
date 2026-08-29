@@ -1147,6 +1147,8 @@ tr.selected td { background: #f0f4ff; }
 .message-bubble p { margin: 0; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 .message-bubble > small { opacity: .76; text-align: right; }
 .message-bubble.mine .error-text { color: #7d171f; }
+.trace-selectable { cursor: pointer; }
+.message-bubble.trace-selected, .merchant-chat-bubble-row.trace-selected .merchant-chat-bubble, .admin-chat-timeline article.trace-selected > div { outline: 2px solid rgb(92 106 221 / 48%); outline-offset: 3px; }
 .message-card { min-width: min(340px, 60vw); padding: 12px; display: grid; gap: 5px; color: #172033; border-radius: 10px; background: #fff; }
 .message-card:hover { text-decoration: none; }
 .message-card span, .message-card small { color: #687287; }

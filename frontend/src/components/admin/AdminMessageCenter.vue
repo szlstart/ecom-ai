@@ -43,6 +43,7 @@ const storeGroupOpen = ref(true)
 const aiConversationId = ref('')
 const timeline = ref<HTMLElement | null>(null)
 const connectionState = ref<RealtimeState>('polling')
+const selectedTraceRunId = ref<string | null>(null)
 let realtime: RealtimeConnection | undefined
 let pollingTimer: number | undefined
 let refreshTimer: number | undefined
@@ -65,6 +66,13 @@ const initials = computed(() => '管')
 function token(): string { if (!auth.accessToken) throw new Error('管理会话不可用'); return auth.accessToken }
 function dateTime(value: string): string { return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
 function senderName(message: ChatMessage): string { return ({ user: '用户', human: '平台客服', agent: 'AI 客服', system: '系统', tool: '工具' } as Record<string, string>)[message.sender_type] ?? message.sender_type }
+function traceRunId(message: ChatMessage): string | null {
+  const trace = message.content?.execution_trace
+  const value = trace && typeof trace === 'object' && !Array.isArray(trace)
+    ? (trace as Record<string, unknown>).run_id
+    : null
+  return typeof value === 'string' ? value : null
+}
 
 async function loadTickets(showLoading = false) {
   if (showLoading) loading.value = true
@@ -103,12 +111,12 @@ async function scrollBottom() {
 }
 
 async function selectAi() {
-  selected.value = 'ai'; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; error.value = ''; loading.value = true
+  selected.value = 'ai'; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; error.value = ''; loading.value = true
   try { await loadAiMessages(); await scrollBottom() } finally { loading.value = false }
 }
 
 async function selectTicket(ticket: SupportTicket) {
-  selected.value = ticket.ticket_id; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; error.value = ''; loading.value = true
+  selected.value = ticket.ticket_id; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; error.value = ''; loading.value = true
   try {
     workspace.value = (await getSupportWorkspace(ticket.ticket_id, token())).data
     const current = workspace.value.ticket
@@ -252,7 +260,7 @@ onBeforeUnmount(() => {
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取 AI 会话…</div>
           <section v-else class="admin-chat-conversation admin-ai-chat">
-            <div v-if="aiMessages.length" ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user' }"><span class="admin-chat-bubble-avatar">{{ message.sender_type === 'user' ? initials : '✦' }}</span><div><strong>{{ message.sender_type === 'user' ? '我' : 'AI 管家' }}</strong><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
+            <div v-if="aiMessages.length" ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user', 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(message) || selectedTraceRunId"><span class="admin-chat-bubble-avatar">{{ message.sender_type === 'user' ? initials : '✦' }}</span><div><strong>{{ message.sender_type === 'user' ? '我' : 'AI 管家' }}</strong><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
             <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" placeholder="询问平台概况、用户、店铺、订单或 Agent 运行状态…" @keydown.enter.exact.prevent="send" /><div><span>默认只读 · 不展示模型原始思维链</span><button :disabled="!reply.trim() || busy">{{ busy ? '发送中…' : '发送' }}</button></div></form>
           </section>
         </template>
@@ -270,7 +278,7 @@ onBeforeUnmount(() => {
           </section>
         </template>
       </main>
-      <AgentTracePanel :messages="selected === 'ai' ? aiMessages : messages" title="AI 运行轨迹" />
+      <AgentTracePanel :messages="selected === 'ai' ? aiMessages : messages" :selected-run-id="selectedTraceRunId" title="AI 运行轨迹" />
     </section>
   </div>
 </template>

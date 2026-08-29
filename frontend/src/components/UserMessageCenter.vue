@@ -22,6 +22,7 @@ const error = ref('')
 const connectionState = ref<RealtimeState>('polling')
 const shaking = ref(false)
 const traceMessages = ref<ChatMessage[]>([])
+const selectedTraceRunId = ref<string | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
 let realtime: RealtimeConnection | undefined
 let refreshTimer: number | undefined
@@ -95,6 +96,7 @@ async function show() {
 function selectConversation(item: Conversation) {
   center.selectedConversationId = item.conversation_id
   traceMessages.value = []
+  selectedTraceRunId.value = null
 }
 function close() {
   center.close()
@@ -158,10 +160,10 @@ onBeforeUnmount(() => {
           </button>
         </aside>
         <main class="user-chat-main">
-          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" />
+          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" @trace-select="selectedTraceRunId = $event" />
           <div v-else class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>消息中心</h2><p>选择左侧会话开始沟通。</p></div>
         </main>
-        <AgentTracePanel :messages="traceMessages" />
+        <AgentTracePanel :messages="traceMessages" :selected-run-id="selectedTraceRunId" />
       </section>
     </div>
   </Teleport>

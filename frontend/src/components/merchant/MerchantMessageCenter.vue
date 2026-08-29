@@ -46,6 +46,7 @@ const timeline = ref<HTMLElement | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
 const connectionState = ref<RealtimeState>('polling')
 const shaking = ref(false)
+const selectedTraceRunId = ref<string | null>(null)
 let realtime: RealtimeConnection | undefined
 let pollingTimer: number | undefined
 let refreshTimer: number | undefined
@@ -67,6 +68,13 @@ function statusLabel(value: string) {
 }
 function isMine(item: ChatMessage) {
   return selectedKey.value === 'exclusive' ? item.sender_type === 'user' : item.sender_type === 'human'
+}
+function traceRunId(item: ChatMessage): string | null {
+  const trace = item.content?.execution_trace
+  const value = trace && typeof trace === 'object' && !Array.isArray(trace)
+    ? (trace as Record<string, unknown>).run_id
+    : null
+  return typeof value === 'string' ? value : null
 }
 async function scrollBottom() { await nextTick(); timeline.value?.scrollTo({ top: timeline.value.scrollHeight }) }
 
@@ -100,7 +108,7 @@ async function loadExclusive(markRead = open.value && selectedKey.value === 'exc
 }
 
 async function selectConversation(key: string) {
-  selectedKey.value = key; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; error.value = ''
+  selectedKey.value = key; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; error.value = ''
   if (key === 'exclusive') { await loadExclusive(); return }
   const ticket = tickets.value.find((item) => item.ticket_id === key)
   if (!ticket) return
@@ -269,11 +277,11 @@ onBeforeUnmount(() => {
             <button v-if="selectedKey === 'exclusive' ? exclusivePreviousCursor : supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
             <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>你好，我是你的专属客服</h2><p>我可以在当前店铺范围内分析商品、订单、库存和经营概况。默认只读，不会替你修改业务数据。</p></div>
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>
-            <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isMine(item) }"><span v-if="!isMine(item)" class="merchant-chat-avatar">{{ selectedKey === 'exclusive' ? '专' : '客' }}</span><div class="merchant-chat-bubble"><ChatMessageContent :message="item" audience="merchant" /><time>{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
+            <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isMine(item), 'trace-selectable': traceRunId(item), 'trace-selected': traceRunId(item) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(item) || selectedTraceRunId"><span v-if="!isMine(item)" class="merchant-chat-avatar">{{ selectedKey === 'exclusive' ? '专' : '客' }}</span><div class="merchant-chat-bubble"><ChatMessageContent :message="item" audience="merchant" /><time>{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
           </div>
           <form class="merchant-chat-composer" @submit.prevent="send"><textarea v-model="draft" rows="3" maxlength="4000" :placeholder="selectedKey === 'exclusive' ? '向平台专属客服描述你的问题…' : '回复顾客…'" @keydown.enter.exact.prevent="send" /><footer><small>Enter 发送 · Shift + Enter 换行</small><button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button></footer></form>
         </main>
-        <AgentTracePanel :messages="activeMessages" title="AI 协作台" />
+        <AgentTracePanel :messages="activeMessages" :selected-run-id="selectedTraceRunId" title="AI 协作台" />
       </section>
     </div>
   </Teleport>

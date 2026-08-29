@@ -24,6 +24,7 @@ def production_settings(**overrides: object) -> Settings:
         "security_hmac_secret": "b" * 32,
         "debug_verification_code": None,
         "refresh_cookie_secure": True,
+        "admin_password_login_enabled": False,
         "object_storage_enabled": True,
         "object_storage_endpoint": "https://objects.private.acme.cn",
         "object_storage_public_endpoint": "https://cdn.acme.cn",
@@ -44,6 +45,11 @@ def test_production_settings_accept_external_tls_dependencies() -> None:
 def test_production_settings_reject_unversioned_build() -> None:
     with pytest.raises(ValidationError):
         production_settings(build_sha="development")
+
+
+def test_production_settings_reject_password_only_admin_login() -> None:
+    with pytest.raises(ValidationError):
+        production_settings(admin_password_login_enabled=True)
 
 
 def test_agent_worker_requires_complete_https_model_configuration() -> None:

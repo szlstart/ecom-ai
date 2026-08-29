@@ -9,6 +9,7 @@ x-api-environment: &api-environment
   ECOM_ENVIRONMENT: production
   ECOM_DEBUG: "false"
   ECOM_REFRESH_COOKIE_SECURE: "true"
+  ECOM_ADMIN_PASSWORD_LOGIN_ENABLED: "false"
   ECOM_PUBLIC_ORIGIN: ${ECOM_PUBLIC_ORIGIN:?public HTTPS origin required}
   ECOM_ALLOWED_ORIGINS: ${ECOM_ALLOWED_ORIGINS:?explicit production CORS origins required}
   ECOM_TRUSTED_PROXY_CIDRS: ${ECOM_TRUSTED_PROXY_CIDRS:?trusted ingress proxy CIDRs required}

@@ -13,6 +13,8 @@ Decision: **NO-GO for production traffic**
 - MySQL and PostgreSQL `alembic check` report no model/schema drift.
 - Production Compose static preflight accepts only digest-pinned API/frontend images, external TLS data dependencies, no application build directives, no source bind mounts and only a loopback frontend port for the TLS ingress.
 - Backup, checksum, isolated restore, object replication, canary rollback, load scenarios and supply-chain controls have fail-closed executable contracts.
+- Production configuration must set `ECOM_ADMIN_PASSWORD_LOGIN_ENABLED=false`; platform administrators then use the MFA challenge endpoint. Password-only `admin/admin` remains a localhost development convenience and production settings reject it at startup.
+- Before accepting a long-lived development database, run `make dev-clean-test-admins` in preview mode. If it lists only the known legacy acceptance names, run `make dev-clean-test-admins APPLY=1`; deletion proceeds through the durable cross-database account-deletion worker rather than direct SQL.
 
 ## Missing operational evidence
 

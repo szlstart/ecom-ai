@@ -74,6 +74,7 @@ class Settings(BaseSettings):
     refresh_token_ttl_days: int = Field(default=30, ge=1, le=90)
     admin_refresh_token_ttl_hours: int = Field(default=8, ge=1, le=24)
     admin_recent_auth_seconds: int = Field(default=300, ge=60, le=1800)
+    admin_password_login_enabled: bool = True
     refresh_cookie_secure: bool = False
     allowed_origins: str = "http://127.0.0.1:5173,http://127.0.0.1:8080"
     debug_verification_code: SecretStr | None = None
@@ -172,6 +173,10 @@ class Settings(BaseSettings):
             raise ValueError("debug mode is forbidden in production")
         if self.debug_verification_code is not None:
             raise ValueError("debug verification code is forbidden in production")
+        if self.admin_password_login_enabled:
+            raise ValueError(
+                "password-only platform administrator login is forbidden in production"
+            )
         if re.fullmatch(r"[0-9a-f]{40}", self.build_sha) is None:
             raise ValueError("production build SHA must be a full lowercase Git commit SHA")
         if not self.refresh_cookie_secure:

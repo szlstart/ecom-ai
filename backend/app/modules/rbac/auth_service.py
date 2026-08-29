@@ -154,6 +154,13 @@ class AdminAuthService:
         ip_address: str,
         user_agent: str,
     ) -> tuple[AdminBootstrap, str]:
+        if not self.settings.admin_password_login_enabled:
+            raise ApplicationError(
+                status=403,
+                code="ADMIN_PASSWORD_LOGIN_DISABLED",
+                title="Password-only administrator login disabled",
+                detail="生产环境只允许使用已配置多因素认证的管理员登录入口。",
+            )
         await self._rate_limit(
             f"platform-login-ip:{self.security.keyed_hash('platform-login-ip', ip_address).hex()}",
             10,

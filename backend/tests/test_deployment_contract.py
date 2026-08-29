@@ -100,7 +100,11 @@ def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     assert "--cov-fail-under=60" in makefile
     assert "backend-junit.xml" in makefile
     assert "frontend-junit.xml" in makefile
-    assert "pnpm test:e2e" in makefile
+    assert "run-live-browser-acceptance.sh" in makefile
+    live_browser_runner = (ROOT / "scripts/run-live-browser-acceptance.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "pnpm test:e2e" in live_browser_runner
     assert "acceptance-evidence" in makefile
     assert "mysql-schema-drift.txt" in makefile
     assert "postgres-schema-drift.txt" in makefile

@@ -44,7 +44,7 @@ acceptance-test: build
 	cd backend && $(PYTHON) -m alembic -c alembic.postgres.ini check >> ../artifacts/acceptance/current/database/postgres-schema-drift.txt 2>&1
 	cd backend && $(ACCEPTANCE_ENV) $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/quality/backend-junit.xml --cov=app --cov-fail-under=60 --cov-report=term:skip-covered --cov-report=xml:../artifacts/acceptance/current/quality/backend-coverage.xml
 	cd frontend && pnpm test --reporter=junit --outputFile=../artifacts/acceptance/current/quality/frontend-junit.xml
-	cd frontend && pnpm test:e2e
+	PYTHON_BIN="$(PYTHON)" ./scripts/run-live-browser-acceptance.sh
 	$(MAKE) agent-security-test
 	$(PYTHON) scripts/evaluate-agent.py eval/golden.json --allow-missing-observations --output artifacts/acceptance/current/agent/evaluation-report.json
 	$(MAKE) acceptance-evidence

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 const frontendRoot = path.dirname(fileURLToPath(import.meta.url))
 const artifactRoot = path.resolve(frontendRoot, '../artifacts/acceptance/current/quality')
+const liveBackend = process.env.ECOM_LIVE_E2E === '1'
 
 export default defineConfig({
   testDir: './e2e',
@@ -36,7 +37,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm vite preview --host 127.0.0.1 --port 4173',
+    command: liveBackend
+      ? 'pnpm vite --host 127.0.0.1 --port 4173'
+      : 'pnpm vite preview --host 127.0.0.1 --port 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,

@@ -9,8 +9,12 @@ from app.database.mysql import mysql_session
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.skipif(
-        os.getenv("ECOM_RUN_INTEGRATION_TESTS") != "1",
-        reason="set ECOM_RUN_INTEGRATION_TESTS=1 with an isolated database",
+        os.getenv("ECOM_RUN_INTEGRATION_TESTS") != "1"
+        or os.getenv("ECOM_RUN_ACCEPTANCE_SCENARIO_TEST") != "1",
+        reason=(
+            "run explicitly against a dedicated disposable database with "
+            "ECOM_RUN_ACCEPTANCE_SCENARIO_TEST=1"
+        ),
     ),
 ]
 

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Header, Request, Response, status
 
 from app.api.dependencies import IdempotencyKey, UserContext
 from app.api.schemas import Envelope
+from app.core.client_ip import request_client_ip
 from app.core.exceptions import ApplicationError
 from app.modules.identity.router import _etag, _expected_version, _no_store
 from app.modules.payments.dependencies import PaymentServiceDependency
@@ -31,7 +32,7 @@ async def create_payment(
     service: PaymentServiceDependency,
     idempotency_key: IdempotencyKey,
 ) -> Envelope[PaymentView]:
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = request_client_ip(request)
     item = await service.create(context.user, payload, idempotency_key, client_ip)
     response.headers["ETag"] = _etag(item.version)
     _no_store(response)

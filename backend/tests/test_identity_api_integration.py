@@ -451,10 +451,12 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         headers=wallet_auth,
         json={"confirmation": "DELETE_MY_ACCOUNT"},
     )
-    assert deletion.status_code == 204, deletion.text
+    assert deletion.status_code == 202, deletion.text
+    assert deletion.json()["data"]["status"] == "requested"
     assert (await client.get("/api/v1/users/me", headers=wallet_auth)).status_code == 401
     async for session in mysql_session():
-        assert await session.scalar(select(User).where(User.username == username)) is None
+        pending_user = await session.scalar(select(User).where(User.username == username))
+        assert pending_user is not None and pending_user.user_status == "deletion_pending"
 
 
 async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
@@ -621,17 +623,13 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
 
     navigation_response = await client.get("/api/v1/admin/navigation", headers=admin_headers)
     assert navigation_response.status_code == 200
-    assert any(item["code"] == "users" for item in navigation_response.json()["data"]["items"])
-    assert any(item["code"] == "products" for item in navigation_response.json()["data"]["items"])
-    assert any(item["code"] == "batch-jobs" for item in navigation_response.json()["data"]["items"])
-    assert {
-        "orders",
-        "payments",
-        "refunds",
-        "refund-appeals",
-        "reviews",
-        "dead-letter-events",
-    } <= {item["code"] for item in navigation_response.json()["data"]["items"]}
+    navigation_codes = {
+        item["code"] for item in navigation_response.json()["data"]["items"]
+    }
+    assert {"users", "stores", "batch-jobs", "dead-letter-events"} <= navigation_codes
+    assert {"products", "orders", "payments", "refunds", "reviews"}.isdisjoint(
+        navigation_codes
+    )
 
     audience_violation = await client.get("/api/v1/users/me", headers=admin_headers)
     assert audience_violation.status_code == 403

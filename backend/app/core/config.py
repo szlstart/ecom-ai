@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     dependency_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
     readiness_outbox_lag_seconds: int = Field(default=120, ge=10, le=3600)
     public_origin: str = "http://127.0.0.1:8080"
+    trusted_proxy_cidrs: str = "127.0.0.1/32,::1/128,172.16.0.0/12"
 
     mysql_dsn: str = (
         "mysql+asyncmy://ecom_app:local-app-change-me@127.0.0.1:13306/ecom_ai?charset=utf8mb4"

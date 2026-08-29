@@ -6,6 +6,7 @@ from fastapi import APIRouter, Cookie, Header, Request, Response, status
 
 from app.api.dependencies import IdempotencyKey, UserContext
 from app.api.schemas import Envelope
+from app.core.client_ip import request_client_ip
 from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
 from app.modules.identity.dependencies import IdentityServiceDependency
@@ -482,7 +483,7 @@ def _no_store(response: Response) -> None:
 
 
 def _client_ip(request: Request) -> str:
-    return request.client.host if request.client is not None else "unknown"
+    return request_client_ip(request)
 
 
 def _etag(version: int) -> str:

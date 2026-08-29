@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
 from app.api.v1.router import api_router
+from app.core.client_ip import TrustedProxyMiddleware
 from app.core.config import get_settings
 from app.core.exceptions import install_exception_handlers
 from app.core.lifespan import application_lifespan
@@ -45,6 +46,7 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(MetricsMiddleware)
     app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(TrustedProxyMiddleware, trusted_proxy_cidrs=settings.trusted_proxy_cidrs)
     install_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(api_router, prefix=settings.api_v1_prefix)

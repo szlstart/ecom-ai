@@ -546,6 +546,11 @@ class IdentityService:
         user, credential, monitoring_hash = await self._resolve_password_identity(
             request.identifier
         )
+        await self._enforce_rate_limit(
+            f"login-account:{monitoring_hash.hex()}",
+            limit=10,
+            window_seconds=600,
+        )
         valid = self.security.verify_password(
             credential.secret_hash if credential is not None else None, request.password
         )
@@ -554,9 +559,10 @@ class IdentityService:
             valid = False
         if user is None or credential is None or not valid:
             if credential is not None:
-                credential.failed_attempts += 1
+                credential.failed_attempts = min(credential.failed_attempts + 1, 32_767)
                 if credential.failed_attempts >= 5:
-                    credential.locked_until = now + timedelta(minutes=15)
+                    penalty_seconds = min(2 ** min(credential.failed_attempts - 5, 6), 60)
+                    credential.locked_until = now + timedelta(seconds=penalty_seconds)
             self.session.add(
                 self._auth_attempt(
                     "password_login",

@@ -10,7 +10,7 @@ from typing import Literal
 
 import pyotp
 from redis.asyncio import Redis
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -537,13 +537,10 @@ class AdminAuthService:
             user_no = claim.record.response_body.get("user_no")
             if isinstance(user_no, str):
                 user = await self.identity.user_by_no(user_no, for_update=True)
-                previous = await self.session.scalar(
-                    select(AuthSession).where(AuthSession.session_no == claim.record.resource_no)
-                )
                 if user is not None:
-                    if previous is not None and previous.revoked_at is None:
-                        previous.revoked_at = utc_now()
-                        previous.revoke_reason = "idempotency_session_replaced"
+                    await self._revoke_admin_browser_sessions(
+                        user.id, "idempotency_session_replaced"
+                    )
                     replacement = await self.identity_service.issue_session(
                         user,
                         audience="admin",
@@ -588,6 +585,7 @@ class AdminAuthService:
         if consumed != raw:
             raise _invalid_mfa_challenge()
         authenticator.last_used_at = utc_now()
+        await self._revoke_admin_browser_sessions(user.id, "assurance_upgraded")
         result = await self.identity_service.issue_session(
             user,
             audience="admin",
@@ -614,6 +612,18 @@ class AdminAuthService:
                 scopes=scopes,
             ),
             result.refresh_token,
+        )
+
+    async def _revoke_admin_browser_sessions(self, user_id: int, reason: str) -> None:
+        await self.session.execute(
+            update(AuthSession)
+            .where(
+                AuthSession.user_id == user_id,
+                AuthSession.audience == "admin",
+                AuthSession.client_type.in_(("admin", "admin_password")),
+                AuthSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=utc_now(), revoke_reason=reason)
         )
 
     async def reauthenticate(

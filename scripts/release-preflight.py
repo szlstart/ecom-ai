@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import re
@@ -17,6 +18,7 @@ REQUIRED = {
     "ECOM_FRONTEND_IMAGE",
     "ECOM_PUBLIC_ORIGIN",
     "ECOM_ALLOWED_ORIGINS",
+    "ECOM_TRUSTED_PROXY_CIDRS",
     "ECOM_MYSQL_DSN",
     "ECOM_POSTGRES_DSN",
     "ECOM_MYSQL_MIGRATION_DSN",
@@ -110,6 +112,16 @@ def validate(values: dict[str, str]) -> None:
     ]
     if not origins or any(not item.startswith("https://") for item in origins):
         raise ValueError("ECOM_ALLOWED_ORIGINS must contain explicit HTTPS origins")
+    try:
+        proxy_networks = [
+            ipaddress.ip_network(item.strip(), strict=False)
+            for item in values["ECOM_TRUSTED_PROXY_CIDRS"].split(",")
+            if item.strip()
+        ]
+    except ValueError as exc:
+        raise ValueError("ECOM_TRUSTED_PROXY_CIDRS contains an invalid CIDR") from exc
+    if not proxy_networks:
+        raise ValueError("ECOM_TRUSTED_PROXY_CIDRS must not be empty")
 
     access_secret = values["ECOM_ACCESS_TOKEN_SECRET"]
     hmac_secret = values["ECOM_SECURITY_HMAC_SECRET"]

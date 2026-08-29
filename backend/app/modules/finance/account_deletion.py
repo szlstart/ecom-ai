@@ -125,6 +125,7 @@ class AccountDeletionService:
             )
         )
         await self.mysql.commit()
+        await self.mysql.refresh(task)
         return task
 
     async def _inventory(self, selected: dict[str, set[int]]) -> dict[str, object]:

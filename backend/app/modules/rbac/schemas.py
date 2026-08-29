@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import Field, field_validator, model_validator
 
 from app.api.schemas import StrictRequest
+from app.core.passwords import PasswordInput
 from app.modules.identity.schemas import ClientDescriptor, SessionBootstrap
 
 UserPresenceStatus = Literal["online", "offline", "frozen"]
@@ -14,14 +15,14 @@ WalletAdjustmentDirection = Literal["credit", "debit"]
 
 class AdminLoginRequest(StrictRequest):
     identifier: str = Field(min_length=1, max_length=254)
-    password: str = Field(min_length=1, max_length=128)
+    password: PasswordInput
     client: ClientDescriptor
 
 
 class MerchantRegistrationRequest(StrictRequest):
     username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
     email: str = Field(min_length=3, max_length=254)
-    password: str = Field(min_length=1, max_length=128)
+    password: PasswordInput
     store_name: str = Field(min_length=2, max_length=128)
     captcha_id: str = Field(min_length=16, max_length=128)
     captcha_answer: str = Field(pattern=r"^[0-9]{1,3}$")
@@ -56,17 +57,17 @@ class AdminMfaVerificationRequest(StrictRequest):
 
 
 class AdminReauthenticationRequest(StrictRequest):
-    password: str = Field(min_length=1, max_length=128)
+    password: PasswordInput
     method: Literal["totp", "recovery_code"]
     code: str = Field(min_length=6, max_length=64)
 
 
 class MerchantReauthenticationRequest(StrictRequest):
-    password: str = Field(min_length=1, max_length=128)
+    password: PasswordInput
 
 
 class AdminPasswordReauthenticationRequest(StrictRequest):
-    password: str = Field(min_length=1, max_length=128)
+    password: PasswordInput
 
 
 class AdminBootstrap(StrictRequest):
@@ -138,7 +139,7 @@ class AdminUserList(StrictRequest):
 
 class AdminUserCreateRequest(StrictRequest):
     username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
-    password: str = Field(min_length=1, max_length=128)
+    password: PasswordInput
     email: str = Field(min_length=3, max_length=254)
     nickname: str | None = Field(default=None, min_length=1, max_length=64)
 
@@ -168,7 +169,7 @@ class AdminUserUpdateRequest(StrictRequest):
 
 
 class AdminUserPasswordReplaceRequest(StrictRequest):
-    temporary_password: str = Field(min_length=1, max_length=128)
+    temporary_password: PasswordInput
     require_change_on_next_login: bool = False
 
     @field_validator("temporary_password")

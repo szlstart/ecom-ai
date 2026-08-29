@@ -38391,7 +38391,7 @@
           },
           "password": {
             "type": "string",
-            "maxLength": 128,
+            "maxLength": 4096,
             "minLength": 1,
             "title": "Password"
           },
@@ -38685,7 +38685,7 @@
         "properties": {
           "password": {
             "type": "string",
-            "maxLength": 128,
+            "maxLength": 4096,
             "minLength": 1,
             "title": "Password"
           }
@@ -42188,7 +42188,7 @@
           },
           "password": {
             "type": "string",
-            "maxLength": 128,
+            "maxLength": 4096,
             "minLength": 1,
             "title": "Password"
           },
@@ -42254,7 +42254,7 @@
         "properties": {
           "temporary_password": {
             "type": "string",
-            "maxLength": 128,
+            "maxLength": 4096,
             "minLength": 1,
             "title": "Temporary Password"
           },
@@ -50146,7 +50146,7 @@
         "properties": {
           "password": {
             "type": "string",
-            "maxLength": 128,
+            "maxLength": 4096,
             "minLength": 1,
             "title": "Password"
           }
@@ -50175,7 +50175,7 @@
           },
           "password": {
             "type": "string",
-            "maxLength": 128,
+            "maxLength": 4096,
             "minLength": 1,
             "title": "Password"
           },
@@ -51934,11 +51934,13 @@
         "properties": {
           "current_password": {
             "type": "string",
+            "maxLength": 4096,
             "minLength": 1,
             "title": "Current Password"
           },
           "new_password": {
             "type": "string",
+            "maxLength": 4096,
             "minLength": 1,
             "title": "New Password"
           }
@@ -51966,6 +51968,7 @@
           },
           "password": {
             "type": "string",
+            "maxLength": 4096,
             "minLength": 1,
             "title": "Password"
           },
@@ -52045,6 +52048,7 @@
           },
           "new_password": {
             "type": "string",
+            "maxLength": 4096,
             "minLength": 1,
             "title": "New Password"
           }
@@ -54142,6 +54146,7 @@
           },
           "password": {
             "type": "string",
+            "maxLength": 4096,
             "minLength": 1,
             "title": "Password"
           },

@@ -6,7 +6,12 @@ import pytest
 from app.core.exceptions import ApplicationError
 from app.core.security import mask_recovery_email
 from app.main import create_app
-from app.modules.identity.schemas import AddressPatch, AddressWrite, RegistrationRequest
+from app.modules.identity.schemas import (
+    AddressPatch,
+    AddressWrite,
+    PasswordLoginRequest,
+    RegistrationRequest,
+)
 from app.modules.identity.service import IdentityService
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -156,3 +161,31 @@ def test_user_password_policy_only_rejects_empty_or_whitespace() -> None:
     with pytest.raises(ApplicationError) as exc_info:
         service._validate_password("contains space")
     assert exc_info.value.code == "PASSWORD_WHITESPACE_FORBIDDEN"
+    with pytest.raises(ApplicationError) as oversized_error:
+        service._validate_password("密" * 1366)
+    assert oversized_error.value.code == "PASSWORD_INPUT_TOO_LARGE"
+    with pytest.raises(ApplicationError) as oversized_error:
+        service._validate_password("密" * 1366)
+    assert oversized_error.value.code == "PASSWORD_INPUT_TOO_LARGE"
+
+
+def test_password_schema_rejects_transport_overflow_before_hashing() -> None:
+    valid = PasswordLoginRequest.model_validate(
+        {
+            "auth_method": "password",
+            "identifier": "demo",
+            "password": "密" * 1365,
+            "client": {"client_type": "web", "device_name": "contract"},
+        }
+    )
+    assert len(valid.password.encode("utf-8")) == 4095
+
+    with pytest.raises(ValueError, match="4096 个 UTF-8 字节"):
+        PasswordLoginRequest.model_validate(
+            {
+                "auth_method": "password",
+                "identifier": "demo",
+                "password": "密" * 1366,
+                "client": {"client_type": "web", "device_name": "contract"},
+            }
+        )

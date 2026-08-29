@@ -18,6 +18,7 @@ from app.core.context import request_id_context
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
+from app.core.passwords import PASSWORD_MAX_UTF8_BYTES
 from app.core.security import (
     USERNAME_PATTERN,
     SecurityService,
@@ -1559,6 +1560,18 @@ class IdentityService:
                 "/password",
                 "PASSWORD_WHITESPACE_FORBIDDEN",
                 "密码不能包含空格、换行或其他空白字符。",
+            )
+        if len(password.encode("utf-8")) > PASSWORD_MAX_UTF8_BYTES:
+            raise _field_error(
+                "/password",
+                "PASSWORD_INPUT_TOO_LARGE",
+                f"密码不能超过 {PASSWORD_MAX_UTF8_BYTES} 个 UTF-8 字节。",
+            )
+        if len(password.encode("utf-8")) > PASSWORD_MAX_UTF8_BYTES:
+            raise _field_error(
+                "/password",
+                "PASSWORD_INPUT_TOO_LARGE",
+                f"密码不能超过 {PASSWORD_MAX_UTF8_BYTES} 个 UTF-8 字节。",
             )
 
     async def _issue_registration_captcha(self) -> dict[str, object]:

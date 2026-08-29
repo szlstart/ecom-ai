@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import Field, model_validator
 
 from app.api.schemas import StrictRequest
+from app.core.passwords import PasswordInput
 
 
 class AgreementReference(StrictRequest):
@@ -18,7 +19,7 @@ class RegistrationRequest(StrictRequest):
     email: str = Field(min_length=3, max_length=254)
     captcha_id: str = Field(min_length=16, max_length=128)
     captcha_answer: str = Field(pattern=r"^[0-9]{1,3}$")
-    password: str = Field(min_length=1)
+    password: PasswordInput
     config_version: str
     agreement_acceptances: list[AgreementReference] = Field(min_length=2, max_length=2)
     locale: str = Field(default="zh-CN", max_length=16)
@@ -50,7 +51,7 @@ class ClientDescriptor(StrictRequest):
 class PasswordLoginRequest(StrictRequest):
     auth_method: Literal["password"]
     identifier: str = Field(min_length=1, max_length=254)
-    password: str = Field(min_length=1)
+    password: PasswordInput
     client: ClientDescriptor
     challenge_token: str | None = Field(default=None, max_length=2048)
 
@@ -116,7 +117,7 @@ class PasswordResetTicketResult(StrictRequest):
 
 class PasswordResetRequest(StrictRequest):
     reset_ticket: str = Field(min_length=32, max_length=256)
-    new_password: str = Field(min_length=1)
+    new_password: PasswordInput
 
 
 class MessageResult(StrictRequest):
@@ -143,8 +144,8 @@ class UserProfileUpdate(StrictRequest):
 
 
 class PasswordChangeRequest(StrictRequest):
-    current_password: str = Field(min_length=1)
-    new_password: str = Field(min_length=1)
+    current_password: PasswordInput
+    new_password: PasswordInput
 
 
 class SecuritySummary(StrictRequest):
@@ -209,7 +210,7 @@ class DefaultAddressRequest(StrictRequest):
 
 class ContactChangeTicketRequest(StrictRequest):
     credential_type: Literal["phone", "email"]
-    current_password: str = Field(min_length=1)
+    current_password: PasswordInput
 
 
 class ContactChangeTicketResult(StrictRequest):

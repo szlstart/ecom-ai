@@ -3,16 +3,45 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 
 from app.api.schemas import StrictRequest
+from app.core.passwords import PasswordInput
 from app.modules.identity.schemas import ClientDescriptor, SessionBootstrap
+
+UserPresenceStatus = Literal["online", "offline", "frozen"]
+WalletAdjustmentDirection = Literal["credit", "debit"]
 
 
 class AdminLoginRequest(StrictRequest):
     identifier: str = Field(min_length=1, max_length=254)
-    password: str = Field(min_length=1, max_length=128)
+    password: PasswordInput
     client: ClientDescriptor
+
+
+class MerchantRegistrationRequest(StrictRequest):
+    username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    email: str = Field(min_length=3, max_length=254)
+    password: PasswordInput
+    store_name: str = Field(min_length=2, max_length=128)
+    captcha_id: str = Field(min_length=16, max_length=128)
+    captcha_answer: str = Field(pattern=r"^[0-9]{1,3}$")
+    client: ClientDescriptor
+
+    @field_validator("password")
+    @classmethod
+    def reject_password_whitespace(cls, value: str) -> str:
+        if any(character.isspace() for character in value):
+            raise ValueError("密码不能包含空白字符")
+        return value
+
+    @field_validator("store_name")
+    @classmethod
+    def normalize_store_name(cls, value: str) -> str:
+        normalized = " ".join(value.split())
+        if len(normalized) < 2:
+            raise ValueError("店铺名称至少需要 2 个字符")
+        return normalized
 
 
 class AdminMfaChallenge(StrictRequest):
@@ -28,9 +57,17 @@ class AdminMfaVerificationRequest(StrictRequest):
 
 
 class AdminReauthenticationRequest(StrictRequest):
-    password: str = Field(min_length=1, max_length=128)
+    password: PasswordInput
     method: Literal["totp", "recovery_code"]
     code: str = Field(min_length=6, max_length=64)
+
+
+class MerchantReauthenticationRequest(StrictRequest):
+    password: PasswordInput
+
+
+class AdminPasswordReauthenticationRequest(StrictRequest):
+    password: PasswordInput
 
 
 class AdminBootstrap(StrictRequest):
@@ -86,9 +123,74 @@ class AdminUserSummary(StrictRequest):
     version: int
 
 
+class AdminUserWorkspace(StrictRequest):
+    user_id: str
+    username: str
+    current_email: str | None
+    presence_status: UserPresenceStatus
+    balance_minor: str
+    currency: str
+
+
 class AdminUserList(StrictRequest):
     items: list[AdminUserSummary]
     next_cursor: str | None
+
+
+class AdminUserCreateRequest(StrictRequest):
+    username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    password: PasswordInput
+    email: str = Field(min_length=3, max_length=254)
+    nickname: str | None = Field(default=None, min_length=1, max_length=64)
+
+    @field_validator("password")
+    @classmethod
+    def reject_password_whitespace(cls, value: str) -> str:
+        if any(character.isspace() for character in value):
+            raise ValueError("密码不能包含空白字符")
+        return value
+
+
+class AdminUserUpdateRequest(StrictRequest):
+    username: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=32,
+        pattern=r"^[A-Za-z0-9_]+$",
+    )
+    nickname: str | None = Field(default=None, min_length=1, max_length=64)
+    email: str | None = Field(default=None, min_length=3, max_length=254)
+
+    @model_validator(mode="after")
+    def require_change(self) -> AdminUserUpdateRequest:
+        if not self.model_fields_set:
+            raise ValueError("至少需要提交一个要修改的字段")
+        return self
+
+
+class AdminUserPasswordReplaceRequest(StrictRequest):
+    temporary_password: PasswordInput
+    require_change_on_next_login: bool = False
+
+    @field_validator("temporary_password")
+    @classmethod
+    def reject_password_whitespace(cls, value: str) -> str:
+        if any(character.isspace() for character in value):
+            raise ValueError("临时密码不能包含空白字符")
+        return value
+
+
+class AdminWalletAdjustmentRequest(StrictRequest):
+    direction: WalletAdjustmentDirection
+    amount_minor: int = Field(ge=1, le=100_000_000)
+
+
+class AdminWalletAdjustmentResult(StrictRequest):
+    transaction_id: str
+    direction: WalletAdjustmentDirection
+    amount_minor: str
+    balance_minor: str
+    currency: str
 
 
 class UserStatusEventView(StrictRequest):
@@ -104,14 +206,14 @@ class UserStatusEventView(StrictRequest):
 
 class UserStatusChangeRequest(StrictRequest):
     action: Literal["suspend", "resume"]
-    reason_code: str = Field(min_length=2, max_length=64)
-    reason: str = Field(min_length=2, max_length=500)
+    reason_code: str = Field(default="ADMIN_DIRECT_ACTION", min_length=2, max_length=64)
+    reason: str = Field(default="超级管理员直接操作", min_length=2, max_length=500)
     expires_at: datetime | None = None
 
 
 class SessionRevocationRequest(StrictRequest):
     scope: Literal["all"] = "all"
-    reason: str = Field(min_length=2, max_length=500)
+    reason: str = Field(default="超级管理员强制下线", min_length=2, max_length=500)
 
 
 class PasswordResetRequirementRequest(StrictRequest):
@@ -222,6 +324,14 @@ class ApprovalView(StrictRequest):
     status: str
     expires_at: datetime
     version: int
+
+
+class ApprovalRequiredView(StrictRequest):
+    command_status: Literal["approval_required"]
+    approval_request_id: str
+    required_approval_count: int
+    approved_count: int
+    expires_at: datetime
 
 
 class AuditLogView(StrictRequest):

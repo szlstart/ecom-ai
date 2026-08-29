@@ -2,14 +2,13 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
-    DateTime,
     ForeignKey,
     Index,
     String,
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.mysql import BIGINT, BINARY
+from sqlalchemy.dialects.mysql import BIGINT, BINARY, DATETIME
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import MutableMySQLModel, MySQLBase
@@ -51,5 +50,5 @@ class PlatformContentVersion(MutableMySQLModel, MySQLBase):
     content_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
     metadata_json: Mapped[dict[str, object] | None] = mapped_column(JSON)
     publish_status: Mapped[str] = mapped_column(String(16), nullable=False)
-    effective_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    effective_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
+    expires_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6))

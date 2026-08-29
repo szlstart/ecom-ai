@@ -4,12 +4,24 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Header, Request, Response, status
 
-from app.api.dependencies import AdminContext, IdempotencyKey
+from app.api.dependencies import (
+    AdminContext,
+    IdempotencyKey,
+    MerchantContext,
+    PlatformAdminContext,
+)
 from app.api.schemas import Envelope
 from app.core.config import get_settings
 from app.modules.identity.dependencies import IdentityServiceDependency
 from app.modules.identity.router import _client_ip, _no_store
-from app.modules.identity.schemas import SessionBootstrap, SessionSummary
+from app.modules.identity.schemas import (
+    ContactChangeRequest,
+    MessageResult,
+    PasswordChangeRequest,
+    SecuritySummary,
+    SessionBootstrap,
+    SessionSummary,
+)
 from app.modules.rbac.auth_dependencies import AdminAuthServiceDependency
 from app.modules.rbac.schemas import (
     AdminBootstrap,
@@ -18,21 +30,189 @@ from app.modules.rbac.schemas import (
     AdminMfaChallenge,
     AdminMfaVerificationRequest,
     AdminNavigation,
+    AdminPasswordReauthenticationRequest,
     AdminReauthenticationRequest,
+    MerchantReauthenticationRequest,
+    MerchantRegistrationRequest,
     ReauthenticationResult,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin-authentication"])
+merchant_router = APIRouter(prefix="/merchant", tags=["merchant-authentication"])
 
 ADMIN_REFRESH_COOKIE = "ecom_admin_refresh"
 ADMIN_REFRESH_COOKIE_PATH = "/api/v1/admin/auth"
 ADMIN_CSRF_COOKIE = "ecom_admin_csrf"
+MERCHANT_REFRESH_COOKIE = "ecom_merchant_refresh"
+MERCHANT_REFRESH_COOKIE_PATH = "/api/v1/merchant/auth"
+MERCHANT_CSRF_COOKIE = "ecom_merchant_csrf"
+
+
+@router.post(
+    "/auth/password-login",
+    response_model=Envelope[AdminBootstrap],
+    operation_id="AdminAuth_PasswordLogin",
+)
+async def admin_password_login(
+    payload: AdminLoginRequest,
+    request: Request,
+    response: Response,
+    service: AdminAuthServiceDependency,
+) -> Envelope[AdminBootstrap]:
+    bootstrap, refresh_token = await service.login_platform_password(
+        payload,
+        _client_ip(request),
+        request.headers.get("user-agent", "unknown")[:512],
+    )
+    _set_admin_refresh_cookie(response, refresh_token, bootstrap.session.csrf_token)
+    _no_store(response)
+    return Envelope(data=bootstrap)
+
+
+@router.post(
+    "/auth/password-reauthentications",
+    response_model=Envelope[ReauthenticationResult],
+    operation_id="AdminAuth_PasswordReauthenticate",
+)
+async def reauthenticate_admin_password(
+    payload: AdminPasswordReauthenticationRequest,
+    request: Request,
+    response: Response,
+    context: PlatformAdminContext,
+    service: AdminAuthServiceDependency,
+) -> Envelope[ReauthenticationResult]:
+    _no_store(response)
+    return Envelope(
+        data=await service.reauthenticate_platform_password(
+            context.user,
+            context.session,
+            payload,
+            _client_ip(request),
+        )
+    )
+
+
+@merchant_router.post(
+    "/auth/registrations",
+    status_code=status.HTTP_201_CREATED,
+    response_model=Envelope[AdminBootstrap],
+    operation_id="MerchantAuth_Register",
+)
+async def merchant_register(
+    payload: MerchantRegistrationRequest,
+    request: Request,
+    response: Response,
+    service: AdminAuthServiceDependency,
+) -> Envelope[AdminBootstrap]:
+    bootstrap, refresh_token = await service.register_merchant(
+        payload,
+        _client_ip(request),
+        request.headers.get("user-agent", "unknown")[:512],
+    )
+    _set_merchant_refresh_cookie(response, refresh_token, bootstrap.session.csrf_token)
+    _no_store(response)
+    return Envelope(data=bootstrap)
+
+
+@merchant_router.post(
+    "/auth/login",
+    response_model=Envelope[AdminBootstrap],
+    operation_id="MerchantAuth_Login",
+)
+async def merchant_login(
+    payload: AdminLoginRequest,
+    request: Request,
+    response: Response,
+    service: AdminAuthServiceDependency,
+) -> Envelope[AdminBootstrap]:
+    bootstrap, refresh_token = await service.login_merchant(
+        payload,
+        _client_ip(request),
+        request.headers.get("user-agent", "unknown")[:512],
+    )
+    _set_merchant_refresh_cookie(response, refresh_token, bootstrap.session.csrf_token)
+    _no_store(response)
+    return Envelope(data=bootstrap)
+
+
+@merchant_router.get(
+    "/account/security",
+    response_model=Envelope[SecuritySummary],
+    operation_id="MerchantAccountSecurity_Get",
+)
+async def get_merchant_account_security(
+    response: Response,
+    context: MerchantContext,
+    service: IdentityServiceDependency,
+) -> Envelope[SecuritySummary]:
+    _no_store(response)
+    return Envelope(data=await service.security_summary(context.user))
+
+
+@merchant_router.put(
+    "/account/password",
+    response_model=Envelope[MessageResult],
+    operation_id="MerchantAccountPassword_Replace",
+)
+async def replace_merchant_account_password(
+    payload: PasswordChangeRequest,
+    response: Response,
+    context: MerchantContext,
+    idempotency_key: IdempotencyKey,
+    service: IdentityServiceDependency,
+) -> Envelope[MessageResult]:
+    await service.change_password(context.user, context.session, payload, idempotency_key)
+    _no_store(response)
+    return Envelope(data=MessageResult(message="商家密码已修改，其他登录会话已退出。"))
+
+
+@merchant_router.put(
+    "/account/email",
+    response_model=Envelope[MessageResult],
+    operation_id="MerchantAccountEmail_Replace",
+)
+async def replace_merchant_account_email(
+    payload: ContactChangeRequest,
+    response: Response,
+    context: MerchantContext,
+    idempotency_key: IdempotencyKey,
+    service: IdentityServiceDependency,
+) -> Envelope[MessageResult]:
+    await service.complete_contact_change(
+        context.user, context.session, payload, idempotency_key
+    )
+    _no_store(response)
+    return Envelope(data=MessageResult(message="商家邮箱已更新。"))
+
+
+@merchant_router.post(
+    "/auth/reauthentications",
+    response_model=Envelope[ReauthenticationResult],
+    operation_id="MerchantAuth_Reauthenticate",
+)
+async def reauthenticate_merchant(
+    payload: MerchantReauthenticationRequest,
+    request: Request,
+    response: Response,
+    context: MerchantContext,
+    service: AdminAuthServiceDependency,
+) -> Envelope[ReauthenticationResult]:
+    _no_store(response)
+    return Envelope(
+        data=await service.reauthenticate_merchant(
+            context.user,
+            context.session,
+            payload,
+            _client_ip(request),
+        )
+    )
 
 
 @router.post(
     "/auth/login",
     response_model=Envelope[AdminMfaChallenge],
     operation_id="AdminAuth_Login",
+    include_in_schema=False,
 )
 async def admin_login(
     payload: AdminLoginRequest,
@@ -48,6 +228,7 @@ async def admin_login(
     "/auth/mfa-verifications",
     response_model=Envelope[AdminBootstrap],
     operation_id="AdminAuth_MfaVerify",
+    include_in_schema=False,
 )
 async def verify_admin_mfa(
     payload: AdminMfaVerificationRequest,
@@ -68,6 +249,27 @@ async def verify_admin_mfa(
 
 
 @router.post(
+    "/auth/session-resume",
+    response_model=Envelope[SessionBootstrap],
+    operation_id="AdminAuthSession_Resume",
+)
+async def resume_admin_session(
+    response: Response,
+    service: IdentityServiceDependency,
+    refresh_token: Annotated[str | None, Cookie(alias=ADMIN_REFRESH_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> Envelope[SessionBootstrap]:
+    payload = await service.resume(
+        refresh_token,
+        csrf_token,
+        "admin",
+        allowed_client_types=frozenset({"admin", "admin_password"}),
+    )
+    _no_store(response)
+    return Envelope(data=payload)
+
+
+@router.post(
     "/auth/token-refresh",
     response_model=Envelope[SessionBootstrap],
     operation_id="AdminAuthToken_Refresh",
@@ -85,8 +287,55 @@ async def refresh_admin_token(
         "admin",
         _client_ip(request),
         request.headers.get("user-agent", "unknown")[:512],
+        allowed_client_types=frozenset({"admin", "admin_password"}),
     )
     _set_admin_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
+    _no_store(response)
+    return Envelope(data=result.payload)
+
+
+@merchant_router.post(
+    "/auth/session-resume",
+    response_model=Envelope[SessionBootstrap],
+    operation_id="MerchantAuthSession_Resume",
+)
+async def resume_merchant_session(
+    response: Response,
+    service: IdentityServiceDependency,
+    refresh_token: Annotated[str | None, Cookie(alias=MERCHANT_REFRESH_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> Envelope[SessionBootstrap]:
+    payload = await service.resume(
+        refresh_token,
+        csrf_token,
+        "admin",
+        allowed_client_types=frozenset({"merchant"}),
+    )
+    _no_store(response)
+    return Envelope(data=payload)
+
+
+@merchant_router.post(
+    "/auth/token-refresh",
+    response_model=Envelope[SessionBootstrap],
+    operation_id="MerchantAuthToken_Refresh",
+)
+async def refresh_merchant_token(
+    request: Request,
+    response: Response,
+    service: IdentityServiceDependency,
+    refresh_token: Annotated[str | None, Cookie(alias=MERCHANT_REFRESH_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> Envelope[SessionBootstrap]:
+    result = await service.refresh(
+        refresh_token,
+        csrf_token,
+        "admin",
+        _client_ip(request),
+        request.headers.get("user-agent", "unknown")[:512],
+        allowed_client_types=frozenset({"merchant"}),
+    )
+    _set_merchant_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
     _no_store(response)
     return Envelope(data=result.payload)
 
@@ -95,11 +344,12 @@ async def refresh_admin_token(
     "/auth/reauthentications",
     response_model=Envelope[ReauthenticationResult],
     operation_id="AdminAuth_Reauthenticate",
+    include_in_schema=False,
 )
 async def reauthenticate_admin(
     payload: AdminReauthenticationRequest,
     response: Response,
-    context: AdminContext,
+    context: PlatformAdminContext,
     service: AdminAuthServiceDependency,
 ) -> Envelope[ReauthenticationResult]:
     _no_store(response)
@@ -113,7 +363,7 @@ async def reauthenticate_admin(
 )
 async def admin_logout(
     response: Response,
-    context: AdminContext,
+    context: PlatformAdminContext,
     service: IdentityServiceDependency,
     csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
 ) -> None:
@@ -135,6 +385,35 @@ async def admin_logout(
     _no_store(response)
 
 
+@merchant_router.post(
+    "/auth/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="MerchantAuth_Logout",
+)
+async def merchant_logout(
+    response: Response,
+    context: MerchantContext,
+    service: IdentityServiceDependency,
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> None:
+    await service.logout(context.session, csrf_token)
+    response.delete_cookie(
+        MERCHANT_REFRESH_COOKIE,
+        path=MERCHANT_REFRESH_COOKIE_PATH,
+        secure=get_settings().refresh_cookie_secure,
+        httponly=True,
+        samesite="strict",
+    )
+    response.delete_cookie(
+        MERCHANT_CSRF_COOKIE,
+        path="/",
+        secure=get_settings().refresh_cookie_secure,
+        httponly=False,
+        samesite="strict",
+    )
+    _no_store(response)
+
+
 @router.get(
     "/auth/sessions",
     response_model=Envelope[list[SessionSummary]],
@@ -142,7 +421,7 @@ async def admin_logout(
 )
 async def list_admin_sessions(
     response: Response,
-    context: AdminContext,
+    context: PlatformAdminContext,
     service: IdentityServiceDependency,
 ) -> Envelope[list[SessionSummary]]:
     _no_store(response)
@@ -162,7 +441,7 @@ async def list_admin_sessions(
 )
 async def revoke_admin_session(
     session_id: str,
-    context: AdminContext,
+    context: PlatformAdminContext,
     service: IdentityServiceDependency,
 ) -> None:
     await service.revoke_session(
@@ -194,7 +473,7 @@ async def get_admin_me(
 )
 async def get_admin_navigation(
     response: Response,
-    context: AdminContext,
+    context: PlatformAdminContext,
     service: AdminAuthServiceDependency,
 ) -> Envelope[AdminNavigation]:
     _no_store(response)
@@ -214,6 +493,32 @@ def _set_admin_refresh_cookie(response: Response, refresh_token: str, csrf_token
     )
     response.set_cookie(
         ADMIN_CSRF_COOKIE,
+        csrf_token,
+        max_age=settings.admin_refresh_token_ttl_hours * 60 * 60,
+        path="/",
+        secure=settings.refresh_cookie_secure,
+        httponly=False,
+        samesite="strict",
+    )
+
+
+def _set_merchant_refresh_cookie(
+    response: Response,
+    refresh_token: str,
+    csrf_token: str,
+) -> None:
+    settings = get_settings()
+    response.set_cookie(
+        MERCHANT_REFRESH_COOKIE,
+        refresh_token,
+        max_age=settings.admin_refresh_token_ttl_hours * 60 * 60,
+        path=MERCHANT_REFRESH_COOKIE_PATH,
+        secure=settings.refresh_cookie_secure,
+        httponly=True,
+        samesite="strict",
+    )
+    response.set_cookie(
+        MERCHANT_CSRF_COOKIE,
         csrf_token,
         max_age=settings.admin_refresh_token_ttl_hours * 60 * 60,
         path="/",

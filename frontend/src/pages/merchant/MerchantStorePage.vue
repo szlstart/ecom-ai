@@ -1,0 +1,188 @@
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+
+import { adminCommand, adminGet, adminUpdate, requireAdminToken, type AdminStore } from '@/api/admin-catalog'
+import { apiRequest, errorMessage } from '@/api/http'
+import AdminFileUpload from '@/components/AdminFileUpload.vue'
+import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
+import { useAdminAuthStore } from '@/stores/admin-auth'
+import { imageFileFromClipboard } from '@/utils/clipboard-image'
+import { publishStoreStatus } from '@/utils/store-status-sync'
+
+interface Money { minor_units: string; currency: string }
+interface MerchantRevenue { gross_sales: Money; refunded_amount: Money; net_revenue: Money; completed_order_count: number }
+interface FileUploadHandle { uploadFile: (file: File) => Promise<void> }
+interface MerchantSecurity { current_email: string | null }
+
+const auth = useAdminAuthStore()
+const router = useRouter()
+const store = ref<AdminStore | null>(null)
+const revenue = ref<MerchantRevenue | null>(null)
+const loading = ref(true)
+const saving = ref(false)
+const deleting = ref(false)
+const error = ref('')
+const deleteError = ref('')
+const notice = ref('')
+const statusConfirmOpen = ref(false)
+const logoUpload = ref<FileUploadHandle | null>(null)
+const logoPasteBusy = ref(false)
+const logoPasteFocused = ref(false)
+const logoPasteError = ref('')
+const logoPasteNotice = ref('')
+const profile = reactive({ store_name: '', description: '', logo_file_id: '' })
+const account = reactive({ current_email: '', new_email: '', current_password: '', new_password: '' })
+
+function token() { return requireAdminToken(auth.accessToken) }
+function money(value?: Money) { return `¥${(Number(value?.minor_units ?? 0) / 100).toFixed(2)}` }
+function statusLabel() {
+  if (store.value?.status === 'active') return '营业中'
+  if (store.value?.suspension_source === 'platform') return '平台暂停'
+  return '已暂停'
+}
+
+async function load() {
+  loading.value = true
+  error.value = ''
+  try {
+    const stores = (await adminGet<{ items: AdminStore[]; next_cursor: string | null }>('/admin/stores?limit=20', token())).data.items
+    store.value = stores[0] ?? null
+    if (store.value) {
+      Object.assign(profile, { store_name: store.value.store_name, description: store.value.description ?? '', logo_file_id: '' })
+      revenue.value = (await apiRequest<MerchantRevenue>(`/merchant/stores/${encodeURIComponent(store.value.store_id)}/revenue`, {}, token())).data
+      const security = (await apiRequest<MerchantSecurity>('/merchant/account/security', {}, token())).data
+      account.current_email = security.current_email ?? ''
+    }
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { loading.value = false }
+}
+
+async function changeEmail() {
+  if (!account.new_email) return
+  saving.value = true; error.value = ''; notice.value = ''
+  try {
+    await apiRequest('/merchant/account/email', { method: 'PUT', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ new_email: account.new_email }) }, token())
+    account.current_email = account.new_email; account.new_email = ''; notice.value = '邮箱已更新。'
+  } catch (cause) { error.value = errorMessage(cause) } finally { saving.value = false }
+}
+
+async function changePassword() {
+  if (!account.current_password || !account.new_password) return
+  saving.value = true; error.value = ''; notice.value = ''
+  try {
+    await apiRequest('/merchant/account/password', { method: 'PUT', headers: { 'Idempotency-Key': crypto.randomUUID() }, body: JSON.stringify({ current_password: account.current_password, new_password: account.new_password }) }, token())
+    account.current_password = ''; account.new_password = ''; notice.value = '密码已修改，其他设备上的商家会话已退出。'
+  } catch (cause) { error.value = errorMessage(cause) } finally { saving.value = false }
+}
+
+async function save() {
+  if (!store.value) return
+  saving.value = true
+  error.value = ''
+  notice.value = ''
+  try {
+    const payload: Record<string, unknown> = { store_name: profile.store_name, description: profile.description || null }
+    if (profile.logo_file_id) payload.logo_file_id = profile.logo_file_id
+    store.value = (await adminUpdate<AdminStore>(`/admin/stores/${encodeURIComponent(store.value.store_id)}`, payload, token(), store.value.version)).data
+    profile.logo_file_id = ''
+    notice.value = '店铺资料已保存，用户端相关位置会显示最新店铺名称。'
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { saving.value = false }
+}
+
+async function changeStoreStatus() {
+  if (!store.value || (store.value.status === 'suspended' && store.value.suspension_source === 'platform')) return
+  statusConfirmOpen.value = false
+  saving.value = true
+  error.value = ''
+  notice.value = ''
+  const action = store.value.status === 'active' ? 'suspend' : 'resume'
+  try {
+    store.value = (await adminCommand<AdminStore>(
+      `/admin/stores/${encodeURIComponent(store.value.store_id)}/status-changes`,
+      {
+        action,
+        confirmed: true,
+        reason_code: action === 'suspend' ? 'MERCHANT_PAUSE' : 'MERCHANT_RESUME',
+        reason: action === 'suspend' ? '商家确认暂时停止接收新订单。' : '商家确认恢复接收新订单。',
+      },
+      token(),
+      store.value.version,
+      `merchant-store-${action}`,
+    )).data
+    publishStoreStatus({
+      storeId: store.value.store_id,
+      status: store.value.status,
+      suspensionSource: store.value.suspension_source,
+    })
+    notice.value = action === 'suspend'
+      ? '店铺已暂停营业，暂时不会产生新的购买订单。'
+      : '店铺已恢复营业，销售中的商品已重新开放购买。'
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { saving.value = false }
+}
+
+function logoUploaded(fileId: string) {
+  profile.logo_file_id = fileId
+  logoPasteError.value = ''
+  logoPasteNotice.value = '新 Logo 已上传，保存店铺资料后生效。'
+}
+
+async function pasteLogo(event: ClipboardEvent) {
+  if (logoPasteBusy.value) return
+  logoPasteError.value = ''
+  logoPasteNotice.value = ''
+  try {
+    const file = imageFileFromClipboard(event.clipboardData)
+    if (!file) {
+      logoPasteError.value = '剪贴板中没有图片。请先复制图片，再点击此区域并按 Command + V 或 Ctrl + V。'
+      return
+    }
+    event.preventDefault()
+    if (!logoUpload.value) throw new Error('Logo 上传组件尚未准备好，请稍后重试。')
+    logoPasteBusy.value = true
+    await logoUpload.value.uploadFile(file)
+  } catch (cause) {
+    logoPasteError.value = cause instanceof Error ? cause.message : errorMessage(cause)
+  } finally {
+    logoPasteBusy.value = false
+  }
+}
+
+async function deleteAccount() {
+  if (!store.value || !await confirmAction(`确定永久注销“${store.value.store_name}”及其商家账号吗？\n\n提交后会立即退出，后台将按可重试清理任务删除未产生交易的店铺、商品、文件和账号数据。`, { title: '永久注销商家账号', confirmText: '确认永久注销', tone: 'danger' })) return
+  deleting.value = true
+  deleteError.value = ''
+  try {
+    await apiRequest('/merchant/account', { method: 'DELETE', body: JSON.stringify({ confirmation: 'DELETE_MY_STORE_AND_ACCOUNT' }) }, token())
+    auth.clear()
+    await router.replace('/merchant?deleted=1')
+  } catch (cause) { deleteError.value = errorMessage(cause) }
+  finally { deleting.value = false }
+}
+
+onMounted(load)
+</script>
+
+<template>
+  <section class="merchant-page-stack">
+    <header class="merchant-page-heading"><div><p class="eyebrow">店铺设置</p><h1>店铺资料</h1><p>维护用户看到的公开信息，并查看真实订单汇总的营业额。</p></div><RouterLink v-if="store" :to="`/stores/${store.store_id}`" target="_blank">预览用户端店铺</RouterLink></header>
+    <p v-if="notice" class="alert success" role="status">{{ notice }}</p>
+    <PageState :loading="loading" :error="error" :empty="!loading && !store" empty-title="账号尚未绑定店铺" @retry="load">
+      <template v-if="store">
+        <div class="merchant-store-settings">
+          <form class="card" @submit.prevent="save"><h2>基础资料</h2><label>店铺名称<input v-model.trim="profile.store_name" required minlength="2" maxlength="128" /></label><small>名称不能与其他店铺重复，可随时修改。保存后，用户端商品、收藏和历史订单中的店铺名会同步显示最新名称。</small><label>店铺简介<textarea v-model.trim="profile.description" maxlength="2000" rows="8" placeholder="介绍你的店铺、品牌理念和主营商品" /></label><div class="merchant-logo-paste-zone" :class="{ focused: logoPasteFocused, busy: logoPasteBusy }" tabindex="0" role="button" aria-label="店铺 Logo 粘贴上传区" @focus="logoPasteFocused = true" @blur="logoPasteFocused = false" @paste="pasteLogo"><strong>{{ logoPasteBusy ? '正在读取、扫描并上传 Logo…' : '更换店铺 Logo' }}</strong><p>可从本地选择文件；也可先复制图片，点击这里后按 Command + V（macOS）或 Ctrl + V（Windows）粘贴。</p><AdminFileUpload ref="logoUpload" purpose="store_logo" :business-context-id="store.store_id" label="从本地选择 Logo" @uploaded="logoUploaded" /></div><small v-if="logoPasteNotice" class="success-text" role="status">{{ logoPasteNotice }}</small><small v-if="logoPasteError" class="error-text" role="alert">{{ logoPasteError }}</small><button :disabled="saving || logoPasteBusy">{{ saving ? '正在保存…' : '保存店铺资料' }}</button></form>
+          <aside class="card merchant-store-preview"><p class="eyebrow merchant-revenue-heading">营业额</p><div class="merchant-revenue-value">{{ money(revenue?.net_revenue) }}</div><p>仅在顾客确认收货或系统自动确认后计入，累计确认收货金额减累计退款</p><dl><dt>累计确认收货</dt><dd>{{ money(revenue?.gross_sales) }}</dd><dt>累计退款</dt><dd>{{ money(revenue?.refunded_amount) }}</dd><dt>已完成订单</dt><dd>{{ revenue?.completed_order_count ?? 0 }} 笔</dd><dt>营业状态</dt><dd><span class="merchant-store-status-badge" :class="store.status">{{ statusLabel() }}</span></dd></dl><div class="merchant-store-status-control"><template v-if="store.status === 'suspended' && store.suspension_source === 'platform'"><strong>当前由平台暂停营业</strong><p>商家不能自行恢复，请通过消息联系平台管理员。</p></template><template v-else><strong>{{ store.status === 'active' ? '暂时不接收新订单？' : '准备继续营业？' }}</strong><p>{{ store.status === 'active' ? '暂停后保留商品、订单和店铺资料，可随时自行恢复。' : '恢复后，销售中的商品会重新开放购买。' }}</p><button type="button" :class="store.status === 'active' ? 'secondary' : ''" :disabled="saving" @click="statusConfirmOpen = true">{{ store.status === 'active' ? '暂停营业' : '恢复营业' }}</button></template></div></aside>
+        </div>
+        <section class="merchant-store-account-settings">
+          <form class="card" @submit.prevent="changeEmail"><p class="eyebrow">账号安全</p><h2>更换邮箱</h2><label>当前邮箱<input :value="account.current_email" disabled placeholder="尚未设置邮箱" /></label><label>新的邮箱<input v-model.trim="account.new_email" type="email" required placeholder="输入新的完整邮箱" /></label><button :disabled="saving">确认更换邮箱</button></form>
+          <form class="card" @submit.prevent="changePassword"><p class="eyebrow">登录密码</p><h2>修改密码</h2><label>当前密码<input v-model="account.current_password" type="password" autocomplete="current-password" required /></label><label>新密码<input v-model="account.new_password" type="password" autocomplete="new-password" required placeholder="不能为空且不能包含空白字符" /></label><button :disabled="saving">确认修改密码</button></form>
+        </section>
+        <article class="card danger-zone"><div><p class="eyebrow danger-text">不可恢复</p><h2>注销店铺账号</h2><p>仅未产生任何订单的店铺可以物理注销。提交后立即退出并禁止再次登录，后台会按可审计、可重试的清理任务删除店铺、商品、文件和账号数据。</p></div><button class="danger" type="button" :disabled="deleting" @click="deleteAccount">{{ deleting ? '正在提交注销任务…' : '注销店铺与账号' }}</button><p v-if="deleteError" class="alert error" role="alert">{{ deleteError }}</p></article>
+      </template>
+    </PageState>
+    <Teleport to="body"><div v-if="statusConfirmOpen && store" class="admin-form-overlay" @click.self="statusConfirmOpen = false"><section class="admin-form-dialog merchant-status-confirm" role="dialog" aria-modal="true" aria-labelledby="merchant-store-status-title"><header><div><p class="eyebrow">营业状态确认</p><h2 id="merchant-store-status-title">{{ store.status === 'active' ? '确认暂停营业？' : '确认恢复营业？' }}</h2><p>{{ store.status === 'active' ? '暂停后不再接收新订单，已有订单、售后和顾客消息仍需正常处理。' : '恢复后，所有销售中的商品会重新允许顾客购买。' }}</p></div><button type="button" aria-label="关闭" @click="statusConfirmOpen = false">×</button></header><footer><button type="button" class="secondary" @click="statusConfirmOpen = false">取消</button><button type="button" :class="store.status === 'active' ? 'danger' : ''" :disabled="saving" @click="changeStoreStatus">{{ store.status === 'active' ? '确认暂停营业' : '确认恢复营业' }}</button></footer></section></div></Teleport>
+  </section>
+</template>

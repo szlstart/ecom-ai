@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Any, cast
 
@@ -17,8 +18,19 @@ def load_registry(name: str) -> dict[str, Any]:
 def test_all_registries_are_normative_and_versioned() -> None:
     for registry_path in sorted(REGISTRY_DIRECTORY.glob("*.yaml")):
         registry = load_registry(registry_path.name)
+        if "asyncapi" in registry:
+            continue
         assert registry["status"] == "normative"
         assert isinstance(registry["version"], int)
+
+
+def test_realtime_asyncapi_contract_is_versioned() -> None:
+    contract = load_registry("asyncapi-realtime-v1.yaml")
+
+    assert contract["asyncapi"] == "3.0.0"
+    assert contract["info"]["version"] == "1.0.0"
+    assert contract["channels"]["realtime"]["address"] == "/ws/v1"
+    assert set(contract["operations"]) == {"receiveServerEvent", "sendClientControl"}
 
 
 def test_id_prefixes_are_unique() -> None:
@@ -49,6 +61,21 @@ def test_traceability_references_registered_permissions() -> None:
         values = authorization if isinstance(authorization, list) else [authorization]
         referenced.update(value for value in values if isinstance(value, str) and ":" in value)
     assert referenced <= permission_codes
+
+
+def test_permission_codes_fields_and_security_controls_are_well_formed() -> None:
+    registry = load_registry("permission_registry.yaml")
+    pattern = re.compile(registry["code_pattern"])
+    required_fields = set(registry["required_fields"])
+    for permission in registry["permissions"]:
+        assert required_fields <= permission.keys(), permission["code"]
+        assert pattern.fullmatch(permission["code"]), permission["code"]
+        resource, action = permission["code"].split(":", 1)
+        assert permission["resource"] == resource
+        assert permission["action"] == action
+        assert permission["risk_level"] in {"low", "medium", "high", "critical"}
+        assert set(permission["allowed_scope_types"]) <= {"platform", "store", "queue"}
+        assert permission["allowed_scope_types"]
 
 
 def test_domain_transitions_reference_registered_states() -> None:

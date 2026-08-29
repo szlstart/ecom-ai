@@ -47,8 +47,8 @@ async function revoke(sessionId: string) {
     <p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <article class="card">
       <h2>近期认证</h2>
-      <p class="muted">冻结用户、查看敏感字段和变更权限前，需要重新验证密码与 MFA。</p>
-      <RouterLink class="button-link" to="/admin/login/mfa?redirect=/admin/security">重新安全验证</RouterLink>
+      <p class="muted">冻结用户、查看敏感字段和变更权限前，需要重新确认当前管理员密码。</p>
+      <RouterLink class="button-link" to="/admin/reauthenticate?redirect=/admin/security">确认管理员密码</RouterLink>
     </article>
     <article class="card">
       <h2>登录设备</h2>

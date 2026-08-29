@@ -5,6 +5,10 @@ on:
   push:
     branches: [main, "codex/**"]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -41,6 +45,8 @@ jobs:
           --health-cmd="redis-cli ping"
           --health-interval=5s --health-timeout=3s --health-retries=20
     env:
+      PIP_INDEX_URL: https://pypi.org/simple
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
       ECOM_ENVIRONMENT: testing
       ECOM_DEBUG: "false"
       ECOM_READINESS_CHECKS_ENABLED: "false"
@@ -52,17 +58,27 @@ jobs:
       ECOM_FIELD_ENCRYPTION_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
       ECOM_DEBUG_VERIFICATION_CODE: "000000"
       ECOM_RUN_INTEGRATION_TESTS: "1"
+      ECOM_RUN_FILE_INTEGRATION_TESTS: "1"
+      ECOM_OBJECT_STORAGE_ENABLED: "true"
+      ECOM_OBJECT_STORAGE_ENDPOINT: http://127.0.0.1:9000
+      ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT: http://127.0.0.1:9000
+      ECOM_OBJECT_STORAGE_ACCESS_KEY: ci-minio-admin
+      ECOM_OBJECT_STORAGE_SECRET_KEY: ci-minio-password-not-for-production
+      ECOM_OBJECT_STORAGE_BUCKET_PREFIX: test-ci-
+      ECOM_FILE_SCANNER_ENABLED: "true"
+      ECOM_FILE_SCANNER_HOST: 127.0.0.1
+      ECOM_FILE_SCANNER_PORT: "3310"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13.14"
           cache: pip
           cache-dependency-path: backend/requirements/dev.txt
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.21.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "24.18.0"
           cache: pnpm
@@ -72,16 +88,49 @@ jobs:
           python -m pip install --require-hashes -r backend/requirements/dev.txt
           python -m pip install --no-deps -e backend
           pnpm --dir frontend install --frozen-lockfile
+      - name: Start file security dependencies
+        run: |
+          docker run --detach --name ecom-minio-ci --publish 9000:9000 \
+            --env MINIO_ROOT_USER="$ECOM_OBJECT_STORAGE_ACCESS_KEY" \
+            --env MINIO_ROOT_PASSWORD="$ECOM_OBJECT_STORAGE_SECRET_KEY" \
+            minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e \
+            server /data
+          docker run --detach --name ecom-clamav-ci --publish 3310:3310 \
+            --health-cmd='printf health | clamdscan --stream - --no-summary >/dev/null 2>&1' \
+            --health-interval=10s --health-timeout=10s --health-retries=30 \
+            --health-start-period=90s \
+            clamav/clamav-debian@sha256:2bb8cd7dfe3e87f86e969a2c415f7698583175e46dc2234672be9210c982c144
+          timeout 180 bash -c 'until curl --fail --silent http://127.0.0.1:9000/minio/health/live; do sleep 2; done'
+          timeout 240 bash -c 'until [[ "$(docker inspect --format={{.State.Health.Status}} ecom-clamav-ci)" == healthy ]]; do sleep 3; done'
+      - name: Install browser acceptance runtime
+        run: pnpm --dir frontend exec playwright install --with-deps chromium
       - name: Apply database migrations and seed references
         run: |
           cd backend
           python -m alembic -c alembic.mysql.ini upgrade head
+          # k05 is the reviewed rollback floor: crossing it would recreate
+          # retired plaintext internal-note storage and is intentionally blocked.
+          python -m alembic -c alembic.mysql.ini downgrade k05f6a8b9c0d
+          python -m alembic -c alembic.mysql.ini upgrade head
+          python -m alembic -c alembic.postgres.ini upgrade head
+          python -m alembic -c alembic.postgres.ini downgrade base
           python -m alembic -c alembic.postgres.ini upgrade head
           python -m app.bootstrap.cli
       - name: Verify generated registries and API contract
         run: |
           python scripts/generate_permission_catalog.py
+          make trace-catalog
           make openapi
-          git diff --exit-code -- backend/app/generated/permission_catalog.py docs/openapi-v1.json frontend/src/api/generated/schema.ts
+          make registry-check
+          make acceptance-gate
+          git diff --exit-code -- backend/app/generated/permission_catalog.py backend/app/generated/operation_trace_catalog.py docs/openapi-v1.json frontend/src/api/generated/schema.ts
       - name: Run quality gates
-        run: make lint test build
+        run: make lint acceptance-test
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-evidence-${{ github.sha }}
+          path: artifacts/acceptance/current
+          if-no-files-found: error
+          retention-days: 14

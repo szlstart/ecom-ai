@@ -4,24 +4,24 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Header, Request, Response, status
 
-from app.api.dependencies import IdempotencyKey, OptionalUserContext, UserContext
+from app.api.dependencies import IdempotencyKey, UserContext
 from app.api.schemas import Envelope
+from app.core.client_ip import request_client_ip
 from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
 from app.modules.identity.dependencies import IdentityServiceDependency
 from app.modules.identity.schemas import (
-    AccountClosureRequest,
     AddressList,
     AddressPatch,
     AddressView,
     AddressWrite,
     ContactChangeRequest,
-    ContactChangeTicketRequest,
-    ContactChangeTicketResult,
     DefaultAddressRequest,
     LoginRequest,
     MessageResult,
     PasswordChangeRequest,
+    PasswordResetHintRequest,
+    PasswordResetHintResult,
     PasswordResetRequest,
     PasswordResetTicketRequest,
     PasswordResetTicketResult,
@@ -32,9 +32,8 @@ from app.modules.identity.schemas import (
     UserDashboard,
     UserProfile,
     UserProfileUpdate,
-    VerificationCodeAccepted,
-    VerificationCodeRequest,
 )
+from app.modules.orders.dependencies import OrderServiceDependency
 
 auth_router = APIRouter(prefix="/auth", tags=["authentication"])
 user_router = APIRouter(prefix="/users/me", tags=["current-user"])
@@ -50,32 +49,10 @@ USER_CSRF_COOKIE = "ecom_user_csrf"
     operation_id="RegistrationConfig_Get",
 )
 async def get_registration_config(
+    request: Request,
     service: IdentityServiceDependency,
 ) -> Envelope[dict[str, object]]:
-    return Envelope(data=await service.registration_config())
-
-
-@auth_router.post(
-    "/verification-codes",
-    status_code=status.HTTP_202_ACCEPTED,
-    response_model=Envelope[VerificationCodeAccepted],
-    operation_id="AuthVerificationCode_Create",
-)
-async def create_verification_code(
-    payload: VerificationCodeRequest,
-    request: Request,
-    response: Response,
-    service: IdentityServiceDependency,
-    context: OptionalUserContext,
-) -> Envelope[VerificationCodeAccepted]:
-    _no_store(response)
-    result = await service.send_verification_code(
-        payload,
-        _client_ip(request),
-        context.user.id if context is not None else None,
-    )
-    response.headers["Retry-After"] = str(result.retry_after_seconds)
-    return Envelope(data=result)
+    return Envelope(data=await service.registration_config(_client_ip(request)))
 
 
 @auth_router.post(
@@ -124,6 +101,27 @@ async def login(
 
 
 @auth_router.post(
+    "/session-resume",
+    response_model=Envelope[SessionBootstrap],
+    operation_id="AuthSession_Resume",
+)
+async def resume_session(
+    response: Response,
+    service: IdentityServiceDependency,
+    refresh_token: Annotated[str | None, Cookie(alias=USER_REFRESH_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> Envelope[SessionBootstrap]:
+    payload = await service.resume(
+        refresh_token,
+        csrf_token,
+        "user",
+        allowed_client_types=frozenset({"web"}),
+    )
+    _no_store(response)
+    return Envelope(data=payload)
+
+
+@auth_router.post(
     "/token-refresh",
     response_model=Envelope[SessionBootstrap],
     operation_id="AuthToken_Refresh",
@@ -141,6 +139,7 @@ async def refresh_token(
         "user",
         _client_ip(request),
         request.headers.get("user-agent", "unknown")[:512],
+        allowed_client_types=frozenset({"web"}),
     )
     _set_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
     _no_store(response)
@@ -216,6 +215,21 @@ async def revoke_other_sessions(
 
 
 @auth_router.post(
+    "/password-reset-hints",
+    response_model=Envelope[PasswordResetHintResult],
+    operation_id="PasswordResetHint_Get",
+)
+async def get_password_reset_hint(
+    payload: PasswordResetHintRequest,
+    request: Request,
+    response: Response,
+    service: IdentityServiceDependency,
+) -> Envelope[PasswordResetHintResult]:
+    _no_store(response)
+    return Envelope(data=await service.password_reset_hint(payload, _client_ip(request)))
+
+
+@auth_router.post(
     "/password-reset-tickets",
     response_model=Envelope[PasswordResetTicketResult],
     operation_id="PasswordResetTicket_Create",
@@ -254,8 +268,10 @@ async def reset_password(
 async def get_dashboard(
     context: UserContext,
     service: IdentityServiceDependency,
+    order_service: OrderServiceDependency,
 ) -> Envelope[UserDashboard]:
-    return Envelope(data=await service.dashboard(context.user.id))
+    order_counts = await order_service.dashboard_counts(context.user)
+    return Envelope(data=await service.dashboard(context.user.id, order_counts=order_counts))
 
 
 @user_router.get(
@@ -322,31 +338,6 @@ async def get_security_summary(
 
 
 @user_router.post(
-    "/contact-change-tickets",
-    status_code=status.HTTP_201_CREATED,
-    response_model=Envelope[ContactChangeTicketResult],
-    operation_id="UserContactChangeTicket_Create",
-)
-async def create_contact_change_ticket(
-    payload: ContactChangeTicketRequest,
-    request: Request,
-    response: Response,
-    context: UserContext,
-    idempotency_key: IdempotencyKey,
-    service: IdentityServiceDependency,
-) -> Envelope[ContactChangeTicketResult]:
-    _no_store(response)
-    return Envelope(
-        data=await service.create_contact_change_ticket(
-            context.user,
-            payload,
-            _client_ip(request),
-            idempotency_key,
-        )
-    )
-
-
-@user_router.post(
     "/contact-changes",
     response_model=Envelope[MessageResult],
     operation_id="UserContactChange_Complete",
@@ -365,20 +356,7 @@ async def complete_contact_change(
         idempotency_key,
     )
     _no_store(response)
-    return Envelope(data=MessageResult(message="联系方式已更新。"))
-
-
-@user_router.delete(
-    "/contact-change-tickets/{change_ticket_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    operation_id="UserContactChangeTicket_Cancel",
-)
-async def cancel_contact_change(
-    change_ticket_id: str,
-    context: UserContext,
-    service: IdentityServiceDependency,
-) -> None:
-    await service.cancel_contact_change(context.user.id, change_ticket_id)
+    return Envelope(data=MessageResult(message="邮箱已更新。"))
 
 
 @user_router.get(
@@ -477,27 +455,6 @@ async def set_default_address(
     return Envelope(data=await service.set_default_address(context.user.id, payload.address_id))
 
 
-@user_router.post(
-    "/account-closure-requests",
-    status_code=status.HTTP_202_ACCEPTED,
-    response_model=Envelope[MessageResult],
-    operation_id="UserAccountClosureRequest_Create",
-)
-async def request_account_closure(
-    payload: AccountClosureRequest,
-    context: UserContext,
-    idempotency_key: IdempotencyKey,
-    service: IdentityServiceDependency,
-) -> Envelope[MessageResult]:
-    await service.request_account_closure(
-        context.user,
-        payload.reason_code,
-        payload.reason,
-        idempotency_key,
-    )
-    return Envelope(data=MessageResult(message="账号注销申请已受理，当前进入冷静期。"))
-
-
 def _set_refresh_cookie(response: Response, refresh_token: str, csrf_token: str) -> None:
     settings = get_settings()
     response.set_cookie(
@@ -526,7 +483,7 @@ def _no_store(response: Response) -> None:
 
 
 def _client_ip(request: Request) -> str:
-    return request.client.host if request.client is not None else "unknown"
+    return request_client_ip(request)
 
 
 def _etag(version: int) -> str:

@@ -10,8 +10,8 @@ router = APIRouter(prefix="/health", tags=["health"])
 
 
 @router.get("/live", operation_id="Health_Live")
-async def liveness() -> LivenessResponse:
-    return LivenessResponse()
+async def liveness(settings: Annotated[Settings, Depends(get_settings)]) -> LivenessResponse:
+    return LivenessResponse(version=settings.app_version, build_sha=settings.build_sha)
 
 
 @router.get("/ready", operation_id="Health_Ready")
@@ -20,6 +20,6 @@ async def readiness(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> ReadinessResponse:
     result = await get_readiness(settings)
-    if result.status != "ready":
+    if result.status == "not_ready":
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return result

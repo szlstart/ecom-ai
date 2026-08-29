@@ -7,10 +7,21 @@ defaults:
   client_generated: false
   status: active
 resources:
+  ai_evaluation_run: {prefix: evr_, owner: ai_evaluation}
   user: {prefix: usr_, url_allowed: true, owner: identity}
   store: {prefix: sto_, url_allowed: true, owner: stores}
+  store_certification: {prefix: cert_, url_allowed: true, owner: stores}
+  store_product_group: {prefix: grp_, url_allowed: true, owner: stores}
+  store_service_policy: {prefix: pol_, url_allowed: true, owner: stores}
+  shipping_template: {prefix: sht_, url_allowed: true, owner: stores}
+  store_announcement: {prefix: ann_, url_allowed: true, owner: stores}
+  category: {prefix: cat_, url_allowed: true, owner: catalog}
+  brand: {prefix: brd_, url_allowed: true, owner: catalog}
   product: {prefix: prd_, url_allowed: true, owner: catalog}
   sku: {prefix: sku_, url_allowed: true, owner: catalog}
+  product_content_version: {prefix: pcv_, url_allowed: true, owner: catalog}
+  product_faq_version: {prefix: fqv_, url_allowed: true, owner: catalog}
+  inventory_reservation: {prefix: irs_, owner: inventory}
   auth_session: {prefix: ses_, owner: identity}
   address: {prefix: addr_, url_allowed: true, owner: users}
   verification: {prefix: ver_, owner: identity}
@@ -24,13 +35,21 @@ resources:
   trade_order: {prefix: trd_, storage_length: 32, url_allowed: true, owner: orders}
   order: {prefix: ord_, storage_length: 32, url_allowed: true, owner: orders}
   order_item: {prefix: oit_, url_allowed: true, owner: orders}
+  order_operation: {prefix: oop_, owner: orders}
   payment: {prefix: pay_, storage_length: 32, url_allowed: true, owner: payments}
+  payment_event: {prefix: pev_, owner: payments}
+  payment_callback: {prefix: pcb_, owner: payments}
   shipment: {prefix: shp_, url_allowed: true, owner: logistics}
   refund: {prefix: ref_, storage_length: 32, url_allowed: true, owner: after_sale}
   refund_draft: {prefix: rfd_, owner: after_sale}
   refund_policy_snapshot: {prefix: rsp_, owner: after_sale}
   refund_appeal: {prefix: rap_, url_allowed: true, owner: after_sale}
+  refund_appeal_event: {prefix: rae_, owner: after_sale}
+  refund_payment: {prefix: rfp_, owner: after_sale}
   review: {prefix: rev_, url_allowed: true, owner: reviews}
+  review_append: {prefix: rpa_, url_allowed: true, owner: reviews}
+  review_revision: {prefix: rrv_, owner: reviews}
+  review_governance: {prefix: rgo_, owner: reviews}
   product_faq: {prefix: faq_, url_allowed: true, owner: catalog}
   contact_ref: {prefix: ctk_, owner: support}
   conversation: {prefix: conv_, url_allowed: true, owner: conversations}
@@ -39,7 +58,13 @@ resources:
   client_message: {prefix: cmsg_, client_generated: true, owner: conversations}
   human_ticket: {prefix: tkt_, storage_length: 32, url_allowed: true, owner: support}
   human_assignment: {prefix: asg_, owner: support}
+  human_ticket_event: {prefix: hte_, owner: support}
+  human_internal_note: {prefix: note_, owner: support}
   agent_run: {prefix: run_, url_allowed: true, owner: agent_runtime}
+  agent_delegation: {prefix: dlg_, owner: agent_runtime}
+  agent_tool_audit: {prefix: taud_, owner: agent_runtime}
+  agent_checkpoint: {prefix: acp_, owner: agent_runtime}
+  agent_checkpoint_write: {prefix: cpw_, owner: agent_runtime}
   agent: {prefix: agt_, url_allowed: true, owner: ai_governance}
   skill: {prefix: skl_, url_allowed: true, owner: ai_governance}
   tool: {prefix: tol_, url_allowed: true, owner: ai_governance}
@@ -53,11 +78,13 @@ resources:
   sensitive_access_grant: {prefix: sag_, owner: admin_governance}
   ai_feedback: {prefix: fdb_, owner: ai_governance}
   file: {prefix: file_, url_allowed: true, owner: files}
+  file_reconciliation_finding: {prefix: frf_, owner: files}
   upload_session: {prefix: upl_, owner: files}
   outbox_event: {prefix: evt_, owner: events}
   audit: {prefix: aud_, owner: audit}
   notification_task: {prefix: ntf_, owner: notifications}
   batch_job: {prefix: job_, url_allowed: true, owner: jobs}
+  account_deletion_task: {prefix: adt_, url_allowed: true, owner: finance}
   dead_letter: {prefix: dlq_, url_allowed: true, owner: events}
   knowledge_document: {prefix: doc_, url_allowed: true, owner: knowledge}
   knowledge_chunk: {prefix: kch_, owner: knowledge}
@@ -87,7 +114,7 @@ non_resource_identifiers:
     client_generated: false
   configuration_version:
     format: registered_semantic_version
-    examples: [regcfg_2026_08_01, username_v1, password_v3]
+    examples: [regcfg_2026_08_26, username_v1, password_v4]
   legal_document_version:
     format: registered_semantic_version
     examples: [terms_2026_08, privacy_2026_08]

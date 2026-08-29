@@ -5,10 +5,25 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.database.base import MySQLBase
+from app.modules.after_sale import models as after_sale_models  # noqa: F401
+from app.modules.agent_runtime import models as agent_runtime_models  # noqa: F401
+from app.modules.cart import models as cart_models  # noqa: F401
+from app.modules.catalog import models as catalog_models  # noqa: F401
+from app.modules.checkout import models as checkout_models  # noqa: F401
 from app.modules.content import models as content_models  # noqa: F401
+from app.modules.evaluation import models as evaluation_models  # noqa: F401
+from app.modules.files import models as file_models  # noqa: F401
+from app.modules.finance import models as finance_models  # noqa: F401
 from app.modules.identity import models as identity_models  # noqa: F401
+from app.modules.inventory import models as inventory_models  # noqa: F401
+from app.modules.knowledge import models as knowledge_models  # noqa: F401
+from app.modules.logistics import models as logistics_models  # noqa: F401
 from app.modules.messaging import models as messaging_models  # noqa: F401
+from app.modules.orders import models as order_models  # noqa: F401
+from app.modules.payments import models as payment_models  # noqa: F401
 from app.modules.rbac import models as rbac_models  # noqa: F401
+from app.modules.reviews import models as review_models  # noqa: F401
+from app.modules.stores import models as store_models  # noqa: F401
 from app.modules.system import models as system_models  # noqa: F401
 
 config = context.config

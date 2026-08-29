@@ -1,0 +1,68 @@
+version: 1
+measured_at: null
+environment: staging-production-parity
+traffic_assumptions:
+  dau: null
+  normal_peak_rps: null
+  promotion_peak_multiplier: null
+  websocket_connections: null
+  agent_run_arrival_rps: null
+resources:
+  - name: mysql_connections
+    current: null
+    peak: null
+    safe_limit: null
+    headroom_percent: null
+    lead_time: null
+    owner: null
+    scale_action: null
+  - name: postgres_connections
+    current: null
+    peak: null
+    safe_limit: null
+    headroom_percent: null
+    lead_time: null
+    owner: null
+    scale_action: null
+  - name: redis_connections
+    current: null
+    peak: null
+    safe_limit: null
+    headroom_percent: null
+    lead_time: null
+    owner: null
+    scale_action: null
+  - name: persistent_disk_bytes
+    current: null
+    peak: null
+    safe_limit: null
+    headroom_percent: null
+    lead_time: null
+    owner: null
+    scale_action: null
+  - name: critical_queue_processing_rate
+    current: null
+    peak: null
+    safe_limit: null
+    headroom_percent: null
+    lead_time: null
+    owner: null
+    scale_action: null
+  - name: agent_active_runs
+    current: null
+    peak: null
+    safe_limit: null
+    headroom_percent: null
+    lead_time: null
+    owner: null
+    scale_action: null
+  - name: daily_model_cost_minor
+    current: null
+    peak: null
+    safe_limit: null
+    headroom_percent: null
+    lead_time: null
+    owner: null
+    scale_action: null
+release_decision: no-go
+evidence_links: []

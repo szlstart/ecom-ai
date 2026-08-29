@@ -31,11 +31,37 @@ class AdminAccess:
             )
 
 
+def requires_recent_auth_for_session(policy_requires_recent_auth: bool, client_type: str) -> bool:
+    """Time-based password step-up is disabled for both management portals."""
+    return False
+
+
+def requires_mfa_for_session(policy_requires_mfa: bool, client_type: str) -> bool:
+    """Neither management portal exposes an MFA step-up interaction."""
+    return False
+
+
 def require_admin_permission(permission_code: str) -> object:
     return require_any_admin_permission(permission_code)
 
 
 def require_any_admin_permission(*permission_codes: str) -> object:
+    # The platform super-administrator portal uses an explicit confirmation at
+    # the point of mutation.  Product requirements deliberately removed the
+    # time-based password/MFA step-up flow because it interrupted long-running
+    # administration sessions.  Permission and scope checks still run here.
+    return _require_any_admin_permission(*permission_codes, enforce_step_up=False)
+
+
+def require_admin_permission_without_step_up(permission_code: str) -> object:
+    """Require permission and scope while leaving confirmation to the command payload."""
+    return _require_any_admin_permission(permission_code, enforce_step_up=False)
+
+
+def _require_any_admin_permission(
+    *permission_codes: str,
+    enforce_step_up: bool,
+) -> object:
     if not permission_codes:
         raise ValueError("At least one permission code is required")
 
@@ -61,7 +87,16 @@ def require_any_admin_permission(*permission_codes: str) -> object:
                 detail=f"当前管理身份缺少所需权限: {'、'.join(permission_codes)}。",
             )
         permission = matching[0][0]
-        if permission.requires_mfa and context.session.assurance_level not in {"aal2", "aal3"}:
+        if (
+            enforce_step_up
+            and requires_mfa_for_session(permission.requires_mfa, context.session.client_type)
+            and context.session.assurance_level
+            not in {
+                "aal2",
+                "aal3",
+                "password_admin",
+            }
+        ):
             raise ApplicationError(
                 status=403,
                 code="AUTH_MFA_REQUIRED",
@@ -70,7 +105,10 @@ def require_any_admin_permission(*permission_codes: str) -> object:
             )
         settings = get_settings()
         if (
-            permission.requires_recent_auth
+            enforce_step_up
+            and requires_recent_auth_for_session(
+                permission.requires_recent_auth, context.session.client_type
+            )
             and context.session.authenticated_at
             < utc_now() - timedelta(seconds=settings.admin_recent_auth_seconds)
         ):
@@ -83,4 +121,5 @@ def require_any_admin_permission(*permission_codes: str) -> object:
         scopes = tuple(sorted({(grant.scope_type, grant.scope_id) for _, grant, _ in matching}))
         return AdminAccess(context=context, permission=permission, scopes=scopes)
 
+    dependency.__permission_codes__ = permission_codes  # type: ignore[attr-defined]
     return Depends(dependency)

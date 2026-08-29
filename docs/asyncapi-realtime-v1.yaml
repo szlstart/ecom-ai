@@ -1,0 +1,95 @@
+asyncapi: 3.0.0
+info:
+  title: ecom-ai Realtime Protocol
+  version: 1.0.0
+  description: |
+    用户消息与人工客服工作台的非权威实时通知协议。MySQL/REST 资源是事实来源；
+    客户端重连后必须先用 REST 消息游标补拉，再重新建立 WebSocket。
+servers:
+  development:
+    host: 127.0.0.1:8000
+    pathname: /ws/v1
+    protocol: ws
+    description: 本地开发入口
+channels:
+  realtime:
+    address: /ws/v1
+    description: |
+      连接前分别调用 POST /api/v1/realtime/tickets 或
+      POST /api/v1/support/realtime/tickets。握手必须同时提供
+      `ecom.realtime.v1` 与 `ticket.<opaque-ticket>` 子协议；票据不得进入 URL，且仅可消费一次。
+    messages:
+      serverEvent:
+        $ref: '#/components/messages/ServerEvent'
+      clientControl:
+        $ref: '#/components/messages/ClientControl'
+operations:
+  receiveServerEvent:
+    action: receive
+    channel:
+      $ref: '#/channels/realtime'
+    messages:
+      - $ref: '#/channels/realtime/messages/serverEvent'
+  sendClientControl:
+    action: send
+    channel:
+      $ref: '#/channels/realtime'
+    messages:
+      - $ref: '#/channels/realtime/messages/clientControl'
+components:
+  messages:
+    ServerEvent:
+      name: ServerEvent
+      payload:
+        $ref: '#/components/schemas/ServerEvent'
+    ClientControl:
+      name: ClientControl
+      payload:
+        $ref: '#/components/schemas/ClientControl'
+  schemas:
+    ServerEvent:
+      type: object
+      additionalProperties: false
+      required: [schema_version, event_id, type, occurred_at, data]
+      properties:
+        schema_version:
+          type: integer
+          const: 1
+        event_id:
+          type: string
+          description: 稳定事件 ID；客户端按此幂等去重。
+        type:
+          type: string
+          enum:
+            - connection.ready
+            - server.ping
+            - message.created
+            - agent.response.started
+            - agent.response.delta
+            - agent.response.completed
+            - unread.updated
+            - support.status.updated
+            - support.ticket.updated
+        occurred_at:
+          type: string
+          format: date-time
+        data:
+          type: object
+          description: 按 type 使用白名单投影；不包含内部备注、密钥或隐藏消息。
+    ClientControl:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [type]
+          properties:
+            type:
+              const: client.pong
+        - type: object
+          additionalProperties: false
+          required: [type]
+          properties:
+            type:
+              const: client.ping
+      description: |
+        首版聊天发送统一走 REST。客户端不能通过 WebSocket 自选用户、会话、店铺或客服队列；
+        服务端根据已验证的 Audience、Session、Permission Version 与 Scope 决定订阅范围。

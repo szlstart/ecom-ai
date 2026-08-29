@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Literal
 
 from pydantic import Field, model_validator
 
 from app.api.schemas import StrictRequest
+from app.core.passwords import PasswordInput
 
 
 class AgreementReference(StrictRequest):
@@ -15,11 +16,10 @@ class AgreementReference(StrictRequest):
 
 class RegistrationRequest(StrictRequest):
     username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
-    target_type: Literal["phone", "email"]
-    target: str = Field(min_length=3, max_length=254)
-    verification_id: str = Field(min_length=5, max_length=40)
-    verification_code: str = Field(pattern=r"^[0-9]{6}$")
-    password: str = Field(min_length=15, max_length=128)
+    email: str = Field(min_length=3, max_length=254)
+    captcha_id: str = Field(min_length=16, max_length=128)
+    captcha_answer: str = Field(pattern=r"^[0-9]{1,3}$")
+    password: PasswordInput
     config_version: str
     agreement_acceptances: list[AgreementReference] = Field(min_length=2, max_length=2)
     locale: str = Field(default="zh-CN", max_length=16)
@@ -27,7 +27,7 @@ class RegistrationRequest(StrictRequest):
 
 
 class VerificationCodeRequest(StrictRequest):
-    purpose: Literal["register", "login", "reset_password", "change_phone", "change_email"]
+    purpose: Literal["reset_password", "change_phone", "change_email"]
     target_type: Literal["phone", "email"]
     target: str = Field(min_length=3, max_length=254)
     locale: str = Field(default="zh-CN", max_length=16)
@@ -51,25 +51,12 @@ class ClientDescriptor(StrictRequest):
 class PasswordLoginRequest(StrictRequest):
     auth_method: Literal["password"]
     identifier: str = Field(min_length=1, max_length=254)
-    password: str = Field(min_length=1, max_length=128)
+    password: PasswordInput
     client: ClientDescriptor
     challenge_token: str | None = Field(default=None, max_length=2048)
 
 
-class CodeLoginRequest(StrictRequest):
-    auth_method: Literal["verification_code"]
-    target_type: Literal["phone", "email"]
-    target: str = Field(min_length=3, max_length=254)
-    verification_id: str = Field(min_length=5, max_length=40)
-    verification_code: str = Field(pattern=r"^[0-9]{6}$")
-    client: ClientDescriptor
-    challenge_token: str | None = Field(default=None, max_length=2048)
-
-
-LoginRequest = Annotated[
-    PasswordLoginRequest | CodeLoginRequest,
-    Field(discriminator="auth_method"),
-]
+LoginRequest = PasswordLoginRequest
 
 
 class UserSummary(StrictRequest):
@@ -108,11 +95,19 @@ class VerificationCodeAccepted(StrictRequest):
     retry_after_seconds: int
 
 
+class PasswordResetHintRequest(StrictRequest):
+    username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    audience: Literal["consumer", "merchant"] = "consumer"
+
+
+class PasswordResetHintResult(StrictRequest):
+    email_masked: str
+
+
 class PasswordResetTicketRequest(StrictRequest):
-    target_type: Literal["phone", "email"]
-    target: str = Field(min_length=3, max_length=254)
-    verification_id: str
-    verification_code: str = Field(pattern=r"^[0-9]{6}$")
+    username: str = Field(min_length=4, max_length=32, pattern=r"^[A-Za-z0-9_]+$")
+    email: str = Field(min_length=3, max_length=254)
+    audience: Literal["consumer", "merchant"] = "consumer"
 
 
 class PasswordResetTicketResult(StrictRequest):
@@ -122,7 +117,7 @@ class PasswordResetTicketResult(StrictRequest):
 
 class PasswordResetRequest(StrictRequest):
     reset_ticket: str = Field(min_length=32, max_length=256)
-    new_password: str = Field(min_length=15, max_length=128)
+    new_password: PasswordInput
 
 
 class MessageResult(StrictRequest):
@@ -149,19 +144,20 @@ class UserProfileUpdate(StrictRequest):
 
 
 class PasswordChangeRequest(StrictRequest):
-    current_password: str = Field(min_length=1, max_length=128)
-    new_password: str = Field(min_length=15, max_length=128)
+    current_password: PasswordInput
+    new_password: PasswordInput
 
 
 class SecuritySummary(StrictRequest):
     password_set: bool
     password_changed_at: datetime | None
+    current_email: str | None
     bound_accounts: list[dict[str, str | bool]]
     active_session_count: int
 
 
 class AddressWrite(StrictRequest):
-    recipient_name: str = Field(min_length=2, max_length=64)
+    recipient_name: str = Field(min_length=1, max_length=64)
     phone: str = Field(min_length=7, max_length=32)
     country_code: str = Field(default="CN", pattern=r"^[A-Z]{2}$")
     province_code: str = Field(min_length=1, max_length=32)
@@ -174,7 +170,7 @@ class AddressWrite(StrictRequest):
 
 
 class AddressPatch(StrictRequest):
-    recipient_name: str | None = Field(default=None, min_length=2, max_length=64)
+    recipient_name: str | None = Field(default=None, min_length=1, max_length=64)
     phone: str | None = Field(default=None, min_length=7, max_length=32)
     country_code: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
     province_code: str | None = Field(default=None, min_length=1, max_length=32)
@@ -212,15 +208,9 @@ class DefaultAddressRequest(StrictRequest):
     address_id: str
 
 
-class AccountClosureRequest(StrictRequest):
-    reason_code: Literal["no_longer_needed", "privacy_concern", "other"]
-    reason: str | None = Field(default=None, max_length=500)
-    confirmation: Literal["CLOSE_MY_ACCOUNT"]
-
-
 class ContactChangeTicketRequest(StrictRequest):
     credential_type: Literal["phone", "email"]
-    current_password: str = Field(min_length=1, max_length=128)
+    current_password: PasswordInput
 
 
 class ContactChangeTicketResult(StrictRequest):
@@ -230,10 +220,7 @@ class ContactChangeTicketResult(StrictRequest):
 
 
 class ContactChangeRequest(StrictRequest):
-    change_ticket_id: str = Field(min_length=5, max_length=40)
-    new_target: str = Field(min_length=3, max_length=254)
-    verification_id: str = Field(min_length=5, max_length=40)
-    verification_code: str = Field(pattern=r"^[0-9]{6}$")
+    new_email: str = Field(min_length=3, max_length=254)
 
 
 class UserDashboard(StrictRequest):

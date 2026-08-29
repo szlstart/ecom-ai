@@ -2,7 +2,10 @@ import asyncio
 from collections.abc import Awaitable
 from typing import cast
 
+from opentelemetry.instrumentation.redis import RedisInstrumentor
 from redis.asyncio import Redis
+
+from app.core.config import get_settings
 
 _client: Redis | None = None
 
@@ -10,7 +13,12 @@ _client: Redis | None = None
 def initialize_redis(url: str) -> None:
     global _client
     if _client is None:
-        _client = Redis.from_url(url, decode_responses=True)
+        RedisInstrumentor().instrument()
+        _client = Redis.from_url(
+            url,
+            decode_responses=True,
+            max_connections=get_settings().redis_max_connections,
+        )
 
 
 def get_redis() -> Redis:

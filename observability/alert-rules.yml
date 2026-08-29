@@ -1,0 +1,54 @@
+groups:
+  - name: ecom-api
+    rules:
+      - alert: EcomApiDown
+        expr: up{job="ecom-api"} == 0
+        for: 2m
+        labels: {severity: P1, owner: platform}
+        annotations:
+          summary: E-commerce API is unavailable
+          runbook_url: docs/runbooks/api-down.md
+      - alert: EcomApiHighErrorRate
+        expr: sum(rate(ecom_http_requests_total{status=~"5.."}[5m])) / clamp_min(sum(rate(ecom_http_requests_total[5m])), 1) > 0.05
+        for: 10m
+        labels: {severity: P1, owner: platform}
+        annotations:
+          summary: E-commerce API 5xx rate exceeds 5 percent
+          runbook_url: docs/runbooks/api-high-error-rate.md
+      - alert: EcomApiLatencyBurn
+        expr: histogram_quantile(0.95, sum(rate(ecom_http_request_duration_seconds_bucket[10m])) by (le)) > 1
+        for: 15m
+        labels: {severity: P2, owner: platform}
+        annotations:
+          summary: API P95 latency exceeds the one-second guardrail
+          runbook_url: docs/runbooks/api-high-error-rate.md
+  - name: ecom-ai
+    rules:
+      - alert: EcomAgentHighFailureRate
+        expr: sum(rate(ecom_ai_runs_total{outcome=~"failed|timeout"}[10m])) / clamp_min(sum(rate(ecom_ai_runs_total[10m])), 1) > 0.05
+        for: 10m
+        labels: {severity: P1, owner: ai-runtime}
+        annotations:
+          summary: Agent failure or timeout rate exceeds five percent
+          runbook_url: docs/runbooks/agent-degradation.md
+      - alert: EcomModelFirstTokenSlow
+        expr: histogram_quantile(0.95, sum(rate(ecom_ai_ttft_seconds_bucket[10m])) by (le)) > 2
+        for: 15m
+        labels: {severity: P2, owner: ai-runtime}
+        annotations:
+          summary: Model first-token P95 exceeds two seconds
+          runbook_url: docs/runbooks/agent-degradation.md
+      - alert: EcomAiCostTrendHigh
+        expr: sum(increase(ecom_ai_cost_usd_total[1h])) > 20
+        for: 30m
+        labels: {severity: P3, owner: ai-platform}
+        annotations:
+          summary: Hourly estimated AI cost exceeds the initial development budget
+          runbook_url: docs/runbooks/agent-degradation.md
+      - alert: EcomAuthorizationDenialSpike
+        expr: sum(rate(ecom_permission_denials_total[5m])) > 5
+        for: 5m
+        labels: {severity: P2, owner: security}
+        annotations:
+          summary: Authorization denials are increasing abnormally
+          runbook_url: docs/runbooks/authorization-denial-spike.md

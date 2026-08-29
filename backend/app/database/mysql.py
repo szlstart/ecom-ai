@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import AsyncIterator
 
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -8,6 +9,8 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+
+from app.core.config import get_settings
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -17,13 +20,17 @@ def initialize_mysql(dsn: str) -> None:
     global _engine, _session_factory
     if _engine is not None:
         return
+    settings = get_settings()
     _engine = create_async_engine(
         dsn,
+        isolation_level="READ COMMITTED",
         pool_pre_ping=True,
-        pool_size=10,
-        max_overflow=10,
+        pool_size=settings.mysql_pool_size,
+        max_overflow=settings.mysql_max_overflow,
+        pool_timeout=settings.mysql_pool_timeout_seconds,
         pool_recycle=1800,
     )
+    SQLAlchemyInstrumentor().instrument(engine=_engine.sync_engine, enable_commenter=False)
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
 
@@ -39,7 +46,17 @@ async def mysql_session() -> AsyncIterator[AsyncSession]:
     if _session_factory is None:
         raise RuntimeError("MySQL is not initialized")
     async with _session_factory() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            if session.in_transaction():
+                await session.rollback()
+
+
+def mysql_session_factory() -> async_sessionmaker[AsyncSession]:
+    if _session_factory is None:
+        raise RuntimeError("MySQL is not initialized")
+    return _session_factory
 
 
 async def probe_mysql(timeout_seconds: float) -> None:

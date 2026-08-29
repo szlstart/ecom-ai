@@ -1,0 +1,38 @@
+# 最终验收证据说明
+
+本目录描述《企业级在线商城以及AI智能客服设计开发文档.md》3.34.13～3.34.19 的证据生成方式。运行时证据写入被 Git 忽略的 `artifacts/acceptance/<release>/`，避免把可能含环境信息的报告直接提交到仓库；仓库只保存脱敏模板、验证程序和证据清单。
+
+## 当前检查点
+
+执行 `make acceptance-audit` 生成当前差距报告。报告结论为 `no_go` 时，必须逐项修复；不得把未实现页面、缺失 API、缺失测试或外部环境证据标记为通过。
+
+全部仓库内缺口修复后，CI 使用 `make acceptance-gate` 执行严格检查。生产等价压测、备份恢复、PITR、对象复制、镜像签名、真实模型评估和负责人签字属于环境证据，按 `docs/runbooks/release-go-no-go.md` 收集，不得用脚本存在或模拟输出替代。
+
+本地执行应使用 `make acceptance-test-isolated`。该命令复用本机 Docker 基础服务进程，但只创建并使用独立的 `ecom_ai_test`、`ecom_ai_ai_test` 数据库、Redis DB 15 与 `test-acceptance-` 对象桶命名空间；完成或失败后只清理这些精确的测试命名空间，不读取或清空日常开发库。CI 已由 GitHub Actions 提供同等级隔离服务，因此仍直接调用 `make acceptance-test`；后者的安全闸门会拒绝任何数据库名不以 `_test` 结尾、Redis 使用 DB 0 或对象桶没有 `test-` 前缀的连接。
+
+验收会先对 MySQL/PostgreSQL 执行 `alembic current/check`，把版本与 ORM/Schema Drift 结果写入 `artifacts/acceptance/current/database/*-schema-drift.txt`，再强制启用真实 MySQL/PostgreSQL/Redis 集成套件并把后端覆盖率 XML 写入 `artifacts/acceptance/current/quality/`。数据库集成用例同时验证 MySQL `READ COMMITTED` 与全部 `DATETIME(6)` 时间列。随后以固定、无真实用户数据的 API Fixture 在桌面与手机视口执行 Playwright Chromium 验收，保存 JUnit、截图和失败 Trace，并以 axe-core 阻断 WCAG 2 A/AA 的 serious/critical 问题。当前仓库门禁为后端行覆盖率不低于 60%；它只用于阻止证据退化，不能替代目标数据量迁移、Query Plan、加密备份、PITR、隔离恢复和生产最小权限验收。
+
+`docs/test_evidence_registry.yaml` 把追踪矩阵中的测试族绑定到精确的 Pytest/Vitest 选择器，并声明证据层级。`make acceptance-gate` 会解析测试源文件，拒绝不存在或已改名的选择器、未知/孤立测试族，以及没有测试归属的领域聚合；仅在 OpenAPI 中填写 `*-*` 标签不再被视为测试证据。CI 的验收工件同时保存后端和前端 JUnit 报告。
+
+`make acceptance-scenario` 只允许在 `ECOM_ENVIRONMENT=testing`、MySQL/PostgreSQL 数据库名带 `_test` 且 Redis 使用非 0 DB 时运行。它幂等创建版本化的三端场景 `commerce-three-portal-v1`：一个消费者、一个店铺人员、一个平台管理员、一件可售商品、库存、包邮规则、默认地址和模拟余额，并把不含密码或 Token 的公开资源清单写入 `artifacts/acceptance/current/scenario.json`。固定测试密码仅存在于测试工厂源码中，不得复制到非测试环境。工厂自身的幂等集成测试还要求 `ECOM_RUN_ACCEPTANCE_SCENARIO_TEST=1` 并使用单独的可丢弃测试库，避免它提交的固定场景污染常规测试套件；日常完整验收则由真实浏览器流程直接证明场景可用。
+
+测试完成后，`make acceptance-evidence` 会把已执行的 JUnit Case 与测试注册表逐项求交，为 Route、全局组件、Webhook 和内部 Operation 的每个稳定 Requirement ID 生成 `requirements/<requirement-id>/evidence.json`、`contract-snapshot.json` 和裁剪后的 `test-report.xml`，并生成总索引 `requirement-evidence-index.json`。选择器没有实际执行、Case 失败或 Operation 缺失时命令立即失败；证据只含测试名称、公开契约与哈希，不含请求/响应正文、Cookie、Token 或用户数据。
+
+同一验收命令还会单独执行 Prompt Injection、跨用户/跨店、Consent/Approval、RAG ACL 和记忆隔离安全套件并生成 `agent/security-tests.xml`。未提供真实候选模型 Observation 时仍生成 `agent/evaluation-report.json`，但其结论必须精确为 `insufficient_evidence / observations_missing`；`--allow-missing-observations` 只允许 CI 保存这一 Fail-Closed 事实，不会把它改写为 `pass`。提供候选 Observation 的正式准入仍使用不带该参数的 `make evaluate-agent AGENT_OBSERVATIONS=...`。
+
+## 证据最小结构
+
+每个发布版本的证据目录至少包含：
+
+- `traceability-audit.json`：页面、Operation、Permission、状态规则和测试归属检查；
+- `requirement-evidence-index.json` 与 `requirements/`：逐 Requirement 的契约快照、实际执行测试报告和源证据哈希；
+- `quality/`：后端、前端、契约、并发、安全与 E2E 报告；
+- `database/`：迁移、Schema Drift、备份恢复和不变量对账；
+- `agent/`：固定数据集、逐用例差异、安全 Holdout、延迟和成本；
+- `performance/`：Load、Stress、Spike、Soak 与容量余量；
+- `operations/`：Canary、回滚、故障演练、RPO/RTO 与告警记录；
+- `go-no-go.json`：每个门禁的证据 URI、Owner、结论和签字时间。
+
+证据只允许包含公开 ID、脱敏字段和 Trace/Audit 引用，不保存 Token、Cookie、Secret、完整运单号、用户消息正文或模型隐藏推理。
+
+从 `docs/acceptance/go-no-go.template.json` 复制发布清单，填写真实 Commit、证据引用、Owner 与复核人后执行 `make go-no-go-validate MANIFEST=artifacts/acceptance/<release>/go-no-go.json`。每个门禁必须保留 `required_evidence`、`verification_commands` 和 `exit_conditions`；`pending` / `insufficient_evidence` 还必须逐项填写 `missing_evidence`，不得只写模糊备注。只有八类门禁全部为 `pass`、`missing_evidence` 已清空，且每类都有证据、复核人和 UTC 决策时间，工具才返回 `go`；缺失门禁或无签字的 `pass` 均 Fail Closed 为 `no_go`。

@@ -35,13 +35,44 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
 ) -> None:
     suffix = secrets.token_hex(4)
     username = f"user_{suffix}"
-    email = f"user_{suffix}@example.com"
+    registration_email = f"user_{suffix}@example.com"
     password = f"Correct-Horse-{suffix}-Battery-Staple!"
 
     config_response = await client.get("/api/v1/auth/registration-config")
     assert config_response.status_code == 200
     registration_config = config_response.json()["data"]
     assert len(registration_config["required_agreements"]) == 2
+    assert registration_config["password_policy"] == {
+        "non_empty": True,
+        "forbid_whitespace": True,
+        "allow_unicode": True,
+        "policy_version": "password_v4",
+    }
+    captcha = registration_config["captcha"]
+    left, operator, right, _, _ = captcha["question"].split()
+    captcha_answer = int(left) + int(right) if operator == "+" else int(left) - int(right)
+
+    wrong_captcha_response = await client.post(
+        "/api/v1/auth/registrations",
+        headers={"Idempotency-Key": f"registration-{suffix}-wrong"},
+        json={
+            "username": username,
+            "email": registration_email,
+            "captcha_id": captcha["captcha_id"],
+            "captcha_answer": str(captcha_answer + 1),
+            "password": password,
+            "config_version": registration_config["config_version"],
+            "agreement_acceptances": [
+                {
+                    "document_type": item["document_type"],
+                    "document_version": item["document_version"],
+                }
+                for item in registration_config["required_agreements"]
+            ],
+        },
+    )
+    assert wrong_captcha_response.status_code == 422
+    assert wrong_captcha_response.json()["code"] == "REGISTRATION_CAPTCHA_INVALID"
 
     agreement = registration_config["required_agreements"][0]
     legal_response = await client.get(
@@ -50,29 +81,14 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     assert legal_response.status_code == 200
     assert legal_response.json()["data"]["content_hash"] == agreement["content_hash"]
 
-    verification_response = await client.post(
-        "/api/v1/auth/verification-codes",
-        json={
-            "purpose": "register",
-            "target_type": "email",
-            "target": email,
-            "locale": "zh-CN",
-            "challenge_token": None,
-            "change_ticket_id": None,
-        },
-    )
-    assert verification_response.status_code == 202
-    verification_id = verification_response.json()["data"]["verification_id"]
-
     registration_response = await client.post(
         "/api/v1/auth/registrations",
         headers={"Idempotency-Key": f"registration-{suffix}-0001"},
         json={
             "username": username,
-            "target_type": "email",
-            "target": email,
-            "verification_id": verification_id,
-            "verification_code": "000000",
+            "email": registration_email,
+            "captcha_id": captcha["captcha_id"],
+            "captcha_answer": str(captcha_answer),
             "password": password,
             "config_version": registration_config["config_version"],
             "agreement_acceptances": [
@@ -92,6 +108,68 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     access_token = bootstrap["access_token"]
     csrf_token = bootstrap["csrf_token"]
     auth_headers = {"Authorization": f"Bearer {access_token}"}
+
+    duplicate_config = (await client.get("/api/v1/auth/registration-config")).json()["data"]
+    duplicate_captcha = duplicate_config["captcha"]
+    duplicate_left, duplicate_operator, duplicate_right, _, _ = duplicate_captcha[
+        "question"
+    ].split()
+    duplicate_answer = (
+        int(duplicate_left) + int(duplicate_right)
+        if duplicate_operator == "+"
+        else int(duplicate_left) - int(duplicate_right)
+    )
+    duplicate_username_response = await client.post(
+        "/api/v1/auth/registrations",
+        headers={"Idempotency-Key": f"registration-{suffix}-duplicate-username"},
+        json={
+            "username": username,
+            "email": f"duplicate_{suffix}@example.com",
+            "captcha_id": duplicate_captcha["captcha_id"],
+            "captcha_answer": str(duplicate_answer),
+            "password": password,
+            "config_version": duplicate_config["config_version"],
+            "agreement_acceptances": [
+                {
+                    "document_type": item["document_type"],
+                    "document_version": item["document_version"],
+                }
+                for item in duplicate_config["required_agreements"]
+            ],
+        },
+    )
+    assert duplicate_username_response.status_code == 409
+    duplicate_problem = duplicate_username_response.json()
+    assert duplicate_problem["detail"] == "该用户名已被注册，请更换一个用户名。"
+    assert duplicate_problem["errors"] == [
+        {
+            "pointer": "/username",
+            "code": "REGISTRATION_USERNAME_UNAVAILABLE",
+            "message": "该用户名已被注册，请更换一个用户名。",
+        }
+    ]
+
+    reused_captcha_response = await client.post(
+        "/api/v1/auth/registrations",
+        headers={"Idempotency-Key": f"registration-{suffix}-reused"},
+        json={
+            "username": f"other_{suffix}",
+            "email": f"other_{suffix}@example.com",
+            "captcha_id": captcha["captcha_id"],
+            "captcha_answer": str(captcha_answer),
+            "password": password,
+            "config_version": registration_config["config_version"],
+            "agreement_acceptances": [
+                {
+                    "document_type": item["document_type"],
+                    "document_version": item["document_version"],
+                }
+                for item in registration_config["required_agreements"]
+            ],
+        },
+    )
+    assert reused_captcha_response.status_code == 422
+    assert reused_captcha_response.json()["code"] == "REGISTRATION_CAPTCHA_INVALID"
 
     profile_response = await client.get("/api/v1/users/me", headers=auth_headers)
     assert profile_response.status_code == 200
@@ -118,7 +196,7 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         "/api/v1/users/me/addresses",
         headers={**auth_headers, "Idempotency-Key": f"address-{suffix}-0000001"},
         json={
-            "recipient_name": "张三",
+            "recipient_name": "张",
             "phone": "+8613800000000",
             "country_code": "CN",
             "province_code": "440000",
@@ -138,7 +216,7 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         "/api/v1/users/me/addresses",
         headers={**auth_headers, "Idempotency-Key": f"address-{suffix}-0000001"},
         json={
-            "recipient_name": "张三",
+            "recipient_name": "张",
             "phone": "+8613800000000",
             "country_code": "CN",
             "province_code": "440000",
@@ -183,88 +261,58 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     in_progress = [response for response in concurrent_responses if response.status_code == 409]
     assert successful
     assert len(successful) + len(in_progress) == 2
-    assert all(
-        response.json()["code"] == "IDEMPOTENCY_IN_PROGRESS" for response in in_progress
-    ), [response.json() for response in in_progress]
+    assert all(response.json()["code"] == "IDEMPOTENCY_IN_PROGRESS" for response in in_progress), [
+        response.json() for response in in_progress
+    ]
     recovered_response = await client.post(
         "/api/v1/users/me/addresses",
         headers=concurrent_headers,
         json=concurrent_payload,
     )
     assert recovered_response.status_code == 201
-    assert recovered_response.json()["data"]["address_id"] == successful[0].json()["data"][
-        "address_id"
-    ]
+    assert (
+        recovered_response.json()["data"]["address_id"]
+        == successful[0].json()["data"]["address_id"]
+    )
     assert all(
-        response.json()["data"]["address_id"]
-        == recovered_response.json()["data"]["address_id"]
+        response.json()["data"]["address_id"] == recovered_response.json()["data"]["address_id"]
         for response in successful
     )
 
     address_update = await client.patch(
         f"/api/v1/users/me/addresses/{address['address_id']}",
         headers={**auth_headers, "If-Match": address_response.headers["etag"]},
-        json={"label": "常用地址"},
+        json={"recipient_name": "李", "label": "常用地址"},
     )
     assert address_update.status_code == 200
+    assert address_update.json()["data"]["recipient_name"] == "李"
     assert address_update.json()["data"]["label"] == "常用地址"
 
+    resumed_response = await client.post(
+        "/api/v1/auth/session-resume",
+        headers={"X-CSRF-Token": csrf_token},
+    )
+    assert resumed_response.status_code == 200, resumed_response.text
+    resumed = resumed_response.json()["data"]
+    assert resumed["session"]["session_id"] == bootstrap["session"]["session_id"]
+    assert resumed["access_token"]
+    original_access_after_resume = await client.get("/api/v1/users/me", headers=auth_headers)
+    assert original_access_after_resume.status_code == 200
+
     changed_email = f"changed_{suffix}@example.com"
-    change_ticket_response = await client.post(
-        "/api/v1/users/me/contact-change-tickets",
-        headers={
-            **auth_headers,
-            "Idempotency-Key": f"contact-ticket-{suffix}-001",
-        },
-        json={"credential_type": "email", "current_password": password},
-    )
-    assert change_ticket_response.status_code == 201, change_ticket_response.text
-    change_ticket = change_ticket_response.json()["data"]
-    repeated_change_ticket = await client.post(
-        "/api/v1/users/me/contact-change-tickets",
-        headers={
-            **auth_headers,
-            "Idempotency-Key": f"contact-ticket-{suffix}-001",
-        },
-        json={"credential_type": "email", "current_password": password},
-    )
-    assert repeated_change_ticket.status_code == 201
-    assert (
-        repeated_change_ticket.json()["data"]["change_ticket_id"]
-        == change_ticket["change_ticket_id"]
-    )
-
-    change_code_response = await client.post(
-        "/api/v1/auth/verification-codes",
-        headers=auth_headers,
-        json={
-            "purpose": "change_email",
-            "target_type": "email",
-            "target": changed_email,
-            "locale": "zh-CN",
-            "challenge_token": None,
-            "change_ticket_id": change_ticket["change_ticket_id"],
-        },
-    )
-    assert change_code_response.status_code == 202, change_code_response.text
-
     contact_change_response = await client.post(
         "/api/v1/users/me/contact-changes",
         headers={
             **auth_headers,
             "Idempotency-Key": f"contact-change-{suffix}-001",
         },
-        json={
-            "change_ticket_id": change_ticket["change_ticket_id"],
-            "new_target": changed_email,
-            "verification_id": change_code_response.json()["data"]["verification_id"],
-            "verification_code": "000000",
-        },
+        json={"new_email": changed_email},
     )
     assert contact_change_response.status_code == 200, contact_change_response.text
 
     security_response = await client.get("/api/v1/users/me/security", headers=auth_headers)
     assert security_response.status_code == 200
+    assert security_response.json()["data"]["current_email"] == changed_email
     assert any(
         item["type"] == "email" and item["masked"].startswith("ch")
         for item in security_response.json()["data"]["bound_accounts"]
@@ -306,6 +354,109 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     )
     assert login_response.status_code == 200, login_response.text
     assert login_response.json()["data"]["user"]["username"] == username
+
+    reset_hint = await client.post(
+        "/api/v1/auth/password-reset-hints",
+        json={"username": username},
+    )
+    assert reset_hint.status_code == 200, reset_hint.text
+    assert reset_hint.json()["data"]["email_masked"].endswith("@example.com")
+    mismatched_ticket = await client.post(
+        "/api/v1/auth/password-reset-tickets",
+        json={"username": username, "email": f"wrong_{suffix}@example.com"},
+    )
+    assert mismatched_ticket.status_code == 422
+    assert mismatched_ticket.json()["code"] == "PASSWORD_RECOVERY_EMAIL_MISMATCH"
+    reset_ticket = await client.post(
+        "/api/v1/auth/password-reset-tickets",
+        json={"username": username, "email": changed_email},
+    )
+    assert reset_ticket.status_code == 200, reset_ticket.text
+    new_password = f"Reset-Correct-Horse-{suffix}-Battery!"
+    reset_headers = {"Idempotency-Key": f"password-reset-{suffix}-001"}
+    reset_payload = {
+        "reset_ticket": reset_ticket.json()["data"]["reset_ticket"],
+        "new_password": new_password,
+    }
+    reset = await client.post(
+        "/api/v1/auth/password-resets",
+        headers=reset_headers,
+        json=reset_payload,
+    )
+    assert reset.status_code == 200, reset.text
+    reset_replay = await client.post(
+        "/api/v1/auth/password-resets",
+        headers=reset_headers,
+        json=reset_payload,
+    )
+    assert reset_replay.status_code == 200
+
+    old_password_login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "auth_method": "password",
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Old Password"},
+            "challenge_token": None,
+        },
+    )
+    assert old_password_login.status_code == 401
+    new_password_login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "auth_method": "password",
+            "identifier": username,
+            "password": new_password,
+            "client": {"client_type": "web", "device_name": "Closure Test"},
+            "challenge_token": None,
+        },
+    )
+    assert new_password_login.status_code == 200, new_password_login.text
+    wallet_auth = {"Authorization": f"Bearer {new_password_login.json()['data']['access_token']}"}
+    initial_wallet = await client.get("/api/v1/users/me/wallet", headers=wallet_auth)
+    assert initial_wallet.status_code == 200, initial_wallet.text
+    assert initial_wallet.json()["data"]["balance"]["minor_units"] == "0"
+    recharge_headers = {
+        **wallet_auth,
+        "Idempotency-Key": f"wallet-recharge-{suffix}-001",
+    }
+    recharge = await client.post(
+        "/api/v1/users/me/wallet/recharges",
+        headers=recharge_headers,
+        json={
+            "channel": "wechat",
+            "amount": {"minor_units": "12345", "currency": "CNY"},
+        },
+    )
+    assert recharge.status_code == 201, recharge.text
+    assert recharge.json()["data"]["wallet"]["balance"]["minor_units"] == "12345"
+    recharge_replay = await client.post(
+        "/api/v1/users/me/wallet/recharges",
+        headers=recharge_headers,
+        json={
+            "channel": "wechat",
+            "amount": {"minor_units": "12345", "currency": "CNY"},
+        },
+    )
+    assert recharge_replay.status_code == 201, recharge_replay.text
+    assert recharge_replay.json()["data"]["wallet"]["balance"]["minor_units"] == "12345"
+    transactions = await client.get("/api/v1/users/me/wallet/transactions", headers=wallet_auth)
+    assert transactions.status_code == 200
+    assert len(transactions.json()["data"]["items"]) == 1
+
+    deletion = await client.request(
+        "DELETE",
+        "/api/v1/users/me",
+        headers=wallet_auth,
+        json={"confirmation": "DELETE_MY_ACCOUNT"},
+    )
+    assert deletion.status_code == 202, deletion.text
+    assert deletion.json()["data"]["status"] == "requested"
+    assert (await client.get("/api/v1/users/me", headers=wallet_auth)).status_code == 401
+    async for session in mysql_session():
+        pending_user = await session.scalar(select(User).where(User.username == username))
+        assert pending_user is not None and pending_user.user_status == "deletion_pending"
 
 
 async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
@@ -394,6 +545,45 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     challenge = login_response.json()["data"]
     assert "totp" in challenge["allowed_methods"]
 
+    password_login = await client.post(
+        "/api/v1/admin/auth/password-login",
+        json={
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Admin password-only test"},
+        },
+    )
+    assert password_login.status_code == 200, password_login.text
+    password_bootstrap = password_login.json()["data"]
+    assert password_bootstrap["session"]["session"]["client_type"] == "admin_password"
+    assert password_bootstrap["scopes"] == [{"scope_type": "platform", "scope_id": 0}]
+    assert "ecom_admin_refresh" in client.cookies
+    assert "ecom_admin_csrf" in client.cookies
+    assert "ecom_merchant_refresh" not in client.cookies
+
+    user_login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "auth_method": "password",
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Wrong user portal test"},
+        },
+    )
+    assert user_login.status_code == 401
+    assert user_login.json()["code"] == "AUTH_INVALID_CREDENTIALS"
+
+    merchant_login = await client.post(
+        "/api/v1/merchant/auth/login",
+        json={
+            "identifier": username,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Wrong portal test"},
+        },
+    )
+    assert merchant_login.status_code == 401
+    assert merchant_login.json()["code"] == "MERCHANT_AUTH_INVALID_CREDENTIALS"
+
     mfa_payload = {
         "challenge_id": challenge["challenge_id"],
         "method": "totp",
@@ -426,16 +616,20 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     assert me_response.status_code == 200
     assert me_response.json()["data"]["assurance_level"] == "aal2"
 
-    admin_sessions_response = await client.get(
-        "/api/v1/admin/auth/sessions", headers=admin_headers
-    )
+    admin_sessions_response = await client.get("/api/v1/admin/auth/sessions", headers=admin_headers)
     assert admin_sessions_response.status_code == 200
     assert len(admin_sessions_response.json()["data"]) == 1
     assert admin_sessions_response.json()["data"][0]["is_current"] is True
 
     navigation_response = await client.get("/api/v1/admin/navigation", headers=admin_headers)
     assert navigation_response.status_code == 200
-    assert any(item["code"] == "users" for item in navigation_response.json()["data"]["items"])
+    navigation_codes = {
+        item["code"] for item in navigation_response.json()["data"]["items"]
+    }
+    assert {"users", "stores", "batch-jobs", "dead-letter-events"} <= navigation_codes
+    assert {"products", "orders", "payments", "refunds", "reviews"}.isdisjoint(
+        navigation_codes
+    )
 
     audience_violation = await client.get("/api/v1/users/me", headers=admin_headers)
     assert audience_violation.status_code == 403
@@ -658,6 +852,22 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     assert audit_response.status_code == 200
     assert any(item["target_id"] == target_user_no for item in audit_response.json()["data"])
 
+    resume_response = await client.post(
+        "/api/v1/admin/auth/session-resume",
+        headers={"X-CSRF-Token": admin_session["csrf_token"]},
+    )
+    assert resume_response.status_code == 200, resume_response.text
+    resumed = resume_response.json()["data"]
+    assert resumed["session"]["session_id"] == admin_session["session"]["session_id"]
+    still_valid = await client.get("/api/v1/admin/me", headers=admin_headers)
+    assert still_valid.status_code == 200, still_valid.text
+
+    wrong_portal_resume = await client.post(
+        "/api/v1/merchant/auth/session-resume",
+        headers={"X-CSRF-Token": admin_session["csrf_token"]},
+    )
+    assert wrong_portal_resume.status_code == 401
+
     refresh_response = await client.post(
         "/api/v1/admin/auth/token-refresh",
         headers={"X-CSRF-Token": admin_session["csrf_token"]},
@@ -665,6 +875,12 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     assert refresh_response.status_code == 200, refresh_response.text
     refreshed = refresh_response.json()["data"]
     refreshed_headers = {"Authorization": f"Bearer {refreshed['access_token']}"}
+
+    wrong_portal_refresh = await client.post(
+        "/api/v1/merchant/auth/token-refresh",
+        headers={"X-CSRF-Token": refreshed["csrf_token"]},
+    )
+    assert wrong_portal_refresh.status_code == 401
 
     old_session = await client.get("/api/v1/admin/me", headers=admin_headers)
     assert old_session.status_code == 401
@@ -717,7 +933,11 @@ async def test_admin_approval_separation_of_duties_and_executor(
             command_arguments_hash=canonical_request_hash(command_payload),
             display_snapshot={"action": "Suspend integration target"},
             resource_versions={"user": 1},
-            approval_policy_snapshot={"policy": "two_person_v1"},
+            approval_policy_snapshot={
+                "policy": "two_person_v1",
+                "initiator_assurance_level": "aal2",
+                "initiator_authenticated_at": now.isoformat(),
+            },
             required_approval_count=1,
             approved_count=0,
             request_status="pending",

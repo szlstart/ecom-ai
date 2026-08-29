@@ -1,0 +1,196 @@
+# Production overlay. It intentionally disables bundled data services and local
+# builds. An operator must provide immutable, digest-pinned application images
+# and external managed-service endpoints through .env.production.
+x-api-runtime: &api-runtime
+  image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
+  restart: unless-stopped
+
+x-api-environment: &api-environment
+  ECOM_ENVIRONMENT: production
+  ECOM_DEBUG: "false"
+  ECOM_REFRESH_COOKIE_SECURE: "true"
+  ECOM_ADMIN_PASSWORD_LOGIN_ENABLED: "false"
+  ECOM_PUBLIC_ORIGIN: ${ECOM_PUBLIC_ORIGIN:?public HTTPS origin required}
+  ECOM_ALLOWED_ORIGINS: ${ECOM_ALLOWED_ORIGINS:?explicit production CORS origins required}
+  ECOM_TRUSTED_PROXY_CIDRS: ${ECOM_TRUSTED_PROXY_CIDRS:?trusted ingress proxy CIDRs required}
+  ECOM_METRICS_ALLOWED_CIDRS: ${ECOM_METRICS_ALLOWED_CIDRS:?monitoring network CIDRs required}
+  ECOM_ACCESS_TOKEN_SECRET: ${ECOM_ACCESS_TOKEN_SECRET:?access token secret required}
+  ECOM_SECURITY_HMAC_SECRET: ${ECOM_SECURITY_HMAC_SECRET:?security HMAC secret required}
+  ECOM_FIELD_ENCRYPTION_KEY: ${ECOM_FIELD_ENCRYPTION_KEY:?field encryption key required}
+  ECOM_MYSQL_DSN: ${ECOM_MYSQL_DSN:?external production MySQL DSN required}
+  ECOM_POSTGRES_DSN: ${ECOM_POSTGRES_DSN:?external production PostgreSQL DSN required}
+  ECOM_REDIS_URL: ${ECOM_REDIS_URL:?external production Redis URL required}
+  ECOM_MYSQL_POOL_SIZE: ${ECOM_MYSQL_POOL_SIZE:-10}
+  ECOM_MYSQL_MAX_OVERFLOW: ${ECOM_MYSQL_MAX_OVERFLOW:-10}
+  ECOM_MYSQL_POOL_TIMEOUT_SECONDS: ${ECOM_MYSQL_POOL_TIMEOUT_SECONDS:-10}
+  ECOM_POSTGRES_POOL_SIZE: ${ECOM_POSTGRES_POOL_SIZE:-5}
+  ECOM_POSTGRES_MAX_OVERFLOW: ${ECOM_POSTGRES_MAX_OVERFLOW:-5}
+  ECOM_POSTGRES_POOL_TIMEOUT_SECONDS: ${ECOM_POSTGRES_POOL_TIMEOUT_SECONDS:-10}
+  ECOM_REDIS_MAX_CONNECTIONS: ${ECOM_REDIS_MAX_CONNECTIONS:-20}
+  ECOM_OBJECT_STORAGE_ENABLED: "true"
+  ECOM_OBJECT_STORAGE_ENDPOINT: ${ECOM_OBJECT_STORAGE_ENDPOINT:?external object storage endpoint required}
+  ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT: ${ECOM_OBJECT_STORAGE_PUBLIC_ENDPOINT:?public object storage endpoint required}
+  ECOM_OBJECT_STORAGE_ACCESS_KEY: ${ECOM_OBJECT_STORAGE_ACCESS_KEY:?object storage access key required}
+  ECOM_OBJECT_STORAGE_SECRET_KEY: ${ECOM_OBJECT_STORAGE_SECRET_KEY:?object storage secret key required}
+  ECOM_OTEL_ENABLED: "true"
+  ECOM_OTEL_EXPORTER_OTLP_ENDPOINT: ${ECOM_OTEL_EXPORTER_OTLP_ENDPOINT:?OTLP endpoint required}
+
+services:
+  mysql:
+    profiles: [local-data]
+    ports: !reset []
+    environment: !reset []
+
+  postgres:
+    profiles: [local-data]
+    ports: !reset []
+    environment: !reset []
+
+  redis:
+    profiles: [local-data]
+    ports: !reset []
+    environment: !reset []
+    command: !reset []
+
+  minio:
+    profiles: [local-data]
+    ports: !reset []
+    environment: !reset []
+
+  clamav:
+    profiles: [local-data]
+    ports: !reset []
+
+  api:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    ports: !reset []
+    environment:
+      <<: *api-environment
+      ECOM_API_HOST: 0.0.0.0
+
+  file-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment:
+      <<: *api-environment
+      ECOM_FILE_SCANNER_ENABLED: "true"
+      ECOM_FILE_SCANNER_HOST: ${ECOM_FILE_SCANNER_HOST:?external malware scanner host required}
+      ECOM_FILE_SCANNER_PORT: ${ECOM_FILE_SCANNER_PORT:-3310}
+
+  lifecycle-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  batch-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  order-timeout-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  payment-reconcile-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  logistics-sync-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  admin-approval-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  realtime-outbox-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  agent-runtime-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment:
+      <<: *api-environment
+      ECOM_OTEL_SERVICE_NAME: ecom-ai-agent-worker
+      ECOM_AGENT_MODEL_REQUIRED: "true"
+      ECOM_AGENT_MODEL_API_URL: ${ECOM_AGENT_MODEL_API_URL:?approved Agent model endpoint required}
+      ECOM_AGENT_MODEL_API_KEY: ${ECOM_AGENT_MODEL_API_KEY:?Agent model API key required}
+      ECOM_AGENT_MODEL_NAME: ${ECOM_AGENT_MODEL_NAME:?approved Agent model deployment required}
+      ECOM_AGENT_MODEL_TEMPERATURE: ${ECOM_AGENT_MODEL_TEMPERATURE:-0}
+      ECOM_AGENT_MODEL_TIMEOUT_SECONDS: ${ECOM_AGENT_MODEL_TIMEOUT_SECONDS:-30}
+
+  knowledge-indexer:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  ai-memory-cleanup-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  account-deletion-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
+  frontend:
+    build: !reset null
+    image: ${ECOM_FRONTEND_IMAGE:?ECOM_FRONTEND_IMAGE must be pinned by sha256 digest}
+    restart: unless-stopped
+    depends_on: !reset {}
+    ports: !override
+      - "127.0.0.1:${ECOM_FRONTEND_HOST_PORT:-18080}:8080"
+
+  mysql-migration-job:
+    profiles: [release]
+    image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
+    environment:
+      ECOM_ENVIRONMENT: migration
+      ECOM_MYSQL_DSN: ${ECOM_MYSQL_MIGRATION_DSN:?separate production MySQL migration DSN required}
+    command: ["python", "-m", "alembic", "-c", "alembic.mysql.ini", "upgrade", "head"]
+    restart: "no"
+    networks: [backend]
+
+  postgres-migration-job:
+    profiles: [release]
+    image: ${ECOM_API_IMAGE:?ECOM_API_IMAGE must be pinned by sha256 digest}
+    environment:
+      ECOM_ENVIRONMENT: migration
+      ECOM_POSTGRES_DSN: ${ECOM_POSTGRES_MIGRATION_DSN:?separate production PostgreSQL migration DSN required}
+    command: ["python", "-m", "alembic", "-c", "alembic.postgres.ini", "upgrade", "head"]
+    restart: "no"
+    networks: [backend]

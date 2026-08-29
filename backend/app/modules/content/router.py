@@ -8,9 +8,67 @@ from fastapi import APIRouter, Query
 from app.api.dependencies import DatabaseSession
 from app.api.schemas import Envelope, StrictRequest
 from app.core.exceptions import ApplicationError
+from app.modules.content.schemas import PublishedContent, PublishedContentList
+from app.modules.content.service import ContentService
 from app.modules.identity.repository import IdentityRepository
 
 router = APIRouter(prefix="/content", tags=["content"])
+
+
+@router.get(
+    "/banners",
+    response_model=Envelope[PublishedContentList],
+    operation_id="HomeBanner_ListPublished",
+)
+async def list_banners(session: DatabaseSession) -> Envelope[PublishedContentList]:
+    return Envelope(data=await ContentService(session).published("banner"))
+
+
+@router.get(
+    "/announcements",
+    response_model=Envelope[PublishedContentList],
+    operation_id="PlatformAnnouncement_ListPublished",
+)
+async def list_announcements(session: DatabaseSession) -> Envelope[PublishedContentList]:
+    return Envelope(data=await ContentService(session).published("announcement"))
+
+
+@router.get(
+    "/help-articles",
+    response_model=Envelope[PublishedContentList],
+    operation_id="HelpArticle_ListPublished",
+)
+async def list_help(session: DatabaseSession) -> Envelope[PublishedContentList]:
+    return Envelope(data=await ContentService(session).published("help_article"))
+
+
+@router.get(
+    "/help-articles/{content_key}",
+    response_model=Envelope[PublishedContent],
+    operation_id="HelpArticle_GetPublished",
+)
+async def get_help(content_key: str, session: DatabaseSession) -> Envelope[PublishedContent]:
+    return Envelope(
+        data=await ContentService(session).published_key("help_article", content_key)
+    )
+
+
+@router.get(
+    "/footer",
+    response_model=Envelope[PublishedContentList],
+    operation_id="FooterContent_GetPublished",
+)
+async def get_footer(session: DatabaseSession) -> Envelope[PublishedContentList]:
+    return Envelope(data=await ContentService(session).published("footer"))
+
+
+@router.get(
+    "/about",
+    response_model=Envelope[PublishedContentList],
+    operation_id="AboutContent_GetPublished",
+)
+async def get_about(session: DatabaseSession) -> Envelope[PublishedContentList]:
+    return Envelope(data=await ContentService(session).published("about"))
 
 
 class LegalDocument(StrictRequest):

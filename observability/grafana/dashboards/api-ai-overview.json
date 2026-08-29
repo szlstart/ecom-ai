@@ -1,0 +1,43 @@
+{
+  "title": "Ecom AI API and Agent Overview",
+  "uid": "ecom-ai-overview",
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "HTTP requests",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(rate(ecom_http_requests_total[5m])) by (route, status)"}],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent runs and estimated cost",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(ecom_ai_runs_total[5m])) by (agent, status)"},
+        {"expr": "sum(rate(ecom_ai_cost_usd_total[5m])) by (agent)"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP P95 latency",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(ecom_http_request_duration_seconds_bucket[5m])) by (le, route))"}],
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Agent P95 and first-token latency",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(ecom_ai_operation_duration_seconds_bucket[5m])) by (le, component, operation))"},
+        {"expr": "histogram_quantile(0.95, sum(rate(ecom_ai_ttft_seconds_bucket[5m])) by (le, operation))"}
+      ],
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    }
+  ]
+}

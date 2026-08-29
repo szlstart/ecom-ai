@@ -18,16 +18,20 @@ from app.core.context import request_id_context
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
+from app.core.passwords import PASSWORD_MAX_UTF8_BYTES
 from app.core.security import (
     USERNAME_PATTERN,
     SecurityService,
     canonical_request_hash,
+    mask_recovery_email,
     mask_target,
     normalize_target,
     normalize_username,
     utc_now,
 )
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
+from app.modules.finance.models import UserWallet
+from app.modules.identity.access_policy import load_identity_eligibility
 from app.modules.identity.models import (
     AuthAttempt,
     AuthSession,
@@ -37,7 +41,6 @@ from app.modules.identity.models import (
     UserAddress,
     UserAgreementAcceptance,
     UserCredential,
-    UserStatusRecord,
     VerificationCode,
 )
 from app.modules.identity.repository import IdentityRepository
@@ -46,12 +49,13 @@ from app.modules.identity.schemas import (
     AddressPatch,
     AddressView,
     AddressWrite,
-    CodeLoginRequest,
     ContactChangeRequest,
     ContactChangeTicketRequest,
     ContactChangeTicketResult,
     PasswordChangeRequest,
     PasswordLoginRequest,
+    PasswordResetHintRequest,
+    PasswordResetHintResult,
     PasswordResetRequest,
     PasswordResetTicketRequest,
     PasswordResetTicketResult,
@@ -71,13 +75,25 @@ from app.modules.rbac.models import UserRole
 from app.modules.system.models import IdempotencyRecord, OutboxEvent
 
 MAX_ACTIVE_ADDRESSES_PER_USER = 20
-REGISTRATION_CONFIG_VERSION = "regcfg_2026_08_01"
-COMMON_PASSWORDS = {
-    "passwordpassword",
-    "123456789012345",
-    "qwertyuiopasdfgh",
-    "adminadminadmin",
-}
+REGISTRATION_CONFIG_VERSION = "regcfg_2026_08_26"
+REGISTRATION_CAPTCHA_TTL_SECONDS = 600
+RESERVED_USERNAMES = frozenset(
+    {
+        "admin",
+        "administrator",
+        "api",
+        "ecom_ai",
+        "merchant",
+        "operator",
+        "root",
+        "security",
+        "service",
+        "staff",
+        "support",
+        "system",
+        "www",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -101,7 +117,12 @@ class IdentityService:
         self.repository = IdentityRepository(session)
         self.idempotency = IdempotencyService(session)
 
-    async def registration_config(self) -> dict[str, object]:
+    async def registration_config(self, ip_address: str) -> dict[str, object]:
+        await self._enforce_rate_limit(
+            f"registration-config:{self.security.keyed_hash('registration-ip', ip_address).hex()}",
+            limit=60,
+            window_seconds=600,
+        )
         agreements = await self.repository.active_legal_versions()
         if len(agreements) != 2:
             raise ApplicationError(
@@ -126,11 +147,11 @@ class IdentityService:
                     "content_hash": _base64url(version.content_hash),
                 }
             )
+        captcha = await self._issue_registration_captcha()
         return {
             "config_version": REGISTRATION_CONFIG_VERSION,
             "locale": "zh-CN",
             "region_code": "CN",
-            "verification_channels": ["phone", "email"],
             "username_policy": {
                 "min_length": 4,
                 "max_length": 32,
@@ -138,17 +159,12 @@ class IdentityService:
                 "policy_version": "username_v1",
             },
             "password_policy": {
-                "min_length": self.settings.password_min_length,
-                "max_length": self.settings.password_max_length,
+                "non_empty": True,
+                "forbid_whitespace": True,
                 "allow_unicode": True,
-                "breached_password_check": True,
-                "policy_version": "password_v3",
+                "policy_version": "password_v4",
             },
-            "verification_policy": {
-                "code_length": 6,
-                "expires_in_seconds": 600,
-                "resend_hint_seconds": 60,
-            },
+            "captcha": captcha,
             "required_agreements": required,
         }
 
@@ -261,16 +277,23 @@ class IdentityService:
         normalized_username = normalize_username(request.username)
         if not USERNAME_PATTERN.fullmatch(request.username):
             raise _field_error("/username", "INVALID_USERNAME", "用户名格式不正确。")
+        if normalized_username in RESERVED_USERNAMES:
+            raise _field_error(
+                "/username",
+                "REGISTRATION_USERNAME_RESERVED",
+                "该用户名属于系统保留名称，请更换后再注册。",
+            )
+        username_hash = self.security.keyed_hash("username", normalized_username)
         try:
-            target = normalize_target(request.target_type, request.target)
+            normalized_email = normalize_target("email", request.email)
         except ValueError as exc:
-            raise _field_error("/target", "INVALID_TARGET", "手机号或邮箱格式不正确。") from exc
-        target_hash = self.security.keyed_hash("credential-identifier", target)
+            raise _field_error("/email", "INVALID_EMAIL", "邮箱格式不正确。") from exc
+        email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
         request_hash = self.security.keyed_hash(
             "registration-idempotency-payload",
             canonical_request_hash(request.model_dump(mode="json")),
         )
-        scope = f"registration:{target_hash.hex()}:{request.config_version}"
+        scope = f"registration:{username_hash.hex()}:{request.config_version}"
 
         existing_idempotency = await self.repository.idempotency_record(
             scope, idempotency_key, for_update=True
@@ -304,30 +327,41 @@ class IdentityService:
                 retryable=True,
             )
 
-        verification = await self._verify_code(
-            request.verification_id,
-            request.verification_code,
-            "register",
-            request.target_type,
-            target,
-            consume=False,
+        await self._enforce_rate_limit(
+            f"registration-ip:{self.security.keyed_hash('registration-ip', ip_address).hex()}",
+            limit=10,
+            window_seconds=600,
         )
+        await self._verify_registration_captcha(request.captcha_id, request.captcha_answer)
         legal_versions = await self._validate_registration_contract(request)
         if await self.repository.user_by_username(normalized_username) is not None:
             raise ApplicationError(
                 status=409,
                 code="REGISTRATION_USERNAME_UNAVAILABLE",
                 title="Username unavailable",
-                detail="该用户名不可用，请更换后重试。",
+                detail="该用户名已被注册，请更换一个用户名。",
+                errors=[
+                    {
+                        "pointer": "/username",
+                        "code": "REGISTRATION_USERNAME_UNAVAILABLE",
+                        "message": "该用户名已被注册，请更换一个用户名。",
+                    }
+                ],
             )
-        if await self.repository.credential_by_identifier(request.target_type, target_hash):
+        if await self.repository.credential_by_identifier("email", email_hash) is not None:
             raise ApplicationError(
                 status=409,
-                code="REGISTRATION_TARGET_ALREADY_BOUND",
-                title="Contact already registered",
-                detail="该联系方式已绑定账号，可直接登录或找回密码。",
+                code="REGISTRATION_EMAIL_UNAVAILABLE",
+                title="Email unavailable",
+                detail="该邮箱已被其他账号使用。",
+                errors=[
+                    {
+                        "pointer": "/email",
+                        "code": "REGISTRATION_EMAIL_UNAVAILABLE",
+                        "message": "该邮箱已被其他账号使用。",
+                    }
+                ],
             )
-
         now = utc_now()
         user = User(
             user_no=new_prefixed_ulid("usr_"),
@@ -349,35 +383,44 @@ class IdentityService:
                 status=409,
                 code="REGISTRATION_CONFLICT",
                 title="Registration conflict",
-                detail="用户名或联系方式刚刚被使用，请检查后重试。",
+                detail="用户名刚刚被使用，请更换后重试。",
             ) from exc
-        self.session.add_all(
-            [
-                UserCredential(
-                    user_id=user.id,
-                    credential_type="password",
-                    secret_hash=self.security.hash_password(request.password),
-                    algorithm="argon2id",
-                    is_primary=True,
-                    is_verified=True,
-                    verified_at=now,
-                    password_changed_at=now,
-                    credential_status="active",
+        self.session.add(
+            UserCredential(
+                user_id=user.id,
+                credential_type="password",
+                secret_hash=self.security.hash_password(request.password),
+                algorithm="argon2id",
+                is_primary=True,
+                is_verified=True,
+                verified_at=now,
+                password_changed_at=now,
+                credential_status="active",
+            )
+        )
+        self.session.add(
+            UserCredential(
+                user_id=user.id,
+                credential_type="email",
+                identifier_ciphertext=self.security.encrypt(
+                    "user-credential:email", normalized_email
                 ),
-                UserCredential(
-                    user_id=user.id,
-                    credential_type=request.target_type,
-                    identifier_ciphertext=self.security.encrypt(
-                        f"user-credential:{request.target_type}", target
-                    ),
-                    identifier_hash=target_hash,
-                    key_version=1,
-                    is_primary=True,
-                    is_verified=True,
-                    verified_at=now,
-                    credential_status="active",
-                ),
-            ]
+                identifier_hash=email_hash,
+                key_version=1,
+                is_primary=True,
+                is_verified=False,
+                credential_status="active",
+            )
+        )
+        self.session.add(
+            UserWallet(
+                wallet_no=new_prefixed_ulid("wal_"),
+                user_id=user.id,
+                balance_amount=0,
+                total_recharged_amount=0,
+                currency="CNY",
+                wallet_status="active",
+            )
         )
         role = await self.repository.role_by_code("user")
         if role is None:
@@ -431,7 +474,6 @@ class IdentityService:
                 conversation_status="active",
             )
         )
-        verification.consumed_at = now
         self.session.add(
             IdempotencyRecord(
                 scope_key=scope,
@@ -461,7 +503,7 @@ class IdentityService:
                 audience="user",
                 client_type="web",
                 device_name="Registration",
-                auth_methods=["password", f"verified_{request.target_type}"],
+                auth_methods=["password", "arithmetic_captcha"],
                 assurance_level="aal1",
                 ip_address=ip_address,
                 user_agent=user_agent,
@@ -470,12 +512,12 @@ class IdentityService:
             self.session.add(
                 self._auth_attempt(
                     "registration",
-                    "verification_code",
+                    "arithmetic_captcha",
                     "succeeded",
                     "REGISTERED",
                     user_id=user.id,
                     session_id=None,
-                    identifier_hash=target_hash,
+                    identifier_hash=username_hash,
                     ip_address=ip_address,
                 )
             )
@@ -487,12 +529,12 @@ class IdentityService:
                 status=409,
                 code="REGISTRATION_CONFLICT",
                 title="Registration conflict",
-                detail="用户名或联系方式刚刚被使用，请检查后重试。",
+                detail="用户名或邮箱刚刚被使用，请更换后重试。",
             ) from exc
 
     async def login(
         self,
-        request: PasswordLoginRequest | CodeLoginRequest,
+        request: PasswordLoginRequest,
         ip_address: str,
         user_agent: str,
     ) -> BootstrapResult:
@@ -501,64 +543,57 @@ class IdentityService:
             limit=20,
             window_seconds=600,
         )
-        if isinstance(request, PasswordLoginRequest):
-            user, credential, monitoring_hash = await self._resolve_password_identity(
-                request.identifier
-            )
-            valid = self.security.verify_password(
-                credential.secret_hash if credential is not None else None, request.password
-            )
-            now = utc_now()
-            if credential is not None and credential.locked_until and credential.locked_until > now:
-                valid = False
-            if user is None or credential is None or not valid:
-                if credential is not None:
-                    credential.failed_attempts += 1
-                    if credential.failed_attempts >= 5:
-                        credential.locked_until = now + timedelta(minutes=15)
-                self.session.add(
-                    self._auth_attempt(
-                        "password_login",
-                        "password",
-                        "invalid",
-                        "INVALID_CREDENTIALS",
-                        user_id=user.id if user else None,
-                        identifier_hash=monitoring_hash,
-                        ip_address=ip_address,
-                    )
+        user, credential, monitoring_hash = await self._resolve_password_identity(
+            request.identifier
+        )
+        await self._enforce_rate_limit(
+            f"login-account:{monitoring_hash.hex()}",
+            limit=10,
+            window_seconds=600,
+        )
+        valid = self.security.verify_password(
+            credential.secret_hash if credential is not None else None, request.password
+        )
+        now = utc_now()
+        if credential is not None and credential.locked_until and credential.locked_until > now:
+            valid = False
+        if user is None or credential is None or not valid:
+            if credential is not None:
+                credential.failed_attempts = min(credential.failed_attempts + 1, 32_767)
+                if credential.failed_attempts >= 5:
+                    penalty_seconds = min(2 ** min(credential.failed_attempts - 5, 6), 60)
+                    credential.locked_until = now + timedelta(seconds=penalty_seconds)
+            self.session.add(
+                self._auth_attempt(
+                    "password_login",
+                    "password",
+                    "invalid",
+                    "INVALID_CREDENTIALS",
+                    user_id=user.id if user else None,
+                    identifier_hash=monitoring_hash,
+                    ip_address=ip_address,
                 )
-                await self.session.commit()
-                raise _invalid_credentials()
-            credential.failed_attempts = 0
-            credential.locked_until = None
-            auth_methods = ["password"]
-            device_name = request.client.device_name
-        else:
-            try:
-                target = normalize_target(request.target_type, request.target)
-            except ValueError as exc:
-                raise _invalid_credentials() from exc
-            credential = await self.repository.credential_by_identifier(
-                request.target_type,
-                self.security.keyed_hash("credential-identifier", target),
-                for_update=True,
             )
-            await self._verify_code(
-                request.verification_id,
-                request.verification_code,
-                "login",
-                request.target_type,
-                target,
-                consume=True,
+            await self.session.commit()
+            raise _invalid_credentials()
+        credential.failed_attempts = 0
+        credential.locked_until = None
+
+        eligibility = await load_identity_eligibility(self.session, user.id, now)
+        if not eligibility.consumer:
+            self.session.add(
+                self._auth_attempt(
+                    "password_login",
+                    "password",
+                    "invalid",
+                    "IDENTITY_SCOPE_MISMATCH",
+                    user_id=user.id,
+                    identifier_hash=monitoring_hash,
+                    ip_address=ip_address,
+                )
             )
-            if credential is None:
-                raise _invalid_credentials()
-            user = await self.session.get(User, credential.user_id)
-            if user is None:
-                raise _invalid_credentials()
-            monitoring_hash = self.security.keyed_hash("auth-monitoring", target)
-            auth_methods = ["verification_code"]
-            device_name = request.client.device_name
+            await self.session.commit()
+            raise _invalid_credentials()
 
         if user.user_status != "active":
             raise ApplicationError(
@@ -579,8 +614,8 @@ class IdentityService:
             user,
             audience="user",
             client_type="web",
-            device_name=device_name,
-            auth_methods=auth_methods,
+            device_name=request.client.device_name,
+            auth_methods=["password"],
             assurance_level="aal1",
             ip_address=ip_address,
             user_agent=user_agent,
@@ -588,8 +623,8 @@ class IdentityService:
         )
         self.session.add(
             self._auth_attempt(
-                "password_login" if isinstance(request, PasswordLoginRequest) else "code_login",
-                "password" if isinstance(request, PasswordLoginRequest) else "verification_code",
+                "password_login",
+                "password",
                 "succeeded",
                 "AUTHENTICATED",
                 user_id=user.id,
@@ -607,13 +642,84 @@ class IdentityService:
         audience: Literal["user", "admin"],
         ip_address: str,
         user_agent: str,
+        *,
+        allowed_client_types: frozenset[str],
     ) -> BootstrapResult:
+        current, user, now, _validated_csrf = await self._validated_refresh_session(
+            refresh_token,
+            csrf_token,
+            audience,
+            allowed_client_types=allowed_client_types,
+        )
+        current.revoked_at = now
+        current.revoke_reason = "rotated"
+        return await self.issue_session(
+            user,
+            audience=audience,
+            client_type=current.client_type,
+            device_name=current.device_name or "Unknown device",
+            auth_methods=list(current.authentication_methods),
+            assurance_level=current.assurance_level,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            parent_session_id=current.id,
+            token_family_no=current.token_family_no,
+            authenticated_at=current.authenticated_at,
+        )
+
+    async def resume(
+        self,
+        refresh_token: str | None,
+        csrf_token: str | None,
+        audience: Literal["user", "admin"],
+        *,
+        allowed_client_types: frozenset[str],
+    ) -> SessionBootstrap:
+        """Restore an in-memory access token without rotating the browser session.
+
+        Access tokens intentionally live only in page memory. A reload or a newly
+        opened tab therefore needs a fresh access token, but that is not itself a
+        refresh-token renewal event. Keeping this operation non-rotating prevents
+        one tab from revoking the access token currently used by another tab.
+        """
+        current, user, now, validated_csrf = await self._validated_refresh_session(
+            refresh_token,
+            csrf_token,
+            audience,
+            allowed_client_types=allowed_client_types,
+        )
+        current.last_seen_at = now
+        access_token, _access_expires_at = self.security.create_access_token(
+            user_no=user.user_no,
+            session_no=current.session_no,
+            audience=audience,
+            permission_version=user.permission_version,
+        )
+        await self.session.commit()
+        return SessionBootstrap(
+            user=self._user_summary(user),
+            session=self._session_summary(current, is_current=True),
+            access_token=access_token,
+            expires_in=self.settings.access_token_ttl_seconds,
+            csrf_token=validated_csrf,
+        )
+
+    async def _validated_refresh_session(
+        self,
+        refresh_token: str | None,
+        csrf_token: str | None,
+        audience: Literal["user", "admin"],
+        *,
+        allowed_client_types: frozenset[str],
+    ) -> tuple[AuthSession, User, datetime, str]:
         if not refresh_token or not csrf_token:
             raise _invalid_refresh()
         token_hash = self.security.keyed_hash("refresh-token", refresh_token)
         current = await self.repository.session_by_refresh_hash(token_hash, for_update=True)
         now = utc_now()
         if current is None or current.audience != audience:
+            raise _invalid_refresh()
+        if current.client_type not in allowed_client_types:
             raise _invalid_refresh()
         if not hmac.compare_digest(
             current.csrf_token_hash, self.security.keyed_hash("csrf-token", csrf_token)
@@ -641,21 +747,16 @@ class IdentityService:
         user = await self.session.get(User, current.user_id)
         if user is None or user.user_status != "active":
             raise _invalid_refresh()
-        current.revoked_at = now
-        current.revoke_reason = "rotated"
-        return await self.issue_session(
-            user,
-            audience=audience,
-            client_type=current.client_type,
-            device_name=current.device_name or "Unknown device",
-            auth_methods=list(current.authentication_methods),
-            assurance_level=current.assurance_level,
-            ip_address=ip_address,
-            user_agent=user_agent,
-            parent_session_id=current.id,
-            token_family_no=current.token_family_no,
-            authenticated_at=current.authenticated_at,
-        )
+        eligibility = await load_identity_eligibility(self.session, user.id, now)
+        if not eligibility.allows_session(audience, current.client_type):
+            await self.repository.revoke_family(
+                current.token_family_no,
+                now,
+                "identity_scope_mismatch",
+            )
+            await self.session.commit()
+            raise _invalid_refresh()
+        return current, user, now, csrf_token
 
     async def logout(self, auth_session: AuthSession, csrf_token: str | None) -> None:
         self._validate_csrf(auth_session, csrf_token)
@@ -700,29 +801,70 @@ class IdentityService:
         )
         await self.session.commit()
 
+    async def password_reset_hint(
+        self, request: PasswordResetHintRequest, ip_address: str
+    ) -> PasswordResetHintResult:
+        normalized_username = normalize_username(request.username)
+        await self._enforce_rate_limit(
+            f"password-reset-hint:{self.security.keyed_hash('request-ip', ip_address).hex()}",
+            limit=10,
+            window_seconds=600,
+        )
+        user = await self.repository.user_by_username(normalized_username)
+        eligibility = (
+            await load_identity_eligibility(self.session, user.id) if user is not None else None
+        )
+        email = (
+            await self._recovery_email_for_user(user.id)
+            if user is not None
+            and eligibility is not None
+            and (eligibility.consumer if request.audience == "consumer" else eligibility.merchant)
+            else None
+        )
+        if email is None:
+            raise ApplicationError(
+                status=404,
+                code="PASSWORD_RECOVERY_EMAIL_UNAVAILABLE",
+                title="Recovery email unavailable",
+                detail="未找到该用户名对应的可用找回邮箱。",
+            )
+        return PasswordResetHintResult(email_masked=mask_recovery_email(email))
+
     async def create_password_reset_ticket(
         self, request: PasswordResetTicketRequest, ip_address: str
     ) -> PasswordResetTicketResult:
+        normalized_username = normalize_username(request.username)
         try:
-            target = normalize_target(request.target_type, request.target)
+            submitted_email = normalize_target("email", request.email)
         except ValueError as exc:
-            raise _invalid_credentials() from exc
-        verification = await self._verify_code(
-            request.verification_id,
-            request.verification_code,
-            "reset_password",
-            request.target_type,
-            target,
-            consume=True,
+            raise _field_error("/email", "INVALID_EMAIL", "邮箱格式不正确。") from exc
+        await self._enforce_rate_limit(
+            f"password-reset-ticket:{self.security.keyed_hash('request-ip', ip_address).hex()}",
+            limit=10,
+            window_seconds=600,
         )
-        credential = await self.repository.credential_by_identifier(
-            request.target_type,
-            self.security.keyed_hash("credential-identifier", target),
-            for_update=True,
+        user = await self.repository.user_by_username(normalized_username)
+        eligibility = (
+            await load_identity_eligibility(self.session, user.id) if user is not None else None
         )
-        if credential is None:
-            raise _invalid_credentials()
-        password = await self.repository.password_credential(credential.user_id, for_update=True)
+        registered_email = (
+            await self._recovery_email_for_user(user.id)
+            if user is not None
+            and eligibility is not None
+            and (eligibility.consumer if request.audience == "consumer" else eligibility.merchant)
+            else None
+        )
+        matches = registered_email is not None and hmac.compare_digest(
+            self.security.keyed_hash("credential-identifier", registered_email),
+            self.security.keyed_hash("credential-identifier", submitted_email),
+        )
+        if user is None or not matches:
+            raise _field_error(
+                "/email",
+                "PASSWORD_RECOVERY_EMAIL_MISMATCH",
+                "输入的完整邮箱与该账号登记邮箱不一致。",
+            )
+        password = await self.repository.password_credential(user.id, for_update=True)
         if password is None:
             raise _invalid_credentials()
         token = self.security.new_opaque_token()
@@ -730,8 +872,8 @@ class IdentityService:
         self.session.add(
             PasswordResetRecord(
                 reset_no=new_prefixed_ulid("rst_"),
-                user_id=credential.user_id,
-                verification_id=verification.id,
+                user_id=user.id,
+                verification_id=None,
                 reset_token_hash=self.security.keyed_hash("reset-token", token),
                 credential_version_before=password.credential_version,
                 expires_at=expires_at,
@@ -870,31 +1012,51 @@ class IdentityService:
     async def security_summary(self, user: User) -> SecuritySummary:
         credentials = await self.repository.credentials_for_user(user.id)
         password = next((item for item in credentials if item.credential_type == "password"), None)
+        email_credential = next(
+            (
+                item
+                for item in credentials
+                if item.credential_type == "email" and item.identifier_ciphertext is not None
+            ),
+            None,
+        )
+        current_email = (
+            self.security.decrypt("user-credential:email", email_credential.identifier_ciphertext)
+            if email_credential is not None and email_credential.identifier_ciphertext is not None
+            else None
+        )
         sessions = await self.repository.active_sessions(user.id, "user")
         return SecuritySummary(
             password_set=password is not None,
             password_changed_at=password.password_changed_at if password else None,
+            current_email=current_email,
             bound_accounts=self._bound_accounts(credentials),
             active_session_count=len(sessions),
         )
 
-    async def dashboard(self, user_id: int) -> UserDashboard:
+    async def dashboard(
+        self, user_id: int, *, order_counts: dict[str, int] | None = None
+    ) -> UserDashboard:
         addresses = await self.repository.addresses(user_id)
         default_address = next((item for item in addresses if item.is_default), None)
-        return UserDashboard(
-            order_counts={
+        unavailable_sections = ["reviews", "favorites", "messages"]
+        if order_counts is None:
+            order_counts = {
                 "pending_payment": 0,
                 "pending_shipment": 0,
                 "in_transit": 0,
                 "pending_review": 0,
                 "after_sale": 0,
-            },
+            }
+            unavailable_sections.insert(0, "orders")
+        return UserDashboard(
+            order_counts=order_counts,
             review_counts={"pending": 0, "published": 0},
             default_address=self._address_view(default_address) if default_address else None,
             unread_message_count=0,
             favorite_product_count=0,
             followed_store_count=0,
-            unavailable_sections=["orders", "reviews", "favorites", "messages"],
+            unavailable_sections=unavailable_sections,
         )
 
     async def create_contact_change_ticket(
@@ -993,51 +1155,14 @@ class IdentityService:
         )
         if claim.replayed:
             return
-        ticket = await self.repository.credential_change_by_no(
-            user.id,
-            request.change_ticket_id,
-            for_update=True,
-        )
         now = utc_now()
-        if ticket is None or ticket.change_status != "pending" or ticket.expires_at <= now:
-            raise ApplicationError(
-                status=410,
-                code="CONTACT_CHANGE_TICKET_EXPIRED",
-                title="Contact change ticket expired",
-                detail="换绑安全验证已失效，请重新发起。",
-            )
         try:
-            new_target = normalize_target(ticket.credential_type, request.new_target)
+            new_email = normalize_target("email", request.new_email)
         except ValueError as exc:
-            raise _field_error("/new_target", "INVALID_TARGET", "手机号或邮箱格式不正确。") from exc
-        target_hash = self.security.keyed_hash("credential-identifier", new_target)
-        if ticket.new_identifier_hash is None or not hmac.compare_digest(
-            ticket.new_identifier_hash,
-            target_hash,
-        ):
-            raise ApplicationError(
-                status=422,
-                code="CONTACT_CHANGE_TARGET_MISMATCH",
-                title="Contact target mismatch",
-                detail="验证码目标与换绑目标不一致。",
-            )
-        verification = await self._verify_code(
-            request.verification_id,
-            request.verification_code,
-            f"change_{ticket.credential_type}",
-            ticket.credential_type,
-            new_target,
-            consume=True,
-        )
-        if verification.user_id != user.id:
-            raise ApplicationError(
-                status=403,
-                code="CONTACT_CHANGE_VERIFICATION_MISMATCH",
-                title="Contact verification mismatch",
-                detail="验证码不属于当前换绑流程。",
-            )
+            raise _field_error("/new_email", "INVALID_EMAIL", "邮箱格式不正确。") from exc
+        target_hash = self.security.keyed_hash("credential-identifier", new_email)
         conflict = await self.repository.credential_by_identifier(
-            ticket.credential_type,
+            "email",
             target_hash,
             for_update=True,
         )
@@ -1046,41 +1171,26 @@ class IdentityService:
                 status=409,
                 code="CONTACT_TARGET_ALREADY_BOUND",
                 title="Contact already bound",
-                detail="该联系方式已绑定其他账号。",
+                detail="该邮箱已绑定其他账号。",
             )
-        current = (
-            await self.session.get(UserCredential, ticket.old_credential_id)
-            if ticket.old_credential_id is not None
-            else None
-        )
-        if current is not None and current.credential_version != ticket.credential_version_before:
-            raise ApplicationError(
-                status=409,
-                code="CONTACT_CREDENTIAL_CHANGED",
-                title="Contact credential changed",
-                detail="联系方式已经变化，请重新发起换绑。",
-            )
+        credentials = await self.repository.credentials_for_user(user.id)
+        current = next((item for item in credentials if item.credential_type == "email"), None)
         if current is None:
             current = UserCredential(
                 user_id=user.id,
-                credential_type=ticket.credential_type,
+                credential_type="email",
                 credential_status="active",
                 credential_version=1,
             )
             self.session.add(current)
         else:
             current.credential_version += 1
-        current.identifier_ciphertext = self.security.encrypt(
-            f"user-credential:{ticket.credential_type}", new_target
-        )
+        current.identifier_ciphertext = self.security.encrypt("user-credential:email", new_email)
         current.identifier_hash = target_hash
         current.key_version = 1
         current.is_primary = True
-        current.is_verified = True
-        current.verified_at = now
-        ticket.new_verification_id = verification.id
-        ticket.change_status = "confirmed"
-        ticket.confirmed_at = now
+        current.is_verified = False
+        current.verified_at = None
         await self.repository.revoke_user_sessions(
             user.id,
             now,
@@ -1091,9 +1201,23 @@ class IdentityService:
         self.idempotency.complete(
             claim,
             response_status=200,
-            resource_no=ticket.change_no,
+            resource_no=user.user_no,
         )
         await self.session.commit()
+
+    async def _recovery_email_for_user(self, user_id: int) -> str | None:
+        credentials = await self.repository.credentials_for_user(user_id)
+        email = next(
+            (
+                item
+                for item in credentials
+                if item.credential_type == "email" and item.identifier_ciphertext is not None
+            ),
+            None,
+        )
+        if email is None or email.identifier_ciphertext is None:
+            return None
+        return self.security.decrypt("user-credential:email", email.identifier_ciphertext)
 
     async def cancel_contact_change(self, user_id: int, change_no: str) -> None:
         ticket = await self.repository.credential_change_by_no(
@@ -1189,6 +1313,9 @@ class IdentityService:
         if address.version != expected_version:
             raise _version_mismatch()
         values = request.model_dump(exclude_unset=True)
+        if values.get("is_default") is True and not address.is_default:
+            await self._clear_default_address(user_id)
+            await self.session.flush()
         if "recipient_name" in values:
             address.recipient_name_ciphertext = self.security.encrypt(
                 "address-recipient", values.pop("recipient_name")
@@ -1233,53 +1360,6 @@ class IdentityService:
             address.version += 1
             await self.session.commit()
         return self._address_view(address)
-
-    async def request_account_closure(
-        self, user: User, reason_code: str, reason: str | None, idempotency_key: str
-    ) -> None:
-        claim = await self.idempotency.begin(
-            scope_key=f"user:{user.user_no}:account-closure",
-            idempotency_key=idempotency_key,
-            payload=self._idempotency_payload(
-                "account-closure", {"reason_code": reason_code, "reason": reason}
-            ),
-            resource_type="account_closure",
-        )
-        if claim.replayed:
-            return
-        if user.user_status == "pending_close":
-            self.idempotency.complete(claim, response_status=202, resource_no=user.user_no)
-            await self.session.commit()
-            return
-        now = utc_now()
-        record = UserStatusRecord(
-            status_record_no=new_prefixed_ulid("usrst_"),
-            user_id=user.id,
-            from_status=user.user_status,
-            to_status="pending_close",
-            reason_code=reason_code,
-            reason=reason or reason_code,
-            effective_at=now,
-            expires_at=now + timedelta(days=30),
-            actor_type="user",
-            actor_user_id=user.id,
-            expected_user_version=user.version,
-            result_user_version=user.version + 1,
-            idempotency_key=idempotency_key,
-            idempotency_scope_key=self.security.keyed_hash(
-                "user-status-idempotency", f"user:{user.id}:{idempotency_key}"
-            ),
-            request_id=_request_id(),
-            trace_id=_request_id(),
-        )
-        self.session.add(record)
-        await self.session.flush()
-        user.user_status = "pending_close"
-        user.current_status_record_id = record.id
-        user.version += 1
-        await self.repository.revoke_user_sessions(user.id, now, "account_closure_requested")
-        self.idempotency.complete(claim, response_status=202, resource_no=record.status_record_no)
-        await self.session.commit()
 
     async def _validate_registration_contract(
         self, request: RegistrationRequest
@@ -1394,6 +1474,14 @@ class IdentityService:
         commit: bool = True,
     ) -> BootstrapResult:
         now = utc_now()
+        eligibility = await load_identity_eligibility(self.session, user.id, now)
+        if not eligibility.allows_session(audience, client_type):
+            raise ApplicationError(
+                status=403,
+                code="AUTH_IDENTITY_SCOPE_MISMATCH",
+                title="Identity scope mismatch",
+                detail="当前账号类型不能创建此入口的登录会话。",
+            )
         refresh_token = self.security.new_opaque_token()
         csrf_token = self.security.new_opaque_token(24)
         ttl = (
@@ -1467,20 +1555,93 @@ class IdentityService:
             ) from exc
 
     def _validate_password(self, password: str) -> None:
-        if (
-            not self.settings.password_min_length
-            <= len(password)
-            <= self.settings.password_max_length
-        ):
+        if not password:
             raise _field_error(
                 "/password",
                 "PASSWORD_POLICY_FAILED",
-                f"密码长度必须为 {self.settings.password_min_length} 到 "
-                f"{self.settings.password_max_length} 个字符。",
+                "密码不能为空。",
             )
-        normalized = password.casefold().strip()
-        if normalized in COMMON_PASSWORDS or len(set(password)) < 5:
-            raise _field_error("/password", "PASSWORD_TOO_WEAK", "该密码过于常见或容易猜测。")
+        if any(character.isspace() for character in password):
+            raise _field_error(
+                "/password",
+                "PASSWORD_WHITESPACE_FORBIDDEN",
+                "密码不能包含空格、换行或其他空白字符。",
+            )
+        if len(password.encode("utf-8")) > PASSWORD_MAX_UTF8_BYTES:
+            raise _field_error(
+                "/password",
+                "PASSWORD_INPUT_TOO_LARGE",
+                f"密码不能超过 {PASSWORD_MAX_UTF8_BYTES} 个 UTF-8 字节。",
+            )
+        if len(password.encode("utf-8")) > PASSWORD_MAX_UTF8_BYTES:
+            raise _field_error(
+                "/password",
+                "PASSWORD_INPUT_TOO_LARGE",
+                f"密码不能超过 {PASSWORD_MAX_UTF8_BYTES} 个 UTF-8 字节。",
+            )
+
+    async def _issue_registration_captcha(self) -> dict[str, object]:
+        left = secrets.randbelow(20) + 1
+        right = secrets.randbelow(20) + 1
+        operator = "+" if secrets.randbelow(2) == 0 else "-"
+        if operator == "-" and right > left:
+            left, right = right, left
+        answer = left + right if operator == "+" else left - right
+        captcha_id = secrets.token_urlsafe(24)
+        answer_hash = self.security.keyed_hash(
+            "registration-captcha", f"{captcha_id}:{answer}"
+        ).hex()
+        try:
+            await self.redis.set(
+                f"ecom:auth:registration-captcha:{captcha_id}",
+                answer_hash,
+                ex=REGISTRATION_CAPTCHA_TTL_SECONDS,
+            )
+        except RedisError as exc:
+            raise ApplicationError(
+                status=503,
+                code="REGISTRATION_CAPTCHA_UNAVAILABLE",
+                title="Registration captcha unavailable",
+                detail="注册验证码暂不可用，请稍后重试。",
+                retryable=True,
+            ) from exc
+        return {
+            "captcha_id": captcha_id,
+            "question": f"{left} {operator} {right} = ?",
+            "expires_in_seconds": REGISTRATION_CAPTCHA_TTL_SECONDS,
+        }
+
+    async def _verify_registration_captcha(self, captcha_id: str, answer: str) -> None:
+        key = f"ecom:auth:registration-captcha:{captcha_id}"
+        submitted_hash = self.security.keyed_hash(
+            "registration-captcha", f"{captcha_id}:{answer}"
+        ).hex()
+        try:
+            stored_hash = await self.redis.get(key)
+            if stored_hash is None or not hmac.compare_digest(stored_hash, submitted_hash):
+                raise _field_error(
+                    "/captcha_answer",
+                    "REGISTRATION_CAPTCHA_INVALID",
+                    "算术验证码不正确或已过期，请重新计算。",
+                )
+            if await self.redis.delete(key) != 1:
+                raise _field_error(
+                    "/captcha_answer",
+                    "REGISTRATION_CAPTCHA_EXPIRED",
+                    "算术验证码已使用或已过期，请刷新后重试。",
+                )
+        except RedisError as exc:
+            raise ApplicationError(
+                status=503,
+                code="REGISTRATION_CAPTCHA_UNAVAILABLE",
+                title="Registration captcha unavailable",
+                detail="注册验证码暂不可用，请稍后重试。",
+                retryable=True,
+            ) from exc
+
+    async def verify_registration_captcha(self, captcha_id: str, answer: str) -> None:
+        """Consume the shared arithmetic captcha for another registration audience."""
+        await self._verify_registration_captcha(captcha_id, answer)
 
     def _idempotency_payload(self, purpose: str, value: object) -> dict[str, str]:
         return {

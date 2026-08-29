@@ -15,6 +15,83 @@ defaults:
     lock_aggregate_for_write: true
     idempotency_returns_first_result: true
 aggregates:
+  account_deletion_task:
+    field: task_status
+    states: [requested, running, retryable, manual_review, completed]
+    terminal_states: [manual_review, completed]
+    transitions:
+      - {command: StartAccountDeletion, from: [requested, retryable], to: running, event: account.deletion_started}
+      - {command: RetryAccountDeletion, from: [running], to: retryable, event: account.deletion_retry_scheduled}
+      - {command: EscalateAccountDeletion, from: [running], to: manual_review, event: account.deletion_manual_review_requested}
+      - {command: CompleteAccountDeletion, from: [running], to: completed, event: account.deletion_completed}
+  store:
+    field: store_status
+    states: [active, suspended]
+    terminal_states: []
+    transitions:
+      - {command: SuspendStore, from: [active], to: suspended, event: store.suspended}
+      - {command: ResumeStore, from: [suspended], to: active, event: store.resumed}
+  store_service_policy:
+    field: policy_status
+    states: [draft, published, withdrawn, expired]
+    terminal_states: [withdrawn, expired]
+    transitions:
+      - {command: PublishStorePolicy, from: [draft], to: published, event: store.policy_published}
+      - {command: WithdrawStorePolicy, from: [published], to: withdrawn, event: store.policy_withdrawn}
+      - {command: ExpireStorePolicy, from: [published], to: expired, event: store.policy_expired}
+  shipping_template:
+    field: template_status
+    states: [draft, effective, disabled]
+    terminal_states: [disabled]
+    transitions:
+      - {command: PublishShippingTemplate, from: [draft], to: effective, event: store.shipping_template_published}
+      - {command: DisableShippingTemplate, from: [draft, effective], to: disabled, event: store.shipping_template_disabled}
+  product:
+    field: product_status
+    states: [draft, pending_review, on_sale, off_shelf, rejected, archived]
+    terminal_states: [archived]
+    transitions:
+      - {command: SubmitProductReview, from: [draft, rejected, off_shelf], to: pending_review, event: product.review_submitted}
+      - {command: ApproveProduct, from: [pending_review], to: on_sale, event: product.published}
+      - {command: RejectProduct, from: [pending_review], to: rejected, event: product.rejected}
+      - {command: TakeProductOffShelf, from: [on_sale], to: off_shelf, event: product.off_shelf}
+      - {command: ArchiveProduct, from: [draft, rejected, off_shelf], to: archived, event: product.archived}
+  inventory_reservation:
+    field: reservation_status
+    states: [active, confirmed, released, expired]
+    terminal_states: [confirmed, released, expired]
+    transitions:
+      - {command: ConfirmInventoryReservation, from: [active], to: confirmed, event: inventory.reservation_confirmed}
+      - {command: ReleaseInventoryReservation, from: [active], to: released, event: inventory.reservation_released}
+      - {command: ExpireInventoryReservation, from: [active], to: expired, event: inventory.reservation_expired}
+  checkout:
+    field: checkout_status
+    states: [active, submitted, expired, cancelled]
+    terminal_states: [submitted, expired, cancelled]
+    transitions:
+      - {command: SubmitCheckout, from: [active], to: submitted, event: checkout.submitted}
+      - {command: ExpireCheckout, from: [active], to: expired, event: checkout.expired}
+      - {command: CancelCheckout, from: [active], to: cancelled, event: checkout.cancelled}
+  trade_order:
+    field: trade_status
+    states: [pending_payment, paid, closed, partially_refunded, refunded]
+    terminal_states: [closed, refunded]
+    transitions:
+      - {command: RecordTradePaymentSucceeded, from: [pending_payment], to: paid, event: trade_order.paid}
+      - {command: CloseUnpaidTrade, from: [pending_payment], to: closed, event: trade_order.closed}
+      - {command: RecordTradePartialRefund, from: [paid], to: partially_refunded, event: trade_order.partially_refunded}
+      - {command: RecordTradeFullRefund, from: [paid, partially_refunded], to: refunded, event: trade_order.refunded}
+  file_upload:
+    field: upload_status
+    states: [created, uploading, uploaded, completed, expired, aborted, rejected]
+    terminal_states: [completed, expired, aborted, rejected]
+    transitions:
+      - {command: StartFileUpload, from: [created], to: uploading, event: file.upload_started}
+      - {command: RecordFileUploaded, from: [created, uploading], to: uploaded, event: file.uploaded}
+      - {command: CompleteFileUpload, from: [uploaded], to: completed, event: file.upload_completed}
+      - {command: ExpireFileUpload, from: [created, uploading, uploaded], to: expired, event: file.upload_expired}
+      - {command: AbortFileUpload, from: [created, uploading, uploaded], to: aborted, event: file.upload_aborted}
+      - {command: RejectFileUpload, from: [uploaded], to: rejected, event: file.upload_rejected}
   order:
     field: order_status
     states: [pending_payment, paid, pending_shipment, shipped, completed, cancelled, closed]
@@ -25,6 +102,7 @@ aggregates:
       - {command: CancelUnpaidOrder, from: [pending_payment], to: cancelled, event: order.cancelled}
       - {command: CloseBeforeShipment, from: [paid, pending_shipment], to: closed, event: order.closed}
       - {command: RecordAllItemsShipped, from: [pending_shipment], to: shipped, event: order.shipped}
+      - {command: ReopenForShipmentCorrection, from: [shipped], to: pending_shipment, event: order.fulfillment_reopened}
       - {command: ConfirmReceipt, from: [shipped], to: completed, event: order.completed}
       - {command: AutoConfirmReceipt, from: [shipped], to: completed, event: order.auto_completed}
       - {command: CloseAbnormalFulfillment, from: [shipped], to: closed, event: order.closed}
@@ -46,6 +124,8 @@ aggregates:
     transitions:
       - {command: RecordPartialShipment, from: [unfulfilled], to: partial, event: fulfillment.partial}
       - {command: RecordAllItemsShipped, from: [unfulfilled, partial], to: shipped, event: fulfillment.shipped}
+      - {command: ReopenPartialShipment, from: [shipped], to: partial, event: fulfillment.reopened_partial}
+      - {command: ResetUnfulfilled, from: [partial, shipped], to: unfulfilled, event: fulfillment.reset_unfulfilled}
       - {command: ConfirmReceipt, from: [shipped], to: received, event: fulfillment.received}
       - {command: AutoConfirmReceipt, from: [shipped], to: received, event: fulfillment.auto_received}
   shipment:
@@ -55,9 +135,9 @@ aggregates:
     transitions:
       - {command: VoidShipment, from: [created], to: voided, event: shipment.voided}
       - {command: RecordPickup, from: [created], to: picked_up, event: shipment.picked_up}
-      - {command: RecordInTransit, from: [picked_up, exception], to: in_transit, event: shipment.in_transit}
-      - {command: RecordDelivery, from: [picked_up, in_transit, exception], to: delivered, event: shipment.delivered}
-      - {command: RecordException, from: [picked_up, in_transit], to: exception, event: shipment.exception}
+      - {command: RecordInTransit, from: [created, picked_up, exception], to: in_transit, event: shipment.in_transit}
+      - {command: RecordDelivery, from: [created, picked_up, in_transit, exception], to: delivered, event: shipment.delivered}
+      - {command: RecordException, from: [created, picked_up, in_transit], to: exception, event: shipment.exception}
       - {command: RecordReturn, from: [picked_up, in_transit, exception], to: returned, event: shipment.returned}
       - {command: CloseShipment, from: [created, picked_up, in_transit, exception], to: closed, event: shipment.closed}
   refund_application:

@@ -8,15 +8,19 @@
     "build": "vue-tsc -b && vite build",
     "generate:api": "openapi-typescript ../docs/openapi-v1.json -o src/api/generated/schema.ts",
     "typecheck": "vue-tsc -b --pretty false",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@vueuse/core": "^14.1.0",
+    "china-area-data": "5.0.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.24",
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.62.1",
     "@types/node": "^24.10.1",
     "@vitejs/plugin-vue": "^6.0.2",
     "@vue/test-utils": "^2.4.6",

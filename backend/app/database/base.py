@@ -2,6 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, MetaData, func
 from sqlalchemy.dialects.mysql import BIGINT
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 MYSQL_NAMING_CONVENTION = {
@@ -11,6 +12,12 @@ MYSQL_NAMING_CONVENTION = {
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
     "pk": "pk_%(table_name)s",
 }
+
+
+@compiles(DateTime, "mysql")
+def _compile_mysql_datetime(_type: DateTime, _compiler: object, **_kwargs: object) -> str:
+    """Keep every MySQL application timestamp at the documented microsecond precision."""
+    return "DATETIME(6)"
 
 
 class MySQLBase(DeclarativeBase):

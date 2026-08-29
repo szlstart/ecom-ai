@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import cast
 
 from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
@@ -10,10 +11,18 @@ from app.core.context import request_id_context
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
-from app.core.security import SecurityService, canonical_request_hash, utc_now
+from app.core.security import (
+    SecurityService,
+    canonical_request_hash,
+    normalize_target,
+    normalize_username,
+    utc_now,
+)
+from app.modules.finance.models import UserWallet, WalletTransaction
 from app.modules.identity.models import (
     AuthSession,
     User,
+    UserCredential,
     UserStatusRecord,
 )
 from app.modules.identity.repository import IdentityRepository
@@ -33,8 +42,14 @@ from app.modules.rbac.models import (
 from app.modules.rbac.repository import RbacRepository
 from app.modules.rbac.schemas import (
     AdminDashboardSummary,
+    AdminUserCreateRequest,
     AdminUserList,
+    AdminUserPasswordReplaceRequest,
     AdminUserSummary,
+    AdminUserUpdateRequest,
+    AdminUserWorkspace,
+    AdminWalletAdjustmentRequest,
+    AdminWalletAdjustmentResult,
     ApprovalDecisionRequest,
     ApprovalView,
     AuditLogView,
@@ -48,8 +63,10 @@ from app.modules.rbac.schemas import (
     SensitiveFields,
     SensitiveGrantCreateRequest,
     SensitiveGrantResult,
+    UserPresenceStatus,
     UserStatusChangeRequest,
     UserStatusEventView,
+    WalletAdjustmentDirection,
 )
 from app.modules.system.models import OutboxEvent
 
@@ -67,9 +84,20 @@ class RbacService:
         if ("platform", 0) in access.scopes:
             active_user_count = int(
                 await self.session.scalar(
-                    select(func.count(User.id)).where(
+                    select(func.count(func.distinct(User.id)))
+                    .join(UserRole, UserRole.user_id == User.id)
+                    .join(Role, Role.id == UserRole.role_id)
+                    .where(
                         User.user_status == "active",
                         User.deleted_at.is_(None),
+                        UserRole.grant_status == "active",
+                        or_(UserRole.expires_at.is_(None), UserRole.expires_at > utc_now()),
+                        UserRole.scope_type == "platform",
+                        UserRole.scope_id == 0,
+                        Role.role_code == "user",
+                        Role.scope_type == "platform",
+                        Role.role_status == "active",
+                        Role.deleted_at.is_(None),
                     )
                 )
                 or 0
@@ -108,7 +136,24 @@ class RbacService:
         )
 
     async def list_users(self, limit: int, cursor: str | None) -> AdminUserList:
-        statement = select(User).where(User.deleted_at.is_(None))
+        consumer_ids = (
+            select(UserRole.user_id)
+            .join(Role, Role.id == UserRole.role_id)
+            .where(
+                UserRole.grant_status == "active",
+                or_(UserRole.expires_at.is_(None), UserRole.expires_at > utc_now()),
+                UserRole.scope_type == "platform",
+                UserRole.scope_id == 0,
+                Role.role_code == "user",
+                Role.scope_type == "platform",
+                Role.role_status == "active",
+                Role.deleted_at.is_(None),
+            )
+        )
+        statement = select(User).where(
+            User.deleted_at.is_(None),
+            User.id.in_(consumer_ids),
+        )
         if cursor:
             statement = statement.where(User.user_no > cursor)
         users = list(
@@ -125,6 +170,469 @@ class RbacService:
 
     async def get_user(self, user_no: str) -> AdminUserSummary:
         return self._user_view(await self._require_user(user_no))
+
+    async def get_user_workspace(self, user_no: str) -> AdminUserWorkspace:
+        target = await self._require_user(user_no)
+        credentials = await self.identity.credentials_for_user(target.id)
+        email_credential = next(
+            (
+                item
+                for item in credentials
+                if item.credential_type == "email" and item.identifier_ciphertext is not None
+            ),
+            None,
+        )
+        current_email = (
+            self.security.decrypt("user-credential:email", email_credential.identifier_ciphertext)
+            if email_credential is not None and email_credential.identifier_ciphertext is not None
+            else None
+        )
+        wallet = await self.session.scalar(
+            select(UserWallet).where(UserWallet.user_id == target.id)
+        )
+        active_session_count = int(
+            await self.session.scalar(
+                select(func.count(AuthSession.id)).where(
+                    AuthSession.user_id == target.id,
+                    AuthSession.audience == "user",
+                    AuthSession.revoked_at.is_(None),
+                    AuthSession.expires_at > utc_now(),
+                )
+            )
+            or 0
+        )
+        presence = (
+            "frozen"
+            if target.user_status == "suspended"
+            else "online"
+            if active_session_count
+            else "offline"
+        )
+        return AdminUserWorkspace(
+            user_id=target.user_no,
+            username=target.username,
+            current_email=current_email,
+            presence_status=cast(UserPresenceStatus, presence),
+            balance_minor=str(wallet.balance_amount if wallet is not None else 0),
+            currency=wallet.currency if wallet is not None else "CNY",
+        )
+
+    async def require_consumer_user(self, user_no: str) -> User:
+        """Resolve a consumer for delegated administration operations."""
+        target = await self._require_user(user_no)
+        grants = await self.repository.active_grants(target.id, utc_now())
+        if not any(
+            role.role_code == "user" and grant.scope_type == "platform" and grant.scope_id == 0
+            for grant, role in grants
+        ):
+            raise ApplicationError(
+                status=404,
+                code="RESOURCE_NOT_FOUND",
+                title="Resource not found",
+                detail="未找到该普通用户。",
+            )
+        return target
+
+    async def create_user(
+        self,
+        access: AdminAccess,
+        request: AdminUserCreateRequest,
+        idempotency_key: str,
+    ) -> AdminUserSummary:
+        access.require_scope("platform", 0)
+        normalized_username = normalize_username(request.username)
+        if normalized_username in {"admin", "administrator", "merchant", "root", "system"}:
+            raise _field_error(
+                "/username",
+                "ADMIN_USER_USERNAME_RESERVED",
+                "该用户名属于系统或管理入口保留名称，请更换后再创建。",
+            )
+        try:
+            normalized_email = normalize_target("email", request.email)
+        except ValueError as exc:
+            raise _field_error("/email", "INVALID_EMAIL", "请输入有效的邮箱地址。") from exc
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:user-create:{normalized_username}",
+            idempotency_key=idempotency_key,
+            payload=self._idempotency_payload("admin-user-create", request.model_dump(mode="json")),
+            resource_type="user",
+        )
+        if claim.replayed and claim.record.resource_no:
+            return self._user_view(await self._require_user(claim.record.resource_no))
+        if await self.identity.user_by_username(normalized_username) is not None:
+            raise _field_error(
+                "/username",
+                "ADMIN_USER_USERNAME_EXISTS",
+                "该用户名已经被使用，请输入其他用户名。",
+                status=409,
+            )
+        email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
+        if await self.identity.credential_by_identifier("email", email_hash) is not None:
+            raise _field_error(
+                "/email",
+                "ADMIN_USER_EMAIL_EXISTS",
+                "该邮箱已经绑定其他账号，请输入其他邮箱。",
+                status=409,
+            )
+        role = await self.identity.role_by_code("user")
+        if role is None:
+            raise ApplicationError(
+                status=503,
+                code="DEFAULT_USER_ROLE_UNAVAILABLE",
+                title="Default user role unavailable",
+                detail="普通用户角色尚未初始化，请先完成系统基础数据初始化。",
+            )
+        now = utc_now()
+        user = User(
+            user_no=new_prefixed_ulid("usr_"),
+            username=request.username,
+            username_normalized=normalized_username,
+            nickname=request.nickname or request.username,
+            user_status="active",
+            locale="zh-CN",
+            timezone="Asia/Shanghai",
+            registered_at=now,
+        )
+        self.session.add(user)
+        await self.session.flush()
+        self.session.add_all(
+            [
+                UserCredential(
+                    user_id=user.id,
+                    credential_type="password",
+                    secret_hash=self.security.hash_password(request.password),
+                    algorithm="argon2id",
+                    is_primary=True,
+                    is_verified=True,
+                    verified_at=now,
+                    password_changed_at=now,
+                    credential_status="active",
+                ),
+                UserCredential(
+                    user_id=user.id,
+                    credential_type="email",
+                    identifier_ciphertext=self.security.encrypt(
+                        "user-credential:email", normalized_email
+                    ),
+                    identifier_hash=email_hash,
+                    key_version=1,
+                    is_primary=True,
+                    is_verified=False,
+                    credential_status="active",
+                ),
+                UserWallet(
+                    wallet_no=new_prefixed_ulid("wal_"),
+                    user_id=user.id,
+                    balance_amount=0,
+                    total_recharged_amount=0,
+                    currency="CNY",
+                    wallet_status="active",
+                ),
+            ]
+        )
+        grant_key = self.security.keyed_hash("active-role-grant", f"{user.id}:{role.id}:platform:0")
+        self.session.add(
+            UserRole(
+                user_id=user.id,
+                role_id=role.id,
+                grant_no=new_prefixed_ulid("grt_"),
+                scope_type="platform",
+                scope_id=0,
+                grant_status="active",
+                active_grant_key=grant_key,
+                granted_by=access.context.user.id,
+                granted_at=now,
+                grant_reason="admin_created_consumer",
+            )
+        )
+        self._add_audit(
+            access,
+            action="create_user",
+            target_type="user",
+            target_no=user.user_no,
+            reason="管理员创建普通消费者账号",
+            after={"username": user.username, "status": user.user_status},
+        )
+        self.idempotency.complete(claim, response_status=201, resource_no=user.user_no)
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise ApplicationError(
+                status=409,
+                code="ADMIN_USER_CREATE_CONFLICT",
+                title="User creation conflict",
+                detail="用户名或邮箱刚刚被其他账号使用，请修改后重试。",
+            ) from exc
+        return self._user_view(user)
+
+    async def update_user(
+        self,
+        access: AdminAccess,
+        user_no: str,
+        request: AdminUserUpdateRequest,
+        expected_version: int,
+    ) -> AdminUserSummary:
+        access.require_scope("platform", 0)
+        target = await self._require_user(user_no, for_update=True)
+        self._check_version(target.version, expected_version)
+        before: dict[str, object] = {
+            "username": target.username,
+            "nickname": target.nickname,
+            "version": target.version,
+        }
+        if request.username is not None and request.username != target.username:
+            normalized = normalize_username(request.username)
+            existing = await self.identity.user_by_username(normalized)
+            if existing is not None and existing.id != target.id:
+                raise _field_error(
+                    "/username",
+                    "ADMIN_USER_USERNAME_EXISTS",
+                    "该用户名已经被使用，请输入其他用户名。",
+                    status=409,
+                )
+            target.username = request.username
+            target.username_normalized = normalized
+        if request.nickname is not None:
+            target.nickname = request.nickname
+        if request.email is not None:
+            try:
+                normalized_email = normalize_target("email", request.email)
+            except ValueError as exc:
+                raise _field_error("/email", "INVALID_EMAIL", "请输入有效的邮箱地址。") from exc
+            email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
+            existing_email = await self.identity.credential_by_identifier("email", email_hash)
+            if existing_email is not None and existing_email.user_id != target.id:
+                raise _field_error(
+                    "/email",
+                    "ADMIN_USER_EMAIL_EXISTS",
+                    "该邮箱已经绑定其他账号，请输入其他邮箱。",
+                    status=409,
+                )
+            email_credential = next(
+                (
+                    item
+                    for item in await self.identity.credentials_for_user(target.id)
+                    if item.credential_type == "email"
+                ),
+                None,
+            )
+            if email_credential is None:
+                email_credential = UserCredential(
+                    user_id=target.id,
+                    credential_type="email",
+                    is_primary=True,
+                    is_verified=False,
+                    credential_status="active",
+                )
+                self.session.add(email_credential)
+            email_credential.identifier_ciphertext = self.security.encrypt(
+                "user-credential:email", normalized_email
+            )
+            email_credential.identifier_hash = email_hash
+            email_credential.key_version = 1
+            email_credential.is_verified = False
+            email_credential.verified_at = None
+            email_credential.credential_version += 1
+        target.version += 1
+        self._add_audit(
+            access,
+            action="update_user_profile",
+            target_type="user",
+            target_no=target.user_no,
+            before=before,
+            after={
+                "username": target.username,
+                "nickname": target.nickname,
+                "email_changed": request.email is not None,
+                "version": target.version,
+            },
+        )
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            raise ApplicationError(
+                status=409,
+                code="ADMIN_USER_UPDATE_CONFLICT",
+                title="User update conflict",
+                detail="用户名或邮箱刚刚被其他账号使用，请修改后重试。",
+            ) from exc
+        return self._user_view(target)
+
+    async def replace_user_password(
+        self,
+        access: AdminAccess,
+        user_no: str,
+        request: AdminUserPasswordReplaceRequest,
+        idempotency_key: str,
+    ) -> None:
+        access.require_scope("platform", 0)
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:user-password-replace:{user_no}",
+            idempotency_key=idempotency_key,
+            payload=self._idempotency_payload("admin-user-password", request.model_dump()),
+            resource_type="user_password",
+        )
+        if claim.replayed:
+            return
+        target = await self._require_user(user_no)
+        credential = await self.identity.password_credential(target.id, for_update=True)
+        if credential is None:
+            raise ApplicationError(
+                status=409,
+                code="USER_PASSWORD_NOT_CONFIGURED",
+                title="Password not configured",
+                detail="该账号尚未设置密码。",
+            )
+        now = utc_now()
+        credential.secret_hash = self.security.hash_password(request.temporary_password)
+        credential.algorithm = "argon2id"
+        credential.must_change_password = request.require_change_on_next_login
+        credential.password_changed_at = now
+        credential.credential_version += 1
+        await self.identity.revoke_user_sessions(target.id, now, "admin_password_replaced")
+        self._add_audit(
+            access,
+            action="replace_user_password",
+            target_type="user",
+            target_no=user_no,
+            reason="超级管理员直接重置密码",
+            after={"require_change_on_next_login": request.require_change_on_next_login},
+        )
+        self.idempotency.complete(claim, response_status=200, resource_no=user_no)
+        await self.session.commit()
+
+    async def adjust_user_wallet(
+        self,
+        access: AdminAccess,
+        user_no: str,
+        request: AdminWalletAdjustmentRequest,
+        idempotency_key: str,
+    ) -> AdminWalletAdjustmentResult:
+        access.require_scope("platform", 0)
+        claim = await self.idempotency.begin(
+            scope_key=f"admin:user-wallet-adjust:{user_no}",
+            idempotency_key=idempotency_key,
+            payload=self._idempotency_payload("admin-wallet-adjust", request.model_dump()),
+            resource_type="wallet_transaction",
+        )
+        target = await self._require_user(user_no)
+        if claim.replayed and claim.record.resource_no:
+            transaction = await self.session.scalar(
+                select(WalletTransaction).where(
+                    WalletTransaction.transaction_no == claim.record.resource_no
+                )
+            )
+            if transaction is not None:
+                return AdminWalletAdjustmentResult(
+                    transaction_id=transaction.transaction_no,
+                    direction=cast(WalletAdjustmentDirection, transaction.direction),
+                    amount_minor=str(transaction.amount),
+                    balance_minor=str(transaction.balance_after),
+                    currency=transaction.currency,
+                )
+        wallet = await self.session.scalar(
+            select(UserWallet).where(UserWallet.user_id == target.id).with_for_update()
+        )
+        if wallet is None:
+            wallet = UserWallet(
+                wallet_no=new_prefixed_ulid("wal_"),
+                user_id=target.id,
+                balance_amount=0,
+                total_recharged_amount=0,
+                currency="CNY",
+                wallet_status="active",
+            )
+            self.session.add(wallet)
+            await self.session.flush()
+        if wallet.wallet_status != "active":
+            raise ApplicationError(
+                status=409,
+                code="WALLET_NOT_ACTIVE",
+                title="Wallet unavailable",
+                detail="该用户钱包当前不可调整。",
+            )
+        before = wallet.balance_amount
+        if request.direction == "debit" and before < request.amount_minor:
+            raise _field_error(
+                "/amount_minor",
+                "WALLET_INSUFFICIENT_BALANCE",
+                "扣减金额不能超过用户当前余额。",
+                status=409,
+            )
+        after = (
+            before + request.amount_minor
+            if request.direction == "credit"
+            else before - request.amount_minor
+        )
+        transaction_no = new_prefixed_ulid("wtx_")
+        transaction = WalletTransaction(
+            transaction_no=transaction_no,
+            wallet_id=wallet.id,
+            transaction_type="admin_adjustment",
+            direction=request.direction,
+            amount=request.amount_minor,
+            balance_before=before,
+            balance_after=after,
+            currency=wallet.currency,
+            business_type="admin_adjustment",
+            business_no=new_prefixed_ulid("wadj_"),
+            channel="admin",
+            description="超级管理员直接调整账户余额",
+            occurred_at=utc_now(),
+        )
+        self.session.add(transaction)
+        wallet.balance_amount = after
+        wallet.version += 1
+        self._add_audit(
+            access,
+            action="adjust_user_wallet",
+            target_type="user_wallet",
+            target_no=wallet.wallet_no,
+            reason="超级管理员直接调整账户余额",
+            before={"balance_minor": before, "currency": wallet.currency},
+            after={"balance_minor": after, "currency": wallet.currency},
+        )
+        self.idempotency.complete(claim, response_status=201, resource_no=transaction_no)
+        await self.session.commit()
+        return AdminWalletAdjustmentResult(
+            transaction_id=transaction_no,
+            direction=request.direction,
+            amount_minor=str(request.amount_minor),
+            balance_minor=str(after),
+            currency=wallet.currency,
+        )
+
+    async def prepare_user_deletion(
+        self,
+        access: AdminAccess,
+        user_no: str,
+        expected_version: int,
+    ) -> User:
+        access.require_scope("platform", 0)
+        target = await self._require_user(user_no, for_update=True)
+        self._check_version(target.version, expected_version)
+        grants = await self.repository.active_grants(target.id, utc_now())
+        if any(
+            role.role_code != "user" or grant.scope_type != "platform" for grant, role in grants
+        ):
+            raise ApplicationError(
+                status=409,
+                code="ADMIN_USER_DELETE_IDENTITY_PROTECTED",
+                title="Management identity protected",
+                detail="商家或平台管理身份不能从普通用户管理页面删除。",
+            )
+        self._add_audit(
+            access,
+            action="delete_user",
+            target_type="user",
+            target_no=user_no,
+            reason="超级管理员确认删除用户",
+            before={"username": target.username, "status": target.user_status},
+        )
+        await self.session.flush()
+        return target
 
     async def list_user_status_events(self, user_no: str, limit: int) -> list[UserStatusEventView]:
         target = await self._require_user(user_no)
@@ -484,9 +992,7 @@ class RbacService:
         await self.session.commit()
         return self._role_view(role)
 
-    async def list_role_grants(
-        self, access: AdminAccess, user_no: str
-    ) -> list[RoleGrantView]:
+    async def list_role_grants(self, access: AdminAccess, user_no: str) -> list[RoleGrantView]:
         target = await self._require_user(user_no)
         statement = (
             select(UserRole, Role)
@@ -514,10 +1020,10 @@ class RbacService:
         target = await self._require_user(user_no)
         statement = (
             select(UserRoleEvent, UserRole)
-                .join(UserRole, UserRole.id == UserRoleEvent.grant_id)
-                .where(UserRole.user_id == target.id)
-                .order_by(UserRoleEvent.created_at.desc(), UserRoleEvent.id.desc())
-                .limit(limit)
+            .join(UserRole, UserRole.id == UserRoleEvent.grant_id)
+            .where(UserRole.user_id == target.id)
+            .order_by(UserRoleEvent.created_at.desc(), UserRoleEvent.id.desc())
+            .limit(limit)
         )
         if ("platform", 0) not in access.scopes:
             statement = statement.where(
@@ -615,9 +1121,10 @@ class RbacService:
             if (grant.scope_type, grant.scope_id) == ("platform", 0)
             or (grant.scope_type, grant.scope_id) == (request.scope_type, request.scope_id)
         }
-        if any(item.delegation_policy == "non_delegable" for item in role_permissions) or not {
-            item.permission_code for item in role_permissions
-        } <= operator_codes:
+        if (
+            any(item.delegation_policy == "non_delegable" for item in role_permissions)
+            or not {item.permission_code for item in role_permissions} <= operator_codes
+        ):
             raise ApplicationError(
                 status=403,
                 code="RBAC_ROLE_NOT_DELEGABLE",
@@ -834,9 +1341,7 @@ class RbacService:
         self._check_version(grant.version, expected_version)
         access.require_scope("platform", 0)
         if grant.admin_user_id != access.context.user.id:
-            rows = await self.repository.permissions_for_user(
-                access.context.user.id, utc_now()
-            )
+            rows = await self.repository.permissions_for_user(access.context.user.id, utc_now())
             if "users:manage" not in {permission.permission_code for permission, _, _ in rows}:
                 raise ApplicationError(
                     status=404,
@@ -937,8 +1442,7 @@ class RbacService:
                     statement.order_by(
                         AdminApprovalRequest.created_at.desc(),
                         AdminApprovalRequest.id.desc(),
-                    )
-                    .limit(limit)
+                    ).limit(limit)
                 )
             ).all()
         )
@@ -1096,9 +1600,7 @@ class RbacService:
             ) from exc
         return self._approval_view(item)
 
-    async def list_audit_logs(
-        self, access: AdminAccess, limit: int = 50
-    ) -> list[AuditLogView]:
+    async def list_audit_logs(self, access: AdminAccess, limit: int = 50) -> list[AuditLogView]:
         logs = await self.repository.admin_logs(access.scopes, limit)
         user_ids = {item.operator_user_id for item in logs}
         users = {
@@ -1310,4 +1812,20 @@ def _invalid_transition(current: str, desired: str) -> ApplicationError:
         code="USER_STATUS_TRANSITION_INVALID",
         title="Invalid user status transition",
         detail=f"账号不能从 {current} 转换为 {desired}。",
+    )
+
+
+def _field_error(
+    pointer: str,
+    code: str,
+    message: str,
+    *,
+    status: int = 422,
+) -> ApplicationError:
+    return ApplicationError(
+        status=status,
+        code=code,
+        title="Invalid field value",
+        detail=message,
+        errors=[{"pointer": pointer, "code": code, "message": message}],
     )

@@ -3,6 +3,7 @@
 Revision ID: pg_20260822_0001
 Revises: None
 """
+
 from collections.abc import Sequence
 
 from alembic import op
@@ -25,4 +26,3 @@ def downgrade() -> None:
     op.execute("DROP SCHEMA IF EXISTS memory")
     op.execute("DROP SCHEMA IF EXISTS knowledge")
     # The vector extension is shared infrastructure and is intentionally retained.
-

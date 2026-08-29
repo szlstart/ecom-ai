@@ -1,0 +1,53 @@
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main, "codex/**"]
+  schedule:
+    - cron: "17 2 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependency-and-secret-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.13.14", cache: pip, cache-dependency-path: backend/requirements/dev.txt }
+      - uses: pnpm/action-setup@v6
+        with: { version: 11.21.0 }
+      - uses: actions/setup-node@v6
+        with: { node-version: "24.18.0", cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
+      - name: Install audit tools and frontend dependencies
+        run: |
+          python -m pip install pip-audit==2.9.0 bandit==1.8.6
+          pnpm --dir frontend install --frozen-lockfile
+      - name: Audit Python dependencies
+        run: python -m pip_audit --require-hashes -r backend/requirements/dev.txt
+      - name: Run Python security rules
+        run: python -m bandit -q -r backend/app -ll
+      - name: Audit frontend production dependencies
+        run: pnpm --dir frontend audit --prod --audit-level high --registry=https://registry.npmjs.org
+      - name: Scan Git history for committed secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  codeql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: github/codeql-action/init@v4
+        with: { languages: "${{ matrix.language }}" }
+      - uses: github/codeql-action/analyze@v4

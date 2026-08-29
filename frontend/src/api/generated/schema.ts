@@ -38,6 +38,313 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/ai-memory-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Ai Memory Items */
+        get: operations["AiMemory_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-memory-items/{memory_id}/activations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Ai Memory Item */
+        post: operations["AiMemory_Activate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-memory-items/{memory_id}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revise Ai Memory Item */
+        post: operations["AiMemory_Revise"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-memory-items/{memory_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Ai Memory Item */
+        delete: operations["AiMemory_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-personalization/disable-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Disable All Ai Personalization */
+        post: operations["AiPersonalization_DisableAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-cleanup-tasks/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ai Cleanup Task */
+        get: operations["CleanupTask_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/ai-cleanup-tasks/{task_id}/retries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Ai Cleanup Task */
+        post: operations["CleanupTask_RetryMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/agent-consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Consents */
+        get: operations["AiConsent_ListMine"];
+        put?: never;
+        /** Grant Consent */
+        post: operations["AiConsent_Grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/agent-consents/{consent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Consent */
+        get: operations["AiConsent_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/agent-consents/{consent_id}/pauses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aiconsent Pause */
+        post: operations["AiConsent_Pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/agent-consents/{consent_id}/resumes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aiconsent Resume */
+        post: operations["AiConsent_Resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/agent-consents/{consent_id}/revocations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aiconsent Revoke */
+        post: operations["AiConsent_Revoke"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Run */
+        get: operations["AgentRun_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-tool-approvals/{approval_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Tool Approval */
+        get: operations["AgentToolApproval_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-tool-approvals/{approval_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Agent Tool Approval */
+        post: operations["AgentToolApproval_DecideMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/runs/provider-health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Model Provider Health */
+        get: operations["AdminAgentProviderHealth_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Agent Run */
+        get: operations["AdminAgentRun_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/runs/{run_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Agent Run */
+        post: operations["AdminAgentRun_Kill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/registration-config": {
         parameters: {
             query?: never;
@@ -49,23 +356,6 @@ export interface paths {
         get: operations["RegistrationConfig_Get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/verification-codes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Verification Code */
-        post: operations["AuthVerificationCode_Create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -100,6 +390,23 @@ export interface paths {
         put?: never;
         /** Login */
         post: operations["Auth_Login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/session-resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Session */
+        post: operations["AuthSession_Resume"];
         delete?: never;
         options?: never;
         head?: never;
@@ -175,6 +482,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/password-reset-hints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Get Password Reset Hint */
+        post: operations["PasswordResetHint_Get"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/password-reset-tickets": {
         parameters: {
             query?: never;
@@ -237,7 +561,8 @@ export interface paths {
         get: operations["UserProfile_Get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete User Account */
+        delete: operations["UserAccount_DeleteMine"];
         options?: never;
         head?: never;
         /** Update Profile */
@@ -278,23 +603,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/me/contact-change-tickets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Contact Change Ticket */
-        post: operations["UserContactChangeTicket_Create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/users/me/contact-changes": {
         parameters: {
             query?: never;
@@ -307,23 +615,6 @@ export interface paths {
         /** Complete Contact Change */
         post: operations["UserContactChange_Complete"];
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/users/me/contact-change-tickets/{change_ticket_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Cancel Contact Change */
-        delete: operations["UserContactChangeTicket_Cancel"];
         options?: never;
         head?: never;
         patch?: never;
@@ -383,17 +674,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/users/me/account-closure-requests": {
+    "/api/v1/content/banners": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Banners */
+        get: operations["HomeBanner_ListPublished"];
         put?: never;
-        /** Request Account Closure */
-        post: operations["UserAccountClosureRequest_Create"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Announcements */
+        get: operations["PlatformAnnouncement_ListPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/help-articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Help */
+        get: operations["HelpArticle_ListPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/help-articles/{content_key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Help */
+        get: operations["HelpArticle_GetPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/footer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Footer */
+        get: operations["FooterContent_GetPublished"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/content/about": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get About */
+        get: operations["AboutContent_GetPublished"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -417,24 +793,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/auth/login": {
+    "/api/v1/admin/content": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List Content */
+        get: operations["AdminContent_List"];
         put?: never;
-        /** Admin Login */
-        post: operations["AdminAuth_Login"];
+        /** Create Content */
+        post: operations["AdminContent_Create"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/admin/auth/mfa-verifications": {
+    "/api/v1/admin/content/{content_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Content */
+        get: operations["AdminContent_Get"];
+        /** Update Content */
+        put: operations["AdminContent_Update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/content/{content_id}/versions/{version}/publish": {
         parameters: {
             query?: never;
             header?: never;
@@ -443,8 +838,3872 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Verify Admin Mfa */
-        post: operations["AdminAuth_MfaVerify"];
+        /** Publish Content */
+        post: operations["AdminContent_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/content/{content_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw Content */
+        post: operations["AdminContent_Withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Evaluations */
+        get: operations["AdminAiEvaluation_List"];
+        put?: never;
+        /** Create Evaluation */
+        post: operations["AdminAiEvaluation_Run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/observability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Observability Summary */
+        get: operations["AdminObservability_Query"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dead-letter-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Dead Letters */
+        get: operations["AdminDeadLetter_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dead Letter */
+        get: operations["AdminDeadLetter_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}/replay-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Dead Letter Replay */
+        post: operations["AdminDeadLetter_Preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}/replays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replay Dead Letter */
+        post: operations["AdminDeadLetter_Replay"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/dead-letter-events/{dead_letter_id}/ignore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ignore Dead Letter */
+        post: operations["AdminDeadLetter_Ignore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/file-upload-policies/{purpose}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Upload Policy */
+        get: operations["FileUploadPolicy_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/file-upload-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Upload Session */
+        post: operations["FileUploadSession_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/file-upload-sessions/{upload_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Upload Session */
+        get: operations["FileUploadSession_Get"];
+        put?: never;
+        post?: never;
+        /** Abort Upload Session */
+        delete: operations["FileUploadSession_Abort"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/file-upload-sessions/{upload_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Upload Session */
+        post: operations["FileUploadSession_Complete"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{file_id}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get File Metadata */
+        get: operations["File_GetMetadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get File */
+        get: operations["File_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/wallet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Wallet */
+        get: operations["UserWallet_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/wallet/recharges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Recharge */
+        post: operations["UserWalletRecharge_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/wallet/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Transactions */
+        get: operations["UserWalletTransaction_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Admin Store Revenue */
+        get: operations["AdminStoreRevenue_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Merchant Account */
+        delete: operations["MerchantAccount_DeleteMine"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/stores/{store_id}/revenue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Merchant Revenue */
+        get: operations["MerchantStoreRevenue_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/homepage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Homepage */
+        get: operations["Homepage_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Products */
+        get: operations["Product_Search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Product */
+        get: operations["Product_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{product_id}/skus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Skus */
+        get: operations["ProductSku_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{product_id}/faqs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Faqs */
+        get: operations["ProductFaq_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Categories */
+        get: operations["Category_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Brands */
+        get: operations["Brand_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/search/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search Suggestions */
+        get: operations["SearchSuggestion_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/products/{product_id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Reviews */
+        get: operations["ProductReview_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/review-eligibilities/{order_item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Review Eligibility */
+        get: operations["ReviewEligibility_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Reviews */
+        get: operations["Review_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Review */
+        post: operations["Review_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/{review_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Review */
+        get: operations["Review_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Review */
+        patch: operations["Review_Update"];
+        trace?: never;
+    };
+    "/api/v1/reviews/{review_id}/append-records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Append Review */
+        post: operations["Review_Append"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reviews */
+        get: operations["AdminReview_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reviews/{review_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Review */
+        get: operations["AdminReview_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reviews/{review_id}/replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reply Review */
+        post: operations["AdminReview_Reply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reviews/{review_id}/moderations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Moderate Review */
+        post: operations["AdminReview_Moderate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}/return-shipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upsert Return Shipment */
+        put: operations["RefundReturnShipment_Upsert"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/refunds/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Process Refund Webhook */
+        post: operations["RefundPaymentWebhook_Process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-eligibility-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Refund Eligibility */
+        post: operations["RefundEligibility_Check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Refund */
+        post: operations["RefundApplication_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/refund-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Refunds */
+        get: operations["RefundApplication_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Refund */
+        get: operations["RefundApplication_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Refund Events */
+        get: operations["RefundEvent_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Refund */
+        post: operations["RefundApplication_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-applications/{refund_id}/appeals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Refund Appeal */
+        post: operations["RefundAppeal_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-appeals/{appeal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Refund Appeal */
+        get: operations["RefundAppeal_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-appeals/{appeal_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Refund Appeal Events */
+        get: operations["RefundAppealEvent_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/refund-appeals/{appeal_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Refund Appeal */
+        post: operations["RefundAppeal_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Refunds */
+        get: operations["AdminRefund_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-appeals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Appeals */
+        get: operations["AdminRefundAppeal_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-appeals/{appeal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Appeal */
+        get: operations["AdminRefundAppeal_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-appeals/{appeal_id}/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Appeal */
+        post: operations["AdminRefundAppeal_Claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-appeals/{appeal_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Appeal */
+        post: operations["AdminRefundAppeal_Decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-applications/{refund_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Refund */
+        get: operations["AdminRefund_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-applications/{refund_id}/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Refund */
+        post: operations["AdminRefund_Claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/refund-applications/{refund_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Refund */
+        post: operations["AdminRefund_Decide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/reaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Ai Feedback Reaction */
+        put: operations["AiFeedbackReaction_Put"];
+        post?: never;
+        /** Delete Ai Feedback Reaction */
+        delete: operations["AiFeedbackReaction_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aifeedbackreport Create */
+        post: operations["AiFeedbackReport_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aifeedbackcorrection Create */
+        post: operations["AiFeedbackCorrection_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Conversations */
+        get: operations["Conversation_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/exclusive-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Exclusive */
+        put: operations["ExclusiveConversation_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stores/{store_id}/customer-service-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Store Conversation */
+        put: operations["StoreConversation_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Conversation */
+        get: operations["Conversation_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Messages */
+        get: operations["Message_ListMine"];
+        put?: never;
+        /** Send Message */
+        post: operations["Message_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/contexts/{context_type}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Context */
+        put: operations["ConversationContext_PutMine"];
+        post?: never;
+        /** Delete Context */
+        delete: operations["ConversationContext_DeleteMine"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/archivals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Conversation */
+        post: operations["ConversationArchive_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/human-service-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Human Service Ticket */
+        get: operations["HumanServiceTicket_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/human-service-tickets/{ticket_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Human Service Ticket */
+        post: operations["HumanServiceTicketCancellation_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/read-cursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Read Cursor */
+        put: operations["MessageReadCursor_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/conversations/{conversation_id}/human-service-tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Human Service */
+        post: operations["HumanServiceRequest_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/support/exclusive-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Merchant Exclusive */
+        put: operations["MerchantExclusiveConversation_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/support/exclusive-conversation/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Merchant Exclusive Messages */
+        get: operations["MerchantExclusiveMessage_ListMine"];
+        put?: never;
+        /** Send Merchant Exclusive Message */
+        post: operations["MerchantExclusiveMessage_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/support/exclusive-conversation/read-cursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Merchant Exclusive Read Cursor */
+        put: operations["MerchantExclusiveReadCursor_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/support/exclusive-conversation/human-service-tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Merchant Human Service */
+        post: operations["MerchantHumanServiceRequest_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/ai-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Admin Ai Conversation */
+        put: operations["AdminAiConversation_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/ai-conversation/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin Ai Messages */
+        get: operations["AdminAiMessage_ListMine"];
+        put?: never;
+        /** Send Admin Ai Message */
+        post: operations["AdminAiMessage_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/support/ai-conversation/read-cursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Admin Ai Read Cursor */
+        put: operations["AdminAiReadCursor_PutMine"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tickets */
+        get: operations["SupportTicket_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ticket */
+        get: operations["SupportTicket_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Workspace */
+        get: operations["SupportWorkspace_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Support Messages */
+        get: operations["SupportMessage_List"];
+        put?: never;
+        /** Send Support Conversation Message */
+        post: operations["SupportConversationMessage_Send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/conversations/{conversation_id}/read-cursor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Support Read Cursor */
+        put: operations["SupportReadCursor_Put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/claims": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Ticket */
+        post: operations["SupportTicket_Claim"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/waits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Wait Ticket */
+        post: operations["SupportTicket_Wait"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/resumptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Ticket */
+        post: operations["SupportTicket_Resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer Ticket */
+        post: operations["SupportTicket_Transfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/resolutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Ticket */
+        post: operations["SupportTicket_Resolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Support Message */
+        post: operations["SupportMessage_Send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/human-service-tickets/{ticket_id}/internal-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Internal Notes */
+        get: operations["SupportInternalNote_List"];
+        put?: never;
+        /** Create Internal Note */
+        post: operations["SupportInternalNote_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/realtime/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create User Ticket */
+        post: operations["RealtimeTicket_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/realtime/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Support Ticket */
+        post: operations["SupportRealtimeTicket_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/cart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Cart */
+        get: operations["Cart_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/cart/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Cart Item */
+        post: operations["CartItem_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/cart/items/{cart_item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Cart Item */
+        delete: operations["CartItem_Delete"];
+        options?: never;
+        head?: never;
+        /** Patch Cart Item */
+        patch: operations["CartItem_Patch"];
+        trace?: never;
+    };
+    "/api/v1/users/me/cart/selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Cart Selection */
+        put: operations["CartSelection_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/cart/invalid-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Clear Invalid Cart Items */
+        delete: operations["CartInvalidItem_Clear"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checkout-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Checkout */
+        post: operations["CheckoutSession_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checkout-sessions/{checkout_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Checkout */
+        get: operations["CheckoutSession_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Checkout */
+        patch: operations["CheckoutSession_Patch"];
+        trace?: never;
+    };
+    "/api/v1/checkout-sessions/{checkout_id}/repricings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reprice Checkout */
+        post: operations["CheckoutRepricing_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Order */
+        post: operations["Order_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Orders */
+        get: operations["Order_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Order */
+        get: operations["Order_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Order Events */
+        get: operations["OrderEvent_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-orders/{trade_order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Trade Order */
+        get: operations["TradeOrder_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel My Order */
+        post: operations["Order_CancelMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/receipt-confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm My Order Receipt */
+        post: operations["Order_ConfirmReceiptMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Hide My Order */
+        delete: operations["Order_HideMine"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/orders/{order_id}/restorations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore My Order */
+        post: operations["Order_RestoreMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/repurchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Repurchase My Order */
+        post: operations["Order_RepurchaseMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Orders */
+        get: operations["AdminOrder_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Order */
+        get: operations["AdminOrder_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{order_id}/amount-adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust Order Amount */
+        post: operations["AdminOrder_AdjustAmount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{order_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Order */
+        post: operations["AdminOrder_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Payment */
+        post: operations["Payment_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{payment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Payment */
+        get: operations["Payment_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{payment_id}/closures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Close Payment */
+        post: operations["Payment_CloseMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trade-orders/{trade_order_id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Trade Payments */
+        get: operations["Payment_ListForTradeOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/payments/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Process Payment Webhook */
+        post: operations["PaymentWebhook_Process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Payments */
+        get: operations["AdminPayment_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments/{payment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Payment */
+        get: operations["AdminPayment_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/payments/{payment_id}/reconciliations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reconcile Payment */
+        post: operations["AdminPayment_Reconcile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/orders/{order_id}/shipments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Order Shipments */
+        get: operations["Shipment_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/{shipment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Shipment */
+        get: operations["Shipment_GetMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/{shipment_id}/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List My Shipment Tracks */
+        get: operations["ShipmentTrack_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/shipments/{shipment_id}/refreshes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh My Shipment */
+        post: operations["ShipmentRefresh_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/logistics/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Process Logistics Webhook */
+        post: operations["LogisticsWebhook_Process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Documents */
+        get: operations["AdminKnowledgeDocument_List"];
+        put?: never;
+        /** Create Document */
+        post: operations["AdminKnowledgeDocument_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document */
+        get: operations["AdminKnowledgeDocument_Get"];
+        put?: never;
+        post?: never;
+        /** Withdraw Document */
+        delete: operations["AdminKnowledgeDocument_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/documents/{document_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Document */
+        post: operations["AdminKnowledgeIndex_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/index-jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Index Job */
+        get: operations["AdminKnowledgeIndex_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/index-jobs/{job_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Job */
+        post: operations["AdminKnowledgeIndex_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/knowledge/searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search Knowledge */
+        post: operations["AdminKnowledge_Search"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Agents */
+        get: operations["AdminAgent_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/agents/{agent_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Agent Version */
+        post: operations["AdminAgentVersion_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/agents/{agent_id}/versions/{version_no}/skill-bindings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bind Agent Skill */
+        post: operations["AdminAgentSkillBinding_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/agents/{agent_id}/versions/{version_no}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Agent Version */
+        post: operations["AdminAgentVersion_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/mcp-servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Mcp Servers */
+        get: operations["AdminMcpServer_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/kill-switches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Kill Switches */
+        get: operations["AdminAiKillSwitch_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/kill-switches/{target_type}/{target_code}/activations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Kill Switch */
+        post: operations["AdminAiKillSwitch_Activate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/kill-switches/{target_type}/{target_code}/deactivations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deactivate Kill Switch */
+        post: operations["AdminAiKillSwitch_Deactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Skills */
+        get: operations["AdminSkill_List"];
+        put?: never;
+        /** Create Skill */
+        post: operations["AdminSkill_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/skills/{skill_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Skill Version */
+        post: operations["AdminSkill_VersionCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/skills/{skill_id}/versions/{version_no}/tool-bindings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bind Skill Tool */
+        post: operations["AdminSkillToolBinding_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/skills/{skill_id}/versions/{version_no}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Skill */
+        post: operations["AdminSkill_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tools */
+        get: operations["AdminTool_List"];
+        put?: never;
+        /** Create Tool */
+        post: operations["AdminTool_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/tools/{tool_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tool */
+        get: operations["AdminTool_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/tools/{tool_code}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Tool Version */
+        post: operations["AdminTool_VersionCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/tools/{tool_code}/versions/{version_no}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Tool */
+        post: operations["AdminTool_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ai/tools/{tool_code}/versions/{version_no}/rollbacks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rollback Tool Version */
+        post: operations["AdminToolVersion_Rollback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/orders/{order_id}/shipments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Shipment */
+        post: operations["AdminShipment_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Shipment */
+        get: operations["AdminShipment_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}/tracking-corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct Tracking */
+        post: operations["AdminShipment_CorrectTracking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}/voids": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Void Shipment */
+        post: operations["AdminShipment_Void"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}/refreshes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Shipment */
+        post: operations["AdminShipment_Refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/favorite-products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Favorite Products */
+        get: operations["FavoriteProduct_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/favorite-products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Favorite Product */
+        put: operations["FavoriteProduct_Put"];
+        post?: never;
+        /** Delete Favorite Product */
+        delete: operations["FavoriteProduct_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stores/{store_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Store */
+        get: operations["Store_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stores/{store_id}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Store Products */
+        get: operations["StoreProduct_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stores/{store_id}/product-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Store Product Groups */
+        get: operations["StoreProductGroup_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stores/{store_id}/home-content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Store Home Content */
+        get: operations["StoreHomeContent_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stores/{store_id}/service-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Store Policies */
+        get: operations["StorePolicy_ListPublic"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/followed-stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Followed Stores */
+        get: operations["FollowedStore_ListMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/me/followed-stores/{store_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Follow Store */
+        put: operations["FollowedStore_Put"];
+        post?: never;
+        /** Unfollow Store */
+        delete: operations["FollowedStore_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Categories */
+        get: operations["AdminCategory_List"];
+        put?: never;
+        /** Create Category */
+        post: operations["AdminCategory_Upsert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Category */
+        patch: operations["AdminCategory_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Brands */
+        get: operations["AdminBrand_List"];
+        put?: never;
+        /** Create Brand */
+        post: operations["AdminBrand_Upsert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/brands/{brand_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Brand */
+        patch: operations["AdminBrand_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/inventories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Inventories */
+        get: operations["AdminInventory_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/inventories/{sku_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Inventory */
+        get: operations["AdminInventory_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/inventory-adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust Inventory */
+        post: operations["AdminInventory_Adjust"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Products */
+        get: operations["AdminProduct_List"];
+        put?: never;
+        /** Create Product */
+        post: operations["AdminProduct_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Product */
+        get: operations["AdminProduct_Get"];
+        put?: never;
+        post?: never;
+        /** Delete Product */
+        delete: operations["AdminProduct_Delete"];
+        options?: never;
+        head?: never;
+        /** Update Product */
+        patch: operations["AdminProduct_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/deletion-eligibility": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check Product Deletion Eligibility */
+        get: operations["AdminProductDeletionEligibility_Check"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/review-submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Product */
+        post: operations["AdminProduct_Submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/moderation-decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Moderate Product */
+        post: operations["AdminProduct_Moderate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Product */
+        post: operations["AdminProduct_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/off-shelf-commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Off Shelf Product */
+        post: operations["AdminProduct_OffShelf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/skus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Skus */
+        get: operations["AdminProductSku_List"];
+        put?: never;
+        /** Create Sku */
+        post: operations["AdminProductSku_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/skus/{sku_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Sku */
+        patch: operations["AdminProductSku_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/skus/{sku_id}/status-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change Sku Status */
+        post: operations["AdminProductSku_ChangeStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Images */
+        get: operations["AdminProductImage_List"];
+        /** Replace Images */
+        put: operations["AdminProductImage_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/fulfillment-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Fulfillment */
+        get: operations["AdminProductFulfillment_Get"];
+        /** Set Fulfillment */
+        put: operations["AdminProductFulfillment_Upsert"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/attributes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Attributes */
+        get: operations["AdminProductAttribute_List"];
+        /** Replace Attributes */
+        put: operations["AdminProductAttribute_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/detail-content-versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Content Version */
+        post: operations["AdminProductContentVersion_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/detail-content-versions/{version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Content Version */
+        get: operations["AdminProductContentVersion_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/faqs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Faqs */
+        get: operations["AdminProductFaq_List"];
+        /** Replace Faqs */
+        put: operations["AdminProductFaq_Replace"];
+        /** Create Faq */
+        post: operations["AdminProductFaq_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/faqs/{faq_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Faq Version */
+        post: operations["AdminProductFaqVersion_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/products/{product_id}/faqs/{faq_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Faq */
+        post: operations["AdminProductFaq_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Stores */
+        get: operations["AdminStore_List"];
+        put?: never;
+        /** Create Store */
+        post: operations["AdminStore_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Store */
+        get: operations["AdminStore_Get"];
+        put?: never;
+        post?: never;
+        /** Delete Store */
+        delete: operations["AdminStore_Delete"];
+        options?: never;
+        head?: never;
+        /** Update Store */
+        patch: operations["AdminStore_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/status-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Change Store Status */
+        post: operations["AdminStore_ChangeStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/service-policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Store Policies */
+        get: operations["AdminStorePolicy_List"];
+        put?: never;
+        /** Create Store Policy */
+        post: operations["AdminStorePolicy_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Store Policy */
+        get: operations["AdminStorePolicy_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Store Policy */
+        patch: operations["AdminStorePolicy_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Store Policy */
+        post: operations["AdminStorePolicy_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/service-policies/{policy_id}/withdrawals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw Store Policy */
+        post: operations["AdminStorePolicy_Withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/product-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Product Groups */
+        get: operations["AdminStoreProductGroup_List"];
+        put?: never;
+        /** Create Product Group */
+        post: operations["AdminStoreProductGroup_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/product-groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Product Group */
+        patch: operations["AdminStoreProductGroup_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/product-groups/{group_id}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Product Group Products */
+        put: operations["AdminStoreProductGroup_ReplaceProducts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/shipping-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Shipping Templates */
+        get: operations["AdminShippingTemplate_List"];
+        put?: never;
+        /** Create Shipping Template */
+        post: operations["AdminShippingTemplate_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/shipping-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Shipping Template */
+        patch: operations["AdminShippingTemplate_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/shipping-templates/{template_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish Shipping Template */
+        post: operations["AdminShippingTemplate_Publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Announcements */
+        get: operations["AdminStoreAnnouncement_List"];
+        put?: never;
+        /** Create Announcement */
+        post: operations["AdminStoreAnnouncement_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/announcements/{announcement_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Announcement */
+        patch: operations["AdminStoreAnnouncement_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/stores/{store_id}/featured-products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Featured Products */
+        get: operations["AdminStoreFeaturedProduct_List"];
+        /** Replace Featured Products */
+        put: operations["AdminStoreFeaturedProduct_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-import-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Product Import Template */
+        get: operations["AdminProductImportTemplate_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/product-import-template.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Product Import Template */
+        get: operations["AdminProductImportTemplate_Download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Batch Jobs */
+        get: operations["AdminBatchJob_List"];
+        put?: never;
+        /** Create Batch Job */
+        post: operations["AdminBatchJob_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Batch Job */
+        get: operations["AdminBatchJob_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs/{job_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Batch Job Items */
+        get: operations["AdminBatchJobItem_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs/{job_id}/confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Batch Job */
+        post: operations["AdminBatchJob_Confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/batch-jobs/{job_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Batch Job */
+        post: operations["AdminBatchJob_Cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/auth/registrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merchant Register */
+        post: operations["MerchantAuth_Register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merchant Login */
+        post: operations["MerchantAuth_Login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/account/security": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Merchant Account Security */
+        get: operations["MerchantAccountSecurity_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Merchant Account Password */
+        put: operations["MerchantAccountPassword_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/account/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace Merchant Account Email */
+        put: operations["MerchantAccountEmail_Replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/auth/reauthentications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reauthenticate Merchant */
+        post: operations["MerchantAuth_Reauthenticate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/auth/session-resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Merchant Session */
+        post: operations["MerchantAuthSession_Resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/auth/token-refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Merchant Token */
+        post: operations["MerchantAuthToken_Refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/merchant/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merchant Logout */
+        post: operations["MerchantAuth_Logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/password-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Admin Password Login */
+        post: operations["AdminAuth_PasswordLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/password-reauthentications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reauthenticate Admin Password */
+        post: operations["AdminAuth_PasswordReauthenticate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/auth/session-resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume Admin Session */
+        post: operations["AdminAuthSession_Resume"];
         delete?: never;
         options?: never;
         head?: never;
@@ -462,23 +4721,6 @@ export interface paths {
         put?: never;
         /** Refresh Admin Token */
         post: operations["AdminAuthToken_Refresh"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/admin/auth/reauthentications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Reauthenticate Admin */
-        post: operations["AdminAuth_Reauthenticate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -597,7 +4839,8 @@ export interface paths {
         /** List Users */
         get: operations["AdminUser_List"];
         put?: never;
-        post?: never;
+        /** Create User */
+        post: operations["AdminUser_Create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -615,6 +4858,232 @@ export interface paths {
         get: operations["AdminUser_Get"];
         put?: never;
         post?: never;
+        /** Delete User */
+        delete: operations["AdminUser_Delete"];
+        options?: never;
+        head?: never;
+        /** Update User */
+        patch: operations["AdminUser_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get User Workspace */
+        get: operations["AdminUserWorkspace_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/addresses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin User Addresses */
+        get: operations["AdminUserAddress_List"];
+        put?: never;
+        /** Create Admin User Address */
+        post: operations["AdminUserAddress_Create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/addresses/{address_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Admin User Address */
+        delete: operations["AdminUserAddress_Delete"];
+        options?: never;
+        head?: never;
+        /** Update Admin User Address */
+        patch: operations["AdminUserAddress_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/cart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Admin User Cart */
+        get: operations["AdminUserCart_Get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/cart/items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Admin User Cart Item */
+        delete: operations["AdminUserCartItem_Delete"];
+        options?: never;
+        head?: never;
+        /** Update Admin User Cart Item */
+        patch: operations["AdminUserCartItem_Update"];
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/favorite-products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin User Favorite Products */
+        get: operations["AdminUserFavoriteProduct_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/favorite-products/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Admin User Favorite Product */
+        delete: operations["AdminUserFavoriteProduct_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/followed-stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Admin User Followed Stores */
+        get: operations["AdminUserFollowedStore_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/followed-stores/{store_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Admin User Followed Store */
+        delete: operations["AdminUserFollowedStore_Delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/orders/{order_id}/cancellations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Admin User Order */
+        post: operations["AdminUserOrder_CancelAsUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/orders/{order_id}/receipt-confirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm Admin User Order Receipt */
+        post: operations["AdminUserOrder_ConfirmReceiptAsUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/password-replacements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace User Password */
+        post: operations["AdminUserPassword_Replace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/wallet-adjustments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust User Wallet */
+        post: operations["AdminUserWallet_Adjust"];
         delete?: never;
         options?: never;
         head?: never;
@@ -917,20 +5386,30 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AccountClosureRequest */
-        AccountClosureRequest: {
-            /**
-             * Reason Code
-             * @enum {string}
-             */
-            reason_code: "no_longer_needed" | "privacy_concern" | "other";
-            /** Reason */
-            reason?: string | null;
+        /** AccountDeletionRequest */
+        AccountDeletionRequest: {
             /**
              * Confirmation
              * @constant
              */
-            confirmation: "CLOSE_MY_ACCOUNT";
+            confirmation: "DELETE_MY_ACCOUNT";
+        };
+        /** AccountDeletionTaskView */
+        AccountDeletionTaskView: {
+            /** Task Id */
+            task_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "requested" | "running" | "retryable" | "manual_review" | "completed";
+            /** Phase */
+            phase: string;
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
         };
         /** AddressList */
         AddressList: {
@@ -1025,6 +5504,54 @@ export interface components {
              */
             is_default: boolean;
         };
+        /** AdminAgentRunCancelRequest */
+        AdminAgentRunCancelRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** AdminAgentRunView */
+        AdminAgentRunView: {
+            /** Run Id */
+            run_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled";
+            /** Current Phase */
+            current_phase: string;
+            /** Agent Code */
+            agent_code: string;
+            /** Agent Version No */
+            agent_version_no: number;
+            /**
+             * Conversation Type
+             * @enum {string}
+             */
+            conversation_type: "exclusive" | "store";
+            /** Trace Id */
+            trace_id: string;
+            /** Context Ref Count */
+            context_ref_count: number;
+            /** Error Code */
+            error_code: string | null;
+            /** Degraded Reason */
+            degraded_reason: string | null;
+            /** Available Actions */
+            available_actions: "cancel"[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
         /** AdminBootstrap */
         AdminBootstrap: {
             session: components["schemas"]["SessionBootstrap"];
@@ -1034,6 +5561,135 @@ export interface components {
             scopes: {
                 [key: string]: string | number;
             }[];
+        };
+        /** AdminBrandCreateRequest */
+        AdminBrandCreateRequest: {
+            /** Brand Name */
+            brand_name: string;
+            /** Logo File Id */
+            logo_file_id?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** AdminBrandUpdateRequest */
+        AdminBrandUpdateRequest: {
+            /** Brand Name */
+            brand_name?: string | null;
+            /** Logo File Id */
+            logo_file_id?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Status */
+            status?: ("active" | "disabled") | null;
+        };
+        /** AdminBrandView */
+        AdminBrandView: {
+            /** Brand Id */
+            brand_id: string;
+            /** Brand Name */
+            brand_name: string;
+            /** Logo Url */
+            logo_url: string | null;
+            /** Description */
+            description: string | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+        };
+        /** AdminCategoryCreateRequest */
+        AdminCategoryCreateRequest: {
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Category Name */
+            category_name: string;
+            /** Category Code */
+            category_code: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Icon File Id */
+            icon_file_id?: string | null;
+        };
+        /** AdminCategoryUpdateRequest */
+        AdminCategoryUpdateRequest: {
+            /** Parent Id */
+            parent_id?: string | null;
+            /** Category Name */
+            category_name?: string | null;
+            /** Category Code */
+            category_code?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Icon File Id */
+            icon_file_id?: string | null;
+            /** Status */
+            status?: ("active" | "disabled") | null;
+        };
+        /** AdminCategoryView */
+        AdminCategoryView: {
+            /** Category Id */
+            category_id: string;
+            /** Parent Id */
+            parent_id: string | null;
+            /** Category Name */
+            category_name: string;
+            /** Category Code */
+            category_code: string;
+            /** Path */
+            path: string;
+            /** Level */
+            level: number;
+            /** Sort Order */
+            sort_order: number;
+            /** Icon Url */
+            icon_url: string | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+        };
+        /** AdminContentVersionCreateRequest */
+        AdminContentVersionCreateRequest: {
+            /**
+             * Source Format
+             * @enum {string}
+             */
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+        };
+        /** AdminContentVersionView */
+        AdminContentVersionView: {
+            /** Version Id */
+            version_id: string;
+            /** Content Version */
+            content_version: number;
+            /** Source Format */
+            source_format: string;
+            /** Source Content */
+            source_content: string;
+            /** Public Content Format */
+            public_content_format: string;
+            /** Safe Blocks */
+            safe_blocks: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Safe Html */
+            safe_html: string | null;
+            /** Safe Text */
+            safe_text: string;
+            /** Security Scan Status */
+            security_scan_status: string;
+            /** Status */
+            status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** AdminDashboardSummary */
         AdminDashboardSummary: {
@@ -1052,6 +5708,184 @@ export interface components {
             pending_approval_count: number;
             /** Unavailable Sections */
             unavailable_sections: string[];
+        };
+        /** AdminFaqCreateRequest */
+        AdminFaqCreateRequest: {
+            /**
+             * Source Format
+             * @enum {string}
+             */
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+            /** Question */
+            question: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminFaqPublicationRequest */
+        AdminFaqPublicationRequest: {
+            /** Version Id */
+            version_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminFaqReplaceItem */
+        AdminFaqReplaceItem: {
+            /** Faq Id */
+            faq_id?: string | null;
+            /** Question */
+            question: string;
+            /** Answer */
+            answer: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminFaqReplaceRequest */
+        AdminFaqReplaceRequest: {
+            /** Items */
+            items: components["schemas"]["AdminFaqReplaceItem"][];
+        };
+        /** AdminFaqVersionCreateRequest */
+        AdminFaqVersionCreateRequest: {
+            /**
+             * Source Format
+             * @enum {string}
+             */
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+        };
+        /** AdminFaqView */
+        AdminFaqView: {
+            /** Faq Id */
+            faq_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Question */
+            question: string;
+            /** Status */
+            status: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Current Version Id */
+            current_version_id: string | null;
+            /** Current Answer Text */
+            current_answer_text?: string | null;
+            /** Published Version Id */
+            published_version_id: string | null;
+            /** Published At */
+            published_at: string | null;
+            /** Version */
+            version: number;
+        };
+        /** AdminFeaturedProductInput */
+        AdminFeaturedProductInput: {
+            /** Product Id */
+            product_id: string;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+        };
+        /** AdminFeaturedProductSetRequest */
+        AdminFeaturedProductSetRequest: {
+            /**
+             * Slot Type
+             * @enum {string}
+             */
+            slot_type: "recommended" | "hot";
+            /** Items */
+            items: components["schemas"]["AdminFeaturedProductInput"][];
+        };
+        /** AdminFeaturedProductView */
+        AdminFeaturedProductView: {
+            /** Product Id */
+            product_id: string;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Slot Type */
+            slot_type: string;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /** AdminInventoryAdjustmentRequest */
+        AdminInventoryAdjustmentRequest: {
+            /** Sku Id */
+            sku_id: string;
+            /** On Hand Delta */
+            on_hand_delta: number;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            /** Reference No */
+            reference_no: string;
+            /** Expected Version */
+            expected_version: number;
+        };
+        /** AdminInventoryAdjustmentView */
+        AdminInventoryAdjustmentView: {
+            /** Adjustment Id */
+            adjustment_id: string;
+            inventory: components["schemas"]["AdminInventoryView"];
+            /** On Hand Delta */
+            on_hand_delta: number;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            /** Reference No */
+            reference_no: string;
+            /**
+             * Adjusted At
+             * Format: date-time
+             */
+            adjusted_at: string;
+        };
+        /** AdminInventoryList */
+        AdminInventoryList: {
+            /** Items */
+            items: components["schemas"]["AdminInventoryView"][];
+        };
+        /** AdminInventoryView */
+        AdminInventoryView: {
+            /** Sku Id */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** On Hand Quantity */
+            on_hand_quantity: number;
+            /** Reserved Quantity */
+            reserved_quantity: number;
+            /** Safety Stock Quantity */
+            safety_stock_quantity: number;
+            /** Available Quantity */
+            available_quantity: number;
+            /** Sold Quantity */
+            sold_quantity: number;
+            /** Status */
+            status: string;
+            /** Last Reconciled At */
+            last_reconciled_at: string | null;
+            /** Version */
+            version: number;
         };
         /** AdminLoginRequest */
         AdminLoginRequest: {
@@ -1085,30 +5919,6 @@ export interface components {
                 [key: string]: string | number;
             }[];
         };
-        /** AdminMfaChallenge */
-        AdminMfaChallenge: {
-            /** Challenge Id */
-            challenge_id: string;
-            /** Allowed Methods */
-            allowed_methods: ("totp" | "recovery_code")[];
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-        };
-        /** AdminMfaVerificationRequest */
-        AdminMfaVerificationRequest: {
-            /** Challenge Id */
-            challenge_id: string;
-            /**
-             * Method
-             * @enum {string}
-             */
-            method: "totp" | "recovery_code";
-            /** Code */
-            code: string;
-        };
         /** AdminNavigation */
         AdminNavigation: {
             /** Items */
@@ -1118,17 +5928,1155 @@ export interface components {
                 [key: string]: string | number;
             }[];
         };
-        /** AdminReauthenticationRequest */
-        AdminReauthenticationRequest: {
+        /** AdminOrderAmountAdjustmentRequest */
+        AdminOrderAmountAdjustmentRequest: {
+            adjustment_amount: components["schemas"]["SignedMoney"];
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminOrderCancellationRequest */
+        AdminOrderCancellationRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminOrderDetail */
+        AdminOrderDetail: {
+            order: components["schemas"]["OrderListItem"];
+            /** User Id */
+            user_id: string;
+            /** User Name Masked */
+            user_name_masked: string;
+            /** Shippable Quantities */
+            shippable_quantities: {
+                [key: string]: number;
+            };
+            /** Available Admin Actions */
+            available_admin_actions: ("adjust_amount" | "cancel" | "create_shipment")[];
+            /** Events */
+            events: components["schemas"]["OrderEventView"][];
+        };
+        /** AdminOrderList */
+        AdminOrderList: {
+            /** Items */
+            items: components["schemas"]["AdminOrderSummary"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** AdminOrderSummary */
+        AdminOrderSummary: {
+            order: components["schemas"]["OrderListItem"];
+            /** User Id */
+            user_id: string;
+            /** User Name Masked */
+            user_name_masked: string;
+            /** Shippable Quantities */
+            shippable_quantities: {
+                [key: string]: number;
+            };
+            /** Available Admin Actions */
+            available_admin_actions: ("adjust_amount" | "cancel" | "create_shipment")[];
+        };
+        /** AdminPasswordReauthenticationRequest */
+        AdminPasswordReauthenticationRequest: {
             /** Password */
             password: string;
+        };
+        /** AdminPaymentList */
+        AdminPaymentList: {
+            /** Items */
+            items: components["schemas"]["AdminPaymentView"][];
+        };
+        /** AdminPaymentReconciliationRequest */
+        AdminPaymentReconciliationRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminPaymentReconciliationResult */
+        AdminPaymentReconciliationResult: {
+            payment: components["schemas"]["AdminPaymentView"];
             /**
-             * Method
+             * Provider Status
              * @enum {string}
              */
-            method: "totp" | "recovery_code";
-            /** Code */
-            code: string;
+            provider_status: "pending" | "succeeded" | "failed" | "closed";
+            /**
+             * Result
+             * @enum {string}
+             */
+            result: "no_change" | "status_updated";
+            /**
+             * Reconciled At
+             * Format: date-time
+             */
+            reconciled_at: string;
+        };
+        /** AdminPaymentView */
+        AdminPaymentView: {
+            payment: components["schemas"]["PaymentView"];
+            /** User Id */
+            user_id: string;
+            /** Store Ids */
+            store_ids: string[];
+            /** Provider Trade No Masked */
+            provider_trade_no_masked: string | null;
+            /** Available Admin Actions */
+            available_admin_actions: "reconcile"[];
+        };
+        /** AdminPolicyCommandRequest */
+        AdminPolicyCommandRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** AdminProductAttributeInput */
+        AdminProductAttributeInput: {
+            /** Attribute Code */
+            attribute_code: string;
+            /** Attribute Name */
+            attribute_name: string;
+            /** Value Text */
+            value_text: string;
+            /** Value Normalized */
+            value_normalized?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Is Searchable
+             * @default false
+             */
+            is_searchable: boolean;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminProductAttributeSetRequest */
+        AdminProductAttributeSetRequest: {
+            /** Items */
+            items: components["schemas"]["AdminProductAttributeInput"][];
+        };
+        /** AdminProductCommandRequest */
+        AdminProductCommandRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminProductCompleteness */
+        AdminProductCompleteness: {
+            /** Basic */
+            basic: boolean;
+            /** Sku */
+            sku: boolean;
+            /** Main Image */
+            main_image: boolean;
+            /** Attributes */
+            attributes: boolean;
+            /** Fulfillment */
+            fulfillment: boolean;
+            /** Detail Content */
+            detail_content: boolean;
+            /** Missing Requirements */
+            missing_requirements: string[];
+        };
+        /** AdminProductCreateRequest */
+        AdminProductCreateRequest: {
+            /** Store Id */
+            store_id: string;
+            /** Category Id */
+            category_id: string;
+            /** Brand Id */
+            brand_id?: string | null;
+            /** Product Name */
+            product_name: string;
+            /** Subtitle */
+            subtitle?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** AdminProductDeletionEligibility */
+        AdminProductDeletionEligibility: {
+            /** Product Id */
+            product_id: string;
+            /** Current Status */
+            current_status: string;
+            /** Has Transactions */
+            has_transactions: boolean;
+            /** Can Delete */
+            can_delete: boolean;
+            /** Can Off Shelf */
+            can_off_shelf: boolean;
+            /**
+             * Recommended Action
+             * @enum {string}
+             */
+            recommended_action: "delete" | "off_shelf" | "none";
+            /** Message */
+            message: string;
+        };
+        /** AdminProductDeletionView */
+        AdminProductDeletionView: {
+            /** Product Id */
+            product_id: string;
+            /**
+             * Deleted At
+             * Format: date-time
+             */
+            deleted_at: string;
+            /** Previous Status */
+            previous_status: string;
+            /** Version */
+            version: number;
+        };
+        /** AdminProductDetail */
+        AdminProductDetail: {
+            /** Product Id */
+            product_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Category Id */
+            category_id: string;
+            /** Category Name */
+            category_name: string;
+            /** Brand Id */
+            brand_id: string | null;
+            /** Brand Name */
+            brand_name: string | null;
+            /** Product Name */
+            product_name: string;
+            /** Subtitle */
+            subtitle: string | null;
+            /** Status */
+            status: string;
+            /** Min Price */
+            min_price: string;
+            /** Max Price */
+            max_price: string;
+            /** Currency */
+            currency: string;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            /**
+             * Sku Count
+             * @default 0
+             */
+            sku_count: number;
+            /**
+             * Available Quantity
+             * @default 0
+             */
+            available_quantity: number;
+            /**
+             * Sales Count
+             * @default 0
+             */
+            sales_count: number;
+            /**
+             * Review Count
+             * @default 0
+             */
+            review_count: number;
+            /**
+             * Rating Score
+             * @default 0.00
+             */
+            rating_score: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Description */
+            description: string | null;
+            /** Default Sku Id */
+            default_sku_id: string | null;
+            /** Current Detail Content Version Id */
+            current_detail_content_version_id: string | null;
+            /** Published Detail Content Version Id */
+            published_detail_content_version_id: string | null;
+            completeness: components["schemas"]["AdminProductCompleteness"];
+            /** Available Actions */
+            available_actions: string[];
+            /** Published At */
+            published_at: string | null;
+            /** Off Shelf At */
+            off_shelf_at: string | null;
+        };
+        /** AdminProductFulfillmentRequest */
+        AdminProductFulfillmentRequest: {
+            /** Shipping Template Id */
+            shipping_template_id: string;
+            /** Origin Region Code */
+            origin_region_code: string;
+            /** Dispatch Min Hours */
+            dispatch_min_hours: number;
+            /** Dispatch Max Hours */
+            dispatch_max_hours: number;
+            /** Purchase Notice */
+            purchase_notice?: string | null;
+        };
+        /** AdminProductFulfillmentView */
+        AdminProductFulfillmentView: {
+            /** Shipping Template Id */
+            shipping_template_id: string;
+            /** Origin Region Code */
+            origin_region_code: string;
+            /** Dispatch Min Hours */
+            dispatch_min_hours: number;
+            /** Dispatch Max Hours */
+            dispatch_max_hours: number;
+            /** Purchase Notice */
+            purchase_notice?: string | null;
+            /** Profile Version */
+            profile_version: number;
+            /** Version */
+            version: number;
+        };
+        /** AdminProductImageInput */
+        AdminProductImageInput: {
+            /** File Id */
+            file_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /**
+             * Image Type
+             * @constant
+             */
+            image_type: "spec";
+            /** Alt Text */
+            alt_text?: string | null;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /** AdminProductImageSetRequest */
+        AdminProductImageSetRequest: {
+            /** Items */
+            items: components["schemas"]["AdminProductImageInput"][];
+        };
+        /** AdminProductImageView */
+        AdminProductImageView: {
+            /** File Id */
+            file_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /**
+             * Image Type
+             * @constant
+             */
+            image_type: "spec";
+            /** Alt Text */
+            alt_text?: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Image Url */
+            image_url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Status */
+            status: string;
+        };
+        /** AdminProductList */
+        AdminProductList: {
+            /** Items */
+            items: components["schemas"]["AdminProductSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** AdminProductModerationRequest */
+        AdminProductModerationRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject" | "request_changes";
+        };
+        /** AdminProductSummary */
+        AdminProductSummary: {
+            /** Product Id */
+            product_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Category Id */
+            category_id: string;
+            /** Category Name */
+            category_name: string;
+            /** Brand Id */
+            brand_id: string | null;
+            /** Brand Name */
+            brand_name: string | null;
+            /** Product Name */
+            product_name: string;
+            /** Subtitle */
+            subtitle: string | null;
+            /** Status */
+            status: string;
+            /** Min Price */
+            min_price: string;
+            /** Max Price */
+            max_price: string;
+            /** Currency */
+            currency: string;
+            /** Cover Image Url */
+            cover_image_url?: string | null;
+            /**
+             * Sku Count
+             * @default 0
+             */
+            sku_count: number;
+            /**
+             * Available Quantity
+             * @default 0
+             */
+            available_quantity: number;
+            /**
+             * Sales Count
+             * @default 0
+             */
+            sales_count: number;
+            /**
+             * Review Count
+             * @default 0
+             */
+            review_count: number;
+            /**
+             * Rating Score
+             * @default 0.00
+             */
+            rating_score: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** AdminProductUpdateRequest */
+        AdminProductUpdateRequest: {
+            /** Category Id */
+            category_id?: string | null;
+            /** Brand Id */
+            brand_id?: string | null;
+            /** Product Name */
+            product_name?: string | null;
+            /** Subtitle */
+            subtitle?: string | null;
+            /** Description */
+            description?: string | null;
+        };
+        /** AdminRefundAppealDecisionRequest */
+        AdminRefundAppealDecisionRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject";
+            /** Reason */
+            reason: string;
+        };
+        /** AdminRefundAppealList */
+        AdminRefundAppealList: {
+            /** Items */
+            items: components["schemas"]["RefundAppealView"][];
+        };
+        /** AdminRefundDecisionRequest */
+        AdminRefundDecisionRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject";
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            approved_amount?: components["schemas"]["Money"] | null;
+        };
+        /** AdminRefundList */
+        AdminRefundList: {
+            /** Items */
+            items: components["schemas"]["RefundApplicationView"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** AdminReviewAppendModerationView */
+        AdminReviewAppendModerationView: {
+            /** Append Id */
+            append_id: string;
+            /** Content */
+            content: string;
+            /**
+             * Append Status
+             * @enum {string}
+             */
+            append_status: "pending" | "published" | "hidden" | "rejected";
+            /**
+             * Moderation Status
+             * @enum {string}
+             */
+            moderation_status: "pending" | "passed" | "blocked" | "manual";
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Published At */
+            published_at: string | null;
+        };
+        /** AdminReviewGovernanceView */
+        AdminReviewGovernanceView: {
+            /** Governance Id */
+            governance_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "hide" | "restore" | "approve" | "reject" | "approve_append" | "reject_append";
+            /** From Status */
+            from_status: string;
+            /** To Status */
+            to_status: string;
+            /** Rule Code */
+            rule_code: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** AdminReviewList */
+        AdminReviewList: {
+            /** Items */
+            items: components["schemas"]["AdminReviewView"][];
+        };
+        /** AdminReviewModerationRequest */
+        AdminReviewModerationRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "hide" | "restore" | "approve" | "reject" | "approve_append" | "reject_append";
+            /** Rule Code */
+            rule_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminReviewReplyRequest */
+        AdminReviewReplyRequest: {
+            /** Content */
+            content: string;
+        };
+        /** AdminReviewView */
+        AdminReviewView: {
+            /** Review Id */
+            review_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Order Item Id */
+            order_item_id: string;
+            /** User Id */
+            user_id: string;
+            /** User Name */
+            user_name: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Rating */
+            rating: number;
+            /** Content */
+            content: string | null;
+            /** Is Anonymous */
+            is_anonymous: boolean;
+            /**
+             * Review Status
+             * @enum {string}
+             */
+            review_status: "pending" | "published" | "hidden" | "rejected";
+            /**
+             * Moderation Status
+             * @enum {string}
+             */
+            moderation_status: "pending" | "passed" | "blocked" | "manual";
+            merchant_reply: components["schemas"]["ReviewReplyView"] | null;
+            append: components["schemas"]["AdminReviewAppendModerationView"] | null;
+            /** Governance History */
+            governance_history: components["schemas"]["AdminReviewGovernanceView"][];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Published At */
+            published_at: string | null;
+            /** Version */
+            version: number;
+        };
+        /** AdminShipmentCreateItem */
+        AdminShipmentCreateItem: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** AdminShipmentCreateRequest */
+        AdminShipmentCreateRequest: {
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No */
+            tracking_no: string;
+            /** Items */
+            items: components["schemas"]["AdminShipmentCreateItem"][];
+        };
+        /** AdminShipmentDetail */
+        AdminShipmentDetail: {
+            /** Shipment Id */
+            shipment_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No Masked */
+            tracking_no_masked: string;
+            /**
+             * Shipment Status
+             * @enum {string}
+             */
+            shipment_status: "created" | "picked_up" | "in_transit" | "delivered" | "exception" | "returned" | "closed" | "voided";
+            /** Items */
+            items: components["schemas"]["ShipmentItemView"][];
+            delivery_estimate: components["schemas"]["DeliveryEstimate"];
+            /** Latest Tracks */
+            latest_tracks: components["schemas"]["ShipmentTrackView"][];
+            /**
+             * Shipped At
+             * Format: date-time
+             */
+            shipped_at: string;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /** Version */
+            version: number;
+        };
+        /** AdminShipmentVoidRequest */
+        AdminShipmentVoidRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminShippingRuleInput */
+        AdminShippingRuleInput: {
+            /** Region Scope */
+            region_scope: {
+                [key: string]: unknown;
+            };
+            /** First Unit */
+            first_unit: number;
+            /** Additional Unit */
+            additional_unit: number;
+            /** First Fee Amount */
+            first_fee_amount: number;
+            /** Additional Fee Amount */
+            additional_fee_amount: number;
+            /** Estimated Min Days */
+            estimated_min_days?: number | null;
+            /** Estimated Max Days */
+            estimated_max_days?: number | null;
+        };
+        /** AdminShippingTemplateCreateRequest */
+        AdminShippingTemplateCreateRequest: {
+            /** Template Family Id */
+            template_family_id?: string | null;
+            /** Template Name */
+            template_name: string;
+            /**
+             * Delivery Type
+             * @enum {string}
+             */
+            delivery_type: "express" | "same_day" | "self_pickup";
+            /**
+             * Charge Mode
+             * @enum {string}
+             */
+            charge_mode: "fixed" | "by_item" | "by_weight";
+            /**
+             * Currency
+             * @default CNY
+             * @constant
+             */
+            currency: "CNY";
+            /** Dispatch Min Hours */
+            dispatch_min_hours: number;
+            /** Dispatch Max Hours */
+            dispatch_max_hours: number;
+            /** Rules */
+            rules: components["schemas"]["AdminShippingRuleInput"][];
+        };
+        /** AdminShippingTemplatePublicationRequest */
+        AdminShippingTemplatePublicationRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** AdminShippingTemplateUpdateRequest */
+        AdminShippingTemplateUpdateRequest: {
+            /** Template Name */
+            template_name?: string | null;
+            /** Delivery Type */
+            delivery_type?: ("express" | "same_day" | "self_pickup") | null;
+            /** Charge Mode */
+            charge_mode?: ("fixed" | "by_item" | "by_weight") | null;
+            /** Dispatch Min Hours */
+            dispatch_min_hours?: number | null;
+            /** Dispatch Max Hours */
+            dispatch_max_hours?: number | null;
+            /** Rules */
+            rules?: components["schemas"]["AdminShippingRuleInput"][] | null;
+        };
+        /** AdminShippingTemplateView */
+        AdminShippingTemplateView: {
+            /** Template Id */
+            template_id: string;
+            /** Template Family Id */
+            template_family_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Template Name */
+            template_name: string;
+            /** Delivery Type */
+            delivery_type: string;
+            /** Charge Mode */
+            charge_mode: string;
+            /** Currency */
+            currency: string;
+            /** Status */
+            status: string;
+            /** Dispatch Min Hours */
+            dispatch_min_hours: number;
+            /** Dispatch Max Hours */
+            dispatch_max_hours: number;
+            /** Policy Version */
+            policy_version: number;
+            /** Rules */
+            rules: components["schemas"]["AdminShippingRuleInput"][];
+            /** Version */
+            version: number;
+        };
+        /** AdminSkuCreateRequest */
+        AdminSkuCreateRequest: {
+            /** Merchant Sku Code */
+            merchant_sku_code?: string | null;
+            /** Sku Name */
+            sku_name: string;
+            /** Spec Values */
+            spec_values: components["schemas"]["AdminSkuSpecValue"][];
+            /** Sale Price Amount */
+            sale_price_amount: number;
+            /** Market Price Amount */
+            market_price_amount: number;
+            /**
+             * Currency
+             * @default CNY
+             * @constant
+             */
+            currency: "CNY";
+            /** Weight Grams */
+            weight_grams?: number | null;
+            /** Barcode */
+            barcode?: string | null;
+        };
+        /** AdminSkuSpecValue */
+        AdminSkuSpecValue: {
+            /** Name */
+            name: string;
+            /** Value */
+            value: string;
+        };
+        /** AdminSkuStatusRequest */
+        AdminSkuStatusRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "enable" | "disable";
+        };
+        /** AdminSkuUpdateRequest */
+        AdminSkuUpdateRequest: {
+            /** Merchant Sku Code */
+            merchant_sku_code?: string | null;
+            /** Sku Name */
+            sku_name?: string | null;
+            /** Spec Values */
+            spec_values?: components["schemas"]["AdminSkuSpecValue"][] | null;
+            /** Sale Price Amount */
+            sale_price_amount?: number | null;
+            /** Market Price Amount */
+            market_price_amount?: number | null;
+            /** Weight Grams */
+            weight_grams?: number | null;
+            /** Barcode */
+            barcode?: string | null;
+        };
+        /** AdminSkuView */
+        AdminSkuView: {
+            /** Sku Id */
+            sku_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Merchant Sku Code */
+            merchant_sku_code: string | null;
+            /** Sku Name */
+            sku_name: string;
+            /** Spec Values */
+            spec_values: components["schemas"]["AdminSkuSpecValue"][];
+            /** Sale Price */
+            sale_price: string;
+            /** Market Price */
+            market_price: string;
+            /** Currency */
+            currency: string;
+            /** Weight Grams */
+            weight_grams: number | null;
+            /** Barcode */
+            barcode: string | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+        };
+        /** AdminStoreAnnouncementCreateRequest */
+        AdminStoreAnnouncementCreateRequest: {
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /**
+             * Status
+             * @default draft
+             * @enum {string}
+             */
+            status: "draft" | "published" | "disabled";
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminStoreAnnouncementUpdateRequest */
+        AdminStoreAnnouncementUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Content */
+            content?: string | null;
+            /** Status */
+            status?: ("draft" | "published" | "disabled") | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** AdminStoreAnnouncementView */
+        AdminStoreAnnouncementView: {
+            /** Announcement Id */
+            announcement_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /** Status */
+            status: string;
+            /** Starts At */
+            starts_at: string | null;
+            /** Ends At */
+            ends_at: string | null;
+            /** Sort Order */
+            sort_order: number;
+            /** Version */
+            version: number;
+        };
+        /** AdminStoreCreateRequest */
+        AdminStoreCreateRequest: {
+            /** Store Name */
+            store_name: string;
+            /** Description */
+            description?: string | null;
+            /** Merchant Username */
+            merchant_username: string;
+            /** Merchant Password */
+            merchant_password: string;
+            /** Merchant Email */
+            merchant_email: string;
+        };
+        /** AdminStoreDeleteRequest */
+        AdminStoreDeleteRequest: {
+            /** Reason */
+            reason: string;
+            /** Confirmation */
+            confirmation: string;
+        };
+        /** AdminStoreList */
+        AdminStoreList: {
+            /** Items */
+            items: components["schemas"]["AdminStoreView"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** AdminStorePolicyCreateRequest */
+        AdminStorePolicyCreateRequest: {
+            /** Policy Type */
+            policy_type: string;
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /** Effective At */
+            effective_at?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** AdminStorePolicyUpdateRequest */
+        AdminStorePolicyUpdateRequest: {
+            /** Title */
+            title?: string | null;
+            /** Content */
+            content?: string | null;
+            /** Effective At */
+            effective_at?: string | null;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** AdminStorePolicyView */
+        AdminStorePolicyView: {
+            /** Policy Id */
+            policy_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Policy Type */
+            policy_type: string;
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /** Policy Version */
+            policy_version: number;
+            /** Status */
+            status: string;
+            /** Effective At */
+            effective_at: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** Published At */
+            published_at: string | null;
+            /** Withdrawn At */
+            withdrawn_at: string | null;
+            /** Version */
+            version: number;
+        };
+        /** AdminStoreProductGroupCreateRequest */
+        AdminStoreProductGroupCreateRequest: {
+            /** Parent Group Id */
+            parent_group_id?: string | null;
+            /** Group Name */
+            group_name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+        };
+        /** AdminStoreProductGroupProductsRequest */
+        AdminStoreProductGroupProductsRequest: {
+            /** Product Ids */
+            product_ids: string[];
+        };
+        /** AdminStoreProductGroupUpdateRequest */
+        AdminStoreProductGroupUpdateRequest: {
+            /** Parent Group Id */
+            parent_group_id?: string | null;
+            /** Group Name */
+            group_name?: string | null;
+            /** Status */
+            status?: ("active" | "disabled") | null;
+            /** Sort Order */
+            sort_order?: number | null;
+        };
+        /** AdminStoreProductGroupView */
+        AdminStoreProductGroupView: {
+            /** Group Id */
+            group_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Parent Group Id */
+            parent_group_id: string | null;
+            /** Group Name */
+            group_name: string;
+            /** Status */
+            status: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Product Ids */
+            product_ids: string[];
+            /** Version */
+            version: number;
+        };
+        /** AdminStoreRevenueView */
+        AdminStoreRevenueView: {
+            /** Store Id */
+            store_id: string;
+            gross_sales: components["schemas"]["Money"];
+            refunded_amount: components["schemas"]["Money"];
+            net_revenue: components["schemas"]["Money"];
+            today_revenue: components["schemas"]["Money"];
+            yesterday_revenue: components["schemas"]["Money"];
+            last_30_days_revenue: components["schemas"]["Money"];
+            /** All Order Count */
+            all_order_count: number;
+            /** Completed Order Count */
+            completed_order_count: number;
+            /** Pending Payment Count */
+            pending_payment_count: number;
+            /** Pending Shipment Count */
+            pending_shipment_count: number;
+            /** In Transit Count */
+            in_transit_count: number;
+            /** After Sale Pending Count */
+            after_sale_pending_count: number;
+            /** Product Count */
+            product_count: number;
+        };
+        /** AdminStoreStatusChangeRequest */
+        AdminStoreStatusChangeRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "suspend" | "resume";
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminStoreUpdateRequest */
+        AdminStoreUpdateRequest: {
+            /** Store Name */
+            store_name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Logo File Id */
+            logo_file_id?: string | null;
+        };
+        /** AdminStoreView */
+        AdminStoreView: {
+            /** Store Id */
+            store_id: string;
+            /** Owner User Id */
+            owner_user_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Description */
+            description: string | null;
+            /** Logo File Id */
+            logo_file_id: string | null;
+            /** Logo Url */
+            logo_url: string | null;
+            /** Status */
+            status: string;
+            /** Suspension Source */
+            suspension_source: ("merchant" | "platform") | null;
+            /** Rating Score */
+            rating_score: string;
+            /** Rating Count */
+            rating_count: number;
+            /** Follower Count */
+            follower_count: number;
+            /** Sales Count */
+            sales_count: number;
+            /** Product Count */
+            product_count?: number | null;
+            net_revenue?: components["schemas"]["Money"] | null;
+            /** Store Name Changed At */
+            store_name_changed_at: string | null;
+            /** Store Name Change Available At */
+            store_name_change_available_at: string | null;
+            /** Opened At */
+            opened_at: string | null;
+            /** Suspended At */
+            suspended_at: string | null;
+            /** Closed At */
+            closed_at: string | null;
+            /** Version */
+            version: number;
+        };
+        /** AdminTrackingCorrectionRequest */
+        AdminTrackingCorrectionRequest: {
+            /** Tracking No */
+            tracking_no: string;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** AdminUserCreateRequest */
+        AdminUserCreateRequest: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
+            /** Email */
+            email: string;
+            /** Nickname */
+            nickname?: string | null;
         };
         /** AdminUserList */
         AdminUserList: {
@@ -1136,6 +7084,16 @@ export interface components {
             items: components["schemas"]["AdminUserSummary"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** AdminUserPasswordReplaceRequest */
+        AdminUserPasswordReplaceRequest: {
+            /** Temporary Password */
+            temporary_password: string;
+            /**
+             * Require Change On Next Login
+             * @default false
+             */
+            require_change_on_next_login: boolean;
         };
         /** AdminUserSummary */
         AdminUserSummary: {
@@ -1159,6 +7117,241 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** AdminUserUpdateRequest */
+        AdminUserUpdateRequest: {
+            /** Username */
+            username?: string | null;
+            /** Nickname */
+            nickname?: string | null;
+            /** Email */
+            email?: string | null;
+        };
+        /** AdminUserWorkspace */
+        AdminUserWorkspace: {
+            /** User Id */
+            user_id: string;
+            /** Username */
+            username: string;
+            /** Current Email */
+            current_email: string | null;
+            /**
+             * Presence Status
+             * @enum {string}
+             */
+            presence_status: "online" | "offline" | "frozen";
+            /** Balance Minor */
+            balance_minor: string;
+            /** Currency */
+            currency: string;
+        };
+        /** AdminWalletAdjustmentRequest */
+        AdminWalletAdjustmentRequest: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "credit" | "debit";
+            /** Amount Minor */
+            amount_minor: number;
+        };
+        /** AdminWalletAdjustmentResult */
+        AdminWalletAdjustmentResult: {
+            /** Transaction Id */
+            transaction_id: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "credit" | "debit";
+            /** Amount Minor */
+            amount_minor: string;
+            /** Balance Minor */
+            balance_minor: string;
+            /** Currency */
+            currency: string;
+        };
+        /** AgentApprovalDecisionRequest */
+        AgentApprovalDecisionRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "approve" | "reject";
+        };
+        /** AgentApprovalView */
+        AgentApprovalView: {
+            /** Approval Id */
+            approval_id: string;
+            /** Run Id */
+            run_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Action Type
+             * @constant
+             */
+            action_type: "refund_submit";
+            /**
+             * Approval Status
+             * @enum {string}
+             */
+            approval_status: "pending" | "approved" | "rejected" | "expired" | "consumed";
+            /** Decision */
+            decision: ("approve" | "reject") | null;
+            /** Draft */
+            draft: {
+                [key: string]: unknown;
+            };
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Version */
+            version: number;
+        };
+        /** AgentConsentGrantRequest */
+        AgentConsentGrantRequest: {
+            /**
+             * Consent Type
+             * @enum {string}
+             */
+            consent_type: "personalization" | "order_read" | "after_sale_write";
+            /**
+             * Scope Type
+             * @enum {string}
+             */
+            scope_type: "user" | "conversation" | "store";
+            /** Scope Id */
+            scope_id?: string | null;
+            /** Policy Version */
+            policy_version: string;
+            /** Expires At */
+            expires_at?: string | null;
+        };
+        /** AgentConsentList */
+        AgentConsentList: {
+            /** Items */
+            items: components["schemas"]["AgentConsentView"][];
+        };
+        /** AgentConsentView */
+        AgentConsentView: {
+            /** Consent Id */
+            consent_id: string;
+            /** Consent Type */
+            consent_type: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string | null;
+            /** Policy Version */
+            policy_version: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "paused" | "revoked";
+            /** Expires At */
+            expires_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Version */
+            version: number;
+        };
+        /** AgentList */
+        AgentList: {
+            /** Items */
+            items: components["schemas"]["AgentView"][];
+        };
+        /** AgentRunView */
+        AgentRunView: {
+            /** Run Id */
+            run_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled";
+            /** Current Phase */
+            current_phase: string;
+            /** Output */
+            output: string | null;
+            /** Error Code */
+            error_code: string | null;
+            /** Degraded Reason */
+            degraded_reason: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** AgentSkillBindingCreate */
+        AgentSkillBindingCreate: {
+            /** Skill Id */
+            skill_id: string;
+            /** Skill Version No */
+            skill_version_no: number;
+        };
+        /** AgentVersionCreate */
+        AgentVersionCreate: {
+            /** System Prompt */
+            system_prompt: string;
+            /** Model Profile */
+            model_profile: string;
+            /** Tool Allowlist */
+            tool_allowlist: string[];
+            /** Policy Config */
+            policy_config: {
+                [key: string]: unknown;
+            };
+        };
+        /** AgentVersionSummary */
+        AgentVersionSummary: {
+            /** Version No */
+            version_no: number;
+            /** Status */
+            status: string;
+            /** Model Profile */
+            model_profile: string;
+            /** Tool Allowlist */
+            tool_allowlist: string[];
+            /** System Prompt */
+            system_prompt: string;
+            /** Policy Config */
+            policy_config: {
+                [key: string]: unknown;
+            };
+        };
+        /** AgentView */
+        AgentView: {
+            /** Agent Id */
+            agent_id: string;
+            /** Agent Code */
+            agent_code: string;
+            /** Display Name */
+            display_name: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Status */
+            status: string;
+            /** Versions */
+            versions: components["schemas"]["AgentVersionSummary"][];
+        };
         /** AgreementReference */
         AgreementReference: {
             /**
@@ -1168,6 +7361,166 @@ export interface components {
             document_type: "terms_of_service" | "privacy_policy";
             /** Document Version */
             document_version: string;
+        };
+        /** AiCleanupTaskView */
+        AiCleanupTaskView: {
+            /** Cleanup Task Id */
+            cleanup_task_id: string;
+            /** Command Type */
+            command_type: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string;
+            /** Source Resource Type */
+            source_resource_type: string;
+            /** Source Resource Id */
+            source_resource_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "succeeded" | "partial_failed" | "failed";
+            /** Total Count */
+            total_count: number;
+            /** Processed Count */
+            processed_count: number;
+            /** Failed Count */
+            failed_count: number;
+            /** Retry Count */
+            retry_count: number;
+            /** Max Retries */
+            max_retries: number;
+            /** Error Code */
+            error_code: string | null;
+            /** Can Retry */
+            can_retry: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** AiFeedbackDetailRequest */
+        AiFeedbackDetailRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Comment */
+            comment: string;
+        };
+        /** AiFeedbackView */
+        AiFeedbackView: {
+            /** Feedback Id */
+            feedback_id: string | null;
+            /** Message Id */
+            message_id: string;
+            /** Feedback Type */
+            feedback_type: ("thumb_up" | "thumb_down" | "report" | "correction") | null;
+            /** Status */
+            status: ("submitted" | "withdrawn" | "reviewed" | "resolved" | "dismissed") | null;
+            /** Created At */
+            created_at: string | null;
+        };
+        /** AiMemoryActivationRequest */
+        AiMemoryActivationRequest: {
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+        };
+        /** AiMemoryDeleteRequest */
+        AiMemoryDeleteRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+        };
+        /** AiMemoryList */
+        AiMemoryList: {
+            /** Items */
+            items: components["schemas"]["AiMemoryView"][];
+        };
+        /** AiMemoryRevisionRequest */
+        AiMemoryRevisionRequest: {
+            /** New Value */
+            new_value: string;
+            /** Reason Code */
+            reason_code: string;
+            /**
+             * Confirmed
+             * @constant
+             */
+            confirmed: true;
+        };
+        /** AiMemoryView */
+        AiMemoryView: {
+            /** Memory Id */
+            memory_id: string;
+            /**
+             * Namespace
+             * @enum {string}
+             */
+            namespace: "exclusive" | "store";
+            /** Store Id */
+            store_id: string | null;
+            /** Memory Type */
+            memory_type: string;
+            /** Memory Key */
+            memory_key: string;
+            /** Value */
+            value: string;
+            /** Source Type */
+            source_type: string;
+            /** Consent Id */
+            consent_id: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "candidate" | "active" | "superseded" | "revoked" | "expired" | "deleted";
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** AiPersonalizationDisableRequest */
+        AiPersonalizationDisableRequest: {
+            /**
+             * Confirmation
+             * @constant
+             */
+            confirmation: "DISABLE_ALL_AI_PERSONALIZATION";
+            /** Reason Code */
+            reason_code: string;
+        };
+        /** AiReactionRequest */
+        AiReactionRequest: {
+            /**
+             * Reaction
+             * @enum {string}
+             */
+            reaction: "thumb_up" | "thumb_down";
         };
         /** ApprovalDecisionRequest */
         ApprovalDecisionRequest: {
@@ -1180,6 +7533,25 @@ export interface components {
             reason_code: string;
             /** Reason */
             reason: string;
+        };
+        /** ApprovalRequiredView */
+        ApprovalRequiredView: {
+            /**
+             * Command Status
+             * @constant
+             */
+            command_status: "approval_required";
+            /** Approval Request Id */
+            approval_request_id: string;
+            /** Required Approval Count */
+            required_approval_count: number;
+            /** Approved Count */
+            approved_count: number;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
         };
         /** ApprovalView */
         ApprovalView: {
@@ -1239,6 +7611,357 @@ export interface components {
              */
             created_at: string;
         };
+        /** BatchJobCancellationRequest */
+        BatchJobCancellationRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** BatchJobConfirmationRequest */
+        BatchJobConfirmationRequest: {
+            /** Preview Hash */
+            preview_hash: string;
+        };
+        /** BatchJobItemList */
+        BatchJobItemList: {
+            /** Items */
+            items: components["schemas"]["BatchJobItemView"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** BatchJobItemView */
+        BatchJobItemView: {
+            /** Item Key */
+            item_key: string;
+            /** Item Status */
+            item_status: string;
+            /** Resource Type */
+            resource_type: string | null;
+            /** Resource Id */
+            resource_id: string | null;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Message */
+            error_message: string | null;
+        };
+        /** BatchJobList */
+        BatchJobList: {
+            /** Items */
+            items: components["schemas"]["BatchJobView"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+        };
+        /** BatchJobView */
+        BatchJobView: {
+            /** Job Id */
+            job_id: string;
+            /** Job Type */
+            job_type: string;
+            /** Store Id */
+            store_id: string;
+            /** Schema Version */
+            schema_version: string;
+            /** Status */
+            status: string;
+            /** Total Count */
+            total_count: number;
+            /** Success Count */
+            success_count: number;
+            /** Failure Count */
+            failure_count: number;
+            /** Preview Hash */
+            preview_hash: string | null;
+            /** Input File Id */
+            input_file_id: string | null;
+            /** Result File Id */
+            result_file_id: string | null;
+            /** Error File Id */
+            error_file_id: string | null;
+            /** Error Code */
+            error_code: string | null;
+            /** Error Summary */
+            error_summary: string | null;
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /** Available Actions */
+            available_actions: string[];
+            /** Version */
+            version: number;
+        };
+        /** BrandView */
+        BrandView: {
+            /** Brand Id */
+            brand_id: string;
+            /** Brand Name */
+            brand_name: string;
+            /** Logo Url */
+            logo_url: string | null;
+            /** Description */
+            description: string | null;
+        };
+        /** BuyNowSource */
+        BuyNowSource: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            source_type: "buy_now";
+            /** Sku Id */
+            sku_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** BuyerRemark */
+        BuyerRemark: {
+            /** Store Id */
+            store_id: string;
+            /** Content */
+            content: string;
+        };
+        /** CartAmountSummary */
+        CartAmountSummary: {
+            selected_goods_amount: components["schemas"]["Money"];
+        };
+        /** CartItemCreateRequest */
+        CartItemCreateRequest: {
+            /** Sku Id */
+            sku_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** CartItemPatchRequest */
+        CartItemPatchRequest: {
+            /** Quantity */
+            quantity?: number | null;
+            /** Is Selected */
+            is_selected?: boolean | null;
+        };
+        /** CartItemView */
+        CartItemView: {
+            /** Cart Item Id */
+            cart_item_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Image Url */
+            image_url?: string | null;
+            /** Quantity */
+            quantity: number;
+            /** Is Selected */
+            is_selected: boolean;
+            added_price: components["schemas"]["Money"];
+            current_price: components["schemas"]["Money"];
+            /** Price Changed */
+            price_changed: boolean;
+            /** Available Quantity */
+            available_quantity: number;
+            /** Is Valid */
+            is_valid: boolean;
+            /** Invalid Reason */
+            invalid_reason: string | null;
+        };
+        /** CartSelectionReplaceRequest */
+        CartSelectionReplaceRequest: {
+            /** Cart Item Ids */
+            cart_item_ids: string[];
+            /** Is Selected */
+            is_selected: boolean;
+        };
+        /** CartSource */
+        CartSource: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            source_type: "cart";
+            /** Cart Item Ids */
+            cart_item_ids: string[];
+        };
+        /** CartStoreGroupView */
+        CartStoreGroupView: {
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Store Logo Url */
+            store_logo_url?: string | null;
+            /** Items */
+            items: components["schemas"]["CartItemView"][];
+            /** Selected Quantity */
+            selected_quantity: number;
+            selected_amount: components["schemas"]["Money"];
+        };
+        /** CartView */
+        CartView: {
+            /** Cart Id */
+            cart_id: string | null;
+            /** Groups */
+            groups: components["schemas"]["CartStoreGroupView"][];
+            /** Cart Total Quantity */
+            cart_total_quantity: number;
+            /** Selected Quantity */
+            selected_quantity: number;
+            /** Valid Item Count */
+            valid_item_count: number;
+            amount_summary: components["schemas"]["CartAmountSummary"];
+            /** Version */
+            version: number;
+        };
+        /** CategoryView */
+        CategoryView: {
+            /** Category Id */
+            category_id: string;
+            /** Parent Id */
+            parent_id: string | null;
+            /** Category Name */
+            category_name: string;
+            /** Category Code */
+            category_code: string;
+            /** Level */
+            level: number;
+            /** Sort Order */
+            sort_order: number;
+            /** Icon Url */
+            icon_url: string | null;
+            /** Children */
+            children?: components["schemas"]["CategoryView"][];
+        };
+        /** CheckoutAmounts */
+        CheckoutAmounts: {
+            goods_amount: components["schemas"]["Money"];
+            freight_amount: components["schemas"]["Money"];
+            payable_amount: components["schemas"]["Money"];
+        };
+        /** CheckoutCreateRequest */
+        CheckoutCreateRequest: {
+            /** Source */
+            source: components["schemas"]["BuyNowSource"] | components["schemas"]["CartSource"];
+            /** Address Id */
+            address_id?: string | null;
+        };
+        /** CheckoutIssue */
+        CheckoutIssue: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Store Id */
+            store_id?: string | null;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** CheckoutItemQuantity */
+        CheckoutItemQuantity: {
+            /** Cart Item Id */
+            cart_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** CheckoutItemView */
+        CheckoutItemView: {
+            /** Cart Item Id */
+            cart_item_id?: string | null;
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Image Url */
+            image_url?: string | null;
+            /** Quantity */
+            quantity: number;
+            unit_price: components["schemas"]["Money"];
+            subtotal: components["schemas"]["Money"];
+            /** Available Quantity */
+            available_quantity: number;
+        };
+        /** CheckoutPatchRequest */
+        CheckoutPatchRequest: {
+            /** Address Id */
+            address_id?: string | null;
+            /** Buyer Remarks */
+            buyer_remarks?: components["schemas"]["BuyerRemark"][] | null;
+            /** Quantity */
+            quantity?: number | null;
+            /** Item Quantities */
+            item_quantities?: components["schemas"]["CheckoutItemQuantity"][] | null;
+        };
+        /** CheckoutStoreGroupView */
+        CheckoutStoreGroupView: {
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Items */
+            items: components["schemas"]["CheckoutItemView"][];
+            goods_amount: components["schemas"]["Money"];
+            freight_amount: components["schemas"]["Money"];
+            /** Delivery Options */
+            delivery_options: components["schemas"]["DeliveryOptionView"][];
+            /** Selected Delivery Option */
+            selected_delivery_option: string | null;
+            /** Buyer Remark */
+            buyer_remark: string | null;
+            /** Policy Versions */
+            policy_versions: {
+                [key: string]: number;
+            };
+            /** Customer Service Context */
+            customer_service_context: {
+                [key: string]: string;
+            };
+        };
+        /** CheckoutView */
+        CheckoutView: {
+            /** Checkout Id */
+            checkout_id: string;
+            /**
+             * Source Type
+             * @enum {string}
+             */
+            source_type: "buy_now" | "cart";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "submitted" | "expired" | "cancelled";
+            /** Address Id */
+            address_id: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Store Groups */
+            store_groups: components["schemas"]["CheckoutStoreGroupView"][];
+            amounts: components["schemas"]["CheckoutAmounts"];
+            /** Warnings */
+            warnings: components["schemas"]["CheckoutIssue"][];
+            /** Blocking Issues */
+            blocking_issues: components["schemas"]["CheckoutIssue"][];
+            /** Available Actions */
+            available_actions: string[];
+            /** Pricing Version */
+            pricing_version: string;
+            /** Version */
+            version: number;
+        };
         /** ClientDescriptor */
         ClientDescriptor: {
             /**
@@ -1250,68 +7973,349 @@ export interface components {
             /** Device Name */
             device_name: string;
         };
-        /** CodeLoginRequest */
-        CodeLoginRequest: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            auth_method: "verification_code";
-            /**
-             * Target Type
-             * @enum {string}
-             */
-            target_type: "phone" | "email";
-            /** Target */
-            target: string;
-            /** Verification Id */
-            verification_id: string;
-            /** Verification Code */
-            verification_code: string;
-            client: components["schemas"]["ClientDescriptor"];
-            /** Challenge Token */
-            challenge_token?: string | null;
-        };
         /** ContactChangeRequest */
         ContactChangeRequest: {
-            /** Change Ticket Id */
-            change_ticket_id: string;
-            /** New Target */
-            new_target: string;
-            /** Verification Id */
-            verification_id: string;
-            /** Verification Code */
-            verification_code: string;
+            /** New Email */
+            new_email: string;
         };
-        /** ContactChangeTicketRequest */
-        ContactChangeTicketRequest: {
+        /** ContentCreate */
+        ContentCreate: {
+            /** Content Key */
+            content_key: string;
             /**
-             * Credential Type
+             * Content Type
              * @enum {string}
              */
-            credential_type: "phone" | "email";
-            /** Current Password */
-            current_password: string;
-        };
-        /** ContactChangeTicketResult */
-        ContactChangeTicketResult: {
-            /** Change Ticket Id */
-            change_ticket_id: string;
+            content_type: "banner" | "announcement" | "help_article" | "footer" | "about";
+            /** Title */
+            title: string;
             /**
-             * Credential Type
+             * Locale
+             * @default zh-CN
+             */
+            locale: string;
+            /**
+             * Region Code
+             * @default CN
+             */
+            region_code: string;
+            /**
+             * Source Format
              * @enum {string}
              */
-            credential_type: "phone" | "email";
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+        };
+        /** ContentList */
+        ContentList: {
+            /** Items */
+            items: components["schemas"]["ContentView"][];
+        };
+        /** ContentUpdate */
+        ContentUpdate: {
+            /** Title */
+            title: string;
+            /**
+             * Locale
+             * @default zh-CN
+             */
+            locale: string;
+            /**
+             * Region Code
+             * @default CN
+             */
+            region_code: string;
+            /**
+             * Source Format
+             * @enum {string}
+             */
+            source_format: "plain_text" | "structured" | "html";
+            /** Source Content */
+            source_content: string;
+        };
+        /** ContentVersionView */
+        ContentVersionView: {
+            /** Content Version Id */
+            content_version_id: string;
+            /** Version */
+            version: string;
+            /** Locale */
+            locale: string;
+            /** Region Code */
+            region_code: string;
+            /** Format */
+            format: string;
+            /** Blocks */
+            blocks: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Html */
+            html: string | null;
+            /** Text */
+            text: string;
+            /** Status */
+            status: string;
+            /**
+             * Effective At
+             * Format: date-time
+             */
+            effective_at: string;
+            /** Expires At */
+            expires_at: string | null;
+        };
+        /** ContentView */
+        ContentView: {
+            /** Content Id */
+            content_id: string;
+            /** Content Key */
+            content_key: string;
+            /** Content Type */
+            content_type: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
+            /** Versions */
+            versions: components["schemas"]["ContentVersionView"][];
+        };
+        /** ConversationArchiveView */
+        ConversationArchiveView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Archived At
+             * Format: date-time
+             */
+            archived_at: string;
+            /** Version */
+            version: number;
+        };
+        /** ConversationContextClearView */
+        ConversationContextClearView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Context Type */
+            context_type: string;
+            /** Cleared */
+            cleared: boolean;
+            /** Version */
+            version: number;
+        };
+        /** ConversationContextRequest */
+        ConversationContextRequest: {
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Version */
+            resource_version?: number | null;
+        };
+        /** ConversationContextView */
+        ConversationContextView: {
+            /** Context Id */
+            context_id: string;
+            /**
+             * Context Type
+             * @enum {string}
+             */
+            context_type: "product" | "order" | "shipment" | "refund" | "store" | "checkout_store_group";
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Version */
+            resource_version: number | null;
+            /** Context Version */
+            context_version: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "inactive" | "expired";
+            /** Display Snapshot */
+            display_snapshot: {
+                [key: string]: unknown;
+            };
+            /** Expires At */
+            expires_at: string | null;
+        };
+        /** ConversationList */
+        ConversationList: {
+            /** Items */
+            items: components["schemas"]["ConversationView"][];
+        };
+        /** ConversationView */
+        ConversationView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Conversation Type
+             * @enum {string}
+             */
+            conversation_type: "exclusive" | "store";
+            /**
+             * Conversation Status
+             * @enum {string}
+             */
+            conversation_status: "active" | "human_pending" | "human_active" | "closed";
+            /** Store Id */
+            store_id: string | null;
+            /** Title */
+            title: string;
+            /** Is Fixed */
+            is_fixed: boolean;
+            /** Fixed Rank */
+            fixed_rank: number | null;
+            /** Last Message Preview */
+            last_message_preview: string | null;
+            /** Last Message At */
+            last_message_at: string | null;
+            /** Last Sequence No */
+            last_sequence_no: number;
+            /** Unread Count */
+            unread_count: number;
+            /** Version */
+            version: number;
+            /** Active Contexts */
+            active_contexts?: components["schemas"]["ConversationContextView"][];
+        };
+        /** DeadLetterIgnoreRequest */
+        DeadLetterIgnoreRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** DeadLetterList */
+        DeadLetterList: {
+            /** Items */
+            items: components["schemas"]["DeadLetterView"][];
+        };
+        /** DeadLetterReplayPreview */
+        DeadLetterReplayPreview: {
+            dead_letter: components["schemas"]["DeadLetterView"];
+            /** Replayable */
+            replayable: boolean;
+            /** Blockers */
+            blockers: string[];
+            /** Source Status */
+            source_status: string | null;
+            /** Immutable Payload Hash */
+            immutable_payload_hash: string;
+            /** Impact Summary */
+            impact_summary: string[];
+            /** Required Approval Count */
+            required_approval_count: number;
+            /** Preview Token */
+            preview_token: string;
             /**
              * Expires At
              * Format: date-time
              */
             expires_at: string;
         };
+        /** DeadLetterReplayRequest */
+        DeadLetterReplayRequest: {
+            /** Preview Token */
+            preview_token: string;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** DeadLetterView */
+        DeadLetterView: {
+            /** Dead Letter Id */
+            dead_letter_id: string;
+            /** Source Type */
+            source_type: string;
+            /** Source Id */
+            source_id: string;
+            /** Event Type */
+            event_type: string;
+            /** Schema Version */
+            schema_version: number;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: number;
+            /** Payload Hash */
+            payload_hash: string;
+            /** Payload Keys */
+            payload_keys: string[];
+            /** Failure Count */
+            failure_count: number;
+            /**
+             * First Failed At
+             * Format: date-time
+             */
+            first_failed_at: string;
+            /**
+             * Last Failed At
+             * Format: date-time
+             */
+            last_failed_at: string;
+            /** Last Error Code */
+            last_error_code: string;
+            /** Last Error */
+            last_error: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "replaying" | "resolved" | "ignored";
+            /** Replay Count */
+            replay_count: number;
+            /** Last Replay At */
+            last_replay_at: string | null;
+            /** Original Trace Id */
+            original_trace_id: string | null;
+            /** Replay Trace Id */
+            replay_trace_id: string | null;
+            /** Available Actions */
+            available_actions: ("preview_replay" | "ignore")[];
+            /** Version */
+            version: number;
+        };
         /** DefaultAddressRequest */
         DefaultAddressRequest: {
             /** Address Id */
             address_id: string;
+        };
+        /** DeliveryEstimate */
+        DeliveryEstimate: {
+            /**
+             * Type
+             * @default delivery
+             * @constant
+             */
+            type: "delivery";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "unavailable";
+            /** Min At */
+            min_at?: string | null;
+            /** Max At */
+            max_at?: string | null;
+            /** Source */
+            source?: ("shipping_template" | "carrier") | null;
+            /** Updated At */
+            updated_at?: string | null;
+            /**
+             * Disclaimer
+             * @default 预计时间仅供参考，以承运商实际配送为准。
+             */
+            disclaimer: string;
+        };
+        /** DeliveryOptionView */
+        DeliveryOptionView: {
+            /** Option Id */
+            option_id: string;
+            /** Name */
+            name: string;
+            freight: components["schemas"]["Money"];
+            estimate: components["schemas"]["ServiceEstimate"];
         };
         /** DependencyStatus */
         DependencyStatus: {
@@ -1319,7 +8323,19 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "up" | "down" | "skipped";
+            status: "up" | "down" | "degraded" | "unknown" | "skipped";
+            /**
+             * Required
+             * @default false
+             */
+            required: boolean;
+            /** Code */
+            code?: string | null;
+        };
+        /** Envelope[AccountDeletionTaskView] */
+        Envelope_AccountDeletionTaskView_: {
+            data: components["schemas"]["AccountDeletionTaskView"];
+            meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AddressList] */
         Envelope_AddressList_: {
@@ -1331,9 +8347,29 @@ export interface components {
             data: components["schemas"]["AddressView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AdminAgentRunView] */
+        Envelope_AdminAgentRunView_: {
+            data: components["schemas"]["AdminAgentRunView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AdminBootstrap] */
         Envelope_AdminBootstrap_: {
             data: components["schemas"]["AdminBootstrap"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminBrandView] */
+        Envelope_AdminBrandView_: {
+            data: components["schemas"]["AdminBrandView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminCategoryView] */
+        Envelope_AdminCategoryView_: {
+            data: components["schemas"]["AdminCategoryView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminContentVersionView] */
+        Envelope_AdminContentVersionView_: {
+            data: components["schemas"]["AdminContentVersionView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminDashboardSummary] */
@@ -1341,19 +8377,149 @@ export interface components {
             data: components["schemas"]["AdminDashboardSummary"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AdminFaqView] */
+        Envelope_AdminFaqView_: {
+            data: components["schemas"]["AdminFaqView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminInventoryAdjustmentView] */
+        Envelope_AdminInventoryAdjustmentView_: {
+            data: components["schemas"]["AdminInventoryAdjustmentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminInventoryList] */
+        Envelope_AdminInventoryList_: {
+            data: components["schemas"]["AdminInventoryList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminInventoryView] */
+        Envelope_AdminInventoryView_: {
+            data: components["schemas"]["AdminInventoryView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[AdminMe] */
         Envelope_AdminMe_: {
             data: components["schemas"]["AdminMe"];
             meta?: components["schemas"]["ResponseMeta"];
         };
-        /** Envelope[AdminMfaChallenge] */
-        Envelope_AdminMfaChallenge_: {
-            data: components["schemas"]["AdminMfaChallenge"];
-            meta?: components["schemas"]["ResponseMeta"];
-        };
         /** Envelope[AdminNavigation] */
         Envelope_AdminNavigation_: {
             data: components["schemas"]["AdminNavigation"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminOrderDetail] */
+        Envelope_AdminOrderDetail_: {
+            data: components["schemas"]["AdminOrderDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminOrderList] */
+        Envelope_AdminOrderList_: {
+            data: components["schemas"]["AdminOrderList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminPaymentList] */
+        Envelope_AdminPaymentList_: {
+            data: components["schemas"]["AdminPaymentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminPaymentReconciliationResult] */
+        Envelope_AdminPaymentReconciliationResult_: {
+            data: components["schemas"]["AdminPaymentReconciliationResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminPaymentView] */
+        Envelope_AdminPaymentView_: {
+            data: components["schemas"]["AdminPaymentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductDeletionEligibility] */
+        Envelope_AdminProductDeletionEligibility_: {
+            data: components["schemas"]["AdminProductDeletionEligibility"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductDeletionView] */
+        Envelope_AdminProductDeletionView_: {
+            data: components["schemas"]["AdminProductDeletionView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductDetail] */
+        Envelope_AdminProductDetail_: {
+            data: components["schemas"]["AdminProductDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductFulfillmentView] */
+        Envelope_AdminProductFulfillmentView_: {
+            data: components["schemas"]["AdminProductFulfillmentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminProductList] */
+        Envelope_AdminProductList_: {
+            data: components["schemas"]["AdminProductList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminRefundAppealList] */
+        Envelope_AdminRefundAppealList_: {
+            data: components["schemas"]["AdminRefundAppealList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminRefundList] */
+        Envelope_AdminRefundList_: {
+            data: components["schemas"]["AdminRefundList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminReviewList] */
+        Envelope_AdminReviewList_: {
+            data: components["schemas"]["AdminReviewList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminReviewView] */
+        Envelope_AdminReviewView_: {
+            data: components["schemas"]["AdminReviewView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminShipmentDetail] */
+        Envelope_AdminShipmentDetail_: {
+            data: components["schemas"]["AdminShipmentDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminShippingTemplateView] */
+        Envelope_AdminShippingTemplateView_: {
+            data: components["schemas"]["AdminShippingTemplateView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminSkuView] */
+        Envelope_AdminSkuView_: {
+            data: components["schemas"]["AdminSkuView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStoreAnnouncementView] */
+        Envelope_AdminStoreAnnouncementView_: {
+            data: components["schemas"]["AdminStoreAnnouncementView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStoreList] */
+        Envelope_AdminStoreList_: {
+            data: components["schemas"]["AdminStoreList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStorePolicyView] */
+        Envelope_AdminStorePolicyView_: {
+            data: components["schemas"]["AdminStorePolicyView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStoreProductGroupView] */
+        Envelope_AdminStoreProductGroupView_: {
+            data: components["schemas"]["AdminStoreProductGroupView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStoreRevenueView] */
+        Envelope_AdminStoreRevenueView_: {
+            data: components["schemas"]["AdminStoreRevenueView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminStoreView] */
+        Envelope_AdminStoreView_: {
+            data: components["schemas"]["AdminStoreView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[AdminUserList] */
@@ -1366,14 +8532,219 @@ export interface components {
             data: components["schemas"]["AdminUserSummary"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[AdminUserWorkspace] */
+        Envelope_AdminUserWorkspace_: {
+            data: components["schemas"]["AdminUserWorkspace"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AdminWalletAdjustmentResult] */
+        Envelope_AdminWalletAdjustmentResult_: {
+            data: components["schemas"]["AdminWalletAdjustmentResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentApprovalView] */
+        Envelope_AgentApprovalView_: {
+            data: components["schemas"]["AgentApprovalView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentConsentList] */
+        Envelope_AgentConsentList_: {
+            data: components["schemas"]["AgentConsentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentConsentView] */
+        Envelope_AgentConsentView_: {
+            data: components["schemas"]["AgentConsentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentList] */
+        Envelope_AgentList_: {
+            data: components["schemas"]["AgentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentRunView] */
+        Envelope_AgentRunView_: {
+            data: components["schemas"]["AgentRunView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AgentView] */
+        Envelope_AgentView_: {
+            data: components["schemas"]["AgentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AiCleanupTaskView] */
+        Envelope_AiCleanupTaskView_: {
+            data: components["schemas"]["AiCleanupTaskView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AiFeedbackView] */
+        Envelope_AiFeedbackView_: {
+            data: components["schemas"]["AiFeedbackView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AiMemoryList] */
+        Envelope_AiMemoryList_: {
+            data: components["schemas"]["AiMemoryList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[AiMemoryView] */
+        Envelope_AiMemoryView_: {
+            data: components["schemas"]["AiMemoryView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ApprovalRequiredView] */
+        Envelope_ApprovalRequiredView_: {
+            data: components["schemas"]["ApprovalRequiredView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[ApprovalView] */
         Envelope_ApprovalView_: {
             data: components["schemas"]["ApprovalView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
-        /** Envelope[ContactChangeTicketResult] */
-        Envelope_ContactChangeTicketResult_: {
-            data: components["schemas"]["ContactChangeTicketResult"];
+        /** Envelope[BatchJobItemList] */
+        Envelope_BatchJobItemList_: {
+            data: components["schemas"]["BatchJobItemList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[BatchJobList] */
+        Envelope_BatchJobList_: {
+            data: components["schemas"]["BatchJobList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[BatchJobView] */
+        Envelope_BatchJobView_: {
+            data: components["schemas"]["BatchJobView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[CartView] */
+        Envelope_CartView_: {
+            data: components["schemas"]["CartView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[CheckoutView] */
+        Envelope_CheckoutView_: {
+            data: components["schemas"]["CheckoutView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ContentList] */
+        Envelope_ContentList_: {
+            data: components["schemas"]["ContentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ContentView] */
+        Envelope_ContentView_: {
+            data: components["schemas"]["ContentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationArchiveView] */
+        Envelope_ConversationArchiveView_: {
+            data: components["schemas"]["ConversationArchiveView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationContextClearView] */
+        Envelope_ConversationContextClearView_: {
+            data: components["schemas"]["ConversationContextClearView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationContextView] */
+        Envelope_ConversationContextView_: {
+            data: components["schemas"]["ConversationContextView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationList] */
+        Envelope_ConversationList_: {
+            data: components["schemas"]["ConversationList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationView] */
+        Envelope_ConversationView_: {
+            data: components["schemas"]["ConversationView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[DeadLetterList] */
+        Envelope_DeadLetterList_: {
+            data: components["schemas"]["DeadLetterList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[DeadLetterReplayPreview] */
+        Envelope_DeadLetterReplayPreview_: {
+            data: components["schemas"]["DeadLetterReplayPreview"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[DeadLetterView] */
+        Envelope_DeadLetterView_: {
+            data: components["schemas"]["DeadLetterView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[EvaluationRunList] */
+        Envelope_EvaluationRunList_: {
+            data: components["schemas"]["EvaluationRunList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[EvaluationRunView] */
+        Envelope_EvaluationRunView_: {
+            data: components["schemas"]["EvaluationRunView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[FileMetadataView] */
+        Envelope_FileMetadataView_: {
+            data: components["schemas"]["FileMetadataView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[FileUploadPolicyView] */
+        Envelope_FileUploadPolicyView_: {
+            data: components["schemas"]["FileUploadPolicyView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[FileUploadSessionView] */
+        Envelope_FileUploadSessionView_: {
+            data: components["schemas"]["FileUploadSessionView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[FollowedStoreList] */
+        Envelope_FollowedStoreList_: {
+            data: components["schemas"]["FollowedStoreList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[HomepageView] */
+        Envelope_HomepageView_: {
+            data: components["schemas"]["HomepageView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[HumanTicketView] */
+        Envelope_HumanTicketView_: {
+            data: components["schemas"]["HumanTicketView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KillSwitchList] */
+        Envelope_KillSwitchList_: {
+            data: components["schemas"]["KillSwitchList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KillSwitchView] */
+        Envelope_KillSwitchView_: {
+            data: components["schemas"]["KillSwitchView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KnowledgeDocumentList] */
+        Envelope_KnowledgeDocumentList_: {
+            data: components["schemas"]["KnowledgeDocumentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KnowledgeDocumentView] */
+        Envelope_KnowledgeDocumentView_: {
+            data: components["schemas"]["KnowledgeDocumentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KnowledgeIndexJobView] */
+        Envelope_KnowledgeIndexJobView_: {
+            data: components["schemas"]["KnowledgeIndexJobView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[KnowledgeSearchResult] */
+        Envelope_KnowledgeSearchResult_: {
+            data: components["schemas"]["KnowledgeSearchResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[LegalDocument] */
@@ -1381,9 +8752,99 @@ export interface components {
             data: components["schemas"]["LegalDocument"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[LogisticsWebhookAck] */
+        Envelope_LogisticsWebhookAck_: {
+            data: components["schemas"]["LogisticsWebhookAck"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[McpServerList] */
+        Envelope_McpServerList_: {
+            data: components["schemas"]["McpServerList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[MerchantRevenueView] */
+        Envelope_MerchantRevenueView_: {
+            data: components["schemas"]["MerchantRevenueView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[MessageList] */
+        Envelope_MessageList_: {
+            data: components["schemas"]["MessageList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[MessageResult] */
         Envelope_MessageResult_: {
             data: components["schemas"]["MessageResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[MessageView] */
+        Envelope_MessageView_: {
+            data: components["schemas"]["MessageView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ModelProviderHealthView] */
+        Envelope_ModelProviderHealthView_: {
+            data: components["schemas"]["ModelProviderHealthView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[MyReviewList] */
+        Envelope_MyReviewList_: {
+            data: components["schemas"]["MyReviewList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[MyReviewView] */
+        Envelope_MyReviewView_: {
+            data: components["schemas"]["MyReviewView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ObservabilitySummary] */
+        Envelope_ObservabilitySummary_: {
+            data: components["schemas"]["ObservabilitySummary"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderCommandResult] */
+        Envelope_OrderCommandResult_: {
+            data: components["schemas"]["OrderCommandResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderCreateResponse] */
+        Envelope_OrderCreateResponse_: {
+            data: components["schemas"]["OrderCreateResponse"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderDetail] */
+        Envelope_OrderDetail_: {
+            data: components["schemas"]["OrderDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderEventList] */
+        Envelope_OrderEventList_: {
+            data: components["schemas"]["OrderEventList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderHideResult] */
+        Envelope_OrderHideResult_: {
+            data: components["schemas"]["OrderHideResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderListItem] */
+        Envelope_OrderListItem_: {
+            data: components["schemas"]["OrderListItem"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderList] */
+        Envelope_OrderList_: {
+            data: components["schemas"]["OrderList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[OrderRepurchaseResult] */
+        Envelope_OrderRepurchaseResult_: {
+            data: components["schemas"]["OrderRepurchaseResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[PasswordResetHintResult] */
+        Envelope_PasswordResetHintResult_: {
+            data: components["schemas"]["PasswordResetHintResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[PasswordResetTicketResult] */
@@ -1391,9 +8852,119 @@ export interface components {
             data: components["schemas"]["PasswordResetTicketResult"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[PaymentList] */
+        Envelope_PaymentList_: {
+            data: components["schemas"]["PaymentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[PaymentView] */
+        Envelope_PaymentView_: {
+            data: components["schemas"]["PaymentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[PaymentWebhookAck] */
+        Envelope_PaymentWebhookAck_: {
+            data: components["schemas"]["PaymentWebhookAck"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ProductDetail] */
+        Envelope_ProductDetail_: {
+            data: components["schemas"]["ProductDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ProductFaqList] */
+        Envelope_ProductFaqList_: {
+            data: components["schemas"]["ProductFaqList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ProductImportTemplateView] */
+        Envelope_ProductImportTemplateView_: {
+            data: components["schemas"]["ProductImportTemplateView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ProductList] */
+        Envelope_ProductList_: {
+            data: components["schemas"]["ProductList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ProductReviewList] */
+        Envelope_ProductReviewList_: {
+            data: components["schemas"]["ProductReviewList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ProductSkuList] */
+        Envelope_ProductSkuList_: {
+            data: components["schemas"]["ProductSkuList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[PublishedContentList] */
+        Envelope_PublishedContentList_: {
+            data: components["schemas"]["PublishedContentList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[PublishedContent] */
+        Envelope_PublishedContent_: {
+            data: components["schemas"]["PublishedContent"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ReadCursorView] */
+        Envelope_ReadCursorView_: {
+            data: components["schemas"]["ReadCursorView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RealtimeTicketView] */
+        Envelope_RealtimeTicketView_: {
+            data: components["schemas"]["RealtimeTicketView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[ReauthenticationResult] */
         Envelope_ReauthenticationResult_: {
             data: components["schemas"]["ReauthenticationResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundAppealEventList] */
+        Envelope_RefundAppealEventList_: {
+            data: components["schemas"]["RefundAppealEventList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundAppealView] */
+        Envelope_RefundAppealView_: {
+            data: components["schemas"]["RefundAppealView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundApplicationList] */
+        Envelope_RefundApplicationList_: {
+            data: components["schemas"]["RefundApplicationList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundApplicationView] */
+        Envelope_RefundApplicationView_: {
+            data: components["schemas"]["RefundApplicationView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundEligibilityCheck] */
+        Envelope_RefundEligibilityCheck_: {
+            data: components["schemas"]["RefundEligibilityCheck"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundEventList] */
+        Envelope_RefundEventList_: {
+            data: components["schemas"]["RefundEventList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundPaymentCallbackAck] */
+        Envelope_RefundPaymentCallbackAck_: {
+            data: components["schemas"]["RefundPaymentCallbackAck"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[RefundReturnShipmentView] */
+        Envelope_RefundReturnShipmentView_: {
+            data: components["schemas"]["RefundReturnShipmentView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ReviewEligibility] */
+        Envelope_ReviewEligibility_: {
+            data: components["schemas"]["ReviewEligibility"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[RoleGrantView] */
@@ -1404,6 +8975,11 @@ export interface components {
         /** Envelope[RoleSummary] */
         Envelope_RoleSummary_: {
             data: components["schemas"]["RoleSummary"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SearchSuggestionList] */
+        Envelope_SearchSuggestionList_: {
+            data: components["schemas"]["SearchSuggestionList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[SecuritySummary] */
@@ -1426,9 +9002,117 @@ export interface components {
             data: components["schemas"]["SessionBootstrap"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[ShipmentRefreshResult] */
+        Envelope_ShipmentRefreshResult_: {
+            data: components["schemas"]["ShipmentRefreshResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ShipmentTrackList] */
+        Envelope_ShipmentTrackList_: {
+            data: components["schemas"]["ShipmentTrackList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SkillList] */
+        Envelope_SkillList_: {
+            data: components["schemas"]["SkillList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SkillView] */
+        Envelope_SkillView_: {
+            data: components["schemas"]["SkillView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[StoreHomeContent] */
+        Envelope_StoreHomeContent_: {
+            data: components["schemas"]["StoreHomeContent"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[StorePolicyList] */
+        Envelope_StorePolicyList_: {
+            data: components["schemas"]["StorePolicyList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[StoreProductGroupList] */
+        Envelope_StoreProductGroupList_: {
+            data: components["schemas"]["StoreProductGroupList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[StorePublicView] */
+        Envelope_StorePublicView_: {
+            data: components["schemas"]["StorePublicView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportInternalNoteList] */
+        Envelope_SupportInternalNoteList_: {
+            data: components["schemas"]["SupportInternalNoteList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportReadCursorView] */
+        Envelope_SupportReadCursorView_: {
+            data: components["schemas"]["SupportReadCursorView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportTicketList] */
+        Envelope_SupportTicketList_: {
+            data: components["schemas"]["SupportTicketList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportTicketView] */
+        Envelope_SupportTicketView_: {
+            data: components["schemas"]["SupportTicketView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[SupportWorkspaceView] */
+        Envelope_SupportWorkspaceView_: {
+            data: components["schemas"]["SupportWorkspaceView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ToolList] */
+        Envelope_ToolList_: {
+            data: components["schemas"]["ToolList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ToolView] */
+        Envelope_ToolView_: {
+            data: components["schemas"]["ToolView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[TradeOrderView] */
+        Envelope_TradeOrderView_: {
+            data: components["schemas"]["TradeOrderView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[Union[AdminProductFulfillmentView, NoneType]] */
+        Envelope_Union_AdminProductFulfillmentView__NoneType__: {
+            data: components["schemas"]["AdminProductFulfillmentView"] | null;
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[Union[MyReviewView, ProductReviewView]] */
+        Envelope_Union_MyReviewView__ProductReviewView__: {
+            /** Data */
+            data: components["schemas"]["MyReviewView"] | components["schemas"]["ProductReviewView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[Union[RefundAppealView, ApprovalRequiredView]] */
+        Envelope_Union_RefundAppealView__ApprovalRequiredView__: {
+            /** Data */
+            data: components["schemas"]["RefundAppealView"] | components["schemas"]["ApprovalRequiredView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[Union[RefundApplicationView, ApprovalRequiredView]] */
+        Envelope_Union_RefundApplicationView__ApprovalRequiredView__: {
+            /** Data */
+            data: components["schemas"]["RefundApplicationView"] | components["schemas"]["ApprovalRequiredView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[UserDashboard] */
         Envelope_UserDashboard_: {
             data: components["schemas"]["UserDashboard"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[UserOrderShipmentList] */
+        Envelope_UserOrderShipmentList_: {
+            data: components["schemas"]["UserOrderShipmentList"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[UserProfile] */
@@ -1436,9 +9120,29 @@ export interface components {
             data: components["schemas"]["UserProfile"];
             meta?: components["schemas"]["ResponseMeta"];
         };
-        /** Envelope[VerificationCodeAccepted] */
-        Envelope_VerificationCodeAccepted_: {
-            data: components["schemas"]["VerificationCodeAccepted"];
+        /** Envelope[UserShipmentDetail] */
+        Envelope_UserShipmentDetail_: {
+            data: components["schemas"]["UserShipmentDetail"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[VersionBindingView] */
+        Envelope_VersionBindingView_: {
+            data: components["schemas"]["VersionBindingView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[WalletRechargeResult] */
+        Envelope_WalletRechargeResult_: {
+            data: components["schemas"]["WalletRechargeResult"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[WalletTransactionList] */
+        Envelope_WalletTransactionList_: {
+            data: components["schemas"]["WalletTransactionList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[WalletView] */
+        Envelope_WalletView_: {
+            data: components["schemas"]["WalletView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[dict[str, object]] */
@@ -1447,6 +9151,72 @@ export interface components {
             data: {
                 [key: string]: unknown;
             };
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminBrandView]] */
+        Envelope_list_AdminBrandView__: {
+            /** Data */
+            data: components["schemas"]["AdminBrandView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminCategoryView]] */
+        Envelope_list_AdminCategoryView__: {
+            /** Data */
+            data: components["schemas"]["AdminCategoryView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminFaqView]] */
+        Envelope_list_AdminFaqView__: {
+            /** Data */
+            data: components["schemas"]["AdminFaqView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminFeaturedProductView]] */
+        Envelope_list_AdminFeaturedProductView__: {
+            /** Data */
+            data: components["schemas"]["AdminFeaturedProductView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminProductAttributeInput]] */
+        Envelope_list_AdminProductAttributeInput__: {
+            /** Data */
+            data: components["schemas"]["AdminProductAttributeInput"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminProductImageView]] */
+        Envelope_list_AdminProductImageView__: {
+            /** Data */
+            data: components["schemas"]["AdminProductImageView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminShippingTemplateView]] */
+        Envelope_list_AdminShippingTemplateView__: {
+            /** Data */
+            data: components["schemas"]["AdminShippingTemplateView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminSkuView]] */
+        Envelope_list_AdminSkuView__: {
+            /** Data */
+            data: components["schemas"]["AdminSkuView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminStoreAnnouncementView]] */
+        Envelope_list_AdminStoreAnnouncementView__: {
+            /** Data */
+            data: components["schemas"]["AdminStoreAnnouncementView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminStorePolicyView]] */
+        Envelope_list_AdminStorePolicyView__: {
+            /** Data */
+            data: components["schemas"]["AdminStorePolicyView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[AdminStoreProductGroupView]] */
+        Envelope_list_AdminStoreProductGroupView__: {
+            /** Data */
+            data: components["schemas"]["AdminStoreProductGroupView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[list[ApprovalView]] */
@@ -1459,6 +9229,18 @@ export interface components {
         Envelope_list_AuditLogView__: {
             /** Data */
             data: components["schemas"]["AuditLogView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[BrandView]] */
+        Envelope_list_BrandView__: {
+            /** Data */
+            data: components["schemas"]["BrandView"][];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[list[CategoryView]] */
+        Envelope_list_CategoryView__: {
+            /** Data */
+            data: components["schemas"]["CategoryView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[list[RoleGrantEventView]] */
@@ -1491,10 +9273,411 @@ export interface components {
             data: components["schemas"]["UserStatusEventView"][];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** EvaluationRunCreate */
+        EvaluationRunCreate: {
+            /**
+             * Dataset Id
+             * @constant
+             */
+            dataset_id: "ecom-ai-release-holdout";
+            /**
+             * Dataset Version
+             * @constant
+             */
+            dataset_version: "2026.08.25-v1";
+            /**
+             * Baseline Type
+             * @enum {string}
+             */
+            baseline_type: "agent" | "skill" | "model" | "prompt" | "tool" | "multi_agent";
+            /** Baseline Version */
+            baseline_version: string;
+            /**
+             * Candidate Type
+             * @enum {string}
+             */
+            candidate_type: "agent" | "skill" | "model" | "prompt" | "tool" | "multi_agent";
+            /** Candidate Version */
+            candidate_version: string;
+            /**
+             * Require Significant Gain
+             * @default false
+             */
+            require_significant_gain: boolean;
+        };
+        /** EvaluationRunList */
+        EvaluationRunList: {
+            /** Items */
+            items: components["schemas"]["EvaluationRunView"][];
+        };
+        /** EvaluationRunView */
+        EvaluationRunView: {
+            /** Evaluation Id */
+            evaluation_id: string;
+            /** Dataset Id */
+            dataset_id: string;
+            /** Dataset Version */
+            dataset_version: string;
+            /** Dataset Sha256 */
+            dataset_sha256: string;
+            /** Baseline Type */
+            baseline_type: string;
+            /** Baseline Version */
+            baseline_version: string;
+            /** Candidate Type */
+            candidate_type: string;
+            /** Candidate Version */
+            candidate_version: string;
+            /** Require Significant Gain */
+            require_significant_gain: boolean;
+            /** Status */
+            status: string;
+            /** Release Gate */
+            release_gate: string | null;
+            /** Report */
+            report: {
+                [key: string]: unknown;
+            } | null;
+            /** Trace Id */
+            trace_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Error Code */
+            error_code: string | null;
+        };
+        /** FileMetadataView */
+        FileMetadataView: {
+            /** File Id */
+            file_id: string;
+            /** Variant */
+            variant: string;
+            /** Status */
+            status: string;
+            /** Scan Status */
+            scan_status: string;
+            /** Content Type */
+            content_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Width */
+            width: number | null;
+            /** Height */
+            height: number | null;
+            /** Url */
+            url: string | null;
+            /** Purpose */
+            purpose: string;
+            /** Owner Type */
+            owner_type: string;
+            /** Owner Id */
+            owner_id: string;
+            /** Visibility */
+            visibility: string;
+        };
+        /** FileUploadCompleteRequest */
+        FileUploadCompleteRequest: {
+            /** Sha256 */
+            sha256: string;
+            /** Provider Checksum */
+            provider_checksum?: string | null;
+        };
+        /** FileUploadInstruction */
+        FileUploadInstruction: {
+            /** Method */
+            method: string;
+            /** Url */
+            url: string;
+            /** Headers */
+            headers: {
+                [key: string]: string;
+            };
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** FileUploadPolicyView */
+        FileUploadPolicyView: {
+            /** Purpose */
+            purpose: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Allowed Mime Types */
+            allowed_mime_types: string[];
+            /** Allowed Extensions */
+            allowed_extensions: string[];
+            /** Max Size Bytes */
+            max_size_bytes: number;
+            /** Max Count */
+            max_count: number;
+            /** Max Pixels */
+            max_pixels: number | null;
+        };
+        /** FileUploadSessionCreateRequest */
+        FileUploadSessionCreateRequest: {
+            /** Purpose */
+            purpose: string;
+            /** Filename */
+            filename: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Content Type */
+            content_type: string;
+            /** Sha256 */
+            sha256: string;
+            /** Business Context Id */
+            business_context_id?: string | null;
+        };
+        /** FileUploadSessionView */
+        FileUploadSessionView: {
+            /** Upload Id */
+            upload_id: string;
+            /** Purpose */
+            purpose: string;
+            /** Owner Type */
+            owner_type: string;
+            /** Owner Id */
+            owner_id: string;
+            /** Upload Status */
+            upload_status: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            upload?: components["schemas"]["FileUploadInstruction"] | null;
+            source_file?: components["schemas"]["FileVariantView"] | null;
+            bindable_file?: components["schemas"]["FileVariantView"] | null;
+            /** Variants */
+            variants?: components["schemas"]["FileVariantView"][];
+        };
+        /** FileVariantView */
+        FileVariantView: {
+            /** File Id */
+            file_id: string;
+            /** Variant */
+            variant: string;
+            /** Status */
+            status: string;
+            /** Scan Status */
+            scan_status: string;
+            /** Content Type */
+            content_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Width */
+            width: number | null;
+            /** Height */
+            height: number | null;
+            /** Url */
+            url: string | null;
+        };
+        /** FollowedStoreList */
+        FollowedStoreList: {
+            /** Items */
+            items: components["schemas"]["StorePublicView"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HomepageSection */
+        HomepageSection: {
+            /**
+             * Section
+             * @constant
+             */
+            section: "recommended";
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "unavailable";
+            /** Items */
+            items: components["schemas"]["ProductCard"][];
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+        };
+        /** HomepageView */
+        HomepageView: {
+            /** Feed Version */
+            feed_version: string;
+            /** Announcements */
+            announcements: {
+                [key: string]: string;
+            }[];
+            /** Banners */
+            banners: {
+                [key: string]: unknown;
+            }[];
+            /** Sections */
+            sections: components["schemas"]["HomepageSection"][];
+        };
+        /** HumanHandoffRequest */
+        HumanHandoffRequest: {
+            /**
+             * Ticket Type
+             * @default general
+             * @enum {string}
+             */
+            ticket_type: "general" | "order" | "logistics" | "refund" | "complaint";
+            /** Summary */
+            summary: string;
+            /** Message Refs */
+            message_refs?: string[];
+        };
+        /** HumanTicketView */
+        HumanTicketView: {
+            /** Ticket Id */
+            ticket_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Queue Type
+             * @enum {string}
+             */
+            queue_type: "store" | "platform";
+            /**
+             * Ticket Status
+             * @enum {string}
+             */
+            ticket_status: "queued" | "assigned" | "active" | "waiting_user" | "resolved" | "closed";
+            /** Assigned User Id */
+            assigned_user_id: string | null;
+            /** Resolution Summary */
+            resolution_summary?: string | null;
+            /** Queue Position */
+            queue_position?: number | null;
+            /** Estimated Response At */
+            estimated_response_at?: string | null;
+            /**
+             * Can Cancel
+             * @default false
+             */
+            can_cancel: boolean;
+        };
+        /** KillSwitchChange */
+        KillSwitchChange: {
+            /** Reason */
+            reason: string;
+        };
+        /** KillSwitchList */
+        KillSwitchList: {
+            /** Items */
+            items: components["schemas"]["KillSwitchView"][];
+        };
+        /** KillSwitchView */
+        KillSwitchView: {
+            /** Switch Id */
+            switch_id: string;
+            /** Target Type */
+            target_type: string;
+            /** Target Code */
+            target_code: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Reason */
+            reason: string | null;
+            /** Version */
+            version: number;
+        };
+        /** KnowledgeCitation */
+        KnowledgeCitation: {
+            /** Document Id */
+            document_id: string;
+            /** Content Version */
+            content_version: string;
+            /** Title */
+            title: string;
+            /** Excerpt */
+            excerpt: string;
+            /** Score */
+            score: number;
+        };
+        /** KnowledgeDocumentCreate */
+        KnowledgeDocumentCreate: {
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string;
+            /** Title */
+            title: string;
+            /** Safe Text */
+            safe_text: string;
+        };
+        /** KnowledgeDocumentList */
+        KnowledgeDocumentList: {
+            /** Items */
+            items: components["schemas"]["KnowledgeDocumentView"][];
+        };
+        /** KnowledgeDocumentView */
+        KnowledgeDocumentView: {
+            /** Document Id */
+            document_id: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string;
+            /** Title */
+            title: string;
+            /** Content Version */
+            content_version: string;
+            /** Status */
+            status: string;
+            /** Index Job No */
+            index_job_no?: string | null;
+            /** Index Status */
+            index_status?: string | null;
+        };
+        /** KnowledgeIndexJobView */
+        KnowledgeIndexJobView: {
+            /** Job Id */
+            job_id: string;
+            /** Command Job Id */
+            command_job_id: string;
+            /** Status */
+            status: string;
+            /** Progress */
+            progress: number;
+            /** Error Code */
+            error_code?: string | null;
+        };
+        /** KnowledgeSearchRequest */
+        KnowledgeSearchRequest: {
+            /** Query */
+            query: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Id */
+            scope_id: string;
+            /**
+             * Limit
+             * @default 5
+             */
+            limit: number;
+        };
+        /** KnowledgeSearchResult */
+        KnowledgeSearchResult: {
+            /** Items */
+            items: components["schemas"]["KnowledgeCitation"][];
+            /**
+             * Degraded
+             * @default false
+             */
+            degraded: boolean;
         };
         /** LegalDocument */
         LegalDocument: {
@@ -1526,11 +9709,305 @@ export interface components {
              * @constant
              */
             status: "ok";
+            /** Version */
+            version: string;
+            /** Build Sha */
+            build_sha: string;
+        };
+        /** LogisticsWebhookAck */
+        LogisticsWebhookAck: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+            /**
+             * Duplicate
+             * @default false
+             */
+            duplicate: boolean;
+            /** Shipment Id */
+            shipment_id: string;
+        };
+        /** McpServerList */
+        McpServerList: {
+            /** Items */
+            items: components["schemas"]["McpServerView"][];
+        };
+        /** McpServerView */
+        McpServerView: {
+            /** Server Code */
+            server_code: string;
+            /** Tools */
+            tools: string[];
+            /** Timeout Seconds */
+            timeout_seconds: number;
+        };
+        /** MerchantAccountDeletionRequest */
+        MerchantAccountDeletionRequest: {
+            /**
+             * Confirmation
+             * @constant
+             */
+            confirmation: "DELETE_MY_STORE_AND_ACCOUNT";
+        };
+        /** MerchantReauthenticationRequest */
+        MerchantReauthenticationRequest: {
+            /** Password */
+            password: string;
+        };
+        /** MerchantRegistrationRequest */
+        MerchantRegistrationRequest: {
+            /** Username */
+            username: string;
+            /** Email */
+            email: string;
+            /** Password */
+            password: string;
+            /** Store Name */
+            store_name: string;
+            /** Captcha Id */
+            captcha_id: string;
+            /** Captcha Answer */
+            captcha_answer: string;
+            client: components["schemas"]["ClientDescriptor"];
+        };
+        /** MerchantRevenueView */
+        MerchantRevenueView: {
+            /** Store Id */
+            store_id: string;
+            gross_sales: components["schemas"]["Money"];
+            refunded_amount: components["schemas"]["Money"];
+            net_revenue: components["schemas"]["Money"];
+            today_revenue: components["schemas"]["Money"];
+            yesterday_revenue: components["schemas"]["Money"];
+            last_30_days_revenue: components["schemas"]["Money"];
+            /** All Order Count */
+            all_order_count: number;
+            /** Completed Order Count */
+            completed_order_count: number;
+            /** Pending Payment Count */
+            pending_payment_count: number;
+            /** Pending Shipment Count */
+            pending_shipment_count: number;
+            /** In Transit Count */
+            in_transit_count: number;
+            /** After Sale Pending Count */
+            after_sale_pending_count: number;
+        };
+        /** MessageCreateRequest */
+        MessageCreateRequest: {
+            /** Client Message Id */
+            client_message_id: string;
+            /** Content */
+            content: components["schemas"]["TextMessageContent"] | components["schemas"]["ProductCardMessageContent"] | components["schemas"]["OrderCardMessageContent"];
+        };
+        /** MessageList */
+        MessageList: {
+            /** Items */
+            items: components["schemas"]["MessageView"][];
+            /** Previous Cursor */
+            previous_cursor?: string | null;
         };
         /** MessageResult */
         MessageResult: {
             /** Message */
             message: string;
+        };
+        /** MessageView */
+        MessageView: {
+            /** Message Id */
+            message_id: string;
+            /** Sequence No */
+            sequence_no: number;
+            /**
+             * Sender Type
+             * @enum {string}
+             */
+            sender_type: "user" | "agent" | "human" | "system" | "tool";
+            /** Message Type */
+            message_type: string;
+            /** Text */
+            text: string | null;
+            /** Message Status */
+            message_status: string;
+            /** Moderation Status */
+            moderation_status: string;
+            /** Content */
+            content: {
+                [key: string]: unknown;
+            } | null;
+            /** Viewer Reaction */
+            viewer_reaction?: ("thumb_up" | "thumb_down") | null;
+            /**
+             * Sent At
+             * Format: date-time
+             */
+            sent_at: string;
+        };
+        /** ModelProviderHealthView */
+        ModelProviderHealthView: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unconfigured" | "available" | "degraded" | "unavailable";
+            /** Provider */
+            provider: string;
+            /** Configured Model */
+            configured_model: string | null;
+            /** Model Available */
+            model_available: boolean;
+            /** Available Models */
+            available_models: string[];
+            /** Chat Completions */
+            chat_completions: boolean;
+            /** Structured Output */
+            structured_output: boolean;
+            /** Streaming */
+            streaming: boolean;
+            /** Usage Reporting */
+            usage_reporting: boolean;
+            /**
+             * Checked At
+             * Format: date-time
+             */
+            checked_at: string;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Cache Hit */
+            cache_hit: boolean;
+            /** Error Code */
+            error_code: string | null;
+        };
+        /** Money */
+        Money: {
+            /** Minor Units */
+            minor_units: string;
+            /** Currency */
+            currency: string;
+        };
+        /** MyReviewAppendView */
+        MyReviewAppendView: {
+            /** Append Id */
+            append_id: string;
+            /** Content */
+            content: string;
+            /**
+             * Append Status
+             * @enum {string}
+             */
+            append_status: "pending" | "published" | "hidden" | "rejected";
+            /**
+             * Moderation Status
+             * @enum {string}
+             */
+            moderation_status: "pending" | "passed" | "blocked" | "manual";
+            /** Images */
+            images: components["schemas"]["MyReviewImageView"][];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Published At */
+            published_at: string | null;
+        };
+        /** MyReviewImageView */
+        MyReviewImageView: {
+            /** File Id */
+            file_id: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        };
+        /** MyReviewList */
+        MyReviewList: {
+            /** Items */
+            items: components["schemas"]["MyReviewListItem"][];
+        };
+        /** MyReviewListItem */
+        MyReviewListItem: {
+            /**
+             * Item Type
+             * @enum {string}
+             */
+            item_type: "pending" | "review";
+            /** Order Id */
+            order_id: string;
+            /** Order Item Id */
+            order_item_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Order Completed At */
+            order_completed_at: string | null;
+            eligibility: components["schemas"]["ReviewEligibility"];
+            review?: components["schemas"]["MyReviewView"] | null;
+        };
+        /** MyReviewView */
+        MyReviewView: {
+            /** Review Id */
+            review_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Order Item Id */
+            order_item_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Rating */
+            rating: number;
+            /** Content */
+            content: string | null;
+            /** Is Anonymous */
+            is_anonymous: boolean;
+            /**
+             * Review Status
+             * @enum {string}
+             */
+            review_status: "pending" | "published" | "hidden" | "rejected";
+            /**
+             * Moderation Status
+             * @enum {string}
+             */
+            moderation_status: "pending" | "passed" | "blocked" | "manual";
+            /** Images */
+            images: components["schemas"]["MyReviewImageView"][];
+            append?: components["schemas"]["MyReviewAppendView"] | null;
+            merchant_reply?: components["schemas"]["ReviewReplyView"] | null;
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Published At */
+            published_at: string | null;
+            /**
+             * Edit Deadline At
+             * Format: date-time
+             */
+            edit_deadline_at: string;
+            /**
+             * Append Deadline At
+             * Format: date-time
+             */
+            append_deadline_at: string;
+            /** Available Actions */
+            available_actions: ("create" | "view" | "edit" | "append")[];
+            /** Version */
+            version: number;
         };
         /** NavigationItem */
         NavigationItem: {
@@ -1543,6 +10020,361 @@ export interface components {
             /** Required Permission */
             required_permission: string;
         };
+        /** ObservabilitySummary */
+        ObservabilitySummary: {
+            /**
+             * Window
+             * @default process_lifetime
+             * @constant
+             */
+            window: "process_lifetime";
+            /** Metrics */
+            metrics: {
+                [key: string]: unknown;
+            };
+            /** Trace Backend */
+            trace_backend: string;
+            /** Log Backend */
+            log_backend: string;
+            /**
+             * Sensitive Content Included
+             * @default false
+             * @constant
+             */
+            sensitive_content_included: false;
+        };
+        /** OrderAction */
+        OrderAction: {
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "pay" | "cancel_order" | "apply_after_sale" | "view_after_sale" | "view_logistics" | "review" | "delete_order" | "confirm_receipt" | "contact_store" | "repurchase";
+            /** Enabled */
+            enabled: boolean;
+            /** Reason Code */
+            reason_code?: string | null;
+            /** Reason Message */
+            reason_message?: string | null;
+            /**
+             * Requires Confirmation
+             * @default false
+             */
+            requires_confirmation: boolean;
+            target: components["schemas"]["OrderActionTarget"];
+        };
+        /** OrderActionTarget */
+        OrderActionTarget: {
+            /**
+             * Type
+             * @default route
+             * @constant
+             */
+            type: "route";
+            /** Name */
+            name: string;
+            /** Params */
+            params?: {
+                [key: string]: string;
+            };
+        };
+        /** OrderAddressView */
+        OrderAddressView: {
+            /** Recipient Name */
+            recipient_name: string;
+            /** Phone Masked */
+            phone_masked: string;
+            /** Country Code */
+            country_code: string;
+            /** Province Code */
+            province_code: string;
+            /** City Code */
+            city_code: string;
+            /** District Code */
+            district_code: string;
+            /** Address */
+            address: string;
+            /** Postal Code */
+            postal_code?: string | null;
+        };
+        /** OrderAmountsView */
+        OrderAmountsView: {
+            goods_amount: components["schemas"]["Money"];
+            freight_amount: components["schemas"]["Money"];
+            adjustment_amount: components["schemas"]["SignedMoney"];
+            payable_amount: components["schemas"]["Money"];
+            paid_amount: components["schemas"]["Money"];
+            refunded_amount: components["schemas"]["Money"];
+        };
+        /** OrderCancellationRequest */
+        OrderCancellationRequest: {
+            /**
+             * Reason Code
+             * @enum {string}
+             */
+            reason_code: "no_longer_needed" | "wrong_product" | "wrong_address" | "price_changed" | "other";
+            /** Description */
+            description?: string | null;
+        };
+        /** OrderCardMessageContent */
+        OrderCardMessageContent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "order_card";
+            /** Order Id */
+            order_id: string;
+        };
+        /** OrderCommandResult */
+        OrderCommandResult: {
+            order: components["schemas"]["OrderListItem"];
+            /** Events */
+            events: components["schemas"]["OrderEventView"][];
+        };
+        /** OrderCreateRequest */
+        OrderCreateRequest: {
+            /** Checkout Id */
+            checkout_id: string;
+            /** Checkout Version */
+            checkout_version: number;
+        };
+        /** OrderCreateResponse */
+        OrderCreateResponse: {
+            /** Trade Order Id */
+            trade_order_id: string;
+            /** Order Ids */
+            order_ids: string[];
+            /**
+             * Payment Deadline At
+             * Format: date-time
+             */
+            payment_deadline_at: string;
+            /** Available Actions */
+            available_actions: string[];
+            /** Version */
+            version: number;
+        };
+        /** OrderDetail */
+        OrderDetail: {
+            /** Order Id */
+            order_id: string;
+            /** Trade Order Id */
+            trade_order_id: string;
+            /**
+             * Order Source
+             * @enum {string}
+             */
+            order_source: "buy_now" | "cart";
+            store: components["schemas"]["OrderStoreView"];
+            /** Order Status */
+            order_status: string;
+            /** Payment Status */
+            payment_status: string;
+            /** Fulfillment Status */
+            fulfillment_status: string;
+            /** After Sale Status */
+            after_sale_status: string;
+            /** Matched Views */
+            matched_views: ("all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "pending_review" | "after_sale" | "cancelled")[];
+            /** Items */
+            items: components["schemas"]["OrderItemView"][];
+            /** Item Count */
+            item_count: number;
+            /** Total Quantity */
+            total_quantity: number;
+            amounts: components["schemas"]["OrderAmountsView"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Available Actions */
+            available_actions: components["schemas"]["OrderAction"][];
+            /** Version */
+            version: number;
+            /** Buyer Remark */
+            buyer_remark?: string | null;
+            address: components["schemas"]["OrderAddressView"];
+            /** Policy Snapshot */
+            policy_snapshot: {
+                [key: string]: unknown;
+            };
+            /** Events */
+            events: components["schemas"]["OrderEventView"][];
+        };
+        /** OrderEventList */
+        OrderEventList: {
+            /** Items */
+            items: components["schemas"]["OrderEventView"][];
+        };
+        /** OrderEventView */
+        OrderEventView: {
+            /** Event Id */
+            event_id: number;
+            /** State Dimension */
+            state_dimension: string;
+            /** From Status */
+            from_status?: string | null;
+            /** To Status */
+            to_status: string;
+            /** Event Code */
+            event_code: string;
+            /** Actor Type */
+            actor_type: string;
+            /** Reason */
+            reason?: string | null;
+            /** Order Version */
+            order_version: number;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** OrderHideResult */
+        OrderHideResult: {
+            /** Order Id */
+            order_id: string;
+            /**
+             * Deletion Mode
+             * @enum {string}
+             */
+            deletion_mode: "hidden" | "permanent";
+            /** Undo Until */
+            undo_until?: string | null;
+            /** Restore Url */
+            restore_url?: string | null;
+            /** Version */
+            version: number;
+        };
+        /** OrderItemView */
+        OrderItemView: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Product Available */
+            product_available: boolean;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Spec Snapshot */
+            spec_snapshot: {
+                [key: string]: string;
+            }[];
+            /** Image Url */
+            image_url?: string | null;
+            /** Quantity */
+            quantity: number;
+            unit_price: components["schemas"]["Money"];
+            gross_amount: components["schemas"]["Money"];
+            payable_amount: components["schemas"]["Money"];
+            refunded_amount: components["schemas"]["Money"];
+            /** Refunded Quantity */
+            refunded_quantity: number;
+            /** Review Status */
+            review_status: string;
+            /** After Sale Status */
+            after_sale_status: string;
+        };
+        /** OrderList */
+        OrderList: {
+            /** Items */
+            items: components["schemas"]["OrderListItem"][];
+        };
+        /** OrderListItem */
+        OrderListItem: {
+            /** Order Id */
+            order_id: string;
+            /** Trade Order Id */
+            trade_order_id: string;
+            /**
+             * Order Source
+             * @enum {string}
+             */
+            order_source: "buy_now" | "cart";
+            store: components["schemas"]["OrderStoreView"];
+            /** Order Status */
+            order_status: string;
+            /** Payment Status */
+            payment_status: string;
+            /** Fulfillment Status */
+            fulfillment_status: string;
+            /** After Sale Status */
+            after_sale_status: string;
+            /** Matched Views */
+            matched_views: ("all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "pending_review" | "after_sale" | "cancelled")[];
+            /** Items */
+            items: components["schemas"]["OrderItemView"][];
+            /** Item Count */
+            item_count: number;
+            /** Total Quantity */
+            total_quantity: number;
+            amounts: components["schemas"]["OrderAmountsView"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Available Actions */
+            available_actions: components["schemas"]["OrderAction"][];
+            /** Version */
+            version: number;
+        };
+        /** OrderRepurchaseResult */
+        OrderRepurchaseResult: {
+            /** Order Id */
+            order_id: string;
+            /** Added Items */
+            added_items: string[];
+            /** Unavailable Items */
+            unavailable_items: components["schemas"]["RepurchaseUnavailableItem"][];
+            /** Requires Reselection */
+            requires_reselection: boolean;
+            cart: components["schemas"]["CartView"];
+        };
+        /** OrderStoreView */
+        OrderStoreView: {
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Logo Url */
+            logo_url?: string | null;
+        };
+        /** PaginationMeta */
+        PaginationMeta: {
+            /** Previous Cursor */
+            previous_cursor?: string | null;
+            /** Next Cursor */
+            next_cursor?: string | null;
+            /**
+             * Has Previous
+             * @default false
+             */
+            has_previous: boolean;
+            /**
+             * Has Next
+             * @default false
+             */
+            has_next: boolean;
+            /** Limit */
+            limit: number;
+        };
         /** PasswordChangeRequest */
         PasswordChangeRequest: {
             /** Current Password */
@@ -1553,8 +10385,8 @@ export interface components {
         /** PasswordLoginRequest */
         PasswordLoginRequest: {
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
+             * Auth Method
+             * @constant
              */
             auth_method: "password";
             /** Identifier */
@@ -1564,6 +10396,22 @@ export interface components {
             client: components["schemas"]["ClientDescriptor"];
             /** Challenge Token */
             challenge_token?: string | null;
+        };
+        /** PasswordResetHintRequest */
+        PasswordResetHintRequest: {
+            /** Username */
+            username: string;
+            /**
+             * Audience
+             * @default consumer
+             * @enum {string}
+             */
+            audience: "consumer" | "merchant";
+        };
+        /** PasswordResetHintResult */
+        PasswordResetHintResult: {
+            /** Email Masked */
+            email_masked: string;
         };
         /** PasswordResetRequest */
         PasswordResetRequest: {
@@ -1579,17 +10427,16 @@ export interface components {
         };
         /** PasswordResetTicketRequest */
         PasswordResetTicketRequest: {
+            /** Username */
+            username: string;
+            /** Email */
+            email: string;
             /**
-             * Target Type
+             * Audience
+             * @default consumer
              * @enum {string}
              */
-            target_type: "phone" | "email";
-            /** Target */
-            target: string;
-            /** Verification Id */
-            verification_id: string;
-            /** Verification Code */
-            verification_code: string;
+            audience: "consumer" | "merchant";
         };
         /** PasswordResetTicketResult */
         PasswordResetTicketResult: {
@@ -1601,17 +10448,418 @@ export interface components {
              */
             expires_at: string;
         };
+        /** PaymentAction */
+        PaymentAction: {
+            /**
+             * Type
+             * @constant
+             */
+            type: "redirect";
+            /** Url */
+            url: string;
+        };
+        /** PaymentCreateRequest */
+        PaymentCreateRequest: {
+            /** Trade Order Id */
+            trade_order_id: string;
+            /**
+             * Provider
+             * @constant
+             */
+            provider: "fake";
+            /**
+             * Payment Method
+             * @enum {string}
+             */
+            payment_method: "fake_balance" | "wallet_balance";
+            /**
+             * Return Url Key
+             * @constant
+             */
+            return_url_key: "payment_result";
+        };
+        /** PaymentEventView */
+        PaymentEventView: {
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** From Status */
+            from_status: string | null;
+            /** To Status */
+            to_status: string;
+            amount: components["schemas"]["Money"];
+            /** Source Type */
+            source_type: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** PaymentList */
+        PaymentList: {
+            /** Items */
+            items: components["schemas"]["PaymentView"][];
+        };
+        /** PaymentView */
+        PaymentView: {
+            /** Payment Id */
+            payment_id: string;
+            /** Trade Order Id */
+            trade_order_id: string;
+            /** Provider */
+            provider: string;
+            /** Payment Method */
+            payment_method: string;
+            /**
+             * Payment Status
+             * @enum {string}
+             */
+            payment_status: "created" | "pending" | "succeeded" | "failed" | "closed" | "partially_refunded" | "refunded";
+            /**
+             * Display Status
+             * @enum {string}
+             */
+            display_status: "confirming" | "succeeded" | "failed" | "closed" | "refunded";
+            requested_amount: components["schemas"]["Money"];
+            paid_amount: components["schemas"]["Money"];
+            refunded_amount: components["schemas"]["Money"];
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Paid At */
+            paid_at: string | null;
+            /** Closed At */
+            closed_at: string | null;
+            /** Failure Code */
+            failure_code: string | null;
+            /** Failure Message */
+            failure_message: string | null;
+            action?: components["schemas"]["PaymentAction"] | null;
+            /** Events */
+            events?: components["schemas"]["PaymentEventView"][];
+            /** Version */
+            version: number;
+        };
+        /** PaymentWebhookAck */
+        PaymentWebhookAck: {
+            /**
+             * Accepted
+             * @default true
+             */
+            accepted: boolean;
+            /**
+             * Duplicate
+             * @default false
+             */
+            duplicate: boolean;
+            /** Callback Id */
+            callback_id: string;
+        };
+        /** ProductCard */
+        ProductCard: {
+            /** Product Id */
+            product_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Product Name */
+            product_name: string;
+            price: components["schemas"]["Money"];
+            price_range?: components["schemas"]["Money"] | null;
+            /** Sales Count */
+            sales_count: number;
+            /** Rating Score */
+            rating_score: string;
+            main_image: components["schemas"]["PublicImage"] | null;
+            /**
+             * Is Favorited
+             * @default false
+             */
+            is_favorited: boolean;
+        };
+        /** ProductCardMessageContent */
+        ProductCardMessageContent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "product_card";
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id?: string | null;
+        };
+        /** ProductDetail */
+        ProductDetail: {
+            /** Product Id */
+            product_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Product Status */
+            product_status: string;
+            /** Category Id */
+            category_id: string;
+            /** Brand Id */
+            brand_id: string | null;
+            store: components["schemas"]["StoreSummary"];
+            /** Price Range */
+            price_range: [
+                components["schemas"]["Money"],
+                components["schemas"]["Money"]
+            ];
+            /** Sales Count */
+            sales_count: number;
+            /** Review Count */
+            review_count: number;
+            /** Rating Score */
+            rating_score: string;
+            /** Public Images */
+            public_images: components["schemas"]["PublicImage"][];
+            /** Default Sku Id */
+            default_sku_id: string | null;
+            detail_content: components["schemas"]["SafeContent"] | null;
+            /** Attributes */
+            attributes: {
+                [key: string]: string | boolean | null;
+            }[];
+            /** Origin Region Code */
+            origin_region_code: string | null;
+            dispatch_estimate: components["schemas"]["ServiceEstimate"];
+            /** Purchase Notice */
+            purchase_notice: string | null;
+            /** Fulfillment Profile Version */
+            fulfillment_profile_version: number | null;
+            /**
+             * Is Favorited
+             * @default false
+             */
+            is_favorited: boolean;
+        };
+        /** ProductFaqList */
+        ProductFaqList: {
+            /** Items */
+            items: components["schemas"]["ProductFaqView"][];
+        };
+        /** ProductFaqView */
+        ProductFaqView: {
+            /** Faq Id */
+            faq_id: string;
+            /** Question */
+            question: string;
+            answer_content: components["schemas"]["SafeContent"];
+        };
+        /** ProductImportJobCreateRequest */
+        ProductImportJobCreateRequest: {
+            /**
+             * Job Type
+             * @constant
+             */
+            job_type: "product_import";
+            /** Store Id */
+            store_id: string;
+            /** Input File Id */
+            input_file_id: string;
+            /**
+             * Schema Version
+             * @constant
+             */
+            schema_version: "product-import-v1";
+        };
+        /** ProductImportTemplateColumn */
+        ProductImportTemplateColumn: {
+            /** Name */
+            name: string;
+            /** Required */
+            required: boolean;
+            /** Description */
+            description: string;
+            /** Example */
+            example: string;
+        };
+        /** ProductImportTemplateView */
+        ProductImportTemplateView: {
+            /** Schema Version */
+            schema_version: string;
+            /** Supported File Types */
+            supported_file_types: string[];
+            /** Maximum Rows */
+            maximum_rows: number;
+            /** Columns */
+            columns: components["schemas"]["ProductImportTemplateColumn"][];
+        };
+        /** ProductList */
+        ProductList: {
+            /** Items */
+            items: components["schemas"]["ProductCard"][];
+        };
+        /** ProductReviewList */
+        ProductReviewList: {
+            summary: components["schemas"]["ProductReviewSummary"];
+            /** Items */
+            items: components["schemas"]["ProductReviewView"][];
+        };
+        /** ProductReviewSummary */
+        ProductReviewSummary: {
+            /** Review Count */
+            review_count: number;
+            /** Average Rating */
+            average_rating: string;
+            /** Rating Distribution */
+            rating_distribution: {
+                [key: string]: number;
+            };
+            /** Image Review Count */
+            image_review_count: number;
+        };
+        /** ProductReviewView */
+        ProductReviewView: {
+            /** Review Id */
+            review_id: string;
+            /** User Display Name */
+            user_display_name: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Rating */
+            rating: number;
+            /** Content */
+            content: string | null;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /** Helpful Count */
+            helpful_count: number;
+            /** Images */
+            images: components["schemas"]["ReviewImageView"][];
+            append: components["schemas"]["ReviewAppendView"] | null;
+            merchant_reply: components["schemas"]["ReviewReplyView"] | null;
+        };
+        /** ProductSkuList */
+        ProductSkuList: {
+            /** Items */
+            items: components["schemas"]["ProductSkuView"][];
+        };
+        /** ProductSkuView */
+        ProductSkuView: {
+            /** Sku Id */
+            sku_id: string;
+            /** Sku Name */
+            sku_name: string;
+            sale_price: components["schemas"]["Money"];
+            /** Sku Status */
+            sku_status: string;
+            /**
+             * Stock Status
+             * @enum {string}
+             */
+            stock_status: "in_stock" | "low_stock" | "out_of_stock" | "frozen";
+            /** Low Stock Remaining */
+            low_stock_remaining?: number | null;
+            /** Max Purchase Quantity */
+            max_purchase_quantity: number;
+            /** Sales Count */
+            sales_count: number;
+            /** Images */
+            images: components["schemas"]["PublicImage"][];
+            /**
+             * Image Fallback
+             * @enum {string}
+             */
+            image_fallback: "none" | "product_public_images";
+        };
+        /** PublicImage */
+        PublicImage: {
+            /** File Id */
+            file_id: string;
+            /** Url */
+            url: string;
+            /** Thumbnail Url */
+            thumbnail_url: string;
+            /** Alt Text */
+            alt_text: string | null;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Sort Order */
+            sort_order: number;
+        };
+        /** PublishedContent */
+        PublishedContent: {
+            /** Content Id */
+            content_id: string;
+            /** Content Key */
+            content_key: string;
+            /** Content Type */
+            content_type: string;
+            /** Title */
+            title: string;
+            version: components["schemas"]["ContentVersionView"];
+        };
+        /** PublishedContentList */
+        PublishedContentList: {
+            /** Items */
+            items: components["schemas"]["PublishedContent"][];
+        };
+        /** ReadCursorRequest */
+        ReadCursorRequest: {
+            /** Last Read Message Id */
+            last_read_message_id: string;
+            /** Last Read Sequence No */
+            last_read_sequence_no: number;
+        };
+        /** ReadCursorView */
+        ReadCursorView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Last Read Message Id */
+            last_read_message_id: string;
+            /** Last Read Sequence No */
+            last_read_sequence_no: number;
+            /** Unread Count */
+            unread_count: number;
+            /** Total Unread Count */
+            total_unread_count: number;
+            /** Cursor Version */
+            cursor_version: number;
+        };
         /** ReadinessResponse */
         ReadinessResponse: {
             /**
              * Status
              * @enum {string}
              */
-            status: "ready" | "not_ready";
+            status: "ready" | "degraded" | "not_ready";
             /** Dependencies */
             dependencies: {
                 [key: string]: components["schemas"]["DependencyStatus"];
             };
+        };
+        /** RealtimeTicketView */
+        RealtimeTicketView: {
+            /** Ticket */
+            ticket: string;
+            /** Expires In */
+            expires_in: number;
+            /**
+             * Websocket Path
+             * @default /ws/v1
+             */
+            websocket_path: string;
+            /**
+             * Subprotocol
+             * @default ecom.realtime.v1
+             * @constant
+             */
+            subprotocol: "ecom.realtime.v1";
         };
         /** ReasonRequest */
         ReasonRequest: {
@@ -1628,21 +10876,287 @@ export interface components {
             /** Assurance Level */
             assurance_level: string;
         };
+        /** RefundAppealCreateRequest */
+        RefundAppealCreateRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /** RefundAppealEventList */
+        RefundAppealEventList: {
+            /** Items */
+            items: components["schemas"]["RefundAppealEventView"][];
+        };
+        /** RefundAppealEventView */
+        RefundAppealEventView: {
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** From Status */
+            from_status: string | null;
+            /** To Status */
+            to_status: string;
+            /** Actor Type */
+            actor_type: string;
+            /** Reason Code */
+            reason_code: string | null;
+            /** Remark */
+            remark: string | null;
+            /** Appeal Version */
+            appeal_version: number;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** RefundAppealView */
+        RefundAppealView: {
+            /** Appeal Id */
+            appeal_id: string;
+            /** Refund Id */
+            refund_id: string;
+            /**
+             * Appeal Status
+             * @enum {string}
+             */
+            appeal_status: "submitted" | "reviewing" | "upheld" | "rejected" | "cancelled" | "closed";
+            /** Reason */
+            reason: string;
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Version */
+            version: number;
+            /**
+             * Claimed
+             * @default false
+             */
+            claimed: boolean;
+        };
+        /** RefundApplicationCreateRequest */
+        RefundApplicationCreateRequest: {
+            /** Eligibility Token */
+            eligibility_token: string;
+            /** Items */
+            items: components["schemas"]["RefundApplicationItemRequest"][];
+            /**
+             * Refund Type
+             * @enum {string}
+             */
+            refund_type: "refund_only" | "return_and_refund";
+            /** Reason Code */
+            reason_code: string;
+            /** Reason Detail */
+            reason_detail?: string | null;
+            requested_amount: components["schemas"]["Money"];
+            /** Policy Accepted */
+            policy_accepted: boolean;
+        };
+        /** RefundApplicationItemRequest */
+        RefundApplicationItemRequest: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** RefundApplicationItemView */
+        RefundApplicationItemView: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Quantity */
+            quantity: number;
+            requested_amount: components["schemas"]["Money"];
+        };
+        /** RefundApplicationList */
+        RefundApplicationList: {
+            /** Items */
+            items: components["schemas"]["RefundApplicationView"][];
+        };
+        /** RefundApplicationView */
+        RefundApplicationView: {
+            /** Refund Id */
+            refund_id: string;
+            /** Order Id */
+            order_id: string;
+            /**
+             * Refund Type
+             * @enum {string}
+             */
+            refund_type: "refund_only" | "return_and_refund";
+            /**
+             * Refund Status
+             * @enum {string}
+             */
+            refund_status: "submitted" | "merchant_review" | "approved" | "waiting_return" | "returning" | "received" | "refunding" | "succeeded" | "rejected" | "cancelled" | "closed";
+            /** Reason Code */
+            reason_code: string;
+            /** Reason Detail */
+            reason_detail: string | null;
+            requested_amount: components["schemas"]["Money"];
+            approved_amount: components["schemas"]["Money"];
+            /** Items */
+            items: components["schemas"]["RefundApplicationItemView"][];
+            /** Available Actions */
+            available_actions: ("cancel" | "view_events" | "create_refund_appeal" | "create_new_refund_application")[];
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Version */
+            version: number;
+            /**
+             * Claimed
+             * @default false
+             */
+            claimed: boolean;
+        };
+        /** RefundCancelRequest */
+        RefundCancelRequest: {
+            /** Reason */
+            reason?: string | null;
+        };
+        /** RefundEligibilityCheck */
+        RefundEligibilityCheck: {
+            /** Eligible */
+            eligible: boolean;
+            /** Eligibility Token */
+            eligibility_token?: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Allowed Types */
+            allowed_types: ("refund_only" | "return_and_refund")[];
+            /** Items */
+            items: components["schemas"]["RefundEligibilityItem"][];
+            /**
+             * Amount Editable
+             * @default false
+             */
+            amount_editable: boolean;
+            min_refundable_amount: components["schemas"]["Money"];
+            max_refundable_amount: components["schemas"]["Money"];
+            suggested_refund_amount: components["schemas"]["Money"];
+            /** Blocking Reasons */
+            blocking_reasons?: string[];
+        };
+        /** RefundEligibilityItem */
+        RefundEligibilityItem: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Purchased Quantity */
+            purchased_quantity: number;
+            /** Succeeded Refund Quantity */
+            succeeded_refund_quantity: number;
+            /** Active Reserved Quantity */
+            active_reserved_quantity: number;
+            /** Available Quantity */
+            available_quantity: number;
+            available_refundable_amount: components["schemas"]["Money"];
+            /** Available Actions */
+            available_actions: ("apply_after_sale" | "view_active_after_sale")[];
+        };
+        /** RefundEligibilityItemRequest */
+        RefundEligibilityItemRequest: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** RefundEligibilityRequest */
+        RefundEligibilityRequest: {
+            /** Order Id */
+            order_id: string;
+            /** Items */
+            items: components["schemas"]["RefundEligibilityItemRequest"][];
+            /**
+             * Requested Type
+             * @enum {string}
+             */
+            requested_type: "refund_only" | "return_and_refund";
+            /** Reason Code */
+            reason_code: string;
+        };
+        /** RefundEventList */
+        RefundEventList: {
+            /** Items */
+            items: components["schemas"]["RefundEventView"][];
+        };
+        /** RefundEventView */
+        RefundEventView: {
+            /** Event Id */
+            event_id: string;
+            /** From Status */
+            from_status: string | null;
+            /** To Status */
+            to_status: string;
+            /** Event Code */
+            event_code: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** RefundPaymentCallbackAck */
+        RefundPaymentCallbackAck: {
+            /** Accepted */
+            accepted: boolean;
+            /**
+             * Duplicate
+             * @default false
+             */
+            duplicate: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "succeeded" | "failed" | "unknown";
+        };
+        /** RefundReturnShipmentRequest */
+        RefundReturnShipmentRequest: {
+            /** Carrier Code */
+            carrier_code: string;
+            /** Tracking No */
+            tracking_no: string;
+        };
+        /** RefundReturnShipmentView */
+        RefundReturnShipmentView: {
+            /** Refund Id */
+            refund_id: string;
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No Masked */
+            tracking_no_masked: string;
+            /**
+             * Shipment Status
+             * @enum {string}
+             */
+            shipment_status: "submitted" | "in_transit" | "delivered" | "received" | "exception";
+            /** Version */
+            version: number;
+        };
         /** RegistrationRequest */
         RegistrationRequest: {
             /** Username */
             username: string;
-            /**
-             * Target Type
-             * @enum {string}
-             */
-            target_type: "phone" | "email";
-            /** Target */
-            target: string;
-            /** Verification Id */
-            verification_id: string;
-            /** Verification Code */
-            verification_code: string;
+            /** Email */
+            email: string;
+            /** Captcha Id */
+            captcha_id: string;
+            /** Captcha Answer */
+            captcha_answer: string;
             /** Password */
             password: string;
             /** Config Version */
@@ -1660,10 +11174,125 @@ export interface components {
              */
             timezone: string;
         };
+        /** RepurchaseUnavailableItem */
+        RepurchaseUnavailableItem: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Reason Code */
+            reason_code: string;
+            /** Reason Message */
+            reason_message: string;
+        };
         /** ResponseMeta */
         ResponseMeta: {
             /** Request Id */
             request_id?: string | null;
+            pagination?: components["schemas"]["PaginationMeta"] | null;
+        };
+        /** ReviewAppendCreateRequest */
+        ReviewAppendCreateRequest: {
+            /** Content */
+            content: string;
+            /** Image File Ids */
+            image_file_ids?: string[];
+        };
+        /** ReviewAppendView */
+        ReviewAppendView: {
+            /** Content */
+            content: string;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /** Images */
+            images?: components["schemas"]["ReviewImageView"][];
+        };
+        /** ReviewCreateRequest */
+        ReviewCreateRequest: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Rating */
+            rating: number;
+            /** Content */
+            content?: string | null;
+            /**
+             * Is Anonymous
+             * @default false
+             */
+            is_anonymous: boolean;
+            /** Image File Ids */
+            image_file_ids?: string[];
+        };
+        /** ReviewEligibility */
+        ReviewEligibility: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Product Id */
+            product_id: string;
+            /** Sku Id */
+            sku_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Order Completed At */
+            order_completed_at: string | null;
+            /** Review Deadline At */
+            review_deadline_at: string | null;
+            /** Eligible */
+            eligible: boolean;
+            /** Reason Code */
+            reason_code?: string | null;
+            /** Reason Message */
+            reason_message?: string | null;
+            /** Existing Review Id */
+            existing_review_id?: string | null;
+            /** Available Actions */
+            available_actions: ("create" | "view" | "edit" | "append")[];
+        };
+        /** ReviewImageView */
+        ReviewImageView: {
+            /** File Id */
+            file_id: string;
+            /** Url */
+            url: string;
+            /** Thumbnail Url */
+            thumbnail_url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        };
+        /** ReviewReplyView */
+        ReviewReplyView: {
+            /** Content */
+            content: string;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+        };
+        /** ReviewUpdateRequest */
+        ReviewUpdateRequest: {
+            /** Rating */
+            rating: number;
+            /** Content */
+            content?: string | null;
+            /**
+             * Is Anonymous
+             * @default false
+             */
+            is_anonymous: boolean;
+            /** Image File Ids */
+            image_file_ids?: string[];
         };
         /** RoleCreateRequest */
         RoleCreateRequest: {
@@ -1782,12 +11411,39 @@ export interface components {
             /** Status */
             status?: ("active" | "disabled") | null;
         };
+        /** SafeContent */
+        SafeContent: {
+            /**
+             * Content Format
+             * @enum {string}
+             */
+            content_format: "structured_v1" | "safe_html_v1";
+            /** Content Version */
+            content_version: number;
+            /** Content Hash */
+            content_hash: string;
+            /** Safe Blocks */
+            safe_blocks?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Safe Html */
+            safe_html?: string | null;
+            /** Safe Text Fallback */
+            safe_text_fallback: string;
+        };
+        /** SearchSuggestionList */
+        SearchSuggestionList: {
+            /** Items */
+            items: string[];
+        };
         /** SecuritySummary */
         SecuritySummary: {
             /** Password Set */
             password_set: boolean;
             /** Password Changed At */
             password_changed_at: string | null;
+            /** Current Email */
+            current_email: string | null;
             /** Bound Accounts */
             bound_accounts: {
                 [key: string]: string | boolean;
@@ -1832,6 +11488,38 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** ServiceEstimate */
+        ServiceEstimate: {
+            /**
+             * Estimate Type
+             * @enum {string}
+             */
+            estimate_type: "dispatch" | "delivery";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "unavailable";
+            /** Min At */
+            min_at?: string | null;
+            /** Max At */
+            max_at?: string | null;
+            /** Source */
+            source?: ("store_fulfillment_profile" | "shipping_template" | "carrier") | null;
+            /** Source Updated At */
+            source_updated_at?: string | null;
+            /**
+             * Calculated At
+             * Format: date-time
+             */
+            calculated_at: string;
+            /** Timezone */
+            timezone: string;
+            /** Disclaimer Code */
+            disclaimer_code?: string | null;
+            /** Unavailable Reason Code */
+            unavailable_reason_code?: string | null;
+        };
         /** SessionBootstrap */
         SessionBootstrap: {
             user: components["schemas"]["UserSummary"];
@@ -1857,7 +11545,10 @@ export interface components {
              * @constant
              */
             scope: "all";
-            /** Reason */
+            /**
+             * Reason
+             * @default 超级管理员强制下线
+             */
             reason: string;
         };
         /** SessionSummary */
@@ -1891,6 +11582,603 @@ export interface components {
              */
             is_current: boolean;
         };
+        /** ShipmentItemView */
+        ShipmentItemView: {
+            /** Order Item Id */
+            order_item_id: string;
+            /** Product Name */
+            product_name: string;
+            /** Sku Name */
+            sku_name: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /** ShipmentRefreshResult */
+        ShipmentRefreshResult: {
+            /** Shipment Id */
+            shipment_id: string;
+            /**
+             * Status
+             * @default queued
+             * @constant
+             */
+            status: "queued";
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+        };
+        /** ShipmentRouteView */
+        ShipmentRouteView: {
+            /** Origin Region Code */
+            origin_region_code?: string | null;
+            /** Country Code */
+            country_code: string;
+            /** Province Code */
+            province_code: string;
+            /** City Code */
+            city_code: string;
+            /** District Code */
+            district_code: string;
+            /** Destination Address */
+            destination_address: string;
+        };
+        /** ShipmentTrackList */
+        ShipmentTrackList: {
+            /** Shipment Id */
+            shipment_id: string;
+            /** Items */
+            items: components["schemas"]["ShipmentTrackView"][];
+        };
+        /** ShipmentTrackView */
+        ShipmentTrackView: {
+            /** Track Status */
+            track_status: string;
+            /** Provider Status */
+            provider_status?: string | null;
+            /** Description */
+            description: string;
+            /** Location Text */
+            location_text?: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+        };
+        /** SignedMoney */
+        SignedMoney: {
+            /** Minor Units */
+            minor_units: string;
+            /** Currency */
+            currency: string;
+        };
+        /** SkillDefinitionCreate */
+        SkillDefinitionCreate: {
+            /** Skill Code */
+            skill_code: string;
+            /** Display Name */
+            display_name: string;
+        };
+        /** SkillList */
+        SkillList: {
+            /** Items */
+            items: components["schemas"]["SkillView"][];
+        };
+        /** SkillToolBindingCreate */
+        SkillToolBindingCreate: {
+            /** Tool Code */
+            tool_code: string;
+            /** Tool Version No */
+            tool_version_no: number;
+            /** Permission Effect */
+            permission_effect: string;
+            /** Confirmation Policy */
+            confirmation_policy: string;
+            /** Call Budget */
+            call_budget: number;
+            /** Timeout Ms */
+            timeout_ms: number;
+        };
+        /** SkillVersionCreate */
+        SkillVersionCreate: {
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Output Schema */
+            output_schema: {
+                [key: string]: unknown;
+            };
+            /** Instructions */
+            instructions: string;
+            /** Evaluation Report */
+            evaluation_report?: {
+                [key: string]: unknown;
+            };
+        };
+        /** SkillView */
+        SkillView: {
+            /** Skill Id */
+            skill_id: string;
+            /** Skill Code */
+            skill_code: string;
+            /** Display Name */
+            display_name: string;
+            /** Status */
+            status: string;
+            /** Latest Version */
+            latest_version: number | null;
+            /** Published Version */
+            published_version: number | null;
+        };
+        /** StoreHomeContent */
+        StoreHomeContent: {
+            /** Announcements */
+            announcements: {
+                [key: string]: string;
+            }[];
+            /** Recommended Products */
+            recommended_products: components["schemas"]["ProductCard"][];
+            /** Hot Products */
+            hot_products: components["schemas"]["ProductCard"][];
+        };
+        /** StorePolicyList */
+        StorePolicyList: {
+            /** Items */
+            items: components["schemas"]["StorePolicyView"][];
+        };
+        /** StorePolicyView */
+        StorePolicyView: {
+            /** Policy Id */
+            policy_id: string;
+            /** Policy Type */
+            policy_type: string;
+            /** Title */
+            title: string;
+            /** Content */
+            content: string;
+            /** Policy Version */
+            policy_version: number;
+            /**
+             * Effective At
+             * Format: date-time
+             */
+            effective_at: string;
+            /** Expires At */
+            expires_at: string | null;
+        };
+        /** StoreProductGroupList */
+        StoreProductGroupList: {
+            /** Items */
+            items: components["schemas"]["StoreProductGroupView"][];
+        };
+        /** StoreProductGroupView */
+        StoreProductGroupView: {
+            /** Group Id */
+            group_id: string;
+            /** Group Name */
+            group_name: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Visible Product Count */
+            visible_product_count: number;
+            /** Children */
+            children?: components["schemas"]["StoreProductGroupView"][];
+        };
+        /** StorePublicView */
+        StorePublicView: {
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Logo Url */
+            logo_url: string | null;
+            /** Description */
+            description: string | null;
+            /** Store Status */
+            store_status: string;
+            /** Visibility Mode */
+            visibility_mode: string;
+            /** Rating Score */
+            rating_score: string;
+            /** Rating Count */
+            rating_count: number;
+            /** Follower Count */
+            follower_count: number;
+            /** Sales Count */
+            sales_count: number;
+            /** Opened At */
+            opened_at: string | null;
+            /** Active Product Count */
+            active_product_count: number;
+            /**
+             * Is Followed
+             * @default false
+             */
+            is_followed: boolean;
+            /** Customer Service Enabled */
+            customer_service_enabled: boolean;
+        };
+        /** StoreSummary */
+        StoreSummary: {
+            /** Store Id */
+            store_id: string;
+            /** Store Name */
+            store_name: string;
+            /** Logo Url */
+            logo_url: string | null;
+            /** Store Status */
+            store_status: string;
+            /** Rating Score */
+            rating_score: string;
+        };
+        /** SupportInternalNoteList */
+        SupportInternalNoteList: {
+            /** Items */
+            items: components["schemas"]["SupportInternalNoteView"][];
+        };
+        /** SupportInternalNoteRequest */
+        SupportInternalNoteRequest: {
+            /** Text */
+            text: string;
+            /**
+             * Note Type
+             * @default handling
+             * @enum {string}
+             */
+            note_type: "handling" | "transfer" | "risk" | "resolution";
+            /**
+             * Visibility Scope
+             * @default current_queue
+             * @enum {string}
+             */
+            visibility_scope: "current_queue" | "supervisors" | "platform_escalation";
+        };
+        /** SupportInternalNoteView */
+        SupportInternalNoteView: {
+            /** Note Id */
+            note_id: string;
+            /** Author User Id */
+            author_user_id: string;
+            /** Note Type */
+            note_type: string;
+            /** Text */
+            text: string;
+            /** Visibility Scope */
+            visibility_scope: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** SupportMessageRequest */
+        SupportMessageRequest: {
+            /** Client Message Id */
+            client_message_id: string;
+            /** Text */
+            text: string;
+        };
+        /** SupportReadCursorView */
+        SupportReadCursorView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Last Read Message Id */
+            last_read_message_id: string;
+            /** Last Read Sequence No */
+            last_read_sequence_no: number;
+            /** Unread Count */
+            unread_count: number;
+            /** Cursor Version */
+            cursor_version: number;
+        };
+        /** SupportResolveRequest */
+        SupportResolveRequest: {
+            /** Resolution Code */
+            resolution_code: string;
+            /** Summary */
+            summary: string;
+            /** Internal Note */
+            internal_note?: string | null;
+        };
+        /** SupportTicketEventView */
+        SupportTicketEventView: {
+            /** Event Id */
+            event_id: string;
+            /** Event Type */
+            event_type: string;
+            /** From Status */
+            from_status: string | null;
+            /** To Status */
+            to_status: string;
+            /** Reason Code */
+            reason_code: string | null;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** SupportTicketItem */
+        SupportTicketItem: {
+            /** Ticket Id */
+            ticket_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Queue Type
+             * @enum {string}
+             */
+            queue_type: "store" | "platform";
+            /** Queue Code */
+            queue_code: string;
+            /** Ticket Type */
+            ticket_type: string;
+            /**
+             * Priority
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /**
+             * Ticket Status
+             * @enum {string}
+             */
+            ticket_status: "queued" | "assigned" | "active" | "waiting_user" | "resolved" | "closed";
+            /** Assigned User Id */
+            assigned_user_id: string | null;
+            /** Handoff Summary */
+            handoff_summary: string;
+            /** Sla Due At */
+            sla_due_at: string | null;
+            /** Waiting Reason Code */
+            waiting_reason_code: string | null;
+            /** Unread Count */
+            unread_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** SupportTicketList */
+        SupportTicketList: {
+            /** Items */
+            items: components["schemas"]["SupportTicketItem"][];
+        };
+        /** SupportTicketView */
+        SupportTicketView: {
+            /** Ticket Id */
+            ticket_id: string;
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Queue Type
+             * @enum {string}
+             */
+            queue_type: "store" | "platform";
+            /** Queue Code */
+            queue_code: string;
+            /** Ticket Type */
+            ticket_type: string;
+            /**
+             * Priority
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /**
+             * Ticket Status
+             * @enum {string}
+             */
+            ticket_status: "queued" | "assigned" | "active" | "waiting_user" | "resolved" | "closed";
+            /** Assigned User Id */
+            assigned_user_id: string | null;
+            /** Handoff Summary */
+            handoff_summary: string;
+            /** Sla Due At */
+            sla_due_at: string | null;
+            /** Waiting Reason Code */
+            waiting_reason_code: string | null;
+            /** Unread Count */
+            unread_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+            /** Handoff Message Refs */
+            handoff_message_refs: {
+                [key: string]: unknown;
+            }[];
+            /** Handoff Policy Version */
+            handoff_policy_version: string;
+            /** Resolution Summary */
+            resolution_summary: string | null;
+        };
+        /** SupportTransferRequest */
+        SupportTransferRequest: {
+            /** Assigned User Id */
+            assigned_user_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /** SupportUserSummary */
+        SupportUserSummary: {
+            /** User Id */
+            user_id: string;
+            /** Nickname */
+            nickname: string;
+            /** Account Status */
+            account_status: string;
+        };
+        /** SupportWaitRequest */
+        SupportWaitRequest: {
+            /** Reason Code */
+            reason_code: string;
+            /** Reason */
+            reason: string;
+        };
+        /** SupportWorkspaceView */
+        SupportWorkspaceView: {
+            ticket: components["schemas"]["SupportTicketView"];
+            user: components["schemas"]["SupportUserSummary"];
+            /** Referenced Messages */
+            referenced_messages: components["schemas"]["MessageView"][];
+            /** Business Contexts */
+            business_contexts: components["schemas"]["ConversationContextView"][];
+            /** Events */
+            events: components["schemas"]["SupportTicketEventView"][];
+        };
+        /** TextMessageContent */
+        TextMessageContent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "text";
+            /** Text */
+            text: string;
+        };
+        /** ToolCreate */
+        ToolCreate: {
+            /** Tool Code */
+            tool_code: string;
+            /** Server Code */
+            server_code: string;
+            /** Risk Level */
+            risk_level: string;
+        };
+        /** ToolList */
+        ToolList: {
+            /** Items */
+            items: components["schemas"]["ToolView"][];
+        };
+        /** ToolVersionCreate */
+        ToolVersionCreate: {
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Output Schema */
+            output_schema: {
+                [key: string]: unknown;
+            };
+            /** Evaluation Report */
+            evaluation_report: {
+                [key: string]: unknown;
+            };
+        };
+        /** ToolVersionSummary */
+        ToolVersionSummary: {
+            /** Version No */
+            version_no: number;
+            /** Status */
+            status: string;
+            /** Input Schema */
+            input_schema: {
+                [key: string]: unknown;
+            };
+            /** Output Schema */
+            output_schema: {
+                [key: string]: unknown;
+            };
+            /** Evaluation Report */
+            evaluation_report: {
+                [key: string]: unknown;
+            };
+            /** Published At */
+            published_at: string | null;
+        };
+        /** ToolView */
+        ToolView: {
+            /** Tool Code */
+            tool_code: string;
+            /** Server Code */
+            server_code: string;
+            /** Risk Level */
+            risk_level: string;
+            /** Input Schema */
+            input_schema?: {
+                [key: string]: unknown;
+            } | null;
+            /** Output Schema */
+            output_schema?: {
+                [key: string]: unknown;
+            } | null;
+            /** Status */
+            status: string;
+            /** Latest Version */
+            latest_version?: number | null;
+            /** Published Version */
+            published_version?: number | null;
+            /** Versions */
+            versions?: components["schemas"]["ToolVersionSummary"][];
+        };
+        /** TradeOrderView */
+        TradeOrderView: {
+            /** Trade Order Id */
+            trade_order_id: string;
+            /**
+             * Order Source
+             * @enum {string}
+             */
+            order_source: "buy_now" | "cart";
+            /** Trade Status */
+            trade_status: string;
+            amounts: components["schemas"]["OrderAmountsView"];
+            /** Original Order Count */
+            original_order_count: number;
+            /** Active Order Count */
+            active_order_count: number;
+            /**
+             * Order Count
+             * @deprecated
+             * @description Deprecated compatibility alias for original_order_count.
+             */
+            order_count: number;
+            /** Orders */
+            orders: components["schemas"]["OrderListItem"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Paid At */
+            paid_at?: string | null;
+            /** Closed At */
+            closed_at?: string | null;
+            /** Available Actions */
+            available_actions: components["schemas"]["OrderAction"][];
+            /** Version */
+            version: number;
+        };
         /** UserDashboard */
         UserDashboard: {
             /** Order Counts */
@@ -1910,6 +12198,35 @@ export interface components {
             followed_store_count: number;
             /** Unavailable Sections */
             unavailable_sections: string[];
+        };
+        /** UserOrderShipmentList */
+        UserOrderShipmentList: {
+            /** Order Id */
+            order_id: string;
+            /** Items */
+            items: components["schemas"]["UserOrderShipmentSummary"][];
+        };
+        /** UserOrderShipmentSummary */
+        UserOrderShipmentSummary: {
+            /** Shipment Id */
+            shipment_id: string;
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No Masked */
+            tracking_no_masked: string;
+            /**
+             * Shipment Status
+             * @enum {string}
+             */
+            shipment_status: "created" | "picked_up" | "in_transit" | "delivered" | "exception" | "returned" | "closed" | "voided";
+            /** Items */
+            items: components["schemas"]["ShipmentItemView"][];
+            delivery_estimate: components["schemas"]["DeliveryEstimate"];
+            last_track?: components["schemas"]["ShipmentTrackView"] | null;
+            /** Last Synced At */
+            last_synced_at?: string | null;
         };
         /** UserProfile */
         UserProfile: {
@@ -1945,6 +12262,38 @@ export interface components {
             /** Timezone */
             timezone?: string | null;
         };
+        /** UserShipmentDetail */
+        UserShipmentDetail: {
+            /** Shipment Id */
+            shipment_id: string;
+            /** Order Id */
+            order_id: string;
+            /** Carrier Code */
+            carrier_code: string;
+            /** Carrier Name */
+            carrier_name: string;
+            /** Tracking No */
+            tracking_no: string;
+            /** Tracking No Masked */
+            tracking_no_masked: string;
+            /**
+             * Shipment Status
+             * @enum {string}
+             */
+            shipment_status: "created" | "picked_up" | "in_transit" | "delivered" | "exception" | "returned" | "closed" | "voided";
+            /** Items */
+            items: components["schemas"]["ShipmentItemView"][];
+            delivery_estimate: components["schemas"]["DeliveryEstimate"];
+            /** Latest Tracks */
+            latest_tracks: components["schemas"]["ShipmentTrackView"][];
+            route: components["schemas"]["ShipmentRouteView"];
+            /** Shipped At */
+            shipped_at?: string | null;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /** Version */
+            version: number;
+        };
         /** UserStatusChangeRequest */
         UserStatusChangeRequest: {
             /**
@@ -1952,9 +12301,15 @@ export interface components {
              * @enum {string}
              */
             action: "suspend" | "resume";
-            /** Reason Code */
+            /**
+             * Reason Code
+             * @default ADMIN_DIRECT_ACTION
+             */
             reason_code: string;
-            /** Reason */
+            /**
+             * Reason
+             * @default 超级管理员直接操作
+             */
             reason: string;
             /** Expires At */
             expires_at?: string | null;
@@ -2007,52 +12362,215 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
-        /** VerificationCodeAccepted */
-        VerificationCodeAccepted: {
-            /** Verification Id */
-            verification_id: string;
+        /** VersionBindingView */
+        VersionBindingView: {
+            /** Binding Id */
+            binding_id: number;
+            /** Source Version No */
+            source_version_no: number;
+            /** Target Code */
+            target_code: string;
+            /** Target Version No */
+            target_version_no: number;
+            /** Effect */
+            effect: string;
+        };
+        /** WalletRechargeRequest */
+        WalletRechargeRequest: {
             /**
-             * Delivery Status
-             * @default accepted
+             * Channel
+             * @enum {string}
+             */
+            channel: "wechat" | "alipay";
+            amount: components["schemas"]["Money"];
+        };
+        /** WalletRechargeResult */
+        WalletRechargeResult: {
+            recharge: components["schemas"]["WalletRechargeView"];
+            wallet: components["schemas"]["WalletView"];
+        };
+        /** WalletRechargeView */
+        WalletRechargeView: {
+            /** Recharge Id */
+            recharge_id: string;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "wechat" | "alipay";
+            amount: components["schemas"]["Money"];
+            /**
+             * Recharge Status
              * @constant
              */
-            delivery_status: "accepted";
-            /** Target Masked */
-            target_masked: string;
+            recharge_status: "succeeded";
+            /** Is Simulated */
+            is_simulated: boolean;
             /**
-             * Expires At
+             * Completed At
              * Format: date-time
              */
-            expires_at: string;
-            /** Retry After Seconds */
-            retry_after_seconds: number;
+            completed_at: string;
         };
-        /** VerificationCodeRequest */
-        VerificationCodeRequest: {
+        /** WalletTransactionList */
+        WalletTransactionList: {
+            /** Items */
+            items: components["schemas"]["WalletTransactionView"][];
+        };
+        /** WalletTransactionView */
+        WalletTransactionView: {
+            /** Transaction Id */
+            transaction_id: string;
+            /** Transaction Type */
+            transaction_type: string;
             /**
-             * Purpose
+             * Direction
              * @enum {string}
              */
-            purpose: "register" | "login" | "reset_password" | "change_phone" | "change_email";
+            direction: "credit" | "debit";
+            amount: components["schemas"]["Money"];
+            balance_after: components["schemas"]["Money"];
+            /** Channel */
+            channel: string | null;
+            /** Description */
+            description: string;
             /**
-             * Target Type
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+        };
+        /** WalletView */
+        WalletView: {
+            /** Wallet Id */
+            wallet_id: string;
+            balance: components["schemas"]["Money"];
+            total_recharged: components["schemas"]["Money"];
+            /**
+             * Wallet Status
              * @enum {string}
              */
-            target_type: "phone" | "email";
-            /** Target */
-            target: string;
+            wallet_status: "active" | "frozen";
+            /** Version */
+            version: number;
+        };
+        /** ProblemDetails */
+        ProblemDetails: {
             /**
-             * Locale
-             * @default zh-CN
+             * Type
+             * @default about:blank
              */
-            locale: string;
-            /** Challenge Token */
-            challenge_token?: string | null;
-            /** Change Ticket Id */
-            change_ticket_id?: string | null;
+            type: string;
+            /** Title */
+            title: string;
+            /** Status */
+            status: number;
+            /** Detail */
+            detail: string;
+            /** Code */
+            code: string;
+            /**
+             * Request Id
+             * @default null
+             */
+            request_id: string | null;
+            /**
+             * Retryable
+             * @default false
+             */
+            retryable: boolean;
+            /**
+             * Errors
+             * @default null
+             */
+            errors: {
+                [key: string]: string;
+            }[] | null;
         };
     };
-    responses: never;
+    responses: {
+        /** @description Authentication is missing, expired, revoked, or has the wrong audience. */
+        Problem401: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The authenticated subject lacks the required permission or data scope. */
+        Problem403: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The resource does not exist or is deliberately hidden by ownership rules. */
+        Problem404: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The command conflicts with current state, replay scope, or a concurrent command. */
+        Problem409: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The supplied entity version is stale. */
+        Problem412: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description A required precondition such as If-Match is missing. */
+        Problem428: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The caller exceeded an API or Agent rate limit. */
+        Problem429: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description The service failed without exposing internal details. */
+        Problem500: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+        /** @description A required dependency is unavailable or the write outcome is unknown. */
+        Problem503: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemDetails"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -2078,6 +12596,9 @@ export interface operations {
                     "application/json": components["schemas"]["LivenessResponse"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Health_Ready: {
@@ -2098,6 +12619,750 @@ export interface operations {
                     "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiMemory_ListMine: {
+        parameters: {
+            query?: {
+                namespace?: string | null;
+                store_id?: string | null;
+                memory_type?: string | null;
+                memory_status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiMemoryList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiMemory_Activate: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiMemoryActivationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiMemoryView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiMemory_Revise: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiMemoryRevisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiMemoryView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiMemory_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                memory_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiMemoryDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiPersonalization_DisableAll: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiPersonalizationDisableRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CleanupTask_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CleanupTask_RetryMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiCleanupTaskView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiConsent_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiConsent_Grant: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentConsentGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiConsent_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiConsent_Pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiConsent_Resume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiConsent_Revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                consent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentConsentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AgentRun_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentRunView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AgentToolApproval_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentApprovalView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AgentToolApproval_DecideMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentApprovalView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAgentProviderHealth_Get: {
+        parameters: {
+            query?: {
+                force?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ModelProviderHealthView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAgentRun_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminAgentRunView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAgentRun_Kill: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminAgentRunCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminAgentRunView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     RegistrationConfig_Get: {
@@ -2118,39 +13383,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_dict_str__object__"];
                 };
             };
-        };
-    };
-    AuthVerificationCode_Create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["VerificationCodeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_VerificationCodeAccepted_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Registration_Create: {
@@ -2177,6 +13412,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2186,6 +13422,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Auth_Login: {
@@ -2197,7 +13436,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PasswordLoginRequest"] | components["schemas"]["CodeLoginRequest"];
+                "application/json": components["schemas"]["PasswordLoginRequest"];
             };
         };
         responses: {
@@ -2210,6 +13449,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2219,6 +13459,46 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AuthSession_Resume: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ecom_user_refresh?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
+                };
+            };
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AuthToken_Refresh: {
@@ -2243,6 +13523,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2252,6 +13533,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Auth_Logout: {
@@ -2272,6 +13556,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2281,6 +13567,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AuthSession_ListMine: {
@@ -2301,6 +13590,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_SessionSummary__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AuthSession_RevokeOthers: {
@@ -2319,6 +13612,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AuthSession_Revoke: {
@@ -2339,6 +13637,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2348,6 +13649,46 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    PasswordResetHint_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordResetHintRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PasswordResetHintResult_"];
+                };
+            };
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     PasswordResetTicket_Create: {
@@ -2372,6 +13713,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_PasswordResetTicketResult_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2381,6 +13723,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     PasswordReset_Complete: {
@@ -2407,6 +13752,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2416,6 +13762,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserDashboard_Get: {
@@ -2436,6 +13785,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_UserDashboard_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserProfile_Get: {
@@ -2456,6 +13809,48 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_UserProfile_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    UserAccount_DeleteMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountDeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AccountDeletionTaskView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserProfile_Patch: {
@@ -2482,6 +13877,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_UserProfile_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2491,6 +13889,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserPassword_Replace: {
@@ -2517,6 +13919,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2526,6 +13930,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserSecurity_Get: {
@@ -2546,41 +13953,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SecuritySummary_"];
                 };
             };
-        };
-    };
-    UserContactChangeTicket_Create: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ContactChangeTicketRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_ContactChangeTicketResult_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     UserContactChange_Complete: {
@@ -2607,6 +13983,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2616,35 +13994,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-        };
-    };
-    UserContactChangeTicket_Cancel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                change_ticket_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_ListMine: {
@@ -2665,6 +14017,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_Create: {
@@ -2691,6 +14047,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2700,6 +14058,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_GetMine: {
@@ -2722,6 +14083,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2731,6 +14094,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_Delete: {
@@ -2753,6 +14119,10 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2762,6 +14132,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_Patch: {
@@ -2790,6 +14164,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2799,6 +14177,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     Address_SetDefault: {
@@ -2823,6 +14205,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AddressView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2832,32 +14216,101 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
-    UserAccountClosureRequest_Create: {
+    HomeBanner_ListPublished: {
         parameters: {
             query?: never;
-            header?: {
-                "Idempotency-Key"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AccountClosureRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
-            202: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Envelope_MessageResult_"];
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    PlatformAnnouncement_ListPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    HelpArticle_ListPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    HelpArticle_GetPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                content_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContent_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2867,6 +14320,55 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FooterContent_GetPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AboutContent_GetPublished: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PublishedContentList_"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     LegalDocument_GetPublished: {
@@ -2893,6 +14395,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_LegalDocument_"];
                 };
             };
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2902,9 +14405,10174 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
-    AdminAuth_Login: {
+    AdminContent_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminContent_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminContent_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminContent_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminContent_Publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                content_id: string;
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminContent_Withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                content_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ContentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiEvaluation_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EvaluationRunList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiEvaluation_Run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationRunCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_EvaluationRunView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminObservability_Query: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ObservabilitySummary_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminDeadLetter_List: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                event_type?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DeadLetterList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminDeadLetter_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dead_letter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DeadLetterView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminDeadLetter_Preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dead_letter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DeadLetterReplayPreview_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminDeadLetter_Replay: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                dead_letter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeadLetterReplayRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminDeadLetter_Ignore: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                dead_letter_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeadLetterIgnoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_DeadLetterView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FileUploadPolicy_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                purpose: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileUploadPolicyView_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FileUploadSession_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileUploadSessionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileUploadSessionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FileUploadSession_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileUploadSessionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FileUploadSession_Abort: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FileUploadSession_Complete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                upload_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileUploadCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileUploadSessionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    File_GetMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FileMetadataView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    File_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            307: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    UserWallet_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_WalletView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    UserWalletRecharge_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WalletRechargeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_WalletRechargeResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    UserWalletTransaction_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_WalletTransactionList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreRevenue_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreRevenueView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAccount_DeleteMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MerchantAccountDeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AccountDeletionTaskView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantStoreRevenue_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MerchantRevenueView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Homepage_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_HomepageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Product_Search: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                category_id?: string | null;
+                brand_id?: string | null;
+                store_id?: string | null;
+                price_min?: number | null;
+                price_max?: number | null;
+                sort?: "relevance" | "sales" | "newest" | "price_asc" | "price_desc";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Product_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ProductSku_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductSkuList_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ProductFaq_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductFaqList_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Category_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_CategoryView__"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Brand_List: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_BrandView__"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SearchSuggestion_List: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SearchSuggestionList_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ProductReview_List: {
+        parameters: {
+            query?: {
+                rating?: number | null;
+                has_image?: boolean | null;
+                sku_id?: string | null;
+                sort?: "newest" | "oldest";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductReviewList_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ReviewEligibility_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReviewEligibility_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Review_ListMine: {
+        parameters: {
+            query?: {
+                view?: "pending" | "published";
+                order_id?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MyReviewList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Review_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MyReviewView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Review_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_MyReviewView__ProductReviewView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Review_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MyReviewView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Review_Append: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewAppendCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MyReviewView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminReview_List: {
+        parameters: {
+            query?: {
+                review_status?: ("pending" | "published" | "hidden" | "rejected") | null;
+                product_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminReviewList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminReview_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminReviewView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminReview_Reply: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReviewReplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminReviewView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminReview_Moderate: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                review_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReviewModerationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminReviewView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundReturnShipment_Upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundReturnShipmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundReturnShipmentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundPaymentWebhook_Process: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Refund-Signature"?: string;
+                "X-Refund-Timestamp"?: string;
+            };
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundPaymentCallbackAck_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundEligibility_Check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundEligibilityRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundEligibilityCheck_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundApplication_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundApplicationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundApplication_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundApplication_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundEvent_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundEventList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundApplication_Cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundAppeal_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundAppealCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundAppeal_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundAppealEvent_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealEventList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RefundAppeal_Cancel: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminRefund_List: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminRefundList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminRefundAppeal_List: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminRefundAppealList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminRefundAppeal_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminRefundAppeal_Claim: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundAppealView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminRefundAppeal_Decide: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                appeal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRefundAppealDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_RefundAppealView__ApprovalRequiredView__"];
+                };
+            };
+            /** @description Dual-control approval required */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminRefund_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminRefund_Claim: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RefundApplicationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminRefund_Decide: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match"?: string | null;
+            };
+            path: {
+                refund_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRefundDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_RefundApplicationView__ApprovalRequiredView__"];
+                };
+            };
+            /** @description Amount-based approval required */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiFeedbackReaction_Put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiReactionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiFeedbackReaction_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiFeedbackReport_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiFeedbackDetailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AiFeedbackCorrection_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiFeedbackDetailRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AiFeedbackView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Conversation_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ExclusiveConversation_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    StoreConversation_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Conversation_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Message_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+                after_sequence?: number;
+                cursor?: string | null;
+            };
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Message_CreateMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ConversationContext_PutMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                conversation_id: string;
+                context_type: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationContextRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationContextView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ConversationContext_DeleteMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "If-Match": string;
+            };
+            path: {
+                conversation_id: string;
+                context_type: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationContextClearView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ConversationArchive_CreateMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationArchiveView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    HumanServiceTicket_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    HumanServiceTicketCancellation_CreateMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MessageReadCursor_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCursorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReadCursorView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    HumanServiceRequest_CreateMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HumanHandoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantExclusiveConversation_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantExclusiveMessage_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                after_sequence?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantExclusiveMessage_CreateMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantExclusiveReadCursor_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCursorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReadCursorView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantHumanServiceRequest_CreateMine: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HumanHandoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiConversation_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiMessage_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                after_sequence?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiMessage_CreateMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiReadCursor_PutMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCursorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReadCursorView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportTicket_List: {
+        parameters: {
+            query?: {
+                queue_type?: ("store" | "platform") | null;
+                ticket_status?: ("queued" | "assigned" | "active" | "waiting_user" | "resolved" | "closed") | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportTicket_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportWorkspace_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportWorkspaceView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportMessage_List: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                after_sequence?: number;
+            };
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportConversationMessage_Send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportReadCursor_Put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadCursorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportReadCursorView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportTicket_Claim: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportTicket_Wait: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportWaitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportTicket_Resume: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportTicket_Transfer: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportTicket_Resolve: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportMessage_Send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportInternalNote_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportInternalNoteList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportInternalNote_Create: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                "If-Match": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportInternalNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    RealtimeTicket_CreateMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RealtimeTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportRealtimeTicket_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_RealtimeTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Cart_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CartItem_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartItemCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CartItem_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                cart_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CartItem_Patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                cart_item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartItemPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CartSelection_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartSelectionReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CartInvalidItem_Clear: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CheckoutSession_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CheckoutView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CheckoutSession_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                checkout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CheckoutView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CheckoutSession_Patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                checkout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckoutPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CheckoutView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    CheckoutRepricing_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                checkout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CheckoutView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Order_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderCreateResponse_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Order_ListMine: {
+        parameters: {
+            query?: {
+                view?: "all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "pending_review" | "after_sale" | "cancelled";
+                q?: string | null;
+                created_from?: string | null;
+                created_to?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Order_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    OrderEvent_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderEventList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    TradeOrder_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trade_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_TradeOrderView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Order_CancelMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderCancellationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Order_ConfirmReceiptMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Order_HideMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderHideResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Order_RestoreMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderListItem_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Order_RepurchaseMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderRepurchaseResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminOrder_List: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                store_id?: string | null;
+                view?: ("all" | "pending_payment" | "pending_shipment" | "in_transit" | "completed" | "after_sale") | null;
+                order_status?: string | null;
+                payment_status?: string | null;
+                fulfillment_status?: string | null;
+                after_sale_status?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminOrderList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminOrder_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminOrderDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminOrder_AdjustAmount: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminOrderAmountAdjustmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminOrderDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminOrder_Cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminOrderCancellationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminOrderDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Payment_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PaymentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Payment_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PaymentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Payment_CloseMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PaymentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Payment_ListForTradeOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trade_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PaymentList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    PaymentWebhook_Process: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Payment-Signature"?: string;
+                "X-Payment-Timestamp"?: string;
+            };
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_PaymentWebhookAck_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminPayment_List: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                payment_status?: string | null;
+                provider?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPaymentList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminPayment_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPaymentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminPayment_Reconcile: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                payment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPaymentReconciliationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminPaymentReconciliationResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Shipment_ListMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_UserOrderShipmentList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Shipment_GetMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_UserShipmentDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ShipmentTrack_ListMine: {
+        parameters: {
+            query?: {
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ShipmentTrackList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ShipmentRefresh_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ShipmentRefreshResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    LogisticsWebhook_Process: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Logistics-Signature"?: string;
+                "X-Logistics-Timestamp"?: string;
+            };
+            path: {
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Provider Event Id */
+                    provider_event_id: string;
+                    /** Shipment Id */
+                    shipment_id: string;
+                    /**
+                     * Carrier Code
+                     * @constant
+                     */
+                    carrier_code: "fake_express";
+                    /** Tracking No */
+                    tracking_no: string;
+                    /**
+                     * Status
+                     * @enum {string}
+                     */
+                    status: "picked_up" | "in_transit" | "delivered" | "exception" | "returned";
+                    /** Provider Status */
+                    provider_status: string;
+                    /** Description */
+                    description: string;
+                    /** Location Text */
+                    location_text?: string | null;
+                    /**
+                     * Occurred At
+                     * Format: date-time
+                     */
+                    occurred_at: string;
+                    /** Estimated Delivery Min At */
+                    estimated_delivery_min_at?: string | null;
+                    /** Estimated Delivery Max At */
+                    estimated_delivery_max_at?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_LogisticsWebhookAck_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminKnowledgeDocument_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminKnowledgeDocument_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnowledgeDocumentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminKnowledgeDocument_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminKnowledgeDocument_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminKnowledgeIndex_Create: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeDocumentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminKnowledgeIndex_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeIndexJobView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminKnowledgeIndex_Cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeIndexJobView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminKnowledge_Search: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnowledgeSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KnowledgeSearchResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAgent_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAgentVersion_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAgentSkillBinding_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                agent_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSkillBindingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_VersionBindingView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAgentVersion_Publish: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                agent_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminMcpServer_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_McpServerList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiKillSwitch_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KillSwitchList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiKillSwitch_Activate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_type: string;
+                target_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KillSwitchChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KillSwitchView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiKillSwitch_Deactivate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                target_type: string;
+                target_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KillSwitchChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_KillSwitchView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminSkill_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SkillList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminSkill_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillDefinitionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SkillView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminSkill_VersionCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                skill_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SkillView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminSkillToolBinding_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                skill_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillToolBindingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_VersionBindingView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminSkill_Publish: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                skill_id: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminTool_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ToolList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminTool_Create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ToolView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminTool_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ToolView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminTool_VersionCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tool_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ToolView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminTool_Publish: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                tool_code: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminToolVersion_Rollback: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                tool_code: string;
+                version_no: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ApprovalRequiredView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShipment_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShipmentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShipment_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShipment_CorrectTracking: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminTrackingCorrectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShipment_Void: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShipmentVoidRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShipment_Refresh: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ShipmentRefreshResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FavoriteProduct_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FavoriteProduct_Put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FavoriteProduct_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    Store_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StorePublicView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    StoreProduct_List: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                group_id?: string | null;
+                sort?: "relevance" | "sales" | "newest" | "price_asc" | "price_desc";
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    StoreProductGroup_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StoreProductGroupList_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    StoreHomeContent_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StoreHomeContent_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    StorePolicy_ListPublic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_StorePolicyList_"];
+                };
+            };
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FollowedStore_ListMine: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FollowedStoreList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FollowedStore_Put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    FollowedStore_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminCategory_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminCategoryView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminCategory_Upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCategoryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminCategoryView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminCategory_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminCategoryUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminCategoryView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminBrand_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminBrandView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminBrand_Upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminBrandCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminBrandView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminBrand_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                brand_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminBrandUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminBrandView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminInventory_List: {
+        parameters: {
+            query?: {
+                store_id?: string | null;
+                product_id?: string | null;
+                q?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminInventoryList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminInventory_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sku_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminInventoryView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminInventory_Adjust: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminInventoryAdjustmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminInventoryAdjustmentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_List: {
+        parameters: {
+            query?: {
+                store_id?: string | null;
+                status?: string | null;
+                q?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDeletionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductDeletionEligibility_Check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDeletionEligibility_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_Submit: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_Moderate: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductModerationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_Publish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProduct_OffShelf: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductSku_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminSkuView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductSku_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSkuCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminSkuView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductSku_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+                sku_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSkuUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminSkuView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductSku_ChangeStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+                sku_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSkuStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminSkuView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductImage_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminProductImageView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductImage_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductImageSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminProductImageView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductFulfillment_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_Union_AdminProductFulfillmentView__NoneType__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductFulfillment_Upsert: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductFulfillmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminProductFulfillmentView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductAttribute_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminProductAttributeInput__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductAttribute_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminProductAttributeSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminProductAttributeInput__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductContentVersion_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminContentVersionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminContentVersionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductContentVersion_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminContentVersionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductFaq_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminFaqView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductFaq_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFaqReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminFaqView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductFaq_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFaqCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminFaqView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductFaqVersion_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+                faq_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFaqVersionCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminContentVersionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductFaq_Publish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                product_id: string;
+                faq_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFaqPublicationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminFaqView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStore_List: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                q?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStore_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStore_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStore_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStore_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStore_ChangeStatus: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreStatusChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStorePolicy_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminStorePolicyView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStorePolicy_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStorePolicyCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStorePolicy_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStorePolicy_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStorePolicyUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStorePolicy_Publish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPolicyCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStorePolicy_Withdraw: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+                policy_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPolicyCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStorePolicyView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreProductGroup_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminStoreProductGroupView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreProductGroup_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreProductGroupCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreProductGroupView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreProductGroup_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreProductGroupUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreProductGroupView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreProductGroup_ReplaceProducts: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreProductGroupProductsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreProductGroupView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShippingTemplate_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminShippingTemplateView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShippingTemplate_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShippingTemplateCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShippingTemplateView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShippingTemplate_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShippingTemplateUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShippingTemplateView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShippingTemplate_Publish: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShippingTemplatePublicationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShippingTemplateView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreAnnouncement_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminStoreAnnouncementView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreAnnouncement_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreAnnouncementCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreAnnouncementView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreAnnouncement_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+                announcement_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminStoreAnnouncementUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminStoreAnnouncementView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreFeaturedProduct_List: {
+        parameters: {
+            query?: {
+                slot_type?: string;
+            };
+            header?: never;
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminFeaturedProductView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminStoreFeaturedProduct_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFeaturedProductSetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_list_AdminFeaturedProductView__"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductImportTemplate_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductImportTemplateView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminProductImportTemplate_Download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminBatchJob_List: {
+        parameters: {
+            query?: {
+                job_type?: string | null;
+                status?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminBatchJob_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductImportJobCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminBatchJob_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminBatchJobItem_List: {
+        parameters: {
+            query?: {
+                status?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobItemList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminBatchJob_Confirm: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchJobConfirmationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminBatchJob_Cancel: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchJobCancellationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_BatchJobView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAuth_Register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MerchantRegistrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminBootstrap_"];
+                };
+            };
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAuth_Login: {
         parameters: {
             query?: never;
             header?: never;
@@ -2923,9 +24591,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Envelope_AdminMfaChallenge_"];
+                    "application/json": components["schemas"]["Envelope_AdminBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2935,9 +24604,36 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
-    AdminAuth_MfaVerify: {
+    MerchantAccountSecurity_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SecuritySummary_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAccountPassword_Replace: {
         parameters: {
             query?: never;
             header?: {
@@ -2948,7 +24644,231 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminMfaVerificationRequest"];
+                "application/json": components["schemas"]["PasswordChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAccountEmail_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAuth_Reauthenticate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MerchantReauthenticationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReauthenticationResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAuthSession_Resume: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ecom_merchant_refresh?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
+                };
+            };
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAuthToken_Refresh: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ecom_merchant_refresh?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
+                };
+            };
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    MerchantAuth_Logout: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAuth_PasswordLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminLoginRequest"];
             };
         };
         responses: {
@@ -2961,6 +24881,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2970,6 +24891,84 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAuth_PasswordReauthenticate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPasswordReauthenticationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ReauthenticationResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAuthSession_Resume: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                ecom_admin_refresh?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
+                };
+            };
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuthToken_Refresh: {
@@ -2994,6 +24993,7 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SessionBootstrap_"];
                 };
             };
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3003,39 +25003,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-        };
-    };
-    AdminAuth_Reauthenticate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AdminReauthenticationRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Envelope_ReauthenticationResult_"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuth_Logout: {
@@ -3056,6 +25026,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3065,6 +25037,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuthSession_ListMine: {
@@ -3085,6 +25060,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_SessionSummary__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAuthSession_Revoke: {
@@ -3105,6 +25084,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3114,6 +25096,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminMe_Get: {
@@ -3134,6 +25119,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminMe_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminNavigation_Get: {
@@ -3154,6 +25143,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminNavigation_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminDashboard_Get: {
@@ -3174,6 +25167,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminDashboardSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUser_List: {
@@ -3197,6 +25195,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminUserList_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3206,6 +25206,50 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUser_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminUserSummary_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUser_Get: {
@@ -3228,6 +25272,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminUserSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3237,6 +25284,752 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUser_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUser_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminUserSummary_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserWorkspace_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminUserWorkspace_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserAddress_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AddressList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserAddress_Create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddressWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AddressView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserAddress_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+                address_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserAddress_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+                address_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddressPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AddressView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserCart_Get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserCartItem_Delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserCartItem_Update: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                user_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartItemPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserFavoriteProduct_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ProductList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserFavoriteProduct_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+                product_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserFollowedStore_List: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_FollowedStoreList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserFollowedStore_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+                store_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserOrder_CancelAsUser: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserOrder_ConfirmReceiptAsUser: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_OrderCommandResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserPassword_Replace: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminUserPasswordReplaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminUserWallet_Adjust: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminWalletAdjustmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminWalletAdjustmentResult_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUserStatusEvent_List: {
@@ -3261,6 +26054,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_UserStatusEventView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3270,6 +26066,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUser_ChangeStatus: {
@@ -3299,6 +26098,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_AdminUserSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3308,6 +26112,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUserSession_Revoke: {
@@ -3336,6 +26144,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3345,6 +26157,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminUserPasswordReset_Require: {
@@ -3373,6 +26188,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3382,6 +26201,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRole_List: {
@@ -3402,6 +26224,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_RoleSummary__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRole_Create: {
@@ -3428,6 +26255,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3437,6 +26267,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRole_Get: {
@@ -3459,6 +26292,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3468,6 +26304,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRole_Update: {
@@ -3496,6 +26335,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3505,6 +26349,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRolePermission_Replace: {
@@ -3533,6 +26381,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleSummary_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3542,6 +26395,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRoleGrant_List: {
@@ -3564,6 +26421,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_RoleGrantView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3573,6 +26433,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRoleGrant_Create: {
@@ -3602,6 +26465,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_RoleGrantView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3611,6 +26479,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRoleGrantEvent_List: {
@@ -3635,6 +26507,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_RoleGrantEventView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3644,6 +26519,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminRoleGrant_Revoke: {
@@ -3674,6 +26552,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3683,6 +26566,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSensitiveGrant_Create: {
@@ -3711,6 +26598,10 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SensitiveGrantResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3720,6 +26611,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSensitiveGrant_Revoke: {
@@ -3749,6 +26643,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_MessageResult_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3758,6 +26657,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminSensitiveFields_Get: {
@@ -3782,6 +26685,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_SensitiveFields_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3791,6 +26697,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminApproval_List: {
@@ -3811,6 +26720,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_ApprovalView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminApproval_Get: {
@@ -3833,6 +26747,9 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3842,6 +26759,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminApproval_Decide: {
@@ -3871,6 +26791,11 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_ApprovalView_"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3880,6 +26805,10 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
     AdminAudit_List: {
@@ -3902,6 +26831,8 @@ export interface operations {
                     "application/json": components["schemas"]["Envelope_list_AuditLogView__"];
                 };
             };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3911,6 +26842,9 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
         };
     };
 }

@@ -1,6 +1,8 @@
+import re
 from functools import lru_cache
+from urllib.parse import parse_qs, urlparse
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,14 +16,22 @@ class Settings(BaseSettings):
 
     app_name: str = "ecom-ai API"
     app_version: str = "0.1.0"
+    build_sha: str = "development"
     environment: str = "development"
     debug: bool = False
     log_level: str = "INFO"
+    otel_enabled: bool = False
+    otel_service_name: str = "ecom-ai-api"
+    otel_exporter_otlp_endpoint: str = "http://127.0.0.1:4317"
     api_v1_prefix: str = "/api/v1"
     api_host: str = "127.0.0.1"
     api_port: int = 8000
     readiness_checks_enabled: bool = True
     dependency_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
+    readiness_outbox_lag_seconds: int = Field(default=120, ge=10, le=3600)
+    public_origin: str = "http://127.0.0.1:8080"
+    trusted_proxy_cidrs: str = "127.0.0.1/32,::1/128,172.16.0.0/12"
+    metrics_allowed_cidrs: str = "127.0.0.1/32,::1/128,172.16.0.0/12"
 
     mysql_dsn: str = (
         "mysql+asyncmy://ecom_app:local-app-change-me@127.0.0.1:13306/ecom_ai?charset=utf8mb4"
@@ -29,7 +39,33 @@ class Settings(BaseSettings):
     postgres_dsn: str = (
         "postgresql+asyncpg://ecom_ai:local-postgres-change-me@127.0.0.1:15432/ecom_ai_ai"
     )
+    mysql_pool_size: int = Field(default=10, ge=1, le=100)
+    mysql_max_overflow: int = Field(default=10, ge=0, le=100)
+    mysql_pool_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    postgres_pool_size: int = Field(default=5, ge=1, le=100)
+    postgres_max_overflow: int = Field(default=5, ge=0, le=100)
+    postgres_pool_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    embedding_api_url: str | None = None
+    embedding_api_key: SecretStr | None = None
+    embedding_model: str = "ecom-multilingual-v1"
+    embedding_dimension: int = Field(default=1536, ge=1, le=4096)
+    embedding_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    agent_model_required: bool = False
+    agent_model_api_url: str | None = None
+    agent_model_api_key: SecretStr | None = None
+    agent_model_name: str | None = None
+    agent_model_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    agent_model_timeout_seconds: float = Field(default=30.0, gt=0, le=90)
+    agent_provider_health_interval_seconds: int = Field(default=1800, ge=300, le=86_400)
     redis_url: str = "redis://:local-redis-change-me@127.0.0.1:16379/0"
+    redis_max_connections: int = Field(default=50, ge=5, le=1000)
+    realtime_ticket_ttl_seconds: int = Field(default=30, ge=10, le=120)
+    realtime_connection_lease_seconds: int = Field(default=75, ge=30, le=180)
+    realtime_heartbeat_seconds: int = Field(default=25, ge=10, le=60)
+    realtime_connection_queue_size: int = Field(default=100, ge=10, le=1000)
+    realtime_max_client_frame_bytes: int = Field(default=4096, ge=256, le=65536)
+    realtime_outbox_poll_seconds: float = Field(default=0.5, ge=0.1, le=10)
+    realtime_outbox_batch_size: int = Field(default=100, ge=1, le=1000)
 
     access_token_secret: SecretStr = SecretStr("development-access-token-secret-change-me")
     security_hmac_secret: SecretStr = SecretStr("development-hmac-secret-change-me")
@@ -38,23 +74,89 @@ class Settings(BaseSettings):
     refresh_token_ttl_days: int = Field(default=30, ge=1, le=90)
     admin_refresh_token_ttl_hours: int = Field(default=8, ge=1, le=24)
     admin_recent_auth_seconds: int = Field(default=300, ge=60, le=1800)
-    password_min_length: int = Field(default=15, ge=15, le=64)
-    password_max_length: int = Field(default=128, ge=64, le=256)
+    admin_password_login_enabled: bool = True
     refresh_cookie_secure: bool = False
     allowed_origins: str = "http://127.0.0.1:5173,http://127.0.0.1:8080"
     debug_verification_code: SecretStr | None = None
 
     object_storage_enabled: bool = False
     object_storage_endpoint: str = "http://127.0.0.1:19000"
+    object_storage_public_endpoint: str = "http://127.0.0.1:19000"
     object_storage_access_key: str = ""
     object_storage_secret_key: str = ""
+    object_storage_region: str = "us-east-1"
+    object_storage_bucket_prefix: str = ""
+    object_storage_presign_seconds: int = Field(default=600, ge=60, le=3600)
+    file_scanner_enabled: bool = False
+    file_scanner_host: str = "127.0.0.1"
+    file_scanner_port: int = Field(default=13310, ge=1, le=65535)
+    file_scanner_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    file_reconciliation_interval_seconds: int = Field(default=3600, ge=60, le=86_400)
+    file_reconciliation_max_objects: int = Field(default=100_000, ge=100, le=1_000_000)
+    file_orphan_grace_days: int = Field(default=14, ge=1, le=90)
+    file_unreferenced_grace_days: int = Field(default=7, ge=1, le=90)
+    file_gc_interval_seconds: int = Field(default=300, ge=30, le=86_400)
+    file_gc_batch_size: int = Field(default=100, ge=1, le=1000)
+    lifecycle_poll_seconds: float = Field(default=60.0, ge=1, le=3600)
+    lifecycle_batch_size: int = Field(default=200, ge=1, le=2000)
+    checkout_retention_days: int = Field(default=30, ge=1, le=365)
+    order_timeout_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)
+    order_timeout_batch_size: int = Field(default=100, ge=1, le=1000)
+    order_auto_confirm_days: int = Field(default=7, ge=1, le=30)
+    payment_reconcile_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)
+    payment_reconcile_batch_size: int = Field(default=100, ge=1, le=1000)
+    logistics_sync_poll_seconds: float = Field(default=0.5, ge=0.5, le=60)
+    logistics_sync_stale_seconds: int = Field(default=300, ge=30, le=86_400)
+    logistics_sync_batch_size: int = Field(default=100, ge=1, le=1000)
+    review_submission_window_days: int = Field(default=30, ge=1, le=365)
+    review_edit_window_hours: int = Field(default=24, ge=1, le=168)
+    review_append_window_days: int = Field(default=180, ge=1, le=730)
+    refund_dual_approval_threshold_minor: int = Field(default=50_000, ge=1)
+    admin_approval_ttl_minutes: int = Field(default=30, ge=5, le=240)
+    admin_approval_worker_poll_seconds: float = Field(default=2.0, ge=0.5, le=60)
 
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
+    @field_validator(
+        "agent_model_api_url",
+        "agent_model_api_key",
+        "agent_model_name",
+        mode="before",
+    )
+    @classmethod
+    def empty_agent_model_values_are_unconfigured(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("object_storage_bucket_prefix")
+    @classmethod
+    def valid_object_storage_bucket_prefix(cls, value: str) -> str:
+        if not value:
+            return value
+        if len(value) > 32 or not value.endswith("-"):
+            raise ValueError(
+                "object storage bucket prefix must end with '-' and be at most 32 chars"
+            )
+        if not all(char.islower() or char.isdigit() or char == "-" for char in value):
+            raise ValueError(
+                "object storage bucket prefix may contain lowercase letters, digits and '-'"
+            )
+        return value
+
     @model_validator(mode="after")
     def reject_development_secrets_in_production(self) -> "Settings":
+        model_values = (
+            self.agent_model_api_url,
+            self.agent_model_api_key,
+            self.agent_model_name,
+        )
+        if any(value is not None for value in model_values) and not all(
+            value is not None for value in model_values
+        ):
+            raise ValueError("Agent model URL, API key and model name must be configured together")
+        if self.agent_model_required and not all(value is not None for value in model_values):
+            raise ValueError("this service requires an Agent model provider")
         if self.environment.lower() != "production":
             return self
         secrets = (
@@ -63,11 +165,70 @@ class Settings(BaseSettings):
         )
         if any("development" in secret or "change-me" in secret for secret in secrets):
             raise ValueError("production authentication secrets must be provided")
+        if any(len(secret) < 32 for secret in secrets):
+            raise ValueError(
+                "production authentication secrets must contain at least 32 characters"
+            )
+        if self.debug:
+            raise ValueError("debug mode is forbidden in production")
         if self.debug_verification_code is not None:
             raise ValueError("debug verification code is forbidden in production")
+        if self.admin_password_login_enabled:
+            raise ValueError(
+                "password-only platform administrator login is forbidden in production"
+            )
+        if re.fullmatch(r"[0-9a-f]{40}", self.build_sha) is None:
+            raise ValueError("production build SHA must be a full lowercase Git commit SHA")
         if not self.refresh_cookie_secure:
             raise ValueError("Secure refresh cookies are required in production")
+        if self.embedding_api_url and self.embedding_api_key is None:
+            raise ValueError("embedding API key is required when an embedding API URL is set")
+        if self.agent_model_api_url and not self.agent_model_api_url.startswith("https://"):
+            raise ValueError("production Agent model API URL must use HTTPS")
+        if not self.public_origin.startswith("https://"):
+            raise ValueError("production public origin must use HTTPS")
+        if not self.cors_origins or any(
+            not origin.startswith("https://") for origin in self.cors_origins
+        ):
+            raise ValueError("production CORS origins must be explicit HTTPS origins")
+        self._validate_production_dependency_urls()
         return self
+
+    def _validate_production_dependency_urls(self) -> None:
+        local_hosts = {"127.0.0.1", "localhost", "mysql", "postgres", "redis", "minio"}
+        dependency_urls = {
+            "MySQL": self.mysql_dsn,
+            "PostgreSQL": self.postgres_dsn,
+            "Redis": self.redis_url,
+        }
+        for label, value in dependency_urls.items():
+            parsed = urlparse(value)
+            if parsed.hostname in local_hosts or "change-me" in value or "<" in value:
+                raise ValueError(
+                    f"production {label} must use an external non-placeholder endpoint"
+                )
+
+        mysql_query = parse_qs(urlparse(self.mysql_dsn).query)
+        mysql_ssl = {item.lower() for item in mysql_query.get("ssl", [])}
+        if not mysql_ssl.intersection({"1", "true", "required", "verify_ca", "verify_identity"}):
+            raise ValueError("production MySQL DSN must enable TLS")
+
+        postgres_query = parse_qs(urlparse(self.postgres_dsn).query)
+        postgres_ssl = {item.lower() for item in postgres_query.get("ssl", [])}
+        if not postgres_ssl.intersection({"require", "verify-ca", "verify-full", "true"}):
+            raise ValueError("production PostgreSQL DSN must enable TLS")
+        if not self.redis_url.startswith("rediss://"):
+            raise ValueError("production Redis URL must use TLS (rediss://)")
+
+        if not self.object_storage_enabled:
+            raise ValueError("object storage is required in production")
+        for endpoint in (self.object_storage_endpoint, self.object_storage_public_endpoint):
+            if not endpoint.startswith("https://") or "<" in endpoint:
+                raise ValueError("production object storage endpoints must use HTTPS")
+        if not self.object_storage_access_key or not self.object_storage_secret_key:
+            raise ValueError("production object storage credentials are required")
+        if not self.otel_enabled or not self.otel_exporter_otlp_endpoint.startswith("https://"):
+            raise ValueError("production OpenTelemetry export over HTTPS is required")
 
 
 @lru_cache

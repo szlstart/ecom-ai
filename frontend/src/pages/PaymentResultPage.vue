@@ -1,0 +1,52 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
+
+import { formatMoney } from '@/api/catalog'
+import { errorMessage } from '@/api/http'
+import { closePayment, getPayment, type Payment } from '@/api/payments'
+import PageState from '@/components/PageState.vue'
+import { confirmAction } from '@/composables/confirmation'
+import { useUserAuthStore } from '@/stores/user-auth'
+
+const route = useRoute(), auth = useUserAuthStore(), payment = ref<Payment | null>(null)
+const loading = ref(true), closing = ref(false), error = ref(''), attempts = ref(0)
+let timer: number | undefined
+const terminal = computed(() => payment.value && !['created', 'pending'].includes(payment.value.payment_status))
+const title = computed(() => ({ confirming: '支付结果确认中', succeeded: '支付成功', failed: '支付失败', closed: '支付已关闭', refunded: '支付已退款' }[payment.value?.display_status ?? 'confirming']))
+function token() { if (!auth.accessToken) throw new Error('missing user token'); return auth.accessToken }
+async function load() {
+  try {
+    payment.value = (await getPayment(String(route.params.paymentId), token())).data
+    error.value = ''; attempts.value += 1
+    if (terminal.value || attempts.value >= 15) stop()
+  } catch (cause) { error.value = errorMessage(cause); stop() }
+  finally { loading.value = false }
+}
+function stop() { if (timer !== undefined) window.clearInterval(timer); timer = undefined }
+async function closeAttempt() {
+  if (!payment.value || closing.value || terminal.value) return
+  if (!await confirmAction('确定关闭当前支付尝试吗？关闭后可返回收银台重新发起。')) return
+  closing.value = true; error.value = ''; stop()
+  try { payment.value = (await closePayment(payment.value, token())).data }
+  catch (cause) { error.value = errorMessage(cause); await load() }
+  finally { closing.value = false }
+}
+onMounted(async () => { await load(); if (!terminal.value && attempts.value < 15) timer = window.setInterval(load, 2000) })
+onBeforeUnmount(stop)
+</script>
+
+<template>
+  <section class="payment-bridge-page payment-result-page">
+    <PageState :loading="loading" :error="error" :empty="!payment" empty-title="支付单不可用" empty-message="请返回订单列表重试。" @retry="load">
+      <article v-if="payment" class="payment-result-card" :class="`is-${payment.display_status}`" aria-live="polite">
+        <span class="payment-result-icon" aria-hidden="true">{{ payment.display_status === 'succeeded' ? '✓' : payment.display_status === 'confirming' ? '…' : '!' }}</span>
+        <p class="eyebrow">支付结果</p><h1>{{ title }}</h1>
+        <p class="payment-result-amount">{{ formatMoney(payment.requested_amount) }}</p>
+        <dl><div><dt>支付单号</dt><dd>{{ payment.payment_id }}</dd></div><div><dt>交易单号</dt><dd>{{ payment.trade_order_id }}</dd></div><div><dt>支付方式</dt><dd>商城账户余额</dd></div></dl>
+        <div v-if="payment.display_status === 'confirming'" class="notice info">系统正在确认最终结果。离开本页不会取消支付，也不会重复创建订单。</div>
+        <div class="payment-result-actions"><button v-if="payment.display_status === 'confirming'" type="button" class="secondary" :disabled="closing" @click="closeAttempt">{{ closing ? '正在关闭…' : '关闭本次支付' }}</button><RouterLink v-if="payment.display_status !== 'succeeded'" :to="`/pay/${payment.trade_order_id}`">返回收银台</RouterLink><RouterLink class="button-link" to="/me/orders?view=all">查看我的订单</RouterLink><RouterLink to="/">继续购物</RouterLink></div>
+      </article>
+    </PageState>
+  </section>
+</template>

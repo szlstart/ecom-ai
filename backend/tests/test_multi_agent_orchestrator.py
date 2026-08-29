@@ -413,7 +413,7 @@ def test_release_gate_and_router_keep_unproven_intents_on_single_agent() -> None
     ).enabled
 
 
-def test_six_specialist_tool_sets_match_published_read_contracts() -> None:
+def test_specialist_tool_sets_match_published_read_contracts() -> None:
     assert set(SPECIALIST_POLICIES) == {
         "catalog",
         "order",
@@ -421,6 +421,10 @@ def test_six_specialist_tool_sets_match_published_read_contracts() -> None:
         "after_sales",
         "recommendation",
         "policy",
+        "governance_users",
+        "governance_stores",
+        "governance_orders",
+        "observability",
     }
     for policy in SPECIALIST_POLICIES.values():
         assert policy.allowed_tools <= READ_ONLY_TOOLS | {"rag.policy.search"}

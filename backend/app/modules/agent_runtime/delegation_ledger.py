@@ -142,6 +142,10 @@ def _new_row(
         trace_id=run.trace_id,
         span_id=_span_id(packet),
         started_at=utc_now(),
+        tokens_used=0,
+        tool_calls=0,
+        model_calls=0,
+        version=0,
     )
 
 

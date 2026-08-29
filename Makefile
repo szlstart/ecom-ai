@@ -54,7 +54,7 @@ acceptance-evidence:
 
 agent-security-test:
 	mkdir -p artifacts/acceptance/current/agent
-	cd backend && $(ACCEPTANCE_ENV) $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/agent/security-tests.xml tests/test_prompt_safety.py tests/test_store_agent_integration.py::test_store_agent_scope_context_tools_and_handoff tests/test_exclusive_agent_integration.py::test_exclusive_agent_refund_requires_consent_and_button_approval tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry
+	cd backend && $(ACCEPTANCE_ENV) $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/agent/security-tests.xml tests/test_prompt_safety.py tests/test_store_agent_integration.py::test_store_agent_scope_context_tools_and_handoff tests/test_exclusive_agent_integration.py::test_exclusive_agent_refund_requires_consent_and_button_approval tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval tests/test_knowledge_postgres_integration.py::test_agent_retrieval_rechecks_trusted_scope_version_and_publication tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry tests/test_operations_agent_integration.py::test_admin_copilot_runs_bounded_parallel_read_only_specialists
 
 build:
 	cd frontend && pnpm build

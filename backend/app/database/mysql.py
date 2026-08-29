@@ -53,6 +53,12 @@ async def mysql_session() -> AsyncIterator[AsyncSession]:
                 await session.rollback()
 
 
+def mysql_session_factory() -> async_sessionmaker[AsyncSession]:
+    if _session_factory is None:
+        raise RuntimeError("MySQL is not initialized")
+    return _session_factory
+
+
 async def probe_mysql(timeout_seconds: float) -> None:
     if _engine is None:
         raise RuntimeError("MySQL is not initialized")

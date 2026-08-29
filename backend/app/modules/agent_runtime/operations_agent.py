@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -10,7 +11,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
+from app.database.mysql import mysql_session, mysql_session_factory
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
+from app.modules.agent_runtime.delegation import (
+    DelegationBudget,
+    DelegationPacket,
+    DelegationPlan,
+    MultiAgentOrchestrator,
+    MultiAgentRoutingPolicy,
+    SpecialistResult,
+    TrustedDelegationScope,
+)
+from app.modules.agent_runtime.delegation_ledger import SQLDelegationLedger
+from app.modules.agent_runtime.langgraph_supervisor import (
+    LangGraphSupervisor,
+    SupervisorRequest,
+    compile_specialist_subgraph,
+)
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun
 from app.modules.agent_runtime.operations_context import (
@@ -93,6 +110,53 @@ async def process_operations_run(
             intent = await model_gateway.plan(user_text, context.agent_definition.agent_code)
         except (ModelGatewayError, TimeoutError):
             run.degraded_reason = "planner_model_unavailable"
+    admin_domains = _admin_complex_domains(user_text) if context.audience == "admin" else ()
+    if len(admin_domains) >= 2:
+        intent = "complex_platform_diagnosis"
+    await checkpoint_store.write(run.run_no, "tool_planned", _checkpoint(context, intent))
+
+    if intent == "complex_platform_diagnosis":
+        multi_response = await _execute_admin_multi_agent(context, admin_domains)
+        if multi_response is not None:
+            evidence, trace_steps, source_ids = multi_response
+            answer = _render_multi_agent(evidence)
+            answer_mode = "deterministic_fallback"
+            confidence = "high"
+            multi_citations = source_ids
+            if model_gateway is not None:
+                run.current_phase = "answering"
+                run.version += 1
+                try:
+                    grounded = await model_gateway.synthesize(
+                        agent_prompt=context.agent_version.system_prompt,
+                        user_text=user_text,
+                        intent=intent,
+                        evidence=evidence,
+                        source_ids=source_ids,
+                    )
+                    answer = grounded.text
+                    answer_mode = "model_grounded"
+                    confidence = grounded.confidence
+                    multi_citations = grounded.cited_source_ids or source_ids
+                except (ModelGatewayError, TimeoutError):
+                    run.degraded_reason = "answer_model_unavailable"
+            await _complete(
+                session,
+                context,
+                answer,
+                intent,
+                evidence,
+                trace_extra={
+                    "steps": trace_steps,
+                    "source_ids": list(source_ids),
+                    "cited_source_ids": list(multi_citations),
+                    "orchestration_mode": "multi_agent",
+                    "answer_mode": answer_mode,
+                    "confidence": confidence,
+                },
+            )
+            await _finish_checkpoint(checkpoint_store, context, intent)
+            return
     tool_code = _tool_for_intent(intent, context.audience)
     if tool_code not in context.allowed_tools:
         tool_code = (
@@ -101,8 +165,6 @@ async def process_operations_run(
             else "governance.platform_overview"
         )
         intent = "overview"
-    await checkpoint_store.write(run.run_no, "tool_planned", _checkpoint(context, intent))
-
     result = await _execute_tool(session, context, tool_code)
     if result.status != "succeeded":
         await _complete(
@@ -153,6 +215,190 @@ async def process_operations_run(
         },
     )
     await _finish_checkpoint(checkpoint_store, context, intent)
+
+
+async def _execute_admin_multi_agent(
+    context: TrustedOperationsContext,
+    domains: tuple[str, ...],
+) -> tuple[dict[str, object], list[dict[str, object]], tuple[str, ...]] | None:
+    routing = MultiAgentRoutingPolicy.from_agent_version_policy(context.agent_version.policy_config)
+    deadline = time.monotonic() + 5.0
+    parent_scope = TrustedDelegationScope(
+        user_no=context.user.user_no,
+        conversation_no=context.conversation.conversation_no,
+    )
+    parent_budget = DelegationBudget(
+        deadline_monotonic=deadline,
+        token_limit=4_800,
+        tool_call_limit=4,
+        model_call_limit=0,
+    )
+    packets: list[DelegationPacket] = []
+    specialists: dict[str, Any] = {}
+    for domain in domains[:4]:
+        specialist_code, tool_code, objective = _admin_specialist(domain)
+        packet = DelegationPacket(
+            delegation_no=new_prefixed_ulid("dlg_"),
+            parent_run_no=context.run.run_no,
+            subtask_key=f"admin-diagnosis:{domain}",
+            specialist_code=specialist_code,
+            specialist_version="v1",
+            objective=objective,
+            depth=1,
+            trusted_scope=parent_scope,
+            resource_refs=(),
+            user_constraints=(),
+            allowed_tools=frozenset({tool_code}),
+            budget=parent_budget.child(
+                token_limit=1_200,
+                tool_call_limit=1,
+                model_call_limit=0,
+            ),
+            ancestor_agents=("admin_copilot",),
+        )
+        packets.append(packet)
+        specialists[specialist_code] = compile_specialist_subgraph(
+            _admin_specialist_executor(context, tool_code, specialist_code)
+        )
+
+    orchestrator = MultiAgentOrchestrator(
+        specialists,
+        ledger=SQLDelegationLedger(mysql_session_factory()),
+        max_parallel=3,
+    )
+
+    async def baseline(_request: SupervisorRequest) -> Mapping[str, Any]:
+        return {"fallback": True}
+
+    supervisor = LangGraphSupervisor(
+        routing_policy=routing,
+        orchestrator=orchestrator,
+        baseline_executor=baseline,
+    )
+    response = await supervisor.run(
+        SupervisorRequest(
+            intent="complex_platform_diagnosis",
+            independent_read_subtasks=len(packets),
+            has_write_intent=False,
+            router_confidence=1.0,
+            plan=DelegationPlan(tuple(packets)),
+            parent_tools=context.allowed_tools,
+            parent_scope=parent_scope,
+            parent_resource_refs=frozenset(),
+            budget=parent_budget,
+        )
+    )
+    if response.mode != "multi_agent":
+        return None
+    evidence: dict[str, object] = {
+        "specialists": dict(response.safe_output),
+        "result_policy": "只合并授权范围内、带工具审计的只读结果",
+    }
+    steps: list[dict[str, object]] = [
+        {"kind": "plan", "label": "识别跨域只读诊断", "status": "completed"},
+        {
+            "kind": "supervisor",
+            "label": "并行委派必要的领域助手",
+            "status": "completed",
+            "delegation_count": len(response.traces),
+        },
+    ]
+    for trace in response.traces:
+        steps.append(
+            {
+                "kind": "delegation",
+                "label": _specialist_label(trace.specialist_code),
+                "status": trace.status,
+                "delegation_id": trace.delegation_no,
+                "specialist": trace.specialist_code,
+                "latency_ms": trace.elapsed_ms,
+                "tool_calls": trace.tool_calls,
+                "tokens_used": trace.tokens_used,
+                "error_code": trace.error_code,
+            }
+        )
+    steps.append({"kind": "answer", "label": "合并可信诊断结果", "status": "completed"})
+    source_ids = tuple(f"tool:{_admin_specialist(domain)[1]}" for domain in domains[:4])
+    return evidence, steps, source_ids
+
+
+def _admin_specialist_executor(
+    context: TrustedOperationsContext,
+    tool_code: str,
+    specialist_code: str,
+) -> Any:
+    async def execute(packet: DelegationPacket, budget: DelegationBudget) -> SpecialistResult:
+        budget.validate()
+        async for child_session in mysql_session():
+            result = await _execute_tool(child_session, context, tool_code)
+            return SpecialistResult(
+                specialist_code=specialist_code,
+                status=result.status,
+                safe_data=result.safe_data,
+                tokens_used=0,
+                tool_calls=1,
+                model_calls=0,
+                scope=packet.trusted_scope,
+                error_code=result.error_code,
+            )
+        raise RuntimeError("MySQL session unavailable")
+
+    return execute
+
+
+def _admin_complex_domains(value: str) -> tuple[str, ...]:
+    compact = re.sub(r"\s+", "", value).casefold()
+    domains: list[str] = []
+    rules = (
+        ("users", ("用户", "账号", "注册", "登录")),
+        ("stores", ("店铺", "商家", "商品", "上架", "库存")),
+        ("orders", ("订单", "支付", "退款", "物流", "履约", "营业额")),
+        ("runtime", ("运行", "告警", "积压", "故障", "agent", "ai", "worker")),
+    )
+    for domain, terms in rules:
+        if any(term in compact for term in terms):
+            domains.append(domain)
+    return tuple(domains)
+
+
+def _admin_specialist(domain: str) -> tuple[str, str, str]:
+    return {
+        "users": ("governance_users", "governance.user_summary", "核对平台用户状态汇总"),
+        "stores": ("governance_stores", "governance.store_summary", "核对店铺与商品状态汇总"),
+        "orders": ("governance_orders", "governance.order_summary", "核对订单状态汇总"),
+        "runtime": ("observability", "observability.runtime_health", "核对运行时健康和积压"),
+    }[domain]
+
+
+def _specialist_label(code: str) -> str:
+    return {
+        "governance_users": "用户治理助手: 已核对用户状态",
+        "governance_stores": "店铺治理助手: 已核对店铺与商品状态",
+        "governance_orders": "订单助手: 已核对订单状态",
+        "observability": "运行诊断助手: 已核对服务健康",
+    }.get(code, "领域助手: 已完成只读核对")
+
+
+def _render_multi_agent(data: Mapping[str, Any]) -> str:
+    specialists = data.get("specialists")
+    if not isinstance(specialists, dict) or not specialists:
+        return "跨域诊断没有取得足够的可信结果，请缩小查询范围后重试。"
+    lines = ["已并行完成跨域只读诊断:"]
+    for result in specialists.values():
+        if not isinstance(result, dict):
+            continue
+        specialist = _specialist_label(str(result.get("specialist"))).split(":", 1)[0]
+        safe_data = result.get("data")
+        if not isinstance(safe_data, dict):
+            continue
+        summary = "、".join(
+            f"{key}={value}" for key, value in safe_data.items() if isinstance(value, (str, int))
+        )
+        if not summary:
+            summary = "已取得结构化汇总，可在右侧工作记录查看各领域完成状态"
+        lines.append(f"- {specialist}: {summary}")
+    lines.append("以上仅为当前授权范围内的实时汇总，本次没有修改任何业务数据。")
+    return "\n".join(lines)
 
 
 async def _execute_tool(

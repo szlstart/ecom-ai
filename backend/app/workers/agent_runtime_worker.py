@@ -107,6 +107,7 @@ async def process_batch(limit: int = 20) -> int:
     security = SecurityService(settings)
     store_model_gateway, exclusive_model_gateway = configured_model_gateways(settings)
     operations_model_gateway = configured_operations_gateway(settings)
+    run_nos: list[str] = []
     async for session in mysql_session():
         await AgentApprovalService(session, settings, security).reconcile_unknown(limit=limit)
         runs = list(
@@ -120,64 +121,94 @@ async def process_batch(limit: int = 20) -> int:
                 )
             ).all()
         )
-        async for checkpoint_session in postgres_session():
-            checkpoint_store = AgentCheckpointStore(checkpoint_session)
-            for run in runs:
-                conversation = await session.get(Conversation, run.conversation_id)
-                agent_code = await session.scalar(
-                    select(AgentDefinition.agent_code)
-                    .join(AgentVersion, AgentVersion.agent_id == AgentDefinition.id)
-                    .where(AgentVersion.id == run.agent_version_id)
-                )
-                agent_code = str(agent_code or "unknown")
-                started = time.perf_counter()
-                with traced_operation(
-                    "agent.run",
-                    {"ecom.agent.code": agent_code, "ecom.agent.run_id": run.run_no},
-                ):
-                    if conversation is None:
-                        run.run_status = "failed"
-                        run.current_phase = "failed"
-                        run.error_code = "AGENT_CONVERSATION_NOT_FOUND"
-                        run.version += 1
-                    elif agent_code == "exclusive_support":
-                        await process_exclusive_run(
-                            session,
-                            run,
-                            settings=settings,
-                            security=security,
-                            checkpoint_store=checkpoint_store,
-                            model_gateway=exclusive_model_gateway,
-                        )
-                    elif agent_code == "store_support":
-                        await process_store_run(
-                            session,
-                            run,
-                            checkpoint_store=checkpoint_store,
-                            model_gateway=store_model_gateway,
-                        )
-                    elif agent_code in {"merchant_copilot", "admin_copilot"}:
-                        await process_operations_run(
-                            session,
-                            run,
-                            checkpoint_store=checkpoint_store,
-                            model_gateway=operations_model_gateway,
-                        )
-                    else:
-                        run.run_status = "failed"
-                        run.current_phase = "failed"
-                        run.error_code = "AGENT_HANDLER_UNAVAILABLE"
-                        run.version += 1
-                metrics.observe_ai(
-                    AiMetric(
-                        component="agent",
-                        operation=agent_code,
-                        outcome=_metric_outcome(run.run_status),
-                        duration_seconds=time.perf_counter() - started,
-                    )
-                )
-                processed += 1
+        for run in runs:
+            run.run_status = "running"
+            run.current_phase = "claimed"
+            run.version += 1
+            run_nos.append(run.run_no)
         await session.commit()
+
+    for run_no in run_nos:
+        async for session in mysql_session():
+            claimed_run = await session.scalar(select(AgentRun).where(AgentRun.run_no == run_no))
+            if (
+                claimed_run is None
+                or claimed_run.run_status != "running"
+                or claimed_run.current_phase != "claimed"
+            ):
+                break
+            run = claimed_run
+            conversation = await session.get(Conversation, run.conversation_id)
+            agent_code = await session.scalar(
+                select(AgentDefinition.agent_code)
+                .join(AgentVersion, AgentVersion.agent_id == AgentDefinition.id)
+                .where(AgentVersion.id == run.agent_version_id)
+            )
+            agent_code = str(agent_code or "unknown")
+            started = time.perf_counter()
+            try:
+                async for checkpoint_session in postgres_session():
+                    checkpoint_store = AgentCheckpointStore(checkpoint_session)
+                    with traced_operation(
+                        "agent.run",
+                        {"ecom.agent.code": agent_code, "ecom.agent.run_id": run.run_no},
+                    ):
+                        if conversation is None:
+                            run.run_status = "failed"
+                            run.current_phase = "failed"
+                            run.error_code = "AGENT_CONVERSATION_NOT_FOUND"
+                            run.version += 1
+                        elif agent_code == "exclusive_support":
+                            await process_exclusive_run(
+                                session,
+                                run,
+                                settings=settings,
+                                security=security,
+                                checkpoint_store=checkpoint_store,
+                                model_gateway=exclusive_model_gateway,
+                            )
+                        elif agent_code == "store_support":
+                            await process_store_run(
+                                session,
+                                run,
+                                checkpoint_store=checkpoint_store,
+                                model_gateway=store_model_gateway,
+                            )
+                        elif agent_code in {"merchant_copilot", "admin_copilot"}:
+                            await process_operations_run(
+                                session,
+                                run,
+                                checkpoint_store=checkpoint_store,
+                                model_gateway=operations_model_gateway,
+                            )
+                        else:
+                            run.run_status = "failed"
+                            run.current_phase = "failed"
+                            run.error_code = "AGENT_HANDLER_UNAVAILABLE"
+                            run.version += 1
+                    break
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                failed = await session.scalar(select(AgentRun).where(AgentRun.run_no == run_no))
+                if failed is not None:
+                    failed.run_status = "failed"
+                    failed.current_phase = "failed"
+                    failed.error_code = "AGENT_RUNTIME_UNHANDLED_ERROR"
+                    failed.version += 1
+                    await session.commit()
+                logger.exception("agent_run_unhandled_error", run_no=run_no, agent_code=agent_code)
+                run = failed or run
+            metrics.observe_ai(
+                AiMetric(
+                    component="agent",
+                    operation=agent_code,
+                    outcome=_metric_outcome(run.run_status),
+                    duration_seconds=time.perf_counter() - started,
+                )
+            )
+            processed += 1
+            break
     return processed
 
 

@@ -140,8 +140,7 @@ AGENTS: tuple[AgentSeed, ...] = (
         "store_support",
         "店铺客服",
         "store_service",
-        COMMON_SAFETY_PROMPT
-        + "\n你面向顾客服务，只能使用当前会话绑定店铺的公开商品、政策，"
+        COMMON_SAFETY_PROMPT + "\n你面向顾客服务，只能使用当前会话绑定店铺的公开商品、政策，"
         "以及该顾客在本店的订单信息。",
         ("store_product_consult", "store_order_assist"),
     ),
@@ -194,9 +193,7 @@ async def seed_ai_runtime(session: AsyncSession) -> None:
     await _seed_agents(session, skills, published_at)
 
 
-async def _seed_tools(
-    session: AsyncSession, published_at: datetime
-) -> dict[str, ToolVersion]:
+async def _seed_tools(session: AsyncSession, published_at: datetime) -> dict[str, ToolVersion]:
     versions: dict[str, ToolVersion] = {}
     for tool_code in sorted(READ_ONLY_TOOLS | CONFIRMATION_REQUIRED_TOOLS):
         definition = await session.scalar(
@@ -322,34 +319,40 @@ async def _seed_agents(
             )
             session.add(definition)
             await session.flush()
+        target_version_no = 2 if item.code == "admin_copilot" else 1
         version = await session.scalar(
             select(AgentVersion).where(
                 AgentVersion.agent_id == definition.id,
-                AgentVersion.version_no == 1,
+                AgentVersion.version_no == target_version_no,
             )
         )
         allowed_tools = sorted(
-            {
-                tool
-                for skill_code in item.skills
-                for tool in skill_by_code[skill_code].tools
-            }
+            {tool for skill_code in item.skills for tool in skill_by_code[skill_code].tools}
         )
         if version is None:
+            policy_config: dict[str, object] = {
+                "prompt_version": "safe-agent-v1",
+                "max_tool_calls": 6,
+                "max_delegations": 4 if item.code == "admin_copilot" else 0,
+                "max_delegation_depth": 1,
+                "raw_chain_of_thought_exposed": False,
+            }
+            if item.code == "admin_copilot":
+                policy_config["multi_agent"] = {
+                    "enabled": True,
+                    "evaluation_report_id": "eval_admin_multi_agent_v1",
+                    "approved_intents": ["complex_platform_diagnosis"],
+                    "max_parallel": 3,
+                    "read_only": True,
+                }
             version = AgentVersion(
                 agent_id=definition.id,
-                version_no=1,
+                version_no=target_version_no,
                 version_status="published" if item.executable else "draft",
                 system_prompt=item.prompt,
                 model_profile="moonshot-openai-compatible-v1",
                 tool_allowlist=allowed_tools,
-                policy_config={
-                    "prompt_version": "safe-agent-v1",
-                    "max_tool_calls": 6,
-                    "max_delegations": 0 if item.executable else 4,
-                    "max_delegation_depth": 1,
-                    "raw_chain_of_thought_exposed": False,
-                },
+                policy_config=policy_config,
                 published_at=published_at if item.executable else None,
             )
             session.add(version)

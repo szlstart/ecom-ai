@@ -9,6 +9,10 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
+import structlog
+
+logger = structlog.get_logger(__name__)
+
 DelegationStatus = Literal[
     "succeeded",
     "partial",
@@ -148,9 +152,7 @@ SPECIALIST_POLICIES: Mapping[str, SpecialistPolicy] = {
         "order",
         frozenset({"order.list_user_orders", "order.get_user_order_detail"}),
     ),
-    "logistics": SpecialistPolicy(
-        "logistics", frozenset({"logistics.get_user_order_shipments"})
-    ),
+    "logistics": SpecialistPolicy("logistics", frozenset({"logistics.get_user_order_shipments"})),
     "after_sales": SpecialistPolicy(
         "after_sales",
         frozenset(
@@ -169,6 +171,16 @@ SPECIALIST_POLICIES: Mapping[str, SpecialistPolicy] = {
     "policy": SpecialistPolicy(
         "policy", frozenset({"rag.policy.search", "catalog.get_store_policy"})
     ),
+    "governance_users": SpecialistPolicy(
+        "governance_users", frozenset({"governance.user_summary"})
+    ),
+    "governance_stores": SpecialistPolicy(
+        "governance_stores", frozenset({"governance.store_summary"})
+    ),
+    "governance_orders": SpecialistPolicy(
+        "governance_orders", frozenset({"governance.order_summary"})
+    ),
+    "observability": SpecialistPolicy("observability", frozenset({"observability.runtime_health"})),
 }
 
 
@@ -317,7 +329,14 @@ class MultiAgentOrchestrator:
                 return reused, _trace(packet, reused, started, dependency_nos)
             try:
                 await self.ledger.start(packet, dependency_nos=dependency_nos)
-            except Exception:
+            except Exception as exc:
+                logger.exception(
+                    "agent_delegation_audit_start_failed",
+                    run_no=packet.parent_run_no,
+                    delegation_no=packet.delegation_no,
+                    specialist=packet.specialist_code,
+                    error_type=type(exc).__name__,
+                )
                 result = _failed_result(packet, "AI_DELEGATION_AUDIT_FAILED")
                 return result, _trace(packet, result, started, dependency_nos)
             specialist = self.specialists.get(packet.specialist_code)
@@ -339,7 +358,14 @@ class MultiAgentOrchestrator:
                 result = _failed_result(packet, "AI_SPECIALIST_FAILED")
             try:
                 await self.ledger.put(packet, result, dependency_nos=dependency_nos)
-            except Exception:
+            except Exception as exc:
+                logger.exception(
+                    "agent_delegation_audit_finish_failed",
+                    run_no=packet.parent_run_no,
+                    delegation_no=packet.delegation_no,
+                    specialist=packet.specialist_code,
+                    error_type=type(exc).__name__,
+                )
                 result = _failed_result(packet, "AI_DELEGATION_AUDIT_FAILED")
             return result, _trace(packet, result, started, dependency_nos)
 
@@ -531,8 +557,7 @@ def validate_plan(
     if sum(item.budget.model_call_limit for item in plan.packets) > parent_budget.model_call_limit:
         raise ValueError("delegation model reservations exceed parent budget")
     if any(
-        item.budget.deadline_monotonic > parent_budget.deadline_monotonic
-        for item in plan.packets
+        item.budget.deadline_monotonic > parent_budget.deadline_monotonic for item in plan.packets
     ):
         raise ValueError("delegation deadline exceeds parent deadline")
 

@@ -171,7 +171,7 @@ class OrderService:
             paid_amount=0,
             refunded_amount=0,
             currency=checkout.session.currency,
-            order_count=len(checkout.view.store_groups),
+            original_order_count=len(checkout.view.store_groups),
             expires_at=checkout.session.expires_at,
         )
         self.session.add(trade)
@@ -459,7 +459,9 @@ class OrderService:
             order_source=cast(Any, trade.order_source),
             trade_status=trade.trade_status,
             amounts=_amounts(trade),
-            order_count=trade.order_count,
+            original_order_count=trade.original_order_count,
+            active_order_count=len(orders),
+            order_count=trade.original_order_count,
             orders=orders,
             created_at=trade.created_at,
             expires_at=trade.expires_at,

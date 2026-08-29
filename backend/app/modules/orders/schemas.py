@@ -162,7 +162,12 @@ class TradeOrderView(StrictRequest):
     order_source: Literal["buy_now", "cart"]
     trade_status: str
     amounts: OrderAmountsView
-    order_count: int
+    original_order_count: int
+    active_order_count: int
+    order_count: int = Field(
+        description="Deprecated compatibility alias for original_order_count.",
+        deprecated=True,
+    )
     orders: list[OrderListItem]
     created_at: datetime
     expires_at: datetime

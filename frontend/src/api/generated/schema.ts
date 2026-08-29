@@ -12124,7 +12124,15 @@ export interface components {
             /** Trade Status */
             trade_status: string;
             amounts: components["schemas"]["OrderAmountsView"];
-            /** Order Count */
+            /** Original Order Count */
+            original_order_count: number;
+            /** Active Order Count */
+            active_order_count: number;
+            /**
+             * Order Count
+             * @deprecated
+             * @description Deprecated compatibility alias for original_order_count.
+             */
             order_count: number;
             /** Orders */
             orders: components["schemas"]["OrderListItem"][];

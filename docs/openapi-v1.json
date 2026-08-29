@@ -57044,9 +57044,19 @@
           "amounts": {
             "$ref": "#/components/schemas/OrderAmountsView"
           },
+          "original_order_count": {
+            "type": "integer",
+            "title": "Original Order Count"
+          },
+          "active_order_count": {
+            "type": "integer",
+            "title": "Active Order Count"
+          },
           "order_count": {
             "type": "integer",
-            "title": "Order Count"
+            "title": "Order Count",
+            "description": "Deprecated compatibility alias for original_order_count.",
+            "deprecated": true
           },
           "orders": {
             "items": {
@@ -57108,6 +57118,8 @@
           "order_source",
           "trade_status",
           "amounts",
+          "original_order_count",
+          "active_order_count",
           "order_count",
           "orders",
           "created_at",

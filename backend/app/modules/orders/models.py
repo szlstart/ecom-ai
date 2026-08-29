@@ -13,7 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER, VARBINARY
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, synonym
 
 from app.database.base import AppendOnlyMySQLModel, MutableMySQLModel, MySQLBase
 
@@ -65,7 +65,11 @@ class TradeOrder(MutableMySQLModel, MySQLBase):
         BIGINT(unsigned=True), nullable=False, default=0, server_default="0"
     )
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
-    order_count: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    # Immutable checkout-time snapshot. Cancelled unpaid orders are replaced by
+    # user-only navigation snapshots, so this must never be interpreted as the
+    # number of currently materialized rows in `orders`.
+    original_order_count: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    order_count = synonym("original_order_count")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))

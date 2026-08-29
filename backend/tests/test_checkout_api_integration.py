@@ -671,7 +671,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             select(TradeOrder).where(TradeOrder.trade_no == order_data["trade_order_id"])
         )
         assert trade is not None
-        assert trade.order_count == 2
+        assert trade.original_order_count == 2
         assert (trade.goods_amount, trade.freight_amount, trade.payable_amount) == (
             6500,
             0,
@@ -827,6 +827,8 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         f"/api/v1/trade-orders/{order_data['trade_order_id']}", headers=auth
     )
     assert trade_view.status_code == 200, trade_view.text
+    assert trade_view.json()["data"]["original_order_count"] == 2
+    assert trade_view.json()["data"]["active_order_count"] == 2
     assert trade_view.json()["data"]["order_count"] == 2
     assert len(trade_view.json()["data"]["orders"]) == 2
     missing = await client.get("/api/v1/orders/ord_01DOESNOTEXIST", headers=auth)
@@ -883,6 +885,21 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             record.snapshot_payload["matched_views"] == ["cancelled"]
             for record in cancellation_records
         )
+        trade_after_cancel = await session.scalar(
+            select(TradeOrder).where(
+                TradeOrder.trade_no == order_data["trade_order_id"]
+            )
+        )
+        assert trade_after_cancel is not None
+        assert trade_after_cancel.original_order_count == 2
+        assert len(cancelled_orders) == 0
+
+    closed_trade_view = await client.get(
+        f"/api/v1/trade-orders/{order_data['trade_order_id']}", headers=auth
+    )
+    assert closed_trade_view.status_code == 200
+    assert closed_trade_view.json()["data"]["original_order_count"] == 2
+    assert closed_trade_view.json()["data"]["active_order_count"] == 0
 
     cancellation_list = await client.get(
         "/api/v1/users/me/orders", headers=auth, params={"view": "cancelled"}

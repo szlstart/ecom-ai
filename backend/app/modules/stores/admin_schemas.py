@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import Field, field_validator, model_validator
 
 from app.api.schemas import StrictRequest
+from app.modules.catalog.schemas import Money
 
 
 class AdminStoreView(StrictRequest):
@@ -21,6 +22,8 @@ class AdminStoreView(StrictRequest):
     rating_count: int
     follower_count: int
     sales_count: int
+    product_count: int | None = None
+    net_revenue: Money | None = None
     store_name_changed_at: datetime | None
     store_name_change_available_at: datetime | None
     opened_at: datetime | None

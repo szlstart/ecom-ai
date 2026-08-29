@@ -53,6 +53,8 @@ export interface AdminStore extends AdminVersioned {
   rating_count: number
   follower_count: number
   sales_count: number
+  product_count: number | null
+  net_revenue: { currency: string; minor_units: string } | null
   store_name_changed_at: string | null
   store_name_change_available_at: string | null
   opened_at: string | null

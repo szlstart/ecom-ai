@@ -39494,6 +39494,27 @@
             "type": "integer",
             "title": "Sales Count"
           },
+          "product_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Count"
+          },
+          "net_revenue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "store_name_changed_at": {
             "anyOf": [
               {

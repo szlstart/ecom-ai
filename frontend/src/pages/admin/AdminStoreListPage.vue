@@ -11,8 +11,10 @@ const auth = useAdminAuthStore()
 const items = ref<AdminStore[]>([])
 const loading = ref(true)
 const error = ref('')
-const q = ref('')
+const searchInput = ref('')
+const appliedQuery = ref('')
 const status = ref('')
+const sortBy = ref<'default' | 'revenue' | 'sales' | 'products' | 'rating_desc' | 'rating_asc'>('default')
 const createOpen = ref(false)
 const saving = ref(false)
 const formError = ref('')
@@ -20,11 +22,18 @@ const fieldErrors = ref<Record<string, string>>({})
 const form = reactive({ store_name: '', description: '', merchant_username: '', merchant_password: '', merchant_email: '' })
 
 const visible = computed(() => {
-  const keyword = q.value.trim().toLocaleLowerCase('zh-CN')
-  return items.value.filter((item) => {
+  const keyword = appliedQuery.value.toLocaleLowerCase('zh-CN')
+  const filtered = items.value.filter((item) => {
     const matchesStatus = !status.value || item.status === status.value
-    const haystack = `${item.store_name} ${item.store_id} ${item.owner_user_id}`.toLocaleLowerCase('zh-CN')
-    return matchesStatus && (!keyword || haystack.includes(keyword))
+    return matchesStatus && (!keyword || item.store_name.toLocaleLowerCase('zh-CN').includes(keyword))
+  })
+  return [...filtered].sort((left, right) => {
+    if (sortBy.value === 'revenue') return revenueMinor(right) - revenueMinor(left)
+    if (sortBy.value === 'sales') return right.sales_count - left.sales_count
+    if (sortBy.value === 'products') return (right.product_count ?? 0) - (left.product_count ?? 0)
+    if (sortBy.value === 'rating_desc') return Number(right.rating_score) - Number(left.rating_score)
+    if (sortBy.value === 'rating_asc') return Number(left.rating_score) - Number(right.rating_score)
+    return left.store_id.localeCompare(right.store_id)
   })
 })
 const activeCount = computed(() => items.value.filter((item) => item.status === 'active').length)
@@ -34,6 +43,9 @@ function token(): string { return requireAdminToken(auth.accessToken) }
 function statusLabel(value: string): string { return ({ active: '营业中', suspended: '已暂停' } as Record<string, string>)[value] ?? value }
 function initials(value: string): string { return value.slice(0, 1).toUpperCase() }
 function chooseStatus(value: '' | 'active' | 'suspended') { status.value = value }
+function revenueMinor(item: AdminStore): number { return Number(item.net_revenue?.minor_units ?? 0) }
+function revenueLabel(item: AdminStore): string { return `¥${(revenueMinor(item) / 100).toFixed(2)}` }
+function applySearch() { appliedQuery.value = searchInput.value.trim() }
 
 async function load() {
   loading.value = true
@@ -95,14 +107,14 @@ onMounted(load)
 
     <section class="admin-list-panel">
       <header class="admin-list-toolbar">
-        <label class="admin-inline-search"><span>⌕</span><input v-model="q" placeholder="搜索店铺名称、店铺 ID 或店主 ID" /></label>
-        <div><small class="admin-filter-summary">当前展示：{{ status ? statusLabel(status) : '全部店铺' }} · {{ visible.length }} 家</small></div>
+        <form class="admin-store-search-form" role="search" @submit.prevent="applySearch"><label class="admin-inline-search"><span>⌕</span><input v-model="searchInput" aria-label="搜索店铺名称" placeholder="搜索店铺名称" /></label><button type="submit">搜索</button></form>
+        <div class="admin-store-sort"><label>排序<select v-model="sortBy" aria-label="店铺排序"><option value="default">默认排序</option><option value="revenue">营业额</option><option value="sales">销量</option><option value="products">商品数量</option><option value="rating_desc">评价从高到低</option><option value="rating_asc">评价从低到高</option></select></label><small class="admin-filter-summary">{{ status ? statusLabel(status) : '全部店铺' }} · {{ visible.length }} 家</small></div>
       </header>
       <PageState :loading="loading" :error="error" :empty="!loading && !error && visible.length === 0" empty-title="没有匹配的店铺" @retry="load">
         <div class="admin-store-grid">
           <RouterLink v-for="item in visible" :key="item.store_id" class="admin-store-card" :to="`/admin/stores/${item.store_id}`">
             <div class="admin-store-cover"><img v-if="item.logo_url" :src="item.logo_url" alt="" /><span v-else>{{ initials(item.store_name) }}</span><i :class="item.status">{{ statusLabel(item.status) }}</i></div>
-            <div class="admin-store-card-body"><h2>{{ item.store_name }}</h2><p>{{ item.description || '暂无店铺简介' }}</p><dl><div><dt>销量</dt><dd>{{ item.sales_count }}</dd></div><div><dt>关注</dt><dd>{{ item.follower_count }}</dd></div><div><dt>评分</dt><dd>{{ Number(item.rating_score).toFixed(1) }}</dd></div></dl><footer><small>{{ item.store_id }}</small><b>进入运营 →</b></footer></div>
+            <div class="admin-store-card-body"><h2>{{ item.store_name }}</h2><p>{{ item.description || '暂无店铺简介' }}</p><dl><div><dt>营业额</dt><dd>{{ revenueLabel(item) }}</dd></div><div><dt>销量</dt><dd>{{ item.sales_count }}</dd></div><div><dt>商品</dt><dd>{{ item.product_count ?? 0 }}</dd></div><div><dt>评分</dt><dd>{{ Number(item.rating_score).toFixed(1) }}</dd></div></dl><footer><small>{{ item.store_id }}</small><b>进入运营 →</b></footer></div>
           </RouterLink>
         </div>
       </PageState>

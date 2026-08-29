@@ -263,12 +263,19 @@ class AdminStoreService:
         )
         has_more = len(rows) > limit
         visible = rows[:limit]
+        metrics = await self.repository.store_list_metrics([store.id for store, _ in visible])
         logos = await self.repository.files_by_object_keys(
             [store.logo_object_key for store, _ in visible if store.logo_object_key]
         )
         return AdminStoreList(
             items=[
-                _store_view(store, owner.user_no, logos.get(store.logo_object_key or ""))
+                _store_view(
+                    store,
+                    owner.user_no,
+                    logos.get(store.logo_object_key or ""),
+                    product_count=metrics.get(store.id, (0, 0))[0],
+                    net_revenue_minor=metrics.get(store.id, (0, 0))[1],
+                )
                 for store, owner in visible
             ],
             next_cursor=(
@@ -1061,7 +1068,14 @@ class AdminStoreService:
         return [file_object.file_no] if file_object else []
 
 
-def _store_view(store: Store, owner_user_no: str, logo: FileObject | None) -> AdminStoreView:
+def _store_view(
+    store: Store,
+    owner_user_no: str,
+    logo: FileObject | None,
+    *,
+    product_count: int | None = None,
+    net_revenue_minor: int | None = None,
+) -> AdminStoreView:
     return AdminStoreView(
         store_id=store.store_no,
         owner_user_id=owner_user_no,
@@ -1075,6 +1089,12 @@ def _store_view(store: Store, owner_user_no: str, logo: FileObject | None) -> Ad
         rating_count=store.rating_count,
         follower_count=store.follower_count,
         sales_count=store.sales_count,
+        product_count=product_count,
+        net_revenue=(
+            {"currency": "CNY", "minor_units": str(net_revenue_minor)}
+            if net_revenue_minor is not None
+            else None
+        ),
         store_name_changed_at=store.store_name_changed_at,
         store_name_change_available_at=None,
         opened_at=store.opened_at,

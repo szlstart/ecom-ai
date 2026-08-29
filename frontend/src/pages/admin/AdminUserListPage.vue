@@ -13,14 +13,15 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const notice = ref('')
-const query = ref('')
+const searchInput = ref('')
+const appliedQuery = ref('')
 const status = ref('')
 const createOpen = ref(false)
 const fieldErrors = ref<Record<string, string>>({})
 const form = reactive({ username: '', nickname: '', email: '', password: '' })
 
 const filtered = computed(() => {
-  const keyword = query.value.trim().toLocaleLowerCase()
+  const keyword = appliedQuery.value.toLocaleLowerCase()
   return items.value.filter((item) => {
     const matchesKeyword = !keyword || `${item.username} ${item.nickname} ${item.user_id}`.toLocaleLowerCase().includes(keyword)
     return matchesKeyword && (!status.value || item.account_status === status.value)
@@ -32,6 +33,8 @@ const suspendedCount = computed(() => items.value.filter((item) => item.account_
 function statusLabel(value: string): string { return ({ active: '正常', suspended: '已冻结', closed: '已注销' } as Record<string, string>)[value] ?? value }
 function dateTime(value: string | null): string { return value ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '从未登录' }
 function initials(item: AdminUserSummary): string { return (item.nickname || item.username).slice(0, 1).toUpperCase() }
+function chooseStatus(value: '' | 'active' | 'suspended') { status.value = value }
+function applySearch() { appliedQuery.value = searchInput.value.trim() }
 
 async function load() {
   loading.value = true; error.value = ''
@@ -61,9 +64,9 @@ onMounted(load)
   <section class="admin-page-stack admin-entity-page">
     <header class="admin-entity-hero"><div><p class="eyebrow">用户中心</p><h1>用户管理</h1><p>从账号资料、安全状态到交易关系，集中查看并执行受控操作。</p></div><button v-if="auth.has('users:manage')" @click="createOpen = true">＋ 创建用户</button></header>
     <p v-if="notice" class="alert success">{{ notice }}</p><p v-if="error && !createOpen" class="alert error">{{ error }}</p>
-    <div class="admin-entity-stats"><article><span class="blue">♙</span><div><small>当前载入</small><strong>{{ items.length }}</strong></div></article><article><span class="green">✓</span><div><small>正常用户</small><strong>{{ activeCount }}</strong></div></article><article><span class="red">!</span><div><small>已冻结</small><strong>{{ suspendedCount }}</strong></div></article></div>
+    <div class="admin-entity-stats admin-store-status-filters" aria-label="用户状态筛选"><button type="button" :class="{ active: status === '' }" @click="chooseStatus('')"><span class="blue">♙</span><div><small>全部用户</small><strong>{{ items.length }}</strong></div></button><button type="button" :class="{ active: status === 'active' }" @click="chooseStatus('active')"><span class="green">✓</span><div><small>正常用户</small><strong>{{ activeCount }}</strong></div></button><button type="button" :class="{ active: status === 'suspended' }" @click="chooseStatus('suspended')"><span class="red">!</span><div><small>已冻结</small><strong>{{ suspendedCount }}</strong></div></button></div>
     <section class="admin-list-panel">
-      <header class="admin-list-toolbar"><div><label class="admin-inline-search"><span>⌕</span><input v-model="query" placeholder="搜索用户名、昵称或用户 ID" /></label><select v-model="status" aria-label="账号状态"><option value="">全部状态</option><option value="active">正常</option><option value="suspended">已冻结</option><option value="closed">已注销</option></select></div><button class="secondary" :disabled="loading" @click="load">刷新列表</button></header>
+      <header class="admin-list-toolbar"><form class="admin-store-search-form" role="search" @submit.prevent="applySearch"><label class="admin-inline-search"><span>⌕</span><input v-model="searchInput" aria-label="搜索用户" placeholder="搜索用户名、昵称或用户 ID" /></label><button type="submit">搜索</button></form><small class="admin-filter-summary">{{ status ? statusLabel(status) : '全部用户' }} · {{ filtered.length }} 人</small></header>
       <PageState :loading="loading" :error="error" :empty="!loading && !error && filtered.length === 0" empty-title="没有找到符合条件的用户" @retry="load">
         <div class="admin-modern-table"><div class="admin-modern-table-head"><span>用户</span><span>账号状态</span><span>注册时间</span><span>最近登录</span><span>操作</span></div><RouterLink v-for="item in filtered" :key="item.user_id" :to="`/admin/users/${item.user_id}`" class="admin-modern-row"><span class="admin-user-cell"><i>{{ initials(item) }}</i><span><strong>{{ item.nickname }}</strong><small>@{{ item.username }} · {{ item.user_id }}</small></span></span><span><b class="admin-status-dot" :class="item.account_status" />{{ statusLabel(item.account_status) }}</span><span>{{ dateTime(item.registered_at) }}</span><span>{{ dateTime(item.last_login_at) }}</span><span class="admin-row-action">管理用户 →</span></RouterLink></div>
       </PageState>

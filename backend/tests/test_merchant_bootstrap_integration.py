@@ -141,7 +141,10 @@ async def test_store_operator_login_permissions_and_store_isolation(client: Asyn
 
     stores = await client.get("/api/v1/admin/stores", headers=headers)
     assert stores.status_code == 200, stores.text
-    assert [item["store_id"] for item in stores.json()["data"]["items"]] == [provisioning.store_no]
+    listed_store = stores.json()["data"]["items"][0]
+    assert listed_store["store_id"] == provisioning.store_no
+    assert listed_store["product_count"] == 0
+    assert listed_store["net_revenue"] == {"minor_units": "0", "currency": "CNY"}
 
     store_detail = await client.get(
         f"/api/v1/admin/stores/{provisioning.store_no}", headers=headers

@@ -6,8 +6,10 @@ from typing import cast
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.catalog.models import Product
 from app.modules.files.models import FileObject
 from app.modules.identity.models import User
+from app.modules.orders.models import Order
 from app.modules.stores.models import (
     Store,
     StoreCertification,
@@ -46,6 +48,39 @@ class AdminStoreRepository:
             await self.session.execute(statement.order_by(Store.store_no).limit(limit + 1))
         ).all()
         return [(row[0], row[1]) for row in rows]
+
+    async def store_list_metrics(self, store_ids: list[int]) -> dict[int, tuple[int, int]]:
+        """Return all-product count and settled net revenue for each listed store."""
+        if not store_ids:
+            return {}
+        product_rows = (
+            await self.session.execute(
+                select(Product.store_id, func.count(Product.id))
+                .where(Product.store_id.in_(store_ids), Product.deleted_at.is_(None))
+                .group_by(Product.store_id)
+            )
+        ).all()
+        settled = (
+            (Order.order_status == "completed")
+            & (Order.fulfillment_status == "received")
+            & Order.completed_at.is_not(None)
+        )
+        revenue_rows = (
+            await self.session.execute(
+                select(
+                    Order.store_id,
+                    func.coalesce(func.sum(Order.paid_amount - Order.refunded_amount), 0),
+                )
+                .where(Order.store_id.in_(store_ids), settled)
+                .group_by(Order.store_id)
+            )
+        ).all()
+        product_counts = {int(row[0]): int(row[1]) for row in product_rows}
+        revenues = {int(row[0]): int(row[1]) for row in revenue_rows}
+        return {
+            store_id: (product_counts.get(store_id, 0), revenues.get(store_id, 0))
+            for store_id in store_ids
+        }
 
     async def store_by_no(
         self, store_no: str, *, for_update: bool = False

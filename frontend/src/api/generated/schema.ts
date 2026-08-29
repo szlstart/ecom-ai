@@ -6656,6 +6656,9 @@ export interface components {
             follower_count: number;
             /** Sales Count */
             sales_count: number;
+            /** Product Count */
+            product_count?: number | null;
+            net_revenue?: components["schemas"]["Money"] | null;
             /** Store Name Changed At */
             store_name_changed_at: string | null;
             /** Store Name Change Available At */

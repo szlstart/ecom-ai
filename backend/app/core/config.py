@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     agent_model_api_url: str | None = None
     agent_model_api_key: SecretStr | None = None
     agent_model_name: str | None = None
+    agent_model_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     agent_model_timeout_seconds: float = Field(default=30.0, gt=0, le=90)
     redis_url: str = "redis://:local-redis-change-me@127.0.0.1:16379/0"
     redis_max_connections: int = Field(default=50, ge=5, le=1000)

@@ -15,6 +15,8 @@ from app.modules.agent_runtime.provider_gateway import (
 
 def _planner(
     handler: httpx.MockTransport,
+    *,
+    temperature: float = 0.0,
 ) -> tuple[OpenAICompatiblePlanner, httpx.AsyncClient]:
     client = httpx.AsyncClient(transport=handler)
     return OpenAICompatiblePlanner(
@@ -22,6 +24,7 @@ def _planner(
         api_key="model-secret",
         model="approved-model",
         timeout_seconds=5,
+        temperature=temperature,
         client=client,
     ), client
 
@@ -49,6 +52,26 @@ async def test_provider_store_plan_uses_closed_schema_without_tools() -> None:
     plan = await planner.plan_store("这个 SKU 还有库存吗")
     assert plan.intent == "inventory_lookup"
     assert plan.search_text is None
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_provider_uses_model_specific_temperature() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["temperature"] == 1.0
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": '{"intent":"policy_qa","search_text":null}'}}
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond), temperature=1.0)
+    plan = await planner.plan_exclusive("平台规则是什么")
+    assert plan.intent == "policy_qa"
     await client.aclose()
 
 

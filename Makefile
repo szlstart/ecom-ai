@@ -6,7 +6,7 @@ ACCEPTANCE_ENV := ECOM_ENVIRONMENT=testing ECOM_RUN_INTEGRATION_TESTS=1 ECOM_RUN
 BACKEND_RUNTIME_SERVICES := api file-worker lifecycle-worker batch-worker order-timeout-worker payment-reconcile-worker logistics-sync-worker admin-approval-worker realtime-outbox-worker agent-runtime-worker knowledge-indexer ai-memory-cleanup-worker account-deletion-worker
 APP_RUNTIME_SERVICES := $(BACKEND_RUNTIME_SERVICES) frontend
 
-.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-evidence agent-security-test build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap merchant-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
+.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-evidence agent-security-test security-check build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap merchant-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -55,6 +55,9 @@ acceptance-evidence:
 agent-security-test:
 	mkdir -p artifacts/acceptance/current/agent
 	cd backend && $(ACCEPTANCE_ENV) $(PYTHON) -m pytest --junitxml=../artifacts/acceptance/current/agent/security-tests.xml tests/test_prompt_safety.py tests/test_store_agent_integration.py::test_store_agent_scope_context_tools_and_handoff tests/test_exclusive_agent_integration.py::test_exclusive_agent_refund_requires_consent_and_button_approval tests/test_knowledge_postgres_integration.py::test_shadow_index_and_acl_filtered_keyword_retrieval tests/test_knowledge_postgres_integration.py::test_agent_retrieval_rechecks_trusted_scope_version_and_publication tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry tests/test_operations_agent_integration.py::test_admin_copilot_runs_bounded_parallel_read_only_specialists
+
+security-check:
+	SECURITY_PYTHON="$(PYTHON)" SECURITY_IMAGES="$${SECURITY_IMAGES:-ecom-ai-api:local ecom-ai-frontend:latest}" ./scripts/security-check.sh
 
 build:
 	cd frontend && pnpm build

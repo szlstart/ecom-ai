@@ -170,6 +170,22 @@ def test_local_file_dependency_images_are_digest_pinned() -> None:
     assert "clamav/clamav-debian@sha256:" in compose
 
 
+def test_security_gate_covers_dependencies_secrets_sast_and_images() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    script = (ROOT / "scripts/security-check.sh").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/security.yml").read_text(encoding="utf-8")
+    dependabot = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+
+    assert "security-check:" in makefile
+    for required in ("pip_audit", "bandit", "gitleaks", "trivy", "pnpm --dir frontend audit"):
+        assert required in script
+    assert "SECURITY_ALLOW_MISSING_TOOLS" in script
+    assert "gitleaks/gitleaks-action@v2" in workflow
+    assert "github/codeql-action/analyze@v4" in workflow
+    assert "package-ecosystem: pip" in dependabot
+    assert "package-ecosystem: npm" in dependabot
+
+
 def test_release_preflight_accepts_synthetic_tls_configuration(tmp_path: Path) -> None:
     digest = "a" * 64
     env_file = tmp_path / "release.env"

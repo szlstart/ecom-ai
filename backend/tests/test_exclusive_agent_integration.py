@@ -266,6 +266,12 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
     trace = cast(dict[str, object], recommendation_content["execution_trace"])
     steps = cast(list[dict[str, object]], trace["steps"])
     assert any(item.get("kind") == "memory" and item.get("used_count") == 1 for item in steps)
+    assert any(
+        item.get("kind") == "context"
+        and isinstance(item.get("message_count"), int)
+        and cast(int, item.get("message_count")) > 0
+        for item in steps
+    )
 
     async for session in mysql_session():
         await session.execute(

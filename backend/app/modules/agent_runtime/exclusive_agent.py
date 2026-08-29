@@ -13,6 +13,7 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
 from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
+from app.modules.agent_runtime.context_window import ContextWindow, ContextWindowBuilder
 from app.modules.agent_runtime.exclusive_context import (
     ExclusiveContextBuilder,
     TrustedExclusiveAgentContext,
@@ -98,8 +99,16 @@ async def process_exclusive_run(
         return
 
     gateway = model_gateway or DeterministicExclusiveModelGateway()
+    context_window = await ContextWindowBuilder(session).build(
+        context.conversation, context.trigger
+    )
+    planning_input = (
+        context_window.planning_input(trigger_text)
+        if isinstance(gateway, ProviderExclusiveModelGateway)
+        else trigger_text
+    )
     try:
-        plan = await gateway.plan(trigger_text)
+        plan = await gateway.plan(planning_input)
     except (ModelGatewayError, TimeoutError):
         await _handoff(session, context, settings, security, "MODEL_UNAVAILABLE")
         await _finish_checkpoint(checkpoint_store, context, "human_handoff")
@@ -182,6 +191,7 @@ async def process_exclusive_run(
         return
 
     if result.status == "succeeded":
+        _attach_conversation_window(context_window, result.data)
         await _attach_platform_knowledge(
             session,
             checkpoint_store,
@@ -513,6 +523,18 @@ async def _grounded_answer(
                 "degraded": bool(memory.get("degraded")),
             },
         )
+    if isinstance(data.get("conversation_window"), dict):
+        window = data["conversation_window"]
+        steps.insert(
+            1,
+            {
+                "kind": "context",
+                "label": "重建最近对话上下文",
+                "status": "completed",
+                "message_count": int(window.get("included_count", 0)),
+                "omitted_count": int(window.get("omitted_count", 0)),
+            },
+        )
     trace: dict[str, object] = {
         "version": "public-agent-trace-v1",
         "run_id": context.run.run_no,
@@ -783,6 +805,11 @@ async def _attach_exclusive_memories(
         "used_count": len(recall.items),
         "degraded": recall.degraded,
     }
+
+
+def _attach_conversation_window(window: ContextWindow, data: dict[str, object]) -> None:
+    if window.recent_turns:
+        data["conversation_window"] = window.evidence_projection()
 
 
 def _nested_value(value: Mapping[str, Any], outer: str, inner: str) -> object:

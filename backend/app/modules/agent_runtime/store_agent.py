@@ -10,6 +10,7 @@ from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
+from app.modules.agent_runtime.context_window import ContextWindow, ContextWindowBuilder
 from app.modules.agent_runtime.model_gateway import (
     DeterministicStoreModelGateway,
     ModelGatewayError,
@@ -74,8 +75,16 @@ async def process_store_run(
         await _finish_checkpoint(checkpoint_store, context, "security_refusal")
         return
     gateway = model_gateway or DeterministicStoreModelGateway()
+    context_window = await ContextWindowBuilder(session).build(
+        context.conversation, context.trigger
+    )
+    planning_input = (
+        context_window.planning_input(trigger_text)
+        if isinstance(gateway, ProviderStoreModelGateway)
+        else trigger_text
+    )
     try:
-        plan = await gateway.plan(trigger_text)
+        plan = await gateway.plan(planning_input)
     except (ModelGatewayError, TimeoutError):
         await _handoff_or_fallback(session, context, "MODEL_UNAVAILABLE")
         await _finish_checkpoint(checkpoint_store, context, "human_handoff")
@@ -107,6 +116,7 @@ async def process_store_run(
         await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
     if outcome.status == "succeeded":
+        _attach_conversation_window(context_window, outcome.data)
         await _attach_store_knowledge(
             session,
             checkpoint_store,
@@ -334,6 +344,18 @@ async def _grounded_answer(
                 "label": "检索当前店铺公开知识",
                 "status": "completed",
                 "degraded": bool(rag.get("degraded")),
+            },
+        )
+    if isinstance(data.get("conversation_window"), dict):
+        window = data["conversation_window"]
+        steps.insert(
+            1,
+            {
+                "kind": "context",
+                "label": "重建最近对话上下文",
+                "status": "completed",
+                "message_count": int(window.get("included_count", 0)),
+                "omitted_count": int(window.get("omitted_count", 0)),
             },
         )
     trace: dict[str, object] = {
@@ -635,6 +657,11 @@ async def _attach_store_knowledge(
         "degraded": result.degraded,
         "retrieval_mode": "keyword_only" if result.degraded else "hybrid",
     }
+
+
+def _attach_conversation_window(window: ContextWindow, data: dict[str, object]) -> None:
+    if window.recent_turns:
+        data["conversation_window"] = window.evidence_projection()
 
 
 def _money(amount: object, currency: object) -> str:

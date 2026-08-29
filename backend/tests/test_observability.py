@@ -1,4 +1,9 @@
-from app.core.observability import AiMetric, MetricRegistry, RequestMetric
+from app.core.observability import (
+    AiMetric,
+    MetricRegistry,
+    RequestMetric,
+    _HistogramAccumulator,
+)
 from app.core.telemetry import _safe_key, sanitize_span_attributes
 
 
@@ -59,3 +64,26 @@ def test_ai_metrics_cover_component_latency_and_bound_labels() -> None:
     assert 'component="model",operation="answer.generate",outcome="completed"' in rendered
     assert 'component="agent",operation="unknown",outcome="failed"' in rendered
     assert "ecom_ai_ttft_seconds_bucket" in rendered
+
+
+def test_histogram_keeps_constant_memory_for_one_million_observations() -> None:
+    accumulator = _HistogramAccumulator()
+
+    for index in range(1_000_000):
+        accumulator.observe((index % 1000) / 1000)
+
+    assert accumulator.count == 1_000_000
+    assert len(accumulator.bucket_counts) == 11
+    assert set(vars(accumulator)) == {"bucket_counts", "count", "total"}
+
+
+def test_metric_series_cardinality_is_bounded() -> None:
+    registry = MetricRegistry()
+
+    for index in range(600):
+        registry.observe_permission_denial(f"reason_{index}")
+
+    rendered = registry.render_prometheus()
+    assert len(registry._permission_denials) == 512
+    assert 'family="permission_denials"' in rendered
+    assert 'reason="other"' in rendered

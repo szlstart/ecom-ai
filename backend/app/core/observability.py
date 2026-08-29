@@ -4,7 +4,7 @@ import threading
 import time
 from collections import defaultdict
 from collections.abc import Awaitable, Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import structlog.contextvars
@@ -31,6 +31,7 @@ AI_OUTCOMES = frozenset(
 DEPENDENCIES = frozenset({"mysql", "postgres", "redis", "payment", "logistics", "model"})
 DEPENDENCY_OUTCOMES = frozenset({"success", "error", "timeout", "circuit_open"})
 LATENCY_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
+MAX_METRIC_SERIES_PER_FAMILY = 512
 
 
 @dataclass(frozen=True)
@@ -53,20 +54,46 @@ class AiMetric:
     ttft_seconds: float | None = None
 
 
+@dataclass
+class _HistogramAccumulator:
+    """Constant-memory cumulative histogram state for one bounded label set."""
+
+    bucket_counts: list[int] = field(
+        default_factory=lambda: [0 for _ in LATENCY_BUCKETS]
+    )
+    count: int = 0
+    total: float = 0.0
+
+    def observe(self, value: float) -> None:
+        observation = max(value, 0.0)
+        self.count += 1
+        self.total += observation
+        for index, boundary in enumerate(LATENCY_BUCKETS):
+            if observation <= boundary:
+                self.bucket_counts[index] += 1
+
+
 class MetricRegistry:
     """Thread-safe low-cardinality metrics for API and worker processes."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._requests: dict[tuple[str, str, int], int] = defaultdict(int)
-        self._request_duration: dict[tuple[str, str], list[float]] = defaultdict(list)
+        self._request_duration: dict[tuple[str, str], _HistogramAccumulator] = defaultdict(
+            _HistogramAccumulator
+        )
         self._ai_runs: dict[tuple[str, str, str], int] = defaultdict(int)
-        self._ai_duration: dict[tuple[str, str], list[float]] = defaultdict(list)
-        self._ai_ttft: dict[tuple[str, str], list[float]] = defaultdict(list)
+        self._ai_duration: dict[tuple[str, str], _HistogramAccumulator] = defaultdict(
+            _HistogramAccumulator
+        )
+        self._ai_ttft: dict[tuple[str, str], _HistogramAccumulator] = defaultdict(
+            _HistogramAccumulator
+        )
         self._ai_tokens: dict[tuple[str, str], int] = defaultdict(int)
         self._ai_cost: dict[str, float] = defaultdict(float)
         self._dependencies: dict[tuple[str, str], int] = defaultdict(int)
         self._permission_denials: dict[str, int] = defaultdict(int)
+        self._series_overflow: dict[str, int] = defaultdict(int)
         meter = otel_metrics.get_meter("ecom-ai")
         self._otel_http_count = meter.create_counter("ecom.http.requests")
         self._otel_http_duration = meter.create_histogram("ecom.http.request.duration", unit="s")
@@ -81,8 +108,20 @@ class MetricRegistry:
         route = _route_template(metric.route)
         status = metric.status if 100 <= metric.status <= 599 else 500
         with self._lock:
-            self._requests[(method, route, status)] += 1
-            self._request_duration[(method, route)].append(max(metric.duration_seconds, 0.0))
+            request_key = self._bounded_series_key(
+                "http_requests",
+                self._requests,
+                (method, route, status),
+                ("OTHER", "unknown", 500),
+            )
+            duration_key = self._bounded_series_key(
+                "http_duration",
+                self._request_duration,
+                (method, route),
+                ("OTHER", "unknown"),
+            )
+            self._requests[request_key] += 1
+            self._request_duration[duration_key].observe(metric.duration_seconds)
         attributes: dict[str, str | int] = {
             "http.request.method": method,
             "http.route": route,
@@ -96,10 +135,28 @@ class MetricRegistry:
         operation = _bounded_code(metric.operation, 64)
         outcome = _member(metric.outcome, AI_OUTCOMES, "failed")
         with self._lock:
-            self._ai_runs[(component, operation, outcome)] += 1
-            self._ai_duration[(component, operation)].append(max(metric.duration_seconds, 0.0))
+            run_key = self._bounded_series_key(
+                "ai_runs",
+                self._ai_runs,
+                (component, operation, outcome),
+                (component, "other", outcome),
+            )
+            duration_key = self._bounded_series_key(
+                "ai_duration",
+                self._ai_duration,
+                (component, operation),
+                (component, "other"),
+            )
+            self._ai_runs[run_key] += 1
+            self._ai_duration[duration_key].observe(metric.duration_seconds)
             if metric.ttft_seconds is not None:
-                self._ai_ttft[(component, operation)].append(max(metric.ttft_seconds, 0.0))
+                ttft_key = self._bounded_series_key(
+                    "ai_ttft",
+                    self._ai_ttft,
+                    (component, operation),
+                    (component, "other"),
+                )
+                self._ai_ttft[ttft_key].observe(metric.ttft_seconds)
             self._ai_tokens[(component, "input")] += max(metric.input_tokens, 0)
             self._ai_tokens[(component, "output")] += max(metric.output_tokens, 0)
             self._ai_cost[component] += max(metric.cost_usd, 0.0)
@@ -152,7 +209,27 @@ class MetricRegistry:
 
     def observe_permission_denial(self, reason: str) -> None:
         with self._lock:
-            self._permission_denials[_bounded_code(reason, 48)] += 1
+            bounded_reason = _bounded_code(reason, 48)
+            reason_key = self._bounded_series_key(
+                "permission_denials",
+                self._permission_denials,
+                bounded_reason,
+                "other",
+            )
+            self._permission_denials[reason_key] += 1
+
+    def _bounded_series_key(
+        self,
+        family: str,
+        values: Mapping[Any, object],
+        key: Any,
+        overflow_key: Any,
+    ) -> Any:
+        # Reserve one series for overflow so the configured budget is a hard cap.
+        if key in values or len(values) < MAX_METRIC_SERIES_PER_FAMILY - 1:
+            return key
+        self._series_overflow[family] += 1
+        return overflow_key
 
     def snapshot(self) -> dict[str, object]:
         with self._lock:
@@ -247,6 +324,13 @@ class MetricRegistry:
                 self._permission_denials,
                 ("reason",),
             )
+            _counter(
+                lines,
+                "ecom_metric_series_overflow_total",
+                "Observations collapsed after a metric family reached its series budget.",
+                self._series_overflow,
+                ("family",),
+            )
         return "\n".join(lines) + "\n"
 
 
@@ -325,25 +409,26 @@ def _histogram(
     lines: list[str],
     name: str,
     help_text: str,
-    values: Mapping[tuple[Any, ...], list[float]],
+    values: Mapping[tuple[Any, ...], _HistogramAccumulator],
     label_names: tuple[str, ...],
 ) -> None:
     lines.extend((f"# HELP {name} {help_text}", f"# TYPE {name} histogram"))
-    for raw_labels, observations in sorted(values.items()):
-        for boundary in LATENCY_BUCKETS:
-            count = sum(value <= boundary for value in observations)
+    for raw_labels, accumulator in sorted(values.items()):
+        for boundary, count in zip(
+            LATENCY_BUCKETS, accumulator.bucket_counts, strict=True
+        ):
             bucket_labels = _labels(
                 (*label_names, "le"), (*raw_labels, str(boundary))
             )
-            lines.append(
-                f"{name}_bucket{bucket_labels} {count}"
-            )
+            lines.append(f"{name}_bucket{bucket_labels} {count}")
         infinite_labels = _labels((*label_names, "le"), (*raw_labels, "+Inf"))
+        lines.append(f"{name}_bucket{infinite_labels} {accumulator.count}")
         lines.append(
-            f"{name}_bucket{infinite_labels} {len(observations)}"
+            f"{name}_sum{_labels(label_names, raw_labels)} {accumulator.total:.9f}"
         )
-        lines.append(f"{name}_sum{_labels(label_names, raw_labels)} {sum(observations):.9f}")
-        lines.append(f"{name}_count{_labels(label_names, raw_labels)} {len(observations)}")
+        lines.append(
+            f"{name}_count{_labels(label_names, raw_labels)} {accumulator.count}"
+        )
 
 
 def _labels(names: tuple[str, ...], values: tuple[object, ...]) -> str:

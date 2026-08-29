@@ -7,6 +7,7 @@ from app.core.config import Settings
 def production_settings(**overrides: object) -> Settings:
     values: dict[str, object] = {
         "environment": "production",
+        "build_sha": "c" * 40,
         "debug": False,
         "public_origin": "https://shop.acme.cn",
         "allowed_origins": "https://shop.acme.cn",
@@ -38,6 +39,11 @@ def production_settings(**overrides: object) -> Settings:
 def test_production_settings_accept_external_tls_dependencies() -> None:
     settings = production_settings()
     assert settings.environment == "production"
+
+
+def test_production_settings_reject_unversioned_build() -> None:
+    with pytest.raises(ValidationError):
+        production_settings(build_sha="development")
 
 
 def test_agent_worker_requires_complete_https_model_configuration() -> None:

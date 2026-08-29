@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 class LivenessResponse(BaseModel):
     status: Literal["ok"] = "ok"
+    version: str
+    build_sha: str
 
 
 class DependencyStatus(BaseModel):

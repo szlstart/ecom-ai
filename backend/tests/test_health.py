@@ -5,7 +5,11 @@ async def test_liveness_returns_request_id(client: AsyncClient) -> None:
     response = await client.get("/health/live")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {
+        "status": "ok",
+        "version": "0.1.0",
+        "build_sha": "development",
+    }
     assert response.headers["x-request-id"].startswith("req_")
 
 

@@ -3,6 +3,8 @@ CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
 PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
 ACCEPTANCE_ENV := ECOM_ENVIRONMENT=testing ECOM_RUN_INTEGRATION_TESTS=1 ECOM_RUN_FILE_INTEGRATION_TESTS=1 ECOM_OBJECT_STORAGE_ENABLED=true ECOM_OBJECT_STORAGE_ACCESS_KEY=$${ECOM_OBJECT_STORAGE_ACCESS_KEY:-local-minio-admin} ECOM_OBJECT_STORAGE_SECRET_KEY=$${ECOM_OBJECT_STORAGE_SECRET_KEY:-local-minio-change-me} ECOM_OBJECT_STORAGE_BUCKET_PREFIX=$${ECOM_OBJECT_STORAGE_BUCKET_PREFIX:-test-acceptance-} ECOM_FILE_SCANNER_ENABLED=true ECOM_FILE_SCANNER_HOST=$${ECOM_FILE_SCANNER_HOST:-127.0.0.1} ECOM_FILE_SCANNER_PORT=$${ECOM_FILE_SCANNER_PORT:-13310}
+BACKEND_RUNTIME_SERVICES := api file-worker batch-worker order-timeout-worker payment-reconcile-worker logistics-sync-worker admin-approval-worker realtime-outbox-worker agent-runtime-worker knowledge-indexer ai-memory-cleanup-worker
+APP_RUNTIME_SERVICES := $(BACKEND_RUNTIME_SERVICES) frontend
 
 .PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-evidence agent-security-test build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap merchant-bootstrap infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
 
@@ -100,7 +102,10 @@ infra-down:
 	docker compose down
 
 app-up:
-	docker compose --profile app up -d --build
+	docker compose up -d --wait mysql postgres redis minio clamav
+	ECOM_BUILD_SHA=$$(git rev-parse HEAD) docker compose --profile app build api frontend
+	docker compose --profile app up -d --no-deps --no-build --force-recreate $(APP_RUNTIME_SERVICES)
+	$(PYTHON) scripts/verify_runtime_builds.py
 
 app-down:
 	docker compose --profile app down

@@ -9532,6 +9532,10 @@ export interface components {
              * @constant
              */
             status: "ok";
+            /** Version */
+            version: string;
+            /** Build Sha */
+            build_sha: string;
         };
         /** LogisticsWebhookAck */
         LogisticsWebhookAck: {

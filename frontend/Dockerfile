@@ -8,6 +8,8 @@ COPY . .
 RUN pnpm build
 
 FROM nginxinc/nginx-unprivileged:1.29.3-alpine AS runtime
+ARG BUILD_SHA=development
+LABEL org.opencontainers.image.revision="$BUILD_SHA"
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8080

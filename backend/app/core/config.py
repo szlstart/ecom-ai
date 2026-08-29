@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 from urllib.parse import parse_qs, urlparse
 
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
 
     app_name: str = "ecom-ai API"
     app_version: str = "0.1.0"
+    build_sha: str = "development"
     environment: str = "development"
     debug: bool = False
     log_level: str = "INFO"
@@ -157,6 +159,8 @@ class Settings(BaseSettings):
             raise ValueError("debug mode is forbidden in production")
         if self.debug_verification_code is not None:
             raise ValueError("debug verification code is forbidden in production")
+        if re.fullmatch(r"[0-9a-f]{40}", self.build_sha) is None:
+            raise ValueError("production build SHA must be a full lowercase Git commit SHA")
         if not self.refresh_cookie_secure:
             raise ValueError("Secure refresh cookies are required in production")
         if self.embedding_api_url and self.embedding_api_key is None:

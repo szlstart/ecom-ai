@@ -113,6 +113,8 @@ services:
     build:
       context: ./backend
       target: runtime
+      args:
+        BUILD_SHA: ${ECOM_BUILD_SHA:-development}
     env_file: .env
     environment:
       ECOM_API_HOST: 0.0.0.0
@@ -325,6 +327,8 @@ services:
     build:
       context: ./frontend
       target: runtime
+      args:
+        BUILD_SHA: ${ECOM_BUILD_SHA:-development}
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

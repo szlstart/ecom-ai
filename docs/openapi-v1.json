@@ -49362,9 +49362,21 @@
             "const": "ok",
             "title": "Status",
             "default": "ok"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "build_sha": {
+            "type": "string",
+            "title": "Build Sha"
           }
         },
         "type": "object",
+        "required": [
+          "version",
+          "build_sha"
+        ],
         "title": "LivenessResponse"
       },
       "LogisticsWebhookAck": {

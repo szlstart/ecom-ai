@@ -38,6 +38,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           target: runtime
+          build-args: BUILD_SHA=${{ github.sha }}
           push: true
           tags: ${{ matrix.image }}:${{ github.sha }}
           sbom: true

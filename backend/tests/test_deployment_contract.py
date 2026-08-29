@@ -28,6 +28,27 @@ def test_compose_uses_loopback_ports_and_observability_profiles() -> None:
     assert services["tempo"]["profiles"] == ["observability"]
 
 
+def test_local_app_up_recreates_and_verifies_every_backend_runtime() -> None:
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts/verify_runtime_builds.py").read_text(encoding="utf-8")
+    assert "--force-recreate $(APP_RUNTIME_SERVICES)" in makefile
+    assert "scripts/verify_runtime_builds.py" in makefile
+    for service in (
+        "api",
+        "file-worker",
+        "batch-worker",
+        "order-timeout-worker",
+        "payment-reconcile-worker",
+        "logistics-sync-worker",
+        "admin-approval-worker",
+        "realtime-outbox-worker",
+        "agent-runtime-worker",
+        "knowledge-indexer",
+        "ai-memory-cleanup-worker",
+    ):
+        assert f'"{service}"' in verifier
+
+
 def test_ci_exercises_forward_backward_migrations_and_all_gates() -> None:
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
@@ -105,6 +126,8 @@ def test_production_override_removes_data_ports_and_has_migration_job() -> None:
     assert "syft" in supply_chain and "trivy" in supply_chain and "cosign" in supply_chain
     canary = (ROOT / "scripts/canary-rollback.sh").read_text(encoding="utf-8")
     assert "ROLLBACK_IMAGE" in canary and "--force-recreate" in canary
+    assert 'SERVICE="${SERVICE:-backend}"' in canary
+    assert "ai-memory-cleanup-worker" in canary
     release_preflight = (ROOT / "scripts/release-preflight.py").read_text(encoding="utf-8")
     assert "DIGEST_IMAGE" in release_preflight
     assert "rediss://" in release_preflight

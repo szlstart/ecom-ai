@@ -133,6 +133,15 @@ def test_operational_drills_require_encryption_replication_and_restore() -> None
     performance = (ROOT / "scripts/performance-scenarios.js").read_text(encoding="utf-8")
     for scenario in ("load", "stress", "spike", "soak"):
         assert f"{scenario}:" in performance
+    for profile in (
+        "public-catalog",
+        "user-workspace",
+        "messaging-read",
+        "merchant-workspace",
+        "admin-workspace",
+        "mixed-read",
+    ):
+        assert profile in performance
     assert '"p(95)<1000"' in performance
     assert '"p(99)<2000"' in performance
 

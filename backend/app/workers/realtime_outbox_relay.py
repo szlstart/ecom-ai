@@ -12,6 +12,7 @@ from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.database.redis import close_redis, get_redis, initialize_redis
 from app.modules.events.dispatcher import DomainEventDispatcher
 from app.modules.realtime.relay import RealtimeOutboxRelay
+from app.modules.reviews.moderation import ReviewModerationProcessor
 
 logger = structlog.get_logger(__name__)
 
@@ -31,6 +32,10 @@ async def run() -> None:
             processed = 0
             try:
                 async for session in mysql_session():
+                    review_count = await ReviewModerationProcessor(session).process_batch(
+                        settings.realtime_outbox_batch_size
+                    )
+                    processed = review_count
                     realtime_count = await RealtimeOutboxRelay(
                         session, get_redis(), settings
                     ).process_batch(settings.realtime_outbox_batch_size)
@@ -41,7 +46,7 @@ async def run() -> None:
                     dead_letter_count = await dispatcher.reconcile_failed(
                         settings.realtime_outbox_batch_size
                     )
-                    processed = realtime_count + domain_count + dead_letter_count
+                    processed += realtime_count + domain_count + dead_letter_count
             except RedisError:
                 logger.warning("realtime_outbox_redis_unavailable")
             except Exception:

@@ -18,7 +18,8 @@ export interface AdminReview {
   review_status: 'pending' | 'published' | 'hidden' | 'rejected'
   moderation_status: 'pending' | 'passed' | 'blocked' | 'manual'
   merchant_reply: { content: string; published_at: string } | null
-  governance_history: Array<{ governance_id: string; action: 'hide' | 'restore'; from_status: string; to_status: string; rule_code: string; reason: string; occurred_at: string }>
+  append: { append_id: string; content: string; append_status: 'pending' | 'published' | 'hidden' | 'rejected'; moderation_status: 'pending' | 'passed' | 'blocked' | 'manual'; submitted_at: string; published_at: string | null } | null
+  governance_history: Array<{ governance_id: string; action: ReviewGovernanceAction; from_status: string; to_status: string; rule_code: string; reason: string; occurred_at: string }>
   submitted_at: string
   published_at: string | null
   version: number
@@ -44,7 +45,9 @@ export function replyAdminReview(reviewId: string, etag: string, content: string
   }, token)
 }
 
-export function moderateAdminReview(reviewId: string, etag: string, action: 'hide' | 'restore', ruleCode: string, reason: string, token: string): Promise<ApiResult<AdminReview>> {
+export type ReviewGovernanceAction = 'hide' | 'restore' | 'approve' | 'reject' | 'approve_append' | 'reject_append'
+
+export function moderateAdminReview(reviewId: string, etag: string, action: ReviewGovernanceAction, ruleCode: string, reason: string, token: string): Promise<ApiResult<AdminReview>> {
   return apiRequest(`/admin/reviews/${encodeURIComponent(reviewId)}/moderations`, {
     method: 'POST',
     headers: { 'If-Match': etag, 'Idempotency-Key': createIdempotencyKey(`review-${action}`) },

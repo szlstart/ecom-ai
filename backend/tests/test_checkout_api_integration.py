@@ -73,6 +73,7 @@ from app.modules.reviews.models import (
     ReviewImage,
     ReviewRevisionRecord,
 )
+from app.modules.reviews.moderation import ReviewModerationProcessor
 from app.modules.reviews.schemas import AdminReviewModerationRequest, AdminReviewReplyRequest
 from app.modules.reviews.service import ReviewService
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
@@ -915,8 +916,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         "/api/v1/users/me/orders", headers=auth, params={"view": "cancelled"}
     )
     assert selected_order_id not in {
-        item["order_id"]
-        for item in cancellation_list_after_delete.json()["data"]["items"]
+        item["order_id"] for item in cancellation_list_after_delete.json()["data"]["items"]
     }
 
     receipt_checkout = await client.post(
@@ -1649,6 +1649,7 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
     assert stale_update.status_code == 409
     assert stale_update.json()["code"] == "VERSION_CONFLICT"
     async for session in mysql_session():
+        await ReviewModerationProcessor(session).process_batch(100)
         reviewed_item = await session.scalar(
             select(OrderItem).where(OrderItem.order_item_no == receipt_item_no)
         )
@@ -1671,10 +1672,9 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         assert revision is not None
         assert revision.before_snapshot["rating"] == 5
         assert revision.after_snapshot["rating"] == 4
-        review.review_status = "published"
-        review.moderation_status = "passed"
-        review.published_at = utc_now()
-        review.version += 1
+        assert review.review_status == "published"
+        assert review.moderation_status == "passed"
+        assert review.published_at is not None
         bound_file.visibility = "public_derivative"
         append_source = FileObject(
             file_no=new_prefixed_ulid("file_"),
@@ -1775,8 +1775,15 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
         assert append_bound_file is not None and append_bound_file.reference_count == 1
 
     async for session in mysql_session():
+        await ReviewModerationProcessor(session).process_batch(100)
         review = await session.scalar(select(Review).where(Review.review_no == review_id))
         assert review is not None
+        published_append = await session.scalar(
+            select(ReviewAppendRecord).where(ReviewAppendRecord.review_id == review.id)
+        )
+        assert published_append is not None
+        assert published_append.append_status == "published"
+        assert published_append.moderation_status == "passed"
         review_service = ReviewService(session, get_settings())
         review_admin_context = await _auth_context(session, user_no, session_no)
         reply_access = AdminAccess(

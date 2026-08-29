@@ -39988,6 +39988,66 @@
         ],
         "title": "AdminRefundList"
       },
+      "AdminReviewAppendModerationView": {
+        "properties": {
+          "append_id": {
+            "type": "string",
+            "title": "Append Id"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "append_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "published",
+              "hidden",
+              "rejected"
+            ],
+            "title": "Append Status"
+          },
+          "moderation_status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "passed",
+              "blocked",
+              "manual"
+            ],
+            "title": "Moderation Status"
+          },
+          "submitted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Submitted At"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "append_id",
+          "content",
+          "append_status",
+          "moderation_status",
+          "submitted_at",
+          "published_at"
+        ],
+        "title": "AdminReviewAppendModerationView"
+      },
       "AdminReviewGovernanceView": {
         "properties": {
           "governance_id": {
@@ -39998,7 +40058,11 @@
             "type": "string",
             "enum": [
               "hide",
-              "restore"
+              "restore",
+              "approve",
+              "reject",
+              "approve_append",
+              "reject_append"
             ],
             "title": "Action"
           },
@@ -40060,7 +40124,11 @@
             "type": "string",
             "enum": [
               "hide",
-              "restore"
+              "restore",
+              "approve",
+              "reject",
+              "approve_append",
+              "reject_append"
             ],
             "title": "Action"
           },
@@ -40196,6 +40264,16 @@
               }
             ]
           },
+          "append": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminReviewAppendModerationView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "governance_history": {
             "items": {
               "$ref": "#/components/schemas/AdminReviewGovernanceView"
@@ -40245,6 +40323,7 @@
           "review_status",
           "moderation_status",
           "merchant_reply",
+          "append",
           "governance_history",
           "submitted_at",
           "published_at",

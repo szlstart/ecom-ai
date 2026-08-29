@@ -32,8 +32,10 @@ from app.modules.reviews.models import (
     ReviewReply,
     ReviewRevisionRecord,
 )
+from app.modules.reviews.moderation import refresh_review_ratings
 from app.modules.reviews.repository import ReviewRepository
 from app.modules.reviews.schemas import (
+    AdminReviewAppendModerationView,
     AdminReviewGovernanceView,
     AdminReviewList,
     AdminReviewModerationRequest,
@@ -211,9 +213,33 @@ class ReviewService:
             return await self._admin_view(row)
         if review.version != expected_version:
             raise _review_version_precondition(review.version)
-        expected_status = "published" if payload.action == "hide" else "hidden"
-        target_status = "hidden" if payload.action == "hide" else "published"
-        if review.review_status != expected_status:
+        append = await self.repository.append_for_review(review.id, for_update=True)
+        append_action = payload.action in {"approve_append", "reject_append"}
+        if append_action:
+            if append is None or append.moderation_status != "manual":
+                raise _append_not_allowed("没有需要人工审核的追评。")
+            transition = {
+                "approve_append": ("pending", "published", "passed"),
+                "reject_append": ("pending", "rejected", "blocked"),
+            }[payload.action]
+            current_status = append.append_status
+        else:
+            if payload.action in {"approve", "reject"} and review.moderation_status != "manual":
+                raise ApplicationError(
+                    status=409,
+                    code="REVIEW_MANUAL_MODERATION_NOT_REQUIRED",
+                    title="Review manual moderation not required",
+                    detail="该评价当前不在人工审核队列中。",
+                )
+            transition = {
+                "hide": ("published", "hidden", "blocked"),
+                "restore": ("hidden", "published", "passed"),
+                "approve": ("pending", "published", "passed"),
+                "reject": ("pending", "rejected", "blocked"),
+            }[payload.action]
+            current_status = review.review_status
+        expected_status, target_status, moderation_status = transition
+        if current_status != expected_status:
             raise ApplicationError(
                 status=409,
                 code="REVIEW_MODERATION_NOT_ALLOWED",
@@ -221,10 +247,22 @@ class ReviewService:
                 detail="评价当前状态不允许执行该治理动作。",
             )
         now = utc_now()
-        previous = review.review_status
-        review.review_status = target_status
-        review.moderation_status = "blocked" if payload.action == "hide" else "passed"
-        review.hidden_at = now if payload.action == "hide" else None
+        previous = current_status
+        if append_action and append is not None:
+            append.append_status = target_status
+            append.moderation_status = moderation_status
+            append.published_at = now if payload.action == "approve_append" else None
+            append.version += 1
+        else:
+            review.review_status = target_status
+            review.moderation_status = moderation_status
+            review.hidden_at = now if payload.action == "hide" else None
+            if payload.action == "approve":
+                review.published_at = now
+            elif payload.action == "reject":
+                review.published_at = None
+            elif payload.action == "restore" and review.published_at is None:
+                review.published_at = now
         review.version += 1
         request_id = request_id_context.get() or new_prefixed_ulid("req_")
         self.session.add(
@@ -251,21 +289,30 @@ class ReviewService:
             target_type="review",
             target_no=review.review_no,
             reason=payload.reason,
-            before={"review_status": previous},
-            after={"review_status": target_status, "rule_code": payload.rule_code},
+            before={"resource_status": previous},
+            after={"resource_status": target_status, "rule_code": payload.rule_code},
             scope_type="store",
             scope_id=review.store_id,
         )
         self.session.add(
             _review_outbox(
                 review,
-                "review.hidden.v1" if payload.action == "hide" else "review.restored.v1",
+                {
+                    "hide": "review.hidden.v1",
+                    "restore": "review.restored.v1",
+                    "approve": "review.approved.v1",
+                    "reject": "review.rejected.v1",
+                    "approve_append": "review.append_approved.v1",
+                    "reject_append": "review.append_rejected.v1",
+                }[payload.action],
                 {"review_id": review.review_no, "rule_code": payload.rule_code},
                 now,
                 request_id,
             )
         )
         await self.session.flush()
+        if not append_action:
+            await refresh_review_ratings(self.session, review.product_id, review.store_id)
         result = await self._admin_view(row)
         self.idempotency.complete(
             claim,
@@ -765,12 +812,14 @@ class ReviewService:
         *,
         reply: ReviewReply | None = None,
         history: list[ReviewGovernanceRecord] | None = None,
+        append: ReviewAppendRecord | None = None,
         preloaded: bool = False,
     ) -> AdminReviewView:
         review, order, item, user, product, sku, store = row
         if not preloaded:
             reply = await self.repository.reply_for_review(review.id)
             history = await self.repository.governance_history(review.id)
+            append = await self.repository.append_for_review(review.id)
         assert history is not None
         return AdminReviewView(
             review_id=review.review_no,
@@ -797,6 +846,18 @@ class ReviewService:
                 if reply is not None and reply.published_at is not None
                 else None
             ),
+            append=(
+                AdminReviewAppendModerationView(
+                    append_id=append.append_no,
+                    content=append.content,
+                    append_status=cast(ReviewStatus, append.append_status),
+                    moderation_status=cast(ReviewModerationStatus, append.moderation_status),
+                    submitted_at=append.created_at,
+                    published_at=append.published_at,
+                )
+                if append is not None
+                else None
+            ),
             governance_history=[
                 AdminReviewGovernanceView(
                     governance_id=record.governance_no,
@@ -821,11 +882,13 @@ class ReviewService:
         review_ids = [row[0].id for row in rows]
         replies = await self.repository.replies(review_ids)
         histories = await self.repository.governance_histories(review_ids)
+        appends = await self.repository.owner_appends(review_ids)
         return [
             await self._admin_view(
                 row,
                 reply=replies.get(row[0].id),
                 history=histories.get(row[0].id, []),
+                append=appends.get(row[0].id),
                 preloaded=True,
             )
             for row in rows

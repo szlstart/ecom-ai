@@ -26,6 +26,9 @@ DIRECT_EVENT_TYPES = frozenset(
         "message.read_cursor.updated.v1",
         "support.ticket.status_changed.v1",
         "rbac.admin_approval_ready.v1",
+        "review.submitted.v1",
+        "review.updated.v1",
+        "review.append_submitted.v1",
     }
 )
 
@@ -222,9 +225,7 @@ class DomainEventDispatcher:
         await self._dead_letter(event, error_code, detail)
         await self.session.commit()
 
-    async def _dead_letter(
-        self, event: OutboxEvent, error_code: str, detail: str
-    ) -> None:
+    async def _dead_letter(self, event: OutboxEvent, error_code: str, detail: str) -> None:
         now = utc_now()
         existing = await self.session.scalar(
             select(DeadLetterEvent).where(

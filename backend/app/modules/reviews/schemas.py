@@ -10,6 +10,9 @@ from app.api.schemas import StrictRequest
 ReviewAction = Literal["create", "view", "edit", "append"]
 ReviewStatus = Literal["pending", "published", "hidden", "rejected"]
 ReviewModerationStatus = Literal["pending", "passed", "blocked", "manual"]
+ReviewGovernanceAction = Literal[
+    "hide", "restore", "approve", "reject", "approve_append", "reject_append"
+]
 
 
 class ReviewImageView(BaseModel):
@@ -174,19 +177,28 @@ class AdminReviewReplyRequest(StrictRequest):
 
 
 class AdminReviewModerationRequest(StrictRequest):
-    action: Literal["hide", "restore"]
+    action: ReviewGovernanceAction
     rule_code: str = Field(pattern=r"^[A-Z][A-Z0-9_]{1,63}$")
     reason: str = Field(min_length=2, max_length=1000)
 
 
 class AdminReviewGovernanceView(StrictRequest):
     governance_id: str
-    action: Literal["hide", "restore"]
+    action: ReviewGovernanceAction
     from_status: str
     to_status: str
     rule_code: str
     reason: str
     occurred_at: datetime
+
+
+class AdminReviewAppendModerationView(StrictRequest):
+    append_id: str
+    content: str
+    append_status: ReviewStatus
+    moderation_status: ReviewModerationStatus
+    submitted_at: datetime
+    published_at: datetime | None
 
 
 class AdminReviewView(StrictRequest):
@@ -207,6 +219,7 @@ class AdminReviewView(StrictRequest):
     review_status: Literal["pending", "published", "hidden", "rejected"]
     moderation_status: Literal["pending", "passed", "blocked", "manual"]
     merchant_reply: ReviewReplyView | None
+    append: AdminReviewAppendModerationView | None
     governance_history: list[AdminReviewGovernanceView]
     submitted_at: datetime
     published_at: datetime | None

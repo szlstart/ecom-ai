@@ -6400,6 +6400,30 @@ export interface components {
             /** Next Cursor */
             next_cursor?: string | null;
         };
+        /** AdminReviewAppendModerationView */
+        AdminReviewAppendModerationView: {
+            /** Append Id */
+            append_id: string;
+            /** Content */
+            content: string;
+            /**
+             * Append Status
+             * @enum {string}
+             */
+            append_status: "pending" | "published" | "hidden" | "rejected";
+            /**
+             * Moderation Status
+             * @enum {string}
+             */
+            moderation_status: "pending" | "passed" | "blocked" | "manual";
+            /**
+             * Submitted At
+             * Format: date-time
+             */
+            submitted_at: string;
+            /** Published At */
+            published_at: string | null;
+        };
         /** AdminReviewGovernanceView */
         AdminReviewGovernanceView: {
             /** Governance Id */
@@ -6408,7 +6432,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "hide" | "restore";
+            action: "hide" | "restore" | "approve" | "reject" | "approve_append" | "reject_append";
             /** From Status */
             from_status: string;
             /** To Status */
@@ -6434,7 +6458,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "hide" | "restore";
+            action: "hide" | "restore" | "approve" | "reject" | "approve_append" | "reject_append";
             /** Rule Code */
             rule_code: string;
             /** Reason */
@@ -6486,6 +6510,7 @@ export interface components {
              */
             moderation_status: "pending" | "passed" | "blocked" | "manual";
             merchant_reply: components["schemas"]["ReviewReplyView"] | null;
+            append: components["schemas"]["AdminReviewAppendModerationView"] | null;
             /** Governance History */
             governance_history: components["schemas"]["AdminReviewGovernanceView"][];
             /**

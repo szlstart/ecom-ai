@@ -83,7 +83,11 @@ export const useUserAuthStore = defineStore('user-auth', () => {
     return {
       access_token: accessToken.value,
       csrf_token: readCookie('ecom_user_csrf') ?? csrfToken.value ?? '',
-      user: user.value,
+      // Vue stores objects in deep reactive proxies. BroadcastChannel performs
+      // the structured-clone algorithm and rejects proxies with DataCloneError,
+      // which previously left a successful login modal open with a misleading
+      // network error. Always publish a plain snapshot.
+      user: { ...user.value },
     }
   }
 

@@ -1118,6 +1118,11 @@ class MessagingService:
                 last_read_message_id=message.id,
                 last_read_sequence_no=message.sequence_no,
                 last_read_at=now,
+                # SQLAlchemy applies mapped defaults during flush. The outbox
+                # event below is assembled before that flush, so an explicit
+                # initial version is required to avoid publishing NULL into a
+                # non-null aggregate_version column on a user's first read.
+                version=0,
             )
             self.session.add(cursor)
             cursor_advanced = True

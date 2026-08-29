@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ApplicationError
@@ -66,30 +66,17 @@ class OperationsContextBuilder:
         row = (
             await self.session.execute(
                 select(Conversation, Message, User, AgentVersion, AgentDefinition)
-                .select_from(Conversation)
-                .join_from(
-                    Conversation,
-                    Message,
-                    and_(
-                        Message.conversation_id == Conversation.id,
-                        Message.id == run.trigger_message_id,
-                    ),
-                )
+                .select_from(AgentRun)
+                .join(Conversation, Conversation.id == AgentRun.conversation_id)
+                .join(Message, Message.id == AgentRun.trigger_message_id)
                 .join_from(Conversation, User, User.id == Conversation.user_id)
-                .join_from(
-                    Conversation,
-                    AgentVersion,
-                    and_(
-                        AgentVersion.id == run.agent_version_id,
-                        Conversation.id == run.conversation_id,
-                    ),
-                )
+                .join(AgentVersion, AgentVersion.id == AgentRun.agent_version_id)
                 .join_from(
                     AgentVersion,
                     AgentDefinition,
                     AgentDefinition.id == AgentVersion.agent_id,
                 )
-                .where(Conversation.id == run.conversation_id)
+                .where(AgentRun.id == run.id)
             )
         ).one_or_none()
         if row is None:

@@ -213,6 +213,28 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
     assert sent.status_code == replay.status_code == 201
     assert replay.json()["data"] == sent.json()["data"]
 
+    first_read = await client.put(
+        f"/api/v1/conversations/{conversation_no}/read-cursor",
+        headers=headers,
+        json={
+            "last_read_message_id": sent.json()["data"]["message_id"],
+            "last_read_sequence_no": sent.json()["data"]["sequence_no"],
+        },
+    )
+    assert first_read.status_code == 200, first_read.text
+    assert first_read.json()["data"]["cursor_version"] == 0
+    async for session in mysql_session():
+        read_event = await session.scalar(
+            select(OutboxEvent).where(
+                OutboxEvent.aggregate_no == conversation_no,
+                OutboxEvent.event_type == "message.read_cursor.updated.v1",
+            )
+        )
+        assert read_event is not None
+        assert read_event.aggregate_version == 0
+        assert read_event.payload["cursor_version"] == 0
+        break
+
     blocked = await client.post(
         f"/api/v1/conversations/{conversation_no}/messages",
         headers=headers,

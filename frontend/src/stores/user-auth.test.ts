@@ -13,9 +13,10 @@ class FakeBroadcastChannel extends EventTarget {
   }
 
   postMessage(data: unknown): void {
+    const cloned = structuredClone(data)
     for (const channel of FakeBroadcastChannel.instances) {
       if (channel !== this && channel.name === this.name) {
-        queueMicrotask(() => channel.dispatchEvent(new MessageEvent('message', { data })))
+        queueMicrotask(() => channel.dispatchEvent(new MessageEvent('message', { data: cloned })))
       }
     }
   }

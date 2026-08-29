@@ -58,16 +58,17 @@ class ExclusiveContextBuilder:
         row = (
             await self.session.execute(
                 select(Conversation, Message, User, AgentVersion, AgentDefinition)
-                .select_from(Conversation)
-                .join_from(Conversation, Message, Message.id == run.trigger_message_id)
+                .select_from(AgentRun)
+                .join(Conversation, Conversation.id == AgentRun.conversation_id)
+                .join(Message, Message.id == AgentRun.trigger_message_id)
                 .join_from(Conversation, User, User.id == Conversation.user_id)
-                .join_from(Conversation, AgentVersion, AgentVersion.id == run.agent_version_id)
+                .join(AgentVersion, AgentVersion.id == AgentRun.agent_version_id)
                 .join_from(
                     AgentVersion,
                     AgentDefinition,
                     AgentDefinition.id == AgentVersion.agent_id,
                 )
-                .where(Conversation.id == run.conversation_id)
+                .where(AgentRun.id == run.id)
             )
         ).one_or_none()
         if row is None:

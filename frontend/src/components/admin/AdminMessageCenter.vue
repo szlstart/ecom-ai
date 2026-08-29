@@ -22,6 +22,7 @@ import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/ap
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
+import { useDialogA11y } from '@/composables/dialog-a11y'
 
 const emit = defineEmits<{ close: []; 'unread-change': [count: number] }>()
 const auth = useAdminAuthStore()
@@ -42,6 +43,7 @@ const userGroupOpen = ref(true)
 const storeGroupOpen = ref(true)
 const aiConversationId = ref('')
 const timeline = ref<HTMLElement | null>(null)
+const dialog = ref<HTMLElement | null>(null)
 const connectionState = ref<RealtimeState>('polling')
 const selectedTraceRunId = ref<string | null>(null)
 let realtime: RealtimeConnection | undefined
@@ -214,9 +216,10 @@ async function send() {
   finally { busy.value = false }
 }
 
-function closeOnEscape(event: KeyboardEvent) { if (event.key === 'Escape') emit('close') }
+const open = ref(true)
+function close() { open.value = false; emit('close') }
+useDialogA11y(open, dialog, close)
 onMounted(async () => {
-  window.addEventListener('keydown', closeOnEscape)
   await Promise.all([loadTickets(), loadAiMessages()])
   loading.value = false
   await scrollBottom()
@@ -229,7 +232,6 @@ onMounted(async () => {
   pollingTimer = window.setInterval(() => void Promise.all([loadTickets(), refreshActiveMessages()]), 10_000)
 })
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', closeOnEscape)
   realtime?.stop()
   if (pollingTimer) window.clearInterval(pollingTimer)
   if (refreshTimer) window.clearTimeout(refreshTimer)
@@ -237,10 +239,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="admin-message-overlay" @click.self="emit('close')">
-    <section class="admin-message-window" role="dialog" aria-modal="true" aria-label="管理端消息中心">
+  <div class="admin-message-overlay" @click.self="close">
+    <section ref="dialog" class="admin-message-window" role="dialog" aria-modal="true" aria-label="管理端消息中心" tabindex="-1">
       <aside class="admin-chat-sidebar">
-        <header><div><strong>消息中心</strong><small>用户、店铺与 AI 管家</small></div><button aria-label="关闭消息中心" @click="emit('close')">×</button></header>
+        <header><div><strong>消息中心</strong><small>用户、店铺与 AI 管家</small></div><button aria-label="关闭消息中心" @click="close">×</button></header>
         <label class="admin-chat-search"><span>⌕</span><input v-model="search" placeholder="搜索会话" /></label>
         <div class="admin-chat-list">
           <button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click="selectAi"><span class="admin-chat-avatar ai">✦</span><span><strong>AI 管家</strong><small>只读诊断助手 · 固定置顶</small></span><time>置顶</time></button>

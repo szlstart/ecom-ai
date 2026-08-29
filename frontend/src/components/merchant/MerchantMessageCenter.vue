@@ -23,6 +23,7 @@ import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
+import { useDialogA11y } from '@/composables/dialog-a11y'
 
 defineProps<{ storeName?: string }>()
 
@@ -44,6 +45,7 @@ const exclusiveConversationId = ref('')
 const exclusiveUnread = ref(0)
 const timeline = ref<HTMLElement | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
+const dialog = ref<HTMLElement | null>(null)
 const connectionState = ref<RealtimeState>('polling')
 const shaking = ref(false)
 const selectedTraceRunId = ref<string | null>(null)
@@ -182,8 +184,8 @@ async function show() {
 
 function close() {
   open.value = false
-  void nextTick(() => trigger.value?.focus())
 }
+useDialogA11y(open, dialog, close)
 
 function shake() {
   if (open.value) return
@@ -259,7 +261,7 @@ onBeforeUnmount(() => {
   </button>
   <Teleport to="body">
     <div v-if="open" class="merchant-message-overlay" @mousedown.self="close" @keydown.esc="close">
-      <section class="merchant-message-window" role="dialog" aria-modal="true" aria-label="商家消息中心" tabindex="-1">
+      <section ref="dialog" class="merchant-message-window" role="dialog" aria-modal="true" aria-label="商家消息中心" tabindex="-1">
         <aside class="merchant-chat-list">
           <header><div><strong>消息</strong><small><span class="connection-dot" :class="connectionState" />{{ unreadCount ? `${unreadCount} 条未读` : '消息已读' }}</small></div><button type="button" aria-label="关闭消息中心" @click="close">×</button></header>
           <button class="merchant-chat-item pinned" :class="{ active: selectedKey === 'exclusive' }" type="button" @click="selectConversation('exclusive')">

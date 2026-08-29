@@ -6,6 +6,7 @@ import { listSupportTickets } from '@/api/admin-support'
 import { apiRequest } from '@/api/http'
 import AdminMessageCenter from '@/components/admin/AdminMessageCenter.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
+import { useDialogA11y } from '@/composables/dialog-a11y'
 
 interface NavigationItem { code: string; title: string; route: string; required_permission: string }
 interface AdminMe { user_id: string; username: string; nickname: string }
@@ -21,6 +22,7 @@ const profileOpen = ref(false)
 const messageOpen = ref(false)
 const searchOpen = ref(false)
 const searchQuery = ref('')
+const searchDialog = ref<HTMLElement | null>(null)
 const unreadCount = ref(0)
 let unreadTimer: number | undefined
 
@@ -75,6 +77,8 @@ function openSearch() {
   searchOpen.value = true
   window.setTimeout(() => document.querySelector<HTMLInputElement>('.admin-command-input')?.focus(), 0)
 }
+function closeSearch() { searchOpen.value = false }
+useDialogA11y(searchOpen, searchDialog, closeSearch)
 async function chooseSearchResult(item: NavigationItem) { searchOpen.value = false; searchQuery.value = ''; await router.push(item.route) }
 function handleKeydown(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') { event.preventDefault(); openSearch() }
@@ -122,7 +126,7 @@ watch(() => route.fullPath, () => { sidebarOpen.value = false; profileOpen.value
       <main class="admin-content"><RouterView :key="route.path" /></main>
     </div>
 
-    <div v-if="searchOpen" class="admin-command-overlay" @click.self="searchOpen = false"><section class="admin-command-panel" role="dialog" aria-modal="true" aria-label="管理功能搜索"><header><span>⌕</span><input v-model="searchQuery" class="admin-command-input" placeholder="输入功能名称，例如：用户治理、审批、Skill" /><kbd>ESC</kbd></header><div class="admin-command-results"><p>{{ searchQuery ? '功能搜索结果' : '常用功能' }}</p><button v-for="item in searchResults" :key="item.code" @click="chooseSearchResult(item)"><span class="admin-nav-icon">{{ iconFor(item.code) }}</span><span><strong>{{ item.title }}</strong><small>{{ item.route }}</small></span><b>↵</b></button><div v-if="!searchResults.length" class="empty-state">没有找到对应管理功能</div></div></section></div>
+    <div v-if="searchOpen" class="admin-command-overlay" @click.self="closeSearch"><section ref="searchDialog" class="admin-command-panel" role="dialog" aria-modal="true" aria-label="管理功能搜索" tabindex="-1"><header><span>⌕</span><input v-model="searchQuery" class="admin-command-input" placeholder="输入功能名称，例如：用户治理、审批、Skill" /><kbd>ESC</kbd></header><div class="admin-command-results"><p>{{ searchQuery ? '功能搜索结果' : '常用功能' }}</p><button v-for="item in searchResults" :key="item.code" @click="chooseSearchResult(item)"><span class="admin-nav-icon">{{ iconFor(item.code) }}</span><span><strong>{{ item.title }}</strong><small>{{ item.route }}</small></span><b>↵</b></button><div v-if="!searchResults.length" class="empty-state">没有找到对应管理功能</div></div></section></div>
     <AdminMessageCenter v-if="messageOpen" @close="messageOpen = false" @unread-change="unreadCount = $event" />
   </div>
 </template>

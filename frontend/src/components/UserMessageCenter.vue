@@ -13,6 +13,7 @@ import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import type { ChatMessage } from '@/api/messaging'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
+import { useDialogA11y } from '@/composables/dialog-a11y'
 
 const auth = useUserAuthStore()
 const center = useMessageCenterStore()
@@ -24,6 +25,7 @@ const shaking = ref(false)
 const traceMessages = ref<ChatMessage[]>([])
 const selectedTraceRunId = ref<string | null>(null)
 const trigger = ref<HTMLButtonElement | null>(null)
+const dialog = ref<HTMLElement | null>(null)
 let realtime: RealtimeConnection | undefined
 let refreshTimer: number | undefined
 let pollingTimer: number | undefined
@@ -100,8 +102,8 @@ function selectConversation(item: Conversation) {
 }
 function close() {
   center.close()
-  void nextTick(() => trigger.value?.focus())
 }
+useDialogA11y(computed(() => center.open), dialog, close)
 
 watch(() => center.open, (value) => {
   if (value) void load(true)
@@ -146,7 +148,7 @@ onBeforeUnmount(() => {
   </button>
   <Teleport to="body">
     <div v-if="center.open" class="merchant-message-overlay user-message-overlay" @mousedown.self="close" @keydown.esc="close">
-      <section class="merchant-message-window user-message-window" role="dialog" aria-modal="true" aria-label="用户消息中心" tabindex="-1">
+      <section ref="dialog" class="merchant-message-window user-message-window" role="dialog" aria-modal="true" aria-label="用户消息中心" tabindex="-1">
         <aside class="merchant-chat-list user-chat-list">
           <header><div><strong>消息</strong><small><span class="connection-dot" :class="connectionState" />{{ totalUnread ? `${totalUnread} 条未读` : '消息已读' }}</small></div><button type="button" aria-label="关闭消息中心" @click="close">×</button></header>
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>

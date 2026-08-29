@@ -76,6 +76,94 @@ async def test_provider_uses_model_specific_temperature() -> None:
 
 
 @pytest.mark.asyncio
+async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert "tools" not in payload
+        assert "password" not in payload["messages"][1]["content"]
+        schema_name = payload["response_format"]["json_schema"]["name"]
+        if schema_name == "grounding_verdict":
+            return httpx.Response(
+                200,
+                json={
+                    "choices": [
+                        {
+                            "message": {
+                                "content": '{"supported":true,"unsupported_claims":[]}'
+                            }
+                        }
+                    ]
+                },
+            )
+        schema = payload["response_format"]["json_schema"]["schema"]
+        assert schema["additionalProperties"] is False
+        assert schema["properties"]["cited_source_ids"]["items"]["enum"] == ["prd_public"]
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "answer": "这款商品当前公开价格为 12 元，库存以结算页为准。",
+                                    "cited_source_ids": ["prd_public"],
+                                    "confidence": "high",
+                                    "limitation": "库存会实时变化",
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    answer = await planner.synthesize(
+        agent_prompt="只按证据回答",
+        user_text="多少钱",
+        intent="product_qa",
+        evidence={"price": 1200},
+        source_ids=("prd_public",),
+    )
+    assert answer.cited_source_ids == ("prd_public",)
+    assert answer.confidence == "high"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_provider_rejects_fabricated_source_identifier() -> None:
+    def respond(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"answer":"错误引用","cited_source_ids":["foreign"],'
+                                '"confidence":"high","limitation":null}'
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    with pytest.raises(ModelGatewayError, match="invalid grounded answer"):
+        await planner.synthesize(
+            agent_prompt="只按证据回答",
+            user_text="问题",
+            intent="product_qa",
+            evidence={"value": "事实"},
+            source_ids=("known",),
+        )
+    await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_provider_exclusive_plan_rejects_unknown_or_malformed_output() -> None:
     responses = iter(
         (

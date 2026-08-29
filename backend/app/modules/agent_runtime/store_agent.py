@@ -17,6 +17,7 @@ from app.modules.agent_runtime.model_gateway import (
 )
 from app.modules.agent_runtime.models import AgentRun
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
+from app.modules.agent_runtime.provider_gateway import ProviderStoreModelGateway
 from app.modules.agent_runtime.store_context import StoreContextBuilder, TrustedStoreAgentContext
 from app.modules.agent_runtime.store_tools import StoreToolGateway, StoreToolResult
 from app.modules.messaging.models import Message
@@ -104,7 +105,19 @@ async def process_store_run(
         await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
     if outcome.status == "succeeded":
-        await _complete_message(session, context, _render(plan, outcome.data), data=outcome.data)
+        answer, trace = await _grounded_answer(
+            context,
+            gateway,
+            plan,
+            outcome.data,
+        )
+        await _complete_message(
+            session,
+            context,
+            answer,
+            data=outcome.data,
+            execution_trace=trace,
+        )
         await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
     if outcome.error_code in {"TOOL_TIMEOUT_UNKNOWN", "TOOL_EXECUTION_FAILED"}:
@@ -206,6 +219,7 @@ async def _complete_message(
     data: Mapping[str, Any] | None = None,
     error_code: str | None = None,
     degraded_reason: str | None = None,
+    execution_trace: Mapping[str, Any] | None = None,
 ) -> None:
     now = utc_now()
     conversation = context.conversation
@@ -225,7 +239,10 @@ async def _complete_message(
             "run_id": context.run.run_no,
             "sources": _source_refs(data or {}),
             "data_scope": context.trusted_scope,
+            "execution_trace": dict(execution_trace or {}),
         },
+        agent_version_id=context.agent_version.id,
+        ai_run_no=context.run.run_no,
         message_status="sent",
         moderation_status="passed",
         sent_at=now,
@@ -238,7 +255,8 @@ async def _complete_message(
     context.run.run_status = "completed"
     context.run.current_phase = "completed"
     context.run.error_code = error_code
-    context.run.degraded_reason = degraded_reason
+    if degraded_reason is not None:
+        context.run.degraded_reason = degraded_reason
     context.run.version += 1
     session.add_all(
         [
@@ -272,6 +290,78 @@ async def _complete_message(
             ),
         ]
     )
+
+
+async def _grounded_answer(
+    context: TrustedStoreAgentContext,
+    gateway: StoreModelGateway,
+    plan: StoreAgentPlan,
+    data: Mapping[str, Any],
+) -> tuple[str, dict[str, object]]:
+    fallback = _render(plan, data)
+    tool_code = _tool_for_intent(plan.intent)
+    sources = _source_refs(data)
+    source_ids = tuple(
+        f"{item['type']}:{item['id']}"
+        for item in sources
+        if isinstance(item.get("type"), str) and isinstance(item.get("id"), str)
+    ) or (f"tool:{tool_code}",)
+    trace: dict[str, object] = {
+        "version": "public-agent-trace-v1",
+        "run_id": context.run.run_no,
+        "agent": "店铺客服",
+        "model": context.agent_version.model_profile,
+        "status": "completed",
+        "intent": plan.intent,
+        "steps": [
+            {"kind": "plan", "label": "理解问题", "status": "completed"},
+            {
+                "kind": "tool",
+                "label": "查询店铺可信数据",
+                "tool_code": tool_code,
+                "status": "completed",
+            },
+            {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
+        ],
+        "source_ids": list(source_ids),
+        "raw_reasoning_exposed": False,
+    }
+    if not isinstance(gateway, ProviderStoreModelGateway):
+        trace["answer_mode"] = "deterministic_fallback"
+        return fallback, trace
+    context.run.current_phase = "answering"
+    context.run.version += 1
+    try:
+        answer = await gateway.synthesize(
+            agent_prompt=context.agent_version.system_prompt,
+            user_text=context.trigger.text_content or "",
+            intent=plan.intent,
+            evidence=data,
+            source_ids=source_ids,
+        )
+    except (ModelGatewayError, TimeoutError):
+        trace["answer_mode"] = "deterministic_fallback"
+        trace["degraded_reason"] = "answer_model_unavailable"
+        context.run.degraded_reason = "answer_model_unavailable"
+        return fallback, trace
+    trace["answer_mode"] = "model_grounded"
+    trace["confidence"] = answer.confidence
+    trace["cited_source_ids"] = list(answer.cited_source_ids)
+    if answer.limitation:
+        trace["limitation"] = answer.limitation
+    return answer.text, trace
+
+
+def _tool_for_intent(intent: str) -> str:
+    return {
+        "human_handoff": "support.create_store_ticket",
+        "policy_qa": "catalog.get_store_policy",
+        "product_recommend": "catalog.search_store_products",
+        "order_explain": "order.get_store_order_summary",
+        "sku_compare": "catalog.compare_skus",
+        "inventory_lookup": "catalog.get_inventory_availability",
+        "product_qa": "catalog.get_product",
+    }.get(intent, "unknown")
 
 
 def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:

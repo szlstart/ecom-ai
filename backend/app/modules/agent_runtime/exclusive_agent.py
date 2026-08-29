@@ -25,6 +25,7 @@ from app.modules.agent_runtime.exclusive_tools import ExclusiveToolGateway
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
+from app.modules.agent_runtime.provider_gateway import ProviderExclusiveModelGateway
 from app.modules.agent_runtime.store_agent import _stream_events
 from app.modules.agent_runtime.store_tools import StoreToolResult
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
@@ -177,7 +178,14 @@ async def process_exclusive_run(
         return
 
     if result.status == "succeeded":
-        await _complete(session, context, _render(plan, result.data), data=result.data)
+        answer, trace = await _grounded_answer(context, model_gateway, plan, result.data)
+        await _complete(
+            session,
+            context,
+            answer,
+            data=result.data,
+            execution_trace=trace,
+        )
     elif result.error_code == "AI_CONSENT_REQUIRED":
         await _complete(
             session,
@@ -366,6 +374,7 @@ async def _complete(
     data: Mapping[str, Any] | None = None,
     error_code: str | None = None,
     degraded_reason: str | None = None,
+    execution_trace: Mapping[str, Any] | None = None,
 ) -> None:
     now = utc_now()
     conversation = context.conversation
@@ -385,7 +394,10 @@ async def _complete(
             "run_id": context.run.run_no,
             "sources": _source_refs(data or {}),
             "data_scope": context.trusted_scope,
+            "execution_trace": dict(execution_trace or {}),
         },
+        agent_version_id=context.agent_version.id,
+        ai_run_no=context.run.run_no,
         message_status="sent",
         moderation_status="passed",
         sent_at=now,
@@ -398,7 +410,8 @@ async def _complete(
     context.run.run_status = "completed"
     context.run.current_phase = "completed"
     context.run.error_code = error_code
-    context.run.degraded_reason = degraded_reason
+    if degraded_reason is not None:
+        context.run.degraded_reason = degraded_reason
     context.run.version += 1
     session.add_all(
         [
@@ -432,6 +445,79 @@ async def _complete(
             ),
         ]
     )
+
+
+async def _grounded_answer(
+    context: TrustedExclusiveAgentContext,
+    gateway: ExclusiveModelGateway | None,
+    plan: ExclusiveAgentPlan,
+    data: Mapping[str, Any],
+) -> tuple[str, dict[str, object]]:
+    fallback = _render(plan, data)
+    tool_code = _tool_for_intent(plan.intent)
+    sources = _source_refs(data)
+    source_ids = tuple(
+        f"{item['type']}:{item['id']}"
+        for item in sources
+        if isinstance(item.get("type"), str) and isinstance(item.get("id"), str)
+    ) or (f"tool:{tool_code}",)
+    trace: dict[str, object] = {
+        "version": "public-agent-trace-v1",
+        "run_id": context.run.run_no,
+        "agent": "专属客服",
+        "model": context.agent_version.model_profile,
+        "status": "completed",
+        "intent": plan.intent,
+        "steps": [
+            {"kind": "plan", "label": "理解问题", "status": "completed"},
+            {
+                "kind": "tool",
+                "label": "查询用户范围内的可信数据",
+                "tool_code": tool_code,
+                "status": "completed",
+            },
+            {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
+        ],
+        "source_ids": list(source_ids),
+        "raw_reasoning_exposed": False,
+    }
+    if not isinstance(gateway, ProviderExclusiveModelGateway):
+        trace["answer_mode"] = "deterministic_fallback"
+        return fallback, trace
+    context.run.current_phase = "answering"
+    context.run.version += 1
+    try:
+        answer = await gateway.synthesize(
+            agent_prompt=context.agent_version.system_prompt,
+            user_text=context.trigger.text_content or "",
+            intent=plan.intent,
+            evidence=data,
+            source_ids=source_ids,
+        )
+    except (ModelGatewayError, TimeoutError):
+        trace["answer_mode"] = "deterministic_fallback"
+        trace["degraded_reason"] = "answer_model_unavailable"
+        context.run.degraded_reason = "answer_model_unavailable"
+        return fallback, trace
+    trace["answer_mode"] = "model_grounded"
+    trace["confidence"] = answer.confidence
+    trace["cited_source_ids"] = list(answer.cited_source_ids)
+    if answer.limitation:
+        trace["limitation"] = answer.limitation
+    return answer.text, trace
+
+
+def _tool_for_intent(intent: str) -> str:
+    return {
+        "human_handoff": "support.create_platform_ticket",
+        "policy_qa": "rag.policy.search",
+        "product_search": "catalog.search_products",
+        "personalized_recommendation": "catalog.search_products",
+        "order_lookup": "order.list_user_orders",
+        "logistics_lookup": "logistics.get_user_order_shipments",
+        "refund_eligibility": "after_sale.build_refund_draft",
+        "refund_progress": "after_sale.list_user_refunds",
+    }.get(intent, "unknown")
 
 
 def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:

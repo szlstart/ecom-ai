@@ -10,6 +10,7 @@ from app.core.exceptions import ApplicationError
 from app.core.security import utc_now
 from app.modules.agent_runtime.models import AgentDefinition, AgentRun, AgentVersion
 from app.modules.identity.models import User
+from app.modules.knowledge.skill_registry import SkillRegistry
 from app.modules.messaging.models import Conversation, ConversationContext, Message
 from app.modules.stores.models import Store
 
@@ -97,7 +98,14 @@ class StoreContextBuilder:
             or not _definition_matches_store(definition, store.id)
         ):
             raise _context_error("AGENT_TRUSTED_SCOPE_MISMATCH", "会话与店铺 Agent 范围不匹配。")
-        allowed_tools = frozenset(item for item in version.tool_allowlist if isinstance(item, str))
+        try:
+            allowed_tools = await SkillRegistry(self.session).effective_tools(
+                version, definition.agent_code
+            )
+        except PermissionError as exc:
+            raise _context_error(
+                "AGENT_TOOL_POLICY_INVALID", "Agent Skill 或 MCP 工具策略无效。"
+            ) from exc
         if not allowed_tools or not allowed_tools <= STORE_AGENT_TOOL_CODES:
             raise _context_error("AGENT_TOOL_POLICY_INVALID", "Agent 工具策略无效。")
         refs = _parse_context_refs(run.context_snapshot)

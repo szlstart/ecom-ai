@@ -51,6 +51,81 @@ class SkillRegistry:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def effective_tools(
+        self, agent_version: AgentVersion, agent_code: str
+    ) -> frozenset[str]:
+        """Resolve the executable Tool set through every published Skill binding.
+
+        Agent/Skill/Tool/MCP kill switches are applied on every Run. A published
+        Agent Version whose declared allowlist is not fully backed by active,
+        published bindings fails closed instead of silently gaining or losing tools.
+        """
+
+        switches = list(
+            (
+                await self.session.execute(
+                    select(RuntimeKillSwitch.target_type, RuntimeKillSwitch.target_code).where(
+                        RuntimeKillSwitch.is_active.is_(True)
+                    )
+                )
+            ).all()
+        )
+        disabled = {(str(target_type), str(target_code)) for target_type, target_code in switches}
+        if ("agent", agent_code) in disabled:
+            raise PermissionError("agent is disabled by kill switch")
+        rows = list(
+            (
+                await self.session.execute(
+                    select(
+                        SkillDefinition.skill_code,
+                        ToolDefinition.tool_code,
+                        ToolDefinition.server_code,
+                        SkillToolBinding.permission_effect,
+                    )
+                    .select_from(AgentSkillBinding)
+                    .join(SkillVersion, SkillVersion.id == AgentSkillBinding.skill_version_id)
+                    .join(SkillDefinition, SkillDefinition.id == SkillVersion.skill_id)
+                    .join(
+                        SkillToolBinding,
+                        SkillToolBinding.skill_version_id == SkillVersion.id,
+                    )
+                    .join(ToolVersion, ToolVersion.id == SkillToolBinding.tool_version_id)
+                    .join(ToolDefinition, ToolDefinition.id == ToolVersion.tool_id)
+                    .where(
+                        AgentSkillBinding.agent_version_id == agent_version.id,
+                        AgentSkillBinding.binding_status == "active",
+                        SkillDefinition.skill_status == "active",
+                        SkillVersion.version_status == "published",
+                        ToolDefinition.tool_status == "active",
+                        ToolVersion.version_status == "published",
+                    )
+                )
+            ).all()
+        )
+        allowed: set[str] = set()
+        denied: set[str] = set()
+        for skill_code, tool_code, server_code, effect in rows:
+            tool = str(tool_code)
+            if (
+                ("skill", str(skill_code)) in disabled
+                or ("tool", tool) in disabled
+                or ("mcp_server", str(server_code)) in disabled
+            ):
+                denied.add(tool)
+            elif effect == "deny":
+                denied.add(tool)
+            elif effect == "allow":
+                allowed.add(tool)
+        declared = {
+            str(tool_code)
+            for tool_code in agent_version.tool_allowlist
+            if isinstance(tool_code, str)
+        }
+        effective = frozenset((allowed - denied) & declared)
+        if effective != declared:
+            raise PermissionError("agent tool allowlist is not backed by executable skills")
+        return effective
+
     async def load(self, agent_version_id: int, skill_code: str) -> SkillExecutionPlan:
         agent_version = await self.session.get(AgentVersion, agent_version_id)
         if agent_version is None or agent_version.version_status not in {"published", "retired"}:

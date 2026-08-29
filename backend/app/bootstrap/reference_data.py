@@ -7,6 +7,7 @@ from typing import cast
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bootstrap.ai_runtime import seed_ai_runtime
 from app.bootstrap.merchant import STORE_OPERATOR_PERMISSIONS
 from app.core.id_generator import new_prefixed_ulid
 from app.generated.permission_catalog import PERMISSIONS
@@ -46,6 +47,7 @@ async def seed_reference_data(session: AsyncSession) -> None:
     await _sync_store_operator_permissions(session)
     await _seed_categories(session)
     await _seed_legal_documents(session)
+    await seed_ai_runtime(session)
     await session.commit()
 
 

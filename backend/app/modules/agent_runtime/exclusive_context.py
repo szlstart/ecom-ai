@@ -10,6 +10,7 @@ from app.core.security import utc_now
 from app.modules.agent_runtime.models import AgentDefinition, AgentRun, AgentVersion
 from app.modules.agent_runtime.store_context import ContextRef, _parse_context_refs
 from app.modules.identity.models import User
+from app.modules.knowledge.skill_registry import SkillRegistry
 from app.modules.messaging.models import Conversation, ConversationContext, Message
 
 EXCLUSIVE_AGENT_TOOL_CODES = frozenset(
@@ -87,7 +88,12 @@ class ExclusiveContextBuilder:
             or version.version_status != "published"
         ):
             raise _context_error("AGENT_TRUSTED_SCOPE_MISMATCH")
-        allowed_tools = frozenset(item for item in version.tool_allowlist if isinstance(item, str))
+        try:
+            allowed_tools = await SkillRegistry(self.session).effective_tools(
+                version, definition.agent_code
+            )
+        except PermissionError as exc:
+            raise _context_error("AGENT_TOOL_POLICY_INVALID") from exc
         if not allowed_tools or not allowed_tools <= EXCLUSIVE_AGENT_TOOL_CODES:
             raise _context_error("AGENT_TOOL_POLICY_INVALID")
         return TrustedExclusiveAgentContext(

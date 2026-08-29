@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "db80316d07e63793bc61e13711632a47f73d394eddd9438772134381f1c0e635"
+SOURCE_SHA256 = "97c1327290df2b54744bf524044609b1020b24f352805b0bda341c9917a3d15a"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -956,7 +956,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["MCH-PRODUCT-LIST-01"],
+        "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-PRODUCT-LIST-01"],
         "x-scope-policy": [
             "stores:read",
             "products:read",
@@ -964,8 +964,11 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "products:publish",
             "store_operator_with_store_scope",
             "merchant_exclusive_conversation_owner",
+            "stores:manage",
+            "products:review",
+            "orders:read",
         ],
-        "x-test-case-ids": ["ADM-PRODUCT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-ORDER-*", "ADM-PRODUCT-*", "ADM-STORE-*", "MCH-PORTAL-*"],
     },
     "AdminProductFaqVersion_Create": {
         "x-audit-event": "command.AdminProductFaqVersion_Create",
@@ -1358,7 +1361,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["products:update"],
-        "x-requirement-id": ["MCH-PRODUCT-LIST-01"],
+        "x-requirement-id": ["ADM-STORE-DETAIL-01", "MCH-PRODUCT-LIST-01"],
         "x-scope-policy": [
             "stores:read",
             "products:read",
@@ -1366,8 +1369,11 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "products:publish",
             "store_operator_with_store_scope",
             "merchant_exclusive_conversation_owner",
+            "stores:manage",
+            "products:review",
+            "orders:read",
         ],
-        "x-test-case-ids": ["ADM-PRODUCT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-ORDER-*", "ADM-PRODUCT-*", "ADM-STORE-*", "MCH-PORTAL-*"],
     },
     "AdminProduct_Get": {
         "x-audit-event": "access.AdminProduct_Get",

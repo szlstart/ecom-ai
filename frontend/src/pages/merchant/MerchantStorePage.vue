@@ -8,6 +8,7 @@ import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import { imageFileFromClipboard } from '@/utils/clipboard-image'
+import { publishStoreStatus } from '@/utils/store-status-sync'
 
 interface Money { minor_units: string; currency: string }
 interface MerchantRevenue { gross_sales: Money; refunded_amount: Money; net_revenue: Money; completed_order_count: number }
@@ -110,6 +111,11 @@ async function changeStoreStatus() {
       store.value.version,
       `merchant-store-${action}`,
     )).data
+    publishStoreStatus({
+      storeId: store.value.store_id,
+      status: store.value.status,
+      suspensionSource: store.value.suspension_source,
+    })
     notice.value = action === 'suspend'
       ? '店铺已暂停营业，暂时不会产生新的购买订单。'
       : '店铺已恢复营业，销售中的商品已重新开放购买。'

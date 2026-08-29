@@ -2,13 +2,14 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import { adminCommand, adminGet, adminQuery, adminUpdate, requireAdminToken, type AdminProduct, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
+import { adminCommand, adminDelete, adminGet, adminQuery, adminUpdate, requireAdminToken, type AdminProduct, type AdminProductDeletionEligibility, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
 import { formatMoney, type Money } from '@/api/catalog'
-import { apiRequest, errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { ApiProblem, apiRequest, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { listAdminOrders, type AdminOrderSummary } from '@/api/orders'
 import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
+import { publishStoreStatus } from '@/utils/store-status-sync'
 
 type WorkspaceSection = 'products' | 'orders'
 type ProductStatus = '' | 'on_sale' | 'draft' | 'pending_review' | 'rejected' | 'off_shelf'
@@ -38,6 +39,10 @@ const error = ref(''); const notice = ref('')
 const editingProfile = ref(false)
 const statusConfirmOpen = ref(false)
 const deleteOpen = ref(false); const deleteReason = ref(''); const deleteConfirmation = ref('')
+const deletingProduct = ref<AdminProductSummary | null>(null)
+const productDeletionEligibility = ref<AdminProductDeletionEligibility | null>(null)
+const checkingProductDeletion = ref(false)
+const productDeletionBusy = ref(false)
 const profile = reactive({ store_name: '', description: '', logo_file_id: '' })
 
 const productTabs: Array<{ value: ProductStatus; label: string }> = [
@@ -141,9 +146,91 @@ async function toggleStoreStatus() {
   const action = store.value.status === 'active' ? 'suspend' : 'resume'
   try {
     store.value = (await adminCommand<AdminStore>(endpoint('/status-changes'), { action, confirmed: true, reason_code: 'PLATFORM_OPERATIONS', reason: '超级管理员在店铺运营工作台确认调整经营状态。' }, token(), store.value.version, `admin-store-${action}`)).data
+    publishStoreStatus({ storeId: store.value.store_id, status: store.value.status, suspensionSource: store.value.suspension_source })
     notice.value = action === 'suspend' ? '店铺已暂停营业，顾客端不再开放新的购买。' : '店铺已恢复营业。'
   } catch (cause) { error.value = errorMessage(cause) }
   finally { saving.value = false }
+}
+
+function closeProductDeletion() {
+  if (productDeletionBusy.value) return
+  deletingProduct.value = null
+  productDeletionEligibility.value = null
+}
+
+async function beginProductDelete(item: AdminProductSummary) {
+  deletingProduct.value = item
+  productDeletionEligibility.value = null
+  checkingProductDeletion.value = true
+  error.value = ''; notice.value = ''
+  try {
+    productDeletionEligibility.value = (await adminGet<AdminProductDeletionEligibility>(
+      `/admin/products/${encodeURIComponent(item.product_id)}/deletion-eligibility`,
+      token(),
+    )).data
+  } catch (cause) {
+    error.value = errorMessage(cause)
+    deletingProduct.value = null
+  } finally {
+    checkingProductDeletion.value = false
+  }
+}
+
+async function confirmProductDelete() {
+  if (!deletingProduct.value || !productDeletionEligibility.value?.can_delete) return
+  productDeletionBusy.value = true; error.value = ''
+  try {
+    await adminDelete(
+      `/admin/products/${encodeURIComponent(deletingProduct.value.product_id)}`,
+      token(),
+      deletingProduct.value.version,
+      'admin-store-product-delete',
+    )
+    const name = deletingProduct.value.product_name
+    deletingProduct.value = null; productDeletionEligibility.value = null
+    notice.value = `“${name}”没有产生过交易，已永久删除。`
+    await loadProducts()
+  } catch (cause) {
+    if (cause instanceof ApiProblem && cause.body.code === 'PRODUCT_HAS_TRANSACTIONS' && deletingProduct.value) {
+      productDeletionEligibility.value = {
+        product_id: deletingProduct.value.product_id,
+        current_status: deletingProduct.value.status,
+        has_transactions: true,
+        can_delete: false,
+        can_off_shelf: deletingProduct.value.status === 'on_sale',
+        recommended_action: deletingProduct.value.status === 'on_sale' ? 'off_shelf' : 'none',
+        message: cause.body.detail,
+      }
+    } else {
+      error.value = errorMessage(cause)
+      deletingProduct.value = null; productDeletionEligibility.value = null
+    }
+  } finally {
+    productDeletionBusy.value = false
+  }
+}
+
+async function confirmProductOffShelf() {
+  if (!deletingProduct.value || !productDeletionEligibility.value?.can_off_shelf) return
+  productDeletionBusy.value = true; error.value = ''
+  try {
+    await adminCommand(
+      `/admin/products/${encodeURIComponent(deletingProduct.value.product_id)}/off-shelf-commands`,
+      { reason_code: 'HAS_TRANSACTION_DELETE_GUARD', reason: '商品已有交易记录，超级管理员在删除提示中选择下架。' },
+      token(),
+      deletingProduct.value.version,
+      'admin-store-product-off-shelf',
+    )
+    const name = deletingProduct.value.product_name
+    deletingProduct.value = null; productDeletionEligibility.value = null
+    notice.value = `“${name}”已有交易记录，不能删除，现已下架。`
+    await loadProducts()
+  } catch (cause) {
+    error.value = errorMessage(cause)
+    deletingProduct.value = null; productDeletionEligibility.value = null
+  } finally {
+    productDeletionBusy.value = false
+  }
 }
 
 async function toggleProduct(item: AdminProductSummary) {
@@ -207,7 +294,7 @@ onMounted(load)
         <section v-if="section === 'products'" class="admin-store-panel">
           <header><div><p class="eyebrow">STORE PRODUCTS</p><h2>该店铺的商品</h2><p>点击商品后直接进入与商家端一致的所见即所得编辑页；操作身份仍是超级管理员并完整留痕。</p></div><RouterLink v-if="auth.has('products:create')" class="button-link" :to="{ path: `/admin/stores/${storeId}/products/new`, query: { return_to: route.fullPath } }">＋ 为该店铺新增商品</RouterLink></header>
           <div class="merchant-products-toolbar"><div class="merchant-segmented" aria-label="商品营业状态"><button v-for="tab in productTabs" :key="tab.value || 'all'" type="button" :class="{ active: productStatus === tab.value }" @click="chooseProductStatus(tab.value)">{{ tab.label }}</button></div><form class="merchant-product-search" @submit.prevent="loadProducts"><input v-model="productQuery" placeholder="搜索该店商品" /><button>搜索</button></form></div>
-          <PageState :loading="panelLoading" :error="''" :empty="!products.length" empty-title="当前分类没有商品" @retry="loadProducts"><div class="admin-store-product-grid"><article v-for="item in products" :key="item.product_id" class="merchant-product-card merchant-manage-card"><RouterLink class="merchant-product-card-link" :to="{ path: `/admin/stores/${storeId}/products/${item.product_id}`, query: { return_to: route.fullPath } }"><div class="merchant-product-cover"><img v-if="item.cover_image_url" :src="resolveApiAssetUrl(item.cover_image_url) || undefined" :alt="item.product_name" /><div v-else><span>暂无图片</span><small>进入商品补充款式图片</small></div><em :class="`status-${item.status}`">{{ statusLabel(item.status) }}</em><span class="merchant-card-edit-action">直接编辑商品</span></div><div class="merchant-product-card-body"><h2>{{ item.product_name }}</h2><div class="merchant-product-price"><strong>¥{{ item.min_price }}</strong><span v-if="item.min_price !== item.max_price">起</span></div><dl><div><dt>款式</dt><dd>{{ item.sku_count }}</dd></div><div><dt>库存</dt><dd>{{ item.available_quantity }}</dd></div><div><dt>销量</dt><dd>{{ item.sales_count }}</dd></div><div><dt>评价</dt><dd>★ {{ item.rating_score }}</dd></div></dl></div></RouterLink><button v-if="item.status === 'on_sale' || item.status === 'off_shelf'" type="button" class="admin-product-status-toggle" :disabled="saving" @click="toggleProduct(item)">{{ item.status === 'on_sale' ? '下架商品' : '重新上架' }}</button><RouterLink v-else class="admin-product-status-toggle" :to="{ path: `/admin/stores/${storeId}/products/${item.product_id}`, query: { return_to: route.fullPath } }">处理{{ statusLabel(item.status) }}商品</RouterLink></article></div></PageState>
+          <PageState :loading="panelLoading" :error="''" :empty="!products.length" empty-title="当前分类没有商品" @retry="loadProducts"><div class="admin-store-product-grid"><article v-for="item in products" :key="item.product_id" class="merchant-product-card merchant-manage-card"><RouterLink class="merchant-product-card-link" :to="{ path: `/admin/stores/${storeId}/products/${item.product_id}`, query: { return_to: route.fullPath } }"><div class="merchant-product-cover"><img v-if="item.cover_image_url" :src="resolveApiAssetUrl(item.cover_image_url) || undefined" :alt="item.product_name" /><div v-else><span>暂无图片</span><small>进入商品补充款式图片</small></div><em :class="`status-${item.status}`">{{ statusLabel(item.status) }}</em><span class="merchant-card-edit-action">直接编辑商品</span></div><div class="merchant-product-card-body"><h2>{{ item.product_name }}</h2><div class="merchant-product-price"><strong>¥{{ item.min_price }}</strong><span v-if="item.min_price !== item.max_price">起</span></div><dl><div><dt>款式</dt><dd>{{ item.sku_count }}</dd></div><div><dt>库存</dt><dd>{{ item.available_quantity }}</dd></div><div><dt>销量</dt><dd>{{ item.sales_count }}</dd></div><div><dt>评价</dt><dd>★ {{ item.rating_score }}</dd></div></dl></div></RouterLink><button v-if="auth.has('products:update')" class="merchant-card-delete-action" type="button" @click="beginProductDelete(item)">删除商品</button><button v-if="item.status === 'on_sale' || item.status === 'off_shelf'" type="button" class="admin-product-status-toggle" :disabled="saving" @click="toggleProduct(item)">{{ item.status === 'on_sale' ? '下架商品' : '重新上架' }}</button><RouterLink v-else class="admin-product-status-toggle" :to="{ path: `/admin/stores/${storeId}/products/${item.product_id}`, query: { return_to: route.fullPath } }">处理{{ statusLabel(item.status) }}商品</RouterLink></article></div></PageState>
           <p class="admin-store-panel-footnote">当前载入可售库存 {{ totalStock }} 件。库存编辑、款式图片、详情、常见问题与评价处理均从具体商品进入。</p>
         </section>
 
@@ -220,6 +307,7 @@ onMounted(load)
       </template>
     </PageState>
     <Teleport to="body"><div v-if="statusConfirmOpen && store" class="admin-form-overlay" @click.self="statusConfirmOpen = false"><section class="admin-form-dialog admin-store-status-confirm" role="dialog" aria-modal="true" aria-labelledby="admin-store-status-title"><header><div><p class="eyebrow">营业状态确认</p><h2 id="admin-store-status-title">{{ store.status === 'active' ? '确认暂停该店铺营业？' : '确认恢复该店铺营业？' }}</h2><p>{{ store.status === 'active' ? '暂停后，顾客仍能查看历史订单，但不能从该店铺产生新的购买。' : '恢复后，该店铺销售中的商品将重新允许顾客浏览和购买。' }}</p></div><button type="button" aria-label="关闭" @click="statusConfirmOpen = false">×</button></header><footer><button type="button" class="secondary" @click="statusConfirmOpen = false">取消</button><button type="button" :class="store.status === 'active' ? 'danger' : ''" :disabled="saving" @click="toggleStoreStatus">{{ store.status === 'active' ? '确认暂停营业' : '确认恢复营业' }}</button></footer></section></div></Teleport>
+    <Teleport to="body"><div v-if="deletingProduct" class="merchant-delete-overlay" @mousedown.self="closeProductDeletion"><section class="merchant-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="admin-product-delete-title"><span>{{ checkingProductDeletion ? '…' : productDeletionEligibility?.has_transactions ? '↘' : '!' }}</span><template v-if="checkingProductDeletion"><h2 id="admin-product-delete-title">正在检查商品交易记录</h2><p>请稍候，系统正在确认这件商品是否允许删除。</p><div class="actions"><button type="button" class="secondary" @click="closeProductDeletion">取消</button></div></template><template v-else-if="productDeletionEligibility?.has_transactions"><h2 id="admin-product-delete-title">“{{ deletingProduct.product_name }}”已有交易，不能删除</h2><p>{{ productDeletionEligibility.message }} 为了保留顾客订单、退款、售后和审计记录，历史商品数据必须继续存在。</p><div class="actions"><button type="button" class="secondary" @click="closeProductDeletion">取消</button><button v-if="productDeletionEligibility.can_off_shelf" type="button" class="danger" :disabled="productDeletionBusy" @click="confirmProductOffShelf">{{ productDeletionBusy ? '正在下架…' : '下架商品' }}</button><button v-else type="button" class="secondary" disabled>{{ productDeletionEligibility.current_status === 'off_shelf' ? '商品已下架' : '当前不能下架' }}</button></div></template><template v-else-if="productDeletionEligibility?.can_delete"><h2 id="admin-product-delete-title">“{{ deletingProduct.product_name }}”没有产生过交易</h2><p>系统没有发现该商品的订单交易记录，可以直接删除。删除后商品会从顾客端、商家端和超级管理端消失，且不能恢复。</p><div class="actions"><button type="button" class="secondary" @click="closeProductDeletion">取消</button><button type="button" class="danger" :disabled="productDeletionBusy" @click="confirmProductDelete">{{ productDeletionBusy ? '正在删除…' : '直接删除' }}</button></div></template></section></div></Teleport>
     <Teleport to="body"><div v-if="deleteOpen" class="admin-form-overlay" @click.self="deleteOpen = false"><form class="admin-form-dialog" @submit.prevent="deleteStore"><header><div><p class="eyebrow">DANGER ZONE</p><h2>删除“{{ store?.store_name }}”及商家账号</h2><p>只有从未产生交易的店铺可以物理删除；已有订单时服务端会阻断，请改用“暂停营业”。</p></div><button type="button" @click="deleteOpen = false">×</button></header><label>删除原因<textarea v-model.trim="deleteReason" required minlength="2" maxlength="500" /></label><label>输入 DELETE_STORE 确认<input v-model.trim="deleteConfirmation" required /></label><footer><button type="button" class="secondary" @click="deleteOpen = false">取消</button><button class="danger" :disabled="saving || deleteConfirmation !== 'DELETE_STORE' || deleteReason.length < 2">{{ saving ? '正在删除…' : '永久删除无交易店铺' }}</button></footer></form></div></Teleport>
   </section>
 </template>

@@ -370,6 +370,15 @@ class RealtimeOutboxRelay:
         )
         if event is None or event.event_status != "pending":
             return
+        if event.attempt_count >= 8:
+            # The generic Outbox dispatcher reconciles failed rows into the
+            # operator-visible dead-letter queue.  Do not retry a malformed
+            # realtime event forever and starve newer messages.
+            event.event_status = "failed"
+            event.published_at = utc_now()
+            event.last_error_code = error_code
+            await self.session.commit()
+            return
         delay = min(300, 2 ** min(event.attempt_count, 8))
         event.available_at = utc_now() + timedelta(seconds=delay)
         event.last_error_code = error_code

@@ -225,7 +225,11 @@ async def process_exclusive_run(
         elif plan.intent == "policy_qa":
             result = await _platform_policy(session, context)
         elif plan.intent in {"product_search", "personalized_recommendation"}:
-            result = await tools.search_products(context, plan.search_text)
+            result = await tools.search_products(
+                context,
+                plan.search_text,
+                fallback_query=trigger_text,
+            )
         elif plan.intent == "order_lookup":
             explicit_order_no = _resource_no(trigger_text, "ord")
             ref = context.context_refs.get("order")

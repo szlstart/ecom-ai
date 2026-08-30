@@ -5,7 +5,10 @@ from app.modules.agent_runtime.exclusive_agent import (
     _resource_no,
 )
 from app.modules.agent_runtime.exclusive_model_gateway import ExclusiveAgentPlan
-from app.modules.agent_runtime.exclusive_tools import _catalog_search_candidates
+from app.modules.agent_runtime.exclusive_tools import (
+    _catalog_search_candidates,
+    _combined_catalog_search_candidates,
+)
 from app.modules.agent_runtime.operations_agent import _render_multi_agent
 
 
@@ -46,6 +49,16 @@ def test_catalog_candidates_extract_product_from_store_worded_follow_up() -> Non
         "请告诉我本店绿杆2B铅笔所有款式的名称、价格和实时可售库存，并说明10支款是否能买。不要转人工。"
     )
     assert candidates[0] == "绿杆2B铅笔"
+    assert "绿杆" in candidates
+    assert "2B" in candidates
+    assert "铅笔" in candidates
+
+
+def test_catalog_candidates_fall_back_to_exact_current_message() -> None:
+    candidates = _combined_catalog_search_candidates(
+        "所有款式和实时库存",
+        "请告诉我本店绿杆2B铅笔所有款式的名称、价格和实时可售库存",
+    )
     assert "绿杆" in candidates
     assert "2B" in candidates
     assert "铅笔" in candidates

@@ -92,12 +92,16 @@ class ExclusiveToolGateway:
         return result
 
     async def search_products(
-        self, context: TrustedExclusiveAgentContext, query: str | None
+        self,
+        context: TrustedExclusiveAgentContext,
+        query: str | None,
+        *,
+        fallback_query: str | None = None,
     ) -> StoreToolResult:
         async def handler() -> dict[str, object]:
             rows = []
             has_more = False
-            for term in _catalog_search_candidates(query):
+            for term in _combined_catalog_search_candidates(query, fallback_query):
                 found, found_has_more = await self.catalog.search_products(
                     q=term,
                     category_no=None,
@@ -169,7 +173,10 @@ class ExclusiveToolGateway:
         return await self.execute(
             context,
             "catalog.search_products",
-            {"query": (query or "")[:120]},
+            {
+                "query": (query or "")[:120],
+                "fallback_query": (fallback_query or "")[:120],
+            },
             handler,
         )
 
@@ -558,6 +565,17 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
         if candidate not in result:
             result.append(candidate)
     return result[:6]
+
+
+def _combined_catalog_search_candidates(
+    query: str | None, fallback_query: str | None
+) -> list[str | None]:
+    result: list[str | None] = []
+    for source in (query, fallback_query):
+        for candidate in _catalog_search_candidates(source):
+            if candidate not in result:
+                result.append(candidate)
+    return result[:12]
 
 
 def _not_accessible() -> ApplicationError:

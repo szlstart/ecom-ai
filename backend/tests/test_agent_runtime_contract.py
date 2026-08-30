@@ -19,11 +19,8 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
 )
 from app.modules.agent_runtime.model_gateway import DeterministicStoreModelGateway
-from app.modules.agent_runtime.operations_agent import (
-    TrustedOperationsContext,
-    _operations_small_talk_reply,
-    _render,
-)
+from app.modules.agent_runtime.operations_agent import _operations_small_talk_reply, _render
+from app.modules.agent_runtime.operations_context import TrustedOperationsContext
 from app.modules.agent_runtime.service import _normalize_context_snapshot
 from app.modules.agent_runtime.store_context import STORE_AGENT_TOOL_CODES
 from app.modules.agent_runtime.store_tools import _contains_scope_override

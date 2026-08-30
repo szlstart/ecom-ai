@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "225a0f24e9d6042ec2042fa171a01772029c54276b31ffe8b490ae5d711f4eb0"
+SOURCE_SHA256 = "c1a5edb96af20f6ee6c59eb159fd634494c77d3e39ca33e4f5e12984473b062f"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -4639,6 +4639,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["USR-AUTH-REGISTER-01"],
         "x-scope-policy": ["user_audience"],
         "x-test-case-ids": ["AUTH-CAPTCHA-*", "AUTH-REGISTER-*"],
+    },
+    "ResolutionCheckResponse_CreateMine": {
+        "x-audit-event": "command.ResolutionCheckResponse_CreateMine",
+        "x-domain-command": "ResolutionCheckResponse_CreateMine",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["USR-MSG-02"],
+        "x-scope-policy": ["conversation_owner"],
+        "x-test-case-ids": ["AI-FEEDBACK-*", "MSG-USER-*"],
     },
     "ReviewEligibility_Get": {
         "x-audit-event": "none",

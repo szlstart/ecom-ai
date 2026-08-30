@@ -6,11 +6,9 @@ import type { LocationQueryRaw } from 'vue-router'
 
 import AuthModal from '@/components/AuthModal.vue'
 import UserMessageCenter from '@/components/UserMessageCenter.vue'
-import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 const auth = useUserAuthStore()
-const messageCenter = useMessageCenterStore()
 const route = useRoute()
 const router = useRouter()
 const searchTerm = ref('')
@@ -91,14 +89,6 @@ onBeforeUnmount(() => {
 })
 
 watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
-watch(() => messageCenter.open, async (value) => {
-  if (!value) return
-  messageCenter.close()
-  const target = messageCenter.selectedConversationId
-    ? `/messages/${messageCenter.selectedConversationId}`
-    : '/messages'
-  if (route.path !== target) await router.push(target)
-})
 </script>
 
 <template>

@@ -12,14 +12,12 @@ import OrderProductEntry from '@/components/OrderProductEntry.vue'
 import OrderLogisticsDialog from '@/components/OrderLogisticsDialog.vue'
 import { confirmAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
-import { useMessageCenterStore } from '@/stores/message-center'
 
 const viewLabels: Record<OrderView, string> = { all: '全部', pending_payment: '待付款', pending_shipment: '待发货', in_transit: '运输中', completed: '已完成', pending_review: '待评价', after_sale: '售后', cancelled: '已取消' }
 const views = ORDER_VIEWS.map((value) => ({ value, label: viewLabels[value] }))
 const route = useRoute()
 const router = useRouter()
 const auth = useUserAuthStore()
-const messageCenter = useMessageCenterStore()
 const items = ref<OrderSummary[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -94,7 +92,7 @@ async function runAction(action: OrderAction, order: OrderSummary) {
     try {
       const conversation = (await ensureStoreConversation(order.store.store_id, token())).data
       await setConversationContext(conversation.conversation_id, conversation.version, 'order', order.order_id, order.version, token())
-      messageCenter.show(conversation.conversation_id)
+      await router.push(`/messages/${conversation.conversation_id}`)
     } catch (cause) {
       error.value = errorMessage(cause)
     } finally {

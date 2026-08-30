@@ -47,12 +47,14 @@ async function loginAdministrator(page: Page, username: string) {
   await expect(page).toHaveURL(/\/admin\/dashboard$/, { timeout: 15_000 })
 }
 
-async function expectTrace(page: Page, panelTitle: string) {
-  const trace = page.getByRole('complementary', { name: 'AI 安全执行记录' })
-  await expect(trace.getByText(panelTitle)).toBeVisible()
-  await expect(trace.getByText('执行时间线')).toBeVisible({ timeout: 20_000 })
-  await expect(trace.getByText('隐私保护')).toBeVisible()
-  await expect(trace).not.toContainText('原始思维链：')
+async function expectTrace(page: Page) {
+  const trace = page.getByRole('complementary', { name: 'AI 工作过程' })
+  await expect(trace.getByText('AI 工作过程', { exact: true })).toBeVisible()
+  await expect(trace.getByText('已完成', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
+  await expect.poll(() => trace.locator('.agent-trace-steps details').count()).toBeGreaterThan(0)
+  expect(await trace.locator('.agent-trace-steps details').evaluateAll((items) => items.every((item) => !(item as HTMLDetailsElement).open))).toBe(true)
+  await expect(trace).toContainText('这里展示可核验的工作摘要')
+  await expect(trace).not.toContainText(/原始思维链：|执行时间线|运行编号|可信来源|隐私保护|Kimi 意图路由/)
 }
 
 async function expectMessageWorkspaceFitsViewport(page: Page) {
@@ -150,7 +152,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await consumerWorkspace.getByRole('button', { name: '发送', exact: true }).click()
     await expect(incomingBubbles).toHaveCount(incomingCount + 1, { timeout: 20_000 })
     await expect(incomingBubbles.last()).toContainText(/商品|暂无.*在售/, { timeout: 20_000 })
-    await expectTrace(consumer, 'AI 工作记录')
+    await expectTrace(consumer)
     await consumerContext.close()
 
     const merchantContext = await browser.newContext()
@@ -162,7 +164,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     const merchantDialog = merchant.getByLabel('商家消息中心')
     await merchantDialog.getByPlaceholder('向专属客服描述经营问题…').fill('请概览当前店铺商品和库存。')
     await merchantDialog.getByRole('button', { name: '发送', exact: true }).click()
-    await expectTrace(merchant, 'AI 协作台')
+    await expectTrace(merchant)
     await merchantContext.close()
 
     const adminContext = await browser.newContext()
@@ -174,7 +176,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     const adminDialog = administrator.getByLabel('管理端消息中心')
     await adminDialog.getByPlaceholder('询问平台概况、用户、店铺、订单或 Agent 运行状态…').fill('请用只读方式概览平台订单与 Agent 运行状态。')
     await adminDialog.getByRole('button', { name: '发送', exact: true }).click()
-    await expectTrace(administrator, 'AI 运行轨迹')
+    await expectTrace(administrator)
     await adminContext.close()
   })
 })

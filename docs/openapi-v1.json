@@ -12052,6 +12052,107 @@
         ]
       }
     },
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/resolution-responses": {
+      "post": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Create Resolution Check Response",
+        "operationId": "ResolutionCheckResponse_CreateMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Message Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolutionCheckResponseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_MessageList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.ResolutionCheckResponse_CreateMine",
+        "x-domain-command": "ResolutionCheckResponse_CreateMine",
+        "x-idempotency-policy": "payload_client_message_id_deduplication",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-MSG-02"
+        ],
+        "x-scope-policy": [
+          "conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "AI-FEEDBACK-*",
+          "MSG-USER-*"
+        ]
+      }
+    },
     "/api/v1/conversations/{conversation_id}/read-cursor": {
       "put": {
         "tags": [
@@ -54688,6 +54789,27 @@
         ],
         "title": "RepurchaseUnavailableItem"
       },
+      "ResolutionCheckResponseRequest": {
+        "properties": {
+          "client_message_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^cmsg_[0-9A-Z]+$",
+            "title": "Client Message Id"
+          },
+          "resolved": {
+            "type": "boolean",
+            "title": "Resolved"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "client_message_id",
+          "resolved"
+        ],
+        "title": "ResolutionCheckResponseRequest"
+      },
       "ResponseMeta": {
         "properties": {
           "request_id": {
@@ -56769,17 +56891,49 @@
             "title": "Client Message Id"
           },
           "text": {
-            "type": "string",
-            "maxLength": 4000,
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Text"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^prd_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "sku_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^sku_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sku Id"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "client_message_id",
-          "text"
+          "client_message_id"
         ],
         "title": "SupportMessageRequest"
       },

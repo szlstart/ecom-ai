@@ -194,6 +194,19 @@ export function sendOrderCard(
   }, token)
 }
 
+export function respondResolutionCheck(
+  conversationId: string,
+  messageId: string,
+  resolved: boolean,
+  token: string,
+  clientMessageId = createClientMessageId(),
+): Promise<ApiResult<MessagePage>> {
+  return apiRequest(`/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/resolution-responses`, {
+    method: 'POST',
+    body: JSON.stringify({ client_message_id: clientMessageId, resolved }),
+  }, token)
+}
+
 export function setAiMessageReaction(
   conversationId: string,
   messageId: string,

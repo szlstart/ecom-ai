@@ -2042,6 +2042,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/conversations/{conversation_id}/messages/{message_id}/resolution-responses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Resolution Check Response */
+        post: operations["ResolutionCheckResponse_CreateMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/conversations/{conversation_id}/read-cursor": {
         parameters: {
             query?: never;
@@ -11209,6 +11226,13 @@ export interface components {
             /** Reason Message */
             reason_message: string;
         };
+        /** ResolutionCheckResponseRequest */
+        ResolutionCheckResponseRequest: {
+            /** Client Message Id */
+            client_message_id: string;
+            /** Resolved */
+            resolved: boolean;
+        };
         /** ResponseMeta */
         ResponseMeta: {
             /** Request Id */
@@ -11931,7 +11955,11 @@ export interface components {
             /** Client Message Id */
             client_message_id: string;
             /** Text */
-            text: string;
+            text?: string | null;
+            /** Product Id */
+            product_id?: string | null;
+            /** Sku Id */
+            sku_id?: string | null;
         };
         /** SupportReadCursorView */
         SupportReadCursorView: {
@@ -17551,6 +17579,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_HumanTicketView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    ResolutionCheckResponse_CreateMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolutionCheckResponseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_MessageList_"];
                 };
             };
             401: components["responses"]["Problem401"];

@@ -103,7 +103,7 @@ onUnmounted(() => {
       </div>
     </aside>
     <main class="merchant-main">
-      <header class="merchant-topbar"><div><span>当前店铺</span><strong>{{ currentStore?.store_name || '正在读取店铺' }}</strong></div><div class="merchant-topbar-actions"><MerchantMessageCenter :store-name="currentStore?.store_name" /><RouterLink class="merchant-profile-entry" to="/merchant/store"><span>{{ currentStore?.store_name.slice(0, 1) || '店' }}</span><b>店铺资料</b></RouterLink></div></header>
+      <header class="merchant-topbar"><div><span>当前店铺</span><strong>{{ currentStore?.store_name || '正在读取店铺' }}</strong></div><div class="merchant-topbar-actions"><MerchantMessageCenter :store-id="currentStore?.store_id" :store-name="currentStore?.store_name" :store-logo-url="currentStore?.logo_url" /><RouterLink class="merchant-profile-entry" to="/merchant/store"><span>{{ currentStore?.store_name.slice(0, 1) || '店' }}</span><b>店铺资料</b></RouterLink></div></header>
       <div class="merchant-content" :class="{ 'message-workspace-content': route.path === '/merchant/messages' }"><RouterView :key="route.path" /></div>
     </main>
   </div>

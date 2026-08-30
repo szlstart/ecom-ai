@@ -616,6 +616,21 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
             "accepted",
             "resolved",
         ]
+        visible_messages = list(
+            (
+                await session.scalars(
+                    select(Message)
+                    .where(Message.conversation_id == conversation.id)
+                    .order_by(Message.sequence_no)
+                )
+            ).all()
+        )
+        assert [item.message_type for item in visible_messages[-2:]] == [
+            "system",
+            "resolution_check",
+        ]
+        assert visible_messages[-2].text_content == "人工服务已结束。如有新问题，请继续发送消息。"
+        resolution_check_no = visible_messages[-1].message_no
         agent_requests = int(
             await session.scalar(
                 select(func.count(OutboxEvent.id)).where(
@@ -627,6 +642,22 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
         )
         assert agent_requests == 1
         break
+
+    resolution_feedback = await client.post(
+        f"/api/v1/conversations/{conversation_no}/messages/"
+        f"{resolution_check_no}/resolution-responses",
+        headers=headers,
+        json={
+            "client_message_id": f"cmsg_{secrets.token_hex(13).upper()}",
+            "resolved": True,
+        },
+    )
+    assert resolution_feedback.status_code == 201
+    assert [item["sender_type"] for item in resolution_feedback.json()["data"]["items"]] == [
+        "user",
+        "agent",
+    ]
+    assert resolution_feedback.json()["data"]["items"][1]["text"].startswith("谢谢你的确认")
 
     cancellable_headers = {**headers, "Idempotency-Key": f"handoff-cancel-{suffix}-0001"}
     cancellable = await client.post(

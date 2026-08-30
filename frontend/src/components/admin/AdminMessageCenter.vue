@@ -45,6 +45,7 @@ const aiConversationId = ref('')
 const timeline = ref<HTMLElement | null>(null)
 const connectionState = ref<RealtimeState>('polling')
 const selectedTraceRunId = ref<string | null>(null)
+const traceRunning = ref(false)
 let realtime: RealtimeConnection | undefined
 let pollingTimer: number | undefined
 let refreshTimer: number | undefined
@@ -108,12 +109,12 @@ async function scrollBottom() {
 }
 
 async function selectAi() {
-  selected.value = 'ai'; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; error.value = ''; loading.value = true
+  selected.value = 'ai'; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; error.value = ''; loading.value = true
   try { await loadAiMessages(); await scrollBottom() } finally { loading.value = false }
 }
 
 async function selectConversation(item: SupportConversation) {
-  selected.value = item.conversation_id; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; error.value = ''; loading.value = true
+  selected.value = item.conversation_id; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; error.value = ''; loading.value = true
   try {
     if (item.active_ticket_id) workspace.value = (await getSupportWorkspace(item.active_ticket_id, token())).data
     const page = (await listSupportMessages(item.conversation_id, token())).data
@@ -177,6 +178,10 @@ function scheduleRefresh() {
 }
 
 function handleRealtime(event: RealtimeEvent) {
+  const eventConversationId = String(event.data.conversation_id ?? '')
+  const selectedConversationId = selected.value === 'ai' ? aiConversationId.value : selected.value
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.started') traceRunning.value = true
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') traceRunning.value = false
   if (['message.created', 'unread.updated', 'support.ticket.updated'].includes(event.type)) scheduleRefresh()
 }
 
@@ -214,7 +219,7 @@ async function finishHumanService() {
   try {
     await resolveSupportTicket(selectedTicket.value, 'ANSWERED', '本次人工服务已结束，AI 客服恢复接待。', null, token())
     workspace.value = null
-    await loadConversations()
+    await Promise.all([loadConversations(), refreshActiveMessages()])
   } catch (cause) { error.value = errorMessage(cause) }
   finally { busy.value = false }
 }
@@ -232,6 +237,7 @@ onMounted(async () => {
   pollingTimer = window.setInterval(() => void Promise.all([loadConversations(), refreshActiveMessages()]), 10_000)
 })
 onBeforeUnmount(() => {
+  traceRunning.value = false
   realtime?.stop()
   if (pollingTimer) window.clearInterval(pollingTimer)
   if (refreshTimer) window.clearTimeout(refreshTimer)
@@ -242,7 +248,7 @@ onBeforeUnmount(() => {
   <div class="message-page-surface admin-message-page-surface">
     <section class="admin-message-window" aria-label="管理端消息中心">
       <aside class="admin-chat-sidebar">
-        <header><div><strong>会话列表</strong><small>用户、店铺与 AI 管家</small></div></header>
+        <header><div><strong>会话列表</strong><small>用户、店铺与 AI 管家</small></div><RouterLink class="message-workspace-back" to="/admin">返回</RouterLink></header>
         <label class="admin-chat-search"><span>⌕</span><input v-model="search" placeholder="搜索会话" /></label>
         <div class="admin-chat-list">
           <button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click="selectAi"><span class="admin-chat-avatar ai">✦</span><span><strong>AI 管家</strong><small>只读诊断助手 · 固定置顶</small></span><time>置顶</time></button>
@@ -273,12 +279,12 @@ onBeforeUnmount(() => {
           <div v-if="loading" class="admin-chat-loading">正在读取会话…</div>
           <section v-else-if="selectedConversation" class="admin-chat-conversation">
             <div v-if="selectedConversation.requires_human && !assignedToMe" class="admin-chat-claim compact"><span>◍</span><div><h2>{{ selectedTicket?.ticket_status === 'queued' ? '对方正在等待人工接待' : '会话由其他客服处理' }}</h2><p>历史消息可查看；领取后才可人工回复，避免多人同时处理。</p></div><button v-if="selectedTicket?.ticket_status === 'queued' && auth.has('support:claim')" :disabled="busy" @click="claim">领取会话</button></div>
-            <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: message.sender_type === 'human' }"><span class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'human' ? '平台客服' : message.sender_type === 'agent' ? 'AI 客服' : selectedConversation.participant_type === 'merchant' ? '店铺' : '用户'">{{ message.sender_type === 'human' ? initials : message.sender_type === 'agent' ? '✦' : selectedConversation.participant_type === 'merchant' ? '店' : '用' }}</span><div><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article><p v-if="!messages.length" class="empty-state">暂无聊天消息</p></div>
+            <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: ['human','agent'].includes(message.sender_type), system: message.sender_type === 'system' }"><span v-if="message.sender_type !== 'system'" class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'human' ? '平台客服' : message.sender_type === 'agent' ? 'AI 客服' : selectedConversation.participant_type === 'merchant' ? '店铺' : '用户'">{{ message.sender_type === 'human' ? initials : message.sender_type === 'agent' ? '✦' : selectedConversation.participant_type === 'merchant' ? '店' : '用' }}</span><div><ChatMessageContent :message="message" audience="admin" /><time v-if="message.sender_type !== 'system'">{{ dateTime(message.sent_at) }}</time></div></article><p v-if="!messages.length" class="empty-state">暂无聊天消息</p></div>
             <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" :disabled="!canChat" :placeholder="canChat ? '输入人工回复…' : selectedConversation.requires_human ? '领取后可回复' : 'AI 正在接待；需要转人工时会进入人工队列'" /><div><span>{{ canChat ? '回复会立即同步给对方，并写入 AI 上下文' : 'AI 与人工消息共用同一条会话历史' }}</span><button :disabled="!canChat || !reply.trim() || busy">发送</button></div></form>
           </section>
         </template>
       </main>
-      <AgentTracePanel :messages="selected === 'ai' ? aiMessages : messages" :selected-run-id="selectedTraceRunId" title="AI 运行轨迹" />
+      <AgentTracePanel :messages="selected === 'ai' ? aiMessages : messages" :selected-run-id="selectedTraceRunId" :running="traceRunning" title="AI 工作过程" />
     </section>
   </div>
 </template>

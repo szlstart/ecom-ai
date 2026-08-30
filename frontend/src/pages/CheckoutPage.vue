@@ -8,7 +8,6 @@ import { ApiProblem, createIdempotencyKey, errorMessage, resolveApiAssetUrl } fr
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
-import { useMessageCenterStore } from '@/stores/message-center'
 import { formatChinaRegion } from '@/utils/china-regions'
 
 const props = withDefaults(defineProps<{ checkoutId?: string; embedded?: boolean }>(), {
@@ -17,7 +16,6 @@ const props = withDefaults(defineProps<{ checkoutId?: string; embedded?: boolean
 })
 const emit = defineEmits<{ quantityChanged: [quantity: number]; cartChanged: [] }>()
 const route = useRoute(), router = useRouter(), auth = useUserAuthStore()
-const messageCenter = useMessageCenterStore()
 const checkout = ref<CheckoutData | null>(null), addresses = ref<AddressSummary[]>([])
 const loading = ref(true), busy = ref(false), error = ref('')
 const pendingOrderKey = ref('')
@@ -110,7 +108,7 @@ async function contactStore(storeId: string) {
   try {
     const conversation = (await ensureStoreConversation(storeId, token())).data
     await setConversationContext(conversation.conversation_id, conversation.version, 'checkout_store_group', checkout.value.checkout_id, checkout.value.version, token())
-    messageCenter.show(conversation.conversation_id)
+    await router.push(`/messages/${conversation.conversation_id}`)
   } catch (cause) { error.value = errorMessage(cause) }
   finally { busy.value = false }
 }

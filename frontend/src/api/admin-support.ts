@@ -119,6 +119,19 @@ export function sendSupportMessageResilient(
   )
 }
 
+export function sendSupportProductCard(
+  conversationId: string,
+  productId: string,
+  skuId: string | null,
+  token: string,
+  clientMessageId = createClientMessageId(),
+): Promise<ApiResult<ChatMessage>> {
+  return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ client_message_id: clientMessageId, product_id: productId, sku_id: skuId }),
+  }, token)
+}
+
 export function putSupportReadCursor(conversationId: string, message: ChatMessage, token: string): Promise<ApiResult<{ conversation_id: string; last_read_message_id: string; last_read_sequence_no: number; unread_count: number; cursor_version: number }>> {
   return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}/read-cursor`, {
     method: 'PUT',

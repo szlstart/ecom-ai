@@ -302,7 +302,8 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
     await _drain_agent()
     policy_reply = _reply_after(await _messages(client, headers, conversation_no), policy_message)
     assert "本店运费政策" in str(policy_reply["text"])
-    assert "版本 1" in str(policy_reply["text"])
+    assert "满 99 元" in str(policy_reply["text"])
+    assert len(str(policy_reply["text"])) < 180
 
     injection_message = await _send(
         client,

@@ -138,9 +138,17 @@ async def process_operations_run(
             intent = await model_gateway.plan(planning_input, context.agent_definition.agent_code)
         except (ModelGatewayError, TimeoutError) as exc:
             run.degraded_reason = model_failure_code(exc, "planning")
-    admin_domains = _admin_complex_domains(user_text) if context.audience == "admin" else ()
-    if len(admin_domains) >= 2:
-        intent = "complex_platform_diagnosis"
+    complex_domains = (
+        _admin_complex_domains(user_text)
+        if context.audience == "admin"
+        else _merchant_complex_domains(user_text)
+    )
+    if len(complex_domains) >= 2:
+        intent = (
+            "complex_platform_diagnosis"
+            if context.audience == "admin"
+            else "complex_store_diagnosis"
+        )
     await checkpoint_store.write(run.run_no, "tool_planned", _checkpoint(context, intent))
 
     if intent == "human_handoff":
@@ -222,11 +230,15 @@ async def process_operations_run(
         await _finish_checkpoint(checkpoint_store, context, "general_chat")
         return
 
-    if intent == "complex_platform_diagnosis":
-        multi_response = await _execute_admin_multi_agent(context, admin_domains)
+    if intent in {"complex_platform_diagnosis", "complex_store_diagnosis"}:
+        multi_response = await _execute_operations_multi_agent(context, complex_domains)
         if multi_response is not None:
             evidence, trace_steps, source_ids = multi_response
-            answer = _render_multi_agent(evidence)
+            answer = (
+                _render_merchant_multi_agent(evidence)
+                if context.audience == "merchant"
+                else _render_multi_agent(evidence)
+            )
             answer_mode = "deterministic_fallback"
             confidence = "high"
             multi_citations = source_ids
@@ -326,7 +338,7 @@ async def process_operations_run(
     await _finish_checkpoint(checkpoint_store, context, intent)
 
 
-async def _execute_admin_multi_agent(
+async def _execute_operations_multi_agent(
     context: TrustedOperationsContext,
     domains: tuple[str, ...],
 ) -> tuple[dict[str, object], list[dict[str, object]], tuple[str, ...]] | None:
@@ -345,11 +357,13 @@ async def _execute_admin_multi_agent(
     packets: list[DelegationPacket] = []
     specialists: dict[str, Any] = {}
     for domain in domains[:4]:
-        specialist_code, tool_code, objective = _admin_specialist(domain)
+        specialist_code, tool_code, objective = _operations_specialist(
+            context.audience, domain
+        )
         packet = DelegationPacket(
             delegation_no=new_prefixed_ulid("dlg_"),
             parent_run_no=context.run.run_no,
-            subtask_key=f"admin-diagnosis:{domain}",
+            subtask_key=f"{context.audience}-diagnosis:{domain}",
             specialist_code=specialist_code,
             specialist_version="v1",
             objective=objective,
@@ -363,7 +377,9 @@ async def _execute_admin_multi_agent(
                 tool_call_limit=1,
                 model_call_limit=0,
             ),
-            ancestor_agents=("admin_copilot",),
+            ancestor_agents=(
+                "admin_copilot" if context.audience == "admin" else "merchant_copilot",
+            ),
         )
         packets.append(packet)
         specialists[specialist_code] = compile_specialist_subgraph(
@@ -386,7 +402,11 @@ async def _execute_admin_multi_agent(
     )
     response = await supervisor.run(
         SupervisorRequest(
-            intent="complex_platform_diagnosis",
+            intent=(
+                "complex_platform_diagnosis"
+                if context.audience == "admin"
+                else "complex_store_diagnosis"
+            ),
             independent_read_subtasks=len(packets),
             has_write_intent=False,
             router_confidence=1.0,
@@ -401,6 +421,7 @@ async def _execute_admin_multi_agent(
         return None
     evidence: dict[str, object] = {
         "specialists": dict(response.safe_output),
+        "audience": context.audience,
         "result_policy": "只合并授权范围内、带工具审计的只读结果",
     }
     steps: list[dict[str, object]] = [
@@ -427,7 +448,10 @@ async def _execute_admin_multi_agent(
             }
         )
     steps.append({"kind": "answer", "label": "合并可信诊断结果", "status": "completed"})
-    source_ids = tuple(f"tool:{_admin_specialist(domain)[1]}" for domain in domains[:4])
+    source_ids = tuple(
+        f"tool:{_operations_specialist(context.audience, domain)[1]}"
+        for domain in domains[:4]
+    )
     return evidence, steps, source_ids
 
 
@@ -470,6 +494,24 @@ def _admin_complex_domains(value: str) -> tuple[str, ...]:
     return tuple(domains)
 
 
+def _merchant_complex_domains(value: str) -> tuple[str, ...]:
+    compact = re.sub(r"\s+", "", value).casefold()
+    domains: list[str] = []
+    rules = (
+        ("catalog", ("商品", "款式", "sku", "价格", "在售")),
+        ("inventory", ("库存", "缺货", "现货", "补货", "超卖")),
+        ("orders", ("订单", "履约", "发货", "运输", "售后", "营业额", "收益")),
+    )
+    for domain, terms in rules:
+        if any(term in compact for term in terms):
+            domains.append(domain)
+    return tuple(domains)
+
+
+def _operations_specialist(audience: str, domain: str) -> tuple[str, str, str]:
+    return _admin_specialist(domain) if audience == "admin" else _merchant_specialist(domain)
+
+
 def _admin_specialist(domain: str) -> tuple[str, str, str]:
     return {
         "users": ("governance_users", "governance.user_summary", "核对平台用户状态汇总"),
@@ -479,13 +521,113 @@ def _admin_specialist(domain: str) -> tuple[str, str, str]:
     }[domain]
 
 
+def _merchant_specialist(domain: str) -> tuple[str, str, str]:
+    return {
+        "catalog": (
+            "merchant_catalog",
+            "store_ops.catalog_summary",
+            "核对本店在售商品、款式和实时可售库存",
+        ),
+        "inventory": (
+            "merchant_inventory",
+            "store_ops.inventory_risks",
+            "核对本店缺货和低库存风险",
+        ),
+        "orders": ("merchant_orders", "store_ops.order_summary", "核对本店订单履约与已确认营业额"),
+    }[domain]
+
+
 def _specialist_label(code: str) -> str:
     return {
         "governance_users": "用户治理助手: 已核对用户状态",
         "governance_stores": "店铺治理助手: 已核对店铺与商品状态",
         "governance_orders": "订单助手: 已核对订单状态",
         "observability": "运行诊断助手: 已核对服务健康",
+        "merchant_catalog": "商品助手: 已核对商品、款式和实时库存",
+        "merchant_inventory": "库存助手: 已核对缺货和低库存风险",
+        "merchant_orders": "履约助手: 已核对订单与营业额",
     }.get(code, "领域助手: 已完成只读核对")
+
+
+def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
+    specialists = data.get("specialists")
+    if not isinstance(specialists, dict) or not specialists:
+        return "本次经营诊断没有取得足够的可信结果，请缩小查询范围后重试。"
+    products: list[Mapping[str, Any]] = []
+    order_counts: Mapping[str, Any] = {}
+    low_stock_count = 0
+    recognized_revenue: Mapping[str, Any] = {}
+    for result in specialists.values():
+        if not isinstance(result, dict):
+            continue
+        safe_data = result.get("data")
+        if not isinstance(safe_data, dict):
+            continue
+        candidate_products = safe_data.get("on_sale_products")
+        if isinstance(candidate_products, list):
+            products = [item for item in candidate_products if isinstance(item, Mapping)]
+        candidate_counts = safe_data.get("order_status_counts")
+        if isinstance(candidate_counts, Mapping):
+            order_counts = candidate_counts
+        candidate_revenue = safe_data.get("recognized_revenue")
+        if isinstance(candidate_revenue, Mapping):
+            recognized_revenue = candidate_revenue
+        low_stock_count = max(low_stock_count, int(safe_data.get("low_stock_sku_count", 0)))
+    lines = ["已并行完成本店商品、库存和订单的只读经营诊断:"]
+    if products:
+        lines.append("在售商品与款式:")
+        for product in products:
+            lines.append(f"- {product.get('name')}:")
+            sku_values = product.get("skus")
+            for sku in sku_values if isinstance(sku_values, list) else []:
+                if not isinstance(sku, Mapping):
+                    continue
+                price = sku.get("price")
+                inventory = sku.get("inventory")
+                price_display = price.get("display") if isinstance(price, Mapping) else "价格待核对"
+                available = inventory.get("available", 0) if isinstance(inventory, Mapping) else 0
+                lines.append(f"  - {sku.get('name')}: {price_display}，可售库存 {available}")
+    else:
+        lines.append("当前没有查询到在售商品。")
+    if order_counts:
+        status_summary = "、".join(
+            f"{_order_status_label(str(key))} {value} 单"
+            for key, value in order_counts.items()
+        )
+        lines.append(f"订单履约: {status_summary}。")
+    revenue_amount = int(recognized_revenue.get("amount", 0))
+    lines.append(f"已确认营业额: ¥{revenue_amount / 100:.2f}。")
+    risks: list[str] = []
+    if low_stock_count:
+        risks.append(f"{low_stock_count} 个款式达到低库存或缺货阈值")
+    pending_fulfillment = sum(
+        int(order_counts.get(key, 0)) for key in ("paid", "pending_shipment", "shipped")
+    )
+    if pending_fulfillment:
+        risks.append(f"{pending_fulfillment} 单仍在待履约或运输阶段")
+    lines.append("当前风险: " + ("；".join(risks) if risks else "未发现低库存或待履约积压") + "。")  # noqa: RUF001
+    lines.extend(
+        [
+            "经营建议:",
+            "1. 优先补充零库存和低库存款式，并结合实际销量调整安全库存。",
+            "2. 持续跟进待发货和运输中订单，避免履约超时与售后升级。",
+            "3. 商品价格、库存和订单状态变化后重新运行诊断，所有写操作仍由商家本人确认执行。",
+            "以上数据来自本店实时结构化查询，本次没有修改任何业务记录。",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _order_status_label(value: str) -> str:
+    return {
+        "pending_payment": "待付款",
+        "paid": "已付款待处理",
+        "pending_shipment": "待发货",
+        "shipped": "运输中",
+        "completed": "已完成",
+        "cancelled": "已取消",
+        "closed": "已关闭",
+    }.get(value, value)
 
 
 def _render_multi_agent(data: Mapping[str, Any]) -> str:

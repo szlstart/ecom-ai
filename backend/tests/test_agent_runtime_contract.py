@@ -19,7 +19,12 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
 )
 from app.modules.agent_runtime.model_gateway import DeterministicStoreModelGateway
-from app.modules.agent_runtime.operations_agent import _operations_small_talk_reply, _render
+from app.modules.agent_runtime.operations_agent import (
+    _merchant_complex_domains,
+    _operations_small_talk_reply,
+    _render,
+    _render_merchant_multi_agent,
+)
 from app.modules.agent_runtime.operations_context import TrustedOperationsContext
 from app.modules.agent_runtime.service import _normalize_context_snapshot
 from app.modules.agent_runtime.store_context import STORE_AGENT_TOOL_CODES
@@ -192,6 +197,50 @@ def test_operations_agents_have_distinct_small_talk_responses() -> None:
     assert admin is not None and "超级管理员 AI 管家" in admin
     assert schedule is not None and "请帮我转人工客服" in schedule
     assert _operations_small_talk_reply("查看今天的订单", "merchant") is None
+
+
+def test_merchant_cross_domain_diagnosis_routes_to_bounded_specialists() -> None:
+    domains = _merchant_complex_domains(
+        "分析本店在售商品、各款式实时库存和待履约订单风险"
+    )
+    assert domains == ("catalog", "inventory", "orders")
+
+
+def test_merchant_multi_agent_fallback_keeps_exact_sku_and_order_facts() -> None:
+    answer = _render_merchant_multi_agent(
+        {
+            "specialists": {
+                "merchant_catalog": {
+                    "data": {
+                        "on_sale_products": [
+                            {
+                                "name": "测试铅笔",
+                                "skus": [
+                                    {
+                                        "name": "6支装",
+                                        "price": {"display": "¥6.00"},
+                                        "inventory": {"available": 8},
+                                    }
+                                ],
+                            }
+                        ]
+                    }
+                },
+                "merchant_inventory": {"data": {"low_stock_sku_count": 1}},
+                "merchant_orders": {
+                    "data": {
+                        "order_status_counts": {"shipped": 1},
+                        "recognized_revenue": {"amount": 600, "currency": "CNY"},
+                    }
+                },
+            }
+        }
+    )
+
+    assert "6支装: ¥6.00，可售库存 8" in answer
+    assert "运输中 1 单" in answer
+    assert "已确认营业额: ¥6.00" in answer
+    assert "本次没有修改任何业务记录" in answer
 
 
 def test_operations_fallback_never_renders_private_conversation_window() -> None:

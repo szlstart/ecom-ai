@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
+from app.modules.agent_runtime.answer_formatting import concise_policy_answer
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.context_window import ContextWindow, ContextWindowBuilder
 from app.modules.agent_runtime.conversation_summary import attach_rolling_summary
@@ -358,7 +359,7 @@ async def _grounded_answer(
     plan: StoreAgentPlan,
     data: Mapping[str, Any],
 ) -> tuple[str, dict[str, object]]:
-    fallback = _render(plan, data)
+    fallback = _render(plan, data, agent_trigger_text(context.trigger))
     tool_code = _tool_for_intent(plan.intent)
     sources = _source_refs(data)
     source_ids = tuple(
@@ -464,7 +465,7 @@ def _tool_for_intent(intent: str) -> str:
     }.get(intent, "unknown")
 
 
-def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
+def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") -> str:
     if plan.intent == "general_chat":
         return "你好，我是本店智能客服。你可以直接问我商品、款式、库存、服务政策或订单问题。"
     if plan.intent == "human_handoff":
@@ -507,23 +508,17 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
             isinstance(knowledge, list) and knowledge
         ):
             return "本店暂未发布可用于回答该问题的有效政策，请转人工客服核实。"
-        lines = ["根据本店当前生效政策:"]
-        for item in items[:3] if isinstance(items, list) else []:
-            if isinstance(item, dict):
-                excerpt = safe_untrusted_excerpt(item.get("content"), 240)
-                lines.append(
-                    f"- {item.get('title', '店铺政策')} "
-                    f"(版本 {item.get('source_version')}): {excerpt}"
-                )
-        for item in knowledge[:4] if isinstance(knowledge, list) else []:
-            if isinstance(item, dict):
-                lines.append(
-                    f"- {safe_untrusted_excerpt(item.get('title'), 160)} "
-                    f"(知识版本 {item.get('version')}): "
-                    f"{safe_untrusted_excerpt(item.get('excerpt'), 500)}"
-                )
-        lines.append("如需政策外例外或商家承诺，请转人工客服确认。")
-        return "\n".join(lines)
+        sources = [
+            (item.get("title"), item.get("content"))
+            for item in (items if isinstance(items, list) else [])[:3]
+            if isinstance(item, dict)
+        ]
+        sources.extend(
+            (item.get("title"), item.get("excerpt"))
+            for item in (knowledge if isinstance(knowledge, list) else [])[:4]
+            if isinstance(item, dict)
+        )
+        return concise_policy_answer(user_text, sources, intro="根据本店当前生效政策")
     if plan.intent == "order_explain":
         status_value = data.get("status")
         amounts_value = data.get("amounts")

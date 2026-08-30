@@ -120,6 +120,38 @@ def test_order_fallback_renders_amount_and_localized_status() -> None:
     assert "pending_shipment" not in rendered
 
 
+def test_policy_fallback_selects_one_relevant_sentence_instead_of_dumping_chunks() -> None:
+    rendered = _render(
+        ExclusiveAgentPlan("policy_qa"),
+        {
+            "knowledge_sources": [
+                {
+                    "title": "支付、余额与模拟充值规则",
+                    "version": "v1",
+                    "excerpt": (
+                        "# 支付规则\n- 金额按分保存。\n"
+                        "- 当前微信和支付宝充值只用于本地演示，不会产生真实资金扣款。\n"
+                        "- 重复请求不会重复到账。"
+                    ),
+                },
+                {
+                    "title": "物流规则",
+                    "version": "v1",
+                    "excerpt": "当前使用模拟物流，轨迹按五秒间隔更新。",
+                },
+            ]
+        },
+        "请用一句话说明本地模拟充值会不会真的从微信或支付宝扣款。",
+    )
+
+    assert rendered == (
+        "根据当前已发布平台规则\uff1a当前微信和支付宝充值只用于本地演示，"
+        "不会产生真实资金扣款。"
+    )
+    assert "物流" not in rendered
+    assert "金额按分保存" not in rendered
+
+
 def test_logistics_fallback_renders_tracking_location_and_localized_status() -> None:
     rendered = _render(
         ExclusiveAgentPlan("logistics_lookup"),

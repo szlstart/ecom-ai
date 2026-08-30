@@ -12,6 +12,7 @@ from app.core.config import Settings
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
+from app.modules.agent_runtime.answer_formatting import concise_policy_answer
 from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.context_window import ContextWindow, ContextWindowBuilder
@@ -622,7 +623,7 @@ async def _grounded_answer(
     plan: ExclusiveAgentPlan,
     data: Mapping[str, Any],
 ) -> tuple[str, dict[str, object]]:
-    fallback = _render(plan, data)
+    fallback = _render(plan, data, agent_trigger_text(context.trigger))
     tool_code = _tool_for_intent(plan.intent)
     sources = _source_refs(data)
     source_ids = tuple(
@@ -773,7 +774,9 @@ def _requests_latest_order(value: str) -> bool:
     )
 
 
-def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
+def _render(
+    plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = ""
+) -> str:
     if plan.intent == "general_chat":
         return "你好，我是你的专属客服。你可以问我平台规则、商品推荐、本人订单、物流或售后问题。"
     items = data.get("items")
@@ -915,21 +918,21 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
             isinstance(knowledge, list) and knowledge
         ):
             return "暂未找到可可靠引用的已发布平台规则，请前往帮助中心或转平台人工客服。"
-        lines = ["根据当前已发布平台规则:"]
-        lines.extend(
-            f"- {safe_untrusted_excerpt(item.get('title'), 160)} "
-            f"(版本 {item.get('version')}): {safe_untrusted_excerpt(item.get('content'), 500)}"
+        sources = [
+            (item.get("title"), item.get("content"))
             for item in (items if isinstance(items, list) else [])
             if isinstance(item, dict)
-        )
-        lines.extend(
-            f"- {safe_untrusted_excerpt(item.get('title'), 160)} "
-            f"(知识版本 {item.get('version')}): "
-            f"{safe_untrusted_excerpt(item.get('excerpt'), 500)}"
+        ]
+        sources.extend(
+            (item.get("title"), item.get("excerpt"))
             for item in (knowledge if isinstance(knowledge, list) else [])
             if isinstance(item, dict)
         )
-        return "\n".join(lines)
+        return concise_policy_answer(
+            user_text,
+            sources,
+            intro="根据当前已发布平台规则",
+        )
     return "已完成查询。"
 
 

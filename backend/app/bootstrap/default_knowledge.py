@@ -54,6 +54,7 @@ async def seed_default_knowledge(
     Agents must obtain those facts from typed business tools at answer time.
     """
 
+    await _reconcile_terminal_commands(mysql, postgres)
     sources = [*_platform_sources(), *(await _store_sources(mysql))]
     active_document_nos = {source.document_no for source in sources}
     created = 0
@@ -179,6 +180,41 @@ async def seed_default_knowledge(
         )
         jobs_created += 1
     return KnowledgeSeedResult(created, updated, jobs_created, withdrawn)
+
+
+async def _reconcile_terminal_commands(
+    mysql: AsyncSession, postgres: AsyncSession
+) -> None:
+    commands = list(
+        (
+            await mysql.scalars(
+                select(AdminBatchJob).where(
+                    AdminBatchJob.execution_backend == "postgres_knowledge",
+                    AdminBatchJob.job_type == "knowledge_index",
+                    AdminBatchJob.job_status.in_(("failed", "cancelled")),
+                )
+            )
+        ).all()
+    )
+    for command in commands:
+        status = "cancelled" if command.job_status == "cancelled" else "failed"
+        await postgres.execute(
+            text(
+                """UPDATE knowledge.indexing_jobs
+                   SET job_status=:status, progress=100,
+                       error_code=COALESCE(error_code, :error_code),
+                       error_owner=COALESCE(error_owner, 'command'),
+                       status_version=status_version+1, updated_at=now()
+                   WHERE command_job_no=:command_job_no
+                     AND job_status IN ('queued','running')"""
+            ),
+            {
+                "status": status,
+                "error_code": command.error_code or "PARENT_COMMAND_FAILED",
+                "command_job_no": command.job_no,
+            },
+        )
+    await postgres.commit()
 
 
 def _platform_sources() -> list[_SourceDocument]:

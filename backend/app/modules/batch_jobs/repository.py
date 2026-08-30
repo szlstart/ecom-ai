@@ -139,7 +139,11 @@ class BatchJobRepository:
             AdminBatchJob | None,
             await self.session.scalar(
                 select(AdminBatchJob)
-                .where(AdminBatchJob.job_status.in_(statuses))
+                .where(
+                    AdminBatchJob.job_type == "product_import",
+                    AdminBatchJob.execution_backend.is_(None),
+                    AdminBatchJob.job_status.in_(statuses),
+                )
                 .order_by(AdminBatchJob.created_at, AdminBatchJob.id)
                 .limit(1)
                 .with_for_update(skip_locked=True)

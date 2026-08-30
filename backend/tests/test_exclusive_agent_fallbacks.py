@@ -39,9 +39,12 @@ def test_catalog_candidates_allow_only_genuinely_broad_catalog_fallback() -> Non
 
 
 def test_catalog_candidates_drop_trailing_presentation_columns() -> None:
-    assert _catalog_search_candidates(
-        "请搜索当前在售的铅笔商品，列出商品名、店铺、价格和实时可售库存，不要转人工。"
-    )[0] == "铅笔"
+    assert (
+        _catalog_search_candidates(
+            "请搜索当前在售的铅笔商品，列出商品名、店铺、价格和实时可售库存，不要转人工。"
+        )[0]
+        == "铅笔"
+    )
 
 
 def test_catalog_candidates_extract_product_from_store_worded_follow_up() -> None:
@@ -182,7 +185,12 @@ def test_multi_agent_fallback_flattens_metrics_and_provides_risk_advice() -> Non
                 },
                 "runtime": {
                     "specialist": "observability",
-                    "data": {"pending_outbox_events": 2, "failed_agent_runs": 0},
+                    "data": {
+                        "pending_outbox_events": 2,
+                        "failed_agent_runs_24h": 1,
+                        "successful_runs_after_latest_failure": 35,
+                        "unrecovered_agent_failures": 0,
+                    },
                 },
                 "stores": {
                     "specialist": "governance_stores",
@@ -193,6 +201,8 @@ def test_multi_agent_fallback_flattens_metrics_and_provides_risk_advice() -> Non
     )
     assert "user_status_counts.active=3" in rendered
     assert "pending_outbox_events=2" in rendered
+    assert "最新失败后已有 35 次成功运行" in rendered
+    assert "历史审计记录仍保留" in rendered
     assert "风险" in rendered
     assert "上线前建议" in rendered
     assert "1. " in rendered

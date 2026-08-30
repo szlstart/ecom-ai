@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Mapping
+from datetime import timedelta
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
@@ -357,9 +358,7 @@ async def _execute_operations_multi_agent(
     packets: list[DelegationPacket] = []
     specialists: dict[str, Any] = {}
     for domain in domains[:4]:
-        specialist_code, tool_code, objective = _operations_specialist(
-            context.audience, domain
-        )
+        specialist_code, tool_code, objective = _operations_specialist(context.audience, domain)
         packet = DelegationPacket(
             delegation_no=new_prefixed_ulid("dlg_"),
             parent_run_no=context.run.run_no,
@@ -455,8 +454,7 @@ async def _execute_operations_multi_agent(
         )
     steps.append({"kind": "answer", "label": "合并可信诊断结果", "status": "completed"})
     source_ids = tuple(
-        f"tool:{_operations_specialist(context.audience, domain)[1]}"
-        for domain in domains[:4]
+        f"tool:{_operations_specialist(context.audience, domain)[1]}" for domain in domains[:4]
     )
     return evidence, steps, source_ids
 
@@ -613,8 +611,7 @@ def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
         lines.append("当前没有查询到在售商品。")
     if order_counts:
         status_summary = "、".join(
-            f"{_order_status_label(str(key))} {value} 单"
-            for key, value in order_counts.items()
+            f"{_order_status_label(str(key))} {value} 单" for key, value in order_counts.items()
         )
         lines.append(f"订单履约: {status_summary}。")
     lines.append(
@@ -676,14 +673,21 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
     risks: list[str] = []
     if all_metrics.get("pending_outbox_events", 0) > 0:
         risks.append(f"仍有 {all_metrics['pending_outbox_events']} 条 Outbox 事件待处理")
-    if all_metrics.get("failed_agent_runs", 0) > 0:
-        risks.append(f"存在 {all_metrics['failed_agent_runs']} 次失败的 Agent 运行")
+    if all_metrics.get("unrecovered_agent_failures", 0) > 0:
+        risks.append(f"存在 {all_metrics['unrecovered_agent_failures']} 个尚未恢复的 Agent 故障")
     if all_metrics.get("product_status_counts.on_sale", 0) == 0:
         risks.append("平台当前没有在售商品")
     if risks:
         lines.append("风险: " + "；".join(risks) + "。")  # noqa: RUF001
     else:
-        lines.append("风险: 当前汇总未发现 Outbox 积压、Agent 失败或无在售商品风险。")
+        lines.append("风险: 当前汇总未发现 Outbox 积压、未恢复的 Agent 故障或无在售商品风险。")
+    failed_runs_24h = all_metrics.get("failed_agent_runs_24h", 0)
+    recovered_runs = all_metrics.get("successful_runs_after_latest_failure", 0)
+    if failed_runs_24h > 0 and all_metrics.get("unrecovered_agent_failures", 0) == 0:
+        lines.append(
+            f"恢复状态: 过去 24 小时记录到 {failed_runs_24h} 次失败；最新失败后已有 "  # noqa: RUF001
+            f"{recovered_runs} 次成功运行，当前判定已恢复，历史审计记录仍保留。"
+        )
     lines.extend(
         [
             "上线前建议:",
@@ -754,9 +758,7 @@ async def _snapshot(
         )
         unsettled_paid_amount = int(
             await session.scalar(
-                select(
-                    func.coalesce(func.sum(Order.paid_amount - Order.refunded_amount), 0)
-                ).where(
+                select(func.coalesce(func.sum(Order.paid_amount - Order.refunded_amount), 0)).where(
                     Order.store_id == store_id,
                     Order.payment_status == "paid",
                     Order.order_status.not_in(("completed", "cancelled", "closed")),
@@ -889,19 +891,50 @@ async def _snapshot(
         )
         or 0
     )
+    failure_window_started_at = utc_now() - timedelta(hours=24)
     failed_runs = int(
-        await session.scalar(select(func.count(AgentRun.id)).where(AgentRun.run_status == "failed"))
+        await session.scalar(
+            select(func.count(AgentRun.id)).where(
+                AgentRun.run_status == "failed",
+                AgentRun.created_at >= failure_window_started_at,
+            )
+        )
         or 0
     )
+    latest_failure_at = await session.scalar(
+        select(func.max(AgentRun.created_at)).where(
+            AgentRun.run_status == "failed",
+            AgentRun.created_at >= failure_window_started_at,
+        )
+    )
+    successful_runs_after_latest_failure = 0
+    if latest_failure_at is not None:
+        successful_runs_after_latest_failure = int(
+            await session.scalar(
+                select(func.count(AgentRun.id)).where(
+                    AgentRun.run_status == "completed",
+                    AgentRun.created_at > latest_failure_at,
+                )
+            )
+            or 0
+        )
+    unrecovered_failures = int(
+        latest_failure_at is not None and successful_runs_after_latest_failure == 0
+    )
+    runtime_health: dict[str, object] = {
+        "pending_outbox_events": pending_outbox,
+        "failed_agent_runs_24h": failed_runs,
+        "successful_runs_after_latest_failure": successful_runs_after_latest_failure,
+        "unrecovered_agent_failures": unrecovered_failures,
+    }
     if tool_code == "observability.runtime_health":
-        return {"pending_outbox_events": pending_outbox, "failed_agent_runs": failed_runs}
+        return runtime_health
     return {
         "user_status_counts": user_counts,
         "store_status_counts": store_counts,
         "product_status_counts": product_counts,
         "order_status_counts": order_counts,
-        "pending_outbox_events": pending_outbox,
-        "failed_agent_runs": failed_runs,
+        **runtime_health,
     }
 
 
@@ -1007,9 +1040,7 @@ def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, A
                     low_stock.append(f"{product.get('name')}/{sku.get('name')}")
         if low_stock:
             lines.append(
-                "经营建议: 优先核对低库存款式 "
-                + "、".join(low_stock[:5])
-                + "，避免超卖。"
+                "经营建议: 优先核对低库存款式 " + "、".join(low_stock[:5]) + "，避免超卖。"
             )
         else:
             lines.append("经营建议: 当前款式库存均高于低库存提醒线，可结合销量继续观察补货节奏。")
@@ -1054,21 +1085,21 @@ async def _complete(
     conversation.last_message_at = now
     conversation.version += 1
     default_steps = [
-            {"kind": "plan", "label": "识别只读任务", "status": "completed"},
-            *(
-                [
-                    {
-                        "kind": "tool",
-                        "label": "读取授权范围数据",
-                        "tool_code": tool_code,
-                        "status": "completed",
-                    }
-                ]
-                if tool_code
-                else []
-            ),
-            {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
-        ]
+        {"kind": "plan", "label": "识别只读任务", "status": "completed"},
+        *(
+            [
+                {
+                    "kind": "tool",
+                    "label": "读取授权范围数据",
+                    "tool_code": tool_code,
+                    "status": "completed",
+                }
+            ]
+            if tool_code
+            else []
+        ),
+        {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
+    ]
     extra = dict(trace_extra or {})
     supplied_steps = extra.pop("steps", None)
     steps = (

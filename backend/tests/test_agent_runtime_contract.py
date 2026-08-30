@@ -18,7 +18,7 @@ from app.modules.agent_runtime.exclusive_context import EXCLUSIVE_AGENT_TOOL_COD
 from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
 )
-from app.modules.agent_runtime.model_gateway import DeterministicStoreModelGateway
+from app.modules.agent_runtime.model_gateway import DeterministicStoreModelGateway, StoreAgentPlan
 from app.modules.agent_runtime.operations_agent import (
     _merchant_complex_domains,
     _operations_small_talk_reply,
@@ -296,7 +296,7 @@ def test_named_store_product_scores_above_stale_context_product() -> None:
 
 def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:
     answer = _render_store(
-        SimpleNamespace(intent="inventory_lookup"),
+        StoreAgentPlan("inventory_lookup"),
         {
             "product_name": "绿杆2B铅笔",
             "items": [

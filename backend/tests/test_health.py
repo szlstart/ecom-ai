@@ -133,3 +133,38 @@ async def test_agent_runtime_requires_published_agent_for_every_portal(
 
     assert result.status == "down"
     assert result.code == "AGENT_VERSION_UNAVAILABLE:admin_copilot"
+
+
+async def test_embedding_health_probe_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Provider:
+        async def embed(self, texts: list[str]) -> list[list[float]]:
+            assert texts == ["embedding health probe"]
+            return [[0.25, 0.75]]
+
+    class Redis:
+        value: str | None = None
+
+        async def get(self, _key: str) -> str | None:
+            return self.value
+
+        async def set(self, _key: str, value: str, *, ex: int) -> None:
+            assert ex == 600
+            self.value = value
+
+    redis = Redis()
+    monkeypatch.setattr(health_service, "get_redis", lambda: redis)
+    monkeypatch.setattr(health_service, "embedding_provider", lambda _settings: Provider())
+    settings = Settings(
+        _env_file=None,
+        embedding_api_url="https://embedding.test",
+        embedding_api_key="test-key",
+        embedding_model="test-model",
+        embedding_dimension=2,
+    )
+
+    first = await health_service._embedding_status(settings)
+    second = await health_service._embedding_status(settings)
+
+    assert first.status == "up"
+    assert second.status == "up"
+    assert redis.value == '{"status": "available"}'

@@ -75,6 +75,30 @@ async def test_provider_uses_model_specific_temperature() -> None:
 
 
 @pytest.mark.asyncio
+async def test_previous_handoff_message_cannot_turn_current_greeting_into_handoff() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert "Classify CURRENT_UNTRUSTED_MESSAGE only" in payload["messages"][0]["content"]
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": '{"intent":"human_handoff","search_text":null}'}}
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    plan = await planner.plan_exclusive(
+        "CURRENT_UNTRUSTED_MESSAGE:\nhello\n\n"
+        "RECENT_UNTRUSTED_DIALOGUE_FOR_COREFERENCE_ONLY:\n"
+        "AI客服: 已为你转接平台人工客服，请留意排队状态。"
+    )
+    assert plan.intent == "general_chat"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
@@ -124,6 +148,31 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
     )
     assert answer.cited_source_ids == ("prd_public",)
     assert answer.confidence == "high"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_provider_accepts_moonshot_validated_source_ids_alias() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        schema_name = payload["response_format"]["json_schema"]["name"]
+        content = (
+            '{"supported":true,"unsupported_claims":[]}'
+            if schema_name == "grounding_verdict"
+            else '{"answer":"你好，请问想咨询什么?","source_ids":["context:assistant_scope"]}'
+        )
+        return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    answer = await planner.synthesize(
+        agent_prompt="安全回答",
+        user_text="hello",
+        intent="general_chat",
+        evidence={"assistant_scope": "可以协助商城咨询。"},
+        source_ids=("context:assistant_scope",),
+    )
+    assert answer.text == "你好，请问想咨询什么?"
+    assert answer.cited_source_ids == ("context:assistant_scope",)
     await client.aclose()
 
 

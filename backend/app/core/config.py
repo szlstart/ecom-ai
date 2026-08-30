@@ -47,8 +47,8 @@ class Settings(BaseSettings):
     postgres_pool_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
     embedding_api_url: str | None = None
     embedding_api_key: SecretStr | None = None
-    embedding_model: str = "ecom-multilingual-v1"
-    embedding_dimension: int = Field(default=1536, ge=1, le=4096)
+    embedding_model: str = "tongyi-embedding-vision-flash"
+    embedding_dimension: int = Field(default=768, ge=1, le=4096)
     embedding_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
     agent_model_required: bool = False
     agent_model_api_url: str | None = None
@@ -143,6 +143,20 @@ class Settings(BaseSettings):
                 "object storage bucket prefix may contain lowercase letters, digits and '-'"
             )
         return value
+
+    @model_validator(mode="after")
+    def validate_embedding_model_dimension(self) -> "Settings":
+        fixed_dimensions = {
+            "tongyi-embedding-vision-flash": 768,
+            "tongyi-embedding-vision-plus": 1152,
+            "multimodal-embedding-v1": 1024,
+        }
+        expected = fixed_dimensions.get(self.embedding_model)
+        if expected is not None and self.embedding_dimension != expected:
+            raise ValueError(
+                f"{self.embedding_model} requires embedding dimension {expected}"
+            )
+        return self
 
     @model_validator(mode="after")
     def reject_development_secrets_in_production(self) -> "Settings":

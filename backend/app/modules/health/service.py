@@ -17,6 +17,7 @@ from app.database.redis import get_redis, probe_redis
 from app.integrations.object_storage import get_object_storage
 from app.modules.agent_runtime.models import AgentDefinition, AgentVersion
 from app.modules.health.schemas import DependencyStatus, ReadinessResponse
+from app.modules.knowledge.embedding import embedding_provider
 from app.modules.system.models import OutboxEvent
 
 Probe = Callable[[], Awaitable[DependencyStatus]]
@@ -159,9 +160,44 @@ async def _agent_runtime_status(settings: Settings) -> DependencyStatus:
 
 
 async def _embedding_status(settings: Settings) -> DependencyStatus:
-    if settings.embedding_api_url is None:
+    if settings.embedding_api_url is None or settings.embedding_api_key is None:
         return DependencyStatus(status="skipped", code="EMBEDDING_PROVIDER_NOT_CONFIGURED")
-    return DependencyStatus(status="unknown", code="EMBEDDING_PROVIDER_NOT_PROBED")
+    key = f"ecom:{settings.environment}:embedding:provider-health:v1"
+    try:
+        cached = await get_redis().get(key)
+        payload = json.loads(cached) if cached else None
+    except (RedisError, json.JSONDecodeError, TypeError, ValueError):
+        payload = None
+    if isinstance(payload, dict):
+        if payload.get("status") == "available":
+            return DependencyStatus(status="up", required=False)
+        return DependencyStatus(
+            status="degraded",
+            required=False,
+            code=str(payload.get("error_code") or "EMBEDDING_PROVIDER_DEGRADED"),
+        )
+    try:
+        provider = embedding_provider(settings)
+        vectors = await asyncio.wait_for(
+            provider.embed(["embedding health probe"]),
+            timeout=min(settings.embedding_timeout_seconds, settings.dependency_timeout_seconds),
+        )
+        if len(vectors) != 1 or len(vectors[0]) != settings.embedding_dimension:
+            raise ValueError("embedding dimension mismatch")
+    except Exception:
+        result = {"status": "unavailable", "error_code": "EMBEDDING_PROVIDER_UNAVAILABLE"}
+        try:
+            await get_redis().set(key, json.dumps(result), ex=60)
+        except RedisError:
+            pass
+        return DependencyStatus(
+            status="degraded", required=False, code="EMBEDDING_PROVIDER_UNAVAILABLE"
+        )
+    try:
+        await get_redis().set(key, json.dumps({"status": "available"}), ex=600)
+    except RedisError:
+        pass
+    return DependencyStatus(status="up", required=False)
 
 
 async def _outbox_status(settings: Settings) -> DependencyStatus:

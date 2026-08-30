@@ -120,9 +120,6 @@ function token(): string {
   if (!auth.accessToken) throw new Error('missing user token')
   return auth.accessToken
 }
-function senderLabel(value: ChatMessage['sender_type']): string {
-  return ({ user: '我', agent: '智能客服', human: '人工客服', system: '系统', tool: '服务结果' } as Record<string, string>)[value] ?? value
-}
 function contextLabel(context: NonNullable<typeof activeContext.value>): string {
   const snapshot = context.display_snapshot
   if (context.context_type === 'order') return `正在咨询订单 ${String(snapshot.order_id ?? context.resource_id)}`
@@ -693,9 +690,8 @@ onBeforeUnmount(() => {
         <button v-if="previousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
         <p v-if="messages.length === 0 && pending.length === 0" class="conversation-welcome">{{ conversation?.conversation_type === 'exclusive' ? '您好，我是专属客服。您可以咨询平台规则、订单、物流和售后问题。' : '您好，请描述您想咨询的商品或订单问题。' }}</p>
         <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'user' ? 'mine' : 'theirs']">
-          <span class="message-avatar" :class="{ agent: message.sender_type === 'agent' }" aria-hidden="true">{{ message.sender_type === 'user' ? '我' : message.sender_type === 'agent' ? 'AI' : message.sender_type === 'human' ? '客' : '系' }}</span>
+          <span class="message-avatar" :class="{ agent: message.sender_type === 'agent' }" aria-hidden="true">{{ message.sender_type === 'user' ? '👤' : message.sender_type === 'agent' ? '✦' : message.sender_type === 'human' ? '🧑' : '⚙' }}</span>
           <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
-          <strong>{{ senderLabel(message.sender_type) }}</strong>
           <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" />
           <section v-if="message.message_type === 'refund_approval' && message.content" class="refund-approval-card" :aria-label="`退款申请确认：${approvalStatusLabel(message)}`">
             <header><strong>退款申请确认</strong><span class="badge">{{ approvalStatusLabel(message) }}</span></header>
@@ -732,11 +728,11 @@ onBeforeUnmount(() => {
           <small><time :datetime="message.sent_at">{{ timeLabel(message.sent_at) }}</time></small>
           </article>
         </div>
-        <div v-for="item in pending" :key="item.clientMessageId" class="message-row mine"><span class="message-avatar" aria-hidden="true">我</span><article class="message-bubble mine pending-message">
-          <strong>我</strong><p>{{ item.text }}</p><small v-if="item.status === 'sending'">正在发送…</small><small v-else-if="item.status === 'blocked'" class="error-text">内容未通过安全检查，请修改后重新发送。</small><button v-else type="button" class="small danger" @click="retry(item)">发送失败，重试</button>
+        <div v-for="item in pending" :key="item.clientMessageId" class="message-row mine"><span class="message-avatar" aria-hidden="true">👤</span><article class="message-bubble mine pending-message">
+          <p>{{ item.text }}</p><small v-if="item.status === 'sending'">正在发送…</small><small v-else-if="item.status === 'blocked'" class="error-text">内容未通过安全检查，请修改后重新发送。</small><button v-else type="button" class="small danger" @click="retry(item)">发送失败，重试</button>
         </article></div>
-        <div v-if="streamingReply" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true">AI</span><article class="message-bubble theirs agent-stream" aria-live="polite">
-          <strong>智能客服</strong><p>{{ streamingReply.text || '正在思考…' }}</p><small>正在生成回复…</small>
+        <div v-if="streamingReply" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true">✦</span><article class="message-bubble theirs agent-stream" aria-live="polite">
+          <p>{{ streamingReply.text || '正在思考…' }}</p><small>正在生成回复…</small>
         </article></div>
       </div>
       <button v-if="newBelowCount" type="button" class="new-message-button" @click="scrollToBottom">有 {{ newBelowCount }} 条新消息</button>

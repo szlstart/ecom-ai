@@ -46,7 +46,11 @@ const sources = computed(() => {
 })
 const statusText = computed(() => trace.value?.status === 'completed' ? '已完成' : '处理中')
 const modeText = computed(() => {
-  const answerMode = trace.value?.answer_mode === 'model_grounded' ? 'Kimi 证据约束生成' : '安全规则回复'
+  const answerMode = trace.value?.answer_mode === 'model_grounded'
+    ? 'Kimi 证据约束生成'
+    : trace.value?.answer_mode === 'model_routed_safe_reply'
+      ? 'Kimi 意图路由 · 安全快捷回复'
+      : '安全规则回复'
   return trace.value?.orchestration_mode === 'multi_agent' ? `多 Agent 协作 · ${answerMode}` : answerMode
 })
 function stepIcon(kind?: string): string {

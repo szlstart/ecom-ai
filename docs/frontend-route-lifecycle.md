@@ -4,9 +4,9 @@
 
 ## 主入口
 
-- 用户端：商城、购物车、消息弹窗、收藏、收货地址、个人中心；
-- 商家端：`/merchant/products`、`/merchant/orders`、`/merchant/after-sales`、`/merchant/store`；消息使用顶部弹窗；
-- 超级管理端：仪表盘、用户与店铺、服务与内容、AI 智能中心、运营治理、系统运维。侧栏由 `/api/v1/admin/navigation` 按权限生成。
+- 用户端：商城、购物车、独立消息工作台、收藏、收货地址、个人中心；
+- 商家端：`/merchant/products`、`/merchant/orders`、`/merchant/after-sales`、`/merchant/store`、`/merchant/messages`；
+- 超级管理端：仪表盘、用户与店铺、独立消息工作台、服务与内容、AI 智能中心、运营治理、系统运维。侧栏由 `/api/v1/admin/navigation` 按权限生成。
 
 ## 保留的深链接
 
@@ -24,10 +24,10 @@
 - `/login`、`/register` 只负责打开用户端登录/注册弹窗；
 - `/merchant/login` 跳转商家统一登录注册页 `/merchant`；
 - `/merchant/reauthenticate`、`/admin/reauthenticate` 和 `/admin/security` 是已移除二次验证流程的兼容跳转；
-- `/messages` 与 `/messages/:conversationId` 只负责打开消息弹窗，不再提供独立消息页面。
+- `/messages` 与 `/messages/:conversationId` 共用用户端独立三栏消息工作台，后者直接定位指定会话。
 
 ## 禁止新增的重复入口
 
 - 不再新增独立的管理端“商品与交易”主导航；管理员从店铺运营进入该店铺商品和订单；
-- 不再新增商家端独立 AI 聊天页或用户端独立消息页；
+- 不再为客服或 AI 新建与三端消息工作台并行的重复聊天入口；
 - 新旧页面需要迁移时，旧路由只能作为有期限的兼容跳转，并同步更新追踪矩阵和浏览器测试。

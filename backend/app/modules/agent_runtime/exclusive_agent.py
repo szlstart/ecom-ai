@@ -207,7 +207,17 @@ async def process_exclusive_run(
             await _handoff(session, context, settings, security, "USER_REQUESTED_HUMAN")
             await _finish_checkpoint(checkpoint_store, context, plan.intent)
             return
-        if plan.intent == "policy_qa":
+        if plan.intent == "general_chat":
+            result = StoreToolResult(
+                "succeeded",
+                {
+                    "assistant_scope": (
+                        "可以协助平台规则、全平台商品搜索与推荐、用户本人订单、物流和售后，"
+                        "只有用户明确要求时才转平台人工客服。"
+                    )
+                },
+            )
+        elif plan.intent == "policy_qa":
             result = await _platform_policy(session, context)
         elif plan.intent in {"product_search", "personalized_recommendation"}:
             result = await tools.search_products(context, plan.search_text)
@@ -570,17 +580,24 @@ async def _grounded_answer(
         f"{item['type']}:{item['id']}"
         for item in sources
         if isinstance(item.get("type"), str) and isinstance(item.get("id"), str)
-    ) or (f"tool:{tool_code}",)
+    )
+    if plan.intent == "general_chat":
+        source_ids = ("context:assistant_scope",)
+    elif not source_ids:
+        source_ids = (f"tool:{tool_code}",)
     steps: list[dict[str, object]] = [
-        {"kind": "plan", "label": "理解问题", "status": "completed"},
-        {
-            "kind": "tool",
-            "label": "查询用户范围内的可信数据",
-            "tool_code": tool_code,
-            "status": "completed",
-        },
-        {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
+        {"kind": "plan", "label": "理解当前消息", "status": "completed"},
     ]
+    if plan.intent != "general_chat":
+        steps.append(
+            {
+                "kind": "tool",
+                "label": "查询用户范围内的可信数据",
+                "tool_code": tool_code,
+                "status": "completed",
+            }
+        )
+    steps.append({"kind": "answer", "label": "生成安全回复", "status": "completed"})
     if isinstance(data.get("rag"), dict):
         rag = data["rag"]
         steps.insert(
@@ -630,6 +647,11 @@ async def _grounded_answer(
     if not isinstance(gateway, ProviderExclusiveModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
+    if plan.intent == "general_chat":
+        trace["answer_mode"] = "model_routed_safe_reply"
+        trace["confidence"] = "high"
+        trace["cited_source_ids"] = list(source_ids)
+        return fallback, trace
     context.run.current_phase = "answering"
     context.run.version += 1
     try:
@@ -655,6 +677,7 @@ async def _grounded_answer(
 
 def _tool_for_intent(intent: str) -> str:
     return {
+        "general_chat": "none",
         "human_handoff": "support.create_platform_ticket",
         "policy_qa": "rag.policy.search",
         "product_search": "catalog.search_products",
@@ -667,6 +690,8 @@ def _tool_for_intent(intent: str) -> str:
 
 
 def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
+    if plan.intent == "general_chat":
+        return "你好，我是你的专属客服。你可以问我平台规则、商品推荐、本人订单、物流或售后问题。"
     items = data.get("items")
     if plan.intent in {"product_search", "personalized_recommendation"}:
         if not isinstance(items, list) or not items:

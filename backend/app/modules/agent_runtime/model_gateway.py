@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 StoreIntent = Literal[
+    "general_chat",
     "product_qa",
     "sku_compare",
     "inventory_lookup",
@@ -35,7 +36,7 @@ class DeterministicStoreModelGateway:
     async def plan(self, user_text: str) -> StoreAgentPlan:
         text = _normalize(user_text)
         if not text:
-            return StoreAgentPlan("product_qa")
+            return StoreAgentPlan("general_chat")
         if _contains(text, "人工", "真人", "客服人员", "转客服", "投诉"):
             return StoreAgentPlan("human_handoff")
         if _contains(text, "推荐", "适合", "预算", "选购"):
@@ -48,7 +49,9 @@ class DeterministicStoreModelGateway:
             return StoreAgentPlan("policy_qa")
         if _contains(text, "订单", "付款", "发货", "收货", "物流", "售后"):
             return StoreAgentPlan("order_explain")
-        return StoreAgentPlan("product_qa")
+        if _contains(text, "商品", "款式", "规格", "参数", "材质", "功能", "怎么用"):
+            return StoreAgentPlan("product_qa")
+        return StoreAgentPlan("general_chat")
 
 
 def _normalize(value: str) -> str:

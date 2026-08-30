@@ -42,7 +42,10 @@ async function mountCenter() {
   const pinia = createPinia()
   setActivePinia(pinia)
   useUserAuthStore().accessToken = 'user-token'
-  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [
+    { path: '/', component: { template: '<div />' } },
+    { path: '/messages', component: { template: '<div />' } },
+  ] })
   await router.push('/')
   await router.isReady()
   const wrapper = mount(UserMessageCenter, {
@@ -52,7 +55,7 @@ async function mountCenter() {
     },
   })
   await flushPromises()
-  return wrapper
+  return { wrapper, router, pinia }
 }
 
 describe('UserMessageCenter', () => {
@@ -67,19 +70,27 @@ describe('UserMessageCenter', () => {
     mocks.listConversations.mockResolvedValue({ data: { items: [exclusive, store] } })
   })
 
-  it('opens as an overlay and shows the dynamic total unread count', async () => {
-    const wrapper = await mountCenter()
+  it('navigates to the standalone messages page and shows the dynamic unread count', async () => {
+    const { wrapper, router, pinia } = await mountCenter()
     expect(wrapper.get('.user-message-trigger').text()).toContain('3')
 
     await wrapper.get('.user-message-trigger').trigger('click')
     await flushPromises()
-    expect(wrapper.get('[role="dialog"]').attributes('aria-label')).toBe('用户消息中心')
-    expect(wrapper.text()).toContain('专属客服')
-    expect(wrapper.text()).toContain('示例店铺')
+    expect(router.currentRoute.value.path).toBe('/messages')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+
+    const page = mount(UserMessageCenter, {
+      props: { standalone: true },
+      global: { plugins: [pinia, router], stubs: { ConversationPage: { template: '<div data-test="conversation" />' } } },
+    })
+    await flushPromises()
+    expect(page.get('[aria-label="用户消息中心"]').attributes('aria-label')).toBe('用户消息中心')
+    expect(page.text()).toContain('专属客服')
+    expect(page.text()).toContain('示例店铺')
   })
 
   it('updates unread badges and gently shakes when an incoming message arrives', async () => {
-    const wrapper = await mountCenter()
+    const { wrapper } = await mountCenter()
     expect(mocks.realtimeOptions).not.toBeNull()
 
     mocks.realtimeOptions!.onEvent({

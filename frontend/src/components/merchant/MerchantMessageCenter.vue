@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 
 import {
   claimSupportTicket,
@@ -23,12 +24,12 @@ import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
-import { useDialogA11y } from '@/composables/dialog-a11y'
 
-defineProps<{ storeName?: string }>()
+const props = withDefaults(defineProps<{ storeName?: string; standalone?: boolean }>(), { standalone: false })
 
 const auth = useAdminAuthStore()
-const open = ref(false)
+const route = useRoute()
+const open = ref(props.standalone)
 const loading = ref(false)
 const sending = ref(false)
 const error = ref('')
@@ -44,8 +45,6 @@ const loadingEarlier = ref(false)
 const exclusiveConversationId = ref('')
 const exclusiveUnread = ref(0)
 const timeline = ref<HTMLElement | null>(null)
-const trigger = ref<HTMLButtonElement | null>(null)
-const dialog = ref<HTMLElement | null>(null)
 const connectionState = ref<RealtimeState>('polling')
 const shaking = ref(false)
 const selectedTraceRunId = ref<string | null>(null)
@@ -177,18 +176,8 @@ async function refreshActiveMessages() {
   } catch (cause) { error.value = errorMessage(cause) }
 }
 
-async function show() {
-  open.value = true
-  await Promise.all([loadTickets(), loadExclusive()])
-}
-
-function close() {
-  open.value = false
-}
-useDialogA11y(open, dialog, close)
-
 function shake() {
-  if (open.value) return
+  if (route.path === '/merchant/messages') return
   shaking.value = false
   window.requestAnimationFrame(() => { shaking.value = true })
   if (shakeTimer) window.clearTimeout(shakeTimer)
@@ -256,14 +245,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <button ref="trigger" class="merchant-message-trigger" :class="{ 'message-arrival-shake': shaking }" type="button" aria-haspopup="dialog" @click="show">
+  <RouterLink v-if="!standalone" class="merchant-message-trigger" :class="{ 'message-arrival-shake': shaking }" to="/merchant/messages">
     <span aria-hidden="true">💬</span><span>消息</span><b v-if="unreadCount" :aria-label="`${unreadCount} 条未读消息`">{{ unreadCount > 99 ? '99+' : unreadCount }}</b>
-  </button>
-  <Teleport to="body">
-    <div v-if="open" class="merchant-message-overlay" @mousedown.self="close" @keydown.esc="close">
-      <section ref="dialog" class="merchant-message-window" role="dialog" aria-modal="true" aria-label="商家消息中心" tabindex="-1">
+  </RouterLink>
+  <div v-else class="message-page-surface merchant-message-page-surface">
+      <section class="merchant-message-window" aria-label="商家消息中心">
         <aside class="merchant-chat-list">
-          <header><div><strong>消息</strong><small><span class="connection-dot" :class="connectionState" />{{ unreadCount ? `${unreadCount} 条未读` : '消息已读' }}</small></div><button type="button" aria-label="关闭消息中心" @click="close">×</button></header>
+          <header><div><strong>会话列表</strong><small><span class="connection-dot" :class="connectionState" />{{ unreadCount ? `${unreadCount} 条未读` : '消息已读' }}</small></div></header>
           <button class="merchant-chat-item pinned" :class="{ active: selectedKey === 'exclusive' }" type="button" @click="selectConversation('exclusive')">
             <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>AI 经营助理 · 可随时转人工</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
           </button>
@@ -285,6 +273,5 @@ onBeforeUnmount(() => {
         </main>
         <AgentTracePanel :messages="activeMessages" :selected-run-id="selectedTraceRunId" title="AI 协作台" />
       </section>
-    </div>
-  </Teleport>
+  </div>
 </template>

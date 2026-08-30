@@ -55,6 +55,15 @@ async function expectTrace(page: Page, panelTitle: string) {
   await expect(trace).not.toContainText('原始思维链：')
 }
 
+async function expectMessageWorkspaceFitsViewport(page: Page) {
+  await expect(page.locator('.message-page-heading')).toHaveCount(0)
+  await expect(page.locator('.message-page-surface')).toBeVisible()
+  await expect.poll(() => page.evaluate(() => (
+    document.documentElement.scrollHeight <= window.innerHeight + 1
+    && document.body.scrollHeight <= window.innerHeight + 1
+  ))).toBe(true)
+}
+
 test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
   test.skip(!enabled, 'set ECOM_LIVE_E2E=1 to exercise the real FastAPI test stack')
   test.describe.configure({ mode: 'serial' })
@@ -131,6 +140,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await loginConsumer(consumer, data.consumer_username)
     await consumer.getByRole('link', { name: '消息', exact: true }).click()
     await expect(consumer).toHaveURL(/\/messages/)
+    await expectMessageWorkspaceFitsViewport(consumer)
     const consumerWorkspace = consumer.getByLabel('用户消息中心')
     const incomingBubbles = consumerWorkspace.locator('.message-row.theirs .message-bubble')
     const incomingCount = await incomingBubbles.count()
@@ -146,6 +156,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await loginMerchant(merchant, data.merchant_username)
     await merchant.getByRole('link', { name: /消息/ }).click()
     await expect(merchant).toHaveURL(/\/merchant\/messages/)
+    await expectMessageWorkspaceFitsViewport(merchant)
     const merchantDialog = merchant.getByLabel('商家消息中心')
     await merchantDialog.getByPlaceholder('向平台专属客服描述你的问题…').fill('请概览当前店铺商品和库存。')
     await merchantDialog.getByRole('button', { name: '发送', exact: true }).click()
@@ -157,6 +168,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await loginAdministrator(administrator, data.administrator_username)
     await administrator.getByRole('link', { name: '打开消息中心' }).click()
     await expect(administrator).toHaveURL(/\/admin\/messages/)
+    await expectMessageWorkspaceFitsViewport(administrator)
     const adminDialog = administrator.getByLabel('管理端消息中心')
     await adminDialog.getByPlaceholder('询问平台概况、用户、店铺、订单或 Agent 运行状态…').fill('请用只读方式概览平台订单与 Agent 运行状态。')
     await adminDialog.getByRole('button', { name: '发送', exact: true }).click()

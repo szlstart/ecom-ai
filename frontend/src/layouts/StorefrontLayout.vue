@@ -102,7 +102,7 @@ watch(() => messageCenter.open, async (value) => {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'message-workspace-shell': route.path.startsWith('/messages') }">
     <header class="storefront-header">
       <nav aria-label="主导航" class="nav-content">
         <RouterLink to="/" class="brand">Ecom AI</RouterLink>
@@ -129,7 +129,7 @@ watch(() => messageCenter.open, async (value) => {
         </div>
       </nav>
     </header>
-    <main id="main-content" class="page-content"><RouterView :key="route.path" /></main>
+    <main id="main-content" class="page-content" :class="{ 'message-workspace-content': route.path.startsWith('/messages') }"><RouterView :key="route.path" /></main>
     <footer v-if="showHomepageFooter" class="site-footer">
       <div class="site-footer-inner">
         <div class="site-footer-copy">

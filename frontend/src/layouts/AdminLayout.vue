@@ -97,7 +97,7 @@ watch(() => route.fullPath, () => { sidebarOpen.value = false; profileOpen.value
 </script>
 
 <template>
-  <div class="admin-shell premium-admin-shell">
+  <div class="admin-shell premium-admin-shell" :class="{ 'message-workspace-shell': route.path === '/admin/messages' }">
     <button v-if="sidebarOpen" class="admin-sidebar-backdrop" aria-label="关闭导航" @click="sidebarOpen = false" />
     <aside class="admin-sidebar premium-admin-sidebar" :class="{ open: sidebarOpen }">
       <RouterLink class="admin-brand" to="/admin/dashboard"><span class="admin-brand-mark">E</span><span><strong>Ecom AI</strong><small>超级管理中心</small></span></RouterLink>
@@ -121,7 +121,7 @@ watch(() => route.fullPath, () => { sidebarOpen.value = false; profileOpen.value
           <div class="admin-profile-menu" @click.stop><button @click="profileOpen = !profileOpen"><span class="admin-profile-avatar">{{ initials }}</span><span class="admin-profile-copy"><strong>{{ profile?.nickname || '平台管理员' }}</strong><small>{{ profile?.username || '正在载入…' }}</small></span><span>⌄</span></button><div v-if="profileOpen" class="admin-profile-dropdown"><button @click="logout">退出登录</button></div></div>
         </div>
       </header>
-      <main class="admin-content"><RouterView :key="route.path" /></main>
+      <main class="admin-content" :class="{ 'message-workspace-content': route.path === '/admin/messages' }"><RouterView :key="route.path" /></main>
     </div>
 
     <div v-if="searchOpen" class="admin-command-overlay" @click.self="closeSearch"><section ref="searchDialog" class="admin-command-panel" role="dialog" aria-modal="true" aria-label="管理功能搜索" tabindex="-1"><header><span>⌕</span><input v-model="searchQuery" class="admin-command-input" placeholder="输入功能名称，例如：用户治理、审批、Skill" /><kbd>ESC</kbd></header><div class="admin-command-results"><p>{{ searchQuery ? '功能搜索结果' : '常用功能' }}</p><button v-for="item in searchResults" :key="item.code" @click="chooseSearchResult(item)"><span class="admin-nav-icon">{{ iconFor(item.code) }}</span><span><strong>{{ item.title }}</strong><small>{{ item.route }}</small></span><b>↵</b></button><div v-if="!searchResults.length" class="empty-state">没有找到对应管理功能</div></div></section></div>

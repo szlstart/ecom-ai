@@ -18,11 +18,7 @@ watch(() => route.params.conversationId, selectRouteConversation)
 </script>
 
 <template>
-  <section class="message-page" aria-labelledby="user-messages-title">
-    <header class="message-page-heading">
-      <div><p class="eyebrow">Ecom AI 服务中心</p><h1 id="user-messages-title">消息</h1></div>
-      <p>专属客服、店铺咨询与 AI 执行记录集中在同一个三栏工作台。</p>
-    </header>
+  <section class="message-page" aria-label="消息">
     <UserMessageCenter standalone />
   </section>
 </template>

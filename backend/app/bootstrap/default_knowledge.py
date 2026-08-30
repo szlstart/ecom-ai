@@ -18,6 +18,7 @@ from app.modules.catalog.models import (
     ProductSku,
 )
 from app.modules.files import models as file_models  # noqa: F401
+from app.modules.identity import models as identity_models  # noqa: F401
 from app.modules.knowledge.cleaning import clean_document_text
 from app.modules.knowledge.indexing import create_index_job
 from app.modules.knowledge.models import KnowledgeDocument

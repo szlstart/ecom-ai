@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -223,41 +224,58 @@ async def process_exclusive_run(
         elif plan.intent in {"product_search", "personalized_recommendation"}:
             result = await tools.search_products(context, plan.search_text)
         elif plan.intent == "order_lookup":
+            explicit_order_no = _resource_no(trigger_text, "ord")
             ref = context.context_refs.get("order")
             result = (
-                await tools.order_detail(
+                await tools.order_detail(context, explicit_order_no)
+                if explicit_order_no is not None
+                else await tools.order_detail(
                     context, (await builder.require_active_context(context, "order")).resource_no
                 )
                 if ref is not None
                 else await tools.list_orders(context)
             )
         elif plan.intent == "logistics_lookup":
-            ref = await builder.require_active_context(context, "order")
-            result = await tools.shipments(context, ref.resource_no)
+            explicit_order_no = _resource_no(trigger_text, "ord")
+            order_no = (
+                explicit_order_no
+                if explicit_order_no is not None
+                else (await builder.require_active_context(context, "order")).resource_no
+            )
+            result = await tools.shipments(context, order_no)
         elif plan.intent == "refund_progress":
+            explicit_refund_no = _resource_no(trigger_text, "ref")
             ref = context.context_refs.get("refund")
             result = (
-                await tools.refund_detail(
+                await tools.refund_detail(context, explicit_refund_no)
+                if explicit_refund_no is not None
+                else await tools.refund_detail(
                     context, (await builder.require_active_context(context, "refund")).resource_no
                 )
                 if ref is not None
                 else await tools.list_refunds(context)
             )
         else:
-            ref = await builder.require_active_context(context, "order")
+            explicit_order_no = _resource_no(trigger_text, "ord")
+            ref = (
+                None
+                if explicit_order_no is not None
+                else await builder.require_active_context(context, "order")
+            )
+            order_no = explicit_order_no or (ref.resource_no if ref is not None else "")
             approval_service = AgentApprovalService(session, settings, security)
 
             async def build_draft() -> dict[str, object]:
                 return await approval_service.build_refund_draft(
                     context,
-                    ref.resource_no,
+                    order_no,
                     context.trigger.text_content or "申请退款",
                 )
 
             result = await tools.execute(
                 context,
                 "after_sale.build_refund_draft",
-                {"order_id": ref.resource_no},
+                {"order_id": order_no},
                 build_draft,
             )
             if result.status == "succeeded":
@@ -269,12 +287,18 @@ async def process_exclusive_run(
                 )
                 return
     except ApplicationError as exc:
+        if exc.code == "AGENT_RESOURCE_NOT_ACCESSIBLE":
+            message = "没有找到你有权查看的对应订单或售后记录，请核对编号。"
+            reason = "resource_not_accessible"
+        else:
+            message = "当前选择的订单或售后上下文已变化，请重新从对应详情页选择后再试。"
+            reason = "context_unavailable"
         await _complete(
             session,
             context,
-            "当前选择的订单或售后上下文已变化，请重新从对应详情页选择后再试。",
+            message,
             error_code=exc.code,
-            degraded_reason="context_unavailable",
+            degraded_reason=reason,
         )
         await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
@@ -727,16 +751,24 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
         if "order_id" in data:
             status_value = data.get("status")
             status: Mapping[str, Any] = status_value if isinstance(status_value, dict) else {}
+            paid = _nested_value(data, "amounts", "paid")
+            paid_display = paid.get("display") if isinstance(paid, dict) else None
+            store_name = safe_untrusted_excerpt(data.get("store_name"), 120)
             return (
-                f"订单 {data.get('order_id')} 当前状态: 订单 {status.get('order')}，"
-                f"支付 {status.get('payment')}，履约 {status.get('fulfillment')}，"
-                f"售后 {status.get('after_sale')}。可用操作以订单详情页为准。"
+                f"订单 {data.get('order_id')} ({store_name})，"
+                f"实付 {paid_display or '¥0.00'}。当前状态: "
+                f"订单{_status_label('order', status.get('order'))}，"
+                f"支付{_status_label('payment', status.get('payment'))}，"
+                f"履约{_status_label('fulfillment', status.get('fulfillment'))}，"
+                f"售后{_status_label('after_sale', status.get('after_sale'))}。"
+                "可用操作以订单详情页为准。"
             )
         if not isinstance(items, list) or not items:
             return "你的账号下暂未查询到可见订单。"
         return "最近订单:\n" + "\n".join(
             f"- {item.get('order_id')} ({safe_untrusted_excerpt(item.get('store_name'), 120)}): "
-            f"{_nested_value(item, 'status', 'order')}"
+            f"实付 {_money_display(item, 'paid')}，"
+            f"{_status_label('order', _nested_value(item, 'status', 'order'))}"
             for item in items
             if isinstance(item, dict)
         )
@@ -744,8 +776,10 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
         if not isinstance(items, list) or not items:
             return "该订单当前没有可见物流包裹。"
         return "订单物流包裹:\n" + "\n".join(
-            f"- {item.get('carrier_name')} {item.get('tracking_no_masked')}: "
-            f"{item.get('shipment_status')}{_delivery_estimate_text(item)}"
+            f"- {safe_untrusted_excerpt(item.get('carrier_name'), 80)}，"
+            f"物流单号 {item.get('tracking_no_masked')}: "
+            f"{_status_label('shipment', item.get('shipment_status'))}"
+            f"{_last_track_text(item)}{_delivery_estimate_text(item)}"
             for item in items
             if isinstance(item, dict)
         )
@@ -926,6 +960,81 @@ def _attach_conversation_window(window: ContextWindow, data: dict[str, object]) 
 def _nested_value(value: Mapping[str, Any], outer: str, inner: str) -> object:
     nested = value.get(outer)
     return nested.get(inner) if isinstance(nested, dict) else None
+
+
+def _money_display(value: Mapping[str, Any], key: str) -> str:
+    amounts = value.get("amounts")
+    money = amounts.get(key) if isinstance(amounts, dict) else None
+    display = money.get("display") if isinstance(money, dict) else None
+    return str(display) if display else "¥0.00"
+
+
+_STATUS_LABELS: dict[str, dict[str, str]] = {
+    "order": {
+        "pending_payment": "待付款",
+        "paid": "已付款",
+        "pending_shipment": "待发货",
+        "shipped": "运输中",
+        "completed": "已完成",
+        "cancelled": "已取消",
+        "closed": "已关闭",
+    },
+    "payment": {
+        "unpaid": "未付款",
+        "processing": "处理中",
+        "paid": "已支付",
+        "partially_refunded": "部分退款",
+        "refunded": "已退款",
+    },
+    "fulfillment": {
+        "unfulfilled": "未履约",
+        "partial": "部分发货",
+        "shipped": "已发货",
+        "received": "已收货",
+    },
+    "after_sale": {
+        "none": "无进行中售后",
+        "in_progress": "处理中",
+        "partial": "部分处理完成",
+        "completed": "已完成",
+    },
+    "shipment": {
+        "created": "已发货，待揽收",
+        "picked_up": "已揽收",
+        "in_transit": "运输中",
+        "delivered": "已签收",
+        "exception": "物流异常",
+        "returned": "已退回",
+        "closed": "已关闭",
+        "voided": "已作废",
+    },
+}
+
+
+def _status_label(kind: str, value: object) -> str:
+    text = str(value or "未知")
+    return _STATUS_LABELS.get(kind, {}).get(text, text)
+
+
+def _last_track_text(item: Mapping[str, Any]) -> str:
+    track = item.get("last_track")
+    if not isinstance(track, dict):
+        return ""
+    description = safe_untrusted_excerpt(track.get("description"), 180)
+    location = safe_untrusted_excerpt(track.get("location_text"), 120)
+    details = "; " + description if description else ""
+    if location:
+        details += f"，当前位置 {location}"
+    return details
+
+
+def _resource_no(text: str, prefix: str) -> str | None:
+    match = re.search(
+        rf"(?<![A-Za-z0-9_]){re.escape(prefix)}_([0-9A-Z]{{10,32}})(?![A-Za-z0-9_])",
+        text,
+        flags=re.I,
+    )
+    return f"{prefix}_{match.group(1).upper()}" if match is not None else None
 
 
 def _delivery_estimate_text(item: Mapping[str, Any]) -> str:

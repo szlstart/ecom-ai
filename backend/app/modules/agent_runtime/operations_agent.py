@@ -552,7 +552,61 @@ async def _snapshot(
             or 0
         )
         if tool_code == "store_ops.catalog_summary":
-            return {"store_id": context.store.store_no, "product_status_counts": product_counts}
+            product_rows = (
+                await session.execute(
+                    select(Product, ProductSku, Inventory)
+                    .join(ProductSku, ProductSku.product_id == Product.id)
+                    .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
+                    .where(
+                        Product.store_id == store_id,
+                        Product.deleted_at.is_(None),
+                        Product.product_status == "on_sale",
+                        ProductSku.sku_status == "active",
+                    )
+                    .order_by(Product.sales_count.desc(), Product.id, ProductSku.id)
+                    .limit(50)
+                )
+            ).all()
+            products: dict[int, dict[str, object]] = {}
+            for product, sku, inventory in product_rows:
+                item = products.setdefault(
+                    product.id,
+                    {
+                        "product_id": product.product_no,
+                        "name": product.product_name,
+                        "status": product.product_status,
+                        "sales_count": product.sales_count,
+                        "skus": [],
+                    },
+                )
+                sku_items = item["skus"]
+                assert isinstance(sku_items, list)
+                sku_items.append(
+                    {
+                        "sku_id": sku.sku_no,
+                        "name": sku.sku_name,
+                        "price": {
+                            "minor_units": sku.sale_price_amount,
+                            "currency": sku.currency,
+                            "display": _money_display(sku.sale_price_amount, sku.currency),
+                        },
+                        "inventory": {
+                            "on_hand": inventory.on_hand_quantity if inventory else 0,
+                            "reserved": inventory.reserved_quantity if inventory else 0,
+                            "available": (
+                                inventory.on_hand_quantity - inventory.reserved_quantity
+                                if inventory
+                                else 0
+                            ),
+                        },
+                    }
+                )
+            return {
+                "store_id": context.store.store_no,
+                "product_status_counts": product_counts,
+                "on_sale_products": list(products.values()),
+                "truncated": len(product_rows) >= 50,
+            }
         if tool_code == "store_ops.order_summary":
             return {
                 "store_id": context.store.store_no,
@@ -697,6 +751,37 @@ def _tool_for_intent(intent: str, audience: str) -> str:
 
 
 def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, Any]) -> str:
+    if context.audience == "merchant" and intent == "catalog":
+        products = data.get("on_sale_products")
+        if not isinstance(products, list) or not products:
+            return "本店当前没有可售商品。本次只读取了本店授权范围内的数据。"
+        lines = ["本店当前在售商品与可用库存:"]
+        low_stock: list[str] = []
+        for product in products:
+            if not isinstance(product, dict):
+                continue
+            lines.append(f"- {product.get('name')} ({product.get('product_id')})")
+            skus = product.get("skus")
+            for sku in skus if isinstance(skus, list) else []:
+                if not isinstance(sku, dict):
+                    continue
+                price = sku.get("price")
+                inventory = sku.get("inventory")
+                display = price.get("display") if isinstance(price, dict) else "价格未知"
+                available = inventory.get("available") if isinstance(inventory, dict) else 0
+                lines.append(f"  - {sku.get('name')}: {display}，可售库存 {available}")
+                if isinstance(available, int) and available <= 5:
+                    low_stock.append(f"{product.get('name')}/{sku.get('name')}")
+        if low_stock:
+            lines.append(
+                "经营建议: 优先核对低库存款式 "
+                + "、".join(low_stock[:5])
+                + "，避免超卖。"
+            )
+        else:
+            lines.append("经营建议: 当前款式库存均高于低库存提醒线，可结合销量继续观察补货节奏。")
+        lines.append("价格和库存来自本店实时结构化数据，本次没有修改任何业务记录。")
+        return "\n".join(lines)
     label = "店铺经营" if context.audience == "merchant" else "平台运行"
     lines = [f"已完成{label}的只读查询 ({intent}):"]
     for key, value in data.items():
@@ -711,6 +796,12 @@ def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, A
             lines.append(f"- {key}: {value}")
     lines.append("本次只读取了授权范围内的数据，没有修改任何业务记录。")
     return "\n".join(lines)
+
+
+def _money_display(minor_units: int, currency: str) -> str:
+    normalized = currency.upper()
+    symbol = "¥" if normalized == "CNY" else f"{normalized} "
+    return f"{symbol}{minor_units / 100:.2f}"
 
 
 async def _complete(

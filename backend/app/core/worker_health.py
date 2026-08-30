@@ -13,6 +13,11 @@ from app.core.config import Settings
 
 HEARTBEAT_PATH = Path(tempfile.gettempdir()) / "ecom-ai-worker-heartbeat.json"
 _HEARTBEAT_TASKS: set[asyncio.Task[None]] = set()
+_HEALTH_STATE: dict[str, object] = {
+    "consecutive_failures": 0,
+    "last_success_at": None,
+    "last_error_code": None,
+}
 
 
 def start_worker_heartbeat(
@@ -21,6 +26,12 @@ def start_worker_heartbeat(
     stopping: asyncio.Event,
 ) -> asyncio.Task[None]:
     """Start an event-loop heartbeat; a blocked or dead loop stops refreshing it."""
+
+    _HEALTH_STATE.update(
+        consecutive_failures=0,
+        last_success_at=datetime.now(UTC).isoformat(),
+        last_error_code=None,
+    )
 
     async def heartbeat() -> None:
         while not stopping.is_set():
@@ -42,10 +53,28 @@ def _write(worker_name: str, build_sha: str) -> None:
         "build_sha": build_sha,
         "event_loop_at": datetime.now(UTC).isoformat(),
         "monotonic_seconds": time.monotonic(),
+        "consecutive_failures": int(str(_HEALTH_STATE["consecutive_failures"])),
+        "last_success_at": _HEALTH_STATE["last_success_at"],
+        "last_error_code": _HEALTH_STATE["last_error_code"],
     }
     temporary = HEARTBEAT_PATH.with_name(f"{HEARTBEAT_PATH.name}.{os.getpid()}.tmp")
     temporary.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
     temporary.replace(HEARTBEAT_PATH)
+
+
+def record_worker_success() -> None:
+    _HEALTH_STATE.update(
+        consecutive_failures=0,
+        last_success_at=datetime.now(UTC).isoformat(),
+        last_error_code=None,
+    )
+
+
+def record_worker_failure(error_code: str) -> None:
+    _HEALTH_STATE.update(
+        consecutive_failures=int(str(_HEALTH_STATE["consecutive_failures"])) + 1,
+        last_error_code=error_code[:120],
+    )
 
 
 def check_worker_heartbeat(max_age_seconds: float = 90) -> int:
@@ -59,6 +88,9 @@ def check_worker_heartbeat(max_age_seconds: float = 90) -> int:
         if expected_sha and payload.get("build_sha") != expected_sha:
             return 1
         if not payload.get("worker"):
+            return 1
+        max_failures = int(os.getenv("ECOM_WORKER_HEALTH_MAX_CONSECUTIVE_FAILURES", "5"))
+        if int(payload.get("consecutive_failures", 0)) >= max_failures:
             return 1
     except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
         return 1

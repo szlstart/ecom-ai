@@ -1193,7 +1193,10 @@ class LogisticsService:
                     event_status="pending",
                     available_at=now,
                     attempt_count=0,
-                    trace_id=request_id_context.get(),
+                    # A synchronizer does not run inside an HTTP request, so the
+                    # request context is normally empty. Outbox trace IDs are
+                    # nevertheless required and must start a new background trace.
+                    trace_id=request_id_context.get() or new_prefixed_ulid("req_"),
                 )
             )
             created += 1

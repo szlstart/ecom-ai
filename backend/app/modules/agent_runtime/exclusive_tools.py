@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 from collections.abc import Awaitable, Callable
 
@@ -88,18 +89,25 @@ class ExclusiveToolGateway:
         self, context: TrustedExclusiveAgentContext, query: str | None
     ) -> StoreToolResult:
         async def handler() -> dict[str, object]:
-            rows, has_more = await self.catalog.search_products(
-                q=(query or "").strip() or None,
-                category_no=None,
-                brand_no=None,
-                store_no=None,
-                group_no=None,
-                price_min=None,
-                price_max=None,
-                sort="sales",
-                position=None,
-                limit=8,
-            )
+            rows = []
+            has_more = False
+            for term in _catalog_search_candidates(query):
+                found, found_has_more = await self.catalog.search_products(
+                    q=term,
+                    category_no=None,
+                    brand_no=None,
+                    store_no=None,
+                    group_no=None,
+                    price_min=None,
+                    price_max=None,
+                    sort="sales",
+                    position=None,
+                    limit=8,
+                )
+                rows = found
+                has_more = found_has_more
+                if rows:
+                    break
             return {
                 "items": [
                     {
@@ -331,6 +339,64 @@ def _money_projection(minor_units: int, currency: str) -> dict[str, str]:
         "currency": normalized,
         "display": f"{symbol}{major_units}",
     }
+
+
+def _catalog_search_candidates(query: str | None) -> list[str | None]:
+    """Return bounded public-catalog queries from an untrusted natural sentence.
+
+    The LLM may return a whole instruction instead of the product phrase. We first
+    try the cleaned phrase, then its meaningful tokens. A truly broad listing
+    request is allowed to fall back to the public on-sale catalogue; a specific
+    nonexistent term is never silently replaced with every product.
+    """
+
+    raw = re.sub(r"\s+", " ", (query or "").strip())[:120]
+    if not raw:
+        return [None]
+    cleaned = raw
+    for phrase in (
+        "请列出",
+        "请搜索",
+        "请查找",
+        "帮我列出",
+        "帮我搜索",
+        "告诉我",
+        "并说明推荐依据",
+        "说明推荐依据",
+        "不要转人工",
+        "全平台当前在售的",
+        "全平台在售的",
+        "平台当前在售的",
+        "当前在售的",
+        "在售的",
+        "商品名、价格和店铺",
+        "商品名价格和店铺",
+    ):
+        cleaned = cleaned.replace(phrase, " ")
+    cleaned = re.sub(r"[\u3001\u3002\uff0c\uff01\uff1f,:;!?\uff08\uff09()\[\]{}]+", " ", cleaned)
+    cleaned = re.sub(r"\b(?:please|search|find|products?)\b", " ", cleaned, flags=re.I)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if cleaned.endswith("商品") and len(cleaned) > 2:
+        cleaned = cleaned.removesuffix("商品").strip()
+    candidates: list[str | None] = []
+    generic_terms = {"", "商品", "在售", "全部", "所有", "在售商品", "全部商品", "所有商品"}
+    if cleaned and cleaned not in generic_terms:
+        candidates.append(cleaned[:120])
+        for token in cleaned.split():
+            token = token.strip()
+            if len(token) >= 2 and token not in {"商品", "在售", "当前", "平台"}:
+                candidates.append(token[:120])
+    broad = any(
+        marker in raw
+        for marker in ("全部商品", "所有商品", "当前在售", "平台在售", "全平台")
+    ) and cleaned in generic_terms
+    if broad or cleaned in generic_terms:
+        candidates.append(None)
+    result: list[str | None] = []
+    for candidate in candidates or [raw]:
+        if candidate not in result:
+            result.append(candidate)
+    return result[:6]
 
 
 def _not_accessible() -> ApplicationError:

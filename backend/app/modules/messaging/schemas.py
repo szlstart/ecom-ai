@@ -34,6 +34,12 @@ class ConversationArchiveView(StrictRequest):
     version: int
 
 
+class ConversationDeletionView(StrictRequest):
+    conversation_id: str
+    deleted_at: datetime
+    memory_cleared: bool
+
+
 class TextMessageContent(StrictRequest):
     type: Literal["text"] = "text"
     text: str = Field(min_length=1, max_length=4000)

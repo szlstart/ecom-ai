@@ -2,10 +2,16 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Query, Response
 
-from app.api.dependencies import DatabaseSession
+from app.api.dependencies import DatabaseSession, PostgresSession
 from app.api.schemas import Envelope
 from app.modules.identity.router import _etag, _expected_version, _no_store
-from app.modules.messaging.schemas import MessageList, MessageView, ReadCursorRequest
+from app.modules.messaging.deletion_service import ConversationDeletionService
+from app.modules.messaging.schemas import (
+    ConversationDeletionView,
+    MessageList,
+    MessageView,
+    ReadCursorRequest,
+)
 from app.modules.messaging.support_schemas import (
     SupportConversationList,
     SupportInternalNoteList,
@@ -113,6 +119,25 @@ async def list_support_messages(
 ) -> Envelope[MessageList]:
     result = await _service(session).conversation_messages(
         access, conversation_id, limit, cursor, after_sequence
+    )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.delete(
+    "/conversations/{conversation_id}",
+    response_model=Envelope[ConversationDeletionView],
+    operation_id="SupportConversation_Delete",
+)
+async def delete_support_conversation(
+    conversation_id: str,
+    response: Response,
+    session: DatabaseSession,
+    postgres: PostgresSession,
+    access: Annotated[AdminAccess, require_admin_permission("support:reply")],
+) -> Envelope[ConversationDeletionView]:
+    result = await ConversationDeletionService(session, postgres).delete_scoped(
+        access, conversation_id
     )
     _no_store(response)
     return Envelope(data=result)

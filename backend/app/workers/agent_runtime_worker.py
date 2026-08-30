@@ -32,6 +32,7 @@ from app.modules.agent_runtime.provider_gateway import (
 from app.modules.agent_runtime.public_trace import public_question
 from app.modules.agent_runtime.service import AgentRuntimeService
 from app.modules.agent_runtime.store_agent import process_store_run
+from app.modules.agent_runtime.trigger_text import agent_trace_question
 from app.modules.messaging.models import Conversation, Message
 from app.modules.system.models import OutboxEvent
 
@@ -144,7 +145,7 @@ async def process_batch(limit: int = 20) -> int:
                         payload={
                             "conversation_id": conversation.conversation_no,
                             "run_id": run.run_no,
-                            "question": public_question(trigger.text_content),
+                            "question": public_question(agent_trace_question(trigger)),
                             "stage": "understanding",
                             "label": "思考开始",
                             "summary": "正在识别问题、会话上下文、身份范围和可用权限。",
@@ -277,9 +278,7 @@ async def run() -> None:
     try:
         while not stopping.is_set():
             if time.monotonic() >= next_provider_probe:
-                provider_health = await probe_model_provider(
-                    settings, get_redis(), force=True
-                )
+                provider_health = await probe_model_provider(settings, get_redis(), force=True)
                 logger.info(
                     "agent_model_provider_probed",
                     status=provider_health.status,

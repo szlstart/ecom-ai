@@ -65,9 +65,7 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
         target_admin_session.assurance_level = "aal2"
         session.add_all([user, other_user, merchant_user, target_user])
         await session.flush()
-        consumer_role = await session.scalar(
-            select(Role).where(Role.role_code == "user")
-        )
+        consumer_role = await session.scalar(select(Role).where(Role.role_code == "user"))
         assert consumer_role is not None
         session.add_all(
             [
@@ -271,6 +269,19 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
     assert handoff.status_code == handoff_replay.status_code == 201
     assert handoff_replay.json()["data"]["ticket_id"] == handoff.json()["data"]["ticket_id"]
     assert handoff.json()["data"]["queue_type"] == "platform"
+    handoff_messages = await client.get(
+        f"/api/v1/conversations/{conversation_no}/messages?limit=20",
+        headers=headers,
+    )
+    assert handoff_messages.status_code == 200
+    connecting = [
+        item
+        for item in handoff_messages.json()["data"]["items"]
+        if item["sender_type"] == "system"
+        and item["content"].get("event") == "human_handoff_connecting"
+    ]
+    assert len(connecting) == 1
+    assert connecting[0]["text"].startswith("正在接入人工客服")
 
     after_handoff = await client.post(
         f"/api/v1/conversations/{conversation_no}/messages",
@@ -287,8 +298,9 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
         headers=headers,
     )
     assert recent_page.status_code == 200, recent_page.text
-    assert recent_page.json()["data"]["items"][0]["message_id"] == (
-        after_handoff.json()["data"]["message_id"]
+    assert (
+        recent_page.json()["data"]["items"][0]["message_id"]
+        == (after_handoff.json()["data"]["message_id"])
     )
     previous_cursor = recent_page.json()["data"]["previous_cursor"]
     assert previous_cursor
@@ -298,7 +310,17 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
         params={"limit": 1, "cursor": previous_cursor},
     )
     assert older_page.status_code == 200, older_page.text
-    assert older_page.json()["data"]["items"][0]["message_id"] == sent.json()["data"]["message_id"]
+    assert older_page.json()["data"]["items"][0]["content"]["event"] == "human_handoff_connecting"
+    oldest_page = await client.get(
+        f"/api/v1/conversations/{conversation_no}/messages",
+        headers=headers,
+        params={
+            "limit": 1,
+            "cursor": older_page.json()["data"]["previous_cursor"],
+        },
+    )
+    assert oldest_page.status_code == 200, oldest_page.text
+    assert oldest_page.json()["data"]["items"][0]["message_id"] == sent.json()["data"]["message_id"]
     pagination_conflict = await client.get(
         f"/api/v1/conversations/{conversation_no}/messages",
         headers=headers,
@@ -706,20 +728,35 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
             ):
                 break
         assert any(
-            _is_realtime_frame(frame, "message.created", conversation_no)
-            for frame in frames
+            _is_realtime_frame(frame, "message.created", conversation_no) for frame in frames
         )
         assert any(
-            _is_realtime_frame(frame, "support.status.updated", conversation_no)
-            for frame in frames
+            _is_realtime_frame(frame, "support.status.updated", conversation_no) for frame in frames
         )
     finally:
         await pubsub.aclose()  # type: ignore[no-untyped-call]
 
+    deleted = await client.delete(
+        f"/api/v1/conversations/{conversation_no}",
+        headers=headers,
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["data"]["conversation_id"] == conversation_no
+    assert deleted.json()["data"]["memory_cleared"] is True
+    missing_after_delete = await client.get(
+        f"/api/v1/conversations/{conversation_no}",
+        headers=headers,
+    )
+    assert missing_after_delete.status_code == 404
+    recreated = await client.put(
+        "/api/v1/users/me/exclusive-conversation",
+        headers=headers,
+    )
+    assert recreated.status_code == 200, recreated.text
+    assert recreated.json()["data"]["conversation_id"] != conversation_no
 
-def _is_realtime_frame(
-    frame: dict[str, object], event_type: str, conversation_no: str
-) -> bool:
+
+def _is_realtime_frame(frame: dict[str, object], event_type: str, conversation_no: str) -> bool:
     data = frame.get("data")
     return (
         frame.get("type") == event_type

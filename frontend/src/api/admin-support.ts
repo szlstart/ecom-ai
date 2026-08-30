@@ -1,4 +1,4 @@
-import { createClientMessageId, type ChatMessage, type Conversation, type ConversationContext, type MessagePage } from '@/api/messaging'
+import { createClientMessageId, type ChatMessage, type Conversation, type ConversationContext, type ConversationDeletion, type MessagePage } from '@/api/messaging'
 import { apiRequest, createIdempotencyKey, retryTransientNetworkRequest, type ApiResult } from '@/api/http'
 
 export type SupportTicketStatus = 'queued' | 'assigned' | 'active' | 'waiting_user' | 'resolved' | 'closed'
@@ -83,6 +83,10 @@ export function listSupportMessages(conversationId: string, token: string, optio
   return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}/messages?${query}`, {}, token)
 }
 
+export function deleteSupportConversation(conversationId: string, token: string): Promise<ApiResult<ConversationDeletion>> {
+  return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' }, token)
+}
+
 export function listSupportNotes(ticketId: string, token: string): Promise<ApiResult<{ items: SupportInternalNote[] }>> {
   return apiRequest(`/support/human-service-tickets/${encodeURIComponent(ticketId)}/internal-notes`, {}, token)
 }
@@ -142,6 +146,10 @@ export function putSupportReadCursor(conversationId: string, message: ChatMessag
 
 export function getAdminAiConversation(token: string): Promise<ApiResult<Conversation>> {
   return apiRequest('/admin/support/ai-conversation', { method: 'PUT' }, token)
+}
+
+export function deleteAdminAiConversation(token: string): Promise<ApiResult<ConversationDeletion>> {
+  return apiRequest('/admin/support/ai-conversation', { method: 'DELETE' }, token)
 }
 
 export function listAdminAiMessages(token: string, options: { cursor?: string; afterSequence?: number } = {}): Promise<ApiResult<MessagePage>> {

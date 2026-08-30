@@ -202,6 +202,7 @@ kbd { padding: 3px 7px; color: #788195; border: 1px solid #d8dde7; border-radius
 .admin-chat-header > a { padding: 8px 11px; color: #4560ca; border-radius: 8px; background: #eef1fc; font-size: .72rem; font-weight: 700; }
 .admin-ai-concierge { padding: clamp(30px, 6vh, 70px) clamp(28px, 6vw, 80px); overflow-y: auto; text-align: center; }
 .admin-ai-orb { width: 72px; height: 72px; margin: 0 auto 16px; display: grid; place-items: center; color: #fff; border-radius: 24px; background: radial-gradient(circle at 30% 20%, #ac9cff, transparent 45%), linear-gradient(145deg, #785cdb, #355bc8); box-shadow: 0 20px 44px rgb(73 76 185 / 28%); font-size: 1.8rem; }
+.admin-ai-orb img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .admin-ai-concierge h2 { margin: 7px 0 8px; font-size: 1.8rem; }
 .admin-ai-concierge > p:not(.eyebrow) { max-width: 640px; margin: 0 auto; color: #6d7689; line-height: 1.7; }
 .admin-ai-suggestions { margin: 28px 0 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; text-align: left; }

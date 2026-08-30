@@ -2,9 +2,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Query, Response, status
 
-from app.api.dependencies import IdempotencyKey, MerchantContext, PlatformAdminContext, UserContext
+from app.api.dependencies import (
+    IdempotencyKey,
+    MerchantContext,
+    PlatformAdminContext,
+    PostgresSession,
+    UserContext,
+)
 from app.api.schemas import Envelope
 from app.modules.identity.router import _etag, _expected_version, _no_store
+from app.modules.messaging.deletion_service import ConversationDeletionService
 from app.modules.messaging.dependencies import (
     AiFeedbackServiceDependency,
     MessagingServiceDependency,
@@ -20,6 +27,7 @@ from app.modules.messaging.schemas import (
     ConversationContextClearView,
     ConversationContextRequest,
     ConversationContextView,
+    ConversationDeletionView,
     ConversationList,
     ConversationView,
     MessageCreateRequest,
@@ -33,6 +41,25 @@ from app.modules.messaging.schemas import (
 router = APIRouter(tags=["messaging"])
 merchant_router = APIRouter(prefix="/merchant/support", tags=["merchant-support"])
 admin_ai_router = APIRouter(prefix="/admin/support/ai-conversation", tags=["admin-support"])
+
+
+@admin_ai_router.delete(
+    "",
+    response_model=Envelope[ConversationDeletionView],
+    operation_id="AdminAiConversation_DeleteMine",
+)
+async def delete_admin_ai_conversation(
+    response: Response,
+    context: PlatformAdminContext,
+    service: MessagingServiceDependency,
+    postgres: PostgresSession,
+) -> Envelope[ConversationDeletionView]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await ConversationDeletionService(service.session, postgres).delete_owned(
+        context.user, conversation.conversation_id
+    )
+    _no_store(response)
+    return Envelope(data=result)
 
 
 @admin_ai_router.put(
@@ -121,6 +148,25 @@ async def put_merchant_exclusive(
 ) -> Envelope[ConversationView]:
     result = await service.get_or_create_exclusive(context.user)
     response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@merchant_router.delete(
+    "/exclusive-conversation",
+    response_model=Envelope[ConversationDeletionView],
+    operation_id="MerchantExclusiveConversation_DeleteMine",
+)
+async def delete_merchant_exclusive_conversation(
+    response: Response,
+    context: MerchantContext,
+    service: MessagingServiceDependency,
+    postgres: PostgresSession,
+) -> Envelope[ConversationDeletionView]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await ConversationDeletionService(service.session, postgres).delete_owned(
+        context.user, conversation.conversation_id
+    )
     _no_store(response)
     return Envelope(data=result)
 
@@ -345,6 +391,25 @@ async def get_conversation(
     return Envelope(data=result)
 
 
+@router.delete(
+    "/conversations/{conversation_id}",
+    response_model=Envelope[ConversationDeletionView],
+    operation_id="Conversation_DeleteMine",
+)
+async def delete_conversation(
+    conversation_id: str,
+    response: Response,
+    context: UserContext,
+    service: MessagingServiceDependency,
+    postgres: PostgresSession,
+) -> Envelope[ConversationDeletionView]:
+    result = await ConversationDeletionService(service.session, postgres).delete_owned(
+        context.user, conversation_id
+    )
+    _no_store(response)
+    return Envelope(data=result)
+
+
 @router.get(
     "/conversations/{conversation_id}/messages",
     response_model=Envelope[MessageList],
@@ -359,9 +424,7 @@ async def list_messages(
     after_sequence: Annotated[int, Query(ge=0)] = 0,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
 ) -> Envelope[MessageList]:
-    result = await service.messages(
-        context.user, conversation_id, limit, after_sequence, cursor
-    )
+    result = await service.messages(context.user, conversation_id, limit, after_sequence, cursor)
     _no_store(response)
     return Envelope(data=result)
 

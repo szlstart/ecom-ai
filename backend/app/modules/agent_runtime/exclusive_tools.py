@@ -300,9 +300,8 @@ class ExclusiveToolGateway:
                 "after_sale": order.after_sale_status,
             },
             "amounts": {
-                "paid": order.paid_amount,
-                "refunded": order.refunded_amount,
-                "currency": order.currency,
+                "paid": _money_projection(order.paid_amount, order.currency),
+                "refunded": _money_projection(order.refunded_amount, order.currency),
             },
             "items": [
                 {
@@ -320,6 +319,18 @@ class ExclusiveToolGateway:
             "source_version": order.version,
             "as_of": utc_now(),
         }
+
+
+def _money_projection(minor_units: int, currency: str) -> dict[str, str]:
+    normalized = currency.upper()
+    symbol = "¥" if normalized == "CNY" else f"{normalized} "
+    major_units = f"{minor_units / 100:.2f}"
+    return {
+        "minor_units": str(minor_units),
+        "major_units": major_units,
+        "currency": normalized,
+        "display": f"{symbol}{major_units}",
+    }
 
 
 def _not_accessible() -> ApplicationError:

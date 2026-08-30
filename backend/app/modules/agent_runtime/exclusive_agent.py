@@ -33,6 +33,7 @@ from app.modules.agent_runtime.provider_gateway import ProviderExclusiveModelGat
 from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
 from app.modules.agent_runtime.store_agent import _stream_events
 from app.modules.agent_runtime.store_tools import StoreToolResult
+from app.modules.agent_runtime.trigger_text import agent_trace_question, agent_trigger_text
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
 from app.modules.knowledge.service import KnowledgeService
 from app.modules.messaging.models import Message
@@ -75,7 +76,7 @@ async def process_exclusive_run(
     run.run_status = "running"
     run.current_phase = "planning"
     run.version += 1
-    trigger_text = context.trigger.text_content or ""
+    trigger_text = agent_trigger_text(context.trigger)
     if detects_prompt_injection(trigger_text):
         await _complete(
             session,
@@ -189,9 +190,8 @@ async def process_exclusive_run(
     try:
         plan = await gateway.plan(planning_input)
     except (ModelGatewayError, TimeoutError):
-        await _handoff(session, context, settings, security, "MODEL_UNAVAILABLE")
-        await _finish_checkpoint(checkpoint_store, context, "human_handoff")
-        return
+        plan = await DeterministicExclusiveModelGateway().plan(trigger_text)
+        run.degraded_reason = "planning_model_unavailable"
     try:
         await checkpoint_store.write(
             run.run_no,
@@ -503,7 +503,7 @@ async def _complete(
         run_id=context.run.run_no,
         agent="专属客服",
         model=context.agent_version.model_profile,
-        question=context.trigger.text_content,
+        question=agent_trace_question(context.trigger),
         data=data or {},
         degraded_reason=degraded_reason,
     )
@@ -647,7 +647,7 @@ async def _grounded_answer(
         run_id=context.run.run_no,
         agent="专属客服",
         model=context.agent_version.model_profile,
-        question=context.trigger.text_content,
+        question=agent_trace_question(context.trigger),
         intent=plan.intent,
         data=data,
         steps=steps,
@@ -662,7 +662,7 @@ async def _grounded_answer(
     try:
         answer = await gateway.synthesize(
             agent_prompt=context.agent_version.system_prompt,
-            user_text=context.trigger.text_content or "",
+            user_text=agent_trigger_text(context.trigger),
             intent=plan.intent,
             evidence=data,
             source_ids=source_ids,

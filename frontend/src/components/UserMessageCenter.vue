@@ -100,6 +100,13 @@ function selectConversation(item: Conversation) {
   traceMessages.value = []
   selectedTraceRunId.value = null
 }
+async function conversationDeleted(conversationId: string) {
+  items.value = items.value.filter((item) => item.conversation_id !== conversationId)
+  center.selectedConversationId = null
+  traceMessages.value = []
+  selectedTraceRunId.value = null
+  await load(true)
+}
 watch(() => auth.isAuthenticated, (value) => {
   if (value) void load(true)
   else { items.value = [] }
@@ -143,7 +150,7 @@ onBeforeUnmount(() => {
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>
           <p v-if="loading && !items.length" class="merchant-chat-empty">正在读取会话…</p>
           <button v-if="exclusive" class="merchant-chat-item pinned" :class="{ active: selected?.conversation_id === exclusive.conversation_id }" type="button" @click="selectConversation(exclusive)">
-            <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>{{ exclusive.last_message_preview || '平台规则、订单、物流与售后' }}</small></span><i v-if="exclusive.unread_count" class="user-chat-unread" :aria-label="`${exclusive.unread_count} 条未读消息`">{{ unreadLabel(exclusive.unread_count) }}</i>
+            <span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><span><strong>专属客服 <em>置顶</em></strong><small>{{ exclusive.last_message_preview || '平台规则、订单、物流与售后' }}</small></span><i v-if="exclusive.unread_count" class="user-chat-unread" :aria-label="`${exclusive.unread_count} 条未读消息`">{{ unreadLabel(exclusive.unread_count) }}</i>
           </button>
           <div v-if="!stores.length && !loading" class="merchant-chat-empty message-empty-guide">
             <span aria-hidden="true">⌕</span><strong>还没有店铺咨询</strong><small>在商品详情页联系商家后，会话会出现在这里。</small><RouterLink to="/">去逛逛</RouterLink>
@@ -153,8 +160,8 @@ onBeforeUnmount(() => {
           </button>
         </aside>
         <main class="user-chat-main">
-          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" @trace-select="selectedTraceRunId = $event" @trace-running="traceRunning = $event" @trace-progress="liveTrace = $event" />
-          <div v-else class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>消息中心</h2><p>选择左侧会话开始沟通。</p></div>
+          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" @trace-select="selectedTraceRunId = $event" @trace-running="traceRunning = $event" @trace-progress="liveTrace = $event" @conversation-deleted="conversationDeleted" />
+          <div v-else class="merchant-chat-welcome"><span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><h2>消息中心</h2><p>选择左侧会话开始沟通。</p></div>
         </main>
         <AgentTracePanel :messages="traceMessages" :selected-run-id="selectedTraceRunId" :running="traceRunning" :live-trace="liveTrace" />
       </section>

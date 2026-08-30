@@ -1949,7 +1949,8 @@ export interface paths {
         get: operations["Conversation_GetMine"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Conversation */
+        delete: operations["Conversation_DeleteMine"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2104,7 +2105,8 @@ export interface paths {
         /** Put Merchant Exclusive */
         put: operations["MerchantExclusiveConversation_PutMine"];
         post?: never;
-        delete?: never;
+        /** Delete Merchant Exclusive Conversation */
+        delete: operations["MerchantExclusiveConversation_DeleteMine"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2173,7 +2175,8 @@ export interface paths {
         /** Put Admin Ai Conversation */
         put: operations["AdminAiConversation_PutMine"];
         post?: never;
-        delete?: never;
+        /** Delete Admin Ai Conversation */
+        delete: operations["AdminAiConversation_DeleteMine"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2295,6 +2298,23 @@ export interface paths {
         /** Send Support Conversation Message */
         post: operations["SupportConversationMessage_Send"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Support Conversation */
+        delete: operations["SupportConversation_Delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -8176,6 +8196,18 @@ export interface components {
             /** Expires At */
             expires_at: string | null;
         };
+        /** ConversationDeletionView */
+        ConversationDeletionView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Deleted At
+             * Format: date-time
+             */
+            deleted_at: string;
+            /** Memory Cleared */
+            memory_cleared: boolean;
+        };
         /** ConversationList */
         ConversationList: {
             /** Items */
@@ -8688,6 +8720,11 @@ export interface components {
         /** Envelope[ConversationContextView] */
         Envelope_ConversationContextView_: {
             data: components["schemas"]["ConversationContextView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationDeletionView] */
+        Envelope_ConversationDeletionView_: {
+            data: components["schemas"]["ConversationDeletionView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ConversationList] */
@@ -17318,6 +17355,43 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    Conversation_DeleteMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationDeletionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     Message_ListMine: {
         parameters: {
             query?: {
@@ -17755,6 +17829,31 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    MerchantExclusiveConversation_DeleteMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationDeletionView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     MerchantExclusiveMessage_ListMine: {
         parameters: {
             query?: {
@@ -17924,6 +18023,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_ConversationView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiConversation_DeleteMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationDeletionView_"];
                 };
             };
             401: components["responses"]["Problem401"];
@@ -18258,6 +18382,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportConversation_Delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationDeletionView_"];
                 };
             };
             401: components["responses"]["Problem401"];

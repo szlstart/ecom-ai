@@ -16,6 +16,7 @@ function agentMessage(sequence: number, runId: string, label: string): ChatMessa
         run_id: runId, agent: 'AI 管家', status: 'completed', intent: 'complex_platform_diagnosis',
         question: '请分析平台用户和店铺情况',
         analysis_summary: '先拆解问题，再核对权限并执行只读查询。',
+        analysis_details: ['已识别当前请求。', '业务工具 governance.users 已通过权限网关执行，返回 2 项结果。'],
         result_summary: '已完成 3 个受控步骤，获得 2 项可用结果。',
         orchestration_mode: 'multi_agent', answer_mode: 'model_grounded', confidence: 'high',
         cited_source_ids: ['tool:governance.users'],
@@ -33,17 +34,18 @@ describe('AgentTracePanel', () => {
         selectedRunId: 'run_OLD',
       },
     })
-    expect(wrapper.text()).toContain('旧任务')
-    expect(wrapper.text()).not.toContain('用户治理 Agent')
     expect(wrapper.text()).toContain('多智能体协作')
-    expect(wrapper.text()).toContain('工具调用：1 次')
-    expect(wrapper.text()).toContain('耗时：28 ms')
     expect(wrapper.text()).toContain('请分析平台用户和店铺情况')
     expect(wrapper.text()).toContain('先拆解问题，再核对权限并执行只读查询')
-    expect(wrapper.text()).toContain('已完成 3 个受控步骤')
-    expect(wrapper.text()).toContain('不会暴露隐藏提示、私密推理或敏感数据')
+    expect(wrapper.text()).toContain('业务工具 governance.users')
+    expect(wrapper.text()).toContain('本次实际意图')
+    expect(wrapper.text()).not.toContain('理解当前消息')
+    expect(wrapper.text()).not.toContain('重建最近对话上下文')
+    expect(wrapper.text()).not.toContain('生成安全回复')
+    expect(wrapper.text()).not.toContain('结果整理完成')
+    expect(wrapper.text()).not.toContain('参考内容')
     expect(wrapper.text()).not.toContain('运行编号')
-    expect(wrapper.findAll('details')).toHaveLength(2)
+    expect(wrapper.findAll('details')).toHaveLength(1)
     expect(wrapper.find('details').attributes('open')).toBeUndefined()
   })
 

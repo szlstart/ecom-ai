@@ -1,4 +1,4 @@
-import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
+import { apiRequest, createIdempotencyKey, retryTransientNetworkRequest, type ApiResult } from '@/api/http'
 
 export interface Conversation {
   conversation_id: string
@@ -140,6 +140,27 @@ export function sendText(
     method: 'POST',
     body: JSON.stringify({ client_message_id: clientMessageId, content: { type: 'text', text } }),
   }, token)
+}
+
+/**
+ * Recover a chat send from a brief API restart or local network handover.
+ * Every retry reuses client_message_id, so the server can return the already
+ * persisted message instead of creating a duplicate when the first response
+ * was lost after the write committed.
+ */
+export async function sendTextResilient(
+  conversationId: string,
+  text: string,
+  token: string,
+  clientMessageId = createClientMessageId(),
+  retryDelays: readonly number[] = [400, 900, 1_800, 3_600],
+  onRetry?: () => void,
+): Promise<ApiResult<ChatMessage>> {
+  return retryTransientNetworkRequest(
+    () => sendText(conversationId, text, token, clientMessageId),
+    retryDelays,
+    onRetry,
+  )
 }
 
 export function sendProductCard(

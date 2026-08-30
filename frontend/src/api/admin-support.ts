@@ -1,5 +1,5 @@
 import { createClientMessageId, type ChatMessage, type Conversation, type ConversationContext, type MessagePage } from '@/api/messaging'
-import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
+import { apiRequest, createIdempotencyKey, retryTransientNetworkRequest, type ApiResult } from '@/api/http'
 
 export type SupportTicketStatus = 'queued' | 'assigned' | 'active' | 'waiting_user' | 'resolved' | 'closed'
 
@@ -108,6 +108,17 @@ export function sendSupportMessage(conversationId: string, text: string, token: 
   }, token)
 }
 
+export function sendSupportMessageResilient(
+  conversationId: string,
+  text: string,
+  token: string,
+  clientMessageId = createClientMessageId(),
+): Promise<ApiResult<ChatMessage>> {
+  return retryTransientNetworkRequest(
+    () => sendSupportMessage(conversationId, text, token, clientMessageId),
+  )
+}
+
 export function putSupportReadCursor(conversationId: string, message: ChatMessage, token: string): Promise<ApiResult<{ conversation_id: string; last_read_message_id: string; last_read_sequence_no: number; unread_count: number; cursor_version: number }>> {
   return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}/read-cursor`, {
     method: 'PUT',
@@ -126,14 +137,22 @@ export function listAdminAiMessages(token: string, options: { cursor?: string; a
   return apiRequest(`/admin/support/ai-conversation/messages?${query}`, {}, token)
 }
 
-export function sendAdminAiMessage(text: string, token: string): Promise<ApiResult<ChatMessage>> {
+export function sendAdminAiMessage(text: string, token: string, clientMessageId = createClientMessageId()): Promise<ApiResult<ChatMessage>> {
   return apiRequest('/admin/support/ai-conversation/messages', {
     method: 'POST',
     body: JSON.stringify({
-      client_message_id: createClientMessageId(),
+      client_message_id: clientMessageId,
       content: { type: 'text', text },
     }),
   }, token)
+}
+
+export function sendAdminAiMessageResilient(
+  text: string,
+  token: string,
+  clientMessageId = createClientMessageId(),
+): Promise<ApiResult<ChatMessage>> {
+  return retryTransientNetworkRequest(() => sendAdminAiMessage(text, token, clientMessageId))
 }
 
 export function putAdminAiReadCursor(message: ChatMessage, token: string): Promise<ApiResult<{ unread_count: number }>> {

@@ -131,6 +131,29 @@ export function errorMessage(error: unknown): string {
   return error instanceof ApiProblem ? error.body.detail : '网络异常，请检查连接后重试。'
 }
 
+export function messageSendError(error: unknown): string {
+  return error instanceof TypeError
+    ? '服务连接暂时中断，消息内容已保留，请稍后重试。'
+    : errorMessage(error)
+}
+
+export async function retryTransientNetworkRequest<T>(
+  operation: () => Promise<T>,
+  retryDelays: readonly number[] = [400, 900, 1_800, 3_600],
+  onRetry?: () => void,
+): Promise<T> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await operation()
+    } catch (cause) {
+      const delay = retryDelays[attempt]
+      if (!(cause instanceof TypeError) || delay === undefined || !navigator.onLine) throw cause
+      onRetry?.()
+      await new Promise<void>((resolve) => window.setTimeout(resolve, delay))
+    }
+  }
+}
+
 export async function downloadApiResource(
   path: string,
   accessToken: string,

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { apiRequest, createIdempotencyKey, registerManagementAuthRecovery, registerUserAuthRecovery, resolveApiAssetUrl } from '@/api/http'
+import { apiRequest, createIdempotencyKey, messageSendError, registerManagementAuthRecovery, registerUserAuthRecovery, resolveApiAssetUrl } from '@/api/http'
 
 describe('API client', () => {
   afterEach(() => {
@@ -86,6 +86,12 @@ describe('API client', () => {
     const second = createIdempotencyKey('test')
     expect(first.length).toBeGreaterThanOrEqual(16)
     expect(first).not.toBe(second)
+  })
+
+  it('describes a failed chat transport without claiming that the message was lost', () => {
+    expect(messageSendError(new TypeError('Failed to fetch'))).toBe(
+      '服务连接暂时中断，消息内容已保留，请稍后重试。',
+    )
   })
 
   it('resolves API-owned file URLs against the configured API origin', () => {

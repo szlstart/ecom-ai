@@ -15,6 +15,7 @@ from app.modules.rbac.dependencies import AdminAccess
 from app.modules.system.models import OutboxEvent
 
 DATASET_SHA256 = "baa725b2d44bf84bb3b2edb5919f43ec82d985d6192fac1435f08f70b78707cf"
+DATASET_CASE_COUNT = 40
 
 
 class EvaluationService:

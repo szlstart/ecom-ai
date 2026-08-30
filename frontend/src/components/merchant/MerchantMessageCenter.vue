@@ -94,11 +94,13 @@ function isRight(item: ChatMessage) {
 }
 function avatarLabel(item: ChatMessage): string {
   if (item.sender_type === 'agent') return '✦'
+  if (selectedKey.value === 'exclusive' && item.sender_type === 'human') return '管'
   if (item.sender_type === 'human' || (selectedKey.value === 'exclusive' && item.sender_type === 'user')) return resolvedStoreName.value.slice(0, 1) || '店'
   return '客'
 }
 function avatarUrl(item: ChatMessage): string | null {
   if (item.sender_type === 'agent') return '/ai-avatar.svg'
+  if (selectedKey.value === 'exclusive' && item.sender_type === 'human') return null
   if (selectedKey.value !== 'exclusive' && item.sender_type === 'user') {
     return resolveApiAssetUrl(activeConversation.value?.participant_avatar_url ?? null)
   }
@@ -135,11 +137,24 @@ function traceRunId(item: ChatMessage): string | null {
 }
 async function scrollBottom() { await nextTick(); timeline.value?.scrollTo({ top: timeline.value.scrollHeight }) }
 
+async function markActiveRead(lastMessage: ChatMessage | undefined) {
+  if (!lastMessage || !props.standalone || document.visibilityState !== 'visible') return
+  if (selectedKey.value === 'exclusive') {
+    exclusiveUnread.value = (await putMerchantExclusiveReadCursor(lastMessage, token())).data.unread_count
+    return
+  }
+  const conversationId = selectedKey.value
+  const result = await putSupportReadCursor(conversationId, lastMessage, token())
+  const current = conversations.value.find((item) => item.conversation_id === conversationId)
+  if (current) current.unread_count = result.data.unread_count
+}
+
 async function loadConversations() {
   const previousUnread = unreadCount.value
   try {
     conversations.value = (await listSupportConversations({}, token())).data.items
     if (initialized && unreadCount.value > previousUnread) shake()
+    error.value = ''
   }
   catch (cause) { error.value = errorMessage(cause) }
 }
@@ -156,9 +171,8 @@ async function loadExclusive(markRead = props.standalone && selectedKey.value ==
     exclusiveMessages.value = history.items
     exclusivePreviousCursor.value = history.previous_cursor
     const lastMessage = exclusiveMessages.value.at(-1)
-    if (markRead && lastMessage && exclusiveUnread.value) {
-      exclusiveUnread.value = (await putMerchantExclusiveReadCursor(lastMessage, token())).data.unread_count
-    }
+    if (markRead && exclusiveUnread.value) await markActiveRead(lastMessage)
+    error.value = ''
     await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
@@ -183,9 +197,8 @@ async function selectConversation(key: string) {
     messages.value = messageResult.data.items
     supportPreviousCursor.value = messageResult.data.previous_cursor
     const lastMessage = messages.value.at(-1)
-    if (lastMessage && target.unread_count) {
-      target.unread_count = (await putSupportReadCursor(target.conversation_id, lastMessage, token())).data.unread_count
-    }
+    if (target.unread_count) await markActiveRead(lastMessage)
+    error.value = ''
     await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
@@ -227,8 +240,11 @@ async function refreshActiveMessages() {
       : (await listSupportMessages(active!.conversation_id, token(), { afterSequence })).data
     if (selectedKey.value !== activeKey) return
     const known = new Set(target.value.map((item) => item.message_id))
-    target.value = [...target.value, ...page.items.filter((item) => !known.has(item.message_id))]
+    const incoming = page.items.filter((item) => !known.has(item.message_id))
+    target.value = [...target.value, ...incoming]
+    error.value = ''
     if (shouldScroll) await scrollBottom()
+    if (incoming.length) await markActiveRead(target.value.at(-1))
   } catch (cause) { error.value = errorMessage(cause) }
 }
 
@@ -334,7 +350,7 @@ onMounted(async () => {
       .then((result) => { currentStore.value = result.data.items[0] ?? null })
       .catch(() => undefined)
     : Promise.resolve()
-  await Promise.all([loadConversations(), loadExclusive(false), storeRequest])
+  await Promise.all([loadConversations(), loadExclusive(props.standalone), storeRequest])
   initialized = true
   realtime = new RealtimeConnection({
     audience: 'admin', token, onEvent: handleRealtime,

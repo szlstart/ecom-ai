@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -11,6 +12,7 @@ from app.core.config import Settings
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
+from app.modules.agent_runtime.answer_formatting import concise_policy_answer
 from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.context_window import ContextWindow, ContextWindowBuilder
@@ -29,7 +31,10 @@ from app.modules.agent_runtime.memory_runtime import AgentMemoryRuntime, explici
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
-from app.modules.agent_runtime.provider_gateway import ProviderExclusiveModelGateway
+from app.modules.agent_runtime.provider_gateway import (
+    ProviderExclusiveModelGateway,
+    model_failure_code,
+)
 from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
 from app.modules.agent_runtime.store_agent import _stream_events
 from app.modules.agent_runtime.store_tools import StoreToolResult
@@ -189,9 +194,9 @@ async def process_exclusive_run(
     )
     try:
         plan = await gateway.plan(planning_input)
-    except (ModelGatewayError, TimeoutError):
+    except (ModelGatewayError, TimeoutError) as exc:
         plan = await DeterministicExclusiveModelGateway().plan(trigger_text)
-        run.degraded_reason = "planning_model_unavailable"
+        run.degraded_reason = model_failure_code(exc, "planning")
     try:
         await checkpoint_store.write(
             run.run_no,
@@ -221,43 +226,72 @@ async def process_exclusive_run(
         elif plan.intent == "policy_qa":
             result = await _platform_policy(session, context)
         elif plan.intent in {"product_search", "personalized_recommendation"}:
-            result = await tools.search_products(context, plan.search_text)
+            result = await tools.search_products(
+                context,
+                plan.search_text,
+                fallback_query=trigger_text,
+            )
         elif plan.intent == "order_lookup":
+            explicit_order_no = _resource_no(trigger_text, "ord")
             ref = context.context_refs.get("order")
             result = (
-                await tools.order_detail(
+                await tools.order_detail(context, explicit_order_no)
+                if explicit_order_no is not None
+                else await tools.order_detail(
                     context, (await builder.require_active_context(context, "order")).resource_no
                 )
                 if ref is not None
                 else await tools.list_orders(context)
             )
         elif plan.intent == "logistics_lookup":
-            ref = await builder.require_active_context(context, "order")
-            result = await tools.shipments(context, ref.resource_no)
+            order_no = await _read_order_no(
+                trigger_text,
+                context=context,
+                builder=builder,
+                tools=tools,
+            )
+            result = await tools.shipments(context, order_no)
+        elif plan.intent == "refund_precheck":
+            order_no = await _read_order_no(
+                trigger_text,
+                context=context,
+                builder=builder,
+                tools=tools,
+            )
+            result = await tools.refund_precheck(context, order_no)
         elif plan.intent == "refund_progress":
+            explicit_refund_no = _resource_no(trigger_text, "ref")
             ref = context.context_refs.get("refund")
             result = (
-                await tools.refund_detail(
+                await tools.refund_detail(context, explicit_refund_no)
+                if explicit_refund_no is not None
+                else await tools.refund_detail(
                     context, (await builder.require_active_context(context, "refund")).resource_no
                 )
                 if ref is not None
                 else await tools.list_refunds(context)
             )
         else:
-            ref = await builder.require_active_context(context, "order")
+            explicit_order_no = _resource_no(trigger_text, "ord")
+            ref = (
+                None
+                if explicit_order_no is not None
+                else await builder.require_active_context(context, "order")
+            )
+            order_no = explicit_order_no or (ref.resource_no if ref is not None else "")
             approval_service = AgentApprovalService(session, settings, security)
 
             async def build_draft() -> dict[str, object]:
                 return await approval_service.build_refund_draft(
                     context,
-                    ref.resource_no,
+                    order_no,
                     context.trigger.text_content or "申请退款",
                 )
 
             result = await tools.execute(
                 context,
                 "after_sale.build_refund_draft",
-                {"order_id": ref.resource_no},
+                {"order_id": order_no},
                 build_draft,
             )
             if result.status == "succeeded":
@@ -269,12 +303,18 @@ async def process_exclusive_run(
                 )
                 return
     except ApplicationError as exc:
+        if exc.code == "AGENT_RESOURCE_NOT_ACCESSIBLE":
+            message = "没有找到你有权查看的对应订单或售后记录，请核对编号。"
+            reason = "resource_not_accessible"
+        else:
+            message = "当前选择的订单或售后上下文已变化，请重新从对应详情页选择后再试。"
+            reason = "context_unavailable"
         await _complete(
             session,
             context,
-            "当前选择的订单或售后上下文已变化，请重新从对应详情页选择后再试。",
+            message,
             error_code=exc.code,
-            degraded_reason="context_unavailable",
+            degraded_reason=reason,
         )
         await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
@@ -583,7 +623,7 @@ async def _grounded_answer(
     plan: ExclusiveAgentPlan,
     data: Mapping[str, Any],
 ) -> tuple[str, dict[str, object]]:
-    fallback = _render(plan, data)
+    fallback = _render(plan, data, agent_trigger_text(context.trigger))
     tool_code = _tool_for_intent(plan.intent)
     sources = _source_refs(data)
     source_ids = tuple(
@@ -596,7 +636,7 @@ async def _grounded_answer(
     elif not source_ids:
         source_ids = (f"tool:{tool_code}",)
     steps: list[dict[str, object]] = [
-        {"kind": "plan", "label": "理解当前消息", "status": "completed"},
+        {"kind": "plan", "label": "分析用户诉求", "status": "completed"},
     ]
     if plan.intent != "general_chat":
         steps.append(
@@ -607,7 +647,7 @@ async def _grounded_answer(
                 "status": "completed",
             }
         )
-    steps.append({"kind": "answer", "label": "生成安全回复", "status": "completed"})
+    steps.append({"kind": "answer", "label": "核验依据并组织答复", "status": "completed"})
     if isinstance(data.get("rag"), dict):
         rag = data["rag"]
         steps.insert(
@@ -637,7 +677,7 @@ async def _grounded_answer(
             1,
             {
                 "kind": "context",
-                "label": "重建最近对话上下文",
+                "label": "读取最近会话",
                 "status": "completed",
                 "message_count": int(window.get("included_count", 0)),
                 "omitted_count": int(window.get("omitted_count", 0)),
@@ -654,6 +694,12 @@ async def _grounded_answer(
         source_ids=source_ids,
         tool_code=tool_code,
     )
+    # Public catalogue and policy answers are exact business evidence. The model
+    # may plan and rank the request, but final wording must not rename products,
+    # invent matching items, omit policy provenance, or add a fictional salutation.
+    if _requires_exact_catalog_rendering(plan.intent):
+        trace["answer_mode"] = "grounded_deterministic"
+        return fallback, trace
     if not isinstance(gateway, ProviderExclusiveModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
@@ -667,17 +713,27 @@ async def _grounded_answer(
             evidence=data,
             source_ids=source_ids,
         )
-    except (ModelGatewayError, TimeoutError):
+    except (ModelGatewayError, TimeoutError) as exc:
+        reason = model_failure_code(exc, "answer")
         trace["answer_mode"] = "deterministic_fallback"
-        trace["degraded_reason"] = "answer_model_unavailable"
-        context.run.degraded_reason = "answer_model_unavailable"
+        trace["degraded_reason"] = reason
+        context.run.degraded_reason = reason
         return fallback, trace
     trace["answer_mode"] = "model_grounded"
     trace["confidence"] = answer.confidence
     trace["cited_source_ids"] = list(answer.cited_source_ids)
     if answer.limitation:
         trace["limitation"] = answer.limitation
-    return answer.text, trace
+    answer_text = answer.text
+    if plan.intent == "refund_precheck" and not any(
+        marker in answer_text for marker in ("没有创建退款草稿", "未创建退款草稿")
+    ):
+        answer_text += "\n\n本次仅完成只读资格检查，没有创建退款草稿或售后单。"
+    return answer_text, trace
+
+
+def _requires_exact_catalog_rendering(intent: str) -> bool:
+    return intent in {"policy_qa", "product_search", "personalized_recommendation"}
 
 
 def _tool_for_intent(intent: str) -> str:
@@ -689,12 +745,38 @@ def _tool_for_intent(intent: str) -> str:
         "personalized_recommendation": "catalog.search_products",
         "order_lookup": "order.list_user_orders",
         "logistics_lookup": "logistics.get_user_order_shipments",
+        "refund_precheck": "after_sale.check_refund_eligibility",
         "refund_eligibility": "after_sale.build_refund_draft",
         "refund_progress": "after_sale.list_user_refunds",
     }.get(intent, "unknown")
 
 
-def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
+async def _read_order_no(
+    trigger_text: str,
+    *,
+    context: TrustedExclusiveAgentContext,
+    builder: ExclusiveContextBuilder,
+    tools: ExclusiveToolGateway,
+) -> str:
+    explicit_order_no = _resource_no(trigger_text, "ord")
+    if explicit_order_no is not None:
+        return explicit_order_no
+    if _requests_latest_order(trigger_text) or context.context_refs.get("order") is None:
+        return await tools.latest_order_no(context)
+    return (await builder.require_active_context(context, "order")).resource_no
+
+
+def _requests_latest_order(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    return any(
+        marker in normalized
+        for marker in ("最近订单", "最近一笔", "最新订单", "上一笔订单", "刚买", "刚下单")
+    )
+
+
+def _render(
+    plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = ""
+) -> str:
     if plan.intent == "general_chat":
         return "你好，我是你的专属客服。你可以问我平台规则、商品推荐、本人订单、物流或售后问题。"
     items = data.get("items")
@@ -719,24 +801,48 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
                 lines.append(
                     f"- {safe_untrusted_excerpt(item.get('name'), 120)} "
                     f"({safe_untrusted_excerpt(item.get('store_name'), 120)}): "
-                    f"{price.get('currency', 'CNY')} {int(price.get('min_amount', 0)) / 100:.2f} 起"
+                    f"{_price_display(price)} 起，"
+                    f"可售库存 {max(0, int(item.get('available_stock', 0)))}"
                 )
-        lines.append("价格与库存以商品详情和结算页实时结果为准。")
+                skus = item.get("skus")
+                for sku in skus[:12] if isinstance(skus, list) else []:
+                    if not isinstance(sku, dict):
+                        continue
+                    sku_price = sku.get("price")
+                    display = (
+                        sku_price.get("display")
+                        if isinstance(sku_price, dict)
+                        else "价格待核对"
+                    )
+                    lines.append(
+                        f"  - {safe_untrusted_excerpt(sku.get('sku_name'), 120)}: "
+                        f"{display}，实时可售 {max(0, int(sku.get('available_stock', 0)))} 件，"
+                        f"{safe_untrusted_excerpt(sku.get('availability_label'), 40)}"
+                    )
+        lines.append("推荐依据: 按当前公开销量排序; 价格与库存以商品详情和结算页实时结果为准。")
         return "\n".join(lines)
     if plan.intent == "order_lookup":
         if "order_id" in data:
             status_value = data.get("status")
             status: Mapping[str, Any] = status_value if isinstance(status_value, dict) else {}
+            paid = _nested_value(data, "amounts", "paid")
+            paid_display = paid.get("display") if isinstance(paid, dict) else None
+            store_name = safe_untrusted_excerpt(data.get("store_name"), 120)
             return (
-                f"订单 {data.get('order_id')} 当前状态: 订单 {status.get('order')}，"
-                f"支付 {status.get('payment')}，履约 {status.get('fulfillment')}，"
-                f"售后 {status.get('after_sale')}。可用操作以订单详情页为准。"
+                f"订单 {data.get('order_id')} ({store_name})，"
+                f"实付 {paid_display or '¥0.00'}。当前状态: "
+                f"订单{_status_label('order', status.get('order'))}，"
+                f"支付{_status_label('payment', status.get('payment'))}，"
+                f"履约{_status_label('fulfillment', status.get('fulfillment'))}，"
+                f"售后{_status_label('after_sale', status.get('after_sale'))}。"
+                "可用操作以订单详情页为准。"
             )
         if not isinstance(items, list) or not items:
             return "你的账号下暂未查询到可见订单。"
         return "最近订单:\n" + "\n".join(
             f"- {item.get('order_id')} ({safe_untrusted_excerpt(item.get('store_name'), 120)}): "
-            f"{_nested_value(item, 'status', 'order')}"
+            f"实付 {_money_display(item, 'paid')}，"
+            f"{_status_label('order', _nested_value(item, 'status', 'order'))}"
             for item in items
             if isinstance(item, dict)
         )
@@ -744,11 +850,58 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
         if not isinstance(items, list) or not items:
             return "该订单当前没有可见物流包裹。"
         return "订单物流包裹:\n" + "\n".join(
-            f"- {item.get('carrier_name')} {item.get('tracking_no_masked')}: "
-            f"{item.get('shipment_status')}{_delivery_estimate_text(item)}"
+            f"- {safe_untrusted_excerpt(item.get('carrier_name'), 80)}，"
+            f"物流单号 {item.get('tracking_no_masked')}: "
+            f"{_status_label('shipment', item.get('shipment_status'))}"
+            f"{_last_track_text(item)}{_delivery_estimate_text(item)}"
             for item in items
             if isinstance(item, dict)
         )
+    if plan.intent == "refund_precheck":
+        eligibility_value = data.get("refund_eligibility")
+        eligibility: Mapping[str, Any] = (
+            eligibility_value if isinstance(eligibility_value, Mapping) else {}
+        )
+        status_value = data.get("status")
+        order_status: Mapping[str, Any] = (
+            status_value if isinstance(status_value, Mapping) else {}
+        )
+        eligible = eligibility.get("eligible") is True
+        lines = [
+            f"订单 {data.get('order_id')} 当前订单状态为"
+            f"{_status_label('order', order_status.get('order'))}，支付"
+            f"{_status_label('payment', order_status.get('payment'))}，履约"
+            f"{_status_label('fulfillment', order_status.get('fulfillment'))}。",
+            "售后资格预检结果: " + ("当前具备申请资格。" if eligible else "当前不具备申请资格。"),
+        ]
+        suggested = eligibility.get("suggested_refund_amount")
+        if eligible and isinstance(suggested, Mapping):
+            lines.append(f"当前建议可申请金额为 {_money_object_display(suggested)}。")
+        allowed = eligibility.get("allowed_types")
+        if eligible and isinstance(allowed, list):
+            labels = {"refund_only": "仅退款", "return_and_refund": "退货退款"}
+            lines.append(
+                "可选类型: "
+                + "、".join(labels.get(str(value), str(value)) for value in allowed)
+                + "。"
+            )
+        blocking = eligibility.get("blocking_reasons")
+        if not eligible and isinstance(blocking, list) and blocking:
+            lines.append("阻断原因: " + "、".join(str(value) for value in blocking) + "。")
+        shipment_values = data.get("shipments")
+        shipments = shipment_values if isinstance(shipment_values, list) else []
+        if shipments and isinstance(shipments[0], Mapping):
+            latest = shipments[0]
+            lines.append(
+                "当前物流: "
+                f"{_status_label('shipment', latest.get('shipment_status'))}"
+                f"{_last_track_text(latest)}。"
+            )
+        lines.append(
+            "本次只完成资格检查，没有创建退款草稿或售后单。"
+            "如果你要继续申请，请明确告诉我申请类型、原因和数量。提交前仍需授权并再次确认。"
+        )
+        return "\n".join(lines)
     if plan.intent == "refund_progress":
         if "refund_id" in data:
             return f"售后单 {data.get('refund_id')} 当前状态: {data.get('refund_status')}。"
@@ -765,21 +918,21 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
             isinstance(knowledge, list) and knowledge
         ):
             return "暂未找到可可靠引用的已发布平台规则，请前往帮助中心或转平台人工客服。"
-        lines = ["根据当前已发布平台规则:"]
-        lines.extend(
-            f"- {safe_untrusted_excerpt(item.get('title'), 160)} "
-            f"(版本 {item.get('version')}): {safe_untrusted_excerpt(item.get('content'), 500)}"
+        sources = [
+            (item.get("title"), item.get("content"))
             for item in (items if isinstance(items, list) else [])
             if isinstance(item, dict)
-        )
-        lines.extend(
-            f"- {safe_untrusted_excerpt(item.get('title'), 160)} "
-            f"(知识版本 {item.get('version')}): "
-            f"{safe_untrusted_excerpt(item.get('excerpt'), 500)}"
+        ]
+        sources.extend(
+            (item.get("title"), item.get("excerpt"))
             for item in (knowledge if isinstance(knowledge, list) else [])
             if isinstance(item, dict)
         )
-        return "\n".join(lines)
+        return concise_policy_answer(
+            user_text,
+            sources,
+            intro="根据当前已发布平台规则",
+        )
     return "已完成查询。"
 
 
@@ -926,6 +1079,93 @@ def _attach_conversation_window(window: ContextWindow, data: dict[str, object]) 
 def _nested_value(value: Mapping[str, Any], outer: str, inner: str) -> object:
     nested = value.get(outer)
     return nested.get(inner) if isinstance(nested, dict) else None
+
+
+def _money_display(value: Mapping[str, Any], key: str) -> str:
+    amounts = value.get("amounts")
+    money = amounts.get(key) if isinstance(amounts, dict) else None
+    display = money.get("display") if isinstance(money, dict) else None
+    return str(display) if display else "¥0.00"
+
+
+def _price_display(price: Mapping[str, Any]) -> str:
+    currency = str(price.get("currency") or "CNY").upper()
+    symbol = "¥" if currency == "CNY" else f"{currency} "
+    return f"{symbol}{int(price.get('min_amount', 0)) / 100:.2f}"
+
+
+def _money_object_display(money: Mapping[str, Any]) -> str:
+    currency = str(money.get("currency") or "CNY").upper()
+    symbol = "¥" if currency == "CNY" else f"{currency} "
+    return f"{symbol}{int(money.get('minor_units', 0)) / 100:.2f}"
+
+
+_STATUS_LABELS: dict[str, dict[str, str]] = {
+    "order": {
+        "pending_payment": "待付款",
+        "paid": "已付款",
+        "pending_shipment": "待发货",
+        "shipped": "运输中",
+        "completed": "已完成",
+        "cancelled": "已取消",
+        "closed": "已关闭",
+    },
+    "payment": {
+        "unpaid": "未付款",
+        "processing": "处理中",
+        "paid": "已支付",
+        "partially_refunded": "部分退款",
+        "refunded": "已退款",
+    },
+    "fulfillment": {
+        "unfulfilled": "未履约",
+        "partial": "部分发货",
+        "shipped": "已发货",
+        "received": "已收货",
+    },
+    "after_sale": {
+        "none": "无进行中售后",
+        "in_progress": "处理中",
+        "partial": "部分处理完成",
+        "completed": "已完成",
+    },
+    "shipment": {
+        "created": "已发货，待揽收",
+        "picked_up": "已揽收",
+        "in_transit": "运输中",
+        "delivered": "已签收",
+        "exception": "物流异常",
+        "returned": "已退回",
+        "closed": "已关闭",
+        "voided": "已作废",
+    },
+}
+
+
+def _status_label(kind: str, value: object) -> str:
+    text = str(value or "未知")
+    return _STATUS_LABELS.get(kind, {}).get(text, text)
+
+
+def _last_track_text(item: Mapping[str, Any]) -> str:
+    track = item.get("last_track")
+    if not isinstance(track, dict):
+        return ""
+    description = safe_untrusted_excerpt(track.get("description"), 180)
+    location = safe_untrusted_excerpt(track.get("location_text"), 120)
+    details = "; " + description if description else ""
+    if location:
+        details += f"，当前位置 {location}"
+    return details
+
+
+def _resource_no(text: str, prefix: str) -> str | None:
+    match = re.search(
+        rf"(?<![A-Za-z0-9_]){re.escape(prefix)}_([0-9A-Z]{{10,32}})(?![A-Za-z0-9_])",
+        text,
+        flags=re.I,
+    )
+    return f"{prefix}_{match.group(1).upper()}" if match is not None else None
 
 
 def _delivery_estimate_text(item: Mapping[str, Any]) -> str:

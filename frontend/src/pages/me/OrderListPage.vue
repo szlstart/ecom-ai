@@ -6,12 +6,14 @@ import { formatMoney } from '@/api/catalog'
 import { getCart } from '@/api/cart'
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
+import { listOrderShipments } from '@/api/logistics'
 import { cancelOrder, confirmOrderReceipt, hideOrder, listMyOrders, ORDER_VIEWS, repurchaseOrder, restoreOrder, type OrderAction, type OrderHideResult, type OrderSummary, type OrderView } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import OrderProductEntry from '@/components/OrderProductEntry.vue'
 import OrderLogisticsDialog from '@/components/OrderLogisticsDialog.vue'
 import { confirmAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
+import { userOrderStatusLabel } from '@/utils/order-status'
 
 const viewLabels: Record<OrderView, string> = { all: '全部', pending_payment: '待付款', pending_shipment: '待发货', in_transit: '运输中', completed: '已完成', pending_review: '待评价', after_sale: '售后', cancelled: '已取消' }
 const views = ORDER_VIEWS.map((value) => ({ value, label: viewLabels[value] }))
@@ -25,6 +27,7 @@ const message = ref('')
 const busyOrder = ref('')
 const hiddenOrder = ref<OrderHideResult | null>(null)
 const logisticsOrderId = ref<string | null>(null)
+const shipmentStatusByOrder = ref<Record<string, string>>({})
 const searchText = ref(String(route.query.q ?? ''))
 const previousCursor = ref<string | null>(null)
 const nextCursor = ref<string | null>(null)
@@ -37,8 +40,18 @@ function token(): string {
   if (!auth.accessToken) throw new Error('missing user token')
   return auth.accessToken
 }
-function statusLabel(status: string): string {
-  return ({ pending_payment: '待付款', paid: '已支付', pending_shipment: '待发货', shipped: '运输中', completed: '已完成', cancelled: '已取消', closed: '已关闭' } as Record<string, string>)[status] ?? status
+function statusLabel(order: OrderSummary): string {
+  return userOrderStatusLabel(order.order_status, shipmentStatusByOrder.value[order.order_id])
+}
+async function loadShipmentStatuses(orders: OrderSummary[]) {
+  const entries = await Promise.all(orders.filter((item) => item.order_status === 'shipped').map(async (item) => {
+    try {
+      const response = await listOrderShipments(item.order_id, token())
+      const statuses = response.data.items.map((shipment) => shipment.shipment_status)
+      return [item.order_id, statuses.includes('delivered') ? 'delivered' : statuses[0] ?? ''] as const
+    } catch { return [item.order_id, ''] as const }
+  }))
+  shipmentStatusByOrder.value = Object.fromEntries(entries)
 }
 function actionLabel(code: string): string {
   return ({ pay: '去支付', cancel_order: '取消订单', apply_after_sale: '申请售后', view_after_sale: '查看售后', view_logistics: '查看物流', review: '评价', delete_order: '删除订单', confirm_receipt: '确认收货', contact_store: '联系商家', repurchase: '再次购买' } as Record<string, string>)[code] ?? code
@@ -57,6 +70,7 @@ async function load() {
       limit: 10,
     }, token())
     items.value = response.data.items
+    void loadShipmentStatuses(items.value)
     previousCursor.value = response.meta.pagination?.previous_cursor ?? null
     nextCursor.value = response.meta.pagination?.next_cursor ?? null
   } catch (cause) {
@@ -166,7 +180,7 @@ watch(() => route.fullPath, () => {
         <article v-for="order in items" :key="order.order_id" class="order-card">
           <header>
             <div><time :datetime="order.created_at">{{ dateTime(order.created_at) }}</time><small>订单号 {{ order.order_id }}</small></div>
-            <strong class="order-status">{{ statusLabel(order.order_status) }}</strong>
+            <strong class="order-status">{{ statusLabel(order) }}</strong>
           </header>
           <div class="order-store-row">
             <RouterLink class="store-identity" :to="`/stores/${order.store.store_id}`">

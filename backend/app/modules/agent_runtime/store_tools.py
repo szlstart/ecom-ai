@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -94,6 +95,19 @@ class StoreToolGateway:
                 raise _not_accessible()
             product, _store = row
             attributes = await self.catalog.product_attributes(product.id)
+            skus = list(
+                (
+                    await self.session.scalars(
+                        select(ProductSku)
+                        .where(
+                            ProductSku.product_id == product.id,
+                            ProductSku.store_id == context.store.id,
+                            ProductSku.sku_status == "active",
+                        )
+                        .order_by(ProductSku.id)
+                    )
+                ).all()
+            )
             content = await self.catalog.published_content(product)
             faqs = await self.catalog.public_faqs(product.id)
             fulfillment = await self.catalog.fulfillment_profile(product.id)
@@ -109,6 +123,14 @@ class StoreToolGateway:
                     "currency": product.currency,
                 },
                 "attributes": [_attribute(item) for item in attributes],
+                "skus": [
+                    {
+                        "sku_id": sku.sku_no,
+                        "sku_name": sku.sku_name,
+                        "specifications": sku.spec_values,
+                    }
+                    for sku in skus[:20]
+                ],
                 "safe_detail_text": content.safe_text[:6000] if content else None,
                 "faqs": [
                     {
@@ -143,6 +165,84 @@ class StoreToolGateway:
 
         return await self.execute(
             context, "catalog.get_product", {"product_id": product_no}, handler
+        )
+
+    async def resolve_product(
+        self, context: TrustedStoreAgentContext, query: str
+    ) -> StoreToolResult:
+        """Resolve an explicitly named product without trusting stale page context.
+
+        Natural questions often name another product while the conversation still
+        carries an older product/order card.  Resolution is bounded to active
+        products in the current store and only succeeds for a unique fuzzy match.
+        """
+
+        async def handler() -> dict[str, object]:
+            products = list(
+                (
+                    await self.session.scalars(
+                        select(Product)
+                        .where(
+                            Product.store_id == context.store.id,
+                            Product.product_status == "on_sale",
+                        )
+                        .order_by(Product.id)
+                        .limit(100)
+                    )
+                ).all()
+            )
+            product_ids = [item.id for item in products]
+            skus = (
+                list(
+                    (
+                        await self.session.scalars(
+                            select(ProductSku)
+                            .where(
+                                ProductSku.product_id.in_(product_ids),
+                                ProductSku.store_id == context.store.id,
+                                ProductSku.sku_status == "active",
+                            )
+                            .order_by(ProductSku.id)
+                        )
+                    ).all()
+                )
+                if product_ids
+                else []
+            )
+            aliases_by_product: dict[int, list[str]] = {}
+            for sku in skus:
+                aliases_by_product.setdefault(sku.product_id, []).append(sku.sku_name)
+            ranked = sorted(
+                (
+                    (
+                        _product_match_score(
+                            query,
+                            item.product_name,
+                            aliases_by_product.get(item.id, []),
+                        ),
+                        item,
+                    )
+                    for item in products
+                ),
+                key=lambda pair: (pair[0], -pair[1].id),
+                reverse=True,
+            )
+            if not ranked or ranked[0][0] < 2:
+                return {"product_id": None, "matched_name": None, "match_score": 0}
+            if len(ranked) > 1 and ranked[1][0] == ranked[0][0]:
+                return {"product_id": None, "matched_name": None, "match_score": ranked[0][0]}
+            score, product = ranked[0]
+            return {
+                "product_id": product.product_no,
+                "matched_name": product.product_name,
+                "match_score": score,
+            }
+
+        return await self.execute(
+            context,
+            "catalog.search_store_products",
+            {"query": query[:120]},
+            handler,
         )
 
     async def compare_skus(
@@ -197,7 +297,7 @@ class StoreToolGateway:
             rows = list(
                 (
                     await self.session.execute(
-                        select(ProductSku, Inventory)
+                        select(ProductSku, Inventory, Product.product_name)
                         .join(Product, Product.id == ProductSku.product_id)
                         .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
                         .where(
@@ -215,14 +315,18 @@ class StoreToolGateway:
                 raise _not_accessible()
             return {
                 "product_id": product_no,
+                "product_name": rows[0][2],
                 "items": [
                     {
                         "sku_id": sku.sku_no,
                         "sku_name": sku.sku_name,
                         "availability": _availability(inventory),
+                        "availability_label": _availability_label(inventory),
+                        "available_quantity": _available_quantity(inventory),
+                        "price": _money_projection(sku.sale_price_amount, sku.currency),
                         "as_of": inventory.updated_at if inventory else utc_now(),
                     }
-                    for sku, inventory in rows
+                    for sku, inventory, _product_name in rows
                 ],
                 "data_scope": {"store_id": context.store.store_no},
             }
@@ -595,6 +699,61 @@ def _availability(item: Inventory | None) -> str:
     if available <= 5:
         return "low_stock"
     return "in_stock"
+
+
+def _available_quantity(item: Inventory | None) -> int:
+    if item is None or item.inventory_status != "active":
+        return 0
+    return max(
+        0,
+        item.on_hand_quantity - item.reserved_quantity - item.safety_stock_quantity,
+    )
+
+
+def _availability_label(item: Inventory | None) -> str:
+    return {
+        "unknown": "库存暂不可用",
+        "out_of_stock": "缺货",
+        "low_stock": "库存紧张",
+        "in_stock": "有货",
+    }[_availability(item)]
+
+
+def _money_projection(minor_units: int, currency: str) -> dict[str, str]:
+    normalized = currency.upper()
+    symbol = "¥" if normalized == "CNY" else f"{normalized} "
+    major_units = f"{minor_units / 100:.2f}"
+    return {
+        "minor_units": str(minor_units),
+        "major_units": major_units,
+        "currency": normalized,
+        "display": f"{symbol}{major_units}",
+    }
+
+
+def _product_match_score(
+    query: str,
+    product_name: str,
+    aliases: list[str] | None = None,
+) -> int:
+    def compact(value: str) -> str:
+        return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", value.casefold())
+
+    def bigrams(value: str) -> set[str]:
+        compacted = compact(value)
+        return {
+            compacted[index : index + 2]
+            for index in range(max(0, len(compacted) - 1))
+        }
+
+    query_compact = compact(query)
+    labels = [product_name, *(aliases or [])]
+    score = len(bigrams(query) & set().union(*(bigrams(item) for item in labels)))
+    for alias in aliases or []:
+        normalized_alias = compact(alias)
+        if len(normalized_alias) >= 2 and normalized_alias in query_compact:
+            score += max(3, min(8, len(normalized_alias)))
+    return score
 
 
 _SCOPE_KEYS = frozenset({"userid", "userno", "storeid", "storeno", "conversationid", "contextid"})

@@ -278,7 +278,9 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
     await _drain_agent()
     inventory_messages = await _messages(client, headers, conversation_no)
     inventory_reply = _reply_after(inventory_messages, inventory_message)
-    assert "in_stock" in str(inventory_reply["text"])
+    assert "有货" in str(inventory_reply["text"])
+    assert "库存紧张" in str(inventory_reply["text"])
+    assert "¥129.00" in str(inventory_reply["text"])
     assert "on_hand" not in str(inventory_reply["text"])
     assert "reserved" not in str(inventory_reply["text"])
 
@@ -300,7 +302,8 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
     await _drain_agent()
     policy_reply = _reply_after(await _messages(client, headers, conversation_no), policy_message)
     assert "本店运费政策" in str(policy_reply["text"])
-    assert "版本 1" in str(policy_reply["text"])
+    assert "满 99 元" in str(policy_reply["text"])
+    assert len(str(policy_reply["text"])) < 180
 
     injection_message = await _send(
         client,

@@ -81,6 +81,7 @@ async function loadConversations(showLoading = false) {
   try {
     conversations.value = (await listSupportConversations({}, token())).data.items
     emit('unread-change', conversations.value.reduce((total, item) => total + item.unread_count, 0))
+    error.value = ''
   } catch (cause) { error.value = errorMessage(cause) }
   finally { if (showLoading) loading.value = false }
 }
@@ -99,6 +100,7 @@ async function loadAiMessages(replace = true) {
     }
     const latest = aiMessages.value.at(-1)
     if (selected.value === 'ai' && latest && conversation.unread_count) await putAdminAiReadCursor(latest, token())
+    error.value = ''
   } catch (cause) { error.value = errorMessage(cause) }
 }
 
@@ -128,6 +130,7 @@ async function selectConversation(item: SupportConversation) {
     if (latest) await putSupportReadCursor(item.conversation_id, latest, token())
     item.unread_count = 0
     emit('unread-change', conversations.value.reduce((total, conversation) => total + conversation.unread_count, 0))
+    error.value = ''
     await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
@@ -169,6 +172,7 @@ async function refreshActiveMessages() {
       : (await listSupportMessages(current!.conversation_id, token(), { afterSequence })).data
     if (selected.value !== activeKey) return
     appendUnique(target, page.items)
+    error.value = ''
     if (shouldScroll) await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
 }

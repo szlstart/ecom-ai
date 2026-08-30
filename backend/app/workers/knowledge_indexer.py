@@ -6,10 +6,15 @@ import signal
 import structlog
 from sqlalchemy import select, text
 
+from app.bootstrap.default_knowledge import seed_default_knowledge
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.security import utc_now
-from app.core.worker_health import start_worker_heartbeat
+from app.core.worker_health import (
+    record_worker_failure,
+    record_worker_success,
+    start_worker_heartbeat,
+)
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.database.postgres import close_postgres, initialize_postgres, postgres_session
 from app.modules.knowledge.embedding import embedding_provider
@@ -83,6 +88,28 @@ async def process_one() -> bool:
     return False
 
 
+async def sync_system_knowledge() -> None:
+    """Refresh code-owned platform/store knowledge before indexing queued work."""
+    async for mysql in mysql_session():
+        async for postgres in postgres_session():
+            result = await seed_default_knowledge(mysql, postgres)
+            if any(
+                (
+                    result.documents_created,
+                    result.documents_updated,
+                    result.index_jobs_created,
+                    result.documents_withdrawn,
+                )
+            ):
+                logger.info(
+                    "system_knowledge_synchronized",
+                    documents_created=result.documents_created,
+                    documents_updated=result.documents_updated,
+                    index_jobs_created=result.index_jobs_created,
+                    documents_withdrawn=result.documents_withdrawn,
+                )
+
+
 async def run() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
@@ -95,8 +122,24 @@ async def run() -> None:
         loop.add_signal_handler(signal_name, stopping.set)
     logger.info("knowledge_indexer_started")
     try:
+        next_sync_at = 0.0
         while not stopping.is_set():
-            if await process_one():
+            processed = False
+            try:
+                now = loop.time()
+                if now >= next_sync_at:
+                    await sync_system_knowledge()
+                    next_sync_at = now + 60
+                processed = await process_one()
+                record_worker_success()
+            except Exception as exc:
+                record_worker_failure(type(exc).__name__)
+                logger.exception(
+                    "knowledge_index_batch_failed",
+                    error_type=type(exc).__name__,
+                    error_message=str(exc)[:500],
+                )
+            if processed:
                 continue
             try:
                 await asyncio.wait_for(stopping.wait(), timeout=2)

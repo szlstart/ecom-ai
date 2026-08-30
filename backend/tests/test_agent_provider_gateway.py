@@ -9,7 +9,10 @@ from app.core.config import Settings
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.provider_gateway import (
     OpenAICompatiblePlanner,
+    _loads_model_json,
+    _strip_untrusted_user_salutation,
     configured_model_gateways,
+    model_failure_code,
     probe_model_provider,
 )
 
@@ -75,6 +78,42 @@ async def test_provider_uses_model_specific_temperature() -> None:
 
 
 @pytest.mark.asyncio
+async def test_provider_falls_back_only_after_transient_primary_failure() -> None:
+    seen: list[str] = []
+
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        seen.append(payload["model"])
+        if payload["model"] == "overloaded-model":
+            return httpx.Response(
+                429,
+                json={"error": {"type": "engine_overloaded_error"}},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": '{"intent":"policy_qa","search_text":null}'}}
+                ]
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1/chat/completions",
+        api_key="model-secret",
+        model="overloaded-model",
+        fallback_models=("fallback-model",),
+        timeout_seconds=5,
+        client=client,
+    )
+    plan = await planner.plan_exclusive("平台规则是什么")
+    assert plan.intent == "policy_qa"
+    assert seen == ["overloaded-model", "fallback-model"]
+    await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_previous_handoff_message_cannot_turn_current_greeting_into_handoff() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
@@ -135,6 +174,8 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
             )
         schema = payload["response_format"]["json_schema"]["schema"]
         assert "600 分是 ¥6.00" in payload["messages"][0]["content"]
+        assert "remaining_refundable_quantity" in payload["messages"][0]["content"]
+        assert "不要把 shipped" in payload["messages"][0]["content"]
         assert schema["additionalProperties"] is False
         assert schema["properties"]["cited_source_ids"]["items"]["enum"] == ["prd_public"]
         return httpx.Response(
@@ -324,3 +365,44 @@ async def test_provider_health_reports_unconfigured_without_network() -> None:
     health = await probe_model_provider(Settings(_env_file=None))
     assert health.status == "unconfigured"
     assert health.error_code == "MODEL_PROVIDER_NOT_CONFIGURED"
+
+
+def test_grounded_answer_guard_removes_only_invented_leading_name() -> None:
+    assert _strip_untrusted_user_salutation("刀锋您好，订单已签收。") == "您好，订单已签收。"
+    assert _strip_untrusted_user_salutation("您好，订单已签收。") == "您好，订单已签收。"
+    assert _strip_untrusted_user_salutation("订单已签收。") == "订单已签收。"
+    assert _strip_untrusted_user_salutation("刀根据当前数据，运行正常。") == (
+        "根据当前数据，运行正常。"
+    )
+    assert _strip_untrusted_user_salutation("刀锋绿杆铅笔有 3 个款式。") == (
+        "绿杆铅笔有 3 个款式。"
+    )
+    assert _strip_untrusted_user_salutation("刀刀，订单已签收。") == "订单已签收。"
+    assert _strip_untrusted_user_salutation("刀最近的订单如下\uff1a") == "最近的订单如下\uff1a"
+    assert _strip_untrusted_user_salutation("刀本地模拟充值不会真实扣款。") == (
+        "本地模拟充值不会真实扣款。"
+    )
+
+
+def test_compatible_json_parser_repairs_only_controls_inside_strings() -> None:
+    assert _loads_model_json('{"answer":"第一行\n第二行","ok":true}') == {
+        "answer": "第一行\n第二行",
+        "ok": True,
+    }
+    assert _loads_model_json('```json\n{"answer":"正常"}\n```') == {"answer": "正常"}
+
+
+def test_model_failure_codes_do_not_include_prompt_or_provider_output() -> None:
+    assert (
+        model_failure_code(
+            ModelGatewayError("model answer contains claims outside trusted evidence"),
+            "answer",
+        )
+        == "answer_model_grounding_rejected"
+    )
+    assert model_failure_code(TimeoutError("private message"), "planning") == (
+        "planning_model_timeout"
+    )
+    assert model_failure_code(ModelGatewayError("model answer scope mismatch"), "answer") == (
+        "answer_model_scope_mismatch"
+    )

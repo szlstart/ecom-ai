@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -5,6 +7,7 @@ from app.core.context import request_id_context
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
 from app.modules.evaluation.models import AiEvaluationRun
+from app.modules.evaluation.runner import load_dataset
 from app.modules.evaluation.schemas import (
     EvaluationRunCreate,
     EvaluationRunList,
@@ -14,7 +17,15 @@ from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
 from app.modules.system.models import OutboxEvent
 
-DATASET_SHA256 = "baa725b2d44bf84bb3b2edb5919f43ec82d985d6192fac1435f08f70b78707cf"
+DATASET_PATH = Path(__file__).resolve().parent / "data" / "release-holdout-v2.json"
+DATASET_MANIFEST = load_dataset(DATASET_PATH)
+DATASET_SHA256 = DATASET_MANIFEST.sha256
+DATASET_CASE_COUNT = len(DATASET_MANIFEST.cases)
+DATASET_VERSION = DATASET_MANIFEST.version
+BASELINE_TYPE = "prompt"
+BASELINE_VERSION = "ecom-safe-router-v1"
+CANDIDATE_TYPE = "prompt"
+CANDIDATE_VERSION = "ecom-safe-router-v2"
 
 
 class EvaluationService:
@@ -35,6 +46,22 @@ class EvaluationService:
 
     async def create(self, access: AdminAccess, payload: EvaluationRunCreate) -> EvaluationRunView:
         access.require_scope("platform", 0)
+        if payload.dataset_version != DATASET_VERSION:
+            raise ValueError("evaluation dataset version is not active")
+        if (
+            payload.baseline_type,
+            payload.baseline_version,
+            payload.candidate_type,
+            payload.candidate_version,
+        ) != (BASELINE_TYPE, BASELINE_VERSION, CANDIDATE_TYPE, CANDIDATE_VERSION):
+            from app.core.exceptions import ApplicationError
+
+            raise ApplicationError(
+                status=422,
+                code="AI_EVALUATION_TARGET_UNSUPPORTED",
+                title="Unsupported evaluation target",
+                detail="当前只允许评估已登记的生产基线与候选策略。",
+            )
         evaluation_no = new_prefixed_ulid("evr_")
         trace_id = request_id_context.get() or new_prefixed_ulid("req_")
         row = AiEvaluationRun(

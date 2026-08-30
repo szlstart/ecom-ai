@@ -160,6 +160,7 @@ def validate_compose(rendered: str) -> None:
         "admin-approval-worker",
         "realtime-outbox-worker",
         "agent-runtime-worker",
+        "evaluation-worker",
         "knowledge-indexer",
         "ai-memory-cleanup-worker",
         "account-deletion-worker",

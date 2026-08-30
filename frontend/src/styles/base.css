@@ -1800,12 +1800,21 @@ tr.selected td { background: #f0f4ff; }
 .admin-message-trigger:hover, .merchant-message-trigger:hover, .user-message-trigger:hover { text-decoration: none; }
 
 @media (max-width: 1279px) {
-  .admin-message-window { width: min(1180px, 96vw); grid-template-columns: 320px minmax(0, 1fr); }
-  .merchant-message-window { width: min(1040px, 96vw); grid-template-columns: 300px minmax(0, 1fr); }
-  .user-message-window { width: min(1120px, 96vw); grid-template-columns: 300px minmax(0, 1fr); }
-  .admin-message-page-surface .admin-message-window { grid-template-columns: 230px minmax(0, 1fr); }
-  .merchant-message-page-surface .merchant-message-window { grid-template-columns: 240px minmax(0, 1fr); }
-  .user-message-page-surface .user-message-window { grid-template-columns: 250px minmax(0, 1fr); }
+  .admin-message-window { width: min(1180px, 96vw); grid-template-columns: 190px minmax(390px, 1fr) 220px; }
+  .merchant-message-window { width: min(1040px, 96vw); grid-template-columns: 190px minmax(390px, 1fr) 220px; }
+  .user-message-window { width: min(1120px, 96vw); grid-template-columns: 190px minmax(390px, 1fr) 220px; }
+  .admin-message-page-surface .admin-message-window { grid-template-columns: 180px minmax(390px, 1fr) 220px; }
+  .merchant-message-page-surface .merchant-message-window { grid-template-columns: 190px minmax(390px, 1fr) 220px; }
+  .user-message-page-surface .user-message-window { grid-template-columns: 190px minmax(390px, 1fr) 220px; }
+}
+
+@media (max-width: 899px) {
+  .admin-message-window,
+  .merchant-message-window,
+  .user-message-window { grid-template-columns: 180px minmax(0, 1fr); }
+  .admin-message-page-surface .admin-message-window,
+  .merchant-message-page-surface .merchant-message-window,
+  .user-message-page-surface .user-message-window { grid-template-columns: 180px minmax(0, 1fr); }
 }
 
 @media (max-width: 720px) {

@@ -264,6 +264,11 @@ export interface AdminBatchJob extends AdminVersioned {
   finished_at: string | null
   expires_at: string | null
   available_actions: string[]
+  resource_id: string | null
+  content_version: string | null
+  latest_for_resource: boolean | null
+  effective_status: string | null
+  recovered_by_job_id: string | null
 }
 
 export interface AdminBatchJobItem {

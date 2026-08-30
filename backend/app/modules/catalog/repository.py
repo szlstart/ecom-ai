@@ -58,6 +58,7 @@ class CatalogRepository:
                 or_(
                     Product.product_name.like(term, escape="\\"),
                     Brand.brand_name.like(term, escape="\\"),
+                    Store.store_name.like(term, escape="\\"),
                 )
             )
         if category_no:

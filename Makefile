@@ -3,10 +3,10 @@ CONDA_PYTHON := /opt/miniconda3/envs/$(CONDA_ENV)/bin/python
 PYTHON ?= $(if $(wildcard $(CONDA_PYTHON)),$(CONDA_PYTHON),python)
 PIP := $(PYTHON) -m pip
 ACCEPTANCE_ENV := ECOM_ENVIRONMENT=testing ECOM_RUN_INTEGRATION_TESTS=1 ECOM_RUN_FILE_INTEGRATION_TESTS=1 ECOM_OBJECT_STORAGE_ENABLED=true ECOM_OBJECT_STORAGE_ACCESS_KEY=$${ECOM_OBJECT_STORAGE_ACCESS_KEY:-local-minio-admin} ECOM_OBJECT_STORAGE_SECRET_KEY=$${ECOM_OBJECT_STORAGE_SECRET_KEY:-local-minio-change-me} ECOM_OBJECT_STORAGE_BUCKET_PREFIX=$${ECOM_OBJECT_STORAGE_BUCKET_PREFIX:-test-acceptance-} ECOM_FILE_SCANNER_ENABLED=true ECOM_FILE_SCANNER_HOST=$${ECOM_FILE_SCANNER_HOST:-127.0.0.1} ECOM_FILE_SCANNER_PORT=$${ECOM_FILE_SCANNER_PORT:-13310}
-BACKEND_RUNTIME_SERVICES := api file-worker lifecycle-worker batch-worker order-timeout-worker payment-reconcile-worker logistics-sync-worker admin-approval-worker realtime-outbox-worker agent-runtime-worker knowledge-indexer ai-memory-cleanup-worker account-deletion-worker
+BACKEND_RUNTIME_SERVICES := api file-worker lifecycle-worker batch-worker order-timeout-worker payment-reconcile-worker logistics-sync-worker admin-approval-worker realtime-outbox-worker agent-runtime-worker evaluation-worker knowledge-indexer ai-memory-cleanup-worker account-deletion-worker
 APP_RUNTIME_SERVICES := $(BACKEND_RUNTIME_SERVICES) frontend
 
-.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-test-isolated acceptance-scenario acceptance-evidence agent-security-test security-check build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap merchant-bootstrap dev-clean-test-admins infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight evaluate-agent api frontend check
+.PHONY: bootstrap install lock format trace-catalog lint test acceptance-test acceptance-test-isolated acceptance-scenario acceptance-evidence agent-security-test security-check build registry-check acceptance-audit acceptance-gate go-no-go-validate openapi migrate seed admin-bootstrap merchant-bootstrap dev-clean-test-admins infra-up infra-down app-up app-down observability-up observability-down backup-preflight backup-create backup-restore-drill object-replication-check load-smoke performance-report sbom-scan canary-rollback release-preflight collect-agent-observations evaluate-agent api frontend check
 
 bootstrap:
 	/opt/miniconda3/bin/conda env update --name $(CONDA_ENV) --file environment.yml --prune
@@ -46,7 +46,7 @@ acceptance-test: build
 	cd frontend && pnpm test --reporter=junit --outputFile=../artifacts/acceptance/current/quality/frontend-junit.xml
 	PYTHON_BIN="$(PYTHON)" ./scripts/run-live-browser-acceptance.sh
 	$(MAKE) agent-security-test
-	$(PYTHON) scripts/evaluate-agent.py eval/golden.json --allow-missing-observations --output artifacts/acceptance/current/agent/evaluation-report.json
+	$(PYTHON) scripts/evaluate-agent.py backend/app/modules/evaluation/data/release-holdout-v2.json --allow-missing-observations --output artifacts/acceptance/current/agent/evaluation-report.json
 	$(MAKE) acceptance-evidence
 
 # Preferred local entry point: exact test-only database/cache/object namespaces
@@ -159,9 +159,13 @@ canary-rollback:
 release-preflight:
 	$(PYTHON) scripts/release-preflight.py
 
+collect-agent-observations:
+	mkdir -p artifacts/acceptance/current/agent
+	PYTHONPATH=backend $(PYTHON) scripts/collect-agent-observations.py backend/app/modules/evaluation/data/release-holdout-v2.json --output artifacts/acceptance/current/agent/live-observations.json $(if $(filter 1,$(REFRESH)),--refresh,) $(if $(filter 1,$(REFRESH_CANDIDATE)),--refresh-candidate,)
+
 evaluate-agent:
 	mkdir -p artifacts/acceptance/current/agent
-	$(PYTHON) scripts/evaluate-agent.py eval/golden.json $(if $(AGENT_OBSERVATIONS),--observations $(AGENT_OBSERVATIONS),) --output artifacts/acceptance/current/agent/evaluation-report.json
+	$(PYTHON) scripts/evaluate-agent.py backend/app/modules/evaluation/data/release-holdout-v2.json $(if $(AGENT_OBSERVATIONS),--observations $(AGENT_OBSERVATIONS),) --output artifacts/acceptance/current/agent/evaluation-report.json
 
 api:
 	cd backend && $(PYTHON) -m uvicorn app.main:create_app --factory --reload --host 127.0.0.1 --port 8000

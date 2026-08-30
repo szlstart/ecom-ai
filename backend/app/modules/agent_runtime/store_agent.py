@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
+from app.modules.agent_runtime.answer_formatting import concise_policy_answer
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.context_window import ContextWindow, ContextWindowBuilder
 from app.modules.agent_runtime.conversation_summary import attach_rolling_summary
@@ -20,7 +21,7 @@ from app.modules.agent_runtime.model_gateway import (
 )
 from app.modules.agent_runtime.models import AgentRun
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
-from app.modules.agent_runtime.provider_gateway import ProviderStoreModelGateway
+from app.modules.agent_runtime.provider_gateway import ProviderStoreModelGateway, model_failure_code
 from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
 from app.modules.agent_runtime.store_context import StoreContextBuilder, TrustedStoreAgentContext
 from app.modules.agent_runtime.store_tools import StoreToolGateway, StoreToolResult
@@ -100,9 +101,9 @@ async def process_store_run(
     )
     try:
         plan = await gateway.plan(planning_input)
-    except (ModelGatewayError, TimeoutError):
+    except (ModelGatewayError, TimeoutError) as exc:
         plan = await DeterministicStoreModelGateway().plan(trigger_text)
-        run.degraded_reason = "planning_model_unavailable"
+        run.degraded_reason = model_failure_code(exc, "planning")
 
     if checkpoint_store is not None:
         try:
@@ -118,7 +119,7 @@ async def process_store_run(
 
     tools = StoreToolGateway(session)
     try:
-        outcome = await _execute_plan(builder, tools, context, plan)
+        outcome = await _execute_plan(builder, tools, context, plan, trigger_text)
     except ApplicationError as exc:
         await _complete_message(
             session,
@@ -172,6 +173,7 @@ async def _execute_plan(
     tools: StoreToolGateway,
     context: TrustedStoreAgentContext,
     plan: StoreAgentPlan,
+    trigger_text: str,
 ) -> StoreToolResult:
     context.run.current_phase = "tool_call"
     context.run.version += 1
@@ -220,12 +222,19 @@ async def _execute_plan(
             return shipment_result
         summary.data["shipments"] = shipment_result.data.get("items", [])
         return summary
-    ref = await builder.require_active_context(context, "product")
+    resolution = await tools.resolve_product(context, trigger_text)
+    if resolution.status != "succeeded":
+        return resolution
+    resolved_product_no = resolution.data.get("product_id")
+    if isinstance(resolved_product_no, str):
+        product_no = resolved_product_no
+    else:
+        product_no = (await builder.require_active_context(context, "product")).resource_no
     if plan.intent == "sku_compare":
-        return await tools.compare_skus(context, ref.resource_no)
+        return await tools.compare_skus(context, product_no)
     if plan.intent == "inventory_lookup":
-        return await tools.inventory(context, ref.resource_no)
-    return await tools.product(context, ref.resource_no)
+        return await tools.inventory(context, product_no)
+    return await tools.product(context, product_no)
 
 
 async def _handoff_or_fallback(
@@ -350,7 +359,7 @@ async def _grounded_answer(
     plan: StoreAgentPlan,
     data: Mapping[str, Any],
 ) -> tuple[str, dict[str, object]]:
-    fallback = _render(plan, data)
+    fallback = _render(plan, data, agent_trigger_text(context.trigger))
     tool_code = _tool_for_intent(plan.intent)
     sources = _source_refs(data)
     source_ids = tuple(
@@ -363,7 +372,7 @@ async def _grounded_answer(
     elif not source_ids:
         source_ids = (f"tool:{tool_code}",)
     steps: list[dict[str, object]] = [
-        {"kind": "plan", "label": "理解当前消息", "status": "completed"},
+        {"kind": "plan", "label": "分析用户诉求", "status": "completed"},
     ]
     if plan.intent != "general_chat":
         steps.append(
@@ -374,7 +383,7 @@ async def _grounded_answer(
                 "status": "completed",
             }
         )
-    steps.append({"kind": "answer", "label": "生成安全回复", "status": "completed"})
+    steps.append({"kind": "answer", "label": "核验依据并组织答复", "status": "completed"})
     if isinstance(data.get("rag"), dict):
         rag = data["rag"]
         steps.insert(
@@ -392,7 +401,7 @@ async def _grounded_answer(
             1,
             {
                 "kind": "context",
-                "label": "重建最近对话上下文",
+                "label": "读取最近会话",
                 "status": "completed",
                 "message_count": int(window.get("included_count", 0)),
                 "omitted_count": int(window.get("omitted_count", 0)),
@@ -409,6 +418,12 @@ async def _grounded_answer(
         source_ids=source_ids,
         tool_code=tool_code,
     )
+    # Inventory and policy answers are exact evidence: SKU facts and published
+    # policy provenance must survive answer generation without omissions,
+    # fictional salutations, or unsupported paraphrases.
+    if plan.intent in {"inventory_lookup", "policy_qa"}:
+        trace["answer_mode"] = "grounded_deterministic"
+        return fallback, trace
     if not isinstance(gateway, ProviderStoreModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
@@ -422,10 +437,11 @@ async def _grounded_answer(
             evidence=data,
             source_ids=source_ids,
         )
-    except (ModelGatewayError, TimeoutError):
+    except (ModelGatewayError, TimeoutError) as exc:
+        reason = model_failure_code(exc, "answer")
         trace["answer_mode"] = "deterministic_fallback"
-        trace["degraded_reason"] = "answer_model_unavailable"
-        context.run.degraded_reason = "answer_model_unavailable"
+        trace["degraded_reason"] = reason
+        context.run.degraded_reason = reason
         return fallback, trace
     trace["answer_mode"] = "model_grounded"
     trace["confidence"] = answer.confidence
@@ -448,7 +464,7 @@ def _tool_for_intent(intent: str) -> str:
     }.get(intent, "unknown")
 
 
-def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
+def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") -> str:
     if plan.intent == "general_chat":
         return "你好，我是本店智能客服。你可以直接问我商品、款式、库存、服务政策或订单问题。"
     if plan.intent == "human_handoff":
@@ -459,11 +475,18 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
         items = data.get("items")
         if not isinstance(items, list) or not items:
             return "当前没有可靠的展示库存结果，请稍后刷新商品页。"
-        lines = ["当前展示库存如下 (查询结果不代表预占, 最终以结算为准):"]
+        product_name = safe_untrusted_excerpt(data.get("product_name"), 160)
+        lines = [
+            f"{product_name or '当前商品'}的款式、价格和实时可售库存如下"
+            " (查询结果不代表预占, 最终以结算为准):"
+        ]
         for item in items[:4]:
             if isinstance(item, dict):
                 lines.append(
-                    f"- {item.get('sku_name', '规格')}: {item.get('availability', 'unknown')}"
+                    f"- {item.get('sku_name', '规格')}: "
+                    f"{_money_value(item.get('price'))}，"
+                    f"实时可售 {item.get('available_quantity', 0)} 件，"
+                    f"{item.get('availability_label', '库存暂不可用')}"
                 )
         return "\n".join(lines)
     if plan.intent == "sku_compare":
@@ -484,23 +507,17 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
             isinstance(knowledge, list) and knowledge
         ):
             return "本店暂未发布可用于回答该问题的有效政策，请转人工客服核实。"
-        lines = ["根据本店当前生效政策:"]
-        for item in items[:3] if isinstance(items, list) else []:
-            if isinstance(item, dict):
-                excerpt = safe_untrusted_excerpt(item.get("content"), 240)
-                lines.append(
-                    f"- {item.get('title', '店铺政策')} "
-                    f"(版本 {item.get('source_version')}): {excerpt}"
-                )
-        for item in knowledge[:4] if isinstance(knowledge, list) else []:
-            if isinstance(item, dict):
-                lines.append(
-                    f"- {safe_untrusted_excerpt(item.get('title'), 160)} "
-                    f"(知识版本 {item.get('version')}): "
-                    f"{safe_untrusted_excerpt(item.get('excerpt'), 500)}"
-                )
-        lines.append("如需政策外例外或商家承诺，请转人工客服确认。")
-        return "\n".join(lines)
+        sources = [
+            (item.get("title"), item.get("content"))
+            for item in (items if isinstance(items, list) else [])[:3]
+            if isinstance(item, dict)
+        ]
+        sources.extend(
+            (item.get("title"), item.get("excerpt"))
+            for item in (knowledge if isinstance(knowledge, list) else [])[:4]
+            if isinstance(item, dict)
+        )
+        return concise_policy_answer(user_text, sources, intro="根据本店当前生效政策")
     if plan.intent == "order_explain":
         status_value = data.get("status")
         amounts_value = data.get("amounts")
@@ -549,6 +566,12 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
                     f"{safe_untrusted_excerpt(item.get('value', '未提供'), 300)}"
                     f"{safe_untrusted_excerpt(item.get('unit') or '', 30)}"
                 )
+    skus = data.get("skus")
+    if isinstance(skus, list) and skus:
+        lines.append("可选款式:")
+        for item in skus[:20]:
+            if isinstance(item, dict):
+                lines.append(f"- {safe_untrusted_excerpt(item.get('sku_name'), 120)}")
     faqs = data.get("faqs")
     if isinstance(faqs, list) and faqs and isinstance(faqs[0], dict):
         lines.append(f"店铺 FAQ: {safe_untrusted_excerpt(faqs[0].get('answer'), 500)}")

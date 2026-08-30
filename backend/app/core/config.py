@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     agent_model_api_url: str | None = None
     agent_model_api_key: SecretStr | None = None
     agent_model_name: str | None = None
+    agent_model_fallback_names: str = ""
     agent_model_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     agent_model_timeout_seconds: float = Field(default=30.0, gt=0, le=90)
     agent_provider_health_interval_seconds: int = Field(default=1800, ge=300, le=86_400)
@@ -118,6 +119,17 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+
+    @property
+    def agent_model_fallbacks(self) -> tuple[str, ...]:
+        primary = self.agent_model_name
+        return tuple(
+            dict.fromkeys(
+                value.strip()
+                for value in self.agent_model_fallback_names.split(",")
+                if value.strip() and value.strip() != primary
+            )
+        )
 
     @field_validator(
         "agent_model_api_url",

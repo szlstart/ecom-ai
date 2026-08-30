@@ -37,3 +37,24 @@ def test_worker_heartbeat_rejects_stale_file(
         encoding="utf-8",
     )
     assert worker_health.check_worker_heartbeat(max_age_seconds=30) == 1
+
+
+async def test_worker_heartbeat_rejects_repeated_failures_and_recovers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    heartbeat_path = tmp_path / "heartbeat.json"
+    monkeypatch.setattr(worker_health, "HEARTBEAT_PATH", heartbeat_path)
+    monkeypatch.setenv("ECOM_WORKER_HEALTH_MAX_CONSECUTIVE_FAILURES", "2")
+    stopping = asyncio.Event()
+    settings = Settings(build_sha="test-build")
+    task = worker_health.start_worker_heartbeat("test-worker", settings, stopping)
+    await asyncio.sleep(0.01)
+    worker_health.record_worker_failure("IntegrityError")
+    worker_health.record_worker_failure("IntegrityError")
+    worker_health._write("test-worker", settings.build_sha)
+    assert worker_health.check_worker_heartbeat() == 1
+    worker_health.record_worker_success()
+    worker_health._write("test-worker", settings.build_sha)
+    assert worker_health.check_worker_heartbeat() == 0
+    stopping.set()
+    await task

@@ -8,7 +8,11 @@ import structlog
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.core.security import SecurityService
-from app.core.worker_health import start_worker_heartbeat
+from app.core.worker_health import (
+    record_worker_failure,
+    record_worker_success,
+    start_worker_heartbeat,
+)
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.modules.logistics.service import LogisticsService
 
@@ -39,8 +43,14 @@ async def run() -> None:
                         limit=settings.logistics_sync_batch_size,
                         stale_after_seconds=settings.logistics_sync_stale_seconds,
                     )
-            except Exception:
-                logger.exception("logistics_sync_batch_failed")
+                record_worker_success()
+            except Exception as exc:
+                record_worker_failure(type(exc).__name__)
+                logger.exception(
+                    "logistics_sync_batch_failed",
+                    error_type=type(exc).__name__,
+                    error_message=str(exc)[:500],
+                )
             if processed:
                 logger.info("logistics_sync_batch_completed", processed=processed)
                 continue

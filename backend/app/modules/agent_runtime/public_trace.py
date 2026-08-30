@@ -17,6 +17,7 @@ _INTENT_LABELS = {
     "personalized_recommendation": "结合已授权偏好筛选商品",
     "order_lookup": "查询本人订单",
     "logistics_lookup": "查询订单物流",
+    "refund_precheck": "只读检查售后资格",
     "refund_eligibility": "检查售后资格并准备草稿",
     "refund_progress": "查询售后处理进度",
     "human_handoff": "识别人工服务请求",
@@ -28,6 +29,7 @@ _INTENT_LABELS = {
     "stores": "分析平台店铺情况",
     "runtime": "分析系统与 Agent 运行情况",
     "complex_platform_diagnosis": "拆解跨领域平台诊断任务",
+    "complex_store_diagnosis": "拆解本店商品、库存与履约诊断任务",
     "security_refusal": "识别并阻断不安全请求",
 }
 
@@ -39,10 +41,13 @@ def public_question(value: object) -> str:
 
 
 def result_count(data: Mapping[str, Any]) -> int:
+    counts: list[int] = []
     for key in ("items", "specialists", "knowledge_sources", "shipments"):
         value = data.get(key)
         if isinstance(value, list):
-            return len(value)
+            counts.append(len(value))
+    if counts:
+        return max(counts)
     return 1 if data else 0
 
 
@@ -94,30 +99,54 @@ def public_trace(
 
 def _analysis_detail(step: Mapping[str, Any], count: int) -> str:
     kind = str(step.get("kind") or "action")
+    label = str(step.get("label") or "受控处理动作").strip()
     tool_code = str(step.get("tool_code") or "")
     status = str(step.get("status") or "completed")
+    status_label = {
+        "completed": "已完成",
+        "succeeded": "成功",
+        "partial": "部分完成",
+        "failed": "失败",
+        "timed_out": "超时",
+        "reused": "复用已验证结果",
+    }.get(status, status)
     details: list[str] = []
     if kind == "tool" and tool_code and tool_code != "none":
-        details.append(f"业务工具 {tool_code} 已通过权限网关执行")
+        details.append(f"“{label}”调用业务工具 {tool_code}，并通过身份、权限和数据范围网关")
     elif kind in {"rag", "retrieval"}:
-        details.append("已在当前用户与店铺数据范围内执行知识检索")
+        details.append(f"“{label}”在当前用户与店铺数据范围内执行知识检索")
     elif kind == "context":
-        details.append("已读取本会话最近消息和有效滚动摘要，用于理解指代与连续问题")
+        details.append(f"“{label}”读取本会话最近消息和有效滚动摘要，用于理解指代与连续问题")
     elif kind == "memory":
-        details.append("仅检查用户明确授权、尚未过期且与当前问题相关的长期偏好")
-    elif kind in {"delegation", "supervisor"}:
-        details.append("已将只读子任务交给受限专业 Agent，并保持各子任务的数据范围隔离")
+        details.append(f"“{label}”仅检查用户明确授权、尚未过期且与当前问题相关的长期偏好")
+    elif kind == "supervisor":
+        delegation_count = int(step.get("delegation_count") or 0)
+        details.append(
+            f"“{label}”把复杂只读任务拆成 {delegation_count} 个相互隔离的专业子任务，"
+            "限制委派深度并禁止子 Agent 执行写操作"
+        )
+    elif kind == "delegation":
+        specialist = str(step.get("specialist") or "受限专业 Agent")
+        delegated_tool = str(step.get("tool_code") or "")
+        tool_calls = int(step.get("tool_calls") or 0)
+        latency_ms = int(step.get("latency_ms") or 0)
+        details.append(
+            f"“{label}”由 {specialist} 在继承的数据范围内完成，"
+            f"执行 {tool_calls} 次受控工具调用"
+            + (f"，工具为 {delegated_tool}" if delegated_tool else "")
+            + (f"，耗时 {latency_ms} 毫秒" if latency_ms else "")
+        )
     elif kind == "security":
-        details.append("已检查越权、敏感信息与提示词注入风险")
+        details.append(f"“{label}”检查越权、敏感信息与提示词注入风险")
     elif kind == "answer":
-        details.append("已对取回的数据进行事实一致性检查，并据此生成聊天区中的回答")
+        details.append(f"“{label}”对取回的数据进行事实一致性检查，并据此生成聊天区中的回答")
     elif kind == "plan":
-        details.append("已识别当前消息的业务意图，并确定是否需要查询业务数据")
+        details.append(f"“{label}”识别当前消息的业务意图，并确定所需的数据域和只读能力")
     else:
-        details.append("已完成一项受控处理动作")
+        details.append(f"已执行“{label}”")
     if kind in {"tool", "rag", "retrieval"}:
         details.append(f"返回 {count} 项可用结果")
-    details.append(f"执行状态为 {status}")
+    details.append(f"执行状态为{status_label}")
     return "。".join(details) + "。"
 
 

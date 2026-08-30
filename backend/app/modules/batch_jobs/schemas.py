@@ -58,6 +58,11 @@ class BatchJobView(StrictRequest):
     expires_at: datetime | None
     available_actions: list[str]
     version: int
+    resource_id: str | None = None
+    content_version: str | None = None
+    latest_for_resource: bool | None = None
+    effective_status: str | None = None
+    recovered_by_job_id: str | None = None
 
 
 class BatchJobList(StrictRequest):

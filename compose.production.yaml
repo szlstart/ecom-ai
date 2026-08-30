@@ -143,8 +143,16 @@ services:
       ECOM_AGENT_MODEL_API_URL: ${ECOM_AGENT_MODEL_API_URL:?approved Agent model endpoint required}
       ECOM_AGENT_MODEL_API_KEY: ${ECOM_AGENT_MODEL_API_KEY:?Agent model API key required}
       ECOM_AGENT_MODEL_NAME: ${ECOM_AGENT_MODEL_NAME:?approved Agent model deployment required}
+      ECOM_AGENT_MODEL_FALLBACK_NAMES: ${ECOM_AGENT_MODEL_FALLBACK_NAMES:-}
       ECOM_AGENT_MODEL_TEMPERATURE: ${ECOM_AGENT_MODEL_TEMPERATURE:-0}
       ECOM_AGENT_MODEL_TIMEOUT_SECONDS: ${ECOM_AGENT_MODEL_TIMEOUT_SECONDS:-30}
+
+  evaluation-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
 
   knowledge-indexer:
     <<: *api-runtime

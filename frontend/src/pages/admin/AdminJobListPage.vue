@@ -33,4 +33,38 @@ function next() { if (nextCursor.value) { cursor.value = nextCursor.value; void 
 onMounted(() => load())
 </script>
 
-<template><section class="admin-page-stack"><header class="page-heading"><div><p class="eyebrow">系统任务</p><h1>{{ knowledgeMode ? '知识索引任务' : '批处理任务中心' }}</h1><p class="muted">任务状态来自 MySQL 权威资源；执行状态由 PostgreSQL 子任务单调映射。</p></div><RouterLink v-if="!knowledgeMode && auth.has('products:create')" class="button-link" to="/admin/products/import">新建商品导入</RouterLink></header><form class="filter-bar" @submit.prevent="load(true)"><label>状态<select v-model="status"><option value="">全部</option><option v-for="value in ['created','validating','awaiting_confirmation','queued','running','succeeded','partial','failed','cancelled','expired']" :key="value" :value="value">{{ value }}</option></select></label><button>查询</button></form><PageState :loading="loading" :error="error" :empty="!loading && !error && jobs.length === 0" empty-title="暂无批处理任务" @retry="load()"><div class="table-wrap"><table><thead><tr><th>任务</th><th>店铺</th><th>状态</th><th>总数</th><th>成功/有效</th><th>失败/无效</th><th>创建时间</th><th>操作</th></tr></thead><tbody><tr v-for="job in jobs" :key="job.job_id"><td><strong>{{ knowledgeMode ? '知识索引' : '商品导入' }}</strong><small>{{ job.job_id }}</small></td><td>{{ job.store_id }}</td><td><span class="badge">{{ job.status }}</span></td><td>{{ job.total_count }}</td><td>{{ job.success_count }}</td><td>{{ job.failure_count }}</td><td>{{ job.requested_at }}</td><td><RouterLink :to="knowledgeMode ? `/admin/knowledge/indexing-jobs/${job.job_id}` : `/admin/system/jobs/${job.job_id}`">查看详情</RouterLink></td></tr></tbody></table></div><nav class="pagination"><button type="button" class="secondary" :disabled="!cursor" @click="cursor = null; load()">返回首批</button><button type="button" class="secondary" :disabled="!nextCursor" @click="next">下一批</button></nav></PageState></section></template>
+<template>
+  <section class="admin-page-stack">
+    <header class="page-heading">
+      <div>
+        <p class="eyebrow">系统任务</p>
+        <h1>{{ knowledgeMode ? '知识索引任务' : '批处理任务中心' }}</h1>
+        <p class="muted">任务状态来自 MySQL 权威资源；执行状态由 PostgreSQL 子任务单调映射。</p>
+      </div>
+      <RouterLink v-if="!knowledgeMode && auth.has('products:create')" class="button-link" to="/admin/products/import">新建商品导入</RouterLink>
+    </header>
+    <form class="filter-bar" @submit.prevent="load(true)">
+      <label>状态<select v-model="status"><option value="">全部</option><option v-for="value in ['created','validating','awaiting_confirmation','queued','running','succeeded','partial','failed','cancelled','expired']" :key="value" :value="value">{{ value }}</option></select></label>
+      <button>查询</button>
+    </form>
+    <PageState :loading="loading" :error="error" :empty="!loading && !error && jobs.length === 0" empty-title="暂无批处理任务" @retry="load()">
+      <div class="table-wrap"><table>
+        <thead><tr><th>任务</th><th>{{ knowledgeMode ? '知识文档' : '店铺' }}</th><th>本次状态</th><th v-if="knowledgeMode">当前有效状态</th><th>总数</th><th>成功/有效</th><th>失败/无效</th><th>创建时间</th><th>操作</th></tr></thead>
+        <tbody><tr v-for="job in jobs" :key="job.job_id">
+          <td><strong>{{ knowledgeMode ? '知识索引' : '商品导入' }}</strong><small>{{ job.job_id }}</small></td>
+          <td><template v-if="knowledgeMode"><strong>{{ job.resource_id ?? '未知文档' }}</strong><small v-if="job.content_version">版本 {{ job.content_version }}</small></template><template v-else>{{ job.store_id }}</template></td>
+          <td><span class="badge">{{ job.status }}</span><small v-if="job.recovered_by_job_id" class="recovered-note">历史失败已恢复</small></td>
+          <td v-if="knowledgeMode"><span class="badge" :class="{ success: job.effective_status === 'succeeded' }">{{ job.effective_status ?? job.status }}</span><small>{{ job.latest_for_resource ? '当前最新任务' : '历史任务' }}</small></td>
+          <td>{{ job.total_count }}</td><td>{{ job.success_count }}</td><td>{{ job.failure_count }}</td><td>{{ job.requested_at }}</td>
+          <td><RouterLink :to="knowledgeMode ? `/admin/knowledge/indexing-jobs/${job.job_id}` : `/admin/system/jobs/${job.job_id}`">查看详情</RouterLink></td>
+        </tr></tbody>
+      </table></div>
+      <nav class="pagination"><button type="button" class="secondary" :disabled="!cursor" @click="cursor = null; load()">返回首批</button><button type="button" class="secondary" :disabled="!nextCursor" @click="next">下一批</button></nav>
+    </PageState>
+  </section>
+</template>
+
+<style scoped>
+.recovered-note { color: var(--success, #16794b); font-weight: 700; }
+td small { display: block; margin-top: .3rem; }
+</style>

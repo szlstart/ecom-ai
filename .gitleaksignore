@@ -1,0 +1,4 @@
+# Known non-secret fixtures: fixed CI/local encryption test key and password-hashing test vector.
+ab5074d701abe76d396597289ed5fe429226ae09:.github/workflows/ci.yml:generic-api-key:52
+abd267c11dd34bf3af53088c01ce6e9f25f894f5:.env.example:generic-api-key:28
+abd267c11dd34bf3af53088c01ce6e9f25f894f5:backend/tests/test_security.py:generic-api-key:19

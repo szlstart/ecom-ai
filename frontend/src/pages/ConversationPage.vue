@@ -40,6 +40,7 @@ import PageState from '@/components/PageState.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import MessageAttachmentPicker, { type MessagePickerOrder, type MessagePickerProduct } from '@/components/messaging/MessageAttachmentPicker.vue'
 import { confirmAction } from '@/composables/confirmation'
+import { messageMoneyLabel } from '@/utils/message-money'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 type PendingMessage = { clientMessageId: string; text: string; status: 'sending' | 'recovering' | 'failed' | 'blocked' }
@@ -54,6 +55,7 @@ const emit = defineEmits<{
   'trace-running': [running: boolean]
   'trace-progress': [trace: AgentLiveTrace | null]
   'conversation-deleted': [conversationId: string]
+  'read-cursor': [conversationId: string, unreadCount: number]
 }>()
 
 const route = useRoute()
@@ -93,6 +95,7 @@ watch(messages, (value) => emit('trace-update', value), { immediate: true })
 const conversationId = computed(() => props.conversationId || String(route.params.conversationId))
 const userAvatarUrl = computed(() => resolveApiAssetUrl(auth.user?.avatar_url ?? null) || null)
 const userAvatarLabel = computed(() => (auth.user?.username || '用').slice(0, 1).toUpperCase())
+const platformHuman = computed(() => conversation.value?.conversation_type === 'exclusive')
 const activeContext = computed(() => conversation.value?.active_contexts.find((item) => item.status === 'active') ?? null)
 const activeAfterSaleConsent = computed(() => agentConsents.value.find((item) => (
   item.consent_type === 'after_sale_write'
@@ -234,12 +237,7 @@ function approvalStatusLabel(message: ChatMessage): string {
   return ({ pending: '等待确认', approved: '已确认，正在提交', rejected: '已拒绝', expired: '已过期', consumed: '已处理' })[approvalStatus(message)]
 }
 function requestedAmountLabel(message: ChatMessage): string {
-  const value = message.content?.requested_amount
-  if (!value || typeof value !== 'object') return '—'
-  const amount = Number((value as Record<string, unknown>).amount)
-  const currency = String((value as Record<string, unknown>).currency ?? 'CNY')
-  if (!Number.isSafeInteger(amount)) return '—'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency }).format(amount / 100)
+  return messageMoneyLabel(message.content?.requested_amount)
 }
 function draftKey(): string { return `ecom-ai:draft:${conversationId.value}` }
 function restoreDraft() {
@@ -269,7 +267,17 @@ function mergeMessages(incoming: ChatMessage[], shouldScroll: boolean) {
   messages.value = [...messages.value, ...additions].sort((left, right) => left.sequence_no - right.sequence_no)
   void refreshApprovals(additions)
   if (!shouldScroll) newBelowCount.value += additions.filter((item) => item.sender_type !== 'user').length
-  void nextTick(() => { observeRenderedMessages(); if (shouldScroll) scrollToBottom() })
+  const visibleIncomingSequence = shouldScroll && document.visibilityState === 'visible'
+    ? Math.max(0, ...additions.filter((item) => item.sender_type !== 'user').map((item) => item.sequence_no))
+    : 0
+  void nextTick(() => {
+    observeRenderedMessages()
+    if (shouldScroll) scrollToBottom()
+    if (visibleIncomingSequence > readTarget) {
+      readTarget = visibleIncomingSequence
+      void flushRead()
+    }
+  })
 }
 async function refreshAgentConsents() {
   agentConsents.value = (await listAgentConsents(token())).data.items
@@ -645,6 +653,7 @@ async function flushRead() {
     lastReadSubmitted = response.data.last_read_sequence_no
     readAttempts = 0
     if (conversation.value) conversation.value.unread_count = response.data.unread_count
+    emit('read-cursor', conversationId.value, response.data.unread_count)
   } catch {
     readAttempts += 1
     if (readAttempts <= 3) readRetryTimer = window.setTimeout(() => void flushRead(), 500 * readAttempts)
@@ -739,7 +748,7 @@ onBeforeUnmount(() => {
         <button v-if="previousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
         <p v-if="messages.length === 0 && pending.length === 0" class="conversation-welcome">{{ conversation?.conversation_type === 'exclusive' ? '您好，我是专属客服。您可以咨询平台规则、订单、物流和售后问题。' : '您好，请描述您想咨询的商品或订单问题。' }}</p>
         <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'system' ? 'system-message-row' : message.sender_type === 'user' ? 'mine' : 'theirs']">
-          <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' }" aria-hidden="true"><img v-if="message.sender_type === 'user' && userAvatarUrl" :src="userAvatarUrl" alt="" /><img v-else-if="message.sender_type === 'human' && storeLogoUrl" :src="storeLogoUrl" alt="" /><img v-else-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" />{{ message.sender_type === 'user' ? userAvatarUrl ? '' : userAvatarLabel : message.sender_type === 'agent' ? '' : storeLogoUrl ? '' : '店' }}</span>
+          <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' && !platformHuman, platform: message.sender_type === 'human' && platformHuman }" aria-hidden="true"><img v-if="message.sender_type === 'user' && userAvatarUrl" :src="userAvatarUrl" alt="" /><img v-else-if="message.sender_type === 'human' && !platformHuman && storeLogoUrl" :src="storeLogoUrl" alt="" /><img v-else-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" />{{ message.sender_type === 'user' ? userAvatarUrl ? '' : userAvatarLabel : message.sender_type === 'agent' ? '' : message.sender_type === 'human' && platformHuman ? '管' : storeLogoUrl ? '' : '店' }}</span>
           <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'system' ? 'system-message-bubble' : message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
           <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" />
           <section v-if="message.message_type === 'resolution_check'" class="resolution-check-actions">

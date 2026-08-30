@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -38,6 +39,7 @@ EXCLUSIVE_INTENTS: tuple[ExclusiveIntent, ...] = (
     "personalized_recommendation",
     "order_lookup",
     "logistics_lookup",
+    "refund_precheck",
     "refund_eligibility",
     "refund_progress",
     "human_handoff",
@@ -75,7 +77,9 @@ Intent definitions and priority:
   ask for policy, product, order, logistics, refund, recommendation, or human support data.
 - refund_progress: asks about an existing refund/after-sale case status or arrival of
   refunded funds.
-- refund_eligibility: asks to start, apply for, or check eligibility for a refund/return.
+- refund_precheck: asks only whether an order/item is eligible for refund/return, especially
+  when the user says to check, precheck, or not submit anything.
+- refund_eligibility: asks to start, apply for, draft, or submit a refund/return request.
 - logistics_lookup: asks about parcel, courier, tracking, current package location,
   delivery progress,
   or estimated arrival; choose this even when the text also mentions an order.
@@ -95,6 +99,26 @@ class GroundedAnswer:
     cited_source_ids: tuple[str, ...]
     confidence: str
     limitation: str | None
+
+
+def model_failure_code(exc: Exception, stage: str) -> str:
+    """Classify a provider failure without recording prompts or model output."""
+
+    if isinstance(exc, TimeoutError):
+        reason = "timeout"
+    else:
+        message = str(exc)
+        if "claims outside trusted evidence" in message:
+            reason = "grounding_rejected"
+        elif "invalid grounded answer" in message:
+            reason = "schema_invalid"
+        elif "unsupported" in message:
+            reason = "intent_invalid"
+        elif "scope mismatch" in message:
+            reason = "scope_mismatch"
+        else:
+            reason = "provider_invalid_response"
+    return f"{stage}_model_{reason}"[:64]
 
 
 @dataclass(frozen=True)
@@ -140,15 +164,18 @@ class OpenAICompatiblePlanner:
         api_key: str,
         model: str,
         timeout_seconds: float,
+        fallback_models: tuple[str, ...] = (),
         temperature: float = 0.0,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self._api_url = api_url
         self._api_key = api_key
         self._model = model
+        self._fallback_models = tuple(item for item in fallback_models if item != model)
         self._timeout_seconds = timeout_seconds
         self._temperature = temperature
         self._client = client
+        self._model_unavailable_until: dict[str, float] = {}
 
     async def plan_store(self, user_text: str) -> StoreAgentPlan:
         result = await self._plan(user_text, STORE_INTENTS, "store_support")
@@ -254,6 +281,18 @@ class OpenAICompatiblePlanner:
                         "例如 600 分是 ¥6.00，"
                         "绝不能回答成 600 元。除非可信证据中存在明确的 user_display_name 字段，"
                         "否则不要使用姓名、昵称或亲昵称呼称呼用户。"
+                        "订单商品中的 refunded_quantity 是已经退款的数量，"
+                        "remaining_refundable_quantity 才是剩余可申请售后的数量，禁止混淆。"
+                        "库存回答必须使用 available_quantity 和 availability_label，"
+                        "不要输出 in_stock、out_of_stock、low_stock 等内部代码。"
+                        "除非用户明确要求内部字段，否则状态只使用自然中文，"
+                        "不要把 shipped、paid、refund_only 等内部代码附在回答中。"
+                        "店铺名、商品名和款式名必须逐字使用证据值，禁止自行缩写或改名。"
+                        "completed_order_revenue 仅代表确认收货后的已确认营业额。"
+                        "unsettled_paid_amount 是已支付但尚未完成的金额。后者不为零时，"
+                        "禁止表述为订单没有产生收入或支付异常。"
+                        "用户询问款式、参数、状态或规则条目时，必须逐项保留证据中的精确值，"
+                        "不能用笼统总结替代用户明确要求的字段。"
                         "cited_source_ids 只能选择 ALLOWED_SOURCE_IDS 中的值。"
                     ),
                 },
@@ -299,12 +338,21 @@ class OpenAICompatiblePlanner:
             or (limitation is not None and not isinstance(limitation, str))
         ):
             raise ModelGatewayError("model returned an invalid grounded answer")
+        sanitized_answer = _strip_untrusted_user_salutation(answer.strip())
         grounded = GroundedAnswer(
-            text=answer.strip(),
+            text=sanitized_answer,
             cited_source_ids=tuple(citations),
             confidence=str(confidence),
             limitation=limitation,
         )
+        platform_admin_scope = intent == "complex_platform_diagnosis" or any(
+            source_id.startswith(("tool:governance.", "tool:observability."))
+            for source_id in source_ids
+        )
+        if platform_admin_scope and any(
+            phrase in grounded.text for phrase in ("您的店铺", "您的商铺", "您本店")
+        ):
+            raise ModelGatewayError("model answer scope mismatch")
         if not await self._verify_grounding(
             user_text=user_text,
             evidence_json=evidence_json,
@@ -442,34 +490,58 @@ class OpenAICompatiblePlanner:
         )
 
     async def _request_json(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        configured_models = (self._model, *self._fallback_models)
+        now = time.monotonic()
+        models = tuple(
+            model
+            for model in configured_models
+            if self._model_unavailable_until.get(model, 0.0) <= now
+        ) or configured_models
+        last_error: Exception | None = None
+        owned_client = self._client is None
+        client = self._client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:
-            if self._client is None:
-                async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+            for index, model in enumerate(models):
+                request_payload = dict(payload)
+                request_payload["model"] = model
+                try:
                     response = await client.post(
                         self._api_url,
                         headers={"Authorization": f"Bearer {self._api_key}"},
-                        json=payload,
+                        json=request_payload,
+                        timeout=self._timeout_seconds,
                     )
-            else:
-                response = await self._client.post(
-                    self._api_url,
-                    headers={"Authorization": f"Bearer {self._api_key}"},
-                    json=payload,
-                    timeout=self._timeout_seconds,
-                )
-            response.raise_for_status()
-            body = response.json()
-            content = body["choices"][0]["message"]["content"]
-            if not isinstance(content, str):
-                raise TypeError("model content is not a JSON string")
-            result = json.loads(content)
-            if not isinstance(result, dict):
-                raise TypeError("model plan is not an object")
-            return result
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
-            raise ModelGatewayError(
-                "Agent model request failed or returned an invalid plan"
-            ) from exc
+                    response.raise_for_status()
+                    body = response.json()
+                    content = body["choices"][0]["message"]["content"]
+                    if not isinstance(content, str):
+                        raise TypeError("model content is not a JSON string")
+                    result = _loads_model_json(content)
+                    if not isinstance(result, dict):
+                        raise TypeError("model plan is not an object")
+                    return result
+                except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                    last_error = exc
+                    self._model_unavailable_until[model] = time.monotonic() + 60.0
+                    if index + 1 < len(models):
+                        continue
+                    break
+                except httpx.HTTPStatusError as exc:
+                    last_error = exc
+                    if _transient_provider_response(exc.response):
+                        self._model_unavailable_until[model] = time.monotonic() + 60.0
+                    if index + 1 < len(models) and _transient_provider_response(exc.response):
+                        continue
+                    break
+                except (json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
+                    last_error = exc
+                    break
+        finally:
+            if owned_client:
+                await client.aclose()
+        raise ModelGatewayError(
+            "Agent model request failed or returned an invalid plan"
+        ) from last_error
 
 
 class ProviderStoreModelGateway:
@@ -774,6 +846,18 @@ def _provider_http_error(status_code: int) -> str:
     return "MODEL_PROVIDER_REQUEST_REJECTED"
 
 
+def _transient_provider_response(response: httpx.Response) -> bool:
+    if response.status_code in {408, 429} or response.status_code >= 500:
+        return True
+    try:
+        payload = response.json()
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    error = payload.get("error") if isinstance(payload, dict) else None
+    error_type = error.get("type") if isinstance(error, dict) else None
+    return error_type in {"engine_overloaded_error", "rate_limit_reached_error"}
+
+
 def _provider_failure(
     settings: Settings,
     started: float,
@@ -833,6 +917,7 @@ def configured_model_gateways(
         api_url=settings.agent_model_api_url,
         api_key=settings.agent_model_api_key.get_secret_value(),
         model=settings.agent_model_name,
+        fallback_models=settings.agent_model_fallbacks,
         timeout_seconds=settings.agent_model_timeout_seconds,
         temperature=settings.agent_model_temperature,
     )
@@ -851,6 +936,7 @@ def configured_operations_gateway(settings: Settings) -> ProviderOperationsModel
             api_url=settings.agent_model_api_url,
             api_key=settings.agent_model_api_key.get_secret_value(),
             model=settings.agent_model_name,
+            fallback_models=settings.agent_model_fallbacks,
             timeout_seconds=settings.agent_model_timeout_seconds,
             temperature=settings.agent_model_temperature,
         )
@@ -872,3 +958,63 @@ def _current_message(value: str) -> str:
         return value
     current = value.split(marker, 1)[1]
     return current.split("\n\n", 1)[0]
+
+
+def _strip_untrusted_user_salutation(answer: str) -> str:
+    """Remove a model-invented name before a greeting.
+
+    Trusted evidence deliberately contains no user display name. Some compatible
+    models still prepend a fictional nickname despite the prompt. This narrow
+    deterministic guard keeps a plain greeting intact while removing only text
+    immediately before `您好`/`你好` at the start of the answer.
+    """
+
+    cleaned = re.sub(
+        r"^[\u4e00-\u9fffA-Za-z0-9_-]{1,16}(?=(?:您好|你好)[,\uff0c:\uff1a\s])",
+        "",
+        answer,
+    )
+    cleaned = re.sub(r"^(?:刀锋|刀刀)[\uFF0C,\uFF1A:\s]*", "", cleaned)
+    cleaned = re.sub(
+        r"^刀(?=(?:根据|平台|您好|你好|当前|您的|本店|本地|已|最近|本次))",
+        "",
+        cleaned,
+    )
+    return cleaned or answer
+
+
+def _loads_model_json(content: str) -> dict[str, Any]:
+    """Parse compatible-provider JSON while repairing raw controls inside strings.
+
+    Some OpenAI-compatible endpoints return an otherwise valid JSON object with
+    literal newlines inside a string even under JSON-schema mode. We only escape
+    forbidden control characters while already inside a quoted string; object
+    shape and all security checks remain server-validated afterwards.
+    """
+
+    value = content.strip()
+    if value.startswith("```"):
+        value = re.sub(r"^```(?:json)?\s*", "", value, count=1, flags=re.I)
+        value = re.sub(r"\s*```$", "", value, count=1)
+    try:
+        loaded = json.loads(value)
+    except json.JSONDecodeError:
+        repaired: list[str] = []
+        inside_string = False
+        escaped = False
+        for character in value:
+            if inside_string and ord(character) < 0x20:
+                repaired.append(json.dumps(character)[1:-1])
+                escaped = False
+                continue
+            repaired.append(character)
+            if escaped:
+                escaped = False
+            elif character == "\\" and inside_string:
+                escaped = True
+            elif character == '"':
+                inside_string = not inside_string
+        loaded = json.loads("".join(repaired))
+    if not isinstance(loaded, dict):
+        raise TypeError("model response is not an object")
+    return loaded

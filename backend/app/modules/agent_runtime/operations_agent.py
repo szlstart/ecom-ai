@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from collections.abc import Mapping
+from datetime import timedelta
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
@@ -38,7 +39,10 @@ from app.modules.agent_runtime.operations_context import (
     TrustedOperationsContext,
 )
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection
-from app.modules.agent_runtime.provider_gateway import ProviderOperationsModelGateway
+from app.modules.agent_runtime.provider_gateway import (
+    ProviderOperationsModelGateway,
+    model_failure_code,
+)
 from app.modules.agent_runtime.public_trace import public_trace
 from app.modules.catalog.models import Product, ProductSku
 from app.modules.identity.models import User
@@ -133,11 +137,19 @@ async def process_operations_run(
     if model_gateway is not None:
         try:
             intent = await model_gateway.plan(planning_input, context.agent_definition.agent_code)
-        except (ModelGatewayError, TimeoutError):
-            run.degraded_reason = "planner_model_unavailable"
-    admin_domains = _admin_complex_domains(user_text) if context.audience == "admin" else ()
-    if len(admin_domains) >= 2:
-        intent = "complex_platform_diagnosis"
+        except (ModelGatewayError, TimeoutError) as exc:
+            run.degraded_reason = model_failure_code(exc, "planning")
+    complex_domains = (
+        _admin_complex_domains(user_text)
+        if context.audience == "admin"
+        else _merchant_complex_domains(user_text)
+    )
+    if len(complex_domains) >= 2:
+        intent = (
+            "complex_platform_diagnosis"
+            if context.audience == "admin"
+            else "complex_store_diagnosis"
+        )
     await checkpoint_store.write(run.run_no, "tool_planned", _checkpoint(context, intent))
 
     if intent == "human_handoff":
@@ -202,8 +214,8 @@ async def process_operations_run(
                 small_answer_mode = "model_grounded"
                 small_confidence = grounded.confidence
                 small_citations = grounded.cited_source_ids or small_citations
-            except (ModelGatewayError, TimeoutError):
-                run.degraded_reason = "answer_model_unavailable"
+            except (ModelGatewayError, TimeoutError) as exc:
+                run.degraded_reason = model_failure_code(exc, "answer")
         await _complete(
             session,
             context,
@@ -219,11 +231,15 @@ async def process_operations_run(
         await _finish_checkpoint(checkpoint_store, context, "general_chat")
         return
 
-    if intent == "complex_platform_diagnosis":
-        multi_response = await _execute_admin_multi_agent(context, admin_domains)
+    if intent in {"complex_platform_diagnosis", "complex_store_diagnosis"}:
+        multi_response = await _execute_operations_multi_agent(context, complex_domains)
         if multi_response is not None:
             evidence, trace_steps, source_ids = multi_response
-            answer = _render_multi_agent(evidence)
+            answer = (
+                _render_merchant_multi_agent(evidence)
+                if context.audience == "merchant"
+                else _render_multi_agent(evidence)
+            )
             answer_mode = "deterministic_fallback"
             confidence = "high"
             multi_citations = source_ids
@@ -242,8 +258,8 @@ async def process_operations_run(
                     answer_mode = "model_grounded"
                     confidence = grounded.confidence
                     multi_citations = grounded.cited_source_ids or source_ids
-                except (ModelGatewayError, TimeoutError):
-                    run.degraded_reason = "answer_model_unavailable"
+                except (ModelGatewayError, TimeoutError) as exc:
+                    run.degraded_reason = model_failure_code(exc, "answer")
             await _complete(
                 session,
                 context,
@@ -305,8 +321,8 @@ async def process_operations_run(
             answer_mode = "model_grounded"
             confidence = grounded.confidence
             citations = grounded.cited_source_ids or citations
-        except (ModelGatewayError, TimeoutError):
-            run.degraded_reason = "answer_model_unavailable"
+        except (ModelGatewayError, TimeoutError) as exc:
+            run.degraded_reason = model_failure_code(exc, "answer")
     await _complete(
         session,
         context,
@@ -323,7 +339,7 @@ async def process_operations_run(
     await _finish_checkpoint(checkpoint_store, context, intent)
 
 
-async def _execute_admin_multi_agent(
+async def _execute_operations_multi_agent(
     context: TrustedOperationsContext,
     domains: tuple[str, ...],
 ) -> tuple[dict[str, object], list[dict[str, object]], tuple[str, ...]] | None:
@@ -342,11 +358,11 @@ async def _execute_admin_multi_agent(
     packets: list[DelegationPacket] = []
     specialists: dict[str, Any] = {}
     for domain in domains[:4]:
-        specialist_code, tool_code, objective = _admin_specialist(domain)
+        specialist_code, tool_code, objective = _operations_specialist(context.audience, domain)
         packet = DelegationPacket(
             delegation_no=new_prefixed_ulid("dlg_"),
             parent_run_no=context.run.run_no,
-            subtask_key=f"admin-diagnosis:{domain}",
+            subtask_key=f"{context.audience}-diagnosis:{domain}",
             specialist_code=specialist_code,
             specialist_version="v1",
             objective=objective,
@@ -360,7 +376,9 @@ async def _execute_admin_multi_agent(
                 tool_call_limit=1,
                 model_call_limit=0,
             ),
-            ancestor_agents=("admin_copilot",),
+            ancestor_agents=(
+                "admin_copilot" if context.audience == "admin" else "merchant_copilot",
+            ),
         )
         packets.append(packet)
         specialists[specialist_code] = compile_specialist_subgraph(
@@ -383,7 +401,11 @@ async def _execute_admin_multi_agent(
     )
     response = await supervisor.run(
         SupervisorRequest(
-            intent="complex_platform_diagnosis",
+            intent=(
+                "complex_platform_diagnosis"
+                if context.audience == "admin"
+                else "complex_store_diagnosis"
+            ),
             independent_read_subtasks=len(packets),
             has_write_intent=False,
             router_confidence=1.0,
@@ -398,8 +420,14 @@ async def _execute_admin_multi_agent(
         return None
     evidence: dict[str, object] = {
         "specialists": dict(response.safe_output),
+        "audience": context.audience,
         "result_policy": "只合并授权范围内、带工具审计的只读结果",
     }
+    if context.store is not None:
+        evidence["store"] = {
+            "store_id": context.store.store_no,
+            "store_name": context.store.store_name,
+        }
     steps: list[dict[str, object]] = [
         {"kind": "plan", "label": "识别跨域只读诊断", "status": "completed"},
         {
@@ -417,6 +445,7 @@ async def _execute_admin_multi_agent(
                 "status": trace.status,
                 "delegation_id": trace.delegation_no,
                 "specialist": trace.specialist_code,
+                "tool_code": _specialist_tool_code(trace.specialist_code),
                 "latency_ms": trace.elapsed_ms,
                 "tool_calls": trace.tool_calls,
                 "tokens_used": trace.tokens_used,
@@ -424,7 +453,9 @@ async def _execute_admin_multi_agent(
             }
         )
     steps.append({"kind": "answer", "label": "合并可信诊断结果", "status": "completed"})
-    source_ids = tuple(f"tool:{_admin_specialist(domain)[1]}" for domain in domains[:4])
+    source_ids = tuple(
+        f"tool:{_operations_specialist(context.audience, domain)[1]}" for domain in domains[:4]
+    )
     return evidence, steps, source_ids
 
 
@@ -467,6 +498,24 @@ def _admin_complex_domains(value: str) -> tuple[str, ...]:
     return tuple(domains)
 
 
+def _merchant_complex_domains(value: str) -> tuple[str, ...]:
+    compact = re.sub(r"\s+", "", value).casefold()
+    domains: list[str] = []
+    rules = (
+        ("catalog", ("商品", "款式", "sku", "价格", "在售")),
+        ("inventory", ("库存", "缺货", "现货", "补货", "超卖")),
+        ("orders", ("订单", "履约", "发货", "运输", "售后", "营业额", "收益")),
+    )
+    for domain, terms in rules:
+        if any(term in compact for term in terms):
+            domains.append(domain)
+    return tuple(domains)
+
+
+def _operations_specialist(audience: str, domain: str) -> tuple[str, str, str]:
+    return _admin_specialist(domain) if audience == "admin" else _merchant_specialist(domain)
+
+
 def _admin_specialist(domain: str) -> tuple[str, str, str]:
     return {
         "users": ("governance_users", "governance.user_summary", "核对平台用户状态汇总"),
@@ -476,13 +525,130 @@ def _admin_specialist(domain: str) -> tuple[str, str, str]:
     }[domain]
 
 
+def _merchant_specialist(domain: str) -> tuple[str, str, str]:
+    return {
+        "catalog": (
+            "merchant_catalog",
+            "store_ops.catalog_summary",
+            "核对本店在售商品、款式和实时可售库存",
+        ),
+        "inventory": (
+            "merchant_inventory",
+            "store_ops.inventory_risks",
+            "核对本店缺货和低库存风险",
+        ),
+        "orders": ("merchant_orders", "store_ops.order_summary", "核对本店订单履约与已确认营业额"),
+    }[domain]
+
+
 def _specialist_label(code: str) -> str:
     return {
         "governance_users": "用户治理助手: 已核对用户状态",
         "governance_stores": "店铺治理助手: 已核对店铺与商品状态",
         "governance_orders": "订单助手: 已核对订单状态",
         "observability": "运行诊断助手: 已核对服务健康",
+        "merchant_catalog": "商品助手: 已核对商品、款式和实时库存",
+        "merchant_inventory": "库存助手: 已核对缺货和低库存风险",
+        "merchant_orders": "履约助手: 已核对订单与营业额",
     }.get(code, "领域助手: 已完成只读核对")
+
+
+def _specialist_tool_code(code: str) -> str:
+    return {
+        "governance_users": "governance.user_summary",
+        "governance_stores": "governance.store_summary",
+        "governance_orders": "governance.order_summary",
+        "observability": "observability.runtime_health",
+        "merchant_catalog": "store_ops.catalog_summary",
+        "merchant_inventory": "store_ops.inventory_risks",
+        "merchant_orders": "store_ops.order_summary",
+    }.get(code, "")
+
+
+def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
+    specialists = data.get("specialists")
+    if not isinstance(specialists, dict) or not specialists:
+        return "本次经营诊断没有取得足够的可信结果，请缩小查询范围后重试。"
+    products: list[Mapping[str, Any]] = []
+    order_counts: Mapping[str, Any] = {}
+    low_stock_count = 0
+    completed_revenue: Mapping[str, Any] = {}
+    unsettled_paid: Mapping[str, Any] = {}
+    for result in specialists.values():
+        if not isinstance(result, dict):
+            continue
+        safe_data = result.get("data")
+        if not isinstance(safe_data, dict):
+            continue
+        candidate_products = safe_data.get("on_sale_products")
+        if isinstance(candidate_products, list):
+            products = [item for item in candidate_products if isinstance(item, Mapping)]
+        candidate_counts = safe_data.get("order_status_counts")
+        if isinstance(candidate_counts, Mapping):
+            order_counts = candidate_counts
+        candidate_revenue = safe_data.get("completed_order_revenue")
+        if isinstance(candidate_revenue, Mapping):
+            completed_revenue = candidate_revenue
+        candidate_unsettled = safe_data.get("unsettled_paid_amount")
+        if isinstance(candidate_unsettled, Mapping):
+            unsettled_paid = candidate_unsettled
+        low_stock_count = max(low_stock_count, int(safe_data.get("low_stock_sku_count", 0)))
+    lines = ["已并行完成本店商品、库存和订单的只读经营诊断:"]
+    if products:
+        lines.append("在售商品与款式:")
+        for product in products:
+            lines.append(f"- {product.get('name')}:")
+            sku_values = product.get("skus")
+            for sku in sku_values if isinstance(sku_values, list) else []:
+                if not isinstance(sku, Mapping):
+                    continue
+                price = sku.get("price")
+                inventory = sku.get("inventory")
+                price_display = price.get("display") if isinstance(price, Mapping) else "价格待核对"
+                available = inventory.get("available", 0) if isinstance(inventory, Mapping) else 0
+                lines.append(f"  - {sku.get('name')}: {price_display}，可售库存 {available}")
+    else:
+        lines.append("当前没有查询到在售商品。")
+    if order_counts:
+        status_summary = "、".join(
+            f"{_order_status_label(str(key))} {value} 单" for key, value in order_counts.items()
+        )
+        lines.append(f"订单履约: {status_summary}。")
+    lines.append(
+        f"已确认营业额: {completed_revenue.get('display', '¥0.00')}。"
+        f"已支付但待确认收货金额: {unsettled_paid.get('display', '¥0.00')}。"
+    )
+    risks: list[str] = []
+    if low_stock_count:
+        risks.append(f"{low_stock_count} 个款式达到低库存或缺货阈值")
+    pending_fulfillment = sum(
+        int(order_counts.get(key, 0)) for key in ("paid", "pending_shipment", "shipped")
+    )
+    if pending_fulfillment:
+        risks.append(f"{pending_fulfillment} 单仍在待履约或运输阶段")
+    lines.append("当前风险: " + ("；".join(risks) if risks else "未发现低库存或待履约积压") + "。")  # noqa: RUF001
+    lines.extend(
+        [
+            "经营建议:",
+            "1. 优先补充零库存和低库存款式，并结合实际销量调整安全库存。",
+            "2. 持续跟进待发货和运输中订单，避免履约超时与售后升级。",
+            "3. 商品价格、库存和订单状态变化后重新运行诊断，所有写操作仍由商家本人确认执行。",
+            "以上数据来自本店实时结构化查询，本次没有修改任何业务记录。",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _order_status_label(value: str) -> str:
+    return {
+        "pending_payment": "待付款",
+        "paid": "已付款待处理",
+        "pending_shipment": "待发货",
+        "shipped": "运输中",
+        "completed": "已完成",
+        "cancelled": "已取消",
+        "closed": "已关闭",
+    }.get(value, value)
 
 
 def _render_multi_agent(data: Mapping[str, Any]) -> str:
@@ -490,6 +656,7 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
     if not isinstance(specialists, dict) or not specialists:
         return "跨域诊断没有取得足够的可信结果，请缩小查询范围后重试。"
     lines = ["已并行完成跨域只读诊断:"]
+    all_metrics: dict[str, int] = {}
     for result in specialists.values():
         if not isinstance(result, dict):
             continue
@@ -497,14 +664,52 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
         safe_data = result.get("data")
         if not isinstance(safe_data, dict):
             continue
-        summary = "、".join(
-            f"{key}={value}" for key, value in safe_data.items() if isinstance(value, (str, int))
-        )
+        metrics = _flatten_summary(safe_data)
+        all_metrics.update({key: value for key, value in metrics.items() if isinstance(value, int)})
+        summary = "、".join(f"{key}={value}" for key, value in metrics.items())
         if not summary:
             summary = "已取得结构化汇总，可在右侧工作记录查看各领域完成状态"
         lines.append(f"- {specialist}: {summary}")
+    risks: list[str] = []
+    if all_metrics.get("pending_outbox_events", 0) > 0:
+        risks.append(f"仍有 {all_metrics['pending_outbox_events']} 条 Outbox 事件待处理")
+    if all_metrics.get("unrecovered_agent_failures", 0) > 0:
+        risks.append(f"存在 {all_metrics['unrecovered_agent_failures']} 个尚未恢复的 Agent 故障")
+    if all_metrics.get("product_status_counts.on_sale", 0) == 0:
+        risks.append("平台当前没有在售商品")
+    if risks:
+        lines.append("风险: " + "；".join(risks) + "。")  # noqa: RUF001
+    else:
+        lines.append("风险: 当前汇总未发现 Outbox 积压、未恢复的 Agent 故障或无在售商品风险。")
+    failed_runs_24h = all_metrics.get("failed_agent_runs_24h", 0)
+    recovered_runs = all_metrics.get("successful_runs_after_latest_failure", 0)
+    if failed_runs_24h > 0 and all_metrics.get("unrecovered_agent_failures", 0) == 0:
+        lines.append(
+            f"恢复状态: 过去 24 小时记录到 {failed_runs_24h} 次失败；最新失败后已有 "  # noqa: RUF001
+            f"{recovered_runs} 次成功运行，当前判定已恢复，历史审计记录仍保留。"
+        )
+    lines.extend(
+        [
+            "上线前建议:",
+            "1. 逐项定位 Agent 失败运行和死信事件，修复后重新执行同一只读诊断确认归零。",
+            "2. 持续核对订单履约、库存和 Outbox 消费延迟，并按连续失败阈值触发告警。",
+            "3. 上线前完成用户、店铺、订单与 AI 权限回归, 所有治理写操作仍由管理员在业务页面确认。",
+        ]
+    )
     lines.append("以上仅为当前授权范围内的实时汇总，本次没有修改任何业务数据。")
     return "\n".join(lines)
+
+
+def _flatten_summary(value: Mapping[str, Any]) -> dict[str, str | int]:
+    result: dict[str, str | int] = {}
+    for key, item in value.items():
+        if isinstance(item, (str, int)):
+            result[str(key)] = item
+        elif isinstance(item, dict):
+            for nested_key, nested_value in item.items():
+                if isinstance(nested_value, (str, int)):
+                    result[f"{key}.{nested_key}"] = nested_value
+    return result
 
 
 async def _execute_tool(
@@ -551,13 +756,88 @@ async def _snapshot(
             )
             or 0
         )
+        unsettled_paid_amount = int(
+            await session.scalar(
+                select(func.coalesce(func.sum(Order.paid_amount - Order.refunded_amount), 0)).where(
+                    Order.store_id == store_id,
+                    Order.payment_status == "paid",
+                    Order.order_status.not_in(("completed", "cancelled", "closed")),
+                )
+            )
+            or 0
+        )
         if tool_code == "store_ops.catalog_summary":
-            return {"store_id": context.store.store_no, "product_status_counts": product_counts}
+            product_rows = (
+                await session.execute(
+                    select(Product, ProductSku, Inventory)
+                    .join(ProductSku, ProductSku.product_id == Product.id)
+                    .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
+                    .where(
+                        Product.store_id == store_id,
+                        Product.deleted_at.is_(None),
+                        Product.product_status == "on_sale",
+                        ProductSku.sku_status == "active",
+                    )
+                    .order_by(Product.sales_count.desc(), Product.id, ProductSku.id)
+                    .limit(50)
+                )
+            ).all()
+            products: dict[int, dict[str, object]] = {}
+            for product, sku, inventory in product_rows:
+                item = products.setdefault(
+                    product.id,
+                    {
+                        "product_id": product.product_no,
+                        "name": product.product_name,
+                        "status": product.product_status,
+                        "sales_count": product.sales_count,
+                        "skus": [],
+                    },
+                )
+                sku_items = item["skus"]
+                assert isinstance(sku_items, list)
+                sku_items.append(
+                    {
+                        "sku_id": sku.sku_no,
+                        "name": sku.sku_name,
+                        "price": {
+                            "minor_units": sku.sale_price_amount,
+                            "currency": sku.currency,
+                            "display": _money_display(sku.sale_price_amount, sku.currency),
+                        },
+                        "inventory": {
+                            "on_hand": inventory.on_hand_quantity if inventory else 0,
+                            "reserved": inventory.reserved_quantity if inventory else 0,
+                            "available": (
+                                inventory.on_hand_quantity - inventory.reserved_quantity
+                                if inventory
+                                else 0
+                            ),
+                        },
+                    }
+                )
+            return {
+                "store_id": context.store.store_no,
+                "product_status_counts": product_counts,
+                "on_sale_products": list(products.values()),
+                "truncated": len(product_rows) >= 50,
+            }
         if tool_code == "store_ops.order_summary":
             return {
                 "store_id": context.store.store_no,
                 "order_status_counts": order_counts,
-                "recognized_revenue": {"amount": revenue, "currency": "CNY"},
+                "completed_order_revenue": {
+                    "minor_units": revenue,
+                    "currency": "CNY",
+                    "display": _money_display(revenue, "CNY"),
+                    "meaning": "仅统计已完成订单，用户确认收货后才计入",
+                },
+                "unsettled_paid_amount": {
+                    "minor_units": unsettled_paid_amount,
+                    "currency": "CNY",
+                    "display": _money_display(unsettled_paid_amount, "CNY"),
+                    "meaning": "已支付但尚未完成的订单金额，不是已确认营业额",
+                },
             }
         if tool_code == "store_ops.inventory_risks":
             low_stock = int(
@@ -583,7 +863,16 @@ async def _snapshot(
             },
             "product_status_counts": product_counts,
             "order_status_counts": order_counts,
-            "recognized_revenue": {"amount": revenue, "currency": "CNY"},
+            "completed_order_revenue": {
+                "minor_units": revenue,
+                "currency": "CNY",
+                "display": _money_display(revenue, "CNY"),
+            },
+            "unsettled_paid_amount": {
+                "minor_units": unsettled_paid_amount,
+                "currency": "CNY",
+                "display": _money_display(unsettled_paid_amount, "CNY"),
+            },
         }
 
     user_counts = await _counts(session, User.user_status)
@@ -602,19 +891,50 @@ async def _snapshot(
         )
         or 0
     )
+    failure_window_started_at = utc_now() - timedelta(hours=24)
     failed_runs = int(
-        await session.scalar(select(func.count(AgentRun.id)).where(AgentRun.run_status == "failed"))
+        await session.scalar(
+            select(func.count(AgentRun.id)).where(
+                AgentRun.run_status == "failed",
+                AgentRun.created_at >= failure_window_started_at,
+            )
+        )
         or 0
     )
+    latest_failure_at = await session.scalar(
+        select(func.max(AgentRun.created_at)).where(
+            AgentRun.run_status == "failed",
+            AgentRun.created_at >= failure_window_started_at,
+        )
+    )
+    successful_runs_after_latest_failure = 0
+    if latest_failure_at is not None:
+        successful_runs_after_latest_failure = int(
+            await session.scalar(
+                select(func.count(AgentRun.id)).where(
+                    AgentRun.run_status == "completed",
+                    AgentRun.created_at > latest_failure_at,
+                )
+            )
+            or 0
+        )
+    unrecovered_failures = int(
+        latest_failure_at is not None and successful_runs_after_latest_failure == 0
+    )
+    runtime_health: dict[str, object] = {
+        "pending_outbox_events": pending_outbox,
+        "failed_agent_runs_24h": failed_runs,
+        "successful_runs_after_latest_failure": successful_runs_after_latest_failure,
+        "unrecovered_agent_failures": unrecovered_failures,
+    }
     if tool_code == "observability.runtime_health":
-        return {"pending_outbox_events": pending_outbox, "failed_agent_runs": failed_runs}
+        return runtime_health
     return {
         "user_status_counts": user_counts,
         "store_status_counts": store_counts,
         "product_status_counts": product_counts,
         "order_status_counts": order_counts,
-        "pending_outbox_events": pending_outbox,
-        "failed_agent_runs": failed_runs,
+        **runtime_health,
     }
 
 
@@ -697,6 +1017,35 @@ def _tool_for_intent(intent: str, audience: str) -> str:
 
 
 def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, Any]) -> str:
+    if context.audience == "merchant" and intent == "catalog":
+        products = data.get("on_sale_products")
+        if not isinstance(products, list) or not products:
+            return "本店当前没有可售商品。本次只读取了本店授权范围内的数据。"
+        lines = ["本店当前在售商品与可用库存:"]
+        low_stock: list[str] = []
+        for product in products:
+            if not isinstance(product, dict):
+                continue
+            lines.append(f"- {product.get('name')} ({product.get('product_id')})")
+            skus = product.get("skus")
+            for sku in skus if isinstance(skus, list) else []:
+                if not isinstance(sku, dict):
+                    continue
+                price = sku.get("price")
+                inventory = sku.get("inventory")
+                display = price.get("display") if isinstance(price, dict) else "价格未知"
+                available = inventory.get("available") if isinstance(inventory, dict) else 0
+                lines.append(f"  - {sku.get('name')}: {display}，可售库存 {available}")
+                if isinstance(available, int) and available <= 5:
+                    low_stock.append(f"{product.get('name')}/{sku.get('name')}")
+        if low_stock:
+            lines.append(
+                "经营建议: 优先核对低库存款式 " + "、".join(low_stock[:5]) + "，避免超卖。"
+            )
+        else:
+            lines.append("经营建议: 当前款式库存均高于低库存提醒线，可结合销量继续观察补货节奏。")
+        lines.append("价格和库存来自本店实时结构化数据，本次没有修改任何业务记录。")
+        return "\n".join(lines)
     label = "店铺经营" if context.audience == "merchant" else "平台运行"
     lines = [f"已完成{label}的只读查询 ({intent}):"]
     for key, value in data.items():
@@ -711,6 +1060,12 @@ def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, A
             lines.append(f"- {key}: {value}")
     lines.append("本次只读取了授权范围内的数据，没有修改任何业务记录。")
     return "\n".join(lines)
+
+
+def _money_display(minor_units: int, currency: str) -> str:
+    normalized = currency.upper()
+    symbol = "¥" if normalized == "CNY" else f"{normalized} "
+    return f"{symbol}{minor_units / 100:.2f}"
 
 
 async def _complete(
@@ -729,22 +1084,35 @@ async def _complete(
     conversation.last_sequence_no += 1
     conversation.last_message_at = now
     conversation.version += 1
-    steps = [
-            {"kind": "plan", "label": "识别只读任务", "status": "completed"},
-            *(
-                [
-                    {
-                        "kind": "tool",
-                        "label": "读取授权范围数据",
-                        "tool_code": tool_code,
-                        "status": "completed",
-                    }
-                ]
-                if tool_code
-                else []
-            ),
-            {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
-        ]
+    default_steps = [
+        {"kind": "plan", "label": "识别只读任务", "status": "completed"},
+        *(
+            [
+                {
+                    "kind": "tool",
+                    "label": "读取授权范围数据",
+                    "tool_code": tool_code,
+                    "status": "completed",
+                }
+            ]
+            if tool_code
+            else []
+        ),
+        {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
+    ]
+    extra = dict(trace_extra or {})
+    supplied_steps = extra.pop("steps", None)
+    steps = (
+        [dict(item) for item in supplied_steps if isinstance(item, Mapping)]
+        if isinstance(supplied_steps, list)
+        else default_steps
+    )
+    supplied_source_ids = extra.pop("source_ids", None)
+    source_ids = (
+        [str(item) for item in supplied_source_ids if isinstance(item, str)]
+        if isinstance(supplied_source_ids, list)
+        else ([f"tool:{tool_code}"] if tool_code else [])
+    )
     trace = public_trace(
         run_id=context.run.run_no,
         agent=context.agent_definition.display_name,
@@ -753,9 +1121,9 @@ async def _complete(
         intent=intent,
         data=data,
         steps=steps,
-        source_ids=[f"tool:{tool_code}"] if tool_code else [],
+        source_ids=source_ids,
         tool_code=tool_code,
-        extra=trace_extra,
+        extra=extra,
     )
     message = Message(
         message_no=new_prefixed_ulid("msg_"),

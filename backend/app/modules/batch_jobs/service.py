@@ -189,6 +189,23 @@ class BatchJobService:
             limit=limit,
         )
         visible = rows[:limit]
+        knowledge_states: dict[str, tuple[AdminBatchJob, AdminBatchJob | None]] = {}
+        if job_type == "knowledge_index":
+            history = await self.repository.knowledge_job_history(access.scopes)
+            failed_by_document: dict[str, list[AdminBatchJob]] = {}
+            for history_job in history:
+                document_no = history_job.request_config.get("document_no")
+                if not isinstance(document_no, str) or not document_no:
+                    continue
+                if document_no not in knowledge_states:
+                    knowledge_states[document_no] = (history_job, None)
+                if history_job.job_status == "failed":
+                    failed_by_document.setdefault(document_no, []).append(history_job)
+            for document_no, (latest, _recovery) in list(knowledge_states.items()):
+                recovered_failure = None
+                if latest.job_status == "succeeded" and failed_by_document.get(document_no):
+                    recovered_failure = latest
+                knowledge_states[document_no] = (latest, recovered_failure)
         stores = await self.repository.stores_by_ids({item.scope_id for item in visible})
         file_ids = {
             file_id
@@ -205,6 +222,7 @@ class BatchJobService:
                     files.get(item.input_file_id) if item.input_file_id is not None else None,
                     files.get(item.result_file_id) if item.result_file_id is not None else None,
                     files.get(item.error_file_id) if item.error_file_id is not None else None,
+                    knowledge_states=knowledge_states,
                 )
                 for item in visible
             ],
@@ -403,6 +421,8 @@ def _job_view(
     input_file: FileObject | None,
     result_file: FileObject | None,
     error_file: FileObject | None,
+    *,
+    knowledge_states: dict[str, tuple[AdminBatchJob, AdminBatchJob | None]] | None = None,
 ) -> BatchJobView:
     config = job.request_config
     actions: list[str] = []
@@ -410,6 +430,23 @@ def _job_view(
         actions.append("confirm")
     if job.job_status not in JOB_TERMINAL_STATUSES:
         actions.append("cancel")
+    document_no = config.get("document_no")
+    document_no = document_no if isinstance(document_no, str) and document_no else None
+    content_version = config.get("content_version")
+    content_version = (
+        content_version if isinstance(content_version, str) and content_version else None
+    )
+    latest_for_resource: bool | None = None
+    effective_status: str | None = None
+    recovered_by_job_id: str | None = None
+    if document_no is not None and knowledge_states is not None:
+        state = knowledge_states.get(document_no)
+        if state is not None:
+            latest, recovery = state
+            latest_for_resource = latest.id == job.id
+            effective_status = latest.job_status
+            if job.job_status == "failed" and recovery is not None and recovery.id > job.id:
+                recovered_by_job_id = recovery.job_no
     return BatchJobView(
         job_id=job.job_no,
         job_type=job.job_type,
@@ -431,6 +468,11 @@ def _job_view(
         expires_at=job.expires_at,
         available_actions=actions,
         version=job.version,
+        resource_id=document_no,
+        content_version=content_version,
+        latest_for_resource=latest_for_resource,
+        effective_status=effective_status,
+        recovered_by_job_id=recovered_by_job_id,
     )
 
 

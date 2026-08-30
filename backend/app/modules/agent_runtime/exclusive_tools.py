@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 from collections.abc import Awaitable, Callable
 
@@ -13,11 +14,22 @@ from app.core.config import Settings
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
+from app.modules.after_sale.schemas import (
+    RefundEligibilityItemRequest,
+    RefundEligibilityRequest,
+)
 from app.modules.after_sale.service import AfterSaleService
 from app.modules.agent_runtime.exclusive_context import TrustedExclusiveAgentContext
 from app.modules.agent_runtime.models import AgentToolAudit
-from app.modules.agent_runtime.store_tools import StoreToolResult, _contains_scope_override
+from app.modules.agent_runtime.store_tools import (
+    StoreToolResult,
+    _availability_label,
+    _available_quantity,
+    _contains_scope_override,
+)
+from app.modules.catalog.models import ProductSku
 from app.modules.catalog.repository import CatalogRepository
+from app.modules.inventory.models import Inventory
 from app.modules.logistics.service import LogisticsService
 from app.modules.messaging.human_schemas import HumanHandoffRequest
 from app.modules.messaging.models import HumanServiceTicket
@@ -85,21 +97,61 @@ class ExclusiveToolGateway:
         return result
 
     async def search_products(
-        self, context: TrustedExclusiveAgentContext, query: str | None
+        self,
+        context: TrustedExclusiveAgentContext,
+        query: str | None,
+        *,
+        fallback_query: str | None = None,
     ) -> StoreToolResult:
         async def handler() -> dict[str, object]:
-            rows, has_more = await self.catalog.search_products(
-                q=(query or "").strip() or None,
-                category_no=None,
-                brand_no=None,
-                store_no=None,
-                group_no=None,
-                price_min=None,
-                price_max=None,
-                sort="sales",
-                position=None,
-                limit=8,
-            )
+            rows = []
+            has_more = False
+            for term in _combined_catalog_search_candidates(query, fallback_query):
+                found, found_has_more = await self.catalog.search_products(
+                    q=term,
+                    category_no=None,
+                    brand_no=None,
+                    store_no=None,
+                    group_no=None,
+                    price_min=None,
+                    price_max=None,
+                    sort="sales",
+                    position=None,
+                    limit=8,
+                )
+                rows = found
+                has_more = found_has_more
+                if rows:
+                    break
+            skus_by_product: dict[int, list[dict[str, object]]] = {}
+            stock_by_product: dict[int, int] = {}
+            product_ids = [product.id for product, _store in rows]
+            if product_ids:
+                sku_rows = (
+                    await self.session.execute(
+                        select(ProductSku, Inventory)
+                        .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
+                        .where(
+                            ProductSku.product_id.in_(product_ids),
+                            ProductSku.sku_status == "active",
+                        )
+                        .order_by(ProductSku.product_id, ProductSku.id)
+                    )
+                ).all()
+                for sku, inventory in sku_rows:
+                    available = _available_quantity(inventory)
+                    skus_by_product.setdefault(sku.product_id, []).append(
+                        {
+                            "sku_id": sku.sku_no,
+                            "sku_name": sku.sku_name,
+                            "price": _money_projection(sku.sale_price_amount, sku.currency),
+                            "available_stock": available,
+                            "availability_label": _availability_label(inventory),
+                        }
+                    )
+                    stock_by_product[sku.product_id] = (
+                        stock_by_product.get(sku.product_id, 0) + available
+                    )
             return {
                 "items": [
                     {
@@ -113,6 +165,8 @@ class ExclusiveToolGateway:
                             "max_amount": product.max_price_amount,
                             "currency": product.currency,
                         },
+                        "available_stock": stock_by_product.get(product.id, 0),
+                        "skus": skus_by_product.get(product.id, []),
                         "source_version": product.version,
                     }
                     for product, store in rows
@@ -124,7 +178,10 @@ class ExclusiveToolGateway:
         return await self.execute(
             context,
             "catalog.search_products",
-            {"query": (query or "")[:120]},
+            {
+                "query": (query or "")[:120],
+                "fallback_query": (fallback_query or "")[:120],
+            },
             handler,
         )
 
@@ -177,6 +234,17 @@ class ExclusiveToolGateway:
             context, "order.get_user_order_detail", {"order_id": order_no}, handler
         )
 
+    async def latest_order_no(self, context: TrustedExclusiveAgentContext) -> str:
+        order_no = await self.session.scalar(
+            select(Order.order_no)
+            .where(Order.user_id == context.user.id, Order.user_hidden_at.is_(None))
+            .order_by(Order.created_at.desc(), Order.id.desc())
+            .limit(1)
+        )
+        if order_no is None:
+            raise _not_accessible()
+        return order_no
+
     async def shipments(
         self, context: TrustedExclusiveAgentContext, order_no: str
     ) -> StoreToolResult:
@@ -217,6 +285,75 @@ class ExclusiveToolGateway:
             context,
             "after_sale.get_user_refund_detail",
             {"refund_id": refund_no},
+            handler,
+        )
+
+    async def refund_precheck(
+        self, context: TrustedExclusiveAgentContext, order_no: str
+    ) -> StoreToolResult:
+        async def handler() -> dict[str, object]:
+            row = (
+                await self.session.execute(
+                    select(Order, Store)
+                    .join(Store, Store.id == Order.store_id)
+                    .where(Order.order_no == order_no, Order.user_id == context.user.id)
+                )
+            ).one_or_none()
+            if row is None:
+                raise _not_accessible()
+            order, store = row
+            items = list(
+                (
+                    await self.session.scalars(
+                        select(OrderItem)
+                        .where(OrderItem.order_id == order.id)
+                        .order_by(OrderItem.id)
+                    )
+                ).all()
+            )
+            result = self._order_projection(order, store, items)
+            candidates = [
+                RefundEligibilityItemRequest(
+                    order_item_id=item.order_item_no,
+                    quantity=item.quantity - item.refunded_quantity,
+                )
+                for item in items
+                if item.refunded_quantity < item.quantity
+                and item.refunded_amount < item.payable_amount
+            ]
+            if candidates:
+                eligibility = await self.after_sale.eligibility(
+                    context.user,
+                    RefundEligibilityRequest(
+                        order_id=order.order_no,
+                        items=candidates,
+                        requested_type="refund_only",
+                        reason_code="OTHER",
+                    ),
+                )
+                result["refund_eligibility"] = eligibility.model_dump(
+                    mode="json", exclude={"eligibility_token", "expires_at"}
+                )
+            else:
+                result["refund_eligibility"] = {
+                    "eligible": False,
+                    "allowed_types": [],
+                    "blocking_reasons": ["REFUND_ITEM_CAPACITY_CHANGED"],
+                }
+            logistics = LogisticsService(
+                self.session,
+                self.security,
+                self.settings.security_hmac_secret.get_secret_value(),
+            )
+            result["shipments"] = (
+                await logistics.list_for_order(context.user, order_no)
+            ).model_dump(mode="json").get("items", [])
+            return result
+
+        return await self.execute(
+            context,
+            "after_sale.check_refund_eligibility",
+            {"order_id": order_no},
             handler,
         )
 
@@ -311,7 +448,13 @@ class ExclusiveToolGateway:
                     "product_name": item.product_name,
                     "sku_name": item.sku_name,
                     "quantity": item.quantity,
+                    # Keep both meanings explicit for model-grounded answers. A zero
+                    # refunded quantity means nothing has been refunded, not that no
+                    # quantity remains refundable.
                     "refunded_quantity": item.refunded_quantity,
+                    "remaining_refundable_quantity": max(
+                        0, item.quantity - item.refunded_quantity
+                    ),
                 }
                 for item in items
             ],
@@ -331,6 +474,113 @@ def _money_projection(minor_units: int, currency: str) -> dict[str, str]:
         "currency": normalized,
         "display": f"{symbol}{major_units}",
     }
+
+
+def _catalog_search_candidates(query: str | None) -> list[str | None]:
+    """Return bounded public-catalog queries from an untrusted natural sentence.
+
+    The LLM may return a whole instruction instead of the product phrase. We first
+    try the cleaned phrase, then its meaningful tokens. A truly broad listing
+    request is allowed to fall back to the public on-sale catalogue; a specific
+    nonexistent term is never silently replaced with every product.
+    """
+
+    raw = re.sub(r"\s+", " ", (query or "").strip())[:120]
+    if not raw:
+        return [None]
+    # Compatible providers sometimes retain requested output columns in
+    # `search_text`, such as "铅笔商品，列出商品名、店铺、价格和库存".
+    # Those columns are presentation instructions rather than catalog terms.
+    raw_search_phrase = re.split(
+        r"(?:[\uff0c,\uff1b;\u3002]\s*(?:请)?(?:列出|展示|显示|告诉我|说明)"
+        r"|(?:所有|全部)?款式(?:的)?(?:名称|名字|价格|库存))",
+        raw,
+        maxsplit=1,
+    )[0].strip()
+    cleaned = raw
+    for phrase in (
+        "请列出",
+        "请搜索",
+        "请查找",
+        "请告诉我",
+        "帮我列出",
+        "帮我搜索",
+        "告诉我",
+        "本店",
+        "并说明推荐依据",
+        "说明推荐依据",
+        "不要转人工",
+        "全平台当前在售的",
+        "全平台在售的",
+        "平台当前在售的",
+        "当前在售的",
+        "在售的",
+        "商品名、价格和店铺",
+        "商品名价格和店铺",
+    ):
+        cleaned = cleaned.replace(phrase, " ")
+    cleaned = re.sub(r"[\u3001\u3002\uff0c\uff01\uff1f,:;!?\uff08\uff09()\[\]{}]+", " ", cleaned)
+    cleaned = re.sub(r"\b(?:please|search|find|products?)\b", " ", cleaned, flags=re.I)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if raw_search_phrase != raw:
+        cleaned = raw_search_phrase
+        for phrase in (
+            "请列出",
+            "请搜索",
+            "请查找",
+            "请告诉我",
+            "帮我列出",
+            "帮我搜索",
+            "全平台当前在售的",
+            "全平台在售的",
+            "平台当前在售的",
+            "当前在售的",
+            "在售的",
+            "不要转人工",
+            "本店",
+        ):
+            cleaned = cleaned.replace(phrase, " ")
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if cleaned.endswith("商品") and len(cleaned) > 2:
+        cleaned = cleaned.removesuffix("商品").strip()
+    candidates: list[str | None] = []
+    generic_terms = {"", "商品", "在售", "全部", "所有", "在售商品", "全部商品", "所有商品"}
+    if cleaned and cleaned not in generic_terms:
+        candidates.append(cleaned[:120])
+        for token in cleaned.split():
+            token = token.strip()
+            if len(token) >= 2 and token not in {"商品", "在售", "当前", "平台"}:
+                candidates.append(token[:120])
+        # Chinese product names often interleave Latin model codes, for example
+        # `绿杆2B铅笔`.  A provider may keep or drop either side of that code, and
+        # a single SQL substring cannot match `2B书写铅笔`.  Script-boundary
+        # segments preserve meaningful terms without degrading a specific
+        # nonexistent query into an unrestricted catalogue listing.
+        for token in re.findall(r"[\u4e00-\u9fff]+|[A-Za-z0-9]+", cleaned):
+            if len(token) >= 2 and token not in {"商品", "在售", "当前", "平台"}:
+                candidates.append(token[:120])
+    broad = any(
+        marker in raw
+        for marker in ("全部商品", "所有商品", "当前在售", "平台在售", "全平台")
+    ) and cleaned in generic_terms
+    if broad or cleaned in generic_terms:
+        candidates.append(None)
+    result: list[str | None] = []
+    for candidate in candidates or [raw]:
+        if candidate not in result:
+            result.append(candidate)
+    return result[:6]
+
+
+def _combined_catalog_search_candidates(
+    query: str | None, fallback_query: str | None
+) -> list[str | None]:
+    result: list[str | None] = []
+    for source in (query, fallback_query):
+        for candidate in _catalog_search_candidates(source):
+            if candidate not in result:
+                result.append(candidate)
+    return result[:12]
 
 
 def _not_accessible() -> ApplicationError:

@@ -280,6 +280,8 @@ class OpenAICompatiblePlanner:
                         "否则不要使用姓名、昵称或亲昵称呼称呼用户。"
                         "订单商品中的 refunded_quantity 是已经退款的数量，"
                         "remaining_refundable_quantity 才是剩余可申请售后的数量，禁止混淆。"
+                        "库存回答必须使用 available_quantity 和 availability_label，"
+                        "不要输出 in_stock、out_of_stock、low_stock 等内部代码。"
                         "除非用户明确要求内部字段，否则状态只使用自然中文，"
                         "不要把 shipped、paid、refund_only 等内部代码附在回答中。"
                         "店铺名、商品名和款式名必须逐字使用证据值，禁止自行缩写或改名。"

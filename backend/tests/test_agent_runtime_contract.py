@@ -27,8 +27,12 @@ from app.modules.agent_runtime.operations_agent import (
 )
 from app.modules.agent_runtime.operations_context import TrustedOperationsContext
 from app.modules.agent_runtime.service import _normalize_context_snapshot
+from app.modules.agent_runtime.store_agent import _render as _render_store
 from app.modules.agent_runtime.store_context import STORE_AGENT_TOOL_CODES
-from app.modules.agent_runtime.store_tools import _contains_scope_override
+from app.modules.agent_runtime.store_tools import (
+    _contains_scope_override,
+    _product_match_score,
+)
 from app.modules.orders.models import OrderItem
 
 
@@ -274,6 +278,37 @@ async def test_exclusive_search_planner_extracts_public_catalog_query() -> None:
     plan = await DeterministicExclusiveModelGateway().plan("请帮我全平台搜索退款测试键盘")
     assert plan.intent == "product_search"
     assert plan.search_text == "退款测试键盘"
+
+
+def test_named_store_product_scores_above_stale_context_product() -> None:
+    question = "请告诉我本店绿杆2B铅笔所有款式的价格和实时可售库存"
+    assert _product_match_score(
+        question, "绿杆2B书写铅笔考试绘画专用高质顺滑不卡顿书写利器"
+    ) > _product_match_score(
+        question, "日本ZEBRA斑马笔芯CJK-0.5mm黑色按动笔芯"
+    )
+
+
+def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:
+    answer = _render_store(
+        SimpleNamespace(intent="inventory_lookup"),
+        {
+            "items": [
+                {
+                    "sku_name": "10支",
+                    "price": {
+                        "minor_units": "800",
+                        "currency": "CNY",
+                        "display": "¥8.00",
+                    },
+                    "available_quantity": 0,
+                    "availability_label": "缺货",
+                }
+            ]
+        },
+    )
+    assert "10支: ¥8.00，实时可售 0 件，缺货" in answer
+    assert "out_of_stock" not in answer
 
 
 def test_logistics_answer_uses_only_structured_absolute_service_estimate() -> None:

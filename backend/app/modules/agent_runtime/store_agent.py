@@ -118,7 +118,7 @@ async def process_store_run(
 
     tools = StoreToolGateway(session)
     try:
-        outcome = await _execute_plan(builder, tools, context, plan)
+        outcome = await _execute_plan(builder, tools, context, plan, trigger_text)
     except ApplicationError as exc:
         await _complete_message(
             session,
@@ -172,6 +172,7 @@ async def _execute_plan(
     tools: StoreToolGateway,
     context: TrustedStoreAgentContext,
     plan: StoreAgentPlan,
+    trigger_text: str,
 ) -> StoreToolResult:
     context.run.current_phase = "tool_call"
     context.run.version += 1
@@ -220,12 +221,19 @@ async def _execute_plan(
             return shipment_result
         summary.data["shipments"] = shipment_result.data.get("items", [])
         return summary
-    ref = await builder.require_active_context(context, "product")
+    resolution = await tools.resolve_product(context, trigger_text)
+    if resolution.status != "succeeded":
+        return resolution
+    resolved_product_no = resolution.data.get("product_id")
+    if isinstance(resolved_product_no, str):
+        product_no = resolved_product_no
+    else:
+        product_no = (await builder.require_active_context(context, "product")).resource_no
     if plan.intent == "sku_compare":
-        return await tools.compare_skus(context, ref.resource_no)
+        return await tools.compare_skus(context, product_no)
     if plan.intent == "inventory_lookup":
-        return await tools.inventory(context, ref.resource_no)
-    return await tools.product(context, ref.resource_no)
+        return await tools.inventory(context, product_no)
+    return await tools.product(context, product_no)
 
 
 async def _handoff_or_fallback(
@@ -464,7 +472,10 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
         for item in items[:4]:
             if isinstance(item, dict):
                 lines.append(
-                    f"- {item.get('sku_name', '规格')}: {item.get('availability', 'unknown')}"
+                    f"- {item.get('sku_name', '规格')}: "
+                    f"{_money_value(item.get('price'))}，"
+                    f"实时可售 {item.get('available_quantity', 0)} 件，"
+                    f"{item.get('availability_label', '库存暂不可用')}"
                 )
         return "\n".join(lines)
     if plan.intent == "sku_compare":

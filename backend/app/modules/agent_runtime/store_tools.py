@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -166,6 +167,56 @@ class StoreToolGateway:
             context, "catalog.get_product", {"product_id": product_no}, handler
         )
 
+    async def resolve_product(
+        self, context: TrustedStoreAgentContext, query: str
+    ) -> StoreToolResult:
+        """Resolve an explicitly named product without trusting stale page context.
+
+        Natural questions often name another product while the conversation still
+        carries an older product/order card.  Resolution is bounded to active
+        products in the current store and only succeeds for a unique fuzzy match.
+        """
+
+        async def handler() -> dict[str, object]:
+            products = list(
+                (
+                    await self.session.scalars(
+                        select(Product)
+                        .where(
+                            Product.store_id == context.store.id,
+                            Product.product_status == "on_sale",
+                        )
+                        .order_by(Product.id)
+                        .limit(100)
+                    )
+                ).all()
+            )
+            ranked = sorted(
+                (
+                    (_product_match_score(query, item.product_name), item)
+                    for item in products
+                ),
+                key=lambda pair: (pair[0], -pair[1].id),
+                reverse=True,
+            )
+            if not ranked or ranked[0][0] < 2:
+                return {"product_id": None, "matched_name": None, "match_score": 0}
+            if len(ranked) > 1 and ranked[1][0] == ranked[0][0]:
+                return {"product_id": None, "matched_name": None, "match_score": ranked[0][0]}
+            score, product = ranked[0]
+            return {
+                "product_id": product.product_no,
+                "matched_name": product.product_name,
+                "match_score": score,
+            }
+
+        return await self.execute(
+            context,
+            "catalog.search_store_products",
+            {"query": query[:120]},
+            handler,
+        )
+
     async def compare_skus(
         self,
         context: TrustedStoreAgentContext,
@@ -241,6 +292,9 @@ class StoreToolGateway:
                         "sku_id": sku.sku_no,
                         "sku_name": sku.sku_name,
                         "availability": _availability(inventory),
+                        "availability_label": _availability_label(inventory),
+                        "available_quantity": _available_quantity(inventory),
+                        "price": _money_projection(sku.sale_price_amount, sku.currency),
                         "as_of": inventory.updated_at if inventory else utc_now(),
                     }
                     for sku, inventory in rows
@@ -616,6 +670,44 @@ def _availability(item: Inventory | None) -> str:
     if available <= 5:
         return "low_stock"
     return "in_stock"
+
+
+def _available_quantity(item: Inventory | None) -> int:
+    if item is None or item.inventory_status != "active":
+        return 0
+    return max(
+        0,
+        item.on_hand_quantity - item.reserved_quantity - item.safety_stock_quantity,
+    )
+
+
+def _availability_label(item: Inventory | None) -> str:
+    return {
+        "unknown": "库存暂不可用",
+        "out_of_stock": "缺货",
+        "low_stock": "库存紧张",
+        "in_stock": "有货",
+    }[_availability(item)]
+
+
+def _money_projection(minor_units: int, currency: str) -> dict[str, str]:
+    normalized = currency.upper()
+    symbol = "¥" if normalized == "CNY" else f"{normalized} "
+    major_units = f"{minor_units / 100:.2f}"
+    return {
+        "minor_units": str(minor_units),
+        "major_units": major_units,
+        "currency": normalized,
+        "display": f"{symbol}{major_units}",
+    }
+
+
+def _product_match_score(query: str, product_name: str) -> int:
+    def bigrams(value: str) -> set[str]:
+        compact = re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", value.casefold())
+        return {compact[index : index + 2] for index in range(max(0, len(compact) - 1))}
+
+    return len(bigrams(query) & bigrams(product_name))
 
 
 _SCOPE_KEYS = frozenset({"userid", "userno", "storeid", "storeno", "conversationid", "contextid"})

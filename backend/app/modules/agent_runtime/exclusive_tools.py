@@ -14,6 +14,10 @@ from app.core.config import Settings
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
+from app.modules.after_sale.schemas import (
+    RefundEligibilityItemRequest,
+    RefundEligibilityRequest,
+)
 from app.modules.after_sale.service import AfterSaleService
 from app.modules.agent_runtime.exclusive_context import TrustedExclusiveAgentContext
 from app.modules.agent_runtime.models import AgentToolAudit
@@ -225,6 +229,75 @@ class ExclusiveToolGateway:
             context,
             "after_sale.get_user_refund_detail",
             {"refund_id": refund_no},
+            handler,
+        )
+
+    async def refund_precheck(
+        self, context: TrustedExclusiveAgentContext, order_no: str
+    ) -> StoreToolResult:
+        async def handler() -> dict[str, object]:
+            row = (
+                await self.session.execute(
+                    select(Order, Store)
+                    .join(Store, Store.id == Order.store_id)
+                    .where(Order.order_no == order_no, Order.user_id == context.user.id)
+                )
+            ).one_or_none()
+            if row is None:
+                raise _not_accessible()
+            order, store = row
+            items = list(
+                (
+                    await self.session.scalars(
+                        select(OrderItem)
+                        .where(OrderItem.order_id == order.id)
+                        .order_by(OrderItem.id)
+                    )
+                ).all()
+            )
+            result = self._order_projection(order, store, items)
+            candidates = [
+                RefundEligibilityItemRequest(
+                    order_item_id=item.order_item_no,
+                    quantity=item.quantity - item.refunded_quantity,
+                )
+                for item in items
+                if item.refunded_quantity < item.quantity
+                and item.refunded_amount < item.payable_amount
+            ]
+            if candidates:
+                eligibility = await self.after_sale.eligibility(
+                    context.user,
+                    RefundEligibilityRequest(
+                        order_id=order.order_no,
+                        items=candidates,
+                        requested_type="refund_only",
+                        reason_code="OTHER",
+                    ),
+                )
+                result["refund_eligibility"] = eligibility.model_dump(
+                    mode="json", exclude={"eligibility_token"}
+                )
+            else:
+                result["refund_eligibility"] = {
+                    "eligible": False,
+                    "allowed_types": [],
+                    "blocking_reasons": ["REFUND_ITEM_CAPACITY_CHANGED"],
+                }
+            logistics = LogisticsService(
+                self.session,
+                self.security,
+                self.settings.security_hmac_secret.get_secret_value(),
+            )
+            result["shipments"] = (
+                await logistics.list_for_order(context.user, order_no)
+            ).model_dump(mode="json").get("items", [])
+            return result
+
+        return await self.execute(
+            context,
+            "after_sale.check_refund_eligibility",
+            {"order_id": order_no},
             handler,
         )
 

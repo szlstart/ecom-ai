@@ -17,6 +17,7 @@ _INTENT_LABELS = {
     "personalized_recommendation": "结合已授权偏好筛选商品",
     "order_lookup": "查询本人订单",
     "logistics_lookup": "查询订单物流",
+    "refund_precheck": "只读检查售后资格",
     "refund_eligibility": "检查售后资格并准备草稿",
     "refund_progress": "查询售后处理进度",
     "human_handoff": "识别人工服务请求",

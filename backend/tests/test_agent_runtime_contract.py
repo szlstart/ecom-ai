@@ -157,6 +157,16 @@ async def test_natural_language_confirmation_cannot_become_an_approval_action() 
 
 
 @pytest.mark.asyncio
+async def test_refund_precheck_does_not_become_refund_draft() -> None:
+    gateway = DeterministicExclusiveModelGateway()
+    precheck = await gateway.plan("请检查这个订单是否具备退款资格，只做资格预检，不要提交")
+    application = await gateway.plan("我要申请退款，请为这个订单准备退款草稿")
+
+    assert precheck.intent == "refund_precheck"
+    assert application.intent == "refund_eligibility"
+
+
+@pytest.mark.asyncio
 async def test_greetings_remain_in_ai_conversation_instead_of_handoff() -> None:
     assert (await DeterministicExclusiveModelGateway().plan("hello")).intent == "general_chat"
     assert (await DeterministicStoreModelGateway().plan("你好")).intent == "general_chat"

@@ -39,6 +39,7 @@ EXCLUSIVE_INTENTS: tuple[ExclusiveIntent, ...] = (
     "personalized_recommendation",
     "order_lookup",
     "logistics_lookup",
+    "refund_precheck",
     "refund_eligibility",
     "refund_progress",
     "human_handoff",
@@ -76,7 +77,9 @@ Intent definitions and priority:
   ask for policy, product, order, logistics, refund, recommendation, or human support data.
 - refund_progress: asks about an existing refund/after-sale case status or arrival of
   refunded funds.
-- refund_eligibility: asks to start, apply for, or check eligibility for a refund/return.
+- refund_precheck: asks only whether an order/item is eligible for refund/return, especially
+  when the user says to check, precheck, or not submit anything.
+- refund_eligibility: asks to start, apply for, draft, or submit a refund/return request.
 - logistics_lookup: asks about parcel, courier, tracking, current package location,
   delivery progress,
   or estimated arrival; choose this even when the text also mentions an order.

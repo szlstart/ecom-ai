@@ -246,6 +246,14 @@ async def process_exclusive_run(
                 else (await builder.require_active_context(context, "order")).resource_no
             )
             result = await tools.shipments(context, order_no)
+        elif plan.intent == "refund_precheck":
+            explicit_order_no = _resource_no(trigger_text, "ord")
+            order_no = (
+                explicit_order_no
+                if explicit_order_no is not None
+                else (await builder.require_active_context(context, "order")).resource_no
+            )
+            result = await tools.refund_precheck(context, order_no)
         elif plan.intent == "refund_progress":
             explicit_refund_no = _resource_no(trigger_text, "ref")
             ref = context.context_refs.get("refund")
@@ -717,6 +725,7 @@ def _tool_for_intent(intent: str) -> str:
         "personalized_recommendation": "catalog.search_products",
         "order_lookup": "order.list_user_orders",
         "logistics_lookup": "logistics.get_user_order_shipments",
+        "refund_precheck": "after_sale.check_refund_eligibility",
         "refund_eligibility": "after_sale.build_refund_draft",
         "refund_progress": "after_sale.list_user_refunds",
     }.get(intent, "unknown")
@@ -787,6 +796,51 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
             for item in items
             if isinstance(item, dict)
         )
+    if plan.intent == "refund_precheck":
+        eligibility_value = data.get("refund_eligibility")
+        eligibility: Mapping[str, Any] = (
+            eligibility_value if isinstance(eligibility_value, Mapping) else {}
+        )
+        status_value = data.get("status")
+        order_status: Mapping[str, Any] = (
+            status_value if isinstance(status_value, Mapping) else {}
+        )
+        eligible = eligibility.get("eligible") is True
+        lines = [
+            f"订单 {data.get('order_id')} 当前订单状态为"
+            f"{_status_label('order', order_status.get('order'))}，支付"
+            f"{_status_label('payment', order_status.get('payment'))}，履约"
+            f"{_status_label('fulfillment', order_status.get('fulfillment'))}。",
+            "售后资格预检结果: " + ("当前具备申请资格。" if eligible else "当前不具备申请资格。"),
+        ]
+        suggested = eligibility.get("suggested_refund_amount")
+        if eligible and isinstance(suggested, Mapping):
+            lines.append(f"当前建议可申请金额为 {_money_object_display(suggested)}。")
+        allowed = eligibility.get("allowed_types")
+        if eligible and isinstance(allowed, list):
+            labels = {"refund_only": "仅退款", "return_and_refund": "退货退款"}
+            lines.append(
+                "可选类型: "
+                + "、".join(labels.get(str(value), str(value)) for value in allowed)
+                + "。"
+            )
+        blocking = eligibility.get("blocking_reasons")
+        if not eligible and isinstance(blocking, list) and blocking:
+            lines.append("阻断原因: " + "、".join(str(value) for value in blocking) + "。")
+        shipment_values = data.get("shipments")
+        shipments = shipment_values if isinstance(shipment_values, list) else []
+        if shipments and isinstance(shipments[0], Mapping):
+            latest = shipments[0]
+            lines.append(
+                "当前物流: "
+                f"{_status_label('shipment', latest.get('shipment_status'))}"
+                f"{_last_track_text(latest)}。"
+            )
+        lines.append(
+            "本次只完成资格检查，没有创建退款草稿或售后单。"
+            "如果你要继续申请，请明确告诉我申请类型、原因和数量。提交前仍需授权并再次确认。"
+        )
+        return "\n".join(lines)
     if plan.intent == "refund_progress":
         if "refund_id" in data:
             return f"售后单 {data.get('refund_id')} 当前状态: {data.get('refund_status')}。"
@@ -977,6 +1031,12 @@ def _price_display(price: Mapping[str, Any]) -> str:
     currency = str(price.get("currency") or "CNY").upper()
     symbol = "¥" if currency == "CNY" else f"{currency} "
     return f"{symbol}{int(price.get('min_amount', 0)) / 100:.2f}"
+
+
+def _money_object_display(money: Mapping[str, Any]) -> str:
+    currency = str(money.get("currency") or "CNY").upper()
+    symbol = "¥" if currency == "CNY" else f"{currency} "
+    return f"{symbol}{int(money.get('minor_units', 0)) / 100:.2f}"
 
 
 _STATUS_LABELS: dict[str, dict[str, str]] = {

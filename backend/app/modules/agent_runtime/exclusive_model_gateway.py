@@ -13,6 +13,7 @@ ExclusiveIntent = Literal[
     "personalized_recommendation",
     "order_lookup",
     "logistics_lookup",
+    "refund_precheck",
     "refund_eligibility",
     "refund_progress",
     "human_handoff",
@@ -36,6 +37,18 @@ class DeterministicExclusiveModelGateway:
             return ExclusiveAgentPlan("human_handoff")
         if _contains(text, "退款进度", "售后进度", "退款到哪", "退款状态"):
             return ExclusiveAgentPlan("refund_progress")
+        if _contains(
+            text,
+            "退款资格",
+            "售后资格",
+            "资格预检",
+            "能否退款",
+            "可以退款",
+            "是否能退款",
+            "是否可以退款",
+            "是否具备退款",
+        ):
+            return ExclusiveAgentPlan("refund_precheck")
         if _contains(text, "申请退款", "我要退款", "退货退款", "仅退款", "发起售后"):
             return ExclusiveAgentPlan("refund_eligibility")
         if _contains(text, "物流", "快递", "包裹", "到哪", "送达"):

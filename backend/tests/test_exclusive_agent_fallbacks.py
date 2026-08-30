@@ -67,6 +67,37 @@ def test_logistics_fallback_renders_tracking_location_and_localized_status() -> 
     assert "in_transit" not in rendered
 
 
+def test_refund_precheck_is_read_only_and_renders_exact_money() -> None:
+    rendered = _render(
+        ExclusiveAgentPlan("refund_precheck"),
+        {
+            "order_id": "ord_01M19K9GS9ZG90TSGAFJ3DPMNY",
+            "status": {
+                "order": "shipped",
+                "payment": "paid",
+                "fulfillment": "delivered",
+            },
+            "refund_eligibility": {
+                "eligible": True,
+                "suggested_refund_amount": {"minor_units": "600", "currency": "CNY"},
+                "allowed_types": ["refund_only", "return_and_refund"],
+                "blocking_reasons": [],
+            },
+            "shipments": [
+                {
+                    "shipment_status": "delivered",
+                    "last_track": {"description": "已签收", "location_text": "河滨嘉苑14-1"},
+                }
+            ],
+        },
+    )
+
+    assert "¥6.00" in rendered
+    assert "仅退款、退货退款" in rendered
+    assert "没有创建退款草稿或售后单" in rendered
+    assert "河滨嘉苑14-1" in rendered
+
+
 def test_multi_agent_fallback_flattens_metrics_and_provides_risk_advice() -> None:
     rendered = _render_multi_agent(
         {

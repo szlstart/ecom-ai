@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import partial
 
 import httpx
 import pytest
@@ -28,7 +29,9 @@ def test_tongyi_provider_uses_native_dashscope_multimodal_endpoint() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dashscope_provider_maps_native_response_by_index() -> None:
+async def test_dashscope_provider_maps_native_response_by_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     vector_a = [0.1] * 768
     vector_b = [0.2] * 768
 
@@ -60,20 +63,13 @@ async def test_dashscope_provider_maps_native_response_by_index() -> None:
     )
     transport = httpx.MockTransport(respond)
     original_client = httpx.AsyncClient
-
-    def mock_client(*args: object, **kwargs: object) -> httpx.AsyncClient:
-        kwargs["transport"] = transport
-        return original_client(*args, **kwargs)
-
     # The adapter owns its short-lived client; replace only construction for this contract test.
-    from app.modules.knowledge import embedding as embedding_module
-
-    monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setattr(embedding_module.httpx, "AsyncClient", mock_client)
-    try:
-        vectors = await provider.embed(["你好", "商品图片"])
-    finally:
-        monkeypatch.undo()
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        partial(original_client, transport=transport),
+    )
+    vectors = await provider.embed(["你好", "商品图片"])
     assert vectors == [vector_a, vector_b]
 
 

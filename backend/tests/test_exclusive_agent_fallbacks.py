@@ -145,7 +145,8 @@ def test_policy_fallback_selects_one_relevant_sentence_instead_of_dumping_chunks
     )
 
     assert rendered == (
-        "根据当前已发布平台规则\uff1a当前微信和支付宝充值只用于本地演示，"
+        "根据当前已发布平台规则\uff1a《支付、余额与模拟充值规则》\uff1a"
+        "当前微信和支付宝充值只用于本地演示，"
         "不会产生真实资金扣款。"
     )
     assert "物流" not in rendered

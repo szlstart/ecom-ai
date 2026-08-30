@@ -44,6 +44,7 @@ def concise_policy_answer(
     position = 0
     for raw_title, raw_content in sources:
         title = safe_untrusted_excerpt(raw_title, 160)
+        title = re.sub(r"^\[(?:系统|店铺)\]\s*", "", title)
         content = safe_untrusted_excerpt(raw_content, 1200)
         for raw_part in re.split(r"(?<=[\u3002\uff01\uff1f\uff1b])|\n+", content):
             # Indexed Markdown is whitespace-normalized, so a heading and its first

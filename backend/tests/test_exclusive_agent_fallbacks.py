@@ -126,7 +126,7 @@ def test_policy_fallback_selects_one_relevant_sentence_instead_of_dumping_chunks
         {
             "knowledge_sources": [
                 {
-                    "title": "支付、余额与模拟充值规则",
+                        "title": "[系统] 支付、余额与模拟充值规则",
                     "version": "v1",
                     "excerpt": (
                         "# 支付规则\n- 金额按分保存。\n"

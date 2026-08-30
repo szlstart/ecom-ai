@@ -94,6 +94,7 @@ watch(messages, (value) => emit('trace-update', value), { immediate: true })
 const conversationId = computed(() => props.conversationId || String(route.params.conversationId))
 const userAvatarUrl = computed(() => resolveApiAssetUrl(auth.user?.avatar_url ?? null) || null)
 const userAvatarLabel = computed(() => (auth.user?.username || '用').slice(0, 1).toUpperCase())
+const platformHuman = computed(() => conversation.value?.conversation_type === 'exclusive')
 const activeContext = computed(() => conversation.value?.active_contexts.find((item) => item.status === 'active') ?? null)
 const activeAfterSaleConsent = computed(() => agentConsents.value.find((item) => (
   item.consent_type === 'after_sale_write'
@@ -741,7 +742,7 @@ onBeforeUnmount(() => {
         <button v-if="previousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
         <p v-if="messages.length === 0 && pending.length === 0" class="conversation-welcome">{{ conversation?.conversation_type === 'exclusive' ? '您好，我是专属客服。您可以咨询平台规则、订单、物流和售后问题。' : '您好，请描述您想咨询的商品或订单问题。' }}</p>
         <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'system' ? 'system-message-row' : message.sender_type === 'user' ? 'mine' : 'theirs']">
-          <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' }" aria-hidden="true"><img v-if="message.sender_type === 'user' && userAvatarUrl" :src="userAvatarUrl" alt="" /><img v-else-if="message.sender_type === 'human' && storeLogoUrl" :src="storeLogoUrl" alt="" /><img v-else-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" />{{ message.sender_type === 'user' ? userAvatarUrl ? '' : userAvatarLabel : message.sender_type === 'agent' ? '' : storeLogoUrl ? '' : '店' }}</span>
+          <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' && !platformHuman, platform: message.sender_type === 'human' && platformHuman }" aria-hidden="true"><img v-if="message.sender_type === 'user' && userAvatarUrl" :src="userAvatarUrl" alt="" /><img v-else-if="message.sender_type === 'human' && !platformHuman && storeLogoUrl" :src="storeLogoUrl" alt="" /><img v-else-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" />{{ message.sender_type === 'user' ? userAvatarUrl ? '' : userAvatarLabel : message.sender_type === 'agent' ? '' : message.sender_type === 'human' && platformHuman ? '管' : storeLogoUrl ? '' : '店' }}</span>
           <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'system' ? 'system-message-bubble' : message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
           <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" />
           <section v-if="message.message_type === 'resolution_check'" class="resolution-check-actions">

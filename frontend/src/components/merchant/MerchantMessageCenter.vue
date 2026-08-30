@@ -94,11 +94,13 @@ function isRight(item: ChatMessage) {
 }
 function avatarLabel(item: ChatMessage): string {
   if (item.sender_type === 'agent') return '✦'
+  if (selectedKey.value === 'exclusive' && item.sender_type === 'human') return '管'
   if (item.sender_type === 'human' || (selectedKey.value === 'exclusive' && item.sender_type === 'user')) return resolvedStoreName.value.slice(0, 1) || '店'
   return '客'
 }
 function avatarUrl(item: ChatMessage): string | null {
   if (item.sender_type === 'agent') return '/ai-avatar.svg'
+  if (selectedKey.value === 'exclusive' && item.sender_type === 'human') return null
   if (selectedKey.value !== 'exclusive' && item.sender_type === 'user') {
     return resolveApiAssetUrl(activeConversation.value?.participant_avatar_url ?? null)
   }

@@ -539,6 +539,14 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
             token = token.strip()
             if len(token) >= 2 and token not in {"商品", "在售", "当前", "平台"}:
                 candidates.append(token[:120])
+        # Chinese product names often interleave Latin model codes, for example
+        # `绿杆2B铅笔`.  A provider may keep or drop either side of that code, and
+        # a single SQL substring cannot match `2B书写铅笔`.  Script-boundary
+        # segments preserve meaningful terms without degrading a specific
+        # nonexistent query into an unrestricted catalogue listing.
+        for token in re.findall(r"[\u4e00-\u9fff]+|[A-Za-z0-9]+", cleaned):
+            if len(token) >= 2 and token not in {"商品", "在售", "当前", "平台"}:
+                candidates.append(token[:120])
     broad = any(
         marker in raw
         for marker in ("全部商品", "所有商品", "当前在售", "平台在售", "全平台")

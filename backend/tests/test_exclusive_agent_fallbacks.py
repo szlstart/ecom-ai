@@ -41,9 +41,13 @@ def test_catalog_candidates_drop_trailing_presentation_columns() -> None:
 
 
 def test_catalog_candidates_extract_product_from_store_worded_follow_up() -> None:
-    assert _catalog_search_candidates(
+    candidates = _catalog_search_candidates(
         "请告诉我本店绿杆2B铅笔所有款式的名称、价格和实时可售库存，并说明10支款是否能买。不要转人工。"
-    )[0] == "绿杆2B铅笔"
+    )
+    assert candidates[0] == "绿杆2B铅笔"
+    assert "绿杆" in candidates
+    assert "2B" in candidates
+    assert "铅笔" in candidates
 
 
 def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:

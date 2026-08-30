@@ -125,7 +125,24 @@ class RealtimeOutboxRelay:
             "conversation_id": conversation.conversation_no,
             "run_id": run_id,
         }
-        if suffix == "delta":
+        if suffix == "started":
+            question = event.payload.get("question")
+            label = event.payload.get("label")
+            summary = event.payload.get("summary")
+            stage = event.payload.get("stage")
+            if not all(isinstance(item, str) for item in (question, label, summary, stage)):
+                raise ValueError("agent started event is invalid")
+            if len(str(question)) > 360 or len(str(label)) > 80 or len(str(summary)) > 500:
+                raise ValueError("agent started event exceeds public limits")
+            data.update(
+                {
+                    "question": str(question),
+                    "label": str(label),
+                    "summary": str(summary),
+                    "stage": str(stage),
+                }
+            )
+        elif suffix == "delta":
             chunk_index = event.payload.get("chunk_index")
             text_so_far = event.payload.get("text_so_far")
             if (
@@ -142,12 +159,15 @@ class RealtimeOutboxRelay:
             if not isinstance(message_id, str) or not message_id.startswith("msg_"):
                 raise ValueError("agent completed event has no valid message_id")
             data["message_id"] = message_id
-        return [
-            (
-                user_channel(self.settings.environment, user.user_no),
-                _frame(event, f"agent.response.{suffix}", data),
+        frame = _frame(event, f"agent.response.{suffix}", data)
+        dispatches = [(user_channel(self.settings.environment, user.user_no), frame)]
+        if conversation.store_id is not None:
+            dispatches.append(
+                (admin_store_channel(self.settings.environment, conversation.store_id), frame)
             )
-        ]
+        elif conversation.conversation_type == "exclusive":
+            dispatches.append((admin_platform_channel(self.settings.environment), frame))
+        return dispatches
 
     async def _message_dispatches(self, event: OutboxEvent) -> list[tuple[str, dict[str, object]]]:
         message_no = event.payload.get("message_id")

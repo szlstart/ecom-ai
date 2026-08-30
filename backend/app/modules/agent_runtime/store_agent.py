@@ -21,6 +21,7 @@ from app.modules.agent_runtime.model_gateway import (
 from app.modules.agent_runtime.models import AgentRun
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.agent_runtime.provider_gateway import ProviderStoreModelGateway
+from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
 from app.modules.agent_runtime.store_context import StoreContextBuilder, TrustedStoreAgentContext
 from app.modules.agent_runtime.store_tools import StoreToolGateway, StoreToolResult
 from app.modules.knowledge.service import KnowledgeService
@@ -265,6 +266,15 @@ async def _complete_message(
 ) -> None:
     now = utc_now()
     conversation = context.conversation
+    trace = ensure_public_trace(
+        execution_trace,
+        run_id=context.run.run_no,
+        agent="店铺客服",
+        model=context.agent_version.model_profile,
+        question=context.trigger.text_content,
+        data=data or {},
+        degraded_reason=degraded_reason,
+    )
     conversation.last_sequence_no += 1
     conversation.last_message_at = now
     conversation.version += 1
@@ -281,7 +291,7 @@ async def _complete_message(
             "run_id": context.run.run_no,
             "sources": _source_refs(data or {}),
             "data_scope": context.trusted_scope,
-            "execution_trace": dict(execution_trace or {}),
+            "execution_trace": trace,
         },
         agent_version_id=context.agent_version.id,
         ai_run_no=context.run.run_no,
@@ -388,24 +398,19 @@ async def _grounded_answer(
                 "omitted_count": int(window.get("omitted_count", 0)),
             },
         )
-    trace: dict[str, object] = {
-        "version": "public-agent-trace-v1",
-        "run_id": context.run.run_no,
-        "agent": "店铺客服",
-        "model": context.agent_version.model_profile,
-        "status": "completed",
-        "intent": plan.intent,
-        "steps": steps,
-        "source_ids": list(source_ids),
-        "raw_reasoning_exposed": False,
-    }
+    trace = public_trace(
+        run_id=context.run.run_no,
+        agent="店铺客服",
+        model=context.agent_version.model_profile,
+        question=context.trigger.text_content,
+        intent=plan.intent,
+        data=data,
+        steps=steps,
+        source_ids=source_ids,
+        tool_code=tool_code,
+    )
     if not isinstance(gateway, ProviderStoreModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
-        return fallback, trace
-    if plan.intent == "general_chat":
-        trace["answer_mode"] = "model_routed_safe_reply"
-        trace["confidence"] = "high"
-        trace["cited_source_ids"] = list(source_ids)
         return fallback, trace
     context.run.current_phase = "answering"
     context.run.version += 1
@@ -572,20 +577,7 @@ def _stream_events(
         "conversation_id": context.conversation.conversation_no,
         "run_id": context.run.run_no,
     }
-    events = [
-        OutboxEvent(
-            event_no=new_prefixed_ulid("evt_"),
-            event_type="agent.response.started.v1",
-            aggregate_type="conversation",
-            aggregate_no=context.conversation.conversation_no,
-            aggregate_version=context.conversation.version,
-            payload={**common, "chunk_index": 0},
-            event_status="pending",
-            available_at=now,
-            attempt_count=0,
-            trace_id=context.run.trace_id,
-        )
-    ]
+    events: list[OutboxEvent] = []
     for index, end in enumerate(range(160, len(text) + 160, 160), start=1):
         events.append(
             OutboxEvent(

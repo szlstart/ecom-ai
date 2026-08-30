@@ -48,12 +48,12 @@ async function loginAdministrator(page: Page, username: string) {
 }
 
 async function expectTrace(page: Page) {
-  const trace = page.getByRole('complementary', { name: 'AI 工作过程' })
-  await expect(trace.getByText('AI 工作过程', { exact: true })).toBeVisible()
+  const trace = page.getByRole('complementary', { name: 'AI 思考过程' })
+  await expect(trace.getByText('思考过程', { exact: true })).toBeVisible()
   await expect(trace.getByText('已完成', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
   await expect.poll(() => trace.locator('.agent-trace-steps details').count()).toBeGreaterThan(0)
   expect(await trace.locator('.agent-trace-steps details').evaluateAll((items) => items.every((item) => !(item as HTMLDetailsElement).open))).toBe(true)
-  await expect(trace).toContainText('这里展示可核验的工作摘要')
+  await expect(trace).toContainText('可核验思考摘要、工具和知识检索动作')
   await expect(trace).not.toContainText(/原始思维链：|执行时间线|运行编号|可信来源|隐私保护|Kimi 意图路由/)
 }
 

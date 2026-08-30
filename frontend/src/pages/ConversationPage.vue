@@ -18,7 +18,7 @@ import {
   type AgentToolApproval,
   type AiMemoryItem,
 } from '@/api/agent-runtime'
-import { RealtimeConnection, type RealtimeEvent } from '@/api/realtime'
+import { RealtimeConnection, type AgentLiveTrace, type RealtimeEvent } from '@/api/realtime'
 import {
   createClientMessageId,
   cancelHumanServiceTicket,
@@ -50,6 +50,7 @@ const emit = defineEmits<{
   'trace-update': [messages: ChatMessage[]]
   'trace-select': [runId: string | null]
   'trace-running': [running: boolean]
+  'trace-progress': [trace: AgentLiveTrace | null]
 }>()
 
 const route = useRoute()
@@ -429,6 +430,13 @@ async function handleRealtime(event: RealtimeEvent) {
   if (event.type === 'agent.response.started') {
     const runId = event.data.run_id
     if (typeof runId === 'string') streamingReply.value = { runId, text: '', chunkIndex: 0 }
+    if (typeof runId === 'string') emit('trace-progress', {
+      runId,
+      question: String(event.data.question ?? ''),
+      stage: String(event.data.stage ?? 'understanding'),
+      label: String(event.data.label ?? '思考开始'),
+      summary: String(event.data.summary ?? '正在理解问题并核对可用权限。'),
+    })
     emit('trace-running', true)
     return
   }
@@ -445,6 +453,7 @@ async function handleRealtime(event: RealtimeEvent) {
   if (event.type === 'agent.response.completed') {
     if (streamingReply.value?.runId === event.data.run_id) streamingReply.value = null
     emit('trace-running', false)
+    emit('trace-progress', null)
     return
   }
   if (event.type === 'message.created') {
@@ -646,7 +655,7 @@ function onlineChanged() {
 }
 
 watch(draft, persistDraft)
-watch(conversationId, async () => { pending.value = []; streamingReply.value = null; emit('trace-running', false); newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; selectedTraceRunId.value = null; attachmentOpen.value = false; emit('trace-select', null); await load() })
+watch(conversationId, async () => { pending.value = []; streamingReply.value = null; emit('trace-running', false); emit('trace-progress', null); newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; selectedTraceRunId.value = null; attachmentOpen.value = false; emit('trace-select', null); await load() })
 onMounted(async () => {
   await load()
   realtime = new RealtimeConnection({
@@ -749,8 +758,8 @@ onBeforeUnmount(() => {
         <div v-for="item in pending" :key="item.clientMessageId" class="message-row mine"><span class="message-avatar" aria-hidden="true"><img v-if="userAvatarUrl" :src="userAvatarUrl" alt="" /><template v-else>{{ userAvatarLabel }}</template></span><article class="message-bubble mine pending-message">
           <p>{{ item.text }}</p><small v-if="item.status === 'sending'">正在发送…</small><small v-else-if="item.status === 'recovering'">连接短暂中断，正在自动重试…</small><small v-else-if="item.status === 'blocked'" class="error-text">内容未通过安全检查，请修改后重新发送。</small><button v-else type="button" class="small danger" @click="retry(item)">发送失败，重试</button>
         </article></div>
-        <div v-if="streamingReply" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true">✦</span><article class="message-bubble theirs agent-stream" aria-live="polite">
-          <p>{{ streamingReply.text || '正在思考…' }}</p><small>正在生成回复…</small>
+        <div v-if="streamingReply?.text" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true">✦</span><article class="message-bubble theirs agent-stream" aria-live="polite">
+          <p>{{ streamingReply.text }}</p><small>正在生成回复…</small>
         </article></div>
       </div>
       <button v-if="newBelowCount" type="button" class="new-message-button" @click="scrollToBottom">有 {{ newBelowCount }} 条新消息</button>

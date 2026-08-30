@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from typing import cast
+
 import pytest
 from sqlalchemy import String, UniqueConstraint
 
@@ -16,7 +19,11 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
 )
 from app.modules.agent_runtime.model_gateway import DeterministicStoreModelGateway
-from app.modules.agent_runtime.operations_agent import _operations_small_talk_reply
+from app.modules.agent_runtime.operations_agent import (
+    TrustedOperationsContext,
+    _operations_small_talk_reply,
+    _render,
+)
 from app.modules.agent_runtime.service import _normalize_context_snapshot
 from app.modules.agent_runtime.store_context import STORE_AGENT_TOOL_CODES
 from app.modules.agent_runtime.store_tools import _contains_scope_override
@@ -178,6 +185,22 @@ def test_operations_agents_have_distinct_small_talk_responses() -> None:
     assert admin is not None and "超级管理员 AI 管家" in admin
     assert schedule is not None and "请帮我转人工客服" in schedule
     assert _operations_small_talk_reply("查看今天的订单", "merchant") is None
+
+
+def test_operations_fallback_never_renders_private_conversation_window() -> None:
+    context = cast(TrustedOperationsContext, SimpleNamespace(audience="merchant"))
+    answer = _render(
+        context,
+        "overview",
+        {
+            "store": {"name": "测试店铺"},
+            "conversation_window": {"recent_turns": ["不应展示的历史消息"]},
+        },
+    )
+
+    assert "测试店铺" in answer
+    assert "conversation_window" not in answer
+    assert "不应展示的历史消息" not in answer
 
 
 @pytest.mark.asyncio

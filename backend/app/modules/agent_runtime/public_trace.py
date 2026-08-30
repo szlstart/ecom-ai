@@ -41,10 +41,13 @@ def public_question(value: object) -> str:
 
 
 def result_count(data: Mapping[str, Any]) -> int:
+    counts: list[int] = []
     for key in ("items", "specialists", "knowledge_sources", "shipments"):
         value = data.get(key)
         if isinstance(value, list):
-            return len(value)
+            counts.append(len(value))
+    if counts:
+        return max(counts)
     return 1 if data else 0
 
 

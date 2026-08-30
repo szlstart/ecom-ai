@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import cast
 
-from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
+from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace, result_count
+
+
+def test_result_count_does_not_hide_rag_sources_behind_an_empty_items_list() -> None:
+    assert result_count({"items": [], "knowledge_sources": [{"document_id": "kdoc_1"}]}) == 1
 
 
 def test_public_trace_explains_question_actions_and_result_without_private_reasoning() -> None:

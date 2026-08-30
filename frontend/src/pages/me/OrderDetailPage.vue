@@ -6,6 +6,7 @@ import { formatMoney } from '@/api/catalog'
 import { getCart } from '@/api/cart'
 import { errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { ensureStoreConversation, setConversationContext } from '@/api/messaging'
+import { listOrderShipments } from '@/api/logistics'
 import { cancelOrder, confirmOrderReceipt, getMyOrder, hideOrder, repurchaseOrder, restoreOrder, type OrderAction, type OrderDetail, type OrderHideResult } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
 import OrderProductEntry from '@/components/OrderProductEntry.vue'
@@ -13,6 +14,7 @@ import OrderLogisticsDialog from '@/components/OrderLogisticsDialog.vue'
 import { confirmAction, promptAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { formatChinaRegion } from '@/utils/china-regions'
+import { userOrderStatusLabel } from '@/utils/order-status'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,17 +26,19 @@ const message = ref('')
 const busy = ref(false)
 const hidden = ref<OrderHideResult | null>(null)
 const logisticsOrderId = ref<string | null>(null)
+const shipmentStatus = ref('')
 
 function token(): string {
   if (!auth.accessToken) throw new Error('missing user token')
   return auth.accessToken
 }
-function statusLabel(status: string): string {
+function statusLabel(status: string, currentShipment = true): string {
+  if (currentShipment && status === 'shipped' && shipmentStatus.value === 'delivered') return userOrderStatusLabel(status, shipmentStatus.value)
   return ({ pending_payment: '等待付款', paid: '已支付', pending_shipment: '商家正在备货', shipped: '商品运输中', completed: '订单已完成', cancelled: '订单已取消', closed: '订单已关闭', unpaid: '未付款', unfulfilled: '未履约', none: '无售后' } as Record<string, string>)[status] ?? status
 }
 function eventLabel(code: string, target: string): string {
-  if (code === 'order.created') return `订单已创建：${statusLabel(target)}`
-  return `${code}：${statusLabel(target)}`
+  if (code === 'order.created') return `订单已创建：${statusLabel(target, false)}`
+  return `${code}：${statusLabel(target, false)}`
 }
 function actionLabel(code: string): string {
   return ({ pay: '去支付', cancel_order: '取消订单', apply_after_sale: '申请售后', view_after_sale: '查看售后', view_logistics: '查看物流', review: '评价', delete_order: '删除订单', confirm_receipt: '确认收货', contact_store: '联系商家', repurchase: '再次购买' } as Record<string, string>)[code] ?? code
@@ -45,7 +49,16 @@ function dateTime(value: string): string {
 async function load() {
   loading.value = true
   error.value = ''
-  try { order.value = (await getMyOrder(String(route.params.orderId), token())).data }
+  try {
+    order.value = (await getMyOrder(String(route.params.orderId), token())).data
+    if (order.value.order_status === 'shipped') {
+      try {
+        const response = await listOrderShipments(order.value.order_id, token())
+        const statuses = response.data.items.map((shipment) => shipment.shipment_status)
+        shipmentStatus.value = statuses.includes('delivered') ? 'delivered' : statuses[0] ?? ''
+      } catch { shipmentStatus.value = '' }
+    }
+  }
   catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
 }

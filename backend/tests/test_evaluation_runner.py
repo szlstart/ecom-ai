@@ -106,6 +106,21 @@ def test_multi_agent_requires_pre_registered_significant_gain() -> None:
     assert "significant_quality_gain_not_proven" in report["reasons"]
 
 
+def test_release_gate_requires_minimum_absolute_candidate_quality() -> None:
+    dataset = load_dataset(ROOT / "eval/golden.json")
+    rows = tuple(
+        PairedObservation(
+            case.case_id,
+            _observation(passed=False),
+            _observation(passed=index >= 3),
+        )
+        for index, case in enumerate(dataset.cases)
+    )
+    report = evaluate(dataset, rows)
+    assert report["release_gate"] == "insufficient_evidence"
+    assert "candidate_quality_below_minimum" in report["reasons"]
+
+
 def test_observation_artifact_must_match_dataset_hash(tmp_path: Path) -> None:
     dataset = load_dataset(ROOT / "eval/golden.json")
     artifact = tmp_path / "observations.json"

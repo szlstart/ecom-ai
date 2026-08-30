@@ -28,7 +28,7 @@ async def run() -> None:
         while not stopping.is_set():
             processed = False
             async for session in mysql_session():
-                processed = await EvaluationProcessor(session).process_one()
+                processed = await EvaluationProcessor(session, settings).process_one()
             if processed:
                 continue
             try:

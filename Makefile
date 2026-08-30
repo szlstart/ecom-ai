@@ -161,7 +161,7 @@ release-preflight:
 
 collect-agent-observations:
 	mkdir -p artifacts/acceptance/current/agent
-	PYTHONPATH=backend $(PYTHON) scripts/collect-agent-observations.py eval/release-holdout-v2.json --output artifacts/acceptance/current/agent/live-observations.json $(if $(filter 1,$(REFRESH)),--refresh,)
+	PYTHONPATH=backend $(PYTHON) scripts/collect-agent-observations.py eval/release-holdout-v2.json --output artifacts/acceptance/current/agent/live-observations.json $(if $(filter 1,$(REFRESH)),--refresh,) $(if $(filter 1,$(REFRESH_CANDIDATE)),--refresh-candidate,)
 
 evaluate-agent:
 	mkdir -p artifacts/acceptance/current/agent

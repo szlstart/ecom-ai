@@ -52,6 +52,9 @@ class PairedObservation:
 @dataclass(frozen=True)
 class ReleasePolicy:
     minimum_cases: int = 30
+    minimum_candidate_pass_rate: float = 0.95
+    minimum_tool_accuracy: float = 0.95
+    minimum_citation_accuracy: float = 0.95
     non_inferiority_margin: float = 0.01
     maximum_latency_ratio: float = 1.15
     maximum_cost_ratio: float = 1.15
@@ -95,6 +98,12 @@ def load_dataset(path: Path) -> DatasetManifest:
 
 def load_observations(path: Path, dataset: DatasetManifest) -> tuple[PairedObservation, ...]:
     raw = json.loads(path.read_text(encoding="utf-8"))
+    return parse_observations(raw, dataset)
+
+
+def parse_observations(
+    raw: object, dataset: DatasetManifest
+) -> tuple[PairedObservation, ...]:
     if not isinstance(raw, dict) or raw.get("dataset_sha256") != dataset.sha256:
         raise ValueError("observation artifact does not match the immutable dataset hash")
     rows = raw.get("observations")
@@ -142,6 +151,19 @@ def evaluate(
 
     baseline_rate = _rate(row.baseline.passed for row in observations)
     candidate_rate = _rate(row.candidate.passed for row in observations)
+    candidate_tool_accuracy = _rate(row.candidate.tool_correct for row in observations)
+    candidate_citation_accuracy = _optional_rate(
+        row.candidate.citation_correct for row in observations
+    )
+    if candidate_rate < policy.minimum_candidate_pass_rate:
+        reasons.append("candidate_quality_below_minimum")
+    if candidate_tool_accuracy < policy.minimum_tool_accuracy:
+        reasons.append("candidate_tool_accuracy_below_minimum")
+    if (
+        candidate_citation_accuracy is not None
+        and candidate_citation_accuracy < policy.minimum_citation_accuracy
+    ):
+        reasons.append("candidate_citation_accuracy_below_minimum")
     delta = candidate_rate - baseline_rate
     if delta < -policy.non_inferiority_margin:
         reasons.append("candidate_quality_regression")
@@ -185,10 +207,8 @@ def evaluate(
         "baseline_average_cost_usd": baseline_cost,
         "candidate_average_cost_usd": candidate_cost,
         "cost_ratio": cost_ratio,
-        "candidate_tool_accuracy": _rate(row.candidate.tool_correct for row in observations),
-        "candidate_citation_accuracy": _optional_rate(
-            row.candidate.citation_correct for row in observations
-        ),
+        "candidate_tool_accuracy": candidate_tool_accuracy,
+        "candidate_citation_accuracy": candidate_citation_accuracy,
     }
     report["family_counts"] = dict(sorted(Counter(case.family for case in dataset.cases).items()))
     return report

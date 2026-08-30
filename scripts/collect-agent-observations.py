@@ -10,7 +10,13 @@ from app.modules.evaluation.collector import LiveModelObservationCollector
 from app.modules.evaluation.runner import load_dataset
 
 
-async def collect(dataset: Path, output: Path, concurrency: int, refresh: bool) -> None:
+async def collect(
+    dataset: Path,
+    output: Path,
+    concurrency: int,
+    refresh: bool,
+    refresh_candidate: bool,
+) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     manifest = load_dataset(dataset)
     existing: list[dict[str, object]] = []
@@ -27,7 +33,12 @@ async def collect(dataset: Path, output: Path, concurrency: int, refresh: bool) 
 
     artifact = await LiveModelObservationCollector(
         get_settings(), concurrency=concurrency
-    ).collect(dataset, existing_observations=existing, on_checkpoint=checkpoint)
+    ).collect(
+        dataset,
+        existing_observations=existing,
+        refresh_candidate=refresh_candidate,
+        on_checkpoint=checkpoint,
+    )
     output.write_text(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(
         f"Collected {len(artifact['observations'])} paired live-model observations "
@@ -41,8 +52,17 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--concurrency", type=int, default=1, choices=range(1, 9))
     parser.add_argument("--refresh", action="store_true")
+    parser.add_argument("--refresh-candidate", action="store_true")
     args = parser.parse_args()
-    asyncio.run(collect(args.dataset, args.output, args.concurrency, args.refresh))
+    asyncio.run(
+        collect(
+            args.dataset,
+            args.output,
+            args.concurrency,
+            args.refresh,
+            args.refresh_candidate,
+        )
+    )
 
 
 if __name__ == "__main__":

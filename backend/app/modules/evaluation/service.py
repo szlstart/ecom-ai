@@ -22,6 +22,10 @@ DATASET_MANIFEST = load_dataset(DATASET_PATH)
 DATASET_SHA256 = DATASET_MANIFEST.sha256
 DATASET_CASE_COUNT = len(DATASET_MANIFEST.cases)
 DATASET_VERSION = DATASET_MANIFEST.version
+BASELINE_TYPE = "prompt"
+BASELINE_VERSION = "ecom-safe-router-v1"
+CANDIDATE_TYPE = "prompt"
+CANDIDATE_VERSION = "ecom-safe-router-v2"
 
 
 class EvaluationService:
@@ -44,6 +48,20 @@ class EvaluationService:
         access.require_scope("platform", 0)
         if payload.dataset_version != DATASET_VERSION:
             raise ValueError("evaluation dataset version is not active")
+        if (
+            payload.baseline_type,
+            payload.baseline_version,
+            payload.candidate_type,
+            payload.candidate_version,
+        ) != (BASELINE_TYPE, BASELINE_VERSION, CANDIDATE_TYPE, CANDIDATE_VERSION):
+            from app.core.exceptions import ApplicationError
+
+            raise ApplicationError(
+                status=422,
+                code="AI_EVALUATION_TARGET_UNSUPPORTED",
+                title="Unsupported evaluation target",
+                detail="当前只允许评估已登记的生产基线与候选策略。",
+            )
         evaluation_no = new_prefixed_ulid("evr_")
         trace_id = request_id_context.get() or new_prefixed_ulid("req_")
         row = AiEvaluationRun(

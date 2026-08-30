@@ -164,4 +164,7 @@ def test_multi_agent_fallback_flattens_metrics_and_provides_risk_advice() -> Non
     assert "user_status_counts.active=3" in rendered
     assert "pending_outbox_events=2" in rendered
     assert "风险" in rendered
-    assert "建议" in rendered
+    assert "上线前建议" in rendered
+    assert "1. " in rendered
+    assert "2. " in rendered
+    assert "3. " in rendered

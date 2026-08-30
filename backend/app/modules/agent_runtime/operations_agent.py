@@ -682,10 +682,16 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
         risks.append("平台当前没有在售商品")
     if risks:
         lines.append("风险: " + "；".join(risks) + "。")  # noqa: RUF001
-        lines.append("建议: 优先处理积压或失败项，处理后重新执行只读诊断确认恢复。")
     else:
         lines.append("风险: 当前汇总未发现 Outbox 积压、Agent 失败或无在售商品风险。")
-        lines.append("建议: 继续监控订单履约、库存和 Worker 连续失败指标，并按告警阈值处置。")
+    lines.extend(
+        [
+            "上线前建议:",
+            "1. 逐项定位 Agent 失败运行和死信事件，修复后重新执行同一只读诊断确认归零。",
+            "2. 持续核对订单履约、库存和 Outbox 消费延迟，并按连续失败阈值触发告警。",
+            "3. 上线前完成用户、店铺、订单与 AI 权限回归, 所有治理写操作仍由管理员在业务页面确认。",
+        ]
+    )
     lines.append("以上仅为当前授权范围内的实时汇总，本次没有修改任何业务数据。")
     return "\n".join(lines)
 

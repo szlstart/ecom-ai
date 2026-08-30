@@ -336,6 +336,10 @@ def test_grounded_answer_guard_removes_only_invented_leading_name() -> None:
     assert _strip_untrusted_user_salutation("刀根据当前数据，运行正常。") == (
         "根据当前数据，运行正常。"
     )
+    assert _strip_untrusted_user_salutation("刀锋绿杆铅笔有 3 个款式。") == (
+        "绿杆铅笔有 3 个款式。"
+    )
+    assert _strip_untrusted_user_salutation("刀刀，订单已签收。") == "订单已签收。"
 
 
 def test_compatible_json_parser_repairs_only_controls_inside_strings() -> None:

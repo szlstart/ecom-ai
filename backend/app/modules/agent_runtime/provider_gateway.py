@@ -275,6 +275,8 @@ class OpenAICompatiblePlanner:
                         "例如 600 分是 ¥6.00，"
                         "绝不能回答成 600 元。除非可信证据中存在明确的 user_display_name 字段，"
                         "否则不要使用姓名、昵称或亲昵称呼称呼用户。"
+                        "用户询问款式、参数、状态或规则条目时，必须逐项保留证据中的精确值，"
+                        "不能用笼统总结替代用户明确要求的字段。"
                         "cited_source_ids 只能选择 ALLOWED_SOURCE_IDS 中的值。"
                     ),
                 },
@@ -918,6 +920,7 @@ def _strip_untrusted_user_salutation(answer: str) -> str:
         "",
         answer,
     )
+    cleaned = re.sub(r"^(?:刀锋|刀刀)[\uFF0C,\uFF1A:\s]*", "", cleaned)
     cleaned = re.sub(r"^刀(?=(?:根据|平台|您好|你好|当前|您的|本店|已))", "", cleaned)
     return cleaned or answer
 

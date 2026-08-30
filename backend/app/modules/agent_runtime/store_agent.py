@@ -550,6 +550,12 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
                     f"{safe_untrusted_excerpt(item.get('value', '未提供'), 300)}"
                     f"{safe_untrusted_excerpt(item.get('unit') or '', 30)}"
                 )
+    skus = data.get("skus")
+    if isinstance(skus, list) and skus:
+        lines.append("可选款式:")
+        for item in skus[:20]:
+            if isinstance(item, dict):
+                lines.append(f"- {safe_untrusted_excerpt(item.get('sku_name'), 120)}")
     faqs = data.get("faqs")
     if isinstance(faqs, list) and faqs and isinstance(faqs[0], dict):
         lines.append(f"店铺 FAQ: {safe_untrusted_excerpt(faqs[0].get('answer'), 500)}")

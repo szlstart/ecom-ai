@@ -94,6 +94,19 @@ class StoreToolGateway:
                 raise _not_accessible()
             product, _store = row
             attributes = await self.catalog.product_attributes(product.id)
+            skus = list(
+                (
+                    await self.session.scalars(
+                        select(ProductSku)
+                        .where(
+                            ProductSku.product_id == product.id,
+                            ProductSku.store_id == context.store.id,
+                            ProductSku.sku_status == "active",
+                        )
+                        .order_by(ProductSku.id)
+                    )
+                ).all()
+            )
             content = await self.catalog.published_content(product)
             faqs = await self.catalog.public_faqs(product.id)
             fulfillment = await self.catalog.fulfillment_profile(product.id)
@@ -109,6 +122,14 @@ class StoreToolGateway:
                     "currency": product.currency,
                 },
                 "attributes": [_attribute(item) for item in attributes],
+                "skus": [
+                    {
+                        "sku_id": sku.sku_no,
+                        "sku_name": sku.sku_name,
+                        "specifications": sku.spec_values,
+                    }
+                    for sku in skus[:20]
+                ],
                 "safe_detail_text": content.safe_text[:6000] if content else None,
                 "faqs": [
                     {

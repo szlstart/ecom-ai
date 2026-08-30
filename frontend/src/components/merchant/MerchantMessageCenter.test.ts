@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   listSupportConversations: vi.fn(),
   getMerchantExclusiveConversation: vi.fn(),
   listMerchantExclusiveMessages: vi.fn(),
+  putMerchantExclusiveReadCursor: vi.fn(),
   realtimeOptions: null as null | { onEvent: (event: Record<string, unknown>) => void },
 }))
 
@@ -23,6 +24,7 @@ vi.mock('@/api/merchant-support', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/api/merchant-support')>(),
   getMerchantExclusiveConversation: mocks.getMerchantExclusiveConversation,
   listMerchantExclusiveMessages: mocks.listMerchantExclusiveMessages,
+  putMerchantExclusiveReadCursor: mocks.putMerchantExclusiveReadCursor,
 }))
 
 vi.mock('@/api/realtime', () => ({
@@ -45,6 +47,7 @@ const conversation = {
 describe('MerchantMessageCenter', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(0); return 1 })
     mocks.realtimeOptions = null
     mocks.listSupportConversations.mockResolvedValue({ data: { items: [conversation] } })
@@ -52,6 +55,7 @@ describe('MerchantMessageCenter', () => {
       data: { conversation_id: 'conv_exclusive', unread_count: 3 },
     })
     mocks.listMerchantExclusiveMessages.mockResolvedValue({ data: { items: [] } })
+    mocks.putMerchantExclusiveReadCursor.mockResolvedValue({ data: { unread_count: 0 } })
   })
 
   it('shows true unread totals without shaking on the initial load, then shakes for an incoming message', async () => {
@@ -79,5 +83,31 @@ describe('MerchantMessageCenter', () => {
     })
     await wrapper.vm.$nextTick()
     expect(trigger.classes()).toContain('message-arrival-shake')
+  })
+
+  it('marks the visible exclusive conversation read in the standalone workspace', async () => {
+    mocks.listMerchantExclusiveMessages.mockResolvedValue({
+      data: { items: [{ message_id: 'msg_ai', sequence_no: 3, sender_type: 'agent' }] },
+    })
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAdminAuthStore().accessToken = 'merchant-token'
+    const router = createRouter({ history: createMemoryHistory(), routes: [
+      { path: '/', component: { template: '<div />' } },
+      { path: '/merchant/messages', component: { template: '<div />' } },
+    ] })
+    await router.push('/merchant/messages')
+    await router.isReady()
+    const wrapper = mount(MerchantMessageCenter, {
+      props: { standalone: true },
+      global: { plugins: [pinia, router], stubs: { Teleport: true } },
+    })
+    await flushPromises()
+
+    expect(mocks.putMerchantExclusiveReadCursor).toHaveBeenCalledWith(
+      expect.objectContaining({ message_id: 'msg_ai' }),
+      'merchant-token',
+    )
+    expect(wrapper.text()).not.toContain('3 条未读')
   })
 })

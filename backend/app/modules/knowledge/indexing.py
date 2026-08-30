@@ -14,6 +14,7 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
 from app.modules.agent_runtime.prompt_safety import safe_untrusted_excerpt
 from app.modules.knowledge.embedding import (
+    DisabledEmbeddingProvider,
     EmbeddingProvider,
     EmbeddingUnavailable,
     vector_literal,
@@ -171,6 +172,8 @@ async def run_index_job(
     try:
         embeddings: list[list[float] | None] = list(await embedder.embed(chunks))
     except (EmbeddingUnavailable, httpx.HTTPError):
+        if not isinstance(embedder, DisabledEmbeddingProvider):
+            raise
         embeddings = [None] * len(chunks)
     for index, chunk in enumerate(chunks):
         embedding = embeddings[index]

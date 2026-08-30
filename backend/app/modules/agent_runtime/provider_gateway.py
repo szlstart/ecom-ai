@@ -111,6 +111,8 @@ def model_failure_code(exc: Exception, stage: str) -> str:
             reason = "schema_invalid"
         elif "unsupported" in message:
             reason = "intent_invalid"
+        elif "scope mismatch" in message:
+            reason = "scope_mismatch"
         else:
             reason = "provider_invalid_response"
     return f"{stage}_model_{reason}"[:64]
@@ -325,6 +327,14 @@ class OpenAICompatiblePlanner:
             confidence=str(confidence),
             limitation=limitation,
         )
+        platform_admin_scope = intent == "complex_platform_diagnosis" or any(
+            source_id.startswith(("tool:governance.", "tool:observability."))
+            for source_id in source_ids
+        )
+        if platform_admin_scope and any(
+            phrase in grounded.text for phrase in ("您的店铺", "您的商铺", "您本店")
+        ):
+            raise ModelGatewayError("model answer scope mismatch")
         if not await self._verify_grounding(
             user_text=user_text,
             evidence_json=evidence_json,
@@ -482,7 +492,7 @@ class OpenAICompatiblePlanner:
             content = body["choices"][0]["message"]["content"]
             if not isinstance(content, str):
                 raise TypeError("model content is not a JSON string")
-            result = json.loads(content)
+            result = _loads_model_json(content)
             if not isinstance(result, dict):
                 raise TypeError("model plan is not an object")
             return result
@@ -908,4 +918,42 @@ def _strip_untrusted_user_salutation(answer: str) -> str:
         "",
         answer,
     )
+    cleaned = re.sub(r"^刀(?=(?:根据|平台|您好|你好|当前|您的|本店|已))", "", cleaned)
     return cleaned or answer
+
+
+def _loads_model_json(content: str) -> dict[str, Any]:
+    """Parse compatible-provider JSON while repairing raw controls inside strings.
+
+    Some OpenAI-compatible endpoints return an otherwise valid JSON object with
+    literal newlines inside a string even under JSON-schema mode. We only escape
+    forbidden control characters while already inside a quoted string; object
+    shape and all security checks remain server-validated afterwards.
+    """
+
+    value = content.strip()
+    if value.startswith("```"):
+        value = re.sub(r"^```(?:json)?\s*", "", value, count=1, flags=re.I)
+        value = re.sub(r"\s*```$", "", value, count=1)
+    try:
+        loaded = json.loads(value)
+    except json.JSONDecodeError:
+        repaired: list[str] = []
+        inside_string = False
+        escaped = False
+        for character in value:
+            if inside_string and ord(character) < 0x20:
+                repaired.append(json.dumps(character)[1:-1])
+                escaped = False
+                continue
+            repaired.append(character)
+            if escaped:
+                escaped = False
+            elif character == "\\" and inside_string:
+                escaped = True
+            elif character == '"':
+                inside_string = not inside_string
+        loaded = json.loads("".join(repaired))
+    if not isinstance(loaded, dict):
+        raise TypeError("model response is not an object")
+    return loaded

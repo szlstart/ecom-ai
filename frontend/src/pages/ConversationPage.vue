@@ -267,7 +267,17 @@ function mergeMessages(incoming: ChatMessage[], shouldScroll: boolean) {
   messages.value = [...messages.value, ...additions].sort((left, right) => left.sequence_no - right.sequence_no)
   void refreshApprovals(additions)
   if (!shouldScroll) newBelowCount.value += additions.filter((item) => item.sender_type !== 'user').length
-  void nextTick(() => { observeRenderedMessages(); if (shouldScroll) scrollToBottom() })
+  const visibleIncomingSequence = shouldScroll && document.visibilityState === 'visible'
+    ? Math.max(0, ...additions.filter((item) => item.sender_type !== 'user').map((item) => item.sequence_no))
+    : 0
+  void nextTick(() => {
+    observeRenderedMessages()
+    if (shouldScroll) scrollToBottom()
+    if (visibleIncomingSequence > readTarget) {
+      readTarget = visibleIncomingSequence
+      void flushRead()
+    }
+  })
 }
 async function refreshAgentConsents() {
   agentConsents.value = (await listAgentConsents(token())).data.items

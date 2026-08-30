@@ -342,6 +342,7 @@ def test_grounded_answer_guard_removes_only_invented_leading_name() -> None:
         "绿杆铅笔有 3 个款式。"
     )
     assert _strip_untrusted_user_salutation("刀刀，订单已签收。") == "订单已签收。"
+    assert _strip_untrusted_user_salutation("刀最近的订单如下\uff1a") == "最近的订单如下\uff1a"
 
 
 def test_compatible_json_parser_repairs_only_controls_inside_strings() -> None:

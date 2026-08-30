@@ -34,6 +34,12 @@ def test_catalog_candidates_allow_only_genuinely_broad_catalog_fallback() -> Non
     assert _catalog_search_candidates("不存在的独角兽水杯") == ["不存在的独角兽水杯"]
 
 
+def test_catalog_candidates_drop_trailing_presentation_columns() -> None:
+    assert _catalog_search_candidates(
+        "请搜索当前在售的铅笔商品，列出商品名、店铺、价格和实时可售库存，不要转人工。"
+    )[0] == "铅笔"
+
+
 def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:
     rendered = _render(
         ExclusiveAgentPlan("personalized_recommendation"),

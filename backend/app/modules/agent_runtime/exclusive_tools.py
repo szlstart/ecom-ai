@@ -476,6 +476,14 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
     raw = re.sub(r"\s+", " ", (query or "").strip())[:120]
     if not raw:
         return [None]
+    # Compatible providers sometimes retain requested output columns in
+    # `search_text`, such as "铅笔商品，列出商品名、店铺、价格和库存".
+    # Those columns are presentation instructions rather than catalog terms.
+    raw_search_phrase = re.split(
+        r"[\uff0c,\uff1b;\u3002]\s*(?:请)?(?:列出|展示|显示|告诉我|说明)",
+        raw,
+        maxsplit=1,
+    )[0].strip()
     cleaned = raw
     for phrase in (
         "请列出",
@@ -499,6 +507,23 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
     cleaned = re.sub(r"[\u3001\u3002\uff0c\uff01\uff1f,:;!?\uff08\uff09()\[\]{}]+", " ", cleaned)
     cleaned = re.sub(r"\b(?:please|search|find|products?)\b", " ", cleaned, flags=re.I)
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if raw_search_phrase != raw:
+        cleaned = raw_search_phrase
+        for phrase in (
+            "请列出",
+            "请搜索",
+            "请查找",
+            "帮我列出",
+            "帮我搜索",
+            "全平台当前在售的",
+            "全平台在售的",
+            "平台当前在售的",
+            "当前在售的",
+            "在售的",
+            "不要转人工",
+        ):
+            cleaned = cleaned.replace(phrase, " ")
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
     if cleaned.endswith("商品") and len(cleaned) > 2:
         cleaned = cleaned.removesuffix("商品").strip()
     candidates: list[str | None] = []

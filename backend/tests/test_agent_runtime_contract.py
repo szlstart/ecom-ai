@@ -288,6 +288,11 @@ def test_named_store_product_scores_above_stale_context_product() -> None:
         question, "日本ZEBRA斑马笔芯CJK-0.5mm黑色按动笔芯"
     )
 
+    assert _product_match_score(question, "绿杆2B铅笔", ["6支", "8支", "10支"]) > 0
+    assert _product_match_score("6支装现在能买吗", "绿杆2B铅笔", ["6支"]) > (
+        _product_match_score("6支装现在能买吗", "斑马笔芯", ["10支黑色", "10支蓝色"])
+    )
+
 
 def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:
     answer = _render_store(

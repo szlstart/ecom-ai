@@ -191,9 +191,37 @@ class StoreToolGateway:
                     )
                 ).all()
             )
+            product_ids = [item.id for item in products]
+            skus = (
+                list(
+                    (
+                        await self.session.scalars(
+                            select(ProductSku)
+                            .where(
+                                ProductSku.product_id.in_(product_ids),
+                                ProductSku.store_id == context.store.id,
+                                ProductSku.sku_status == "active",
+                            )
+                            .order_by(ProductSku.id)
+                        )
+                    ).all()
+                )
+                if product_ids
+                else []
+            )
+            aliases_by_product: dict[int, list[str]] = {}
+            for sku in skus:
+                aliases_by_product.setdefault(sku.product_id, []).append(sku.sku_name)
             ranked = sorted(
                 (
-                    (_product_match_score(query, item.product_name), item)
+                    (
+                        _product_match_score(
+                            query,
+                            item.product_name,
+                            aliases_by_product.get(item.id, []),
+                        ),
+                        item,
+                    )
                     for item in products
                 ),
                 key=lambda pair: (pair[0], -pair[1].id),
@@ -702,12 +730,29 @@ def _money_projection(minor_units: int, currency: str) -> dict[str, str]:
     }
 
 
-def _product_match_score(query: str, product_name: str) -> int:
-    def bigrams(value: str) -> set[str]:
-        compact = re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", value.casefold())
-        return {compact[index : index + 2] for index in range(max(0, len(compact) - 1))}
+def _product_match_score(
+    query: str,
+    product_name: str,
+    aliases: list[str] | None = None,
+) -> int:
+    def compact(value: str) -> str:
+        return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", value.casefold())
 
-    return len(bigrams(query) & bigrams(product_name))
+    def bigrams(value: str) -> set[str]:
+        compacted = compact(value)
+        return {
+            compacted[index : index + 2]
+            for index in range(max(0, len(compacted) - 1))
+        }
+
+    query_compact = compact(query)
+    labels = [product_name, *(aliases or [])]
+    score = len(bigrams(query) & set().union(*(bigrams(item) for item in labels)))
+    for alias in aliases or []:
+        normalized_alias = compact(alias)
+        if len(normalized_alias) >= 2 and normalized_alias in query_compact:
+            score += max(3, min(8, len(normalized_alias)))
+    return score
 
 
 _SCOPE_KEYS = frozenset({"userid", "userno", "storeid", "storeno", "conversationid", "contextid"})

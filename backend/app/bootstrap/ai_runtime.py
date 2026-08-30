@@ -319,7 +319,7 @@ async def _seed_agents(
             )
             session.add(definition)
             await session.flush()
-        target_version_no = 2 if item.code == "admin_copilot" else 1
+        target_version_no = 2 if item.code in {"merchant_copilot", "admin_copilot"} else 1
         version = await session.scalar(
             select(AgentVersion).where(
                 AgentVersion.agent_id == definition.id,
@@ -333,7 +333,13 @@ async def _seed_agents(
             policy_config: dict[str, object] = {
                 "prompt_version": "safe-agent-v1",
                 "max_tool_calls": 6,
-                "max_delegations": 4 if item.code == "admin_copilot" else 0,
+                "max_delegations": (
+                    4
+                    if item.code == "admin_copilot"
+                    else 3
+                    if item.code == "merchant_copilot"
+                    else 0
+                ),
                 "max_delegation_depth": 1,
                 "raw_chain_of_thought_exposed": False,
             }
@@ -342,6 +348,14 @@ async def _seed_agents(
                     "enabled": True,
                     "evaluation_report_id": "eval_admin_multi_agent_v1",
                     "approved_intents": ["complex_platform_diagnosis"],
+                    "max_parallel": 3,
+                    "read_only": True,
+                }
+            elif item.code == "merchant_copilot":
+                policy_config["multi_agent"] = {
+                    "enabled": True,
+                    "evaluation_report_id": "eval_merchant_multi_agent_v1",
+                    "approved_intents": ["complex_store_diagnosis"],
                     "max_parallel": 3,
                     "read_only": True,
                 }

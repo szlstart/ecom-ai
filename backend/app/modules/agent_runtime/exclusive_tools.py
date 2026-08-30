@@ -436,7 +436,13 @@ class ExclusiveToolGateway:
                     "product_name": item.product_name,
                     "sku_name": item.sku_name,
                     "quantity": item.quantity,
+                    # Keep both meanings explicit for model-grounded answers. A zero
+                    # refunded quantity means nothing has been refunded, not that no
+                    # quantity remains refundable.
                     "refunded_quantity": item.refunded_quantity,
+                    "remaining_refundable_quantity": max(
+                        0, item.quantity - item.refunded_quantity
+                    ),
                 }
                 for item in items
             ],

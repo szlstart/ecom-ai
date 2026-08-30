@@ -138,6 +138,8 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
             )
         schema = payload["response_format"]["json_schema"]["schema"]
         assert "600 分是 ¥6.00" in payload["messages"][0]["content"]
+        assert "remaining_refundable_quantity" in payload["messages"][0]["content"]
+        assert "不要把 shipped" in payload["messages"][0]["content"]
         assert schema["additionalProperties"] is False
         assert schema["properties"]["cited_source_ids"]["items"]["enum"] == ["prd_public"]
         return httpx.Response(

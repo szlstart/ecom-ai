@@ -7,7 +7,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM nginxinc/nginx-unprivileged:1.29.3-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.31.4-alpine AS runtime
 ARG BUILD_SHA=development
 LABEL org.opencontainers.image.revision="$BUILD_SHA"
 USER root

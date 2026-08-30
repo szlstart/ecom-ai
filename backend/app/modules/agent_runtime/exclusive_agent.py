@@ -635,7 +635,7 @@ async def _grounded_answer(
     elif not source_ids:
         source_ids = (f"tool:{tool_code}",)
     steps: list[dict[str, object]] = [
-        {"kind": "plan", "label": "理解当前消息", "status": "completed"},
+        {"kind": "plan", "label": "分析用户诉求", "status": "completed"},
     ]
     if plan.intent != "general_chat":
         steps.append(
@@ -646,7 +646,7 @@ async def _grounded_answer(
                 "status": "completed",
             }
         )
-    steps.append({"kind": "answer", "label": "生成安全回复", "status": "completed"})
+    steps.append({"kind": "answer", "label": "核验依据并组织答复", "status": "completed"})
     if isinstance(data.get("rag"), dict):
         rag = data["rag"]
         steps.insert(
@@ -676,7 +676,7 @@ async def _grounded_answer(
             1,
             {
                 "kind": "context",
-                "label": "重建最近对话上下文",
+                "label": "读取最近会话",
                 "status": "completed",
                 "message_count": int(window.get("included_count", 0)),
                 "omitted_count": int(window.get("omitted_count", 0)),

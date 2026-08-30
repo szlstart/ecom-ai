@@ -87,6 +87,8 @@ const memoryBusy = ref<string | null>(null)
 const resolutionBusy = ref<string | null>(null)
 watch(messages, (value) => emit('trace-update', value), { immediate: true })
 const conversationId = computed(() => props.conversationId || String(route.params.conversationId))
+const userAvatarUrl = computed(() => resolveApiAssetUrl(auth.user?.avatar_url ?? null) || null)
+const userAvatarLabel = computed(() => (auth.user?.username || '用').slice(0, 1).toUpperCase())
 const activeContext = computed(() => conversation.value?.active_contexts.find((item) => item.status === 'active') ?? null)
 const activeAfterSaleConsent = computed(() => agentConsents.value.find((item) => (
   item.consent_type === 'after_sale_write'
@@ -527,8 +529,8 @@ async function openAttachments() {
   error.value = ''
   try {
     const [products, orders] = await Promise.all([
-      getStoreProducts(conversation.value.store_id, { limit: 100 }, token()),
-      listMyOrders({ view: 'all', limit: 100 }, token()),
+      getStoreProducts(conversation.value.store_id, { limit: 50 }, token()),
+      listMyOrders({ view: 'all', limit: 50 }, token()),
     ])
     attachmentProducts.value = products.data.items.map(pickerProduct)
     attachmentOrders.value = orders.data.items.filter((item) => item.store.store_id === conversation.value?.store_id && item.order_status !== 'cancelled').map(pickerOrder)
@@ -708,7 +710,7 @@ onBeforeUnmount(() => {
         <button v-if="previousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
         <p v-if="messages.length === 0 && pending.length === 0" class="conversation-welcome">{{ conversation?.conversation_type === 'exclusive' ? '您好，我是专属客服。您可以咨询平台规则、订单、物流和售后问题。' : '您好，请描述您想咨询的商品或订单问题。' }}</p>
         <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'system' ? 'system-message-row' : message.sender_type === 'user' ? 'mine' : 'theirs']">
-          <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' }" aria-hidden="true"><img v-if="message.sender_type === 'human' && storeLogoUrl" :src="storeLogoUrl" alt="" />{{ message.sender_type === 'user' ? '👤' : message.sender_type === 'agent' ? '✦' : storeLogoUrl ? '' : '店' }}</span>
+          <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' }" aria-hidden="true"><img v-if="message.sender_type === 'user' && userAvatarUrl" :src="userAvatarUrl" alt="" /><img v-else-if="message.sender_type === 'human' && storeLogoUrl" :src="storeLogoUrl" alt="" />{{ message.sender_type === 'user' ? userAvatarUrl ? '' : userAvatarLabel : message.sender_type === 'agent' ? '✦' : storeLogoUrl ? '' : '店' }}</span>
           <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'system' ? 'system-message-bubble' : message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
           <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" />
           <section v-if="message.message_type === 'resolution_check'" class="resolution-check-actions">
@@ -744,7 +746,7 @@ onBeforeUnmount(() => {
           <small v-if="message.sender_type !== 'system'"><time :datetime="message.sent_at">{{ timeLabel(message.sent_at) }}</time></small>
           </article>
         </div>
-        <div v-for="item in pending" :key="item.clientMessageId" class="message-row mine"><span class="message-avatar" aria-hidden="true">👤</span><article class="message-bubble mine pending-message">
+        <div v-for="item in pending" :key="item.clientMessageId" class="message-row mine"><span class="message-avatar" aria-hidden="true"><img v-if="userAvatarUrl" :src="userAvatarUrl" alt="" /><template v-else>{{ userAvatarLabel }}</template></span><article class="message-bubble mine pending-message">
           <p>{{ item.text }}</p><small v-if="item.status === 'sending'">正在发送…</small><small v-else-if="item.status === 'recovering'">连接短暂中断，正在自动重试…</small><small v-else-if="item.status === 'blocked'" class="error-text">内容未通过安全检查，请修改后重新发送。</small><button v-else type="button" class="small danger" @click="retry(item)">发送失败，重试</button>
         </article></div>
         <div v-if="streamingReply" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true">✦</span><article class="message-bubble theirs agent-stream" aria-live="polite">
@@ -753,7 +755,7 @@ onBeforeUnmount(() => {
       </div>
       <button v-if="newBelowCount" type="button" class="new-message-button" @click="scrollToBottom">有 {{ newBelowCount }} 条新消息</button>
     </PageState>
-    <form class="message-composer rich-message-composer" @submit.prevent="send">
+    <form class="message-composer rich-message-composer unified-chat-composer" :class="{ 'without-attachments': !conversation?.store_id }" @submit.prevent="send">
       <button v-if="conversation?.store_id" type="button" class="message-plus-button" aria-label="发送商品或订单" title="发送商品或订单" @click="openAttachments">＋</button>
       <label><span class="sr-only">输入消息</span><textarea v-model="draft" maxlength="4000" placeholder="输入消息…" required @keydown.enter.exact.prevent="send" /></label>
       <button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button>

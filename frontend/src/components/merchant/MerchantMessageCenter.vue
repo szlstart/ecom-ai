@@ -94,6 +94,9 @@ function avatarLabel(item: ChatMessage): string {
   return '客'
 }
 function avatarUrl(item: ChatMessage): string | null {
+  if (selectedKey.value !== 'exclusive' && item.sender_type === 'user') {
+    return resolveApiAssetUrl(activeConversation.value?.participant_avatar_url ?? null)
+  }
   return item.sender_type === 'human' || (selectedKey.value === 'exclusive' && item.sender_type === 'user')
     ? resolveApiAssetUrl(resolvedStoreLogo.value)
     : null
@@ -335,7 +338,7 @@ onBeforeUnmount(() => {
           </button>
           <p v-if="!conversations.length" class="merchant-chat-empty">暂时没有顾客咨询</p>
           <button v-for="item in conversations" :key="item.conversation_id" class="merchant-chat-item" :class="{ active: selectedKey === item.conversation_id }" type="button" @click="selectConversation(item.conversation_id)">
-            <span class="merchant-chat-avatar">客</span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? statusLabel(item.active_ticket_status || '') : 'AI 接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><i v-if="item.unread_count" class="merchant-chat-unread" :class="{ neutral: !item.requires_human }">{{ item.unread_count > 99 ? '99+' : item.unread_count }}</i>
+            <span class="merchant-chat-avatar"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) || '客' }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? statusLabel(item.active_ticket_status || '') : 'AI 接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><i v-if="item.unread_count" class="merchant-chat-unread" :class="{ neutral: !item.requires_human }">{{ item.unread_count > 99 ? '99+' : item.unread_count }}</i>
           </button>
         </aside>
         <main class="merchant-chat-main">
@@ -347,7 +350,7 @@ onBeforeUnmount(() => {
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>
             <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isRight(item), system: item.sender_type === 'system', 'trace-selectable': traceRunId(item), 'trace-selected': traceRunId(item) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(item) || selectedTraceRunId"><span v-if="item.sender_type !== 'system'" class="merchant-chat-avatar" :class="{ platform: item.sender_type === 'agent' }"><img v-if="avatarUrl(item)" :src="avatarUrl(item)!" alt="" />{{ avatarUrl(item) ? '' : avatarLabel(item) }}</span><div class="merchant-chat-bubble"><ChatMessageContent :message="item" audience="merchant" /><time v-if="item.sender_type !== 'system'">{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
           </div>
-          <form class="merchant-chat-composer" @submit.prevent="send"><div class="merchant-composer-input"><button v-if="selectedKey !== 'exclusive'" type="button" class="message-plus-button" :disabled="!canReply" aria-label="发送本店商品" title="发送本店商品" @click="openAttachments">＋</button><textarea v-model="draft" rows="3" maxlength="4000" :disabled="selectedKey !== 'exclusive' && !canReply" :placeholder="selectedKey === 'exclusive' ? '向专属客服描述经营问题…' : canReply ? '回复顾客…' : 'AI 正在接待；转人工后可在这里回复'" @keydown.enter.exact.prevent="send" /></div><footer><small>{{ selectedKey === 'exclusive' || canReply ? 'Enter 发送 · Shift + Enter 换行' : '输入区始终保留；AI 转人工后即可回复' }}</small><button :disabled="sending || !draft.trim() || (selectedKey !== 'exclusive' && !canReply)">{{ sending ? '发送中…' : '发送' }}</button></footer></form>
+          <form class="merchant-chat-composer unified-chat-composer" :class="{ 'without-attachments': selectedKey === 'exclusive' }" @submit.prevent="send"><button v-if="selectedKey !== 'exclusive'" type="button" class="message-plus-button" :disabled="!canReply" aria-label="发送本店商品" title="发送本店商品" @click="openAttachments">＋</button><textarea v-model="draft" rows="3" maxlength="4000" :disabled="selectedKey !== 'exclusive' && !canReply" :placeholder="selectedKey === 'exclusive' ? '向专属客服描述经营问题…' : canReply ? '回复顾客…' : 'AI 正在接待；转人工后可在这里回复'" @keydown.enter.exact.prevent="send" /><button class="unified-chat-send" :disabled="sending || !draft.trim() || (selectedKey !== 'exclusive' && !canReply)">{{ sending ? '发送中…' : '发送' }}</button><small>{{ selectedKey === 'exclusive' || canReply ? 'Enter 发送 · Shift + Enter 换行' : '输入区始终保留；AI 转人工后即可回复' }}</small></form>
         </main>
         <AgentTracePanel :messages="activeMessages" :selected-run-id="selectedTraceRunId" :running="traceRunning" title="AI 工作过程" />
       </section>

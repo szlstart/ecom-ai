@@ -117,6 +117,33 @@ class SupportService:
                 else []
             )
         }
+        avatar_keys: set[str] = set()
+        for _conversation, user, _store, _ticket, kind, _preview in classified:
+            merchant_store = merchant_stores.get(user.id)
+            object_key = (
+                merchant_store.logo_object_key
+                if kind == "merchant" and merchant_store is not None
+                else user.avatar_object_key
+            )
+            if object_key:
+                avatar_keys.add(object_key)
+        avatar_files = {
+            item.object_key: item
+            for item in (
+                (
+                    await self.session.scalars(
+                        select(FileObject).where(
+                            FileObject.object_key.in_(avatar_keys),
+                            FileObject.file_status == "active",
+                            FileObject.scan_status == "safe",
+                            FileObject.visibility == "public_derivative",
+                        )
+                    )
+                ).all()
+                if avatar_keys
+                else []
+            )
+        }
         assignee_ids = {
             row[3].current_assignee_user_id
             for row in classified
@@ -140,6 +167,9 @@ class SupportService:
                     participant_type=cast(Literal["user", "merchant"], kind),
                     participant_id=user.user_no,
                     participant_name=_participant_name(user, merchant_stores.get(user.id), kind),
+                    participant_avatar_url=_participant_avatar_url(
+                        user, merchant_stores.get(user.id), kind, avatar_files
+                    ),
                     store_id=_operator_store_no(store, merchant_stores.get(user.id)),
                     conversation_status=cast(
                         Literal["active", "human_pending", "human_active", "closed"],
@@ -1247,6 +1277,21 @@ def _participant_name(user: User, merchant_store: Store | None, kind: str) -> st
     if kind == "merchant" and merchant_store is not None:
         return merchant_store.store_name
     return user.nickname or user.username
+
+
+def _participant_avatar_url(
+    user: User,
+    merchant_store: Store | None,
+    kind: str,
+    avatar_files: dict[str, FileObject],
+) -> str | None:
+    object_key = (
+        merchant_store.logo_object_key
+        if kind == "merchant" and merchant_store is not None
+        else user.avatar_object_key
+    )
+    avatar = avatar_files.get(object_key or "")
+    return f"/api/v1/files/{avatar.file_no}" if avatar is not None else None
 
 
 def _operator_store_no(

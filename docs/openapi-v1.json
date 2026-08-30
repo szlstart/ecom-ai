@@ -42877,6 +42877,18 @@
               }
             ],
             "title": "Email"
+          },
+          "avatar_file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar File Id"
           }
         },
         "additionalProperties": false,
@@ -42920,6 +42932,17 @@
           "currency": {
             "type": "string",
             "title": "Currency"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
           }
         },
         "additionalProperties": false,
@@ -42930,7 +42953,8 @@
           "current_email",
           "presence_status",
           "balance_minor",
-          "currency"
+          "currency",
+          "avatar_url"
         ],
         "title": "AdminUserWorkspace"
       },
@@ -56656,6 +56680,17 @@
             "type": "string",
             "title": "Participant Name"
           },
+          "participant_avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Avatar Url"
+          },
           "store_id": {
             "anyOf": [
               {
@@ -56759,6 +56794,7 @@
           "participant_type",
           "participant_id",
           "participant_name",
+          "participant_avatar_url",
           "store_id",
           "conversation_status",
           "last_message_preview",

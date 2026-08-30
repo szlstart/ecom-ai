@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
 import { adminCommand, adminGet, adminUpdate, requireAdminToken, type AdminStore } from '@/api/admin-catalog'
-import { apiRequest, errorMessage } from '@/api/http'
+import { apiRequest, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import PageState from '@/components/PageState.vue'
 import { confirmAction } from '@/composables/confirmation'
@@ -34,6 +34,8 @@ const logoPasteError = ref('')
 const logoPasteNotice = ref('')
 const profile = reactive({ store_name: '', description: '', logo_file_id: '' })
 const account = reactive({ current_email: '', new_email: '', current_password: '', new_password: '' })
+const storeAvatarUrl = computed(() => resolveApiAssetUrl(store.value?.logo_url ?? null) || null)
+const storeAvatarLabel = computed(() => (profile.store_name || store.value?.store_name || '店').slice(0, 1))
 
 function token() { return requireAdminToken(auth.accessToken) }
 function money(value?: Money) { return `¥${(Number(value?.minor_units ?? 0) / 100).toFixed(2)}` }
@@ -173,7 +175,7 @@ onMounted(load)
     <PageState :loading="loading" :error="error" :empty="!loading && !store" empty-title="账号尚未绑定店铺" @retry="load">
       <template v-if="store">
         <div class="merchant-store-settings">
-          <form class="card" @submit.prevent="save"><h2>基础资料</h2><label>店铺名称<input v-model.trim="profile.store_name" required minlength="2" maxlength="128" /></label><small>名称不能与其他店铺重复，可随时修改。保存后，用户端商品、收藏和历史订单中的店铺名会同步显示最新名称。</small><label>店铺简介<textarea v-model.trim="profile.description" maxlength="2000" rows="8" placeholder="介绍你的店铺、品牌理念和主营商品" /></label><div class="merchant-logo-paste-zone" :class="{ focused: logoPasteFocused, busy: logoPasteBusy }" tabindex="0" role="button" aria-label="店铺 Logo 粘贴上传区" @focus="logoPasteFocused = true" @blur="logoPasteFocused = false" @paste="pasteLogo"><strong>{{ logoPasteBusy ? '正在读取、扫描并上传 Logo…' : '更换店铺 Logo' }}</strong><p>可从本地选择文件；也可先复制图片，点击这里后按 Command + V（macOS）或 Ctrl + V（Windows）粘贴。</p><AdminFileUpload ref="logoUpload" purpose="store_logo" :business-context-id="store.store_id" label="从本地选择 Logo" @uploaded="logoUploaded" /></div><small v-if="logoPasteNotice" class="success-text" role="status">{{ logoPasteNotice }}</small><small v-if="logoPasteError" class="error-text" role="alert">{{ logoPasteError }}</small><button :disabled="saving || logoPasteBusy">{{ saving ? '正在保存…' : '保存店铺资料' }}</button></form>
+          <form class="card" @submit.prevent="save"><h2>基础资料</h2><div class="merchant-store-avatar-heading"><span><img v-if="storeAvatarUrl" :src="storeAvatarUrl" alt="店铺头像" /><template v-else>{{ storeAvatarLabel }}</template></span><div><strong>店铺头像 / Logo</strong><small>会显示在店铺页、商品卡片与消息气泡中；未上传时使用店铺名首字。</small></div></div><label>店铺名称<input v-model.trim="profile.store_name" required minlength="2" maxlength="128" /></label><small>名称不能与其他店铺重复，可随时修改。保存后，用户端商品、收藏和历史订单中的店铺名会同步显示最新名称。</small><label>店铺简介<textarea v-model.trim="profile.description" maxlength="2000" rows="8" placeholder="介绍你的店铺、品牌理念和主营商品" /></label><div class="merchant-logo-paste-zone" :class="{ focused: logoPasteFocused, busy: logoPasteBusy }" tabindex="0" role="button" aria-label="店铺头像粘贴上传区" @focus="logoPasteFocused = true" @blur="logoPasteFocused = false" @paste="pasteLogo"><strong>{{ logoPasteBusy ? '正在读取、扫描并上传头像…' : '更换店铺头像 / Logo' }}</strong><p>可从本地选择文件；也可先复制图片，点击这里后按 Command + V（macOS）或 Ctrl + V（Windows）粘贴。</p><AdminFileUpload ref="logoUpload" purpose="store_logo" :business-context-id="store.store_id" label="从本地选择头像" @uploaded="logoUploaded" /></div><small v-if="logoPasteNotice" class="success-text" role="status">{{ logoPasteNotice }}</small><small v-if="logoPasteError" class="error-text" role="alert">{{ logoPasteError }}</small><button :disabled="saving || logoPasteBusy">{{ saving ? '正在保存…' : '保存店铺资料' }}</button></form>
           <aside class="card merchant-store-preview"><p class="eyebrow merchant-revenue-heading">营业额</p><div class="merchant-revenue-value">{{ money(revenue?.net_revenue) }}</div><p>仅在顾客确认收货或系统自动确认后计入，累计确认收货金额减累计退款</p><dl><dt>累计确认收货</dt><dd>{{ money(revenue?.gross_sales) }}</dd><dt>累计退款</dt><dd>{{ money(revenue?.refunded_amount) }}</dd><dt>已完成订单</dt><dd>{{ revenue?.completed_order_count ?? 0 }} 笔</dd><dt>营业状态</dt><dd><span class="merchant-store-status-badge" :class="store.status">{{ statusLabel() }}</span></dd></dl><div class="merchant-store-status-control"><template v-if="store.status === 'suspended' && store.suspension_source === 'platform'"><strong>当前由平台暂停营业</strong><p>商家不能自行恢复，请通过消息联系平台管理员。</p></template><template v-else><strong>{{ store.status === 'active' ? '暂时不接收新订单？' : '准备继续营业？' }}</strong><p>{{ store.status === 'active' ? '暂停后保留商品、订单和店铺资料，可随时自行恢复。' : '恢复后，销售中的商品会重新开放购买。' }}</p><button type="button" :class="store.status === 'active' ? 'secondary' : ''" :disabled="saving" @click="statusConfirmOpen = true">{{ store.status === 'active' ? '暂停营业' : '恢复营业' }}</button></template></div></aside>
         </div>
         <section class="merchant-store-account-settings">

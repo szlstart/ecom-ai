@@ -17,6 +17,7 @@ class SupportConversationItem(StrictRequest):
     participant_type: Literal["user", "merchant"]
     participant_id: str
     participant_name: str
+    participant_avatar_url: str | None
     store_id: str | None
     conversation_status: Literal["active", "human_pending", "human_active", "closed"]
     last_message_preview: str | None

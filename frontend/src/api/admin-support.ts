@@ -38,6 +38,7 @@ export interface SupportConversation {
   participant_type: 'user' | 'merchant'
   participant_id: string
   participant_name: string
+  participant_avatar_url: string | null
   store_id: string | null
   conversation_status: 'active' | 'human_pending' | 'human_active' | 'closed'
   last_message_preview: string | null

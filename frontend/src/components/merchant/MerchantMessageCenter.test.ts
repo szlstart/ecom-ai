@@ -36,6 +36,7 @@ vi.mock('@/api/realtime', () => ({
 const conversation = {
   conversation_id: 'conv_customer', conversation_type: 'store', participant_type: 'user',
   participant_id: 'usr_customer', participant_name: '顾客小李', store_id: 'sto_1',
+  participant_avatar_url: null,
   conversation_status: 'active', last_message_preview: '请问有库存吗？',
   last_message_at: '2026-08-27T09:01:00Z', unread_count: 2, requires_human: false,
   active_ticket_id: null, active_ticket_status: null, assigned_user_id: null,

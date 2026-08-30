@@ -7159,6 +7159,8 @@ export interface components {
             nickname?: string | null;
             /** Email */
             email?: string | null;
+            /** Avatar File Id */
+            avatar_file_id?: string | null;
         };
         /** AdminUserWorkspace */
         AdminUserWorkspace: {
@@ -7177,6 +7179,8 @@ export interface components {
             balance_minor: string;
             /** Currency */
             currency: string;
+            /** Avatar Url */
+            avatar_url: string | null;
         };
         /** AdminWalletAdjustmentRequest */
         AdminWalletAdjustmentRequest: {
@@ -11883,6 +11887,8 @@ export interface components {
             participant_id: string;
             /** Participant Name */
             participant_name: string;
+            /** Participant Avatar Url */
+            participant_avatar_url: string | null;
             /** Store Id */
             store_id: string | null;
             /**

@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, canonical_request_hash, utc_now
 from app.database.mysql import mysql_session
+from app.modules.files.models import FileObject
 from app.modules.identity.models import User, UserCredential
 from app.modules.rbac.models import AdminApprovalRequest, Role, UserRole
 from app.workers.admin_approval_executor import (
@@ -183,6 +184,44 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
     )
     assert update_response.status_code == 200
     assert update_response.headers["etag"] != profile_etag
+
+    avatar_file_no = new_prefixed_ulid("file_")
+    avatar_object_key = f"v1/user_avatar/tests/{avatar_file_no}/w512.webp"
+    async for session in mysql_session():
+        user = await session.scalar(
+            select(User).where(User.user_no == bootstrap["user"]["user_id"])
+        )
+        assert user is not None
+        session.add(
+            FileObject(
+                file_no=avatar_file_no,
+                bucket="public-assets",
+                object_key=avatar_object_key,
+                purpose="user_avatar",
+                owner_type="user",
+                owner_no=user.user_no,
+                variant="w512",
+                processor_version="test-v1",
+                declared_mime_type="image/png",
+                detected_mime_type="image/webp",
+                size_bytes=128,
+                sha256=b"a" * 32,
+                visibility="public_derivative",
+                sensitivity_level="L0",
+                scan_status="safe",
+                file_status="active",
+                activated_at=utc_now(),
+            )
+        )
+        await session.commit()
+
+    avatar_update = await client.patch(
+        "/api/v1/users/me",
+        headers={**auth_headers, "If-Match": update_response.headers["etag"]},
+        json={"avatar_file_id": avatar_file_no},
+    )
+    assert avatar_update.status_code == 200, avatar_update.text
+    assert avatar_update.json()["data"]["avatar_url"] == f"/api/v1/files/{avatar_file_no}"
 
     missing_precondition = await client.patch(
         "/api/v1/users/me",

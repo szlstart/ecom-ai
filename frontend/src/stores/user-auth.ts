@@ -184,6 +184,12 @@ export const useUserAuthStore = defineStore('user-auth', () => {
     clear()
   }
 
+  function updateUser(patch: Partial<UserSummary>) {
+    if (!user.value) return
+    user.value = { ...user.value, ...patch }
+    broadcastState('session-updated')
+  }
+
   channel?.addEventListener('message', (event: MessageEvent<AuthChannelMessage>) => {
     const message = event.data
     if (!message || message.source_id === tabId) return
@@ -235,7 +241,7 @@ export const useUserAuthStore = defineStore('user-auth', () => {
     })
   }
 
-  return { accessToken, csrfToken, user, isAuthenticated, accept, refresh, logout, clear }
+  return { accessToken, csrfToken, user, isAuthenticated, accept, refresh, logout, clear, updateUser }
 })
 
 function readCookie(name: string): string | null {

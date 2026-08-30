@@ -130,6 +130,7 @@ class AdminUserWorkspace(StrictRequest):
     presence_status: UserPresenceStatus
     balance_minor: str
     currency: str
+    avatar_url: str | None
 
 
 class AdminUserList(StrictRequest):
@@ -160,6 +161,7 @@ class AdminUserUpdateRequest(StrictRequest):
     )
     nickname: str | None = Field(default=None, min_length=1, max_length=64)
     email: str | None = Field(default=None, min_length=3, max_length=254)
+    avatar_file_id: str | None = Field(default=None, max_length=40)
 
     @model_validator(mode="after")
     def require_change(self) -> AdminUserUpdateRequest:

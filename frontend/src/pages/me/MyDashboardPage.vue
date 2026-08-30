@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
-import { apiRequest, errorMessage } from '@/api/http'
+import { apiRequest, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { getReadinessHealth, resolveAgentHealth } from '@/api/health'
 import { useUserAuthStore } from '@/stores/user-auth'
 
@@ -34,6 +34,7 @@ const agentHealthLabel = computed(() => ({
   unavailable: 'AI 暂时不可用，可联系人工客服',
   unknown: '正在确认 AI 服务状态',
 }[agentHealth.value]))
+const avatarUrl = computed(() => resolveApiAssetUrl(auth.user?.avatar_url ?? null) || null)
 
 onMounted(async () => {
   try {
@@ -60,7 +61,7 @@ async function logout() {
   <section class="my-center-page">
     <header class="my-center-hero">
       <div class="my-center-profile">
-        <span class="my-center-avatar">{{ (auth.user?.nickname || auth.user?.username || '我').slice(0, 1).toUpperCase() }}</span>
+        <span class="my-center-avatar"><img v-if="avatarUrl" :src="avatarUrl" alt="用户头像" /><template v-else>{{ (auth.user?.username || '我').slice(0, 1).toUpperCase() }}</template></span>
         <div><p class="eyebrow">个人中心</p><h1>你好，{{ auth.user?.nickname || auth.user?.username }}</h1><p>订单、地址、收藏和账户安全，都在这里统一管理。</p></div>
       </div>
       <div class="my-center-hero-actions">

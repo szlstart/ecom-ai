@@ -164,15 +164,18 @@ class OpenAICompatiblePlanner:
         api_key: str,
         model: str,
         timeout_seconds: float,
+        fallback_models: tuple[str, ...] = (),
         temperature: float = 0.0,
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self._api_url = api_url
         self._api_key = api_key
         self._model = model
+        self._fallback_models = tuple(item for item in fallback_models if item != model)
         self._timeout_seconds = timeout_seconds
         self._temperature = temperature
         self._client = client
+        self._model_unavailable_until: dict[str, float] = {}
 
     async def plan_store(self, user_text: str) -> StoreAgentPlan:
         result = await self._plan(user_text, STORE_INTENTS, "store_support")
@@ -487,34 +490,58 @@ class OpenAICompatiblePlanner:
         )
 
     async def _request_json(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        configured_models = (self._model, *self._fallback_models)
+        now = time.monotonic()
+        models = tuple(
+            model
+            for model in configured_models
+            if self._model_unavailable_until.get(model, 0.0) <= now
+        ) or configured_models
+        last_error: Exception | None = None
+        owned_client = self._client is None
+        client = self._client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:
-            if self._client is None:
-                async with httpx.AsyncClient(timeout=self._timeout_seconds) as client:
+            for index, model in enumerate(models):
+                request_payload = dict(payload)
+                request_payload["model"] = model
+                try:
                     response = await client.post(
                         self._api_url,
                         headers={"Authorization": f"Bearer {self._api_key}"},
-                        json=payload,
+                        json=request_payload,
+                        timeout=self._timeout_seconds,
                     )
-            else:
-                response = await self._client.post(
-                    self._api_url,
-                    headers={"Authorization": f"Bearer {self._api_key}"},
-                    json=payload,
-                    timeout=self._timeout_seconds,
-                )
-            response.raise_for_status()
-            body = response.json()
-            content = body["choices"][0]["message"]["content"]
-            if not isinstance(content, str):
-                raise TypeError("model content is not a JSON string")
-            result = _loads_model_json(content)
-            if not isinstance(result, dict):
-                raise TypeError("model plan is not an object")
-            return result
-        except (httpx.HTTPError, json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
-            raise ModelGatewayError(
-                "Agent model request failed or returned an invalid plan"
-            ) from exc
+                    response.raise_for_status()
+                    body = response.json()
+                    content = body["choices"][0]["message"]["content"]
+                    if not isinstance(content, str):
+                        raise TypeError("model content is not a JSON string")
+                    result = _loads_model_json(content)
+                    if not isinstance(result, dict):
+                        raise TypeError("model plan is not an object")
+                    return result
+                except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                    last_error = exc
+                    self._model_unavailable_until[model] = time.monotonic() + 60.0
+                    if index + 1 < len(models):
+                        continue
+                    break
+                except httpx.HTTPStatusError as exc:
+                    last_error = exc
+                    if _transient_provider_response(exc.response):
+                        self._model_unavailable_until[model] = time.monotonic() + 60.0
+                    if index + 1 < len(models) and _transient_provider_response(exc.response):
+                        continue
+                    break
+                except (json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
+                    last_error = exc
+                    break
+        finally:
+            if owned_client:
+                await client.aclose()
+        raise ModelGatewayError(
+            "Agent model request failed or returned an invalid plan"
+        ) from last_error
 
 
 class ProviderStoreModelGateway:
@@ -819,6 +846,18 @@ def _provider_http_error(status_code: int) -> str:
     return "MODEL_PROVIDER_REQUEST_REJECTED"
 
 
+def _transient_provider_response(response: httpx.Response) -> bool:
+    if response.status_code in {408, 429} or response.status_code >= 500:
+        return True
+    try:
+        payload = response.json()
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    error = payload.get("error") if isinstance(payload, dict) else None
+    error_type = error.get("type") if isinstance(error, dict) else None
+    return error_type in {"engine_overloaded_error", "rate_limit_reached_error"}
+
+
 def _provider_failure(
     settings: Settings,
     started: float,
@@ -878,6 +917,7 @@ def configured_model_gateways(
         api_url=settings.agent_model_api_url,
         api_key=settings.agent_model_api_key.get_secret_value(),
         model=settings.agent_model_name,
+        fallback_models=settings.agent_model_fallbacks,
         timeout_seconds=settings.agent_model_timeout_seconds,
         temperature=settings.agent_model_temperature,
     )
@@ -896,6 +936,7 @@ def configured_operations_gateway(settings: Settings) -> ProviderOperationsModel
             api_url=settings.agent_model_api_url,
             api_key=settings.agent_model_api_key.get_secret_value(),
             model=settings.agent_model_name,
+            fallback_models=settings.agent_model_fallbacks,
             timeout_seconds=settings.agent_model_timeout_seconds,
             temperature=settings.agent_model_temperature,
         )

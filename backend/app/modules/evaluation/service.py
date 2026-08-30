@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -5,6 +7,7 @@ from app.core.context import request_id_context
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
 from app.modules.evaluation.models import AiEvaluationRun
+from app.modules.evaluation.runner import load_dataset
 from app.modules.evaluation.schemas import (
     EvaluationRunCreate,
     EvaluationRunList,
@@ -14,8 +17,11 @@ from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
 from app.modules.system.models import OutboxEvent
 
-DATASET_SHA256 = "baa725b2d44bf84bb3b2edb5919f43ec82d985d6192fac1435f08f70b78707cf"
-DATASET_CASE_COUNT = 40
+DATASET_PATH = Path(__file__).resolve().parents[4] / "eval" / "release-holdout-v2.json"
+DATASET_MANIFEST = load_dataset(DATASET_PATH)
+DATASET_SHA256 = DATASET_MANIFEST.sha256
+DATASET_CASE_COUNT = len(DATASET_MANIFEST.cases)
+DATASET_VERSION = DATASET_MANIFEST.version
 
 
 class EvaluationService:
@@ -36,6 +42,8 @@ class EvaluationService:
 
     async def create(self, access: AdminAccess, payload: EvaluationRunCreate) -> EvaluationRunView:
         access.require_scope("platform", 0)
+        if payload.dataset_version != DATASET_VERSION:
+            raise ValueError("evaluation dataset version is not active")
         evaluation_no = new_prefixed_ulid("evr_")
         trace_id = request_id_context.get() or new_prefixed_ulid("req_")
         row = AiEvaluationRun(

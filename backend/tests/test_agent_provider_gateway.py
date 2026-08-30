@@ -78,6 +78,42 @@ async def test_provider_uses_model_specific_temperature() -> None:
 
 
 @pytest.mark.asyncio
+async def test_provider_falls_back_only_after_transient_primary_failure() -> None:
+    seen: list[str] = []
+
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        seen.append(payload["model"])
+        if payload["model"] == "overloaded-model":
+            return httpx.Response(
+                429,
+                json={"error": {"type": "engine_overloaded_error"}},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": '{"intent":"policy_qa","search_text":null}'}}
+                ]
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1/chat/completions",
+        api_key="model-secret",
+        model="overloaded-model",
+        fallback_models=("fallback-model",),
+        timeout_seconds=5,
+        client=client,
+    )
+    plan = await planner.plan_exclusive("平台规则是什么")
+    assert plan.intent == "policy_qa"
+    assert seen == ["overloaded-model", "fallback-model"]
+    await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_previous_handoff_message_cannot_turn_current_greeting_into_handoff() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)

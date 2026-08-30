@@ -4,14 +4,14 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.modules.evaluation.processor import EvaluationProcessor
-from app.modules.evaluation.service import DATASET_CASE_COUNT
+from app.modules.evaluation.service import DATASET_CASE_COUNT, DATASET_VERSION
 
 
 @pytest.mark.asyncio
 async def test_evaluation_processor_fails_closed_without_trusted_observations() -> None:
     row = SimpleNamespace(
         dataset_id="ecom-ai-release-holdout",
-        dataset_version="2026.08.25-v1",
+        dataset_version=DATASET_VERSION,
         dataset_hash=bytes.fromhex("00" * 32),
         baseline_type="agent",
         baseline_version="baseline-v1",

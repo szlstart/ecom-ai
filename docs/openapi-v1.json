@@ -44835,6 +44835,61 @@
           "version": {
             "type": "integer",
             "title": "Version"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "content_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Version"
+          },
+          "latest_for_resource": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest For Resource"
+          },
+          "effective_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Status"
+          },
+          "recovered_by_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovered By Job Id"
           }
         },
         "additionalProperties": false,
@@ -49731,7 +49786,7 @@
           },
           "dataset_version": {
             "type": "string",
-            "const": "2026.08.25-v1",
+            "const": "2026.08.31-v2",
             "title": "Dataset Version"
           },
           "baseline_type": {

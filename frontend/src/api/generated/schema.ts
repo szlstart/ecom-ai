@@ -7753,6 +7753,16 @@ export interface components {
             available_actions: string[];
             /** Version */
             version: number;
+            /** Resource Id */
+            resource_id?: string | null;
+            /** Content Version */
+            content_version?: string | null;
+            /** Latest For Resource */
+            latest_for_resource?: boolean | null;
+            /** Effective Status */
+            effective_status?: string | null;
+            /** Recovered By Job Id */
+            recovered_by_job_id?: string | null;
         };
         /** BrandView */
         BrandView: {
@@ -9364,7 +9374,7 @@ export interface components {
              * Dataset Version
              * @constant
              */
-            dataset_version: "2026.08.25-v1";
+            dataset_version: "2026.08.31-v2";
             /**
              * Baseline Type
              * @enum {string}

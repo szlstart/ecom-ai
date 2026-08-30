@@ -55,6 +55,26 @@ class BatchJobRepository:
             ).all()
         )
 
+    async def knowledge_job_history(
+        self, scopes: tuple[tuple[str, int], ...]
+    ) -> list[AdminBatchJob]:
+        statement = select(AdminBatchJob).where(AdminBatchJob.job_type == "knowledge_index")
+        if ("platform", 0) not in scopes:
+            scope_filters = [
+                and_(AdminBatchJob.scope_type == scope_type, AdminBatchJob.scope_id == scope_id)
+                for scope_type, scope_id in scopes
+            ]
+            if not scope_filters:
+                return []
+            statement = statement.where(or_(*scope_filters))
+        return list(
+            (
+                await self.session.scalars(
+                    statement.order_by(AdminBatchJob.created_at.desc(), AdminBatchJob.id.desc())
+                )
+            ).all()
+        )
+
     async def items(
         self,
         job_id: int,

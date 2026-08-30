@@ -10,7 +10,7 @@ const items = ref<EvaluationRun[]>([]), loading = ref(true), error = ref(''), no
 const form = reactive({ baseline_type: 'agent', baseline_version: '', candidate_type: 'agent', candidate_version: '', require_significant_gain: false })
 function token() { if (!auth.accessToken) throw new Error('管理端登录已失效。'); return auth.accessToken }
 async function load() { loading.value = true; error.value = ''; try { items.value = (await listEvaluations(token())).data.items } catch (cause) { error.value = errorMessage(cause) } finally { loading.value = false } }
-async function submit() { error.value = ''; notice.value = ''; try { const result = await runEvaluation({ dataset_id: 'ecom-ai-release-holdout', dataset_version: '2026.08.25-v1', ...form }, token()); notice.value = `评估任务 ${result.data.evaluation_id} 已进入队列。`; await load() } catch (cause) { error.value = errorMessage(cause) } }
+async function submit() { error.value = ''; notice.value = ''; try { const result = await runEvaluation({ dataset_id: 'ecom-ai-release-holdout', dataset_version: '2026.08.31-v2', ...form }, token()); notice.value = `评估任务 ${result.data.evaluation_id} 已进入队列。`; await load() } catch (cause) { error.value = errorMessage(cause) } }
 onMounted(load)
 </script>
 

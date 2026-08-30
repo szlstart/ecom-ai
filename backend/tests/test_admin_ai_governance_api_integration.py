@@ -82,7 +82,7 @@ async def test_admin_dashboard_observability_evaluation_policy_and_skill_lifecyc
 
     evaluation_payload = {
         "dataset_id": "ecom-ai-release-holdout",
-        "dataset_version": "2026.08.25-v1",
+        "dataset_version": "2026.08.31-v2",
         "baseline_type": "agent",
         "baseline_version": "exclusive-v1",
         "candidate_type": "agent",

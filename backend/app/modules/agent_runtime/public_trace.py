@@ -29,6 +29,7 @@ _INTENT_LABELS = {
     "stores": "分析平台店铺情况",
     "runtime": "分析系统与 Agent 运行情况",
     "complex_platform_diagnosis": "拆解跨领域平台诊断任务",
+    "complex_store_diagnosis": "拆解本店商品、库存与履约诊断任务",
     "security_refusal": "识别并阻断不安全请求",
 }
 
@@ -123,11 +124,13 @@ def _analysis_detail(step: Mapping[str, Any], count: int) -> str:
         )
     elif kind == "delegation":
         specialist = str(step.get("specialist") or "受限专业 Agent")
+        delegated_tool = str(step.get("tool_code") or "")
         tool_calls = int(step.get("tool_calls") or 0)
         latency_ms = int(step.get("latency_ms") or 0)
         details.append(
             f"“{label}”由 {specialist} 在继承的数据范围内完成，"
             f"执行 {tool_calls} 次受控工具调用"
+            + (f"，工具为 {delegated_tool}" if delegated_tool else "")
             + (f"，耗时 {latency_ms} 毫秒" if latency_ms else "")
         )
     elif kind == "security":

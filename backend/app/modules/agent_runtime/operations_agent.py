@@ -424,6 +424,11 @@ async def _execute_operations_multi_agent(
         "audience": context.audience,
         "result_policy": "只合并授权范围内、带工具审计的只读结果",
     }
+    if context.store is not None:
+        evidence["store"] = {
+            "store_id": context.store.store_no,
+            "store_name": context.store.store_name,
+        }
     steps: list[dict[str, object]] = [
         {"kind": "plan", "label": "识别跨域只读诊断", "status": "completed"},
         {
@@ -441,6 +446,7 @@ async def _execute_operations_multi_agent(
                 "status": trace.status,
                 "delegation_id": trace.delegation_no,
                 "specialist": trace.specialist_code,
+                "tool_code": _specialist_tool_code(trace.specialist_code),
                 "latency_ms": trace.elapsed_ms,
                 "tool_calls": trace.tool_calls,
                 "tokens_used": trace.tokens_used,
@@ -549,6 +555,18 @@ def _specialist_label(code: str) -> str:
     }.get(code, "领域助手: 已完成只读核对")
 
 
+def _specialist_tool_code(code: str) -> str:
+    return {
+        "governance_users": "governance.user_summary",
+        "governance_stores": "governance.store_summary",
+        "governance_orders": "governance.order_summary",
+        "observability": "observability.runtime_health",
+        "merchant_catalog": "store_ops.catalog_summary",
+        "merchant_inventory": "store_ops.inventory_risks",
+        "merchant_orders": "store_ops.order_summary",
+    }.get(code, "")
+
+
 def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
     specialists = data.get("specialists")
     if not isinstance(specialists, dict) or not specialists:
@@ -556,7 +574,8 @@ def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
     products: list[Mapping[str, Any]] = []
     order_counts: Mapping[str, Any] = {}
     low_stock_count = 0
-    recognized_revenue: Mapping[str, Any] = {}
+    completed_revenue: Mapping[str, Any] = {}
+    unsettled_paid: Mapping[str, Any] = {}
     for result in specialists.values():
         if not isinstance(result, dict):
             continue
@@ -569,9 +588,12 @@ def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
         candidate_counts = safe_data.get("order_status_counts")
         if isinstance(candidate_counts, Mapping):
             order_counts = candidate_counts
-        candidate_revenue = safe_data.get("recognized_revenue")
+        candidate_revenue = safe_data.get("completed_order_revenue")
         if isinstance(candidate_revenue, Mapping):
-            recognized_revenue = candidate_revenue
+            completed_revenue = candidate_revenue
+        candidate_unsettled = safe_data.get("unsettled_paid_amount")
+        if isinstance(candidate_unsettled, Mapping):
+            unsettled_paid = candidate_unsettled
         low_stock_count = max(low_stock_count, int(safe_data.get("low_stock_sku_count", 0)))
     lines = ["已并行完成本店商品、库存和订单的只读经营诊断:"]
     if products:
@@ -595,8 +617,10 @@ def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
             for key, value in order_counts.items()
         )
         lines.append(f"订单履约: {status_summary}。")
-    revenue_amount = int(recognized_revenue.get("amount", 0))
-    lines.append(f"已确认营业额: ¥{revenue_amount / 100:.2f}。")
+    lines.append(
+        f"已确认营业额: {completed_revenue.get('display', '¥0.00')}。"
+        f"已支付但待确认收货金额: {unsettled_paid.get('display', '¥0.00')}。"
+    )
     risks: list[str] = []
     if low_stock_count:
         risks.append(f"{low_stock_count} 个款式达到低库存或缺货阈值")
@@ -722,6 +746,18 @@ async def _snapshot(
             )
             or 0
         )
+        unsettled_paid_amount = int(
+            await session.scalar(
+                select(
+                    func.coalesce(func.sum(Order.paid_amount - Order.refunded_amount), 0)
+                ).where(
+                    Order.store_id == store_id,
+                    Order.payment_status == "paid",
+                    Order.order_status.not_in(("completed", "cancelled", "closed")),
+                )
+            )
+            or 0
+        )
         if tool_code == "store_ops.catalog_summary":
             product_rows = (
                 await session.execute(
@@ -782,7 +818,18 @@ async def _snapshot(
             return {
                 "store_id": context.store.store_no,
                 "order_status_counts": order_counts,
-                "recognized_revenue": {"amount": revenue, "currency": "CNY"},
+                "completed_order_revenue": {
+                    "minor_units": revenue,
+                    "currency": "CNY",
+                    "display": _money_display(revenue, "CNY"),
+                    "meaning": "仅统计已完成订单，用户确认收货后才计入",
+                },
+                "unsettled_paid_amount": {
+                    "minor_units": unsettled_paid_amount,
+                    "currency": "CNY",
+                    "display": _money_display(unsettled_paid_amount, "CNY"),
+                    "meaning": "已支付但尚未完成的订单金额，不是已确认营业额",
+                },
             }
         if tool_code == "store_ops.inventory_risks":
             low_stock = int(
@@ -808,7 +855,16 @@ async def _snapshot(
             },
             "product_status_counts": product_counts,
             "order_status_counts": order_counts,
-            "recognized_revenue": {"amount": revenue, "currency": "CNY"},
+            "completed_order_revenue": {
+                "minor_units": revenue,
+                "currency": "CNY",
+                "display": _money_display(revenue, "CNY"),
+            },
+            "unsettled_paid_amount": {
+                "minor_units": unsettled_paid_amount,
+                "currency": "CNY",
+                "display": _money_display(unsettled_paid_amount, "CNY"),
+            },
         }
 
     user_counts = await _counts(session, User.user_status)

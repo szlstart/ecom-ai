@@ -230,7 +230,16 @@ def test_merchant_multi_agent_fallback_keeps_exact_sku_and_order_facts() -> None
                 "merchant_orders": {
                     "data": {
                         "order_status_counts": {"shipped": 1},
-                        "recognized_revenue": {"amount": 600, "currency": "CNY"},
+                        "completed_order_revenue": {
+                            "minor_units": 600,
+                            "currency": "CNY",
+                            "display": "¥6.00",
+                        },
+                        "unsettled_paid_amount": {
+                            "minor_units": 700,
+                            "currency": "CNY",
+                            "display": "¥7.00",
+                        },
                     }
                 },
             }
@@ -240,6 +249,7 @@ def test_merchant_multi_agent_fallback_keeps_exact_sku_and_order_facts() -> None
     assert "6支装: ¥6.00，可售库存 8" in answer
     assert "运输中 1 单" in answer
     assert "已确认营业额: ¥6.00" in answer
+    assert "已支付但待确认收货金额: ¥7.00" in answer
     assert "本次没有修改任何业务记录" in answer
 
 

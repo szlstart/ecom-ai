@@ -79,6 +79,7 @@ def test_public_trace_explains_supervisor_and_specialist_delegations() -> None:
                 "label": "订单与履约 Agent",
                 "status": "succeeded",
                 "specialist": "governance_orders",
+                "tool_code": "governance.order_summary",
                 "tool_calls": 1,
                 "latency_ms": 42,
             },
@@ -89,5 +90,6 @@ def test_public_trace_explains_supervisor_and_specialist_delegations() -> None:
     assert "3 个相互隔离的专业子任务" in details[0]
     assert "governance_orders" in details[1]
     assert "1 次受控工具调用" in details[1]
+    assert "governance.order_summary" in details[1]
     assert "42 毫秒" in details[1]
     assert "raw_private_reasoning" not in trace

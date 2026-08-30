@@ -160,7 +160,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await expect(merchant).toHaveURL(/\/merchant\/messages/)
     await expectMessageWorkspaceFitsViewport(merchant)
     const merchantDialog = merchant.getByLabel('商家消息中心')
-    await merchantDialog.getByPlaceholder('向平台专属客服描述你的问题…').fill('请概览当前店铺商品和库存。')
+    await merchantDialog.getByPlaceholder('向专属客服描述经营问题…').fill('请概览当前店铺商品和库存。')
     await merchantDialog.getByRole('button', { name: '发送', exact: true }).click()
     await expectTrace(merchant, 'AI 协作台')
     await merchantContext.close()

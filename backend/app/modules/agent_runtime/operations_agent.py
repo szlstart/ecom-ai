@@ -991,7 +991,7 @@ async def _complete(
     conversation.last_sequence_no += 1
     conversation.last_message_at = now
     conversation.version += 1
-    steps = [
+    default_steps = [
             {"kind": "plan", "label": "识别只读任务", "status": "completed"},
             *(
                 [
@@ -1007,6 +1007,19 @@ async def _complete(
             ),
             {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
         ]
+    extra = dict(trace_extra or {})
+    supplied_steps = extra.pop("steps", None)
+    steps = (
+        [dict(item) for item in supplied_steps if isinstance(item, Mapping)]
+        if isinstance(supplied_steps, list)
+        else default_steps
+    )
+    supplied_source_ids = extra.pop("source_ids", None)
+    source_ids = (
+        [str(item) for item in supplied_source_ids if isinstance(item, str)]
+        if isinstance(supplied_source_ids, list)
+        else ([f"tool:{tool_code}"] if tool_code else [])
+    )
     trace = public_trace(
         run_id=context.run.run_no,
         agent=context.agent_definition.display_name,
@@ -1015,9 +1028,9 @@ async def _complete(
         intent=intent,
         data=data,
         steps=steps,
-        source_ids=[f"tool:{tool_code}"] if tool_code else [],
+        source_ids=source_ids,
         tool_code=tool_code,
-        extra=trace_extra,
+        extra=extra,
     )
     message = Message(
         message_no=new_prefixed_ulid("msg_"),

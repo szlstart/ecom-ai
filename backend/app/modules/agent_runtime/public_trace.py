@@ -95,30 +95,52 @@ def public_trace(
 
 def _analysis_detail(step: Mapping[str, Any], count: int) -> str:
     kind = str(step.get("kind") or "action")
+    label = str(step.get("label") or "受控处理动作").strip()
     tool_code = str(step.get("tool_code") or "")
     status = str(step.get("status") or "completed")
+    status_label = {
+        "completed": "已完成",
+        "succeeded": "成功",
+        "partial": "部分完成",
+        "failed": "失败",
+        "timed_out": "超时",
+        "reused": "复用已验证结果",
+    }.get(status, status)
     details: list[str] = []
     if kind == "tool" and tool_code and tool_code != "none":
-        details.append(f"业务工具 {tool_code} 已通过权限网关执行")
+        details.append(f"“{label}”调用业务工具 {tool_code}，并通过身份、权限和数据范围网关")
     elif kind in {"rag", "retrieval"}:
-        details.append("已在当前用户与店铺数据范围内执行知识检索")
+        details.append(f"“{label}”在当前用户与店铺数据范围内执行知识检索")
     elif kind == "context":
-        details.append("已读取本会话最近消息和有效滚动摘要，用于理解指代与连续问题")
+        details.append(f"“{label}”读取本会话最近消息和有效滚动摘要，用于理解指代与连续问题")
     elif kind == "memory":
-        details.append("仅检查用户明确授权、尚未过期且与当前问题相关的长期偏好")
-    elif kind in {"delegation", "supervisor"}:
-        details.append("已将只读子任务交给受限专业 Agent，并保持各子任务的数据范围隔离")
+        details.append(f"“{label}”仅检查用户明确授权、尚未过期且与当前问题相关的长期偏好")
+    elif kind == "supervisor":
+        delegation_count = int(step.get("delegation_count") or 0)
+        details.append(
+            f"“{label}”把复杂只读任务拆成 {delegation_count} 个相互隔离的专业子任务，"
+            "限制委派深度并禁止子 Agent 执行写操作"
+        )
+    elif kind == "delegation":
+        specialist = str(step.get("specialist") or "受限专业 Agent")
+        tool_calls = int(step.get("tool_calls") or 0)
+        latency_ms = int(step.get("latency_ms") or 0)
+        details.append(
+            f"“{label}”由 {specialist} 在继承的数据范围内完成，"
+            f"执行 {tool_calls} 次受控工具调用"
+            + (f"，耗时 {latency_ms} 毫秒" if latency_ms else "")
+        )
     elif kind == "security":
-        details.append("已检查越权、敏感信息与提示词注入风险")
+        details.append(f"“{label}”检查越权、敏感信息与提示词注入风险")
     elif kind == "answer":
-        details.append("已对取回的数据进行事实一致性检查，并据此生成聊天区中的回答")
+        details.append(f"“{label}”对取回的数据进行事实一致性检查，并据此生成聊天区中的回答")
     elif kind == "plan":
-        details.append("已识别当前消息的业务意图，并确定是否需要查询业务数据")
+        details.append(f"“{label}”识别当前消息的业务意图，并确定所需的数据域和只读能力")
     else:
-        details.append("已完成一项受控处理动作")
+        details.append(f"已执行“{label}”")
     if kind in {"tool", "rag", "retrieval"}:
         details.append(f"返回 {count} 项可用结果")
-    details.append(f"执行状态为 {status}")
+    details.append(f"执行状态为{status_label}")
     return "。".join(details) + "。"
 
 

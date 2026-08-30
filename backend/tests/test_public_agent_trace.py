@@ -57,4 +57,37 @@ def test_ensure_public_trace_upgrades_security_and_memory_responses() -> None:
     assert trace["version"] == "public-agent-trace-v2"
     assert trace["question"] == "请记住我喜欢蓝色"
     assert trace["raw_reasoning_exposed"] is False
+
+
+def test_public_trace_explains_supervisor_and_specialist_delegations() -> None:
+    trace = public_trace(
+        run_id="run_multi",
+        agent="AI 管家",
+        model="kimi",
+        question="请综合分析用户、店铺和订单",
+        intent="complex_platform_diagnosis",
+        data={"specialists": [{"status": "succeeded"}]},
+        steps=[
+            {
+                "kind": "supervisor",
+                "label": "并行委派领域助手",
+                "status": "completed",
+                "delegation_count": 3,
+            },
+            {
+                "kind": "delegation",
+                "label": "订单与履约 Agent",
+                "status": "succeeded",
+                "specialist": "governance_orders",
+                "tool_calls": 1,
+                "latency_ms": 42,
+            },
+        ],
+    )
+
+    details = cast(list[str], trace["analysis_details"])
+    assert "3 个相互隔离的专业子任务" in details[0]
+    assert "governance_orders" in details[1]
+    assert "1 次受控工具调用" in details[1]
+    assert "42 毫秒" in details[1]
     assert "raw_private_reasoning" not in trace

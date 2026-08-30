@@ -116,6 +116,7 @@ services:
 
   api:
     profiles: [app]
+    restart: unless-stopped
     image: ${ECOM_API_IMAGE:-ecom-ai-api:local}
     build:
       context: ./backend
@@ -385,6 +386,7 @@ services:
 
   frontend:
     profiles: [app]
+    restart: unless-stopped
     build:
       context: ./frontend
       target: runtime

@@ -40,6 +40,7 @@ from app.modules.messaging.schemas import (
     MessageView,
     ReadCursorRequest,
     ReadCursorView,
+    ResolutionCheckResponseRequest,
 )
 from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
@@ -487,7 +488,7 @@ class MessagingService:
                 raise _not_found()
             snapshot = {"order_id": resource.order_no, "status": resource.order_status}
         elif context_type == "product":
-            from app.modules.catalog.models import Product
+            from app.modules.catalog.models import Product, ProductImage, ProductSku
 
             product_filters = [Product.product_no == payload.resource_id]
             if conversation.store_id is None:
@@ -497,7 +498,39 @@ class MessagingService:
             resource = await self.session.scalar(select(Product).where(*product_filters))
             if resource is None:
                 raise _not_found()
-            snapshot = {"product_id": resource.product_no, "name": resource.product_name}
+            sku = await self.session.scalar(
+                select(ProductSku)
+                .where(ProductSku.product_id == resource.id, ProductSku.sku_status == "active")
+                .order_by(
+                    case((ProductSku.id == resource.default_sku_id, 0), else_=1), ProductSku.id
+                )
+                .limit(1)
+            )
+            image = await self.session.scalar(
+                select(FileObject)
+                .join(ProductImage, ProductImage.file_id == FileObject.id)
+                .where(
+                    ProductImage.product_id == resource.id,
+                    ProductImage.image_status == "active",
+                    FileObject.file_status == "active",
+                    FileObject.scan_status == "safe",
+                )
+                .order_by(
+                    case((ProductImage.sku_id == (sku.id if sku else 0), 0), else_=1),
+                    ProductImage.sort_order,
+                    ProductImage.id,
+                )
+                .limit(1)
+            )
+            snapshot = {
+                "product_id": resource.product_no,
+                "name": resource.product_name,
+                "sku_id": sku.sku_no if sku else None,
+                "image_url": self._file_url(image, thumbnail=True),
+                "price": {"minor_units": str(sku.sale_price_amount), "currency": sku.currency}
+                if sku
+                else None,
+            }
         elif context_type == "checkout_store_group":
             from app.modules.checkout.models import CheckoutSession, CheckoutSnapshot
 
@@ -1070,6 +1103,133 @@ class MessagingService:
                 "created_at": order.created_at.isoformat(),
             },
         )
+
+    async def respond_resolution_check(
+        self,
+        user: User,
+        conversation_no: str,
+        message_no: str,
+        payload: ResolutionCheckResponseRequest,
+    ) -> MessageList:
+        conversation = await self.repository.by_no(user.id, conversation_no, for_update=True)
+        if conversation is None:
+            raise _not_found()
+        prompt = await self.repository.message_by_no(conversation.id, message_no)
+        if (
+            prompt is None
+            or prompt.sender_type != "agent"
+            or prompt.message_type != "resolution_check"
+        ):
+            raise _not_found()
+        existing = await self.repository.client_message(conversation.id, payload.client_message_id)
+        if existing is not None:
+            return MessageList(items=[_message_view(existing)])
+        prior = await self.session.scalar(
+            select(Message).where(
+                Message.conversation_id == conversation.id,
+                Message.message_type == "resolution_feedback",
+                func.json_unquote(
+                    func.json_extract(Message.content_payload, "$.resolution_check_message_id")
+                )
+                == message_no,
+            )
+        )
+        if prior is not None:
+            raise ApplicationError(
+                status=409,
+                code="RESOLUTION_CHECK_ALREADY_ANSWERED",
+                title="Resolution check already answered",
+                detail="这次服务结果已经反馈，无需重复选择。",
+            )
+        choice = "resolved" if payload.resolved else "unresolved"
+        user_text = "已解决" if payload.resolved else "没解决"
+        agent_text = (
+            "谢谢你的确认，很高兴问题已经解决。如果还有其他问题，随时告诉我。"
+            if payload.resolved
+            else (
+                "了解，看来问题还没有完全解决。请告诉我仍未解决的部分，我会继续协助。"
+                "如果需要，也可以再次为你转接人工客服。"
+            )
+        )
+        feedback = await self._append_resolution_message(
+            conversation,
+            sender_type="user",
+            sender_id=user.id,
+            message_type="resolution_feedback",
+            text=user_text,
+            client_message_no=payload.client_message_id,
+            content={
+                "schema_version": 1,
+                "resolution_check_message_id": message_no,
+                "choice": choice,
+            },
+        )
+        reply = await self._append_resolution_message(
+            conversation,
+            sender_type="agent",
+            sender_id=None,
+            message_type="text",
+            text=agent_text,
+            client_message_no=None,
+            content={
+                "schema_version": 1,
+                "resolution_check_message_id": message_no,
+                "resolution_outcome": choice,
+            },
+        )
+        await self.session.commit()
+        return MessageList(items=[_message_view(feedback), _message_view(reply)])
+
+    async def _append_resolution_message(
+        self,
+        conversation: Conversation,
+        *,
+        sender_type: str,
+        sender_id: int | None,
+        message_type: str,
+        text: str,
+        client_message_no: str | None,
+        content: dict[str, object],
+    ) -> Message:
+        now = utc_now().replace(microsecond=0)
+        conversation.last_sequence_no += 1
+        conversation.last_message_at = now
+        conversation.version += 1
+        message = Message(
+            message_no=new_prefixed_ulid("msg_"),
+            conversation_id=conversation.id,
+            sequence_no=conversation.last_sequence_no,
+            client_message_no=client_message_no,
+            sender_type=sender_type,
+            sender_id=sender_id,
+            message_type=message_type,
+            text_content=text,
+            content_payload=content,
+            message_status="sent",
+            moderation_status="not_required",
+            sent_at=now,
+        )
+        self.session.add(message)
+        await self.session.flush()
+        conversation.last_message_id = message.id
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="message.sent.v1",
+                aggregate_type="conversation",
+                aggregate_no=conversation.conversation_no,
+                aggregate_version=conversation.version,
+                payload={
+                    "conversation_id": conversation.conversation_no,
+                    "message_id": message.message_no,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id_context.get() or new_prefixed_ulid("req_"),
+            )
+        )
+        return message
 
     async def _public_file_by_object_key(self, object_key: str | None) -> FileObject | None:
         if not object_key:

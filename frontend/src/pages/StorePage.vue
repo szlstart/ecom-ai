@@ -18,12 +18,10 @@ import { ensureStoreConversation, setConversationContext } from '@/api/messaging
 import PageState from '@/components/PageState.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
-import { useMessageCenterStore } from '@/stores/message-center'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useUserAuthStore()
-const messageCenter = useMessageCenterStore()
 const store = ref<StoreData | null>(null)
 const home = ref<StoreHomeContent | null>(null)
 const policies = ref<StorePolicy[]>([])
@@ -146,7 +144,7 @@ async function contactStore() {
   try {
     const conversation = (await ensureStoreConversation(store.value.store_id, auth.accessToken)).data
     await setConversationContext(conversation.conversation_id, conversation.version, 'store', store.value.store_id, null, auth.accessToken)
-    messageCenter.show(conversation.conversation_id)
+    await router.push(`/messages/${conversation.conversation_id}`)
   } catch (cause) { partialWarning.value = errorMessage(cause) }
   finally { contactBusy.value = false }
 }

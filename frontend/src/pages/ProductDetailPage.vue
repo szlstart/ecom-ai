@@ -23,12 +23,10 @@ import PageState from '@/components/PageState.vue'
 import SafeContentRenderer from '@/components/SafeContentRenderer.vue'
 import CheckoutPage from '@/pages/CheckoutPage.vue'
 import { useUserAuthStore } from '@/stores/user-auth'
-import { useMessageCenterStore } from '@/stores/message-center'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useUserAuthStore()
-const messageCenter = useMessageCenterStore()
 const product = ref<ProductDetailData | null>(null)
 const skus = ref<ProductSku[]>([])
 const faqs = ref<ProductFaq[]>([])
@@ -110,7 +108,7 @@ async function contactStore() {
   try {
     const conversation = (await ensureStoreConversation(product.value.store.store_id, auth.accessToken)).data
     await setConversationContext(conversation.conversation_id, conversation.version, 'product', product.value.product_id, null, auth.accessToken)
-    messageCenter.show(conversation.conversation_id)
+    await router.push(`/messages/${conversation.conversation_id}`)
   } catch (cause) { error.value = errorMessage(cause) }
   finally { contactBusy.value = false }
 }

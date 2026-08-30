@@ -1,101 +1,43 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-
 import type { ChatMessage } from '@/api/messaging'
 
-type TraceStep = {
-  kind?: string
-  label?: string
-  status?: string
-  tool_code?: string
-  specialist?: string
-  delegation_id?: string
-  latency_ms?: number
-  tool_calls?: number
-  tokens_used?: number
-}
-
-const props = withDefaults(defineProps<{
-  messages: ChatMessage[]
-  title?: string
-  selectedRunId?: string | null
-}>(), { title: 'AI 工作记录', selectedRunId: null })
-
+type TraceStep = { kind?: string; label?: string; status?: string; tool_code?: string; specialist?: string; latency_ms?: number; tool_calls?: number; tokens_used?: number; summary?: string }
+const props = withDefaults(defineProps<{ messages: ChatMessage[]; title?: string; selectedRunId?: string | null; running?: boolean }>(), { title: 'AI 工作过程', selectedRunId: null, running: false })
 const trace = computed<Record<string, unknown> | null>(() => {
-  const candidates = [...props.messages].reverse().filter((item) => {
-    const value = item.content?.execution_trace
-    return item.sender_type === 'agent' && value && typeof value === 'object' && !Array.isArray(value)
-  })
-  const message = props.selectedRunId
-    ? candidates.find((item) => {
-      const value = item.content?.execution_trace as Record<string, unknown> | undefined
-      return value?.run_id === props.selectedRunId || item.content?.run_id === props.selectedRunId
-    }) ?? candidates[0]
-    : candidates[0]
+  const candidates = [...props.messages].reverse().filter((item) => { const value = item.content?.execution_trace; return item.sender_type === 'agent' && value && typeof value === 'object' && !Array.isArray(value) })
+  const message = props.selectedRunId ? candidates.find((item) => { const value = item.content?.execution_trace as Record<string, unknown> | undefined; return value?.run_id === props.selectedRunId || item.content?.run_id === props.selectedRunId }) ?? candidates[0] : candidates[0]
   const value = message?.content?.execution_trace
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
 })
-const steps = computed<TraceStep[]>(() => Array.isArray(trace.value?.steps)
-  ? trace.value.steps.filter((item): item is TraceStep => Boolean(item && typeof item === 'object'))
-  : [])
-const sources = computed(() => {
-  const value = trace.value?.cited_source_ids ?? trace.value?.source_ids
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-})
-const statusText = computed(() => trace.value?.status === 'completed' ? '已完成' : '处理中')
-const modeText = computed(() => {
-  const answerMode = trace.value?.answer_mode === 'model_grounded'
-    ? 'Kimi 证据约束生成'
-    : trace.value?.answer_mode === 'model_routed_safe_reply'
-      ? 'Kimi 意图路由 · 安全快捷回复'
-      : '安全规则回复'
-  return trace.value?.orchestration_mode === 'multi_agent' ? `多 Agent 协作 · ${answerMode}` : answerMode
-})
-function stepIcon(kind?: string): string {
-  return ({ plan: '◇', supervisor: '✦', delegation: '↗', tool: '⌘', rag: '⌕', retrieval: '⌕', context: '◫', memory: '◉', answer: '✓', security: '⚑' } as Record<string, string>)[kind ?? ''] ?? '·'
-}
-function stepStatus(value?: string): string {
-  return ({ completed: '完成', succeeded: '成功', reused: '复用', partial: '部分完成', failed: '失败', skipped: '跳过' } as Record<string, string>)[value ?? ''] ?? '完成'
-}
-function stepMeta(step: TraceStep): string {
-  const values: string[] = []
-  if (step.tool_code) values.push(`工具 ${step.tool_code}`)
-  if (step.specialist) values.push(`Agent ${step.specialist}`)
-  if (typeof step.tool_calls === 'number') values.push(`${step.tool_calls} 次工具`)
-  if (typeof step.latency_ms === 'number') values.push(`${step.latency_ms} ms`)
-  if (typeof step.tokens_used === 'number' && step.tokens_used > 0) values.push(`${step.tokens_used} tokens`)
-  return values.join(' · ')
-}
+const steps = computed<TraceStep[]>(() => Array.isArray(trace.value?.steps) ? trace.value.steps.filter((item): item is TraceStep => Boolean(item && typeof item === 'object')) : [])
+const references = computed(() => { const value = trace.value?.cited_source_ids ?? trace.value?.source_ids; return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [] })
+const stateLabel = computed(() => props.running ? '思考中' : trace.value ? '已完成' : '等待消息')
+const collaborationLabel = computed(() => trace.value?.orchestration_mode === 'multi_agent' ? '多智能体协作' : '智能客服处理')
+function stepIcon(kind?: string): string { return ({ plan: '◇', supervisor: '✦', delegation: '↗', tool: '⌘', rag: '⌕', retrieval: '⌕', context: '◫', memory: '◉', answer: '✓', security: '⚑' } as Record<string, string>)[kind ?? ''] ?? '·' }
+function stepStatus(value?: string): string { return ({ completed: '完成', succeeded: '成功', reused: '复用', partial: '部分完成', failed: '失败', skipped: '跳过' } as Record<string, string>)[value ?? ''] ?? (props.running ? '处理中' : '完成') }
+function stepMeta(step: TraceStep): string[] { const values: string[] = []; if (step.specialist) values.push(`协作角色：${step.specialist}`); if (step.tool_code) values.push(`调用工具：${step.tool_code}`); if (typeof step.tool_calls === 'number') values.push(`工具调用：${step.tool_calls} 次`); if (typeof step.latency_ms === 'number') values.push(`耗时：${step.latency_ms} ms`); if (typeof step.tokens_used === 'number' && step.tokens_used > 0) values.push(`用量：${step.tokens_used} tokens`); return values }
 </script>
 
 <template>
-  <aside class="agent-trace-panel" aria-label="AI 安全执行记录">
-    <header><div><small>受控 Agent Harness</small><strong>{{ title }}</strong></div><span :class="{ active: trace }">{{ trace ? statusText : '等待 AI' }}</span></header>
-    <div v-if="trace" class="agent-trace-body">
-      <section class="agent-trace-summary"><span class="agent-trace-orb">✦</span><div><strong>{{ String(trace.agent || '智能客服') }}</strong><small>{{ modeText }}</small></div></section>
-      <dl>
-        <div><dt>任务</dt><dd>{{ String(trace.intent || '安全问答') }}</dd></div>
-        <div><dt>置信度</dt><dd>{{ String(trace.confidence || '未标注') }}</dd></div>
-        <div><dt>运行编号</dt><dd>{{ String(trace.run_id || '—').slice(-12) }}</dd></div>
-      </dl>
-      <section class="agent-trace-steps"><h3>执行时间线</h3><ol><li v-for="(step, index) in steps" :key="step.delegation_id || `${index}-${step.label}`" :class="step.status"><i>{{ stepIcon(step.kind) }}</i><div><strong>{{ step.label || '受控步骤' }}</strong><small v-if="stepMeta(step)">{{ stepMeta(step) }}</small></div><span>{{ stepStatus(step.status) }}</span></li></ol></section>
-      <section class="agent-trace-sources"><h3>可信来源</h3><div v-if="sources.length"><code v-for="source in sources" :key="source">{{ source }}</code></div><p v-else>本次回复未引用外部知识文档。</p></section>
-      <footer><span>🔒</span><p><strong>隐私保护</strong><small>这里只展示可审计摘要，不展示模型原始思维链、隐藏提示词或敏感数据。</small></p></footer>
+  <aside class="agent-trace-panel" aria-label="AI 工作过程">
+    <header><div><span class="agent-trace-logo">✦</span><div><strong>{{ title }}</strong><small>展示决策摘要、工具与知识检索记录</small></div></div><b :class="{ active: running }">{{ stateLabel }}</b></header>
+    <div v-if="running || trace" class="agent-trace-body">
+      <section class="agent-trace-summary" :class="{ thinking: running }"><span class="agent-trace-orb">✦</span><div><strong>{{ running ? '正在分析并组织回答' : String(trace?.agent || '智能客服') }}</strong><small>{{ running ? '步骤会在完成后保留为可展开记录' : collaborationLabel }}</small></div><i>{{ running ? '•••' : '✓' }}</i></section>
+      <section v-if="running" class="agent-trace-live" aria-live="polite"><div><i>✓</i><span><strong>理解问题与业务范围</strong><small>已识别当前会话、角色和可用权限</small></span></div><div class="active"><i>⌕</i><span><strong>核对上下文与可用能力</strong><small>正在按需选择知识检索、Skill 或工具</small></span></div><div><i>·</i><span><strong>组织安全回答</strong><small>等待前置步骤完成</small></span></div></section>
+      <section v-if="!running && steps.length" class="agent-trace-steps"><details v-for="(step, index) in steps" :key="`${index}-${step.label}`"><summary><i>{{ stepIcon(step.kind) }}</i><span><strong>{{ step.label || '受控处理步骤' }}</strong><small>{{ stepStatus(step.status) }}</small></span><b>展开</b></summary><div><p v-if="step.summary">{{ step.summary }}</p><p v-else>该步骤按照系统权限和业务范围完成，仅展示可审计的动作摘要。</p><ul v-if="stepMeta(step).length"><li v-for="item in stepMeta(step)" :key="item">{{ item }}</li></ul></div></details></section>
+      <section v-if="references.length" class="agent-trace-references"><details><summary><span>⌕</span><strong>参考内容</strong><b>{{ references.length }} 项</b></summary><div><code v-for="item in references" :key="item">{{ item }}</code></div></details></section>
+      <p class="agent-trace-note">这里展示可核验的工作摘要，不显示模型的私密推理文本、隐藏指令或敏感信息。</p>
     </div>
-    <div v-else class="agent-trace-empty"><span>✦</span><h3>暂无 AI 执行记录</h3><p>发送问题后，这里会展示使用的能力、工具、来源和安全状态。</p></div>
+    <div v-else class="agent-trace-empty"><span>✦</span><h3>等待 AI 开始工作</h3><p>发送问题后，这里会实时显示所用能力；完成后可逐步展开查看。</p></div>
   </aside>
 </template>
 
 <style scoped>
-.agent-trace-panel{min-width:0;min-height:0;display:grid;grid-template-rows:auto 1fr;color:#dfe8ff;border-left:1px solid rgb(143 168 232 / 18%);background:radial-gradient(circle at 90% 0,rgb(91 76 210 / 20%),transparent 34%),#10182a}
-.agent-trace-panel>header{min-height:64px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgb(147 166 219 / 14%)}
-.agent-trace-panel>header div{display:grid;gap:3px}.agent-trace-panel>header small{color:#8290b3;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase}.agent-trace-panel>header strong{font-size:.9rem}.agent-trace-panel>header>span{padding:5px 8px;color:#8e9ab8;border:1px solid #303b57;border-radius:999px;font-size:.62rem}.agent-trace-panel>header>span.active{color:#76e1b3;border-color:#28664f;background:#173c31}
-.agent-trace-body{padding:14px;display:grid;align-content:start;gap:14px;overflow-y:auto}.agent-trace-summary{padding:12px;display:flex;align-items:center;gap:10px;border:1px solid rgb(121 145 211 / 20%);border-radius:13px;background:rgb(255 255 255 / 4%)}.agent-trace-orb{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#776be4,#3a70cd);box-shadow:0 8px 22px rgb(65 87 206 / 30%)}.agent-trace-summary div{min-width:0;display:grid;gap:3px}.agent-trace-summary small{overflow:hidden;color:#8fa0c4;font-size:.64rem;text-overflow:ellipsis;white-space:nowrap}
-dl{margin:0;display:grid;gap:7px}dl>div{display:flex;justify-content:space-between;gap:10px}dt{color:#7f8dac;font-size:.64rem}dd{margin:0;overflow:hidden;color:#cbd7f4;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.64rem;text-overflow:ellipsis;white-space:nowrap}
-h3{margin:0 0 9px;color:#8c9abc;font-size:.65rem;letter-spacing:.05em}.agent-trace-steps ol{margin:0;padding:0;display:grid;gap:8px;list-style:none}.agent-trace-steps li{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px}.agent-trace-steps i{width:28px;height:28px;display:grid;place-items:center;color:#94a8e8;border:1px solid #354466;border-radius:9px;background:#1b263e;font-style:normal}.agent-trace-steps li>div{min-width:0;display:grid;gap:2px}.agent-trace-steps strong{font-size:.68rem}.agent-trace-steps small{overflow:hidden;color:#7584a6;font-size:.58rem;text-overflow:ellipsis;white-space:nowrap}.agent-trace-steps li>span{color:#67cfa3;font-size:.58rem}.agent-trace-steps li.failed>span{color:#ff8a8a}.agent-trace-steps li.partial>span{color:#f2bd64}
-.agent-trace-sources>div{display:flex;flex-wrap:wrap;gap:5px}.agent-trace-sources code{max-width:100%;padding:5px 7px;overflow:hidden;color:#aabcf0;border:1px solid #34466e;border-radius:7px;background:#172239;font-size:.58rem;text-overflow:ellipsis}.agent-trace-sources p{margin:0;color:#7584a5;font-size:.64rem;line-height:1.5}.agent-trace-body>footer{padding:11px;display:flex;gap:8px;border:1px solid rgb(68 188 142 / 18%);border-radius:12px;background:rgb(38 112 86 / 11%)}.agent-trace-body>footer p{margin:0;display:grid;gap:3px}.agent-trace-body>footer strong{color:#8edbbd;font-size:.65rem}.agent-trace-body>footer small{color:#8193ac;font-size:.59rem;line-height:1.45}
-.agent-trace-empty{align-self:center;padding:24px;text-align:center}.agent-trace-empty>span{width:52px;height:52px;margin:auto;display:grid;place-items:center;color:#adbbdf;border:1px solid #33405e;border-radius:17px;background:#182238}.agent-trace-empty h3{margin:13px 0 6px;color:#d2dbef;font-size:.8rem}.agent-trace-empty p{margin:0;color:#7483a4;font-size:.65rem;line-height:1.55}
-@media(max-width:1279px){.agent-trace-panel{display:none}}
+.agent-trace-panel{min-width:0;min-height:0;display:grid;grid-template-rows:auto 1fr;color:#e7ecff;border-left:1px solid rgb(143 168 232 / 18%);background:radial-gradient(circle at 88% 0,rgb(91 76 210 / 23%),transparent 35%),#10182a}.agent-trace-panel>header{min-height:64px;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgb(147 166 219 / 14%)}.agent-trace-panel>header>div{min-width:0;display:flex;align-items:center;gap:8px}.agent-trace-logo{width:31px;height:31px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(145deg,#766de8,#3b73d7)}.agent-trace-panel>header>div>div{min-width:0;display:grid;gap:2px}.agent-trace-panel>header strong{font-size:.82rem}.agent-trace-panel>header small{overflow:hidden;color:#8492b3;font-size:.58rem;text-overflow:ellipsis;white-space:nowrap}.agent-trace-panel>header>b{padding:5px 8px;color:#8f9ab5;border:1px solid #33405c;border-radius:999px;font-size:.6rem}.agent-trace-panel>header>b.active{color:#8ff0c7;border-color:#2b6e55;background:#153b30;animation:trace-pulse 1.35s ease-in-out infinite}
+.agent-trace-body{padding:13px;display:grid;align-content:start;gap:11px;overflow-y:auto}.agent-trace-summary{padding:11px;display:grid;grid-template-columns:35px minmax(0,1fr) auto;align-items:center;gap:9px;border:1px solid rgb(121 145 211 / 20%);border-radius:13px;background:rgb(255 255 255 / 4%)}.agent-trace-summary.thinking{border-color:rgb(102 126 230 / 45%);box-shadow:inset 0 0 24px rgb(80 84 210 / 11%)}.agent-trace-orb{width:35px;height:35px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#776be4,#3a70cd);box-shadow:0 8px 22px rgb(65 87 206 / 30%)}.agent-trace-summary>div{min-width:0;display:grid;gap:3px}.agent-trace-summary small{color:#8fa0c4;font-size:.62rem}.agent-trace-summary>i{color:#73ddb2;font-style:normal}.agent-trace-summary.thinking>i{letter-spacing:2px;animation:trace-blink 1s steps(2) infinite}
+.agent-trace-live{display:grid;gap:7px}.agent-trace-live>div{padding:8px;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:center;gap:8px;color:#7483a4;border:1px solid #26334d;border-radius:10px;background:#141d30}.agent-trace-live>div.active{color:#dce5ff;border-color:#415a99;background:#182541;box-shadow:0 0 18px rgb(77 100 194 / 10%)}.agent-trace-live i{width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:#1d2a43;font-style:normal}.agent-trace-live span{display:grid;gap:2px}.agent-trace-live strong{font-size:.65rem}.agent-trace-live small{color:#7d8cac;font-size:.56rem}
+.agent-trace-steps{display:grid;gap:7px}.agent-trace-steps details,.agent-trace-references details{overflow:hidden;border:1px solid #293753;border-radius:11px;background:#151f34}.agent-trace-steps summary{padding:8px;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px;cursor:pointer;list-style:none}.agent-trace-steps summary::-webkit-details-marker,.agent-trace-references summary::-webkit-details-marker{display:none}.agent-trace-steps summary>i{width:28px;height:28px;display:grid;place-items:center;color:#a8b8ee;border:1px solid #35476a;border-radius:8px;background:#1b2841;font-style:normal}.agent-trace-steps summary>span{min-width:0;display:grid;gap:2px}.agent-trace-steps summary strong{overflow:hidden;font-size:.68rem;text-overflow:ellipsis;white-space:nowrap}.agent-trace-steps summary small{color:#6ed6ab;font-size:.57rem}.agent-trace-steps summary>b{color:#7181a5;font-size:.56rem}.agent-trace-steps details>div{padding:9px 11px;border-top:1px solid #293753;color:#92a1c2;font-size:.61rem;line-height:1.55}.agent-trace-steps p{margin:0}.agent-trace-steps ul{margin:7px 0 0;padding-left:16px;display:grid;gap:3px}
+.agent-trace-references summary{padding:9px 10px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:7px;cursor:pointer;list-style:none}.agent-trace-references summary strong{font-size:.66rem}.agent-trace-references summary b{color:#8293ba;font-size:.58rem}.agent-trace-references details>div{padding:9px;display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid #293753}.agent-trace-references code{max-width:100%;padding:5px 7px;overflow:hidden;color:#aabcf0;border:1px solid #34466e;border-radius:7px;background:#172239;font-size:.56rem;text-overflow:ellipsis}.agent-trace-note{margin:0;padding:8px 10px;color:#73819e;border-radius:10px;background:rgb(255 255 255 / 3%);font-size:.56rem;line-height:1.5}.agent-trace-empty{align-self:center;padding:24px;text-align:center}.agent-trace-empty>span{width:52px;height:52px;margin:auto;display:grid;place-items:center;color:#adbbdf;border:1px solid #33405e;border-radius:17px;background:#182238}.agent-trace-empty h3{margin:13px 0 6px;color:#d2dbef;font-size:.8rem}.agent-trace-empty p{margin:0;color:#7483a4;font-size:.65rem;line-height:1.55}
+@keyframes trace-pulse{50%{box-shadow:0 0 18px rgb(92 214 166 / 25%)}}@keyframes trace-blink{50%{opacity:.4}}@media(max-width:1279px){.agent-trace-panel{display:none}}
 </style>

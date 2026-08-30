@@ -79,6 +79,11 @@ class MessageList(StrictRequest):
     previous_cursor: str | None = None
 
 
+class ResolutionCheckResponseRequest(StrictRequest):
+    client_message_id: str = Field(pattern=r"^cmsg_[0-9A-Z]+$", max_length=40)
+    resolved: bool
+
+
 class ConversationContextRequest(StrictRequest):
     resource_id: str = Field(min_length=4, max_length=64)
     resource_version: int | None = Field(default=None, ge=0)

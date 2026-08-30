@@ -2,7 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-import { ApiProblem, errorMessage, messageSendError } from '@/api/http'
+import { ApiProblem, errorMessage, messageSendError, resolveApiAssetUrl } from '@/api/http'
+import { getStore, getStoreProducts, type ProductCardData } from '@/api/catalog'
+import { listMyOrders, type OrderSummary } from '@/api/orders'
 import {
   activateAiMemory,
   decideAgentToolApproval,
@@ -24,6 +26,7 @@ import {
   getHumanServiceTicket,
   listMessages,
   putReadCursor,
+  respondResolutionCheck,
   sendOrderCard,
   sendProductCard,
   sendTextResilient,
@@ -33,8 +36,8 @@ import {
 } from '@/api/messaging'
 import PageState from '@/components/PageState.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
+import MessageAttachmentPicker, { type MessagePickerOrder, type MessagePickerProduct } from '@/components/messaging/MessageAttachmentPicker.vue'
 import { confirmAction } from '@/composables/confirmation'
-import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 type PendingMessage = { clientMessageId: string; text: string; status: 'sending' | 'recovering' | 'failed' | 'blocked' }
@@ -46,11 +49,11 @@ const props = withDefaults(defineProps<{ conversationId?: string; embedded?: boo
 const emit = defineEmits<{
   'trace-update': [messages: ChatMessage[]]
   'trace-select': [runId: string | null]
+  'trace-running': [running: boolean]
 }>()
 
 const route = useRoute()
 const auth = useUserAuthStore()
-const messageCenter = useMessageCenterStore()
 const conversation = ref<Conversation | null>(null)
 const messages = ref<ChatMessage[]>([])
 const previousCursor = ref<string | null>(null)
@@ -59,7 +62,6 @@ const pending = ref<PendingMessage[]>([])
 const draft = ref('')
 const loading = ref(true)
 const sending = ref(false)
-const sendingCard = ref(false)
 const error = ref('')
 const connectionState = ref<'connected' | 'polling' | 'offline'>('polling')
 const humanBusy = ref(false)
@@ -73,9 +75,16 @@ const approvalBusy = ref<string | null>(null)
 const messageList = ref<HTMLElement | null>(null)
 const newBelowCount = ref(0)
 const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
+const attachmentOpen = ref(false)
+const attachmentLoading = ref(false)
+const attachmentSendingId = ref<string | null>(null)
+const attachmentProducts = ref<MessagePickerProduct[]>([])
+const attachmentOrders = ref<MessagePickerOrder[]>([])
+const storeLogoUrl = ref<string | null>(null)
 const selectedTraceRunId = ref<string | null>(null)
 const memoryStates = ref<Record<string, Pick<AiMemoryItem, 'status' | 'version'>>>({})
 const memoryBusy = ref<string | null>(null)
+const resolutionBusy = ref<string | null>(null)
 watch(messages, (value) => emit('trace-update', value), { immediate: true })
 const conversationId = computed(() => props.conversationId || String(route.params.conversationId))
 const activeContext = computed(() => conversation.value?.active_contexts.find((item) => item.status === 'active') ?? null)
@@ -99,7 +108,7 @@ const readTimers = new Map<number, number>()
 const elements = new Map<number, HTMLElement>()
 
 function closeEmbeddedNavigation() {
-  if (props.embedded) messageCenter.close()
+  // Message center is a normal route; card navigation no longer needs to close a popup.
 }
 
 function token(): string {
@@ -114,6 +123,42 @@ function contextLabel(context: NonNullable<typeof activeContext.value>): string 
   if (context.context_type === 'shipment') return `正在咨询物流 ${String(snapshot.shipment_id ?? context.resource_id)}`
   if (context.context_type === 'store') return `正在咨询店铺 ${String(snapshot.store_name ?? context.resource_id)}`
   return '正在咨询本次结算中的店铺商品'
+}
+function amountLabel(minorUnits: string, currency = 'CNY'): string {
+  const value = Number(minorUnits)
+  return Number.isFinite(value) ? new Intl.NumberFormat('zh-CN', { style: 'currency', currency }).format(value / 100) : '价格待确认'
+}
+function orderStatusLabel(value: string): string {
+  return ({ pending_payment: '待付款', paid: '已付款', pending_shipment: '待发货', shipped: '运输中', in_transit: '运输中', completed: '已完成', cancelled: '已取消' } as Record<string, string>)[value] ?? value
+}
+function pickerProduct(item: ProductCardData): MessagePickerProduct {
+  return {
+    product_id: item.product_id,
+    product_name: item.product_name,
+    image_url: resolveApiAssetUrl(item.main_image?.thumbnail_url || item.main_image?.url || null),
+    price_label: amountLabel(item.price.minor_units, item.price.currency),
+    sku_id: null,
+    meta: `已售 ${item.sales_count}`,
+  }
+}
+function pickerOrder(item: OrderSummary): MessagePickerOrder {
+  return {
+    order_id: item.order_id,
+    title: item.items[0]?.product_name || `订单 ${item.order_id}`,
+    image_url: resolveApiAssetUrl(item.items[0]?.image_url || null),
+    amount_label: amountLabel(item.amounts.payable_amount.minor_units, item.amounts.payable_amount.currency),
+    status_label: `${orderStatusLabel(item.order_status)} · 共 ${item.total_quantity} 件`,
+  }
+}
+function activeContextImage(): string | null {
+  const value = activeContext.value?.display_snapshot.image_url
+  return typeof value === 'string' ? resolveApiAssetUrl(value) : null
+}
+function activeContextPrice(): string {
+  const price = activeContext.value?.display_snapshot.price
+  if (!price || typeof price !== 'object' || Array.isArray(price)) return ''
+  const value = price as Record<string, unknown>
+  return amountLabel(String(value.minor_units ?? ''), String(value.currency ?? 'CNY'))
 }
 function timeLabel(value: string): string {
   return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(apiDate(value))
@@ -136,6 +181,19 @@ function traceRunId(message: ChatMessage): string | null {
   if (!trace || typeof trace !== 'object' || Array.isArray(trace)) return null
   const runId = (trace as Record<string, unknown>).run_id
   return typeof runId === 'string' ? runId : null
+}
+function resolutionAnswered(message: ChatMessage): string | null {
+  const response = messages.value.find((item) => item.message_type === 'resolution_feedback' && item.content?.resolution_check_message_id === message.message_id)
+  return typeof response?.content?.choice === 'string' ? response.content.choice : null
+}
+async function answerResolutionCheck(message: ChatMessage, resolved: boolean) {
+  if (resolutionBusy.value || resolutionAnswered(message)) return
+  resolutionBusy.value = message.message_id
+  error.value = ''
+  try {
+    mergeMessages((await respondResolutionCheck(conversationId.value, message.message_id, resolved, token())).data.items, true)
+  } catch (cause) { error.value = errorMessage(cause); await poll() }
+  finally { resolutionBusy.value = null }
 }
 function selectTrace(message: ChatMessage) {
   const runId = traceRunId(message)
@@ -308,6 +366,11 @@ async function load() {
       listMessages(conversationId.value, token(), { limit: 100 }),
     ])
     conversation.value = detail.data
+    storeLogoUrl.value = null
+    if (detail.data.store_id) {
+      try { storeLogoUrl.value = resolveApiAssetUrl((await getStore(detail.data.store_id, token())).data.logo_url) }
+      catch { /* avatar fallback remains available when the public store is temporarily unavailable */ }
+    }
     messages.value = history.data.items
     previousCursor.value = history.data.previous_cursor
     await Promise.all([
@@ -364,6 +427,7 @@ async function handleRealtime(event: RealtimeEvent) {
   if (event.type === 'agent.response.started') {
     const runId = event.data.run_id
     if (typeof runId === 'string') streamingReply.value = { runId, text: '', chunkIndex: 0 }
+    emit('trace-running', true)
     return
   }
   if (event.type === 'agent.response.delta') {
@@ -378,6 +442,7 @@ async function handleRealtime(event: RealtimeEvent) {
   }
   if (event.type === 'agent.response.completed') {
     if (streamingReply.value?.runId === event.data.run_id) streamingReply.value = null
+    emit('trace-running', false)
     return
   }
   if (event.type === 'message.created') {
@@ -406,7 +471,8 @@ async function handleRealtime(event: RealtimeEvent) {
     if (status === 'queued') conversation.value.conversation_status = 'human_pending'
     else if (status === 'assigned' || status === 'active' || status === 'waiting_user') conversation.value.conversation_status = 'human_active'
     else if (status === 'resolved' || status === 'closed') conversation.value.conversation_status = 'active'
-    humanNotice.value = status === 'active' ? '人工客服已接入。' : status === 'waiting_user' ? '人工客服正在等待你的补充信息。' : status === 'resolved' ? '人工服务已结束，继续发送消息将由智能客服处理。' : humanNotice.value
+    humanNotice.value = status === 'active' ? '人工客服已接入。' : status === 'waiting_user' ? '人工客服正在等待你的补充信息。' : status === 'resolved' ? '人工服务已结束，AI 客服已恢复。' : humanNotice.value
+    if (status === 'resolved') window.setTimeout(() => { humanNotice.value = '' }, 3600)
     return
   }
   if (event.type === 'unread.updated' && conversation.value) {
@@ -454,23 +520,38 @@ async function send() {
   try { await deliver(item) }
   finally { sending.value = false }
 }
-async function sendActiveContextCard() {
-  const context = activeContext.value
-  if (!context || sendingCard.value || !['product', 'order'].includes(context.context_type)) return
-  sendingCard.value = true
+async function openAttachments() {
+  if (!conversation.value?.store_id || attachmentLoading.value) return
+  attachmentOpen.value = true
+  attachmentLoading.value = true
   error.value = ''
   try {
-    const response = context.context_type === 'product'
-      ? await sendProductCard(
-        conversationId.value,
-        context.resource_id,
-        typeof context.display_snapshot.sku_id === 'string' ? context.display_snapshot.sku_id : null,
-        token(),
-      )
-      : await sendOrderCard(conversationId.value, context.resource_id, token())
-    mergeMessages([response.data], true)
+    const [products, orders] = await Promise.all([
+      getStoreProducts(conversation.value.store_id, { limit: 100 }, token()),
+      listMyOrders({ view: 'all', limit: 100 }, token()),
+    ])
+    attachmentProducts.value = products.data.items.map(pickerProduct)
+    attachmentOrders.value = orders.data.items.filter((item) => item.store.store_id === conversation.value?.store_id && item.order_status !== 'cancelled').map(pickerOrder)
+  } catch (cause) { error.value = errorMessage(cause); attachmentOpen.value = false }
+  finally { attachmentLoading.value = false }
+}
+async function sendPickedProduct(item: MessagePickerProduct) {
+  if (attachmentSendingId.value) return
+  attachmentSendingId.value = item.product_id
+  try {
+    mergeMessages([(await sendProductCard(conversationId.value, item.product_id, item.sku_id, token())).data], true)
+    attachmentOpen.value = false
   } catch (cause) { error.value = errorMessage(cause) }
-  finally { sendingCard.value = false }
+  finally { attachmentSendingId.value = null }
+}
+async function sendPickedOrder(item: MessagePickerOrder) {
+  if (attachmentSendingId.value) return
+  attachmentSendingId.value = item.order_id
+  try {
+    mergeMessages([(await sendOrderCard(conversationId.value, item.order_id, token())).data], true)
+    attachmentOpen.value = false
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { attachmentSendingId.value = null }
 }
 async function retry(item: PendingMessage) { await deliver(item) }
 async function cancelHuman() {
@@ -563,7 +644,7 @@ function onlineChanged() {
 }
 
 watch(draft, persistDraft)
-watch(conversationId, async () => { pending.value = []; streamingReply.value = null; newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; selectedTraceRunId.value = null; emit('trace-select', null); await load() })
+watch(conversationId, async () => { pending.value = []; streamingReply.value = null; emit('trace-running', false); newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; selectedTraceRunId.value = null; attachmentOpen.value = false; emit('trace-select', null); await load() })
 onMounted(async () => {
   await load()
   realtime = new RealtimeConnection({
@@ -580,6 +661,7 @@ onMounted(async () => {
   window.addEventListener('offline', onlineChanged)
 })
 onBeforeUnmount(() => {
+  emit('trace-running', false)
   if (pollTimer) window.clearInterval(pollTimer)
   realtime?.stop()
   clearReadState()
@@ -598,10 +680,10 @@ onBeforeUnmount(() => {
     <p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <p v-if="humanNotice" class="alert success" role="status">{{ humanNotice }}</p>
     <p v-if="consentNotice" class="alert success" role="status">{{ consentNotice }}</p>
-    <p v-if="activeContext" class="alert info conversation-context" role="status">
-      <strong>{{ contextLabel(activeContext) }}</strong>
-      <span>客服回答与工具调用将绑定此上下文版本 v{{ activeContext.context_version }}。</span>
-    </p>
+    <div v-if="activeContext" class="conversation-context-card" role="status">
+      <span class="conversation-context-cover"><img v-if="activeContextImage()" :src="activeContextImage()!" alt="" /><i v-else>{{ activeContext.context_type === 'product' ? '商' : '询' }}</i></span>
+      <div><small>当前咨询</small><strong>{{ contextLabel(activeContext).replace('正在咨询', '') }}</strong><b v-if="activeContextPrice()">{{ activeContextPrice() }}</b></div>
+    </div>
     <details v-if="conversation?.conversation_type === 'exclusive'" class="agent-consent-card" aria-labelledby="after-sale-consent-heading">
       <summary>
         <span class="agent-consent-icon" aria-hidden="true">盾</span>
@@ -625,10 +707,14 @@ onBeforeUnmount(() => {
       <div ref="messageList" class="message-timeline" aria-label="聊天消息" @scroll.passive="timelineScrolled">
         <button v-if="previousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
         <p v-if="messages.length === 0 && pending.length === 0" class="conversation-welcome">{{ conversation?.conversation_type === 'exclusive' ? '您好，我是专属客服。您可以咨询平台规则、订单、物流和售后问题。' : '您好，请描述您想咨询的商品或订单问题。' }}</p>
-        <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'user' ? 'mine' : 'theirs']">
-          <span class="message-avatar" :class="{ agent: message.sender_type === 'agent' }" aria-hidden="true">{{ message.sender_type === 'user' ? '👤' : message.sender_type === 'agent' ? '✦' : message.sender_type === 'human' ? '🧑' : '⚙' }}</span>
-          <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
+        <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'system' ? 'system-message-row' : message.sender_type === 'user' ? 'mine' : 'theirs']">
+          <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' }" aria-hidden="true"><img v-if="message.sender_type === 'human' && storeLogoUrl" :src="storeLogoUrl" alt="" />{{ message.sender_type === 'user' ? '👤' : message.sender_type === 'agent' ? '✦' : storeLogoUrl ? '' : '店' }}</span>
+          <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'system' ? 'system-message-bubble' : message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
           <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" />
+          <section v-if="message.message_type === 'resolution_check'" class="resolution-check-actions">
+            <template v-if="resolutionAnswered(message)"><span>已反馈：{{ resolutionAnswered(message) === 'resolved' ? '已解决' : '没解决' }}</span></template>
+            <template v-else><button type="button" class="secondary small" :disabled="resolutionBusy === message.message_id" @click.stop="answerResolutionCheck(message, false)">没解决</button><button type="button" class="small" :disabled="resolutionBusy === message.message_id" @click.stop="answerResolutionCheck(message, true)">已解决</button></template>
+          </section>
           <section v-if="message.message_type === 'refund_approval' && message.content" class="refund-approval-card" :aria-label="`退款申请确认：${approvalStatusLabel(message)}`">
             <header><strong>退款申请确认</strong><span class="badge">{{ approvalStatusLabel(message) }}</span></header>
             <dl>
@@ -655,7 +741,7 @@ onBeforeUnmount(() => {
             <p>只有点击“确认记住”才会生效；订单、价格、库存等实时事实不会从长期记忆读取。</p>
             <div v-if="memoryState(message).status === 'candidate'" class="actions"><button type="button" class="secondary" :disabled="memoryBusy === memoryId(message)" @click.stop="decideMemory(message, 'reject')">不记住</button><button type="button" :disabled="memoryBusy === memoryId(message)" @click.stop="decideMemory(message, 'activate')">{{ memoryBusy === memoryId(message) ? '处理中…' : '确认记住' }}</button></div>
           </section>
-          <small><time :datetime="message.sent_at">{{ timeLabel(message.sent_at) }}</time></small>
+          <small v-if="message.sender_type !== 'system'"><time :datetime="message.sent_at">{{ timeLabel(message.sent_at) }}</time></small>
           </article>
         </div>
         <div v-for="item in pending" :key="item.clientMessageId" class="message-row mine"><span class="message-avatar" aria-hidden="true">👤</span><article class="message-bubble mine pending-message">
@@ -668,12 +754,10 @@ onBeforeUnmount(() => {
       <button v-if="newBelowCount" type="button" class="new-message-button" @click="scrollToBottom">有 {{ newBelowCount }} 条新消息</button>
     </PageState>
     <form class="message-composer rich-message-composer" @submit.prevent="send">
-      <div class="message-composer-toolbar">
-        <button v-if="activeContext && ['product','order'].includes(activeContext.context_type)" type="button" class="small secondary" :disabled="sendingCard" @click="sendActiveContextCard">{{ sendingCard ? '发送中…' : activeContext.context_type === 'product' ? '▧ 发送当前商品' : '▤ 发送当前订单' }}</button>
-        <span>Enter 发送 · Shift + Enter 换行</span>
-      </div>
+      <button v-if="conversation?.store_id" type="button" class="message-plus-button" aria-label="发送商品或订单" title="发送商品或订单" @click="openAttachments">＋</button>
       <label><span class="sr-only">输入消息</span><textarea v-model="draft" maxlength="4000" placeholder="输入消息…" required @keydown.enter.exact.prevent="send" /></label>
       <button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button>
     </form>
+    <MessageAttachmentPicker :open="attachmentOpen" :loading="attachmentLoading" :products="attachmentProducts" :orders="attachmentOrders" :sending-id="attachmentSendingId" title="发送本店商品或订单" @close="attachmentOpen = false" @product="sendPickedProduct" @order="sendPickedOrder" />
   </section>
 </template>

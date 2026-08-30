@@ -27,6 +27,7 @@ from app.modules.messaging.schemas import (
     MessageView,
     ReadCursorRequest,
     ReadCursorView,
+    ResolutionCheckResponseRequest,
 )
 
 router = APIRouter(tags=["messaging"])
@@ -479,6 +480,27 @@ async def send_message(
     service: MessagingServiceDependency,
 ) -> Envelope[MessageView]:
     result = await service.send(context.user, conversation_id, payload)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/conversations/{conversation_id}/messages/{message_id}/resolution-responses",
+    response_model=Envelope[MessageList],
+    status_code=status.HTTP_201_CREATED,
+    operation_id="ResolutionCheckResponse_CreateMine",
+)
+async def create_resolution_check_response(
+    conversation_id: str,
+    message_id: str,
+    payload: ResolutionCheckResponseRequest,
+    response: Response,
+    context: UserContext,
+    service: MessagingServiceDependency,
+) -> Envelope[MessageList]:
+    result = await service.respond_resolution_check(
+        context.user, conversation_id, message_id, payload
+    )
     _no_store(response)
     return Envelope(data=result)
 

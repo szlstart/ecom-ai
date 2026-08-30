@@ -12,13 +12,11 @@ import OrderProductEntry from '@/components/OrderProductEntry.vue'
 import OrderLogisticsDialog from '@/components/OrderLogisticsDialog.vue'
 import { confirmAction, promptAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
-import { useMessageCenterStore } from '@/stores/message-center'
 import { formatChinaRegion } from '@/utils/china-regions'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useUserAuthStore()
-const messageCenter = useMessageCenterStore()
 const order = ref<OrderDetail | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -66,7 +64,7 @@ async function runAction(action: OrderAction) {
     try {
       const conversation = (await ensureStoreConversation(order.value.store.store_id, token())).data
       await setConversationContext(conversation.conversation_id, conversation.version, 'order', order.value.order_id, order.value.version, token())
-      messageCenter.show(conversation.conversation_id)
+      await router.push(`/messages/${conversation.conversation_id}`)
     } catch (cause) { error.value = errorMessage(cause) }
     finally { busy.value = false }
     return

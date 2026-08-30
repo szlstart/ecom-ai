@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Literal, cast
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -13,8 +13,11 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyClaim, IdempotencyService
 from app.core.pagination import CursorCodec
 from app.core.security import SecurityService, utc_now
+from app.modules.catalog.models import Product, ProductImage, ProductSku
+from app.modules.files.models import FileObject
 from app.modules.identity.access_policy import load_identity_eligibility
 from app.modules.identity.models import User
+from app.modules.inventory.models import Inventory
 from app.modules.messaging.content_safety import blocks_message
 from app.modules.messaging.models import (
     Conversation,
@@ -123,40 +126,42 @@ class SupportService:
             item.id: item.user_no
             for item in (
                 (await self.session.scalars(select(User).where(User.id.in_(assignee_ids)))).all()
-                if assignee_ids else []
+                if assignee_ids
+                else []
             )
         }
-        return SupportConversationList(items=[
-            SupportConversationItem(
-                conversation_id=conversation.conversation_no,
-                conversation_type=cast(
-                    Literal["exclusive", "store"], conversation.conversation_type
-                ),
-                participant_type=cast(Literal["user", "merchant"], kind),
-                participant_id=user.user_no,
-                participant_name=_participant_name(
-                    user, merchant_stores.get(user.id), kind
-                ),
-                store_id=_operator_store_no(store, merchant_stores.get(user.id)),
-                conversation_status=cast(
-                    Literal["active", "human_pending", "human_active", "closed"],
-                    conversation.conversation_status,
-                ),
-                last_message_preview=last_message_preview,
-                last_message_at=conversation.last_message_at,
-                unread_count=unread.get(conversation.id, 0),
-                requires_human=ticket is not None,
-                active_ticket_id=ticket.ticket_no if ticket is not None else None,
-                active_ticket_status=(
-                    cast(TicketStatus, ticket.ticket_status) if ticket is not None else None
-                ),
-                assigned_user_id=(
-                    assignees.get(ticket.current_assignee_user_id)
-                    if ticket is not None and ticket.current_assignee_user_id is not None else None
-                ),
-            )
-            for conversation, user, store, ticket, kind, last_message_preview in classified
-        ])
+        return SupportConversationList(
+            items=[
+                SupportConversationItem(
+                    conversation_id=conversation.conversation_no,
+                    conversation_type=cast(
+                        Literal["exclusive", "store"], conversation.conversation_type
+                    ),
+                    participant_type=cast(Literal["user", "merchant"], kind),
+                    participant_id=user.user_no,
+                    participant_name=_participant_name(user, merchant_stores.get(user.id), kind),
+                    store_id=_operator_store_no(store, merchant_stores.get(user.id)),
+                    conversation_status=cast(
+                        Literal["active", "human_pending", "human_active", "closed"],
+                        conversation.conversation_status,
+                    ),
+                    last_message_preview=last_message_preview,
+                    last_message_at=conversation.last_message_at,
+                    unread_count=unread.get(conversation.id, 0),
+                    requires_human=ticket is not None,
+                    active_ticket_id=ticket.ticket_no if ticket is not None else None,
+                    active_ticket_status=(
+                        cast(TicketStatus, ticket.ticket_status) if ticket is not None else None
+                    ),
+                    assigned_user_id=(
+                        assignees.get(ticket.current_assignee_user_id)
+                        if ticket is not None and ticket.current_assignee_user_id is not None
+                        else None
+                    ),
+                )
+                for conversation, user, store, ticket, kind, last_message_preview in classified
+            ]
+        )
 
     async def list(
         self,
@@ -288,18 +293,16 @@ class SupportService:
                     title="Invalid pagination cursor",
                     detail="消息分页位置无效，请重新加载会话。",
                 ) from exc
-            rows = await self.repository.messages_before(
-                conversation.id, before_sequence, limit
-            )
+            rows = await self.repository.messages_before(conversation.id, before_sequence, limit)
         elif after_sequence:
-            rows = await self.repository.messages_after(
-                conversation.id, after_sequence, limit
-            )
+            rows = await self.repository.messages_after(conversation.id, after_sequence, limit)
         else:
             rows = await self.repository.messages(conversation.id, limit)
         previous_cursor = None
-        if not after_sequence and rows and await self.repository.has_message_before(
-            conversation.id, rows[0].sequence_no
+        if (
+            not after_sequence
+            and rows
+            and await self.repository.has_message_before(conversation.id, rows[0].sequence_no)
         ):
             previous_cursor = self.cursor.encode(
                 filter_key=filter_key,
@@ -307,10 +310,7 @@ class SupportService:
                 direction="previous",
             )
         return MessageList(
-            items=[
-                _support_visible_message_view(item)
-                for item in rows
-            ],
+            items=[_support_visible_message_view(item) for item in rows],
             previous_cursor=previous_cursor,
         )
 
@@ -642,6 +642,19 @@ class SupportService:
         )
         conversation.human_ticket_id = None
         await self._system_message(conversation, "人工服务已结束。如有新问题，请继续发送消息。")
+        await self._agent_message(
+            conversation,
+            "这次问题解决了吗?",
+            {
+                "schema_version": 1,
+                "ticket_id": ticket.ticket_no,
+                "question": "这次问题解决了吗?",
+                "options": [
+                    {"value": "resolved", "label": "已解决"},
+                    {"value": "unresolved", "label": "没解决"},
+                ],
+            },
+        )
         self.idempotency.complete(command, response_status=200, resource_no=ticket.ticket_no)
         return await self._commit_view(ticket, conversation)
 
@@ -655,7 +668,14 @@ class SupportService:
         if existing is not None:
             return _support_message_view(existing)
         now = utc_now().replace(microsecond=0)
-        blocked = blocks_message(payload.text)
+        blocked = blocks_message(payload.text) if payload.text is not None else False
+        message_type = "text"
+        text_content = payload.text
+        content_payload: dict[str, object] | None = None
+        if payload.product_id is not None:
+            message_type, text_content, content_payload = await self._product_card(
+                conversation, payload.product_id, payload.sku_id
+            )
         conversation.last_sequence_no += 1
         conversation.version += 1
         message = Message(
@@ -665,9 +685,9 @@ class SupportService:
             client_message_no=payload.client_message_id,
             sender_type="human",
             sender_id=access.context.user.id,
-            message_type="text",
-            text_content=payload.text if not blocked else None,
-            content_payload=None,
+            message_type=message_type,
+            text_content=text_content if not blocked else None,
+            content_payload=content_payload if not blocked else None,
             message_status="hidden" if blocked else "sent",
             moderation_status="blocked" if blocked else "passed",
             sent_at=now,
@@ -707,6 +727,98 @@ class SupportService:
         await self.session.commit()
         await self.session.refresh(message)
         return _support_message_view(message)
+
+    async def _product_card(
+        self, conversation: Conversation, product_no: str, sku_no: str | None
+    ) -> tuple[str, None, dict[str, object]]:
+        if conversation.store_id is None:
+            raise _not_found()
+        product = await self.session.scalar(
+            select(Product).where(
+                Product.product_no == product_no,
+                Product.store_id == conversation.store_id,
+                Product.product_status == "on_sale",
+                Product.deleted_at.is_(None),
+            )
+        )
+        if product is None:
+            raise _not_found()
+        store = await self.session.get(Store, conversation.store_id)
+        if store is None:
+            raise _not_found()
+        sku_statement = select(ProductSku).where(
+            ProductSku.product_id == product.id,
+            ProductSku.sku_status == "active",
+        )
+        if sku_no is not None:
+            sku_statement = sku_statement.where(ProductSku.sku_no == sku_no)
+        else:
+            sku_statement = sku_statement.order_by(
+                case((ProductSku.id == product.default_sku_id, 0), else_=1), ProductSku.id
+            ).limit(1)
+        sku = await self.session.scalar(sku_statement)
+        if sku is None:
+            raise _not_found()
+        inventory = await self.session.scalar(select(Inventory).where(Inventory.sku_id == sku.id))
+        image = await self.session.scalar(
+            select(FileObject)
+            .join(ProductImage, ProductImage.file_id == FileObject.id)
+            .where(
+                ProductImage.product_id == product.id,
+                ProductImage.sku_id == sku.id,
+                ProductImage.image_status == "active",
+                FileObject.file_status == "active",
+                FileObject.scan_status == "safe",
+            )
+            .order_by(ProductImage.sort_order, ProductImage.id)
+            .limit(1)
+        )
+        logo = (
+            await self.session.scalar(
+                select(FileObject).where(
+                    FileObject.object_key == store.logo_object_key,
+                    FileObject.file_status == "active",
+                    FileObject.scan_status == "safe",
+                )
+            )
+            if store.logo_object_key
+            else None
+        )
+        available = (
+            max(0, inventory.on_hand_quantity - inventory.reserved_quantity)
+            if inventory and inventory.inventory_status == "active"
+            else 0
+        )
+
+        def file_url(item: FileObject | None, thumbnail: bool = False) -> str | None:
+            if item is None:
+                return None
+            suffix = "?variant=thumbnail" if thumbnail else ""
+            return f"/api/v1/files/{item.file_no}{suffix}"
+
+        return (
+            "product_card",
+            None,
+            {
+                "schema_version": 2,
+                "product_id": product.product_no,
+                "product_name": product.product_name,
+                "product_status": product.product_status,
+                "sku_id": sku.sku_no,
+                "sku_name": sku.sku_name,
+                "price": {"minor_units": str(sku.sale_price_amount), "currency": sku.currency},
+                "image_url": file_url(image, True),
+                "available_quantity": available,
+                "stock_status": "available" if available > 0 else "sold_out",
+                "sales_count": product.sales_count,
+                "store": {
+                    "store_id": store.store_no,
+                    "store_name": store.store_name,
+                    "store_status": store.store_status,
+                    "logo_url": file_url(logo),
+                },
+            },
+        )
 
     async def send_conversation(
         self, access: AdminAccess, conversation_no: str, payload: SupportMessageRequest
@@ -1001,6 +1113,49 @@ class SupportService:
             message_type="system",
             text_content=text,
             content_payload=None,
+            message_status="sent",
+            moderation_status="not_required",
+            sent_at=now,
+        )
+        self.session.add(message)
+        await self.session.flush()
+        conversation.last_message_id = message.id
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="message.sent.v1",
+                aggregate_type="conversation",
+                aggregate_no=conversation.conversation_no,
+                aggregate_version=conversation.version,
+                payload={
+                    "conversation_id": conversation.conversation_no,
+                    "message_id": message.message_no,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+
+    async def _agent_message(
+        self, conversation: Conversation, text: str, content: dict[str, object]
+    ) -> None:
+        now = utc_now().replace(microsecond=0)
+        conversation.last_sequence_no += 1
+        conversation.last_message_at = now
+        conversation.version += 1
+        message = Message(
+            message_no=new_prefixed_ulid("msg_"),
+            conversation_id=conversation.id,
+            sequence_no=conversation.last_sequence_no,
+            client_message_no=None,
+            sender_type="agent",
+            sender_id=None,
+            message_type="resolution_check",
+            text_content=text,
+            content_payload=content,
             message_status="sent",
             moderation_status="not_required",
             sent_at=now,

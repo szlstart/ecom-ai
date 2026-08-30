@@ -7,7 +7,7 @@ import re
 import time
 from collections.abc import Awaitable, Callable
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -21,7 +21,12 @@ from app.modules.after_sale.schemas import (
 from app.modules.after_sale.service import AfterSaleService
 from app.modules.agent_runtime.exclusive_context import TrustedExclusiveAgentContext
 from app.modules.agent_runtime.models import AgentToolAudit
-from app.modules.agent_runtime.store_tools import StoreToolResult, _contains_scope_override
+from app.modules.agent_runtime.store_tools import (
+    StoreToolResult,
+    _availability_label,
+    _available_quantity,
+    _contains_scope_override,
+)
 from app.modules.catalog.models import ProductSku
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.inventory.models import Inventory
@@ -118,35 +123,35 @@ class ExclusiveToolGateway:
                 has_more = found_has_more
                 if rows:
                     break
+            skus_by_product: dict[int, list[dict[str, object]]] = {}
             stock_by_product: dict[int, int] = {}
             product_ids = [product.id for product, _store in rows]
             if product_ids:
-                stock_rows = (
+                sku_rows = (
                     await self.session.execute(
-                        select(
-                            ProductSku.product_id,
-                            func.coalesce(
-                                func.sum(
-                                    Inventory.on_hand_quantity
-                                    - Inventory.reserved_quantity
-                                    - Inventory.safety_stock_quantity
-                                ),
-                                0,
-                            ),
-                        )
-                        .join(Inventory, Inventory.sku_id == ProductSku.id)
+                        select(ProductSku, Inventory)
+                        .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
                         .where(
                             ProductSku.product_id.in_(product_ids),
                             ProductSku.sku_status == "active",
-                            Inventory.inventory_status == "active",
                         )
-                        .group_by(ProductSku.product_id)
+                        .order_by(ProductSku.product_id, ProductSku.id)
                     )
                 ).all()
-                stock_by_product = {
-                    product_id: max(0, int(available))
-                    for product_id, available in stock_rows
-                }
+                for sku, inventory in sku_rows:
+                    available = _available_quantity(inventory)
+                    skus_by_product.setdefault(sku.product_id, []).append(
+                        {
+                            "sku_id": sku.sku_no,
+                            "sku_name": sku.sku_name,
+                            "price": _money_projection(sku.sale_price_amount, sku.currency),
+                            "available_stock": available,
+                            "availability_label": _availability_label(inventory),
+                        }
+                    )
+                    stock_by_product[sku.product_id] = (
+                        stock_by_product.get(sku.product_id, 0) + available
+                    )
             return {
                 "items": [
                     {
@@ -161,7 +166,7 @@ class ExclusiveToolGateway:
                             "currency": product.currency,
                         },
                         "available_stock": stock_by_product.get(product.id, 0),
-                        "in_stock": stock_by_product.get(product.id, 0) > 0,
+                        "skus": skus_by_product.get(product.id, []),
                         "source_version": product.version,
                     }
                     for product, store in rows

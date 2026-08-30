@@ -801,6 +801,21 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
                     f"{_price_display(price)} 起，"
                     f"可售库存 {max(0, int(item.get('available_stock', 0)))}"
                 )
+                skus = item.get("skus")
+                for sku in skus[:12] if isinstance(skus, list) else []:
+                    if not isinstance(sku, dict):
+                        continue
+                    sku_price = sku.get("price")
+                    display = (
+                        sku_price.get("display")
+                        if isinstance(sku_price, dict)
+                        else "价格待核对"
+                    )
+                    lines.append(
+                        f"  - {safe_untrusted_excerpt(sku.get('sku_name'), 120)}: "
+                        f"{display}，实时可售 {max(0, int(sku.get('available_stock', 0)))} 件，"
+                        f"{safe_untrusted_excerpt(sku.get('availability_label'), 40)}"
+                    )
         lines.append("推荐依据: 按当前公开销量排序; 价格与库存以商品详情和结算页实时结果为准。")
         return "\n".join(lines)
     if plan.intent == "order_lookup":

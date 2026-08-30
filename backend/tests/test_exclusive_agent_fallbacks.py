@@ -75,6 +75,14 @@ def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:
                     "store_name": "文具专卖店",
                     "price": {"min_amount": 600, "currency": "CNY"},
                     "available_stock": 17,
+                    "skus": [
+                        {
+                            "sku_name": "10支装",
+                            "price": {"display": "¥8.00"},
+                            "available_stock": 0,
+                            "availability_label": "缺货",
+                        }
+                    ],
                 }
             ],
             "recalled_memories": [{"value": "偏好蓝色、简约风格"}],
@@ -84,6 +92,7 @@ def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:
     assert "偏好蓝色、简约风格" in rendered
     assert "¥6.00" in rendered
     assert "可售库存 17" in rendered
+    assert "10支装: ¥8.00，实时可售 0 件，缺货" in rendered
     assert _requires_exact_catalog_rendering("personalized_recommendation") is True
     assert _requires_exact_catalog_rendering("product_search") is True
     assert _requires_exact_catalog_rendering("policy_qa") is False

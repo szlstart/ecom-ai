@@ -9,16 +9,16 @@ import {
   listSupportMessages,
   putSupportReadCursor,
   resolveSupportTicket,
-  sendSupportMessage,
+  sendSupportMessageResilient,
   type SupportConversation,
   type SupportWorkspace,
 } from '@/api/admin-support'
-import { errorMessage } from '@/api/http'
+import { errorMessage, messageSendError } from '@/api/http'
 import {
   getMerchantExclusiveConversation,
   listMerchantExclusiveMessages,
   putMerchantExclusiveReadCursor,
-  sendMerchantExclusiveMessage,
+  sendMerchantExclusiveMessageResilient,
 } from '@/api/merchant-support'
 import type { ChatMessage } from '@/api/messaging'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
@@ -219,14 +219,14 @@ async function send() {
   sending.value = true; error.value = ''
   try {
     if (selectedKey.value === 'exclusive') {
-      const sent = (await sendMerchantExclusiveMessage(text, token())).data
+      const sent = (await sendMerchantExclusiveMessageResilient(text, token())).data
       exclusiveMessages.value.push(sent)
     } else if (activeConversation.value && canReply.value) {
-      messages.value.push((await sendSupportMessage(activeConversation.value.conversation_id, text, token())).data)
+      messages.value.push((await sendSupportMessageResilient(activeConversation.value.conversation_id, text, token())).data)
     }
     draft.value = ''
     await scrollBottom()
-  } catch (cause) { error.value = errorMessage(cause) }
+  } catch (cause) { error.value = messageSendError(cause) }
   finally { sending.value = false }
 }
 

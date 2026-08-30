@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-import { ApiProblem, errorMessage } from '@/api/http'
+import { ApiProblem, errorMessage, messageSendError } from '@/api/http'
 import {
   activateAiMemory,
   decideAgentToolApproval,
@@ -26,7 +26,7 @@ import {
   putReadCursor,
   sendOrderCard,
   sendProductCard,
-  sendText,
+  sendTextResilient,
   type ChatMessage,
   type Conversation,
   type HumanServiceTicket,
@@ -37,7 +37,7 @@ import { confirmAction } from '@/composables/confirmation'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
 
-type PendingMessage = { clientMessageId: string; text: string; status: 'sending' | 'failed' | 'blocked' }
+type PendingMessage = { clientMessageId: string; text: string; status: 'sending' | 'recovering' | 'failed' | 'blocked' }
 
 const props = withDefaults(defineProps<{ conversationId?: string; embedded?: boolean }>(), {
   conversationId: undefined,
@@ -421,7 +421,14 @@ async function deliver(item: PendingMessage) {
   item.status = 'sending'
   error.value = ''
   try {
-    const response = await sendText(conversationId.value, item.text, token(), item.clientMessageId)
+    const response = await sendTextResilient(
+      conversationId.value,
+      item.text,
+      token(),
+      item.clientMessageId,
+      undefined,
+      () => { item.status = 'recovering' },
+    )
     pending.value = pending.value.filter((candidate) => candidate.clientMessageId !== item.clientMessageId)
     if (response.data.message_status === 'hidden') {
       pending.value.push({ ...item, status: 'blocked' })
@@ -430,7 +437,9 @@ async function deliver(item: PendingMessage) {
     mergeMessages([response.data], true)
   } catch (cause) {
     item.status = 'failed'
-    error.value = errorMessage(cause)
+    error.value = cause instanceof TypeError
+      ? '服务连接暂时中断，这条消息尚未丢失，请点击消息下方的“发送失败，重试”。'
+      : messageSendError(cause)
   }
 }
 async function send() {
@@ -650,7 +659,7 @@ onBeforeUnmount(() => {
           </article>
         </div>
         <div v-for="item in pending" :key="item.clientMessageId" class="message-row mine"><span class="message-avatar" aria-hidden="true">👤</span><article class="message-bubble mine pending-message">
-          <p>{{ item.text }}</p><small v-if="item.status === 'sending'">正在发送…</small><small v-else-if="item.status === 'blocked'" class="error-text">内容未通过安全检查，请修改后重新发送。</small><button v-else type="button" class="small danger" @click="retry(item)">发送失败，重试</button>
+          <p>{{ item.text }}</p><small v-if="item.status === 'sending'">正在发送…</small><small v-else-if="item.status === 'recovering'">连接短暂中断，正在自动重试…</small><small v-else-if="item.status === 'blocked'" class="error-text">内容未通过安全检查，请修改后重新发送。</small><button v-else type="button" class="small danger" @click="retry(item)">发送失败，重试</button>
         </article></div>
         <div v-if="streamingReply" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true">✦</span><article class="message-bubble theirs agent-stream" aria-live="polite">
           <p>{{ streamingReply.text || '正在思考…' }}</p><small>正在生成回复…</small>

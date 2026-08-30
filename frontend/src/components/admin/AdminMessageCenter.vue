@@ -12,12 +12,12 @@ import {
   putAdminAiReadCursor,
   putSupportReadCursor,
   resolveSupportTicket,
-  sendAdminAiMessage,
-  sendSupportMessage,
+  sendAdminAiMessageResilient,
+  sendSupportMessageResilient,
   type SupportConversation,
   type SupportWorkspace,
 } from '@/api/admin-support'
-import { errorMessage } from '@/api/http'
+import { errorMessage, messageSendError } from '@/api/http'
 import { createClientMessageId, type ChatMessage } from '@/api/messaging'
 import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
@@ -198,13 +198,13 @@ async function send() {
   busy.value = true; error.value = ''; reply.value = ''
   try {
     if (selected.value === 'ai') {
-      aiMessages.value.push((await sendAdminAiMessage(text, token())).data)
+      aiMessages.value.push((await sendAdminAiMessageResilient(text, token())).data)
     } else if (selectedConversation.value && selectedTicket.value) {
-      const result = await sendSupportMessage(selectedConversation.value.conversation_id, text, token(), createClientMessageId())
+      const result = await sendSupportMessageResilient(selectedConversation.value.conversation_id, text, token(), createClientMessageId())
       messages.value.push(result.data)
     }
     await scrollBottom()
-  } catch (cause) { reply.value = text; error.value = errorMessage(cause) }
+  } catch (cause) { reply.value = text; error.value = messageSendError(cause) }
   finally { busy.value = false }
 }
 

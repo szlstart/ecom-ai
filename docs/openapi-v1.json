@@ -12294,6 +12294,7 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "MCH-MSG-01",
           "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
@@ -12302,10 +12303,15 @@
           "products:update",
           "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner"
+          "merchant_exclusive_conversation_owner",
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "store_scope"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
+          "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -12406,6 +12412,7 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "MCH-MSG-01",
           "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
@@ -12414,10 +12421,15 @@
           "products:update",
           "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner"
+          "merchant_exclusive_conversation_owner",
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "store_scope"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
+          "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -12487,6 +12499,7 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "MCH-MSG-01",
           "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
@@ -12495,10 +12508,15 @@
           "products:update",
           "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner"
+          "merchant_exclusive_conversation_owner",
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "store_scope"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
+          "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -12570,6 +12588,7 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "MCH-MSG-01",
           "MCH-PRODUCT-LIST-01"
         ],
         "x-scope-policy": [
@@ -12578,10 +12597,15 @@
           "products:update",
           "products:publish",
           "store_operator_with_store_scope",
-          "merchant_exclusive_conversation_owner"
+          "merchant_exclusive_conversation_owner",
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "store_scope"
         ],
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
+          "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -12725,16 +12749,23 @@
         "x-domain-command": "AdminAiConversation_PutMine",
         "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
-          "global_ui"
+          "global_ui",
+          "vue_route"
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "GLOBAL-ADMIN-AI-CHAT-01"
         ],
         "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "platform_admin_session",
           "platform_super_admin_conversation_owner"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*"
         ]
       }
@@ -12831,16 +12862,23 @@
         "x-domain-command": "none",
         "x-idempotency-policy": "safe_read",
         "x-owner-kind": [
-          "global_ui"
+          "global_ui",
+          "vue_route"
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "GLOBAL-ADMIN-AI-CHAT-01"
         ],
         "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "platform_admin_session",
           "platform_super_admin_conversation_owner"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*"
         ]
       },
@@ -12906,16 +12944,23 @@
         "x-domain-command": "AdminAiMessage_CreateMine",
         "x-idempotency-policy": "payload_client_message_id_deduplication",
         "x-owner-kind": [
-          "global_ui"
+          "global_ui",
+          "vue_route"
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "GLOBAL-ADMIN-AI-CHAT-01"
         ],
         "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "platform_admin_session",
           "platform_super_admin_conversation_owner"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*"
         ]
       }
@@ -12983,16 +13028,23 @@
         "x-domain-command": "AdminAiReadCursor_PutMine",
         "x-idempotency-policy": "http_method_idempotent",
         "x-owner-kind": [
-          "global_ui"
+          "global_ui",
+          "vue_route"
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "GLOBAL-ADMIN-AI-CHAT-01"
         ],
         "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "platform_admin_session",
           "platform_super_admin_conversation_owner"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*"
         ]
       }
@@ -13114,13 +13166,21 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "ADM-SUPPORT-LIST-01",
+          "MCH-MSG-01",
           "MCH-SUPPORT-LIST-01"
         ],
         "x-scope-policy": [
-          "support:queue_read"
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
+          "platform_admin_session"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
@@ -13290,19 +13350,25 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "ADM-SUPPORT-01",
+          "MCH-MSG-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
           "support:resolve",
+          "platform_admin_session",
           "support:transfer"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
@@ -13421,19 +13487,25 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "ADM-SUPPORT-01",
+          "MCH-MSG-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
           "support:resolve",
+          "platform_admin_session",
           "support:transfer"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
@@ -13523,19 +13595,25 @@
           "support:reply"
         ],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "ADM-SUPPORT-01",
+          "MCH-MSG-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
           "support:resolve",
+          "platform_admin_session",
           "support:transfer"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
@@ -13627,19 +13705,25 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "ADM-SUPPORT-01",
+          "MCH-MSG-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
           "support:resolve",
+          "platform_admin_session",
           "support:transfer"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
@@ -13747,19 +13831,25 @@
           "support:claim"
         ],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "ADM-SUPPORT-01",
+          "MCH-MSG-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
           "support:resolve",
+          "platform_admin_session",
           "support:transfer"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]

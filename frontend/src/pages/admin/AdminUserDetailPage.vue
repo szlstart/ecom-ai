@@ -9,12 +9,15 @@ import { adjustAdminUserWallet, deleteAdminUser, getAdminUserWorkspace, replaceA
 import { ApiProblem, apiRequest, createIdempotencyKey, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import { listAdminOrders, type AdminOrderSummary, type OrderAction, type OrderSummary } from '@/api/orders'
 import PageState from '@/components/PageState.vue'
+import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import { confirmAction } from '@/composables/confirmation'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import { formatChinaRegion } from '@/utils/china-regions'
+import { imageFileFromClipboard } from '@/utils/clipboard-image'
 
 interface Address { address_id: string; recipient_name: string; phone: string; province_code: string; city_code: string; district_code: string; address: string; is_default: boolean; version: number }
 interface RegionOption { code: string; name: string }
+interface FileUploadHandle { uploadFile: (file: File) => Promise<void> }
 type AddressField = 'recipient_name' | 'phone' | 'province_code' | 'city_code' | 'district_code' | 'address'
 
 const excludedProvinceCodes = new Set(['810000', '820000'])
@@ -27,10 +30,12 @@ const user = ref<AdminUserSummary | null>(null), workspace = ref<AdminUserWorksp
 const addresses = ref<Address[]>([]), products = ref<ProductCardData[]>([]), stores = ref<StoreData[]>([]), cart = ref<CartData | null>(null), orders = ref<AdminOrderSummary[]>([])
 const loading = ref(true), busy = ref(false), error = ref(''), notice = ref(''), deleteOpen = ref(false), ordersOpen = ref(false), addressOpen = ref(false), orderBusy = ref(''), addressError = ref('')
 const editingAddress = ref<Address | null>(null)
+const avatarUpload = ref<FileUploadHandle | null>(null), avatarFileId = ref<string | null>(null), avatarPasteBusy = ref(false), avatarPasteFocused = ref(false)
 const profile = reactive({ username: '', email: '' }), password = ref(''), recharge = ref<number | null>(null)
 const addressForm = reactive({ recipient_name: '', phone: '', province_code: '', city_code: '', district_code: '', address: '', is_default: false })
 const addressFieldErrors = reactive<Record<AddressField, string>>({ recipient_name: '', phone: '', province_code: '', city_code: '', district_code: '', address: '' })
 const initials = computed(() => (user.value?.username || '用').slice(0, 1).toUpperCase())
+const userAvatarUrl = computed(() => resolveApiAssetUrl(workspace.value?.avatar_url ?? null) || null)
 const presenceLabel = computed(() => ({ online: '在线', offline: '离线', frozen: '冻结' }[workspace.value?.presence_status ?? 'offline']))
 const cartItems = computed(() => cart.value?.groups.flatMap((group) => group.items.map((item) => ({ ...item, store_name: group.store_name }))) ?? [])
 const cities = computed(() => regionOptions(addressForm.province_code))
@@ -54,7 +59,9 @@ async function load() {
   } catch (cause) { error.value = errorMessage(cause) } finally { loading.value = false }
 }
 async function run(action: () => Promise<unknown>, success: string, reload = true) { busy.value = true; error.value = ''; notice.value = ''; try { await action(); notice.value = success; if (reload) await load() } catch (cause) { error.value = errorMessage(cause) } finally { busy.value = false } }
-async function saveAccount() { if (!user.value) return; const payload: { username?: string; email?: string } = {}; if (profile.username !== user.value.username) payload.username = profile.username; if (profile.email !== (workspace.value?.current_email ?? '')) payload.email = profile.email; if (!Object.keys(payload).length) { error.value = '没有需要保存的账号资料。'; return }; await run(() => updateAdminUser(userId, payload, user.value!.version, token()), '账号资料已保存。') }
+async function saveAccount() { if (!user.value) return; const payload: { username?: string; email?: string; avatar_file_id?: string } = {}; if (profile.username !== user.value.username) payload.username = profile.username; if (profile.email !== (workspace.value?.current_email ?? '')) payload.email = profile.email; if (avatarFileId.value) payload.avatar_file_id = avatarFileId.value; if (!Object.keys(payload).length) { error.value = '没有需要保存的账号资料。'; return }; await run(() => updateAdminUser(userId, payload, user.value!.version, token()), '账号资料已保存。'); avatarFileId.value = null }
+function avatarUploaded(fileId: string) { avatarFileId.value = fileId; if (workspace.value) workspace.value.avatar_url = `/api/v1/files/${fileId}`; notice.value = '新头像已上传，点击“保存账号资料”后生效。'; error.value = '' }
+async function pasteAvatar(event: ClipboardEvent) { if (avatarPasteBusy.value) return; error.value = ''; try { const file = imageFileFromClipboard(event.clipboardData); if (!file) throw new Error('剪贴板中没有图片。请先复制 JPG、PNG 或 WebP 图片。'); event.preventDefault(); if (!avatarUpload.value) throw new Error('头像上传组件尚未准备好，请稍后重试。'); avatarPasteBusy.value = true; await avatarUpload.value.uploadFile(file) } catch (cause) { error.value = cause instanceof Error ? cause.message : errorMessage(cause) } finally { avatarPasteBusy.value = false } }
 async function savePassword() { if (!password.value) return; await run(() => replaceAdminUserPassword(userId, { temporary_password: password.value }, token()), '密码已更新，用户需要使用新密码重新登录。'); password.value = '' }
 async function changeStatus(action: 'suspend' | 'resume') { if (!user.value) return; await run(() => apiRequest(`/admin/users/${userId}/status-changes`, { method: 'POST', headers: { 'If-Match': `"v${user.value!.version}"`, 'Idempotency-Key': createIdempotencyKey('admin-user-status') }, body: JSON.stringify({ action }) }, token()), action === 'suspend' ? '账号已冻结。' : '账号已恢复。') }
 async function forceOffline() { await run(() => apiRequest(`/admin/users/${userId}/session-revocations`, { method: 'POST', headers: { 'Idempotency-Key': createIdempotencyKey('admin-user-offline') }, body: JSON.stringify({ scope: 'all' }) }, token()), '用户已强制下线。') }
@@ -119,13 +126,13 @@ onMounted(load)
     <RouterLink class="admin-back-link" to="/admin/users">← 返回用户列表</RouterLink>
     <PageState :loading="loading" :error="error && !user ? error : ''" :empty="!loading && !user" empty-title="没有找到该用户" @retry="load">
       <template v-if="user && workspace">
-        <header class="admin-user-detail-hero"><div class="admin-user-detail-profile"><span>{{ initials }}</span><div><p class="eyebrow">用户工作台</p><h1>{{ user.username }}</h1><p>{{ user.user_id }}</p></div></div><div class="admin-user-detail-status"><span><i :class="workspace.presence_status" />{{ presenceLabel }}</span><small>注册于 {{ dateTime(user.registered_at) }}</small></div></header>
+        <header class="admin-user-detail-hero"><div class="admin-user-detail-profile"><span><img v-if="userAvatarUrl" :src="userAvatarUrl" alt="用户头像" /><template v-else>{{ initials }}</template></span><div><p class="eyebrow">用户工作台</p><h1>{{ user.username }}</h1><p>{{ user.user_id }}</p></div></div><div class="admin-user-detail-status"><span><i :class="workspace.presence_status" />{{ presenceLabel }}</span><small>注册于 {{ dateTime(user.registered_at) }}</small></div></header>
         <p v-if="notice" class="alert success" role="status">{{ notice }}</p><p v-if="error" class="alert error" role="alert">{{ error }}</p>
         <section class="admin-user-fact-strip"><article><small>最近登录</small><strong>{{ dateTime(user.last_login_at) }}</strong></article><article><small>账号状态</small><strong>{{ presenceLabel }}</strong></article><article><small>用户编号</small><strong>{{ user.user_id }}</strong></article></section>
         <button type="button" class="admin-user-orders-entry" @click="openOrders"><span>▤</span><div><strong>购买订单</strong><small>弹窗查看该用户的有效订单、物流、评价和售后操作</small></div><b>查看订单 →</b></button>
 
         <section class="admin-user-workspace-section"><header class="admin-user-section-heading"><div><p class="eyebrow">01 · 账号资料</p><h2>账号与安全</h2><p>超级管理员可直接维护资料和状态；系统不保存可还原的明文密码。</p></div></header><div class="admin-detail-two-column">
-          <form class="admin-panel admin-editor" @submit.prevent="saveAccount"><label>用户名<input v-model.trim="profile.username" required /></label><label>当前密码<input value="不可查看（仅保存不可逆密码哈希）" disabled /></label><label>当前邮箱<input :value="workspace.current_email ?? ''" disabled placeholder="尚未绑定邮箱" /></label><label>更改邮箱<input v-model.trim="profile.email" type="email" placeholder="输入完整新邮箱" /></label><button :disabled="busy">保存账号资料</button></form>
+          <form class="admin-panel admin-editor" @submit.prevent="saveAccount"><div class="admin-avatar-paste-zone" :class="{ focused: avatarPasteFocused, busy: avatarPasteBusy }" tabindex="0" role="button" aria-label="管理员设置用户头像" @focus="avatarPasteFocused = true" @blur="avatarPasteFocused = false" @paste="pasteAvatar"><div class="admin-avatar-preview"><img v-if="userAvatarUrl" :src="userAvatarUrl" alt="用户头像预览" /><span v-else>{{ initials }}</span></div><div><strong>设置用户头像</strong><small>可从本地选择，或点击此区域后粘贴图片。</small><AdminFileUpload ref="avatarUpload" purpose="user_avatar" :business-context-id="userId" label="从本地选择头像" @uploaded="avatarUploaded" /></div></div><label>用户名<input v-model.trim="profile.username" required /></label><label>当前密码<input value="不可查看（仅保存不可逆密码哈希）" disabled /></label><label>当前邮箱<input :value="workspace.current_email ?? ''" disabled placeholder="尚未绑定邮箱" /></label><label>更改邮箱<input v-model.trim="profile.email" type="email" placeholder="输入完整新邮箱" /></label><button :disabled="busy || avatarPasteBusy">保存账号资料</button></form>
           <div class="admin-panel admin-editor"><form @submit.prevent="savePassword"><label>更改密码<input v-model="password" type="password" autocomplete="new-password" placeholder="输入新密码" required /></label><button :disabled="busy">直接设置新密码</button></form><hr/><strong>账号当前状态：{{ presenceLabel }}</strong><div class="actions"><button v-if="user.account_status === 'active'" class="danger" type="button" @click="changeStatus('suspend')">冻结</button><button v-else type="button" @click="changeStatus('resume')">恢复</button><button class="secondary" type="button" @click="forceOffline">强制下线</button></div></div>
         </div></section>
 

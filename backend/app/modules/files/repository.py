@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import utc_now
 from app.modules.files.models import FileObject, FileUploadSession
+from app.modules.identity.models import User
 from app.modules.rbac.repository import RbacRepository
 from app.modules.stores.models import Store
 
@@ -19,6 +20,11 @@ class FileRepository:
     async def store(self, store_no: str) -> Store | None:
         return cast(
             Store | None, await self.session.scalar(select(Store).where(Store.store_no == store_no))
+        )
+
+    async def user(self, user_no: str) -> User | None:
+        return cast(
+            User | None, await self.session.scalar(select(User).where(User.user_no == user_no))
         )
 
     async def actor_store_permissions(

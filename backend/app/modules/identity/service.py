@@ -697,7 +697,7 @@ class IdentityService:
         )
         await self.session.commit()
         return SessionBootstrap(
-            user=self._user_summary(user),
+            user=await self._user_summary(user),
             session=self._session_summary(current, is_current=True),
             access_token=access_token,
             expires_in=self.settings.access_token_ttl_seconds,
@@ -935,7 +935,7 @@ class IdentityService:
             user_id=user.user_no,
             username=user.username,
             nickname=user.nickname,
-            avatar_url=None,
+            avatar_url=await self._avatar_url(user),
             account_status=user.user_status,
             locale=user.locale,
             timezone=user.timezone,
@@ -957,13 +957,27 @@ class IdentityService:
             user.locale = request.locale
         if request.timezone is not None:
             user.timezone = request.timezone
-        if request.avatar_file_id is not None:
-            raise ApplicationError(
-                status=409,
-                code="FILE_NOT_ACTIVE",
-                title="Avatar unavailable",
-                detail="头像文件上传将在文件模块启用后开放。",
-            )
+        if "avatar_file_id" in request.model_fields_set:
+            if request.avatar_file_id is None:
+                user.avatar_object_key = None
+            else:
+                avatar = await self.repository.file_by_no(request.avatar_file_id)
+                if (
+                    avatar is None
+                    or avatar.purpose != "user_avatar"
+                    or avatar.owner_type != "user"
+                    or avatar.owner_no != user.user_no
+                    or avatar.file_status != "active"
+                    or avatar.scan_status != "safe"
+                    or avatar.visibility != "public_derivative"
+                ):
+                    raise ApplicationError(
+                        status=422,
+                        code="FILE_NOT_BINDABLE",
+                        title="File cannot be bound",
+                        detail="头像文件不存在、尚未完成安全处理或不属于当前用户。",
+                    )
+                user.avatar_object_key = avatar.object_key
         user.version += 1
         await self.session.commit()
         return await self.profile(user)
@@ -1519,7 +1533,7 @@ class IdentityService:
         )
         result = BootstrapResult(
             payload=SessionBootstrap(
-                user=self._user_summary(user),
+                user=await self._user_summary(user),
                 session=self._session_summary(auth_session, is_current=True),
                 access_token=access_token,
                 expires_in=self.settings.access_token_ttl_seconds,
@@ -1718,15 +1732,27 @@ class IdentityService:
             )
         return result
 
-    @staticmethod
-    def _user_summary(user: User) -> UserSummary:
+    async def _user_summary(self, user: User) -> UserSummary:
         return UserSummary(
             user_id=user.user_no,
             username=user.username,
             nickname=user.nickname,
-            avatar_url=None,
+            avatar_url=await self._avatar_url(user),
             account_status=user.user_status,
         )
+
+    async def _avatar_url(self, user: User) -> str | None:
+        if not user.avatar_object_key:
+            return None
+        avatar = await self.repository.file_by_object_key(user.avatar_object_key)
+        if (
+            avatar is None
+            or avatar.file_status != "active"
+            or avatar.scan_status != "safe"
+            or avatar.visibility != "public_derivative"
+        ):
+            return None
+        return f"/api/v1/files/{avatar.file_no}"
 
     @staticmethod
     def _session_summary(item: AuthSession, *, is_current: bool) -> SessionSummary:

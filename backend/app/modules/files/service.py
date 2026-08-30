@@ -320,9 +320,19 @@ class FileService:
         business_context_id: str | None,
     ) -> str:
         if policy.owner_type == "user":
-            if actor.audience != "user":
+            if actor.audience == "user":
+                return actor.context.user.user_no
+            if actor.audience != "admin" or not business_context_id:
                 raise _not_found()
-            return actor.context.user.user_no
+            target = await self.repository.user(business_context_id)
+            if target is None:
+                raise _not_found()
+            permissions = await self.repository.actor_scope_permissions(
+                actor.context.user.id, "platform", 0, policy.permissions
+            )
+            if not permissions:
+                raise _not_found()
+            return target.user_no
         if policy.owner_type == "platform":
             if actor.audience != "admin":
                 raise _not_found()

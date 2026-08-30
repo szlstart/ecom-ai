@@ -18,6 +18,7 @@ export interface AdminUserWorkspace {
   presence_status: 'online' | 'offline' | 'frozen'
   balance_minor: string
   currency: string
+  avatar_url: string | null
 }
 
 export function listAdminUsers(token: string): Promise<ApiResult<{ items: AdminUserSummary[]; next_cursor: string | null }>> {
@@ -37,7 +38,7 @@ export function createAdminUser(
 
 export function updateAdminUser(
   userId: string,
-  payload: { username?: string; nickname?: string; email?: string },
+  payload: { username?: string; nickname?: string; email?: string; avatar_file_id?: string | null },
   version: number,
   token: string,
 ): Promise<ApiResult<AdminUserSummary>> {

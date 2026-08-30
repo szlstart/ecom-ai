@@ -7,6 +7,7 @@ from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
+from app.modules.files.models import FileObject
 from app.modules.identity.models import (
     AuthSession,
     CredentialChangeRecord,
@@ -31,6 +32,18 @@ class IdentityRepository:
     async def user_by_no(self, user_no: str, *, for_update: bool = False) -> User | None:
         statement = select(User).where(User.user_no == user_no)
         return cast(User | None, await self.session.scalar(_locked(statement, for_update)))
+
+    async def file_by_no(self, file_no: str, *, for_update: bool = False) -> FileObject | None:
+        statement = select(FileObject).where(FileObject.file_no == file_no)
+        return cast(FileObject | None, await self.session.scalar(_locked(statement, for_update)))
+
+    async def file_by_object_key(self, object_key: str) -> FileObject | None:
+        return cast(
+            FileObject | None,
+            await self.session.scalar(
+                select(FileObject).where(FileObject.object_key == object_key)
+            ),
+        )
 
     async def credential_by_identifier(
         self, credential_type: str, identifier_hash: bytes, *, for_update: bool = False

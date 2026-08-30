@@ -126,7 +126,7 @@ class FileProcessor:
     ) -> None:
         widths = (
             (64, 128, 256, 512)
-            if source.purpose in {"store_logo", "brand_logo", "category_icon"}
+            if source.purpose in {"store_logo", "user_avatar", "brand_logo", "category_icon"}
             else (320, 640, 960, 1280)
         )
         result = process_public_image(payload, max_pixels, widths)

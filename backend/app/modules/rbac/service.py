@@ -18,6 +18,7 @@ from app.core.security import (
     normalize_username,
     utc_now,
 )
+from app.modules.files.models import FileObject
 from app.modules.finance.models import UserWallet, WalletTransaction
 from app.modules.identity.models import (
     AuthSession,
@@ -208,6 +209,13 @@ class RbacService:
             if active_session_count
             else "offline"
         )
+        avatar = (
+            await self.session.scalar(
+                select(FileObject).where(FileObject.object_key == target.avatar_object_key)
+            )
+            if target.avatar_object_key
+            else None
+        )
         return AdminUserWorkspace(
             user_id=target.user_no,
             username=target.username,
@@ -215,6 +223,14 @@ class RbacService:
             presence_status=cast(UserPresenceStatus, presence),
             balance_minor=str(wallet.balance_amount if wallet is not None else 0),
             currency=wallet.currency if wallet is not None else "CNY",
+            avatar_url=(
+                f"/api/v1/files/{avatar.file_no}"
+                if avatar is not None
+                and avatar.file_status == "active"
+                and avatar.scan_status == "safe"
+                and avatar.visibility == "public_derivative"
+                else None
+            ),
         )
 
     async def require_consumer_user(self, user_no: str) -> User:
@@ -380,6 +396,7 @@ class RbacService:
             "username": target.username,
             "nickname": target.nickname,
             "version": target.version,
+            "avatar_object_key": target.avatar_object_key,
         }
         if request.username is not None and request.username != target.username:
             normalized = normalize_username(request.username)
@@ -434,6 +451,29 @@ class RbacService:
             email_credential.is_verified = False
             email_credential.verified_at = None
             email_credential.credential_version += 1
+        if "avatar_file_id" in request.model_fields_set:
+            if request.avatar_file_id is None:
+                target.avatar_object_key = None
+            else:
+                avatar = await self.session.scalar(
+                    select(FileObject).where(FileObject.file_no == request.avatar_file_id)
+                )
+                if (
+                    avatar is None
+                    or avatar.purpose != "user_avatar"
+                    or avatar.owner_type != "user"
+                    or avatar.owner_no != target.user_no
+                    or avatar.file_status != "active"
+                    or avatar.scan_status != "safe"
+                    or avatar.visibility != "public_derivative"
+                ):
+                    raise ApplicationError(
+                        status=422,
+                        code="FILE_NOT_BINDABLE",
+                        title="File cannot be bound",
+                        detail="头像文件不存在、尚未完成安全处理或不属于该用户。",
+                    )
+                target.avatar_object_key = avatar.object_key
         target.version += 1
         self._add_audit(
             access,
@@ -445,6 +485,7 @@ class RbacService:
                 "username": target.username,
                 "nickname": target.nickname,
                 "email_changed": request.email is not None,
+                "avatar_changed": "avatar_file_id" in request.model_fields_set,
                 "version": target.version,
             },
         )

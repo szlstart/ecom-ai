@@ -23,7 +23,7 @@ describe('AdminUserDetailPage', () => {
         user_id: 'usr_test', username: 'customer_one', nickname: '顾客一号', account_status: 'active',
         registered_at: '2026-08-20T08:00:00Z', last_login_at: '2026-08-29T08:00:00Z', permission_version: 1, version: 3,
       }, headers: new Headers({ etag: '"v3"' }) }
-      if (path.endsWith('/workspace')) return { data: { user_id: 'usr_test', username: 'customer_one', current_email: 'customer@example.com', presence_status: 'online', balance_minor: '1200', currency: 'CNY' } }
+      if (path.endsWith('/workspace')) return { data: { user_id: 'usr_test', username: 'customer_one', current_email: 'customer@example.com', presence_status: 'online', balance_minor: '1200', currency: 'CNY', avatar_url: null } }
       if (path.endsWith('/addresses')) return { data: { items: [{
         address_id: 'addr_test', recipient_name: '张', phone: '13800000000',
         province_code: '110000', city_code: '110100', district_code: '110101',

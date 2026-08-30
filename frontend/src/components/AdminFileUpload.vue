@@ -25,9 +25,10 @@ interface UploadSession {
   bindable_file: FileVariant | null
 }
 
-const props = withDefaults(defineProps<{ purpose: string; businessContextId?: string | null; label?: string; disabled?: boolean }>(), { disabled: false })
+const props = withDefaults(defineProps<{ purpose: string; businessContextId?: string | null; label?: string; disabled?: boolean; accessToken?: string | null }>(), { disabled: false })
 const emit = defineEmits<{ uploaded: [fileId: string]; busyChanged: [busy: boolean] }>()
 const auth = useAdminAuthStore()
+const uploadToken = computed(() => props.accessToken === undefined ? auth.accessToken : props.accessToken)
 const policy = ref<UploadPolicy | null>(null)
 const selected = ref<File | null>(null)
 const busy = ref(false)
@@ -51,7 +52,7 @@ async function loadPolicy() {
 }
 
 async function upload(throwOnError = false) {
-  if (!selected.value || !auth.accessToken || props.disabled) return
+  if (!selected.value || !uploadToken.value || props.disabled) return
   busy.value = true; emit('busyChanged', true); error.value = ''; status.value = '正在计算文件校验值…'
   try {
     const sha256 = await digest(selected.value)
@@ -62,7 +63,7 @@ async function upload(throwOnError = false) {
       method: 'POST',
       headers: { 'Idempotency-Key': createIdempotencyKey('file-upload') },
       body: JSON.stringify({ purpose: props.purpose, filename: selected.value.name, size_bytes: selected.value.size, content_type: selected.value.type || 'application/octet-stream', sha256, business_context_id: props.businessContextId || null }),
-    }, auth.accessToken)).data
+    }, uploadToken.value)).data
     if (!session.upload) throw new Error('上传会话未返回对象存储指令')
     status.value = '正在上传到临时隔离区…'
     const uploadResponse = await fetch(session.upload.url, { method: session.upload.method, headers: session.upload.headers, body: selected.value })
@@ -72,7 +73,7 @@ async function upload(throwOnError = false) {
       method: 'POST',
       headers: { 'Idempotency-Key': createIdempotencyKey('file-complete') },
       body: JSON.stringify({ sha256, provider_checksum: uploadResponse.headers.get('etag') }),
-    }, auth.accessToken)
+    }, uploadToken.value)
     const fileId = await waitUntilBindable(session.upload_id)
     status.value = `文件已通过扫描：${fileId}`
     emit('uploaded', fileId)
@@ -92,7 +93,7 @@ async function uploadFile(file: File) {
 
 async function waitUntilBindable(uploadId: string): Promise<string> {
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    const current = (await apiRequest<UploadSession>(`/file-upload-sessions/${encodeURIComponent(uploadId)}`, {}, auth.accessToken)).data
+    const current = (await apiRequest<UploadSession>(`/file-upload-sessions/${encodeURIComponent(uploadId)}`, {}, uploadToken.value)).data
     if (current.bindable_file?.status === 'active' && current.bindable_file.scan_status === 'safe') return current.bindable_file.file_id
     if (current.bindable_file?.scan_status === 'rejected') throw new Error('文件未通过安全扫描，请更换文件。')
     status.value = `安全扫描处理中（${attempt + 1}/30）…`

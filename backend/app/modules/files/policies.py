@@ -45,6 +45,18 @@ POLICIES = {
         permissions=("stores:manage",),
         processor="public_image",
     ),
+    "user_avatar": UploadPolicy(
+        purpose="user_avatar",
+        version="user-avatar-v1",
+        allowed_mime_types=("image/jpeg", "image/png", "image/webp"),
+        allowed_extensions=("jpg", "jpeg", "png", "webp"),
+        max_size_bytes=5 * MIB,
+        max_count=1,
+        max_pixels=20_000_000,
+        owner_type="user",
+        permissions=("users:manage",),
+        processor="public_image",
+    ),
     "review_image": UploadPolicy(
         purpose="review_image",
         version="review-image-v1",

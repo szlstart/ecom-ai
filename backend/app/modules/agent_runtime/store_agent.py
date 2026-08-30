@@ -20,7 +20,7 @@ from app.modules.agent_runtime.model_gateway import (
 )
 from app.modules.agent_runtime.models import AgentRun
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
-from app.modules.agent_runtime.provider_gateway import ProviderStoreModelGateway
+from app.modules.agent_runtime.provider_gateway import ProviderStoreModelGateway, model_failure_code
 from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
 from app.modules.agent_runtime.store_context import StoreContextBuilder, TrustedStoreAgentContext
 from app.modules.agent_runtime.store_tools import StoreToolGateway, StoreToolResult
@@ -100,9 +100,9 @@ async def process_store_run(
     )
     try:
         plan = await gateway.plan(planning_input)
-    except (ModelGatewayError, TimeoutError):
+    except (ModelGatewayError, TimeoutError) as exc:
         plan = await DeterministicStoreModelGateway().plan(trigger_text)
-        run.degraded_reason = "planning_model_unavailable"
+        run.degraded_reason = model_failure_code(exc, "planning")
 
     if checkpoint_store is not None:
         try:
@@ -422,10 +422,11 @@ async def _grounded_answer(
             evidence=data,
             source_ids=source_ids,
         )
-    except (ModelGatewayError, TimeoutError):
+    except (ModelGatewayError, TimeoutError) as exc:
+        reason = model_failure_code(exc, "answer")
         trace["answer_mode"] = "deterministic_fallback"
-        trace["degraded_reason"] = "answer_model_unavailable"
-        context.run.degraded_reason = "answer_model_unavailable"
+        trace["degraded_reason"] = reason
+        context.run.degraded_reason = reason
         return fallback, trace
     trace["answer_mode"] = "model_grounded"
     trace["confidence"] = answer.confidence

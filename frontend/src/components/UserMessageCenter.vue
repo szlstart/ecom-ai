@@ -107,6 +107,10 @@ async function conversationDeleted(conversationId: string) {
   selectedTraceRunId.value = null
   await load(true)
 }
+function updateReadCursor(conversationId: string, unreadCount: number) {
+  const item = items.value.find((candidate) => candidate.conversation_id === conversationId)
+  if (item) item.unread_count = unreadCount
+}
 watch(() => auth.isAuthenticated, (value) => {
   if (value) void load(true)
   else { items.value = [] }
@@ -160,7 +164,7 @@ onBeforeUnmount(() => {
           </button>
         </aside>
         <main class="user-chat-main">
-          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" @trace-select="selectedTraceRunId = $event" @trace-running="traceRunning = $event" @trace-progress="liveTrace = $event" @conversation-deleted="conversationDeleted" />
+          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" @trace-select="selectedTraceRunId = $event" @trace-running="traceRunning = $event" @trace-progress="liveTrace = $event" @conversation-deleted="conversationDeleted" @read-cursor="updateReadCursor" />
           <div v-else class="merchant-chat-welcome"><span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><h2>消息中心</h2><p>选择左侧会话开始沟通。</p></div>
         </main>
         <AgentTracePanel :messages="traceMessages" :selected-run-id="selectedTraceRunId" :running="traceRunning" :live-trace="liveTrace" />

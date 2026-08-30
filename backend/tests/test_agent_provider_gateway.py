@@ -9,7 +9,9 @@ from app.core.config import Settings
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.provider_gateway import (
     OpenAICompatiblePlanner,
+    _strip_untrusted_user_salutation,
     configured_model_gateways,
+    model_failure_code,
     probe_model_provider,
 )
 
@@ -324,3 +326,22 @@ async def test_provider_health_reports_unconfigured_without_network() -> None:
     health = await probe_model_provider(Settings(_env_file=None))
     assert health.status == "unconfigured"
     assert health.error_code == "MODEL_PROVIDER_NOT_CONFIGURED"
+
+
+def test_grounded_answer_guard_removes_only_invented_leading_name() -> None:
+    assert _strip_untrusted_user_salutation("刀锋您好，订单已签收。") == "您好，订单已签收。"
+    assert _strip_untrusted_user_salutation("您好，订单已签收。") == "您好，订单已签收。"
+    assert _strip_untrusted_user_salutation("订单已签收。") == "订单已签收。"
+
+
+def test_model_failure_codes_do_not_include_prompt_or_provider_output() -> None:
+    assert (
+        model_failure_code(
+            ModelGatewayError("model answer contains claims outside trusted evidence"),
+            "answer",
+        )
+        == "answer_model_grounding_rejected"
+    )
+    assert model_failure_code(TimeoutError("private message"), "planning") == (
+        "planning_model_timeout"
+    )

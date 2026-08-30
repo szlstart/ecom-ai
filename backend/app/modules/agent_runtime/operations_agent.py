@@ -38,7 +38,10 @@ from app.modules.agent_runtime.operations_context import (
     TrustedOperationsContext,
 )
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection
-from app.modules.agent_runtime.provider_gateway import ProviderOperationsModelGateway
+from app.modules.agent_runtime.provider_gateway import (
+    ProviderOperationsModelGateway,
+    model_failure_code,
+)
 from app.modules.agent_runtime.public_trace import public_trace
 from app.modules.catalog.models import Product, ProductSku
 from app.modules.identity.models import User
@@ -133,8 +136,8 @@ async def process_operations_run(
     if model_gateway is not None:
         try:
             intent = await model_gateway.plan(planning_input, context.agent_definition.agent_code)
-        except (ModelGatewayError, TimeoutError):
-            run.degraded_reason = "planner_model_unavailable"
+        except (ModelGatewayError, TimeoutError) as exc:
+            run.degraded_reason = model_failure_code(exc, "planning")
     admin_domains = _admin_complex_domains(user_text) if context.audience == "admin" else ()
     if len(admin_domains) >= 2:
         intent = "complex_platform_diagnosis"
@@ -202,8 +205,8 @@ async def process_operations_run(
                 small_answer_mode = "model_grounded"
                 small_confidence = grounded.confidence
                 small_citations = grounded.cited_source_ids or small_citations
-            except (ModelGatewayError, TimeoutError):
-                run.degraded_reason = "answer_model_unavailable"
+            except (ModelGatewayError, TimeoutError) as exc:
+                run.degraded_reason = model_failure_code(exc, "answer")
         await _complete(
             session,
             context,
@@ -242,8 +245,8 @@ async def process_operations_run(
                     answer_mode = "model_grounded"
                     confidence = grounded.confidence
                     multi_citations = grounded.cited_source_ids or source_ids
-                except (ModelGatewayError, TimeoutError):
-                    run.degraded_reason = "answer_model_unavailable"
+                except (ModelGatewayError, TimeoutError) as exc:
+                    run.degraded_reason = model_failure_code(exc, "answer")
             await _complete(
                 session,
                 context,
@@ -305,8 +308,8 @@ async def process_operations_run(
             answer_mode = "model_grounded"
             confidence = grounded.confidence
             citations = grounded.cited_source_ids or citations
-        except (ModelGatewayError, TimeoutError):
-            run.degraded_reason = "answer_model_unavailable"
+        except (ModelGatewayError, TimeoutError) as exc:
+            run.degraded_reason = model_failure_code(exc, "answer")
     await _complete(
         session,
         context,
@@ -490,6 +493,7 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
     if not isinstance(specialists, dict) or not specialists:
         return "跨域诊断没有取得足够的可信结果，请缩小查询范围后重试。"
     lines = ["已并行完成跨域只读诊断:"]
+    all_metrics: dict[str, int] = {}
     for result in specialists.values():
         if not isinstance(result, dict):
             continue
@@ -497,14 +501,39 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
         safe_data = result.get("data")
         if not isinstance(safe_data, dict):
             continue
-        summary = "、".join(
-            f"{key}={value}" for key, value in safe_data.items() if isinstance(value, (str, int))
-        )
+        metrics = _flatten_summary(safe_data)
+        all_metrics.update({key: value for key, value in metrics.items() if isinstance(value, int)})
+        summary = "、".join(f"{key}={value}" for key, value in metrics.items())
         if not summary:
             summary = "已取得结构化汇总，可在右侧工作记录查看各领域完成状态"
         lines.append(f"- {specialist}: {summary}")
+    risks: list[str] = []
+    if all_metrics.get("pending_outbox_events", 0) > 0:
+        risks.append(f"仍有 {all_metrics['pending_outbox_events']} 条 Outbox 事件待处理")
+    if all_metrics.get("failed_agent_runs", 0) > 0:
+        risks.append(f"存在 {all_metrics['failed_agent_runs']} 次失败的 Agent 运行")
+    if all_metrics.get("product_status_counts.on_sale", 0) == 0:
+        risks.append("平台当前没有在售商品")
+    if risks:
+        lines.append("风险: " + "；".join(risks) + "。")  # noqa: RUF001
+        lines.append("建议: 优先处理积压或失败项，处理后重新执行只读诊断确认恢复。")
+    else:
+        lines.append("风险: 当前汇总未发现 Outbox 积压、Agent 失败或无在售商品风险。")
+        lines.append("建议: 继续监控订单履约、库存和 Worker 连续失败指标，并按告警阈值处置。")
     lines.append("以上仅为当前授权范围内的实时汇总，本次没有修改任何业务数据。")
     return "\n".join(lines)
+
+
+def _flatten_summary(value: Mapping[str, Any]) -> dict[str, str | int]:
+    result: dict[str, str | int] = {}
+    for key, item in value.items():
+        if isinstance(item, (str, int)):
+            result[str(key)] = item
+        elif isinstance(item, dict):
+            for nested_key, nested_value in item.items():
+                if isinstance(nested_value, (str, int)):
+                    result[f"{key}.{nested_key}"] = nested_value
+    return result
 
 
 async def _execute_tool(

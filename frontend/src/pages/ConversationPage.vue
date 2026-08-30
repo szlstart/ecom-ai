@@ -54,6 +54,7 @@ const emit = defineEmits<{
   'trace-running': [running: boolean]
   'trace-progress': [trace: AgentLiveTrace | null]
   'conversation-deleted': [conversationId: string]
+  'read-cursor': [conversationId: string, unreadCount: number]
 }>()
 
 const route = useRoute()
@@ -645,6 +646,7 @@ async function flushRead() {
     lastReadSubmitted = response.data.last_read_sequence_no
     readAttempts = 0
     if (conversation.value) conversation.value.unread_count = response.data.unread_count
+    emit('read-cursor', conversationId.value, response.data.unread_count)
   } catch {
     readAttempts += 1
     if (readAttempts <= 3) readRetryTimer = window.setTimeout(() => void flushRead(), 500 * readAttempts)

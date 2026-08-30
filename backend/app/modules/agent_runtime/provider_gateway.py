@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -95,6 +96,24 @@ class GroundedAnswer:
     cited_source_ids: tuple[str, ...]
     confidence: str
     limitation: str | None
+
+
+def model_failure_code(exc: Exception, stage: str) -> str:
+    """Classify a provider failure without recording prompts or model output."""
+
+    if isinstance(exc, TimeoutError):
+        reason = "timeout"
+    else:
+        message = str(exc)
+        if "claims outside trusted evidence" in message:
+            reason = "grounding_rejected"
+        elif "invalid grounded answer" in message:
+            reason = "schema_invalid"
+        elif "unsupported" in message:
+            reason = "intent_invalid"
+        else:
+            reason = "provider_invalid_response"
+    return f"{stage}_model_{reason}"[:64]
 
 
 @dataclass(frozen=True)
@@ -299,8 +318,9 @@ class OpenAICompatiblePlanner:
             or (limitation is not None and not isinstance(limitation, str))
         ):
             raise ModelGatewayError("model returned an invalid grounded answer")
+        sanitized_answer = _strip_untrusted_user_salutation(answer.strip())
         grounded = GroundedAnswer(
-            text=answer.strip(),
+            text=sanitized_answer,
             cited_source_ids=tuple(citations),
             confidence=str(confidence),
             limitation=limitation,
@@ -872,3 +892,20 @@ def _current_message(value: str) -> str:
         return value
     current = value.split(marker, 1)[1]
     return current.split("\n\n", 1)[0]
+
+
+def _strip_untrusted_user_salutation(answer: str) -> str:
+    """Remove a model-invented name before a greeting.
+
+    Trusted evidence deliberately contains no user display name. Some compatible
+    models still prepend a fictional nickname despite the prompt. This narrow
+    deterministic guard keeps a plain greeting intact while removing only text
+    immediately before `您好`/`你好` at the start of the answer.
+    """
+
+    cleaned = re.sub(
+        r"^[\u4e00-\u9fffA-Za-z0-9_-]{1,16}(?=(?:您好|你好)[,\uff0c:\uff1a\s])",
+        "",
+        answer,
+    )
+    return cleaned or answer

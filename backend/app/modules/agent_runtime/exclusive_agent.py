@@ -30,7 +30,10 @@ from app.modules.agent_runtime.memory_runtime import AgentMemoryRuntime, explici
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
-from app.modules.agent_runtime.provider_gateway import ProviderExclusiveModelGateway
+from app.modules.agent_runtime.provider_gateway import (
+    ProviderExclusiveModelGateway,
+    model_failure_code,
+)
 from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
 from app.modules.agent_runtime.store_agent import _stream_events
 from app.modules.agent_runtime.store_tools import StoreToolResult
@@ -190,9 +193,9 @@ async def process_exclusive_run(
     )
     try:
         plan = await gateway.plan(planning_input)
-    except (ModelGatewayError, TimeoutError):
+    except (ModelGatewayError, TimeoutError) as exc:
         plan = await DeterministicExclusiveModelGateway().plan(trigger_text)
-        run.degraded_reason = "planning_model_unavailable"
+        run.degraded_reason = model_failure_code(exc, "planning")
     try:
         await checkpoint_store.write(
             run.run_no,
@@ -691,10 +694,11 @@ async def _grounded_answer(
             evidence=data,
             source_ids=source_ids,
         )
-    except (ModelGatewayError, TimeoutError):
+    except (ModelGatewayError, TimeoutError) as exc:
+        reason = model_failure_code(exc, "answer")
         trace["answer_mode"] = "deterministic_fallback"
-        trace["degraded_reason"] = "answer_model_unavailable"
-        context.run.degraded_reason = "answer_model_unavailable"
+        trace["degraded_reason"] = reason
+        context.run.degraded_reason = reason
         return fallback, trace
     trace["answer_mode"] = "model_grounded"
     trace["confidence"] = answer.confidence
@@ -743,9 +747,9 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
                 lines.append(
                     f"- {safe_untrusted_excerpt(item.get('name'), 120)} "
                     f"({safe_untrusted_excerpt(item.get('store_name'), 120)}): "
-                    f"{price.get('currency', 'CNY')} {int(price.get('min_amount', 0)) / 100:.2f} 起"
+                    f"{_price_display(price)} 起"
                 )
-        lines.append("价格与库存以商品详情和结算页实时结果为准。")
+        lines.append("推荐依据: 按当前公开销量排序; 价格与库存以商品详情和结算页实时结果为准。")
         return "\n".join(lines)
     if plan.intent == "order_lookup":
         if "order_id" in data:
@@ -967,6 +971,12 @@ def _money_display(value: Mapping[str, Any], key: str) -> str:
     money = amounts.get(key) if isinstance(amounts, dict) else None
     display = money.get("display") if isinstance(money, dict) else None
     return str(display) if display else "¥0.00"
+
+
+def _price_display(price: Mapping[str, Any]) -> str:
+    currency = str(price.get("currency") or "CNY").upper()
+    symbol = "¥" if currency == "CNY" else f"{currency} "
+    return f"{symbol}{int(price.get('min_amount', 0)) / 100:.2f}"
 
 
 _STATUS_LABELS: dict[str, dict[str, str]] = {

@@ -1,6 +1,7 @@
 from app.modules.agent_runtime.exclusive_agent import _render, _resource_no
 from app.modules.agent_runtime.exclusive_model_gateway import ExclusiveAgentPlan
 from app.modules.agent_runtime.exclusive_tools import _catalog_search_candidates
+from app.modules.agent_runtime.operations_agent import _render_multi_agent
 
 
 def test_resource_no_extracts_only_bounded_business_identifier() -> None:
@@ -64,3 +65,28 @@ def test_logistics_fallback_renders_tracking_location_and_localized_status() -> 
     assert "运输中" in rendered
     assert "海淀区" in rendered
     assert "in_transit" not in rendered
+
+
+def test_multi_agent_fallback_flattens_metrics_and_provides_risk_advice() -> None:
+    rendered = _render_multi_agent(
+        {
+            "specialists": {
+                "users": {
+                    "specialist": "governance_users",
+                    "data": {"user_status_counts": {"active": 3}},
+                },
+                "runtime": {
+                    "specialist": "observability",
+                    "data": {"pending_outbox_events": 2, "failed_agent_runs": 0},
+                },
+                "stores": {
+                    "specialist": "governance_stores",
+                    "data": {"product_status_counts": {"on_sale": 2}},
+                },
+            }
+        }
+    )
+    assert "user_status_counts.active=3" in rendered
+    assert "pending_outbox_events=2" in rendered
+    assert "风险" in rendered
+    assert "建议" in rendered

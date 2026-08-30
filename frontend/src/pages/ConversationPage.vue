@@ -40,6 +40,7 @@ import PageState from '@/components/PageState.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import MessageAttachmentPicker, { type MessagePickerOrder, type MessagePickerProduct } from '@/components/messaging/MessageAttachmentPicker.vue'
 import { confirmAction } from '@/composables/confirmation'
+import { messageMoneyLabel } from '@/utils/message-money'
 import { useUserAuthStore } from '@/stores/user-auth'
 
 type PendingMessage = { clientMessageId: string; text: string; status: 'sending' | 'recovering' | 'failed' | 'blocked' }
@@ -236,12 +237,7 @@ function approvalStatusLabel(message: ChatMessage): string {
   return ({ pending: '等待确认', approved: '已确认，正在提交', rejected: '已拒绝', expired: '已过期', consumed: '已处理' })[approvalStatus(message)]
 }
 function requestedAmountLabel(message: ChatMessage): string {
-  const value = message.content?.requested_amount
-  if (!value || typeof value !== 'object') return '—'
-  const amount = Number((value as Record<string, unknown>).amount)
-  const currency = String((value as Record<string, unknown>).currency ?? 'CNY')
-  if (!Number.isSafeInteger(amount)) return '—'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency }).format(amount / 100)
+  return messageMoneyLabel(message.content?.requested_amount)
 }
 function draftKey(): string { return `ecom-ai:draft:${conversationId.value}` }
 function restoreDraft() {

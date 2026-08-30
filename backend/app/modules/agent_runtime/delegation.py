@@ -181,6 +181,15 @@ SPECIALIST_POLICIES: Mapping[str, SpecialistPolicy] = {
         "governance_orders", frozenset({"governance.order_summary"})
     ),
     "observability": SpecialistPolicy("observability", frozenset({"observability.runtime_health"})),
+    "merchant_catalog": SpecialistPolicy(
+        "merchant_catalog", frozenset({"store_ops.catalog_summary"})
+    ),
+    "merchant_inventory": SpecialistPolicy(
+        "merchant_inventory", frozenset({"store_ops.inventory_risks"})
+    ),
+    "merchant_orders": SpecialistPolicy(
+        "merchant_orders", frozenset({"store_ops.order_summary"})
+    ),
 }
 
 

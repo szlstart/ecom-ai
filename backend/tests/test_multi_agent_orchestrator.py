@@ -425,6 +425,9 @@ def test_specialist_tool_sets_match_published_read_contracts() -> None:
         "governance_stores",
         "governance_orders",
         "observability",
+        "merchant_catalog",
+        "merchant_inventory",
+        "merchant_orders",
     }
     for policy in SPECIALIST_POLICIES.values():
         assert policy.allowed_tools <= READ_ONLY_TOOLS | {"rag.policy.search"}

@@ -228,6 +228,16 @@ async def process_batch(limit: int = 20) -> int:
                     failed.current_phase = "failed"
                     failed.error_code = "AGENT_RUNTIME_UNHANDLED_ERROR"
                     failed.version += 1
+                    failed_conversation = await session.get(
+                        Conversation, failed.conversation_id
+                    )
+                    if failed_conversation is not None and failed.response_message_id is None:
+                        await _persist_failure_response(
+                            session,
+                            failed,
+                            failed_conversation,
+                            agent_code=agent_code,
+                        )
                     await session.commit()
                 logger.exception("agent_run_unhandled_error", run_no=run_no, agent_code=agent_code)
                 run = failed or run
@@ -242,6 +252,102 @@ async def process_batch(limit: int = 20) -> int:
             processed += 1
             break
     return processed
+
+
+async def _persist_failure_response(
+    session: object,
+    run: AgentRun,
+    conversation: Conversation,
+    *,
+    agent_code: str,
+) -> None:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    assert isinstance(session, AsyncSession)
+    now = utc_now()
+    text = (
+        "本次智能处理发生异常，系统已记录故障且没有执行任何写操作。"
+        "你可以稍后重试。若问题持续，请联系人工客服。"
+    )
+    conversation.last_sequence_no += 1
+    conversation.last_message_at = now
+    conversation.version += 1
+    message = Message(
+        message_no=new_prefixed_ulid("msg_"),
+        conversation_id=conversation.id,
+        sequence_no=conversation.last_sequence_no,
+        client_message_no=None,
+        sender_type="agent",
+        sender_id=None,
+        message_type="text",
+        text_content=text,
+        content_payload={
+            "run_id": run.run_no,
+            "execution_trace": {
+                "version": "public-agent-trace-v2",
+                "run_id": run.run_no,
+                "agent": agent_code,
+                "status": "failed",
+                "question": "本次会话消息",
+                "intent": "runtime_failure",
+                "analysis_summary": "处理流程在完成前发生异常，系统已停止后续步骤。",
+                "analysis_details": [
+                    "异常已记录并关联本次运行。",
+                    "未继续调用业务工具，也没有执行写操作。",
+                ],
+                "steps": [
+                    {
+                        "kind": "security",
+                        "label": "安全停止异常流程",
+                        "status": "failed",
+                    }
+                ],
+                "raw_reasoning_exposed": False,
+            },
+        },
+        agent_version_id=run.agent_version_id,
+        ai_run_no=run.run_no,
+        message_status="sent",
+        moderation_status="passed",
+        sent_at=now,
+    )
+    session.add(message)
+    await session.flush()
+    conversation.last_message_id = message.id
+    run.response_message_id = message.id
+    run.public_output = text
+    common = {"conversation_id": conversation.conversation_no, "run_id": run.run_no}
+    session.add_all(
+        [
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="agent.response.completed.v1",
+                aggregate_type="conversation",
+                aggregate_no=conversation.conversation_no,
+                aggregate_version=conversation.version,
+                payload={**common, "message_id": message.message_no},
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=run.trace_id,
+            ),
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="message.sent.v1",
+                aggregate_type="conversation",
+                aggregate_no=conversation.conversation_no,
+                aggregate_version=conversation.version,
+                payload={
+                    "conversation_id": conversation.conversation_no,
+                    "message_id": message.message_no,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=run.trace_id,
+            ),
+        ]
+    )
 
 
 def _reject_event(event: OutboxEvent, code: str, now: datetime) -> None:

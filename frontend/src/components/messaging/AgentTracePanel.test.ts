@@ -68,4 +68,13 @@ describe('AgentTracePanel', () => {
     expect(wrapper.text()).toContain('正在识别问题')
     expect(wrapper.text()).not.toContain('调用工具')
   })
+
+  it('makes a failed server run visible instead of leaving the panel thinking', () => {
+    const message = agentMessage(3, 'run_FAILED', '安全停止异常流程')
+    ;(message.content!.execution_trace as Record<string, unknown>).status = 'failed'
+    const wrapper = mount(AgentTracePanel, { props: { messages: [message] } })
+    expect(wrapper.text()).toContain('处理失败')
+    expect(wrapper.text()).toContain('分析与计划')
+    expect(wrapper.text()).not.toContain('思考中')
+  })
 })

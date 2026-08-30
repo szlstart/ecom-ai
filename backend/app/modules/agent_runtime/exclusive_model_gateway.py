@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
+from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
+
 ExclusiveIntent = Literal[
     "general_chat",
     "policy_qa",
@@ -30,7 +32,7 @@ class ExclusiveModelGateway(Protocol):
 class DeterministicExclusiveModelGateway:
     async def plan(self, user_text: str) -> ExclusiveAgentPlan:
         text = re.sub(r"\s+", "", user_text).casefold()
-        if _contains(text, "人工", "真人", "投诉", "平台客服"):
+        if is_explicit_handoff_request(user_text):
             return ExclusiveAgentPlan("human_handoff")
         if _contains(text, "退款进度", "售后进度", "退款到哪", "退款状态"):
             return ExclusiveAgentPlan("refund_progress")

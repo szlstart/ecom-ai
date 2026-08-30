@@ -7,6 +7,7 @@ from app.api.schemas import Envelope
 from app.modules.identity.router import _etag, _expected_version, _no_store
 from app.modules.messaging.schemas import MessageList, MessageView, ReadCursorRequest
 from app.modules.messaging.support_schemas import (
+    SupportConversationList,
     SupportInternalNoteList,
     SupportInternalNoteRequest,
     SupportMessageRequest,
@@ -26,6 +27,23 @@ router = APIRouter(prefix="/support", tags=["support-workspace"])
 
 def _service(session: DatabaseSession) -> SupportService:
     return SupportService(session)
+
+
+@router.get(
+    "/conversations",
+    response_model=Envelope[SupportConversationList],
+    operation_id="SupportConversation_List",
+)
+async def list_support_conversations(
+    response: Response,
+    session: DatabaseSession,
+    access: Annotated[AdminAccess, require_admin_permission("support:queue_read")],
+    participant_type: Literal["user", "merchant"] | None = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+) -> Envelope[SupportConversationList]:
+    result = await _service(session).list_conversations(access, participant_type, limit)
+    _no_store(response)
+    return Envelope(data=result)
 
 
 @router.get(

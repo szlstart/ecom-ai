@@ -191,6 +191,10 @@ class RealtimeOutboxRelay:
             result.append(
                 (admin_store_channel(self.settings.environment, conversation.store_id), frame)
             )
+        elif conversation.conversation_type == "exclusive":
+            # Platform operators receive the user/merchant exclusive-support inbox in
+            # real time even before an Agent decides that human takeover is required.
+            result.append((admin_platform_channel(self.settings.environment), frame))
         unread = await self._user_unread(user.id, conversation.id)
         result.append(
             (

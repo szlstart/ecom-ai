@@ -99,6 +99,24 @@ async def test_previous_handoff_message_cannot_turn_current_greeting_into_handof
 
 
 @pytest.mark.asyncio
+async def test_provider_cannot_reopen_handoff_for_a_status_question() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": '{"intent":"human_handoff","search_text":null}'}}
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    plan = await planner.plan_exclusive("人工服务结束了吗?")
+    assert plan.intent == "general_chat"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)

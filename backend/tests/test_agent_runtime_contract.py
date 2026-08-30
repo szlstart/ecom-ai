@@ -16,6 +16,7 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
 )
 from app.modules.agent_runtime.model_gateway import DeterministicStoreModelGateway
+from app.modules.agent_runtime.operations_agent import _operations_small_talk_reply
 from app.modules.agent_runtime.service import _normalize_context_snapshot
 from app.modules.agent_runtime.store_context import STORE_AGENT_TOOL_CODES
 from app.modules.agent_runtime.store_tools import _contains_scope_override
@@ -158,6 +159,27 @@ async def test_greetings_remain_in_ai_conversation_instead_of_handoff() -> None:
 
 
 @pytest.mark.asyncio
+async def test_discussing_human_service_does_not_reopen_handoff() -> None:
+    exclusive = DeterministicExclusiveModelGateway()
+    store = DeterministicStoreModelGateway()
+    for message in ("人工服务结束了吗?", "为什么刚才转人工?", "人工客服几点下班?"):
+        assert (await exclusive.plan(message)).intent != "human_handoff"
+        assert (await store.plan(message)).intent != "human_handoff"
+    assert (await exclusive.plan("请帮我转人工客服")).intent == "human_handoff"
+    assert (await store.plan("我要联系真人")).intent == "human_handoff"
+
+
+def test_operations_agents_have_distinct_small_talk_responses() -> None:
+    merchant = _operations_small_talk_reply("你好", "merchant")
+    admin = _operations_small_talk_reply("你好", "admin")
+    schedule = _operations_small_talk_reply("人工客服几点下班?", "merchant")
+    assert merchant is not None and "商家专属客服" in merchant
+    assert admin is not None and "超级管理员 AI 管家" in admin
+    assert schedule is not None and "请帮我转人工客服" in schedule
+    assert _operations_small_talk_reply("查看今天的订单", "merchant") is None
+
+
+@pytest.mark.asyncio
 async def test_exclusive_search_planner_extracts_public_catalog_query() -> None:
     plan = await DeterministicExclusiveModelGateway().plan("请帮我全平台搜索退款测试键盘")
     assert plan.intent == "product_search"
@@ -198,15 +220,11 @@ def test_agent_run_contract_is_published() -> None:
 def test_admin_agent_run_contract_is_redacted_and_concurrency_guarded() -> None:
     schema = create_app().openapi()
     detail = schema["paths"]["/api/v1/admin/ai/runs/{run_id}"]["get"]
-    cancellation = schema["paths"][
-        "/api/v1/admin/ai/runs/{run_id}/cancellations"
-    ]["post"]
+    cancellation = schema["paths"]["/api/v1/admin/ai/runs/{run_id}/cancellations"]["post"]
     assert detail["operationId"] == "AdminAgentRun_Get"
     assert cancellation["operationId"] == "AdminAgentRun_Kill"
     headers = {
-        parameter["name"]
-        for parameter in cancellation["parameters"]
-        if parameter["in"] == "header"
+        parameter["name"] for parameter in cancellation["parameters"] if parameter["in"] == "header"
     }
     assert {"If-Match", "Idempotency-Key"} <= headers
     properties = schema["components"]["schemas"]["AdminAgentRunView"]["properties"]
@@ -220,9 +238,7 @@ def test_admin_agent_run_contract_is_redacted_and_concurrency_guarded() -> None:
         "context_ref_count",
         "version",
     } <= set(properties)
-    assert {"output", "prompt", "message", "context_snapshot", "user_id"}.isdisjoint(
-        properties
-    )
+    assert {"output", "prompt", "message", "context_snapshot", "user_id"}.isdisjoint(properties)
 
 
 def test_agent_consent_contract_is_published() -> None:

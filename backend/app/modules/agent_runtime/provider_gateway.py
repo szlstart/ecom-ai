@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -19,6 +18,7 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
     ExclusiveAgentPlan,
     ExclusiveIntent,
 )
+from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
 from app.modules.agent_runtime.model_gateway import ModelGatewayError, StoreAgentPlan, StoreIntent
 
 STORE_INTENTS: tuple[StoreIntent, ...] = (
@@ -55,7 +55,7 @@ OPERATIONS_INTENTS = (
 
 _STORE_INTENT_GUIDANCE = """
 Intent definitions and priority:
-- human_handoff: asks for a human, complaint handling, or a real support person.
+- human_handoff: explicitly asks to transfer to a human or real support person.
 - general_chat: greetings, thanks, small talk, capability questions, or a message that does not
   ask for product, policy, inventory, order, recommendation, or human support data.
 - product_recommend: asks what to buy, suitability, budget-based selection, or recommendations.
@@ -70,7 +70,7 @@ Choose the first matching specific intent; do not invent an intent.
 
 _EXCLUSIVE_INTENT_GUIDANCE = """
 Intent definitions and priority:
-- human_handoff: asks for a human, complaint handling, or platform support staff.
+- human_handoff: explicitly asks to transfer to a human or platform support staff.
 - general_chat: greetings, thanks, small talk, capability questions, or a message that does not
   ask for policy, product, order, logistics, refund, recommendation, or human support data.
 - refund_progress: asks about an existing refund/after-sale case status or arrival of
@@ -155,7 +155,9 @@ class OpenAICompatiblePlanner:
         intent = result["intent"]
         if intent not in STORE_INTENTS:
             raise ModelGatewayError("model returned an unsupported store intent")
-        if intent == "human_handoff" and not _explicit_handoff(_current_message(user_text)):
+        if intent == "human_handoff" and not is_explicit_handoff_request(
+            _current_message(user_text)
+        ):
             intent = "general_chat"
         return StoreAgentPlan(intent, _search_text(result))
 
@@ -164,7 +166,9 @@ class OpenAICompatiblePlanner:
         intent = result["intent"]
         if intent not in EXCLUSIVE_INTENTS:
             raise ModelGatewayError("model returned an unsupported exclusive intent")
-        if intent == "human_handoff" and not _explicit_handoff(_current_message(user_text)):
+        if intent == "human_handoff" and not is_explicit_handoff_request(
+            _current_message(user_text)
+        ):
             intent = "general_chat"
         return ExclusiveAgentPlan(intent, _search_text(result))
 
@@ -182,6 +186,10 @@ class OpenAICompatiblePlanner:
         intent = result.get("intent")
         if intent not in OPERATIONS_INTENTS:
             raise ModelGatewayError("model returned an unsupported operations intent")
+        if intent == "human_handoff" and not is_explicit_handoff_request(
+            _current_message(user_text)
+        ):
+            intent = "overview"
         if agent_kind == "merchant_copilot" and intent in {"users", "stores", "runtime"}:
             return "overview"
         return str(intent)
@@ -857,14 +865,3 @@ def _current_message(value: str) -> str:
         return value
     current = value.split(marker, 1)[1]
     return current.split("\n\n", 1)[0]
-
-
-def _explicit_handoff(value: str) -> bool:
-    normalized = re.sub(r"\s+", "", value).casefold()
-    return any(
-        term in normalized
-        for term in (
-            "人工", "真人", "客服人员", "平台客服", "转客服", "投诉",
-            "humanagent", "humanservice", "realperson", "liveagent", "complaint",
-        )
-    )

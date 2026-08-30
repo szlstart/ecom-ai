@@ -8,7 +8,7 @@ import { useAdminAuthStore } from '@/stores/admin-auth'
 import MerchantMessageCenter from './MerchantMessageCenter.vue'
 
 const mocks = vi.hoisted(() => ({
-  listSupportTickets: vi.fn(),
+  listSupportConversations: vi.fn(),
   getMerchantExclusiveConversation: vi.fn(),
   listMerchantExclusiveMessages: vi.fn(),
   realtimeOptions: null as null | { onEvent: (event: Record<string, unknown>) => void },
@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/api/admin-support', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/api/admin-support')>(),
-  listSupportTickets: mocks.listSupportTickets,
+  listSupportConversations: mocks.listSupportConversations,
 }))
 
 vi.mock('@/api/merchant-support', async (importOriginal) => ({
@@ -33,11 +33,12 @@ vi.mock('@/api/realtime', () => ({
   },
 }))
 
-const ticket = {
-  ticket_id: 'hst_1', conversation_id: 'conv_customer', queue_type: 'store', queue_code: 'store:1',
-  ticket_type: 'general', priority: 'normal', ticket_status: 'active', assigned_user_id: 'usr_merchant',
-  handoff_summary: '商品咨询', sla_due_at: null, waiting_reason_code: null, unread_count: 2,
-  created_at: '2026-08-27T09:00:00Z', updated_at: '2026-08-27T09:01:00Z', version: 1,
+const conversation = {
+  conversation_id: 'conv_customer', conversation_type: 'store', participant_type: 'user',
+  participant_id: 'usr_customer', participant_name: '顾客小李', store_id: 'sto_1',
+  conversation_status: 'active', last_message_preview: '请问有库存吗？',
+  last_message_at: '2026-08-27T09:01:00Z', unread_count: 2, requires_human: false,
+  active_ticket_id: null, active_ticket_status: null, assigned_user_id: null,
 }
 
 describe('MerchantMessageCenter', () => {
@@ -45,7 +46,7 @@ describe('MerchantMessageCenter', () => {
     vi.clearAllMocks()
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(0); return 1 })
     mocks.realtimeOptions = null
-    mocks.listSupportTickets.mockResolvedValue({ data: { items: [ticket] } })
+    mocks.listSupportConversations.mockResolvedValue({ data: { items: [conversation] } })
     mocks.getMerchantExclusiveConversation.mockResolvedValue({
       data: { conversation_id: 'conv_exclusive', unread_count: 3 },
     })

@@ -689,6 +689,12 @@ async def _grounded_answer(
         source_ids=source_ids,
         tool_code=tool_code,
     )
+    # Public catalogue answers are exact business evidence. The model may plan
+    # and rank the request, but it must not rename a product, invent a matching
+    # item from a remembered preference, or replace live stock with vague prose.
+    if _requires_exact_catalog_rendering(plan.intent):
+        trace["answer_mode"] = "grounded_deterministic"
+        return fallback, trace
     if not isinstance(gateway, ProviderExclusiveModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
@@ -719,6 +725,10 @@ async def _grounded_answer(
     ):
         answer_text += "\n\n本次仅完成只读资格检查，没有创建退款草稿或售后单。"
     return answer_text, trace
+
+
+def _requires_exact_catalog_rendering(intent: str) -> bool:
+    return intent in {"product_search", "personalized_recommendation"}
 
 
 def _tool_for_intent(intent: str) -> str:

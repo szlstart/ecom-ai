@@ -1,6 +1,7 @@
 from app.modules.agent_runtime.exclusive_agent import (
     _render,
     _requests_latest_order,
+    _requires_exact_catalog_rendering,
     _resource_no,
 )
 from app.modules.agent_runtime.exclusive_model_gateway import ExclusiveAgentPlan
@@ -70,6 +71,9 @@ def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:
     assert "偏好蓝色、简约风格" in rendered
     assert "¥6.00" in rendered
     assert "可售库存 17" in rendered
+    assert _requires_exact_catalog_rendering("personalized_recommendation") is True
+    assert _requires_exact_catalog_rendering("product_search") is True
+    assert _requires_exact_catalog_rendering("policy_qa") is False
 
 
 def test_order_fallback_renders_amount_and_localized_status() -> None:

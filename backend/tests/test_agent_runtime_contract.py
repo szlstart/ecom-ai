@@ -147,8 +147,14 @@ async def test_store_model_planner_cannot_expand_scope_from_prompt_injection() -
 @pytest.mark.asyncio
 async def test_natural_language_confirmation_cannot_become_an_approval_action() -> None:
     plan = await DeterministicExclusiveModelGateway().plan("好的，确认提交，立即执行")
-    assert plan.intent == "policy_qa"
+    assert plan.intent == "general_chat"
     assert not hasattr(plan, "approval_id")
+
+
+@pytest.mark.asyncio
+async def test_greetings_remain_in_ai_conversation_instead_of_handoff() -> None:
+    assert (await DeterministicExclusiveModelGateway().plan("hello")).intent == "general_chat"
+    assert (await DeterministicStoreModelGateway().plan("你好")).intent == "general_chat"
 
 
 @pytest.mark.asyncio

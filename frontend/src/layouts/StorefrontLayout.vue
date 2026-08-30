@@ -57,7 +57,7 @@ async function finishAuth() {
   if (openMessagesAfterAuth.value) {
     openMessagesAfterAuth.value = false
     closeAuth()
-    messageCenter.show()
+    await router.push('/messages')
     return
   }
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
@@ -91,6 +91,14 @@ onBeforeUnmount(() => {
 })
 
 watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
+watch(() => messageCenter.open, async (value) => {
+  if (!value) return
+  messageCenter.close()
+  const target = messageCenter.selectedConversationId
+    ? `/messages/${messageCenter.selectedConversationId}`
+    : '/messages'
+  if (route.path !== target) await router.push(target)
+})
 </script>
 
 <template>

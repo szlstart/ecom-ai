@@ -174,6 +174,16 @@ async def _execute_plan(
 ) -> StoreToolResult:
     context.run.current_phase = "tool_call"
     context.run.version += 1
+    if plan.intent == "general_chat":
+        return StoreToolResult(
+            "succeeded",
+            {
+                "assistant_scope": (
+                    "可以协助当前店铺内的商品咨询、款式对比、库存、服务政策、"
+                    "订单解释和商品推荐，只有用户明确要求时才转人工客服。"
+                )
+            },
+        )
     if plan.intent == "human_handoff":
         return await tools.handoff(
             context, ticket_type="general", reason_code="USER_REQUESTED_HUMAN"
@@ -337,17 +347,24 @@ async def _grounded_answer(
         f"{item['type']}:{item['id']}"
         for item in sources
         if isinstance(item.get("type"), str) and isinstance(item.get("id"), str)
-    ) or (f"tool:{tool_code}",)
+    )
+    if plan.intent == "general_chat":
+        source_ids = ("context:assistant_scope",)
+    elif not source_ids:
+        source_ids = (f"tool:{tool_code}",)
     steps: list[dict[str, object]] = [
-        {"kind": "plan", "label": "理解问题", "status": "completed"},
-        {
-            "kind": "tool",
-            "label": "查询店铺可信数据",
-            "tool_code": tool_code,
-            "status": "completed",
-        },
-        {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
+        {"kind": "plan", "label": "理解当前消息", "status": "completed"},
     ]
+    if plan.intent != "general_chat":
+        steps.append(
+            {
+                "kind": "tool",
+                "label": "查询店铺可信数据",
+                "tool_code": tool_code,
+                "status": "completed",
+            }
+        )
+    steps.append({"kind": "answer", "label": "生成安全回复", "status": "completed"})
     if isinstance(data.get("rag"), dict):
         rag = data["rag"]
         steps.insert(
@@ -385,6 +402,11 @@ async def _grounded_answer(
     if not isinstance(gateway, ProviderStoreModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
+    if plan.intent == "general_chat":
+        trace["answer_mode"] = "model_routed_safe_reply"
+        trace["confidence"] = "high"
+        trace["cited_source_ids"] = list(source_ids)
+        return fallback, trace
     context.run.current_phase = "answering"
     context.run.version += 1
     try:
@@ -410,6 +432,7 @@ async def _grounded_answer(
 
 def _tool_for_intent(intent: str) -> str:
     return {
+        "general_chat": "none",
         "human_handoff": "support.create_store_ticket",
         "policy_qa": "catalog.get_store_policy",
         "product_recommend": "catalog.search_store_products",
@@ -421,6 +444,8 @@ def _tool_for_intent(intent: str) -> str:
 
 
 def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
+    if plan.intent == "general_chat":
+        return "你好，我是本店智能客服。你可以直接问我商品、款式、库存、服务政策或订单问题。"
     if plan.intent == "human_handoff":
         return "已为你转接本店人工客服，请留意排队状态。"
     if plan.intent == "inventory_lookup":

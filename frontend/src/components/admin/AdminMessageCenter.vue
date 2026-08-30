@@ -22,9 +22,8 @@ import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/ap
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
-import { useDialogA11y } from '@/composables/dialog-a11y'
 
-const emit = defineEmits<{ close: []; 'unread-change': [count: number] }>()
+const emit = defineEmits<{ 'unread-change': [count: number] }>()
 const auth = useAdminAuthStore()
 const tickets = ref<SupportTicket[]>([])
 const selected = ref<'ai' | string>('ai')
@@ -43,7 +42,6 @@ const userGroupOpen = ref(true)
 const storeGroupOpen = ref(true)
 const aiConversationId = ref('')
 const timeline = ref<HTMLElement | null>(null)
-const dialog = ref<HTMLElement | null>(null)
 const connectionState = ref<RealtimeState>('polling')
 const selectedTraceRunId = ref<string | null>(null)
 let realtime: RealtimeConnection | undefined
@@ -67,7 +65,6 @@ const initials = computed(() => '管')
 
 function token(): string { if (!auth.accessToken) throw new Error('管理会话不可用'); return auth.accessToken }
 function dateTime(value: string): string { return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
-function senderName(message: ChatMessage): string { return ({ user: '用户', human: '平台客服', agent: 'AI 客服', system: '系统', tool: '工具' } as Record<string, string>)[message.sender_type] ?? message.sender_type }
 function traceRunId(message: ChatMessage): string | null {
   const trace = message.content?.execution_trace
   const value = trace && typeof trace === 'object' && !Array.isArray(trace)
@@ -216,9 +213,6 @@ async function send() {
   finally { busy.value = false }
 }
 
-const open = ref(true)
-function close() { open.value = false; emit('close') }
-useDialogA11y(open, dialog, close)
 onMounted(async () => {
   await Promise.all([loadTickets(), loadAiMessages()])
   loading.value = false
@@ -239,10 +233,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="admin-message-overlay" @click.self="close">
-    <section ref="dialog" class="admin-message-window" role="dialog" aria-modal="true" aria-label="管理端消息中心" tabindex="-1">
+  <div class="message-page-surface admin-message-page-surface">
+    <section class="admin-message-window" aria-label="管理端消息中心">
       <aside class="admin-chat-sidebar">
-        <header><div><strong>消息中心</strong><small>用户、店铺与 AI 管家</small></div><button aria-label="关闭消息中心" @click="close">×</button></header>
+        <header><div><strong>会话列表</strong><small>用户、店铺与 AI 管家</small></div></header>
         <label class="admin-chat-search"><span>⌕</span><input v-model="search" placeholder="搜索会话" /></label>
         <div class="admin-chat-list">
           <button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click="selectAi"><span class="admin-chat-avatar ai">✦</span><span><strong>AI 管家</strong><small>只读诊断助手 · 固定置顶</small></span><time>置顶</time></button>
@@ -262,19 +256,19 @@ onBeforeUnmount(() => {
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取 AI 会话…</div>
           <section v-else class="admin-chat-conversation admin-ai-chat">
-            <div v-if="aiMessages.length" ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user', 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(message) || selectedTraceRunId"><span class="admin-chat-bubble-avatar">{{ message.sender_type === 'user' ? initials : '✦' }}</span><div><strong>{{ message.sender_type === 'user' ? '我' : 'AI 管家' }}</strong><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
+            <div v-if="aiMessages.length" ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user', 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(message) || selectedTraceRunId"><span class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'user' ? '管理员' : 'AI 管家'">{{ message.sender_type === 'user' ? initials : '✦' }}</span><div><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
             <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" placeholder="询问平台概况、用户、店铺、订单或 Agent 运行状态…" @keydown.enter.exact.prevent="send" /><div><span>默认只读 · 不展示模型原始思维链</span><button :disabled="!reply.trim() || busy">{{ busy ? '发送中…' : '发送' }}</button></div></form>
           </section>
         </template>
 
         <template v-else>
-          <header class="admin-chat-header"><div><strong>{{ selectedTicket?.queue_type === 'store' ? '店铺专属客服' : '用户专属客服' }}</strong><small>{{ selectedTicket?.ticket_id }} · {{ selectedTicket?.ticket_status }}</small></div><RouterLink v-if="selectedTicket" :to="`/admin/support/tickets/${selectedTicket.ticket_id}`" @click="emit('close')">完整工作台 ↗</RouterLink></header>
+          <header class="admin-chat-header"><div><strong>{{ selectedTicket?.queue_type === 'store' ? '店铺专属客服' : '用户专属客服' }}</strong><small>{{ selectedTicket?.ticket_id }} · {{ selectedTicket?.ticket_status }}</small></div><RouterLink v-if="selectedTicket" :to="`/admin/support/tickets/${selectedTicket.ticket_id}`">完整工作台 ↗</RouterLink></header>
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取会话…</div>
           <section v-else-if="workspace" class="admin-chat-conversation">
             <div v-if="!assignedToMe" class="admin-chat-claim"><span>◍</span><h2>{{ selectedTicket?.ticket_status === 'queued' ? '这条会话正在等待客服' : '会话由其他客服处理' }}</h2><p>领取后才能读取完整聊天内容并向对方回复，避免多个管理员同时处理。</p><button v-if="selectedTicket?.ticket_status === 'queued' && auth.has('support:claim')" :disabled="busy" @click="claim">领取并开始处理</button></div>
             <template v-else>
-              <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: message.sender_type === 'human' }"><span class="admin-chat-bubble-avatar">{{ message.sender_type === 'human' ? initials : selectedTicket?.queue_type === 'store' ? '店' : '用' }}</span><div><strong>{{ senderName(message) }}</strong><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article><p v-if="!messages.length" class="empty-state">暂无聊天消息</p></div>
+              <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: message.sender_type === 'human' }"><span class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'human' ? '平台客服' : selectedTicket?.queue_type === 'store' ? '店铺' : '用户'">{{ message.sender_type === 'human' ? initials : selectedTicket?.queue_type === 'store' ? '店' : '用' }}</span><div><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article><p v-if="!messages.length" class="empty-state">暂无聊天消息</p></div>
               <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" :disabled="!canChat" :placeholder="canChat ? '输入回复，Enter 换行，点击发送提交' : '当前会话状态暂不可回复'" /><div><span>回复会对用户或店铺立即可见</span><button :disabled="!canChat || !reply.trim() || busy">发送</button></div></form>
             </template>
           </section>

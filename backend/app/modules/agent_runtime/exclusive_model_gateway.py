@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 ExclusiveIntent = Literal[
+    "general_chat",
     "policy_qa",
     "product_search",
     "personalized_recommendation",
@@ -43,7 +44,9 @@ class DeterministicExclusiveModelGateway:
             return ExclusiveAgentPlan("personalized_recommendation", _search_text(user_text))
         if _contains(text, "商品", "搜索", "找", "买", "价格", "对比"):
             return ExclusiveAgentPlan("product_search", _search_text(user_text))
-        return ExclusiveAgentPlan("policy_qa")
+        if _contains(text, "规则", "政策", "平台", "运费", "退换", "保修", "发票"):
+            return ExclusiveAgentPlan("policy_qa")
+        return ExclusiveAgentPlan("general_chat")
 
 
 def _contains(value: str, *terms: str) -> bool:

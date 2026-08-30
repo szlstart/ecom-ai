@@ -177,7 +177,7 @@ test('ACCOUNT-ADDRESS-BROWSER keeps messaging active and exposes the three-level
     path: '/',
   }])
   await page.goto('/me/addresses')
-  await expect(page.getByRole('button', { name: '消息', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: '消息', exact: true })).toBeVisible()
   await expect(page.getByText(/(早上|中午|下午|晚上)好.+，browser_user/)).toBeVisible()
   await page.getByRole('button', { name: '新增地址' }).click()
   await expect(page.getByLabel('省份').locator('option')).toHaveCount(33)

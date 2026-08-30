@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 
 import { errorMessage } from '@/api/http'
 import {
@@ -13,10 +14,12 @@ import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import type { ChatMessage } from '@/api/messaging'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
-import { useDialogA11y } from '@/composables/dialog-a11y'
+
+withDefaults(defineProps<{ standalone?: boolean }>(), { standalone: false })
 
 const auth = useUserAuthStore()
 const center = useMessageCenterStore()
+const route = useRoute()
 const items = ref<Conversation[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -24,8 +27,6 @@ const connectionState = ref<RealtimeState>('polling')
 const shaking = ref(false)
 const traceMessages = ref<ChatMessage[]>([])
 const selectedTraceRunId = ref<string | null>(null)
-const trigger = ref<HTMLButtonElement | null>(null)
-const dialog = ref<HTMLElement | null>(null)
 let realtime: RealtimeConnection | undefined
 let refreshTimer: number | undefined
 let pollingTimer: number | undefined
@@ -50,7 +51,7 @@ function timeLabel(value: string | null): string {
     : new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(date)
 }
 function shake() {
-  if (center.open) return
+  if (route.path.startsWith('/messages')) return
   shaking.value = false
   window.requestAnimationFrame(() => { shaking.value = true })
   if (shakeTimer) window.clearTimeout(shakeTimer)
@@ -92,25 +93,14 @@ function handleRealtime(event: RealtimeEvent) {
   }
   if (['message.created', 'unread.updated', 'support.status.updated'].includes(event.type)) scheduleRefresh()
 }
-async function show() {
-  center.show()
-}
 function selectConversation(item: Conversation) {
   center.selectedConversationId = item.conversation_id
   traceMessages.value = []
   selectedTraceRunId.value = null
 }
-function close() {
-  center.close()
-}
-useDialogA11y(computed(() => center.open), dialog, close)
-
-watch(() => center.open, (value) => {
-  if (value) void load(true)
-})
 watch(() => auth.isAuthenticated, (value) => {
   if (value) void load(true)
-  else { items.value = []; center.close() }
+  else { items.value = [] }
 })
 
 onMounted(async () => {
@@ -133,24 +123,21 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <button
-    ref="trigger"
+  <RouterLink
+    v-if="!standalone"
     class="user-message-trigger storefront-nav-entry"
     :class="{ 'message-arrival-shake': shaking }"
-    type="button"
+    to="/messages"
     aria-label="消息"
-    aria-haspopup="dialog"
-    @click="show"
   >
     <span aria-hidden="true">💬</span>
     <span class="nav-entry-label">消息</span>
     <b v-if="totalUnread" :aria-label="`${totalUnread} 条未读消息`">{{ unreadLabel(totalUnread) }}</b>
-  </button>
-  <Teleport to="body">
-    <div v-if="center.open" class="merchant-message-overlay user-message-overlay" @mousedown.self="close" @keydown.esc="close">
-      <section ref="dialog" class="merchant-message-window user-message-window" role="dialog" aria-modal="true" aria-label="用户消息中心" tabindex="-1">
+  </RouterLink>
+  <div v-else class="message-page-surface user-message-page-surface">
+      <section class="merchant-message-window user-message-window" aria-label="用户消息中心">
         <aside class="merchant-chat-list user-chat-list">
-          <header><div><strong>消息</strong><small><span class="connection-dot" :class="connectionState" />{{ totalUnread ? `${totalUnread} 条未读` : '消息已读' }}</small></div><button type="button" aria-label="关闭消息中心" @click="close">×</button></header>
+          <header><div><strong>会话列表</strong><small><span class="connection-dot" :class="connectionState" />{{ totalUnread ? `${totalUnread} 条未读` : '消息已读' }}</small></div></header>
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>
           <p v-if="loading && !items.length" class="merchant-chat-empty">正在读取会话…</p>
           <button v-if="exclusive" class="merchant-chat-item pinned" :class="{ active: selected?.conversation_id === exclusive.conversation_id }" type="button" @click="selectConversation(exclusive)">
@@ -167,6 +154,5 @@ onBeforeUnmount(() => {
         </main>
         <AgentTracePanel :messages="traceMessages" :selected-run-id="selectedTraceRunId" />
       </section>
-    </div>
-  </Teleport>
+  </div>
 </template>

@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
@@ -55,8 +56,14 @@ describe('MerchantMessageCenter', () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     useAdminAuthStore().accessToken = 'merchant-token'
+    const router = createRouter({ history: createMemoryHistory(), routes: [
+      { path: '/', component: { template: '<div />' } },
+      { path: '/merchant/messages', component: { template: '<div />' } },
+    ] })
+    await router.push('/')
+    await router.isReady()
     const wrapper = mount(MerchantMessageCenter, {
-      global: { plugins: [pinia], stubs: { Teleport: true } },
+      global: { plugins: [pinia, router], stubs: { Teleport: true } },
     })
     await flushPromises()
 

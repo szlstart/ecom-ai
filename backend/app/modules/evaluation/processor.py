@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import and_, case, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -37,17 +38,41 @@ class EvaluationProcessor:
         self.settings = settings
 
     async def process_one(self) -> bool:
+        now = utc_now()
+        stale_before = now - timedelta(hours=2)
         row = await self.session.scalar(
             select(AiEvaluationRun)
-            .where(AiEvaluationRun.run_status == "queued")
-            .order_by(AiEvaluationRun.created_at, AiEvaluationRun.id)
+            .where(
+                or_(
+                    AiEvaluationRun.run_status == "queued",
+                    and_(
+                        AiEvaluationRun.run_status == "running",
+                        AiEvaluationRun.started_at < stale_before,
+                    ),
+                )
+            )
+            .order_by(
+                case((AiEvaluationRun.run_status == "queued", 0), else_=1),
+                AiEvaluationRun.created_at,
+                AiEvaluationRun.id,
+            )
             .with_for_update(skip_locked=True)
             .limit(1)
         )
         if row is None:
             return False
 
-        now = utc_now()
+        if row.run_status == "running":
+            row.run_status = "completed"
+            row.finished_at = now
+            row.release_gate = "insufficient_evidence"
+            row.report = self._insufficient_report(row, "evaluation_worker_interrupted")
+            row.report["execution_mode"] = "fail_closed_interrupted_worker"
+            row.error_code = "EVALUATION_WORKER_INTERRUPTED"
+            row.version += 1
+            await self.session.commit()
+            return True
+
         supported_pair = (
             row.baseline_type,
             row.baseline_version,

@@ -60,6 +60,39 @@ async def test_evaluation_processor_is_idle_without_queued_run() -> None:
 
 
 @pytest.mark.asyncio
+async def test_evaluation_processor_fails_closed_for_stale_running_job() -> None:
+    row = SimpleNamespace(
+        dataset_id=DATASET_MANIFEST.dataset_id,
+        dataset_version=DATASET_VERSION,
+        dataset_hash=bytes.fromhex(DATASET_MANIFEST.sha256),
+        baseline_type=BASELINE_TYPE,
+        baseline_version=BASELINE_VERSION,
+        candidate_type=CANDIDATE_TYPE,
+        candidate_version=CANDIDATE_VERSION,
+        require_significant_gain=False,
+        run_status="running",
+        release_gate=None,
+        report=None,
+        started_at=None,
+        finished_at=None,
+        error_code=None,
+        version=1,
+    )
+    session = SimpleNamespace(scalar=AsyncMock(return_value=row), commit=AsyncMock())
+
+    processed = await EvaluationProcessor(session, Settings(_env_file=None)).process_one()  # type: ignore[arg-type]
+
+    assert processed is True
+    assert row.run_status == "completed"
+    assert row.release_gate == "insufficient_evidence"
+    assert row.report["reasons"] == ["evaluation_worker_interrupted"]
+    assert row.report["execution_mode"] == "fail_closed_interrupted_worker"
+    assert row.error_code == "EVALUATION_WORKER_INTERRUPTED"
+    assert row.version == 2
+    session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_evaluation_processor_runs_trusted_live_collection(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

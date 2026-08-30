@@ -379,6 +379,9 @@ def test_grounded_answer_guard_removes_only_invented_leading_name() -> None:
     )
     assert _strip_untrusted_user_salutation("刀刀，订单已签收。") == "订单已签收。"
     assert _strip_untrusted_user_salutation("刀最近的订单如下\uff1a") == "最近的订单如下\uff1a"
+    assert _strip_untrusted_user_salutation("刀本地模拟充值不会真实扣款。") == (
+        "本地模拟充值不会真实扣款。"
+    )
 
 
 def test_compatible_json_parser_repairs_only_controls_inside_strings() -> None:

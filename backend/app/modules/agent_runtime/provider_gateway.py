@@ -976,7 +976,7 @@ def _strip_untrusted_user_salutation(answer: str) -> str:
     )
     cleaned = re.sub(r"^(?:刀锋|刀刀)[\uFF0C,\uFF1A:\s]*", "", cleaned)
     cleaned = re.sub(
-        r"^刀(?=(?:根据|平台|您好|你好|当前|您的|本店|已|最近|本次))",
+        r"^刀(?=(?:根据|平台|您好|你好|当前|您的|本店|本地|已|最近|本次))",
         "",
         cleaned,
     )

@@ -24,13 +24,9 @@ import {
   getHumanServiceTicket,
   listMessages,
   putReadCursor,
-  requestHumanService,
-  removeAiMessageReaction,
   sendOrderCard,
   sendProductCard,
   sendText,
-  setAiMessageReaction,
-  submitAiMessageFeedback,
   type ChatMessage,
   type Conversation,
   type HumanServiceTicket,
@@ -66,8 +62,6 @@ const sending = ref(false)
 const sendingCard = ref(false)
 const error = ref('')
 const connectionState = ref<'connected' | 'polling' | 'offline'>('polling')
-const humanOpen = ref(false)
-const humanSummary = ref('')
 const humanBusy = ref(false)
 const humanNotice = ref('')
 const humanTicket = ref<HumanServiceTicket | null>(null)
@@ -79,14 +73,6 @@ const approvalBusy = ref<string | null>(null)
 const messageList = ref<HTMLElement | null>(null)
 const newBelowCount = ref(0)
 const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
-const feedbackBusy = ref<string | null>(null)
-const feedbackNotice = ref('')
-const feedbackComposer = ref<{
-  messageId: string
-  kind: 'reports' | 'corrections'
-  reasonCode: string
-  comment: string
-} | null>(null)
 const selectedTraceRunId = ref<string | null>(null)
 const memoryStates = ref<Record<string, Pick<AiMemoryItem, 'status' | 'version'>>>({})
 const memoryBusy = ref<string | null>(null)
@@ -477,65 +463,7 @@ async function sendActiveContextCard() {
   } catch (cause) { error.value = errorMessage(cause) }
   finally { sendingCard.value = false }
 }
-async function react(message: ChatMessage, reaction: 'thumb_up' | 'thumb_down') {
-  if (feedbackBusy.value) return
-  feedbackBusy.value = message.message_id
-  error.value = ''; feedbackNotice.value = ''
-  try {
-    if (message.viewer_reaction === reaction) {
-      await removeAiMessageReaction(conversationId.value, message.message_id, token())
-      message.viewer_reaction = null
-      feedbackNotice.value = '已撤回评价。'
-    } else {
-      await setAiMessageReaction(conversationId.value, message.message_id, reaction, token())
-      message.viewer_reaction = reaction
-      feedbackNotice.value = '感谢反馈。赞踩只用于质量分析，不会直接成为标准答案。'
-    }
-  } catch (cause) { error.value = errorMessage(cause) }
-  finally { feedbackBusy.value = null }
-}
-function openFeedback(message: ChatMessage, kind: 'reports' | 'corrections') {
-  feedbackComposer.value = {
-    messageId: message.message_id,
-    kind,
-    reasonCode: kind === 'reports' ? 'INAPPROPRIATE_OR_INCORRECT' : 'USER_CORRECTION',
-    comment: '',
-  }
-}
-async function submitFeedback() {
-  const form = feedbackComposer.value
-  if (!form || form.comment.trim().length < 2 || feedbackBusy.value) return
-  feedbackBusy.value = form.messageId
-  error.value = ''; feedbackNotice.value = ''
-  try {
-    await submitAiMessageFeedback(
-      conversationId.value, form.messageId, form.kind, form.reasonCode,
-      form.comment.trim(), token(),
-    )
-    feedbackNotice.value = form.kind === 'reports'
-      ? '举报已提交，将按内容安全流程审核。'
-      : '纠错建议已提交；它不会自动写入长期记忆或标准答案。'
-    feedbackComposer.value = null
-  } catch (cause) { error.value = errorMessage(cause) }
-  finally { feedbackBusy.value = null }
-}
 async function retry(item: PendingMessage) { await deliver(item) }
-async function requestHuman() {
-  const summary = humanSummary.value.trim()
-  if (!summary || humanBusy.value) return
-  humanBusy.value = true
-  error.value = ''
-  try {
-    const refs = messages.value.slice(-5).map((item) => item.message_id)
-    const result = await requestHumanService(conversationId.value, summary, refs, token())
-    humanTicket.value = result.data
-    humanNotice.value = result.data.ticket_status === 'queued' ? '已进入人工客服队列，请留意会话消息。' : '人工客服已接入。'
-    humanOpen.value = false
-    humanSummary.value = ''
-    if (conversation.value) conversation.value.conversation_status = 'human_pending'
-  } catch (cause) { error.value = errorMessage(cause) }
-  finally { humanBusy.value = false }
-}
 async function cancelHuman() {
   if (!humanTicket.value?.can_cancel || humanBusy.value || !await confirmAction('确认取消仍在排队的人工服务请求吗？')) return
   humanBusy.value = true
@@ -656,12 +584,11 @@ onBeforeUnmount(() => {
   <section class="conversation-page" :class="{ embedded }">
     <header class="conversation-header">
       <div><RouterLink v-if="!embedded" to="/messages">← 返回会话</RouterLink><h1 v-if="!embedded">{{ conversation?.title || '会话' }}</h1><strong v-else>{{ conversation?.title || '正在读取会话' }}</strong><p class="muted"><span class="connection-dot" :class="connectionState" />{{ connectionState === 'offline' ? '连接中断，恢复后自动补拉' : '消息实时同步' }}</p></div>
-      <div class="actions"><RouterLink v-if="conversation?.store_id" :to="`/stores/${conversation.store_id}`" @click="closeEmbeddedNavigation">查看店铺</RouterLink><button v-if="!humanTicket || ['resolved','closed'].includes(humanTicket.ticket_status)" type="button" class="secondary" @click="humanOpen = !humanOpen">转人工客服</button></div>
+      <div class="actions"><RouterLink v-if="conversation?.store_id" :to="`/stores/${conversation.store_id}`" @click="closeEmbeddedNavigation">查看店铺</RouterLink></div>
     </header>
     <p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <p v-if="humanNotice" class="alert success" role="status">{{ humanNotice }}</p>
     <p v-if="consentNotice" class="alert success" role="status">{{ consentNotice }}</p>
-    <p v-if="feedbackNotice" class="alert success" role="status">{{ feedbackNotice }}</p>
     <p v-if="activeContext" class="alert info conversation-context" role="status">
       <strong>{{ contextLabel(activeContext) }}</strong>
       <span>客服回答与工具调用将绑定此上下文版本 v{{ activeContext.context_version }}。</span>
@@ -685,10 +612,6 @@ onBeforeUnmount(() => {
       <span v-else>人工客服已接入。</span>
       <button v-if="humanTicket.can_cancel" type="button" class="small secondary" :disabled="humanBusy" @click="cancelHuman">取消排队</button>
     </section>
-    <form v-if="humanOpen" class="human-request card" @submit.prevent="requestHuman">
-      <label>请简要说明需要人工处理的问题<textarea v-model.trim="humanSummary" minlength="2" maxlength="1000" required /></label>
-      <div class="actions"><button type="button" class="secondary" @click="humanOpen = false">取消</button><button :disabled="humanBusy">{{ humanBusy ? '提交中…' : '进入人工队列' }}</button></div>
-    </form>
     <PageState :loading="loading" :error="''" :empty="false" @retry="load">
       <div ref="messageList" class="message-timeline" aria-label="聊天消息" @scroll.passive="timelineScrolled">
         <button v-if="previousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
@@ -723,12 +646,6 @@ onBeforeUnmount(() => {
             <p>只有点击“确认记住”才会生效；订单、价格、库存等实时事实不会从长期记忆读取。</p>
             <div v-if="memoryState(message).status === 'candidate'" class="actions"><button type="button" class="secondary" :disabled="memoryBusy === memoryId(message)" @click.stop="decideMemory(message, 'reject')">不记住</button><button type="button" :disabled="memoryBusy === memoryId(message)" @click.stop="decideMemory(message, 'activate')">{{ memoryBusy === memoryId(message) ? '处理中…' : '确认记住' }}</button></div>
           </section>
-          <div v-if="message.sender_type === 'agent'" class="actions ai-feedback-actions" aria-label="评价智能客服回复">
-            <button type="button" class="small secondary" :aria-pressed="message.viewer_reaction === 'thumb_up'" :disabled="feedbackBusy === message.message_id" @click="react(message, 'thumb_up')">有帮助</button>
-            <button type="button" class="small secondary" :aria-pressed="message.viewer_reaction === 'thumb_down'" :disabled="feedbackBusy === message.message_id" @click="react(message, 'thumb_down')">没帮助</button>
-            <button type="button" class="small secondary" @click="openFeedback(message, 'corrections')">纠错</button>
-            <button type="button" class="small secondary" @click="openFeedback(message, 'reports')">举报</button>
-          </div>
           <small><time :datetime="message.sent_at">{{ timeLabel(message.sent_at) }}</time></small>
           </article>
         </div>
@@ -741,13 +658,6 @@ onBeforeUnmount(() => {
       </div>
       <button v-if="newBelowCount" type="button" class="new-message-button" @click="scrollToBottom">有 {{ newBelowCount }} 条新消息</button>
     </PageState>
-    <form v-if="feedbackComposer" class="card human-request" @submit.prevent="submitFeedback">
-      <h2>{{ feedbackComposer.kind === 'reports' ? '举报这条回复' : '提交纠错建议' }}</h2>
-      <p class="muted">内容会先经过安全与隐私审核，不会自动写入长期记忆、Prompt 或评估金标集。</p>
-      <label>原因码<input v-model.trim="feedbackComposer.reasonCode" pattern="[A-Z][A-Z0-9_]{1,63}" maxlength="64" required /></label>
-      <label>{{ feedbackComposer.kind === 'reports' ? '问题说明' : '你认为正确的说法或来源' }}<textarea v-model.trim="feedbackComposer.comment" minlength="2" maxlength="2000" required /></label>
-      <div class="actions"><button type="button" class="secondary" @click="feedbackComposer = null">取消</button><button :disabled="feedbackBusy === feedbackComposer.messageId">提交</button></div>
-    </form>
     <form class="message-composer rich-message-composer" @submit.prevent="send">
       <div class="message-composer-toolbar">
         <button v-if="activeContext && ['product','order'].includes(activeContext.context_type)" type="button" class="small secondary" :disabled="sendingCard" @click="sendActiveContextCard">{{ sendingCard ? '发送中…' : activeContext.context_type === 'product' ? '▧ 发送当前商品' : '▤ 发送当前订单' }}</button>

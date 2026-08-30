@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
+from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
+
 StoreIntent = Literal[
     "general_chat",
     "product_qa",
@@ -37,7 +39,7 @@ class DeterministicStoreModelGateway:
         text = _normalize(user_text)
         if not text:
             return StoreAgentPlan("general_chat")
-        if _contains(text, "人工", "真人", "客服人员", "转客服", "投诉"):
+        if is_explicit_handoff_request(user_text):
             return StoreAgentPlan("human_handoff")
         if _contains(text, "推荐", "适合", "预算", "选购"):
             return StoreAgentPlan("product_recommend", search_text=user_text[:120])

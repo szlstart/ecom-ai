@@ -5,11 +5,12 @@ import { RouterLink, useRoute } from 'vue-router'
 import {
   claimSupportTicket,
   getSupportWorkspace,
+  listSupportConversations,
   listSupportMessages,
-  listSupportTickets,
   putSupportReadCursor,
+  resolveSupportTicket,
   sendSupportMessage,
-  type SupportTicket,
+  type SupportConversation,
   type SupportWorkspace,
 } from '@/api/admin-support'
 import { errorMessage } from '@/api/http'
@@ -34,7 +35,7 @@ const loading = ref(false)
 const sending = ref(false)
 const error = ref('')
 const draft = ref('')
-const tickets = ref<SupportTicket[]>([])
+const conversations = ref<SupportConversation[]>([])
 const selectedKey = ref('exclusive')
 const workspace = ref<SupportWorkspace | null>(null)
 const messages = ref<ChatMessage[]>([])
@@ -54,13 +55,17 @@ let refreshTimer: number | undefined
 let shakeTimer: number | undefined
 let initialized = false
 
-const activeTicket = computed(() => tickets.value.find((item) => item.ticket_id === selectedKey.value) ?? null)
+const activeConversation = computed(() => conversations.value.find((item) => item.conversation_id === selectedKey.value) ?? null)
+const activeTicket = computed(() => workspace.value?.ticket ?? null)
 const activeMessages = computed(() => selectedKey.value === 'exclusive' ? exclusiveMessages.value : messages.value)
-const unreadCount = computed(() => exclusiveUnread.value + tickets.value.reduce((total, item) => total + item.unread_count, 0))
-const title = computed(() => selectedKey.value === 'exclusive' ? '专属客服' : workspace.value?.user.nickname || '顾客咨询')
+const unreadCount = computed(() => exclusiveUnread.value + conversations.value.reduce((total, item) => total + item.unread_count, 0))
+const humanUnreadCount = computed(() => conversations.value.reduce((total, item) => total + (item.requires_human ? item.unread_count : 0), 0))
+const title = computed(() => selectedKey.value === 'exclusive' ? '专属客服' : activeConversation.value?.participant_name || '顾客咨询')
+const canReply = computed(() => activeTicket.value?.ticket_status === 'active' && activeTicket.value.assigned_user_id === auth.userId)
 const subtitle = computed(() => {
   if (selectedKey.value === 'exclusive') return 'AI 经营助理 · 默认只读'
-  return activeTicket.value ? statusLabel(activeTicket.value.ticket_status) : '顾客咨询'
+  if (!activeConversation.value?.requires_human) return 'AI 正在接待 · 对话已同步给你'
+  return activeTicket.value ? statusLabel(activeTicket.value.ticket_status) : '正在同步人工接待状态'
 })
 
 function token() { return auth.accessToken! }
@@ -79,10 +84,10 @@ function traceRunId(item: ChatMessage): string | null {
 }
 async function scrollBottom() { await nextTick(); timeline.value?.scrollTo({ top: timeline.value.scrollHeight }) }
 
-async function loadTickets() {
+async function loadConversations() {
   const previousUnread = unreadCount.value
   try {
-    tickets.value = (await listSupportTickets({ queueType: 'store' }, token())).data.items
+    conversations.value = (await listSupportConversations({}, token())).data.items
     if (initialized && unreadCount.value > previousUnread) shake()
   }
   catch (cause) { error.value = errorMessage(cause) }
@@ -111,24 +116,24 @@ async function loadExclusive(markRead = open.value && selectedKey.value === 'exc
 async function selectConversation(key: string) {
   selectedKey.value = key; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; error.value = ''
   if (key === 'exclusive') { await loadExclusive(); return }
-  const ticket = tickets.value.find((item) => item.ticket_id === key)
-  if (!ticket) return
+  const target = conversations.value.find((item) => item.conversation_id === key)
+  if (!target) return
   loading.value = true
   try {
-    if (ticket.ticket_status === 'queued') {
-      const claimed = (await claimSupportTicket(ticket, token())).data
-      Object.assign(ticket, claimed)
+    if (target.active_ticket_id) {
+      workspace.value = (await getSupportWorkspace(target.active_ticket_id, token())).data
+      if (workspace.value.ticket.ticket_status === 'queued') {
+        workspace.value.ticket = (await claimSupportTicket(workspace.value.ticket, token())).data
+        target.active_ticket_status = workspace.value.ticket.ticket_status
+        target.assigned_user_id = workspace.value.ticket.assigned_user_id
+      }
     }
-    const [workspaceResult, messageResult] = await Promise.all([
-      getSupportWorkspace(ticket.ticket_id, token()),
-      listSupportMessages(ticket.conversation_id, token()),
-    ])
-    workspace.value = workspaceResult.data
+    const messageResult = await listSupportMessages(target.conversation_id, token())
     messages.value = messageResult.data.items
     supportPreviousCursor.value = messageResult.data.previous_cursor
     const lastMessage = messages.value.at(-1)
-    if (lastMessage && ticket.unread_count) {
-      ticket.unread_count = (await putSupportReadCursor(ticket.conversation_id, lastMessage, token())).data.unread_count
+    if (lastMessage && target.unread_count) {
+      target.unread_count = (await putSupportReadCursor(target.conversation_id, lastMessage, token())).data.unread_count
     }
     await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
@@ -137,7 +142,7 @@ async function selectConversation(key: string) {
 
 async function loadEarlier() {
   const cursor = selectedKey.value === 'exclusive' ? exclusivePreviousCursor.value : supportPreviousCursor.value
-  const active = activeTicket.value
+  const active = activeConversation.value
   const element = timeline.value
   if (!cursor || !element || loadingEarlier.value || (selectedKey.value !== 'exclusive' && !active)) return
   loadingEarlier.value = true
@@ -163,7 +168,7 @@ async function refreshActiveMessages() {
     const activeKey = selectedKey.value
     const target = activeKey === 'exclusive' ? exclusiveMessages : messages
     const afterSequence = target.value.at(-1)?.sequence_no ?? 0
-    const active = activeTicket.value
+    const active = activeConversation.value
     if (activeKey !== 'exclusive' && !active) return
     const shouldScroll = !timeline.value || timeline.value.scrollHeight - timeline.value.scrollTop - timeline.value.clientHeight < 90
     const page = activeKey === 'exclusive'
@@ -188,7 +193,7 @@ function scheduleRefresh() {
   if (refreshTimer) return
   refreshTimer = window.setTimeout(() => {
     refreshTimer = undefined
-    void Promise.all([loadTickets(), refreshActiveMessages()])
+    void Promise.all([loadConversations(), refreshActiveMessages()])
   }, 120)
 }
 
@@ -216,8 +221,8 @@ async function send() {
     if (selectedKey.value === 'exclusive') {
       const sent = (await sendMerchantExclusiveMessage(text, token())).data
       exclusiveMessages.value.push(sent)
-    } else if (activeTicket.value) {
-      messages.value.push((await sendSupportMessage(activeTicket.value.conversation_id, text, token())).data)
+    } else if (activeConversation.value && canReply.value) {
+      messages.value.push((await sendSupportMessage(activeConversation.value.conversation_id, text, token())).data)
     }
     draft.value = ''
     await scrollBottom()
@@ -225,16 +230,27 @@ async function send() {
   finally { sending.value = false }
 }
 
+async function finishHumanService() {
+  if (!activeTicket.value || !canReply.value || sending.value) return
+  sending.value = true; error.value = ''
+  try {
+    await resolveSupportTicket(activeTicket.value, 'ANSWERED', '本次人工服务已结束，AI 客服恢复接待。', null, token())
+    workspace.value = null
+    await loadConversations()
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { sending.value = false }
+}
+
 onMounted(async () => {
-  await Promise.all([loadTickets(), loadExclusive(false)])
+  await Promise.all([loadConversations(), loadExclusive(false)])
   initialized = true
   realtime = new RealtimeConnection({
     audience: 'admin', token, onEvent: handleRealtime,
     onState: (state) => { connectionState.value = state },
-    beforeReconnect: () => Promise.all([loadTickets(), refreshActiveMessages()]).then(() => undefined),
+    beforeReconnect: () => Promise.all([loadConversations(), refreshActiveMessages()]).then(() => undefined),
   })
   realtime.start()
-  pollingTimer = window.setInterval(() => void Promise.all([loadTickets(), refreshActiveMessages()]), 10_000)
+  pollingTimer = window.setInterval(() => void Promise.all([loadConversations(), refreshActiveMessages()]), 10_000)
 })
 onBeforeUnmount(() => {
   realtime?.stop()
@@ -246,22 +262,22 @@ onBeforeUnmount(() => {
 
 <template>
   <RouterLink v-if="!standalone" class="merchant-message-trigger" :class="{ 'message-arrival-shake': shaking }" to="/merchant/messages">
-    <span aria-hidden="true">💬</span><span>消息</span><b v-if="unreadCount" :aria-label="`${unreadCount} 条未读消息`">{{ unreadCount > 99 ? '99+' : unreadCount }}</b>
+    <span aria-hidden="true">💬</span><span>消息</span><b v-if="unreadCount" :class="{ neutral: !humanUnreadCount }" :aria-label="`${unreadCount} 条未读消息`">{{ unreadCount > 99 ? '99+' : unreadCount }}</b>
   </RouterLink>
   <div v-else class="message-page-surface merchant-message-page-surface">
       <section class="merchant-message-window" aria-label="商家消息中心">
         <aside class="merchant-chat-list">
           <header><div><strong>会话列表</strong><small><span class="connection-dot" :class="connectionState" />{{ unreadCount ? `${unreadCount} 条未读` : '消息已读' }}</small></div></header>
           <button class="merchant-chat-item pinned" :class="{ active: selectedKey === 'exclusive' }" type="button" @click="selectConversation('exclusive')">
-            <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>AI 经营助理 · 可随时转人工</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
+            <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>面向商家的 AI 经营助理</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
           </button>
-          <p v-if="!tickets.length" class="merchant-chat-empty">暂时没有顾客咨询</p>
-          <button v-for="ticket in tickets" :key="ticket.ticket_id" class="merchant-chat-item" :class="{ active: selectedKey === ticket.ticket_id }" type="button" @click="selectConversation(ticket.ticket_id)">
-            <span class="merchant-chat-avatar">客</span><span><strong>{{ ticket.handoff_summary || '顾客咨询' }}</strong><small>{{ statusLabel(ticket.ticket_status) }} · {{ new Date(ticket.updated_at).toLocaleString('zh-CN') }}</small></span><i v-if="ticket.unread_count" class="merchant-chat-unread">{{ ticket.unread_count > 99 ? '99+' : ticket.unread_count }}</i>
+          <p v-if="!conversations.length" class="merchant-chat-empty">暂时没有顾客咨询</p>
+          <button v-for="item in conversations" :key="item.conversation_id" class="merchant-chat-item" :class="{ active: selectedKey === item.conversation_id }" type="button" @click="selectConversation(item.conversation_id)">
+            <span class="merchant-chat-avatar">客</span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? statusLabel(item.active_ticket_status || '') : 'AI 接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><i v-if="item.unread_count" class="merchant-chat-unread" :class="{ neutral: !item.requires_human }">{{ item.unread_count > 99 ? '99+' : item.unread_count }}</i>
           </button>
         </aside>
         <main class="merchant-chat-main">
-          <header><div><strong>{{ title }}</strong><small>{{ subtitle }}</small></div></header>
+          <header><div><strong>{{ title }}</strong><small>{{ subtitle }}</small></div><button v-if="canReply" class="secondary small" :disabled="sending" @click="finishHumanService">结束人工服务</button></header>
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>
           <div ref="timeline" class="merchant-chat-timeline">
             <button v-if="selectedKey === 'exclusive' ? exclusivePreviousCursor : supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
@@ -269,7 +285,7 @@ onBeforeUnmount(() => {
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>
             <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isMine(item), 'trace-selectable': traceRunId(item), 'trace-selected': traceRunId(item) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(item) || selectedTraceRunId"><span v-if="!isMine(item)" class="merchant-chat-avatar">{{ selectedKey === 'exclusive' ? '专' : '客' }}</span><div class="merchant-chat-bubble"><ChatMessageContent :message="item" audience="merchant" /><time>{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
           </div>
-          <form class="merchant-chat-composer" @submit.prevent="send"><textarea v-model="draft" rows="3" maxlength="4000" :placeholder="selectedKey === 'exclusive' ? '向平台专属客服描述你的问题…' : '回复顾客…'" @keydown.enter.exact.prevent="send" /><footer><small>Enter 发送 · Shift + Enter 换行</small><button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button></footer></form>
+          <form class="merchant-chat-composer" @submit.prevent="send"><textarea v-model="draft" rows="3" maxlength="4000" :disabled="selectedKey !== 'exclusive' && !canReply" :placeholder="selectedKey === 'exclusive' ? '向专属客服描述经营问题…' : canReply ? '回复顾客…' : 'AI 正在接待；转人工后可在这里回复'" @keydown.enter.exact.prevent="send" /><footer><small>{{ selectedKey === 'exclusive' || canReply ? 'Enter 发送 · Shift + Enter 换行' : '对话持续同步，AI 转人工后将提醒你接待' }}</small><button :disabled="sending || !draft.trim() || (selectedKey !== 'exclusive' && !canReply)">{{ sending ? '发送中…' : '发送' }}</button></footer></form>
         </main>
         <AgentTracePanel :messages="activeMessages" :selected-run-id="selectedTraceRunId" title="AI 协作台" />
       </section>

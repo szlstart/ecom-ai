@@ -247,7 +247,7 @@ async def _handoff_or_fallback(
         await _complete_message(
             session,
             context,
-            "智能客服暂时不可用，自动转人工也没有成功。请点击页面中的“转人工客服”稍后重试。",
+            "智能客服暂时不可用，自动转人工也没有成功。请稍后直接告诉我“转人工”，我会再次尝试。",
             error_code=result.error_code or reason_code,
             degraded_reason="handoff_failed",
         )
@@ -447,7 +447,10 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
     if plan.intent == "general_chat":
         return "你好，我是本店智能客服。你可以直接问我商品、款式、库存、服务政策或订单问题。"
     if plan.intent == "human_handoff":
-        return "已为你转接本店人工客服，请留意排队状态。"
+        return (
+            "我正在帮你转接本店人工客服。转接期间我会暂停回复，"
+            "店铺人员结束服务后我会继续协助你。"
+        )
     if plan.intent == "inventory_lookup":
         items = data.get("items")
         if not isinstance(items, list) or not items:

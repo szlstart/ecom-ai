@@ -25,6 +25,7 @@ from app.modules.agent_runtime.delegation import (
     TrustedDelegationScope,
 )
 from app.modules.agent_runtime.delegation_ledger import SQLDelegationLedger
+from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
 from app.modules.agent_runtime.langgraph_supervisor import (
     LangGraphSupervisor,
     SupervisorRequest,
@@ -44,7 +45,9 @@ from app.modules.inventory.models import Inventory
 from app.modules.knowledge.contracts import ToolResult, ToolScope
 from app.modules.knowledge.mcp_host import McpHost, ToolAdapter
 from app.modules.knowledge.mcp_registry import database_kill_switch_checker
+from app.modules.messaging.human_schemas import HumanHandoffRequest
 from app.modules.messaging.models import Message
+from app.modules.messaging.service import MessagingService
 from app.modules.orders.models import Order
 from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
@@ -135,6 +138,46 @@ async def process_operations_run(
     if len(admin_domains) >= 2:
         intent = "complex_platform_diagnosis"
     await checkpoint_store.write(run.run_no, "tool_planned", _checkpoint(context, intent))
+
+    if intent == "human_handoff":
+        if context.audience == "merchant":
+            ticket = await MessagingService(session).request_human_from_agent(
+                context.user,
+                context.conversation.conversation_no,
+                HumanHandoffRequest(
+                    ticket_type="general",
+                    summary="商家专属客服转平台人工",
+                    message_refs=[context.trigger.message_no],
+                ),
+                context.run.run_no,
+            )
+            await _complete(
+                session,
+                context,
+                "我正在帮你转接平台人工客服。转接期间我会暂停回复，人工服务结束后我会继续协助你。",
+                intent,
+                {"ticket_id": ticket.ticket_id, "ticket_status": ticket.ticket_status},
+                tool_code="support.create_platform_ticket",
+            )
+        else:
+            await _complete(
+                session,
+                context,
+                (
+                    "你当前已在超级管理端。AI 管家不会把管理员会话转交给普通客服。"
+                    "请直接使用管理工作台处理，或联系系统运维负责人。"
+                ),
+                intent,
+                {},
+            )
+        await _finish_checkpoint(checkpoint_store, context, intent)
+        return
+
+    small_talk_reply = _operations_small_talk_reply(user_text, context.audience)
+    if small_talk_reply is not None:
+        await _complete(session, context, small_talk_reply, "general_chat", {})
+        await _finish_checkpoint(checkpoint_store, context, "general_chat")
+        return
 
     if intent == "complex_platform_diagnosis":
         multi_response = await _execute_admin_multi_agent(context, admin_domains)
@@ -544,7 +587,7 @@ async def _counts(session: AsyncSession, field: Any, *conditions: Any) -> dict[s
 
 def _deterministic_intent(text: str, audience: str) -> str:
     compact = re.sub(r"\s+", "", text).casefold()
-    if any(term in compact for term in ("人工", "真人", "平台客服")):
+    if is_explicit_handoff_request(text):
         return "human_handoff"
     if any(term in compact for term in ("运行", "告警", "积压", "agent", "ai")):
         return "runtime" if audience == "admin" else "overview"
@@ -559,6 +602,41 @@ def _deterministic_intent(text: str, audience: str) -> str:
     if audience == "admin" and any(term in compact for term in ("店铺", "商家")):
         return "stores"
     return "overview"
+
+
+def _operations_small_talk_reply(text: str, audience: str) -> str | None:
+    compact = re.sub(r"[\s\u3002\uff01!\uff1f?]+", "", text).casefold()
+    if any(term in compact for term in ("人工客服", "平台客服", "人工服务")):
+        if audience == "merchant":
+            return (
+                "平台人工客服暂未配置公开的固定服务时段。需要人工协助时，直接告诉我"
+                "“请帮我转人工客服”即可。转接后我会暂停回复，人工服务结束后再继续协助你。"
+            )
+        return (
+            "你当前已在超级管理端。AI 管家不会把管理员会话转交给普通客服。"
+            "如需人工协作，请联系系统运维负责人。"
+        )
+    if compact not in {
+        "你好",
+        "您好",
+        "hello",
+        "hi",
+        "在吗",
+        "谢谢",
+        "你是谁",
+        "你能做什么",
+        "有什么功能",
+    }:
+        return None
+    if audience == "merchant":
+        return (
+            "你好，我是商家专属客服。我可以协助查看本店经营概览、商品与库存、"
+            "订单履约等信息。涉及平台人工处理时，也可以由我发起转接。"
+        )
+    return (
+        "你好，我是超级管理员 AI 管家。我可以在管理员权限范围内协助分析用户、店铺、"
+        "商品、交易与系统运行情况。所有业务查询默认只读并保留审计记录。"
+    )
 
 
 def _tool_for_intent(intent: str, audience: str) -> str:

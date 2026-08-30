@@ -2197,6 +2197,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Support Conversations */
+        get: operations["SupportConversation_List"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support/human-service-tickets": {
         parameters: {
             query?: never;
@@ -9042,6 +9059,11 @@ export interface components {
             data: components["schemas"]["StorePublicView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
+        /** Envelope[SupportConversationList] */
+        Envelope_SupportConversationList_: {
+            data: components["schemas"]["SupportConversationList"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
         /** Envelope[SupportInternalNoteList] */
         Envelope_SupportInternalNoteList_: {
             data: components["schemas"]["SupportInternalNoteList"];
@@ -11818,6 +11840,51 @@ export interface components {
             store_status: string;
             /** Rating Score */
             rating_score: string;
+        };
+        /** SupportConversationItem */
+        SupportConversationItem: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Conversation Type
+             * @enum {string}
+             */
+            conversation_type: "exclusive" | "store";
+            /**
+             * Participant Type
+             * @enum {string}
+             */
+            participant_type: "user" | "merchant";
+            /** Participant Id */
+            participant_id: string;
+            /** Participant Name */
+            participant_name: string;
+            /** Store Id */
+            store_id: string | null;
+            /**
+             * Conversation Status
+             * @enum {string}
+             */
+            conversation_status: "active" | "human_pending" | "human_active" | "closed";
+            /** Last Message Preview */
+            last_message_preview: string | null;
+            /** Last Message At */
+            last_message_at: string | null;
+            /** Unread Count */
+            unread_count: number;
+            /** Requires Human */
+            requires_human: boolean;
+            /** Active Ticket Id */
+            active_ticket_id: string | null;
+            /** Active Ticket Status */
+            active_ticket_status: ("queued" | "assigned" | "active" | "waiting_user" | "resolved" | "closed") | null;
+            /** Assigned User Id */
+            assigned_user_id: string | null;
+        };
+        /** SupportConversationList */
+        SupportConversationList: {
+            /** Items */
+            items: components["schemas"]["SupportConversationItem"][];
         };
         /** SupportInternalNoteList */
         SupportInternalNoteList: {
@@ -17889,6 +17956,43 @@ export interface operations {
             };
             401: components["responses"]["Problem401"];
             409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportConversation_List: {
+        parameters: {
+            query?: {
+                participant_type?: ("user" | "merchant") | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_SupportConversationList_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
             /** @description Validation Error */
             422: {
                 headers: {

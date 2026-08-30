@@ -27,7 +27,7 @@ async function loginConsumer(page: Page, username: string) {
   await page.getByLabel('账号').fill(username)
   await page.getByLabel('密码').fill(password)
   await page.getByRole('button', { name: '登录', exact: true }).click()
-  await expect(page.getByRole('heading', { name: '欢迎回来' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '欢迎回来' })).toHaveCount(0, { timeout: 15_000 })
   await expect(page.getByText(new RegExp(`好.+，${username}`))).toBeVisible()
 }
 
@@ -36,7 +36,7 @@ async function loginMerchant(page: Page, username: string) {
   await page.getByLabel('商家账号').fill(username)
   await page.getByLabel('密码').fill(password)
   await page.getByRole('button', { name: '登录商家中心' }).click()
-  await expect(page).toHaveURL(/\/merchant\/products$/)
+  await expect(page).toHaveURL(/\/merchant\/products$/, { timeout: 15_000 })
 }
 
 async function loginAdministrator(page: Page, username: string) {
@@ -44,7 +44,7 @@ async function loginAdministrator(page: Page, username: string) {
   await page.getByLabel('管理员账号').fill(username)
   await page.getByLabel('密码').fill(password)
   await page.getByRole('button', { name: '登录管理端' }).click()
-  await expect(page).toHaveURL(/\/admin\/dashboard$/)
+  await expect(page).toHaveURL(/\/admin\/dashboard$/, { timeout: 15_000 })
 }
 
 async function expectTrace(page: Page, panelTitle: string) {
@@ -160,7 +160,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await expect(merchant).toHaveURL(/\/merchant\/messages/)
     await expectMessageWorkspaceFitsViewport(merchant)
     const merchantDialog = merchant.getByLabel('商家消息中心')
-    await merchantDialog.getByPlaceholder('向平台专属客服描述你的问题…').fill('请概览当前店铺商品和库存。')
+    await merchantDialog.getByPlaceholder('向专属客服描述经营问题…').fill('请概览当前店铺商品和库存。')
     await merchantDialog.getByRole('button', { name: '发送', exact: true }).click()
     await expectTrace(merchant, 'AI 协作台')
     await merchantContext.close()

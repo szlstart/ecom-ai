@@ -75,6 +75,7 @@ def test_messaging_contract_is_published() -> None:
         for item in cancellation["parameters"]
     )
     support = {
+        "/api/v1/support/conversations": ("get", "SupportConversation_List"),
         "/api/v1/support/human-service-tickets": ("get", "SupportTicket_List"),
         "/api/v1/support/human-service-tickets/{ticket_id}/workspace": (
             "get",

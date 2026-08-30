@@ -5,6 +5,7 @@ from typing import cast
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.identity.models import User
 from app.modules.messaging.models import (
     Conversation,
     ConversationContext,
@@ -293,6 +294,103 @@ class MessagingRepository:
             )
         ).all()
         return {conversation_id: int(count) for conversation_id, count in rows}
+
+    async def operator_unread_counts(
+        self, conversation_ids: set[int], reader_id: int
+    ) -> dict[int, int]:
+        """Count participant messages that an operator has not read yet.
+
+        Agent and system messages are intentionally excluded: the merchant/admin inbox
+        represents messages awaiting human awareness, not the volume of AI output.
+        """
+        if not conversation_ids:
+            return {}
+        rows = (
+            await self.session.execute(
+                select(Conversation.id, func.count(Message.id))
+                .outerjoin(
+                    MessageRead,
+                    and_(
+                        MessageRead.conversation_id == Conversation.id,
+                        MessageRead.reader_type == "human",
+                        MessageRead.reader_id == reader_id,
+                    ),
+                )
+                .outerjoin(
+                    Message,
+                    and_(
+                        Message.conversation_id == Conversation.id,
+                        Message.sequence_no > func.coalesce(MessageRead.last_read_sequence_no, 0),
+                        Message.sender_type == "user",
+                        Message.message_status == "sent",
+                    ),
+                )
+                .where(Conversation.id.in_(conversation_ids))
+                .group_by(Conversation.id)
+            )
+        ).all()
+        return {conversation_id: int(count) for conversation_id, count in rows}
+
+    async def operator_conversations(
+        self,
+        *,
+        platform: bool,
+        store_ids: tuple[int, ...],
+        exclude_user_id: int,
+        limit: int,
+    ) -> list[tuple[Conversation, User, Store | None, HumanServiceTicket | None]]:
+        statement = (
+            select(Conversation, User, Store, HumanServiceTicket)
+            .join(User, User.id == Conversation.user_id)
+            .outerjoin(Store, Store.id == Conversation.store_id)
+            .outerjoin(
+                HumanServiceTicket,
+                and_(
+                    HumanServiceTicket.conversation_id == Conversation.id,
+                    HumanServiceTicket.active_key == 1,
+                ),
+            )
+            .where(
+                Conversation.deleted_at.is_(None),
+                User.deleted_at.is_(None),
+                Conversation.last_sequence_no > 0,
+            )
+        )
+        if platform:
+            statement = statement.where(
+                Conversation.conversation_type == "exclusive",
+                Conversation.user_id != exclude_user_id,
+            )
+        else:
+            statement = statement.where(
+                Conversation.conversation_type == "store",
+                Conversation.store_id.in_(store_ids or (-1,)),
+            )
+        rows = (
+            await self.session.execute(
+                statement.order_by(
+                    Conversation.last_message_at.desc(), Conversation.id.desc()
+                ).limit(limit)
+            )
+        ).all()
+        return [(row[0], row[1], row[2], row[3]) for row in rows]
+
+    async def conversation_for_operator(
+        self, conversation_no: str, *, for_update: bool = False
+    ) -> tuple[Conversation, User] | None:
+        statement = (
+            select(Conversation, User)
+            .join(User, User.id == Conversation.user_id)
+            .where(
+                Conversation.conversation_no == conversation_no,
+                Conversation.deleted_at.is_(None),
+                User.deleted_at.is_(None),
+            )
+        )
+        if for_update:
+            statement = statement.with_for_update(of=Conversation)
+        row = (await self.session.execute(statement)).one_or_none()
+        return (row[0], row[1]) if row is not None else None
 
     async def unread_count(self, conversation_id: int, last_read: int) -> int:
         return int(

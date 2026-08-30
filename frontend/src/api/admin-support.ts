@@ -32,6 +32,29 @@ export interface SupportWorkspace {
   events: Array<{ event_id: string; event_type: string; from_status: string | null; to_status: string; reason_code: string | null; reason: string | null; occurred_at: string }>
 }
 
+export interface SupportConversation {
+  conversation_id: string
+  conversation_type: 'exclusive' | 'store'
+  participant_type: 'user' | 'merchant'
+  participant_id: string
+  participant_name: string
+  store_id: string | null
+  conversation_status: 'active' | 'human_pending' | 'human_active' | 'closed'
+  last_message_preview: string | null
+  last_message_at: string | null
+  unread_count: number
+  requires_human: boolean
+  active_ticket_id: string | null
+  active_ticket_status: SupportTicketStatus | null
+  assigned_user_id: string | null
+}
+
+export function listSupportConversations(filters: { participantType?: 'user' | 'merchant' } = {}, token: string): Promise<ApiResult<{ items: SupportConversation[] }>> {
+  const query = new URLSearchParams({ limit: '200' })
+  if (filters.participantType) query.set('participant_type', filters.participantType)
+  return apiRequest(`/support/conversations?${query}`, {}, token)
+}
+
 export interface SupportInternalNote {
   note_id: string
   author_user_id: string

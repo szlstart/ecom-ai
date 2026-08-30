@@ -13,6 +13,7 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyClaim, IdempotencyService
 from app.core.pagination import CursorCodec
 from app.core.security import SecurityService, utc_now
+from app.modules.identity.access_policy import load_identity_eligibility
 from app.modules.identity.models import User
 from app.modules.messaging.content_safety import blocks_message
 from app.modules.messaging.models import (
@@ -34,6 +35,8 @@ from app.modules.messaging.schemas import (
     ReadCursorRequest,
 )
 from app.modules.messaging.support_schemas import (
+    SupportConversationItem,
+    SupportConversationList,
     SupportInternalNoteList,
     SupportInternalNoteRequest,
     SupportInternalNoteView,
@@ -48,10 +51,12 @@ from app.modules.messaging.support_schemas import (
     SupportUserSummary,
     SupportWaitRequest,
     SupportWorkspaceView,
+    TicketStatus,
 )
 from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
 from app.modules.rbac.repository import RbacRepository
+from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
 
 
@@ -62,6 +67,96 @@ class SupportService:
         self.security = SecurityService(get_settings())
         self.idempotency = IdempotencyService(session)
         self.cursor = CursorCodec(get_settings().security_hmac_secret.get_secret_value())
+
+    async def list_conversations(
+        self, access: AdminAccess, participant_type: str | None, limit: int
+    ) -> SupportConversationList:
+        platform = ("platform", 0) in access.scopes
+        store_ids = tuple(
+            scope_id for scope_type, scope_id in access.scopes if scope_type == "store"
+        )
+        rows = await self.repository.operator_conversations(
+            platform=platform,
+            store_ids=store_ids,
+            exclude_user_id=access.context.user.id,
+            limit=limit,
+        )
+        classified: list[
+            tuple[Conversation, User, Store | None, HumanServiceTicket | None, str, str | None]
+        ] = []
+        for conversation, user, store, ticket in rows:
+            if conversation.conversation_type == "store":
+                kind = "user"
+            else:
+                eligibility = await load_identity_eligibility(self.session, user.id)
+                if eligibility.platform_admin:
+                    continue
+                kind = "merchant" if eligibility.merchant else "user"
+            if participant_type is not None and kind != participant_type:
+                continue
+            last_message = await self.repository.last_visible_message(conversation)
+            classified.append(
+                (conversation, user, store, ticket, kind, _message_preview(last_message))
+            )
+        unread = await self.repository.operator_unread_counts(
+            {row[0].id for row in classified}, access.context.user.id
+        )
+        merchant_user_ids = {row[1].id for row in classified if row[4] == "merchant"}
+        merchant_stores = {
+            item.owner_user_id: item
+            for item in (
+                (
+                    await self.session.scalars(
+                        select(Store).where(Store.owner_user_id.in_(merchant_user_ids))
+                    )
+                ).all()
+                if merchant_user_ids
+                else []
+            )
+        }
+        assignee_ids = {
+            row[3].current_assignee_user_id
+            for row in classified
+            if row[3] is not None and row[3].current_assignee_user_id is not None
+        }
+        assignees = {
+            item.id: item.user_no
+            for item in (
+                (await self.session.scalars(select(User).where(User.id.in_(assignee_ids)))).all()
+                if assignee_ids else []
+            )
+        }
+        return SupportConversationList(items=[
+            SupportConversationItem(
+                conversation_id=conversation.conversation_no,
+                conversation_type=cast(
+                    Literal["exclusive", "store"], conversation.conversation_type
+                ),
+                participant_type=cast(Literal["user", "merchant"], kind),
+                participant_id=user.user_no,
+                participant_name=_participant_name(
+                    user, merchant_stores.get(user.id), kind
+                ),
+                store_id=_operator_store_no(store, merchant_stores.get(user.id)),
+                conversation_status=cast(
+                    Literal["active", "human_pending", "human_active", "closed"],
+                    conversation.conversation_status,
+                ),
+                last_message_preview=last_message_preview,
+                last_message_at=conversation.last_message_at,
+                unread_count=unread.get(conversation.id, 0),
+                requires_human=ticket is not None,
+                active_ticket_id=ticket.ticket_no if ticket is not None else None,
+                active_ticket_status=(
+                    cast(TicketStatus, ticket.ticket_status) if ticket is not None else None
+                ),
+                assigned_user_id=(
+                    assignees.get(ticket.current_assignee_user_id)
+                    if ticket is not None and ticket.current_assignee_user_id is not None else None
+                ),
+            )
+            for conversation, user, store, ticket, kind, last_message_preview in classified
+        ])
 
     async def list(
         self,
@@ -169,7 +264,7 @@ class SupportService:
         cursor: str | None = None,
         after_sequence: int = 0,
     ) -> MessageList:
-        _ticket, conversation = await self._assigned_conversation(access, conversation_no)
+        conversation = await self._scoped_conversation(access, conversation_no)
         if after_sequence and cursor is not None:
             raise ApplicationError(
                 status=400,
@@ -627,9 +722,7 @@ class SupportService:
         conversation_no: str,
         payload: ReadCursorRequest,
     ) -> SupportReadCursorView:
-        _ticket, conversation = await self._assigned_conversation(
-            access, conversation_no, for_update=True
-        )
+        conversation = await self._scoped_conversation(access, conversation_no, for_update=True)
         message = await self.repository.message_by_no(conversation.id, payload.last_read_message_id)
         if message is None or message.sequence_no != payload.last_read_sequence_no:
             raise _not_found()
@@ -789,6 +882,21 @@ class SupportService:
         if row[0].current_assignee_user_id != access.context.user.id:
             raise _conflict("SUPPORT_TICKET_NOT_ASSIGNED", "工单未分配给当前客服。")
         return row
+
+    async def _scoped_conversation(
+        self, access: AdminAccess, conversation_no: str, *, for_update: bool = False
+    ) -> Conversation:
+        row = await self.repository.conversation_for_operator(
+            conversation_no, for_update=for_update
+        )
+        if row is None:
+            raise _not_found()
+        conversation, _user = row
+        if not self._scope_allowed(access, conversation):
+            raise _not_found()
+        if ("platform", 0) in access.scopes and conversation.conversation_type != "exclusive":
+            raise _not_found()
+        return conversation
 
     async def _ticket(
         self, access: AdminAccess, ticket_no: str, *, for_update: bool = False
@@ -965,6 +1073,32 @@ def _support_visible_message_view(message: Message) -> MessageView:
         content=message.content_payload,
         sent_at=message.sent_at,
     )
+
+
+def _message_preview(message: Message | None) -> str | None:
+    if message is None:
+        return None
+    if message.message_type == "text":
+        text = (message.text_content or "").strip()
+        return text[:80] if text else None
+    return {
+        "product_card": "[商品卡片]",
+        "order_card": "[订单卡片]",
+        "system": "[系统消息]",
+    }.get(message.message_type, "[消息]")
+
+
+def _participant_name(user: User, merchant_store: Store | None, kind: str) -> str:
+    if kind == "merchant" and merchant_store is not None:
+        return merchant_store.store_name
+    return user.nickname or user.username
+
+
+def _operator_store_no(
+    conversation_store: Store | None, merchant_store: Store | None
+) -> str | None:
+    store = conversation_store or merchant_store
+    return store.store_no if store is not None else None
 
 
 def _context_view(item: ConversationContext) -> ConversationContextView:

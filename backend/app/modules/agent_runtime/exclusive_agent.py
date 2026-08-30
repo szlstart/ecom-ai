@@ -467,7 +467,7 @@ async def _handoff(
         await _complete(
             session,
             context,
-            "已为你转接平台人工客服，请留意排队状态。",
+            "我正在帮你转接平台人工客服。转接期间我会暂停回复，人工服务结束后我会继续协助你。",
             data=result.data,
             degraded_reason=(
                 None if reason_code == "USER_REQUESTED_HUMAN" else reason_code.casefold()
@@ -477,7 +477,7 @@ async def _handoff(
         await _complete(
             session,
             context,
-            "平台智能客服暂时不可用，请稍后点击“转人工客服”重试。",
+            "平台智能客服暂时不可用，自动转人工也未成功。请稍后直接告诉我“转人工”，我会再次尝试。",
             error_code=result.error_code or reason_code,
             degraded_reason="handoff_failed",
         )

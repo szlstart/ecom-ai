@@ -11,6 +11,27 @@ from app.modules.messaging.schemas import ConversationContextView, MessageView
 TicketStatus = Literal["queued", "assigned", "active", "waiting_user", "resolved", "closed"]
 
 
+class SupportConversationItem(StrictRequest):
+    conversation_id: str
+    conversation_type: Literal["exclusive", "store"]
+    participant_type: Literal["user", "merchant"]
+    participant_id: str
+    participant_name: str
+    store_id: str | None
+    conversation_status: Literal["active", "human_pending", "human_active", "closed"]
+    last_message_preview: str | None
+    last_message_at: datetime | None
+    unread_count: int = Field(ge=0)
+    requires_human: bool
+    active_ticket_id: str | None
+    active_ticket_status: TicketStatus | None
+    assigned_user_id: str | None
+
+
+class SupportConversationList(StrictRequest):
+    items: list[SupportConversationItem]
+
+
 class SupportTicketItem(StrictRequest):
     ticket_id: str
     conversation_id: str

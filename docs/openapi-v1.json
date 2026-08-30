@@ -12307,6 +12307,7 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "store_scope"
         ],
         "x-test-case-ids": [
@@ -12425,6 +12426,7 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "store_scope"
         ],
         "x-test-case-ids": [
@@ -12512,6 +12514,7 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "store_scope"
         ],
         "x-test-case-ids": [
@@ -12601,6 +12604,7 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "store_scope"
         ],
         "x-test-case-ids": [
@@ -12761,6 +12765,7 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "platform_admin_session",
           "platform_super_admin_conversation_owner"
         ],
@@ -12874,6 +12879,7 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "platform_admin_session",
           "platform_super_admin_conversation_owner"
         ],
@@ -12956,6 +12962,7 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "platform_admin_session",
           "platform_super_admin_conversation_owner"
         ],
@@ -13040,12 +13047,125 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "platform_admin_session",
           "platform_super_admin_conversation_owner"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*"
+        ]
+      }
+    },
+    "/api/v1/support/conversations": {
+      "get": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "List Support Conversations",
+        "operationId": "SupportConversation_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "participant_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "user",
+                    "merchant"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Participant Type"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_SupportConversationList_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "access.SupportConversation_List",
+        "x-domain-command": "none",
+        "x-idempotency-policy": "safe_read",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "support:queue_read"
+        ],
+        "x-requirement-id": [
+          "ADM-MSG-01",
+          "MCH-MSG-01"
+        ],
+        "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:resolve",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
+          "platform_admin_session"
+        ],
+        "x-test-case-ids": [
+          "ADM-AUTH-*",
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
         ]
       }
     },
@@ -13166,21 +13286,13 @@
           "support:queue_read"
         ],
         "x-requirement-id": [
-          "ADM-MSG-01",
           "ADM-SUPPORT-LIST-01",
-          "MCH-MSG-01",
           "MCH-SUPPORT-LIST-01"
         ],
         "x-scope-policy": [
-          "support:queue_read",
-          "support:claim",
-          "support:reply",
-          "store_scope",
-          "merchant_exclusive_conversation_owner",
-          "platform_admin_session"
+          "support:queue_read"
         ],
         "x-test-case-ids": [
-          "ADM-AUTH-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
@@ -13359,11 +13471,11 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "store_scope",
           "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
-          "support:resolve",
           "platform_admin_session",
           "support:transfer"
         ],
@@ -13496,11 +13608,11 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "store_scope",
           "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
-          "support:resolve",
           "platform_admin_session",
           "support:transfer"
         ],
@@ -13604,11 +13716,11 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "store_scope",
           "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
-          "support:resolve",
           "platform_admin_session",
           "support:transfer"
         ],
@@ -13714,11 +13826,11 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "store_scope",
           "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
-          "support:resolve",
           "platform_admin_session",
           "support:transfer"
         ],
@@ -13840,11 +13952,11 @@
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
           "store_scope",
           "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
-          "support:resolve",
           "platform_admin_session",
           "support:transfer"
         ],
@@ -14345,19 +14457,25 @@
           "support:resolve"
         ],
         "x-requirement-id": [
+          "ADM-MSG-01",
           "ADM-SUPPORT-01",
+          "MCH-MSG-01",
           "MCH-SUPPORT-01"
         ],
         "x-scope-policy": [
           "support:queue_read",
           "support:claim",
           "support:reply",
+          "support:resolve",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
           "support:wait",
           "support:resume",
-          "support:resolve",
+          "platform_admin_session",
           "support:transfer"
         ],
         "x-test-case-ids": [
+          "ADM-AUTH-*",
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
@@ -48368,6 +48486,21 @@
         ],
         "title": "Envelope[StorePublicView]"
       },
+      "Envelope_SupportConversationList_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SupportConversationList"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[SupportConversationList]"
+      },
       "Envelope_SupportInternalNoteList_": {
         "properties": {
           "data": {
@@ -56370,6 +56503,168 @@
           "rating_score"
         ],
         "title": "StoreSummary"
+      },
+      "SupportConversationItem": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "conversation_type": {
+            "type": "string",
+            "enum": [
+              "exclusive",
+              "store"
+            ],
+            "title": "Conversation Type"
+          },
+          "participant_type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "merchant"
+            ],
+            "title": "Participant Type"
+          },
+          "participant_id": {
+            "type": "string",
+            "title": "Participant Id"
+          },
+          "participant_name": {
+            "type": "string",
+            "title": "Participant Name"
+          },
+          "store_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store Id"
+          },
+          "conversation_status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "human_pending",
+              "human_active",
+              "closed"
+            ],
+            "title": "Conversation Status"
+          },
+          "last_message_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message Preview"
+          },
+          "last_message_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message At"
+          },
+          "unread_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Unread Count"
+          },
+          "requires_human": {
+            "type": "boolean",
+            "title": "Requires Human"
+          },
+          "active_ticket_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Ticket Id"
+          },
+          "active_ticket_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "assigned",
+                  "active",
+                  "waiting_user",
+                  "resolved",
+                  "closed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Ticket Status"
+          },
+          "assigned_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned User Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "conversation_type",
+          "participant_type",
+          "participant_id",
+          "participant_name",
+          "store_id",
+          "conversation_status",
+          "last_message_preview",
+          "last_message_at",
+          "unread_count",
+          "requires_human",
+          "active_ticket_id",
+          "active_ticket_status",
+          "assigned_user_id"
+        ],
+        "title": "SupportConversationItem"
+      },
+      "SupportConversationList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SupportConversationItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "SupportConversationList"
       },
       "SupportInternalNoteList": {
         "properties": {

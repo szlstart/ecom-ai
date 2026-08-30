@@ -146,6 +146,13 @@ services:
       ECOM_AGENT_MODEL_TEMPERATURE: ${ECOM_AGENT_MODEL_TEMPERATURE:-0}
       ECOM_AGENT_MODEL_TIMEOUT_SECONDS: ${ECOM_AGENT_MODEL_TIMEOUT_SECONDS:-30}
 
+  evaluation-worker:
+    <<: *api-runtime
+    build: !reset null
+    env_file: !reset []
+    depends_on: !reset {}
+    environment: *api-environment
+
   knowledge-indexer:
     <<: *api-runtime
     build: !reset null

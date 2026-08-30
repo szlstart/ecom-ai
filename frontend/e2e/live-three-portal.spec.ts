@@ -132,9 +132,12 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await consumer.getByRole('link', { name: '消息', exact: true }).click()
     await expect(consumer).toHaveURL(/\/messages/)
     const consumerWorkspace = consumer.getByLabel('用户消息中心')
+    const incomingBubbles = consumerWorkspace.locator('.message-row.theirs .message-bubble')
+    const incomingCount = await incomingBubbles.count()
     await consumerWorkspace.getByPlaceholder('输入消息…').fill('请介绍验收商品，并说明你使用了什么可信依据。')
     await consumerWorkspace.getByRole('button', { name: '发送', exact: true }).click()
-    await expect(consumerWorkspace.getByText(/智能客服|商品/)).toBeVisible({ timeout: 20_000 })
+    await expect(incomingBubbles).toHaveCount(incomingCount + 1, { timeout: 20_000 })
+    await expect(incomingBubbles.last()).toContainText(/商品|暂无.*在售/, { timeout: 20_000 })
     await expectTrace(consumer, 'AI 工作记录')
     await consumerContext.close()
 

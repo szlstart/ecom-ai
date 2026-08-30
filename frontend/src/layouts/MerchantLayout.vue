@@ -87,7 +87,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="merchant-shell">
+  <div class="merchant-shell" :class="{ 'message-workspace-shell': route.path === '/merchant/messages' }">
     <aside class="merchant-sidebar">
       <RouterLink class="merchant-wordmark" to="/merchant/products"><span>E</span><b>Ecom AI</b><small>商家中心</small></RouterLink>
       <div class="merchant-store-card">
@@ -104,7 +104,7 @@ onUnmounted(() => {
     </aside>
     <main class="merchant-main">
       <header class="merchant-topbar"><div><span>当前店铺</span><strong>{{ currentStore?.store_name || '正在读取店铺' }}</strong></div><div class="merchant-topbar-actions"><MerchantMessageCenter :store-name="currentStore?.store_name" /><RouterLink class="merchant-profile-entry" to="/merchant/store"><span>{{ currentStore?.store_name.slice(0, 1) || '店' }}</span><b>店铺资料</b></RouterLink></div></header>
-      <div class="merchant-content"><RouterView :key="route.path" /></div>
+      <div class="merchant-content" :class="{ 'message-workspace-content': route.path === '/merchant/messages' }"><RouterView :key="route.path" /></div>
     </main>
   </div>
 </template>

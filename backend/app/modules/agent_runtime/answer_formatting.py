@@ -46,6 +46,11 @@ def concise_policy_answer(
         title = safe_untrusted_excerpt(raw_title, 160)
         content = safe_untrusted_excerpt(raw_content, 1200)
         for raw_part in re.split(r"(?<=[\u3002\uff01\uff1f\uff1b])|\n+", content):
+            # Indexed Markdown is whitespace-normalized, so a heading and its first
+            # bullet can share one fragment ("## 模拟充值 - 当前..."). Keep the
+            # factual bullet instead of discarding the complete fragment as a heading.
+            if " - " in raw_part:
+                raw_part = raw_part.rsplit(" - ", 1)[-1]
             part = re.sub(
                 r"^(?:[-*•>]\s*|\d+[.)、]\s*)", "", raw_part.strip()
             ).strip()

@@ -480,7 +480,8 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
     # `search_text`, such as "铅笔商品，列出商品名、店铺、价格和库存".
     # Those columns are presentation instructions rather than catalog terms.
     raw_search_phrase = re.split(
-        r"[\uff0c,\uff1b;\u3002]\s*(?:请)?(?:列出|展示|显示|告诉我|说明)",
+        r"(?:[\uff0c,\uff1b;\u3002]\s*(?:请)?(?:列出|展示|显示|告诉我|说明)"
+        r"|(?:所有|全部)?款式(?:的)?(?:名称|名字|价格|库存))",
         raw,
         maxsplit=1,
     )[0].strip()
@@ -489,9 +490,11 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
         "请列出",
         "请搜索",
         "请查找",
+        "请告诉我",
         "帮我列出",
         "帮我搜索",
         "告诉我",
+        "本店",
         "并说明推荐依据",
         "说明推荐依据",
         "不要转人工",
@@ -513,6 +516,7 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
             "请列出",
             "请搜索",
             "请查找",
+            "请告诉我",
             "帮我列出",
             "帮我搜索",
             "全平台当前在售的",
@@ -521,6 +525,7 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
             "当前在售的",
             "在售的",
             "不要转人工",
+            "本店",
         ):
             cleaned = cleaned.replace(phrase, " ")
         cleaned = re.sub(r"\s+", " ", cleaned).strip()

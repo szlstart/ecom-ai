@@ -40,6 +40,12 @@ def test_catalog_candidates_drop_trailing_presentation_columns() -> None:
     )[0] == "铅笔"
 
 
+def test_catalog_candidates_extract_product_from_store_worded_follow_up() -> None:
+    assert _catalog_search_candidates(
+        "请告诉我本店绿杆2B铅笔所有款式的名称、价格和实时可售库存，并说明10支款是否能买。不要转人工。"
+    )[0] == "绿杆2B铅笔"
+
+
 def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:
     rendered = _render(
         ExclusiveAgentPlan("personalized_recommendation"),

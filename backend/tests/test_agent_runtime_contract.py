@@ -298,6 +298,7 @@ def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:
     answer = _render_store(
         SimpleNamespace(intent="inventory_lookup"),
         {
+            "product_name": "绿杆2B铅笔",
             "items": [
                 {
                     "sku_name": "10支",
@@ -312,6 +313,7 @@ def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:
             ]
         },
     )
+    assert answer.startswith("绿杆2B铅笔的款式、价格和实时可售库存如下")
     assert "10支: ¥8.00，实时可售 0 件，缺货" in answer
     assert "out_of_stock" not in answer
 

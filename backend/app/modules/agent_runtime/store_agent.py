@@ -417,6 +417,13 @@ async def _grounded_answer(
         source_ids=source_ids,
         tool_code=tool_code,
     )
+    # Inventory is transactional evidence: SKU names, prices and quantities must
+    # survive answer generation byte-for-byte.  A language model is useful for
+    # planning the lookup, but must not rename a SKU (or omit a zero-stock row)
+    # while paraphrasing the result.
+    if plan.intent == "inventory_lookup":
+        trace["answer_mode"] = "grounded_deterministic"
+        return fallback, trace
     if not isinstance(gateway, ProviderStoreModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
@@ -468,7 +475,11 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
         items = data.get("items")
         if not isinstance(items, list) or not items:
             return "当前没有可靠的展示库存结果，请稍后刷新商品页。"
-        lines = ["当前展示库存如下 (查询结果不代表预占, 最终以结算为准):"]
+        product_name = safe_untrusted_excerpt(data.get("product_name"), 160)
+        lines = [
+            f"{product_name or '当前商品'}的款式、价格和实时可售库存如下"
+            " (查询结果不代表预占, 最终以结算为准):"
+        ]
         for item in items[:4]:
             if isinstance(item, dict):
                 lines.append(

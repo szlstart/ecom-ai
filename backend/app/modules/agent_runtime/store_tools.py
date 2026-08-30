@@ -297,7 +297,7 @@ class StoreToolGateway:
             rows = list(
                 (
                     await self.session.execute(
-                        select(ProductSku, Inventory)
+                        select(ProductSku, Inventory, Product.product_name)
                         .join(Product, Product.id == ProductSku.product_id)
                         .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
                         .where(
@@ -315,6 +315,7 @@ class StoreToolGateway:
                 raise _not_accessible()
             return {
                 "product_id": product_no,
+                "product_name": rows[0][2],
                 "items": [
                     {
                         "sku_id": sku.sku_no,
@@ -325,7 +326,7 @@ class StoreToolGateway:
                         "price": _money_projection(sku.sale_price_amount, sku.currency),
                         "as_of": inventory.updated_at if inventory else utc_now(),
                     }
-                    for sku, inventory in rows
+                    for sku, inventory, _product_name in rows
                 ],
                 "data_scope": {"store_id": context.store.store_no},
             }

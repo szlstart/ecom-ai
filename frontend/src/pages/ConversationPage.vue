@@ -22,11 +22,13 @@ import { RealtimeConnection, type AgentLiveTrace, type RealtimeEvent } from '@/a
 import {
   createClientMessageId,
   cancelHumanServiceTicket,
+  deleteConversation,
   getConversation,
   getHumanServiceTicket,
   listMessages,
   putReadCursor,
   respondResolutionCheck,
+  setConversationContext,
   sendOrderCard,
   sendProductCard,
   sendTextResilient,
@@ -51,6 +53,7 @@ const emit = defineEmits<{
   'trace-select': [runId: string | null]
   'trace-running': [running: boolean]
   'trace-progress': [trace: AgentLiveTrace | null]
+  'conversation-deleted': [conversationId: string]
 }>()
 
 const route = useRoute()
@@ -550,7 +553,10 @@ async function sendPickedProduct(item: MessagePickerProduct) {
   if (attachmentSendingId.value) return
   attachmentSendingId.value = item.product_id
   try {
+    const latest = (await getConversation(conversationId.value, token())).data
+    await setConversationContext(conversationId.value, latest.version, 'product', item.product_id, null, token())
     mergeMessages([(await sendProductCard(conversationId.value, item.product_id, item.sku_id, token())).data], true)
+    conversation.value = (await getConversation(conversationId.value, token())).data
     attachmentOpen.value = false
   } catch (cause) { error.value = errorMessage(cause) }
   finally { attachmentSendingId.value = null }
@@ -559,7 +565,10 @@ async function sendPickedOrder(item: MessagePickerOrder) {
   if (attachmentSendingId.value) return
   attachmentSendingId.value = item.order_id
   try {
+    const latest = (await getConversation(conversationId.value, token())).data
+    await setConversationContext(conversationId.value, latest.version, 'order', item.order_id, null, token())
     mergeMessages([(await sendOrderCard(conversationId.value, item.order_id, token())).data], true)
+    conversation.value = (await getConversation(conversationId.value, token())).data
     attachmentOpen.value = false
   } catch (cause) { error.value = errorMessage(cause) }
   finally { attachmentSendingId.value = null }
@@ -573,6 +582,17 @@ async function cancelHuman() {
     humanTicket.value = (await cancelHumanServiceTicket(humanTicket.value.ticket_id, token())).data
     humanNotice.value = '已取消人工服务请求。'
     if (conversation.value) conversation.value.conversation_status = 'active'
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { humanBusy.value = false }
+}
+async function removeConversation() {
+  if (!conversation.value || humanBusy.value) return
+  const confirmed = await confirmAction('确认删除这段对话吗？聊天记录、会话摘要和由本会话产生的 AI 记忆都会清除，且无法恢复。')
+  if (!confirmed) return
+  humanBusy.value = true; error.value = ''
+  try {
+    await deleteConversation(conversation.value.conversation_id, token())
+    emit('conversation-deleted', conversation.value.conversation_id)
   } catch (cause) { error.value = errorMessage(cause) }
   finally { humanBusy.value = false }
 }
@@ -686,7 +706,7 @@ onBeforeUnmount(() => {
   <section class="conversation-page" :class="{ embedded }">
     <header class="conversation-header">
       <div><RouterLink v-if="!embedded" to="/messages">← 返回会话</RouterLink><h1 v-if="!embedded">{{ conversation?.title || '会话' }}</h1><strong v-else>{{ conversation?.title || '正在读取会话' }}</strong><p class="muted"><span class="connection-dot" :class="connectionState" />{{ connectionState === 'offline' ? '连接中断，恢复后自动补拉' : '消息实时同步' }}</p></div>
-      <div class="actions"><RouterLink v-if="conversation?.store_id" :to="`/stores/${conversation.store_id}`" @click="closeEmbeddedNavigation">查看店铺</RouterLink></div>
+      <div class="actions"><RouterLink v-if="conversation?.store_id" :to="`/stores/${conversation.store_id}`" @click="closeEmbeddedNavigation">查看店铺</RouterLink><button v-if="conversation" type="button" class="danger small" :disabled="humanBusy" @click="removeConversation">删除对话</button></div>
     </header>
     <p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <p v-if="humanNotice" class="alert success" role="status">{{ humanNotice }}</p>
@@ -719,7 +739,7 @@ onBeforeUnmount(() => {
         <button v-if="previousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
         <p v-if="messages.length === 0 && pending.length === 0" class="conversation-welcome">{{ conversation?.conversation_type === 'exclusive' ? '您好，我是专属客服。您可以咨询平台规则、订单、物流和售后问题。' : '您好，请描述您想咨询的商品或订单问题。' }}</p>
         <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'system' ? 'system-message-row' : message.sender_type === 'user' ? 'mine' : 'theirs']">
-          <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' }" aria-hidden="true"><img v-if="message.sender_type === 'user' && userAvatarUrl" :src="userAvatarUrl" alt="" /><img v-else-if="message.sender_type === 'human' && storeLogoUrl" :src="storeLogoUrl" alt="" />{{ message.sender_type === 'user' ? userAvatarUrl ? '' : userAvatarLabel : message.sender_type === 'agent' ? '✦' : storeLogoUrl ? '' : '店' }}</span>
+          <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' }" aria-hidden="true"><img v-if="message.sender_type === 'user' && userAvatarUrl" :src="userAvatarUrl" alt="" /><img v-else-if="message.sender_type === 'human' && storeLogoUrl" :src="storeLogoUrl" alt="" /><img v-else-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" />{{ message.sender_type === 'user' ? userAvatarUrl ? '' : userAvatarLabel : message.sender_type === 'agent' ? '' : storeLogoUrl ? '' : '店' }}</span>
           <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'system' ? 'system-message-bubble' : message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
           <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" />
           <section v-if="message.message_type === 'resolution_check'" class="resolution-check-actions">
@@ -758,7 +778,7 @@ onBeforeUnmount(() => {
         <div v-for="item in pending" :key="item.clientMessageId" class="message-row mine"><span class="message-avatar" aria-hidden="true"><img v-if="userAvatarUrl" :src="userAvatarUrl" alt="" /><template v-else>{{ userAvatarLabel }}</template></span><article class="message-bubble mine pending-message">
           <p>{{ item.text }}</p><small v-if="item.status === 'sending'">正在发送…</small><small v-else-if="item.status === 'recovering'">连接短暂中断，正在自动重试…</small><small v-else-if="item.status === 'blocked'" class="error-text">内容未通过安全检查，请修改后重新发送。</small><button v-else type="button" class="small danger" @click="retry(item)">发送失败，重试</button>
         </article></div>
-        <div v-if="streamingReply?.text" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true">✦</span><article class="message-bubble theirs agent-stream" aria-live="polite">
+        <div v-if="streamingReply?.text" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true"><img src="/ai-avatar.svg" alt="" /></span><article class="message-bubble theirs agent-stream" aria-live="polite">
           <p>{{ streamingReply.text }}</p><small>正在生成回复…</small>
         </article></div>
       </div>

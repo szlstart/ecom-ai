@@ -2466,6 +2466,8 @@
           "current_user"
         ],
         "x-test-case-ids": [
+          "FILE-UPLOAD-*",
+          "PROFILE-*",
           "SECURITY-*"
         ]
       },
@@ -2588,6 +2590,8 @@
           "current_user"
         ],
         "x-test-case-ids": [
+          "FILE-UPLOAD-*",
+          "PROFILE-*",
           "SECURITY-*"
         ]
       }
@@ -2928,13 +2932,16 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "USR-PROFILE-01"
+          "USR-PROFILE-01",
+          "USR-SECURITY-01"
         ],
         "x-scope-policy": [
           "current_user"
         ],
         "x-test-case-ids": [
-          "PROFILE-*"
+          "FILE-UPLOAD-*",
+          "PROFILE-*",
+          "SECURITY-*"
         ]
       },
       "patch": {
@@ -3027,13 +3034,16 @@
         ],
         "x-permission-codes": [],
         "x-requirement-id": [
-          "USR-PROFILE-01"
+          "USR-PROFILE-01",
+          "USR-SECURITY-01"
         ],
         "x-scope-policy": [
           "current_user"
         ],
         "x-test-case-ids": [
-          "PROFILE-*"
+          "FILE-UPLOAD-*",
+          "PROFILE-*",
+          "SECURITY-*"
         ]
       },
       "delete": {
@@ -3203,6 +3213,8 @@
           "current_user"
         ],
         "x-test-case-ids": [
+          "FILE-UPLOAD-*",
+          "PROFILE-*",
           "SECURITY-*"
         ]
       }
@@ -3257,6 +3269,8 @@
           "current_user"
         ],
         "x-test-case-ids": [
+          "FILE-UPLOAD-*",
+          "PROFILE-*",
           "SECURITY-*"
         ]
       }
@@ -3352,6 +3366,8 @@
           "current_user"
         ],
         "x-test-case-ids": [
+          "FILE-UPLOAD-*",
+          "PROFILE-*",
           "SECURITY-*"
         ]
       }
@@ -5603,9 +5619,11 @@
         "x-permission-codes": [],
         "x-requirement-id": [
           "GLOBAL-FILE-UPLOAD-01",
-          "MCH-STORE-01"
+          "MCH-STORE-01",
+          "USR-SECURITY-01"
         ],
         "x-scope-policy": [
+          "current_user",
           "stores:read",
           "stores:manage",
           "store_owner",
@@ -5615,7 +5633,9 @@
           "ADM-STORE-*",
           "FILE-UPLOAD-*",
           "FINANCE-*",
-          "MCH-PORTAL-*"
+          "MCH-PORTAL-*",
+          "PROFILE-*",
+          "SECURITY-*"
         ]
       }
     },
@@ -5706,9 +5726,11 @@
         "x-permission-codes": [],
         "x-requirement-id": [
           "GLOBAL-FILE-UPLOAD-01",
-          "MCH-STORE-01"
+          "MCH-STORE-01",
+          "USR-SECURITY-01"
         ],
         "x-scope-policy": [
+          "current_user",
           "stores:read",
           "stores:manage",
           "store_owner",
@@ -5718,7 +5740,9 @@
           "ADM-STORE-*",
           "FILE-UPLOAD-*",
           "FINANCE-*",
-          "MCH-PORTAL-*"
+          "MCH-PORTAL-*",
+          "PROFILE-*",
+          "SECURITY-*"
         ]
       }
     },
@@ -5792,9 +5816,11 @@
         "x-permission-codes": [],
         "x-requirement-id": [
           "GLOBAL-FILE-UPLOAD-01",
-          "MCH-STORE-01"
+          "MCH-STORE-01",
+          "USR-SECURITY-01"
         ],
         "x-scope-policy": [
+          "current_user",
           "stores:read",
           "stores:manage",
           "store_owner",
@@ -5804,7 +5830,9 @@
           "ADM-STORE-*",
           "FILE-UPLOAD-*",
           "FINANCE-*",
-          "MCH-PORTAL-*"
+          "MCH-PORTAL-*",
+          "PROFILE-*",
+          "SECURITY-*"
         ]
       },
       "delete": {
@@ -5979,9 +6007,11 @@
         "x-permission-codes": [],
         "x-requirement-id": [
           "GLOBAL-FILE-UPLOAD-01",
-          "MCH-STORE-01"
+          "MCH-STORE-01",
+          "USR-SECURITY-01"
         ],
         "x-scope-policy": [
+          "current_user",
           "stores:read",
           "stores:manage",
           "store_owner",
@@ -5991,7 +6021,9 @@
           "ADM-STORE-*",
           "FILE-UPLOAD-*",
           "FINANCE-*",
-          "MCH-PORTAL-*"
+          "MCH-PORTAL-*",
+          "PROFILE-*",
+          "SECURITY-*"
         ]
       }
     },
@@ -11338,6 +11370,86 @@
           "AI-FEEDBACK-*",
           "MSG-USER-*"
         ]
+      },
+      "delete": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Delete Conversation",
+        "operationId": "Conversation_DeleteMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationDeletionView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.Conversation_DeleteMine",
+        "x-domain-command": "Conversation_DeleteMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-MSG-02"
+        ],
+        "x-scope-policy": [
+          "conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "AI-FEEDBACK-*",
+          "MSG-USER-*"
+        ]
       }
     },
     "/api/v1/conversations/{conversation_id}/messages": {
@@ -12416,6 +12528,67 @@
           "ADM-SUPPORT-*",
           "MCH-PORTAL-*"
         ]
+      },
+      "delete": {
+        "tags": [
+          "merchant-support"
+        ],
+        "summary": "Delete Merchant Exclusive Conversation",
+        "operationId": "MerchantExclusiveConversation_DeleteMine",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationDeletionView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "command.MerchantExclusiveConversation_DeleteMine",
+        "x-domain-command": "MerchantExclusiveConversation_DeleteMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-MSG-01"
+        ],
+        "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:resolve",
+          "store_scope",
+          "merchant_exclusive_conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
+        ]
       }
     },
     "/api/v1/merchant/support/exclusive-conversation/messages": {
@@ -12869,6 +13042,66 @@
           "support:resolve",
           "platform_admin_session",
           "platform_super_admin_conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-AUTH-*",
+          "ADM-SUPPORT-*"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "admin-support"
+        ],
+        "summary": "Delete Admin Ai Conversation",
+        "operationId": "AdminAiConversation_DeleteMine",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationDeletionView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "x-audit-event": "command.AdminAiConversation_DeleteMine",
+        "x-domain-command": "AdminAiConversation_DeleteMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "ADM-MSG-01"
+        ],
+        "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:resolve",
+          "platform_admin_session"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
@@ -13824,6 +14057,101 @@
           "support:resume",
           "platform_admin_session",
           "support:transfer"
+        ],
+        "x-test-case-ids": [
+          "ADM-AUTH-*",
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/support/conversations/{conversation_id}": {
+      "delete": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Delete Support Conversation",
+        "operationId": "SupportConversation_Delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationDeletionView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.SupportConversation_Delete",
+        "x-domain-command": "SupportConversation_Delete",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "support:reply"
+        ],
+        "x-requirement-id": [
+          "ADM-MSG-01",
+          "MCH-MSG-01"
+        ],
+        "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:resolve",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
+          "platform_admin_session"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
@@ -45903,6 +46231,31 @@
         ],
         "title": "ConversationContextView"
       },
+      "ConversationDeletionView": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At"
+          },
+          "memory_cleared": {
+            "type": "boolean",
+            "title": "Memory Cleared"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "deleted_at",
+          "memory_cleared"
+        ],
+        "title": "ConversationDeletionView"
+      },
       "ConversationList": {
         "properties": {
           "items": {
@@ -47440,6 +47793,21 @@
           "data"
         ],
         "title": "Envelope[ConversationContextView]"
+      },
+      "Envelope_ConversationDeletionView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConversationDeletionView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ConversationDeletionView]"
       },
       "Envelope_ConversationList_": {
         "properties": {

@@ -63,6 +63,7 @@ def public_trace(
     intent_label = _INTENT_LABELS.get(intent, "理解问题并限定处理范围")
     enriched_steps = [_enrich_step(step, data, count) for step in steps]
     scope = "授权范围内的业务数据" if tool_code and tool_code != "none" else "当前会话与服务范围"
+    analysis_details = [_analysis_detail(step, count) for step in enriched_steps]
     trace: dict[str, object] = {
         "version": "public-agent-trace-v2",
         "run_id": run_id,
@@ -73,9 +74,11 @@ def public_trace(
         "intent": intent,
         "intent_label": intent_label,
         "analysis_summary": (
-            f"我先判断这条消息属于“{intent_label}”，再核对当前身份、会话上下文和可用权限。"
-            f"随后仅使用{scope}组织回答。"
+            f"本次先把用户当前消息识别为“{intent_label}”。系统随后检查会话所属用户、"
+            f"当前服务端身份、已绑定的商品或订单上下文以及 Agent 的能力边界。确认可访问范围后，"
+            f"只从{scope}取数。下列记录来自本次实际执行轨迹，不使用模型自行编造的步骤。"
         ),
+        "analysis_details": analysis_details,
         "result_summary": (
             f"已完成 {len(enriched_steps)} 个受控步骤"
             + (f"，获得 {count} 项可用结果" if count else "，未发现需要展示的结构化结果")
@@ -87,6 +90,35 @@ def public_trace(
     }
     trace.update(dict(extra or {}))
     return trace
+
+
+def _analysis_detail(step: Mapping[str, Any], count: int) -> str:
+    kind = str(step.get("kind") or "action")
+    tool_code = str(step.get("tool_code") or "")
+    status = str(step.get("status") or "completed")
+    details: list[str] = []
+    if kind == "tool" and tool_code and tool_code != "none":
+        details.append(f"业务工具 {tool_code} 已通过权限网关执行")
+    elif kind in {"rag", "retrieval"}:
+        details.append("已在当前用户与店铺数据范围内执行知识检索")
+    elif kind == "context":
+        details.append("已读取本会话最近消息和有效滚动摘要，用于理解指代与连续问题")
+    elif kind == "memory":
+        details.append("仅检查用户明确授权、尚未过期且与当前问题相关的长期偏好")
+    elif kind in {"delegation", "supervisor"}:
+        details.append("已将只读子任务交给受限专业 Agent，并保持各子任务的数据范围隔离")
+    elif kind == "security":
+        details.append("已检查越权、敏感信息与提示词注入风险")
+    elif kind == "answer":
+        details.append("已对取回的数据进行事实一致性检查，并据此生成聊天区中的回答")
+    elif kind == "plan":
+        details.append("已识别当前消息的业务意图，并确定是否需要查询业务数据")
+    else:
+        details.append("已完成一项受控处理动作")
+    if kind in {"tool", "rag", "retrieval"}:
+        details.append(f"返回 {count} 项可用结果")
+    details.append(f"执行状态为 {status}")
+    return "。".join(details) + "。"
 
 
 def ensure_public_trace(
@@ -146,9 +178,7 @@ def ensure_public_trace(
     )
 
 
-def _enrich_step(
-    step: Mapping[str, Any], data: Mapping[str, Any], count: int
-) -> dict[str, object]:
+def _enrich_step(step: Mapping[str, Any], data: Mapping[str, Any], count: int) -> dict[str, object]:
     value = dict(step)
     kind = str(value.get("kind") or "action")
     label = str(value.get("label") or "受控处理步骤")

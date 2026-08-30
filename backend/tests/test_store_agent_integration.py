@@ -393,8 +393,10 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
             )
         await session.commit()
         break
-    handoff_reply = _reply_after(await _messages(client, headers, conversation_no), handoff_message)
-    assert "已为你转接" in str(handoff_reply["text"])
+    degraded_reply = _reply_after(
+        await _messages(client, headers, conversation_no), handoff_message
+    )
+    assert "重新选择商品或订单" in str(degraded_reply["text"])
 
     async for session in mysql_session():
         conversation_row = await session.scalar(
@@ -437,7 +439,7 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
         assert injection_run.error_code == "AI_PROMPT_INJECTION_BLOCKED"
         assert not any(item.run_id == injection_run.id for item in audits)
         assert any(item.error_code == "AGENT_CONTEXT_VERSION_STALE" for item in runs)
-        assert any(item.degraded_reason == "model_unavailable" for item in runs)
+        assert any(item.degraded_reason == "tool_denied" for item in runs)
         assert any(
             item.tool_code == "catalog.get_inventory_availability"
             and item.scope_snapshot["store_no"] == store_no
@@ -462,10 +464,8 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
             and item.error_code == "AGENT_RESOURCE_NOT_ACCESSIBLE"
             for item in audits
         )
-        assert ticket is not None
-        assert ticket.queue_type == "store"
-        assert ticket.source == "agent"
-        assert conversation_row.conversation_status == "human_pending"
+        assert ticket is None
+        assert conversation_row.conversation_status == "active"
         run_nos = [item.run_no for item in runs]
         degraded_by_run = {item.run_no: item.degraded_reason for item in runs}
         break

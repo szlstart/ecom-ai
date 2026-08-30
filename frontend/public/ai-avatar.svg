@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">AI 智能客服头像</title>
+  <defs>
+    <linearGradient id="bg" x1="12" y1="8" x2="84" y2="88" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8b7cff"/>
+      <stop offset="0.52" stop-color="#5267dd"/>
+      <stop offset="1" stop-color="#23a989"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#16245e" flood-opacity=".32"/>
+    </filter>
+  </defs>
+  <rect x="5" y="5" width="86" height="86" rx="27" fill="url(#bg)" filter="url(#shadow)"/>
+  <path d="M20 31h10M66 31h10M20 65h10M66 65h10M31 20v10M65 20v10M31 66v10M65 66v10" stroke="#c9fff2" stroke-width="3" stroke-linecap="round" opacity=".72"/>
+  <rect x="25" y="25" width="46" height="46" rx="15" fill="#fff" fill-opacity=".12" stroke="#fff" stroke-opacity=".34"/>
+  <text x="48" y="57" fill="#fff" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="27" font-weight="800" text-anchor="middle">AI</text>
+  <circle cx="77" cy="19" r="5" fill="#a8ffe5"/>
+</svg>

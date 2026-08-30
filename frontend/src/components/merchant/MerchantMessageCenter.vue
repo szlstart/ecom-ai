@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import {
   claimSupportTicket,
+  deleteSupportConversation,
   getSupportWorkspace,
   listSupportConversations,
   listSupportMessages,
@@ -19,6 +20,7 @@ import { resolveApiAssetUrl } from '@/api/http'
 import { adminGet, requireAdminToken, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
 import {
   getMerchantExclusiveConversation,
+  deleteMerchantExclusiveConversation,
   listMerchantExclusiveMessages,
   putMerchantExclusiveReadCursor,
   sendMerchantExclusiveMessageResilient,
@@ -29,6 +31,7 @@ import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import MessageAttachmentPicker, { type MessagePickerProduct } from '@/components/messaging/MessageAttachmentPicker.vue'
 import { liveTraceFromEvent, RealtimeConnection, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
+import { confirmAction } from '@/composables/confirmation'
 
 const props = withDefaults(defineProps<{ storeId?: string; storeName?: string; storeLogoUrl?: string | null; standalone?: boolean }>(), { standalone: false, storeLogoUrl: null })
 
@@ -95,12 +98,33 @@ function avatarLabel(item: ChatMessage): string {
   return '客'
 }
 function avatarUrl(item: ChatMessage): string | null {
+  if (item.sender_type === 'agent') return '/ai-avatar.svg'
   if (selectedKey.value !== 'exclusive' && item.sender_type === 'user') {
     return resolveApiAssetUrl(activeConversation.value?.participant_avatar_url ?? null)
   }
   return item.sender_type === 'human' || (selectedKey.value === 'exclusive' && item.sender_type === 'user')
     ? resolveApiAssetUrl(resolvedStoreLogo.value)
     : null
+}
+async function removeConversation() {
+  if (sending.value) return
+  const name = selectedKey.value === 'exclusive' ? '专属客服' : activeConversation.value?.participant_name || '当前顾客'
+  if (!await confirmAction(`确认删除与“${name}”的对话吗？聊天记录和本会话 AI 记忆会被清除，且无法恢复。`)) return
+  sending.value = true; error.value = ''
+  try {
+    if (selectedKey.value === 'exclusive') {
+      await deleteMerchantExclusiveConversation(token())
+      exclusiveMessages.value = []
+      exclusiveConversationId.value = ''
+      await loadExclusive()
+    } else if (activeConversation.value) {
+      const deletedId = activeConversation.value.conversation_id
+      await deleteSupportConversation(deletedId, token())
+      conversations.value = conversations.value.filter((item) => item.conversation_id !== deletedId)
+      await selectConversation('exclusive')
+    }
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { sending.value = false }
 }
 function traceRunId(item: ChatMessage): string | null {
   const trace = item.content?.execution_trace
@@ -338,7 +362,7 @@ onBeforeUnmount(() => {
         <aside class="merchant-chat-list">
           <header><div><strong>会话列表</strong><small><span class="connection-dot" :class="connectionState" />{{ unreadCount ? `${unreadCount} 条未读` : '消息已读' }}</small></div><RouterLink class="message-workspace-back" to="/merchant/products">返回</RouterLink></header>
           <button class="merchant-chat-item pinned" :class="{ active: selectedKey === 'exclusive' }" type="button" @click="selectConversation('exclusive')">
-            <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>面向商家的 AI 经营助理</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
+            <span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><span><strong>专属客服 <em>置顶</em></strong><small>面向商家的 AI 经营助理</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
           </button>
           <p v-if="!conversations.length" class="merchant-chat-empty">暂时没有顾客咨询</p>
           <button v-for="item in conversations" :key="item.conversation_id" class="merchant-chat-item" :class="{ active: selectedKey === item.conversation_id }" type="button" @click="selectConversation(item.conversation_id)">
@@ -346,11 +370,11 @@ onBeforeUnmount(() => {
           </button>
         </aside>
         <main class="merchant-chat-main">
-          <header><div><strong>{{ title }}</strong><small>{{ subtitle }}</small></div><button v-if="canReply" class="secondary small" :disabled="sending" @click="finishHumanService">结束人工服务</button></header>
+          <header><div><strong>{{ title }}</strong><small>{{ subtitle }}</small></div><div class="actions"><button v-if="canReply" class="secondary small" :disabled="sending" @click="finishHumanService">结束人工服务</button><button class="danger small" type="button" :disabled="sending" @click="removeConversation">删除对话</button></div></header>
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>
           <div ref="timeline" class="merchant-chat-timeline">
             <button v-if="selectedKey === 'exclusive' ? exclusivePreviousCursor : supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
-            <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>你好，我是你的专属客服</h2><p>我可以在当前店铺范围内分析商品、订单、库存和经营概况。默认只读，不会替你修改业务数据。</p></div>
+            <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><h2>你好，我是你的专属客服</h2><p>我可以在当前店铺范围内分析商品、订单、库存和经营概况。默认只读，不会替你修改业务数据。</p></div>
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>
             <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isRight(item), system: item.sender_type === 'system', 'trace-selectable': traceRunId(item), 'trace-selected': traceRunId(item) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(item) || selectedTraceRunId"><span v-if="item.sender_type !== 'system'" class="merchant-chat-avatar" :class="{ platform: item.sender_type === 'agent' }"><img v-if="avatarUrl(item)" :src="avatarUrl(item)!" alt="" />{{ avatarUrl(item) ? '' : avatarLabel(item) }}</span><div class="merchant-chat-bubble"><ChatMessageContent :message="item" audience="merchant" /><time v-if="item.sender_type !== 'system'">{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
           </div>

@@ -24,6 +24,7 @@ from app.modules.agent_runtime.provider_gateway import ProviderStoreModelGateway
 from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
 from app.modules.agent_runtime.store_context import StoreContextBuilder, TrustedStoreAgentContext
 from app.modules.agent_runtime.store_tools import StoreToolGateway, StoreToolResult
+from app.modules.agent_runtime.trigger_text import agent_trace_question, agent_trigger_text
 from app.modules.knowledge.service import KnowledgeService
 from app.modules.messaging.models import Message
 from app.modules.system.models import OutboxEvent
@@ -66,7 +67,7 @@ async def process_store_run(
     run.run_status = "running"
     run.current_phase = "planning"
     run.version += 1
-    trigger_text = context.trigger.text_content or ""
+    trigger_text = agent_trigger_text(context.trigger)
     if detects_prompt_injection(trigger_text):
         await _complete_message(
             session,
@@ -100,9 +101,8 @@ async def process_store_run(
     try:
         plan = await gateway.plan(planning_input)
     except (ModelGatewayError, TimeoutError):
-        await _handoff_or_fallback(session, context, "MODEL_UNAVAILABLE")
-        await _finish_checkpoint(checkpoint_store, context, "human_handoff")
-        return
+        plan = await DeterministicStoreModelGateway().plan(trigger_text)
+        run.degraded_reason = "planning_model_unavailable"
 
     if checkpoint_store is not None:
         try:
@@ -271,7 +271,7 @@ async def _complete_message(
         run_id=context.run.run_no,
         agent="店铺客服",
         model=context.agent_version.model_profile,
-        question=context.trigger.text_content,
+        question=agent_trace_question(context.trigger),
         data=data or {},
         degraded_reason=degraded_reason,
     )
@@ -402,7 +402,7 @@ async def _grounded_answer(
         run_id=context.run.run_no,
         agent="店铺客服",
         model=context.agent_version.model_profile,
-        question=context.trigger.text_content,
+        question=agent_trace_question(context.trigger),
         intent=plan.intent,
         data=data,
         steps=steps,
@@ -417,7 +417,7 @@ async def _grounded_answer(
     try:
         answer = await gateway.synthesize(
             agent_prompt=context.agent_version.system_prompt,
-            user_text=context.trigger.text_content or "",
+            user_text=agent_trigger_text(context.trigger),
             intent=plan.intent,
             evidence=data,
             source_ids=source_ids,
@@ -453,8 +453,7 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
         return "你好，我是本店智能客服。你可以直接问我商品、款式、库存、服务政策或订单问题。"
     if plan.intent == "human_handoff":
         return (
-            "我正在帮你转接本店人工客服。转接期间我会暂停回复，"
-            "店铺人员结束服务后我会继续协助你。"
+            "我正在帮你转接本店人工客服。转接期间我会暂停回复，店铺人员结束服务后我会继续协助你。"
         )
     if plan.intent == "inventory_lookup":
         items = data.get("items")
@@ -512,7 +511,7 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any]) -> str:
             f"支付 {status.get('payment', 'unknown')}, "
             f"履约 {status.get('fulfillment', 'unknown')}, "
             f"售后 {status.get('after_sale', 'unknown')}。实付 "
-            f"{_money(amounts.get('paid'), amounts.get('currency'))}。"
+            f"{_money_value(amounts.get('paid'))}。"
             "如需执行取消、确认收货或退款，请进入订单详情页操作。"
         )
         actions = data.get("available_actions")
@@ -701,6 +700,18 @@ def _money(amount: object, currency: object) -> str:
     if not isinstance(amount, int) or isinstance(amount, bool):
         return "金额未知"
     return f"{currency or 'CNY'!s} {amount / 100:.2f}"
+
+
+def _money_value(value: object) -> str:
+    if isinstance(value, Mapping):
+        display = value.get("display")
+        if isinstance(display, str) and display:
+            return display
+        try:
+            return _money(int(str(value.get("minor_units"))), value.get("currency"))
+        except (TypeError, ValueError):
+            return "金额未知"
+    return _money(value, "CNY")
 
 
 def _fail_run(run: AgentRun, code: str) -> None:

@@ -1,8 +1,12 @@
-import { createClientMessageId, type ChatMessage, type Conversation, type MessagePage, type ReadCursor } from '@/api/messaging'
+import { createClientMessageId, type ChatMessage, type Conversation, type ConversationDeletion, type MessagePage, type ReadCursor } from '@/api/messaging'
 import { apiRequest, createIdempotencyKey, retryTransientNetworkRequest, type ApiResult } from '@/api/http'
 
 export function getMerchantExclusiveConversation(token: string): Promise<ApiResult<Conversation>> {
   return apiRequest('/merchant/support/exclusive-conversation', { method: 'PUT' }, token)
+}
+
+export function deleteMerchantExclusiveConversation(token: string): Promise<ApiResult<ConversationDeletion>> {
+  return apiRequest('/merchant/support/exclusive-conversation', { method: 'DELETE' }, token)
 }
 
 export function listMerchantExclusiveMessages(token: string, options: { cursor?: string; afterSequence?: number } = {}): Promise<ApiResult<MessagePage>> {

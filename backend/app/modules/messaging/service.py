@@ -266,9 +266,57 @@ class MessagingService:
             ticket.id,
             None,
         )
+        await self._append_system_message(
+            conversation,
+            "正在接入人工客服，请稍候。AI 已暂停回复，人工客服接入后会在这里继续沟通。",
+            request_id,
+        )
         self.idempotency.complete(claim, response_status=201, resource_no=ticket.ticket_no)
         await self.session.commit()
         return _ticket_view(ticket, conversation)
+
+    async def _append_system_message(
+        self, conversation: Conversation, text_content: str, request_id: str
+    ) -> Message:
+        now = utc_now().replace(microsecond=0)
+        conversation.last_sequence_no += 1
+        conversation.version += 1
+        message = Message(
+            message_no=new_prefixed_ulid("msg_"),
+            conversation_id=conversation.id,
+            sequence_no=conversation.last_sequence_no,
+            client_message_no=None,
+            sender_type="system",
+            sender_id=None,
+            message_type="system",
+            text_content=text_content,
+            content_payload={"event": "human_handoff_connecting"},
+            message_status="sent",
+            moderation_status="passed",
+            sent_at=now,
+        )
+        self.session.add(message)
+        await self.session.flush()
+        conversation.last_message_at = now
+        conversation.last_message_id = message.id
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="message.sent.v1",
+                aggregate_type="conversation",
+                aggregate_no=conversation.conversation_no,
+                aggregate_version=conversation.version,
+                payload={
+                    "conversation_id": conversation.conversation_no,
+                    "message_id": message.message_no,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=request_id,
+            )
+        )
+        return message
 
     async def current_human_ticket(self, user: User, conversation_no: str) -> HumanTicketView:
         conversation = await self.repository.by_no(user.id, conversation_no)

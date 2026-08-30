@@ -80,6 +80,16 @@ export interface ConversationArchive {
   version: number
 }
 
+export interface ConversationDeletion {
+  conversation_id: string
+  deleted_at: string
+  memory_cleared: boolean
+}
+
+export function deleteConversation(conversationId: string, token: string): Promise<ApiResult<ConversationDeletion>> {
+  return apiRequest(`/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' }, token)
+}
+
 export function listConversations(token: string): Promise<ApiResult<{ items: Conversation[] }>> {
   return apiRequest('/conversations', {}, token)
 }

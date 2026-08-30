@@ -122,6 +122,7 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
         payload = json.loads(request.content)
         assert "tools" not in payload
         assert "password" not in payload["messages"][1]["content"]
+        assert "刀刀" not in payload["messages"][1]["content"]
         schema_name = payload["response_format"]["json_schema"]["name"]
         if schema_name == "grounding_verdict":
             return httpx.Response(
@@ -133,6 +134,7 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
                 },
             )
         schema = payload["response_format"]["json_schema"]["schema"]
+        assert "600 分是 ¥6.00" in payload["messages"][0]["content"]
         assert schema["additionalProperties"] is False
         assert schema["properties"]["cited_source_ids"]["items"]["enum"] == ["prd_public"]
         return httpx.Response(
@@ -161,7 +163,10 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
         agent_prompt="只按证据回答",
         user_text="多少钱",
         intent="product_qa",
-        evidence={"price": 1200},
+        evidence={
+            "price": {"minor_units": "1200", "major_units": "12.00", "display": "¥12.00"},
+            "conversation_window": {"recent_turns": [{"text": "AI: 刀刀你好"}]},
+        },
         source_ids=("prd_public",),
     )
     assert answer.cited_source_ids == ("prd_public",)

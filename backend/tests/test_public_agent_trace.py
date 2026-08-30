@@ -32,6 +32,9 @@ def test_public_trace_explains_question_actions_and_result_without_private_reaso
     assert "全平台在售商品" in str(trace["analysis_summary"])
     assert "2 项可用结果" in str(trace["result_summary"])
     assert trace["raw_reasoning_exposed"] is False
+    details = cast(list[str], trace["analysis_details"])
+    assert any("catalog.search_products" in item for item in details)
+    assert any("返回 2 项可用结果" in item for item in details)
     tool_step = cast(list[dict[str, object]], trace["steps"])[1]
     assert tool_step["result_count"] == 2
     assert "2 项可用结果" in str(tool_step["summary"])

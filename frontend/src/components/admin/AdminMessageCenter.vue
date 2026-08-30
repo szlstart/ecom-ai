@@ -4,6 +4,8 @@ import { RouterLink } from 'vue-router'
 
 import {
   claimSupportTicket,
+  deleteAdminAiConversation,
+  deleteSupportConversation,
   getAdminAiConversation,
   getSupportWorkspace,
   listAdminAiMessages,
@@ -23,6 +25,7 @@ import { liveTraceFromEvent, RealtimeConnection, type AgentLiveTrace, type Realt
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
+import { confirmAction } from '@/composables/confirmation'
 
 const emit = defineEmits<{ 'unread-change': [count: number] }>()
 const auth = useAdminAuthStore()
@@ -228,6 +231,27 @@ async function finishHumanService() {
   finally { busy.value = false }
 }
 
+async function removeConversation() {
+  if (busy.value) return
+  const name = selected.value === 'ai' ? 'AI 管家' : selectedConversation.value?.participant_name || '当前会话'
+  if (!await confirmAction(`确认删除与“${name}”的对话吗？聊天记录和本会话 AI 记忆会被清除，且无法恢复。`)) return
+  busy.value = true; error.value = ''
+  try {
+    if (selected.value === 'ai') {
+      await deleteAdminAiConversation(token())
+      aiMessages.value = []
+      aiConversationId.value = ''
+      await loadAiMessages()
+    } else if (selectedConversation.value) {
+      const deletedId = selectedConversation.value.conversation_id
+      await deleteSupportConversation(deletedId, token())
+      conversations.value = conversations.value.filter((item) => item.conversation_id !== deletedId)
+      await selectAi()
+    }
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { busy.value = false }
+}
+
 onMounted(async () => {
   await Promise.all([loadConversations(), loadAiMessages()])
   loading.value = false
@@ -255,7 +279,7 @@ onBeforeUnmount(() => {
         <header><div><strong>会话列表</strong><small>用户、店铺与 AI 管家</small></div><RouterLink class="message-workspace-back" to="/admin">返回</RouterLink></header>
         <label class="admin-chat-search"><span>⌕</span><input v-model="search" placeholder="搜索会话" /></label>
         <div class="admin-chat-list">
-          <button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click="selectAi"><span class="admin-chat-avatar ai">✦</span><span><strong>AI 管家</strong><small>只读诊断助手 · 固定置顶</small></span><time>置顶</time></button>
+          <button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click="selectAi"><span class="admin-chat-avatar ai"><img src="/ai-avatar.svg" alt="" /></span><span><strong>AI 管家</strong><small>只读诊断助手 · 固定置顶</small></span><time>置顶</time></button>
           <section class="admin-chat-group"><button class="admin-chat-group-title" @click="userGroupOpen = !userGroupOpen"><span>{{ userGroupOpen ? '⌄' : '›' }} 用户消息</span><b>{{ userConversations.length }}</b></button><template v-if="userGroupOpen"><button v-for="item in userConversations" :key="item.conversation_id" class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click="selectConversation(item)"><span class="admin-chat-avatar"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? '等待人工接待' : 'AI 接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><p v-if="!userConversations.length">暂无用户会话</p></template></section>
           <section class="admin-chat-group"><button class="admin-chat-group-title" @click="storeGroupOpen = !storeGroupOpen"><span>{{ storeGroupOpen ? '⌄' : '›' }} 店铺消息</span><b>{{ storeConversations.length }}</b></button><template v-if="storeGroupOpen"><button v-for="item in storeConversations" :key="item.conversation_id" class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click="selectConversation(item)"><span class="admin-chat-avatar store"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) || '店' }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? '等待平台人工接待' : '商家 AI 助理接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><p v-if="!storeConversations.length">暂无店铺会话</p></template></section>
         </div>
@@ -263,27 +287,27 @@ onBeforeUnmount(() => {
 
       <main class="admin-chat-main">
         <template v-if="selected === 'ai'">
-          <header class="admin-chat-header"><div><strong>AI 管家</strong><small><span />{{ connectionState === 'connected' ? '实时在线' : connectionState === 'offline' ? '网络离线' : '正在连接' }} · 默认只读</small></div></header>
+          <header class="admin-chat-header"><div><strong>AI 管家</strong><small><span />{{ connectionState === 'connected' ? '实时在线' : connectionState === 'offline' ? '网络离线' : '正在连接' }} · 默认只读</small></div><button class="danger small" type="button" :disabled="busy" @click="removeConversation">删除对话</button></header>
           <section v-if="!aiMessages.length && !loading" class="admin-ai-concierge">
-            <div class="admin-ai-orb">✦</div><p class="eyebrow">管理端智能管家</p><h2>今天想先处理什么？</h2><p>我可以帮助你快速定位用户、店铺、订单和 AI 运行问题。涉及资金、冻结、删除或发布的操作仍会要求人工确认。</p>
+            <div class="admin-ai-orb"><img src="/ai-avatar.svg" alt="" /></div><p class="eyebrow">管理端智能管家</p><h2>今天想先处理什么？</h2><p>我可以帮助你快速定位用户、店铺、订单和 AI 运行问题。涉及资金、冻结、删除或发布的操作仍会要求人工确认。</p>
             <div class="admin-ai-suggestions"><RouterLink to="/admin/users"><span>♙</span><strong>查看异常用户</strong><small>账号状态与登录会话</small></RouterLink><RouterLink to="/admin/orders"><span>▤</span><strong>检查异常订单</strong><small>支付、履约与售后</small></RouterLink><RouterLink to="/admin/observability"><span>⌇</span><strong>分析 AI 告警</strong><small>延迟、错误与工具调用</small></RouterLink><RouterLink to="/admin/approval-requests"><span>✓</span><strong>查看待办审批</strong><small>高风险操作复核</small></RouterLink></div>
             <div class="alert info">AI 管家已接入受控 Agent Runtime。当前仅开放脱敏、只读诊断，不会修改用户、店铺、订单或资金数据。</div>
           </section>
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取 AI 会话…</div>
           <section v-else class="admin-chat-conversation admin-ai-chat">
-            <div v-if="aiMessages.length" ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user', 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(message) || selectedTraceRunId"><span class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'user' ? '管理员' : 'AI 管家'">{{ message.sender_type === 'user' ? initials : '✦' }}</span><div><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
-            <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" placeholder="询问平台概况、用户、店铺、订单或 Agent 运行状态…" @keydown.enter.exact.prevent="send" /><div><span>默认只读 · 不展示模型原始思维链</span><button :disabled="!reply.trim() || busy">{{ busy ? '发送中…' : '发送' }}</button></div></form>
+            <div v-if="aiMessages.length" ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user', 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(message) || selectedTraceRunId"><span class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'user' ? '管理员' : 'AI 管家'"><template v-if="message.sender_type === 'user'">{{ initials }}</template><img v-else src="/ai-avatar.svg" alt="" /></span><div><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
+            <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" placeholder="询问平台概况、用户、店铺、订单或 Agent 运行状态…" @keydown.enter.exact.prevent="send" /><div><span>默认只读 · 右侧同步展示可核验分析</span><button :disabled="!reply.trim() || busy">{{ busy ? '发送中…' : '发送' }}</button></div></form>
           </section>
         </template>
 
         <template v-else>
-          <header class="admin-chat-header"><div><strong>{{ selectedConversation?.participant_type === 'merchant' ? '店铺专属客服' : '用户专属客服' }} · {{ selectedConversation?.participant_name }}</strong><small>{{ selectedConversation?.requires_human ? `人工接待 · ${selectedTicket?.ticket_status || '同步中'}` : 'AI 正在接待 · 完整历史已同步' }}</small></div><div class="actions"><button v-if="canChat" class="secondary small" :disabled="busy" @click="finishHumanService">结束人工服务</button><RouterLink v-if="selectedTicket" :to="`/admin/support/tickets/${selectedTicket.ticket_id}`">完整工作台 ↗</RouterLink></div></header>
+          <header class="admin-chat-header"><div><strong>{{ selectedConversation?.participant_type === 'merchant' ? '店铺专属客服' : '用户专属客服' }} · {{ selectedConversation?.participant_name }}</strong><small>{{ selectedConversation?.requires_human ? `人工接待 · ${selectedTicket?.ticket_status || '同步中'}` : 'AI 正在接待 · 完整历史已同步' }}</small></div><div class="actions"><button v-if="canChat" class="secondary small" :disabled="busy" @click="finishHumanService">结束人工服务</button><button class="danger small" type="button" :disabled="busy" @click="removeConversation">删除对话</button><RouterLink v-if="selectedTicket" :to="`/admin/support/tickets/${selectedTicket.ticket_id}`">完整工作台 ↗</RouterLink></div></header>
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取会话…</div>
           <section v-else-if="selectedConversation" class="admin-chat-conversation">
             <div v-if="selectedConversation.requires_human && !assignedToMe" class="admin-chat-claim compact"><span>◍</span><div><h2>{{ selectedTicket?.ticket_status === 'queued' ? '对方正在等待人工接待' : '会话由其他客服处理' }}</h2><p>历史消息可查看；领取后才可人工回复，避免多人同时处理。</p></div><button v-if="selectedTicket?.ticket_status === 'queued' && auth.has('support:claim')" :disabled="busy" @click="claim">领取会话</button></div>
-            <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: ['human','agent'].includes(message.sender_type), system: message.sender_type === 'system' }"><span v-if="message.sender_type !== 'system'" class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'human' ? '平台客服' : message.sender_type === 'agent' ? 'AI 客服' : selectedConversation.participant_type === 'merchant' ? '店铺' : '用户'"><img v-if="message.sender_type === 'user' && selectedConversation.participant_avatar_url" :src="resolveApiAssetUrl(selectedConversation.participant_avatar_url) || undefined" alt="" /><template v-else>{{ message.sender_type === 'human' ? initials : message.sender_type === 'agent' ? '✦' : selectedConversation.participant_name.slice(0, 1) }}</template></span><div><ChatMessageContent :message="message" audience="admin" /><time v-if="message.sender_type !== 'system'">{{ dateTime(message.sent_at) }}</time></div></article><p v-if="!messages.length" class="empty-state">暂无聊天消息</p></div>
+            <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: ['human','agent'].includes(message.sender_type), system: message.sender_type === 'system' }"><span v-if="message.sender_type !== 'system'" class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'human' ? '平台客服' : message.sender_type === 'agent' ? 'AI 客服' : selectedConversation.participant_type === 'merchant' ? '店铺' : '用户'"><img v-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" /><img v-else-if="message.sender_type === 'user' && selectedConversation.participant_avatar_url" :src="resolveApiAssetUrl(selectedConversation.participant_avatar_url) || undefined" alt="" /><template v-else>{{ message.sender_type === 'human' ? initials : selectedConversation.participant_name.slice(0, 1) }}</template></span><div><ChatMessageContent :message="message" audience="admin" /><time v-if="message.sender_type !== 'system'">{{ dateTime(message.sent_at) }}</time></div></article><p v-if="!messages.length" class="empty-state">暂无聊天消息</p></div>
             <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" :disabled="!canChat" :placeholder="canChat ? '输入人工回复…' : selectedConversation.requires_human ? '领取后可回复' : 'AI 正在接待；需要转人工时会进入人工队列'" /><div><span>{{ canChat ? '回复会立即同步给对方，并写入 AI 上下文' : 'AI 与人工消息共用同一条会话历史' }}</span><button :disabled="!canChat || !reply.trim() || busy">发送</button></div></form>
           </section>
         </template>

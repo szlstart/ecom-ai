@@ -142,6 +142,8 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await expect(consumer).toHaveURL(/\/messages/)
     await expectMessageWorkspaceFitsViewport(consumer)
     const consumerWorkspace = consumer.getByLabel('用户消息中心')
+    await expect(consumerWorkspace.getByText('售后协助授权', { exact: true })).toBeVisible()
+    expect(await consumerWorkspace.locator('.agent-consent-card').evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
     const incomingBubbles = consumerWorkspace.locator('.message-row.theirs .message-bubble')
     const incomingCount = await incomingBubbles.count()
     await consumerWorkspace.getByPlaceholder('输入消息…').fill('请介绍验收商品，并说明你使用了什么可信依据。')

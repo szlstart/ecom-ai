@@ -142,6 +142,7 @@ async function loadConversations() {
   try {
     conversations.value = (await listSupportConversations({}, token())).data.items
     if (initialized && unreadCount.value > previousUnread) shake()
+    error.value = ''
   }
   catch (cause) { error.value = errorMessage(cause) }
 }
@@ -161,6 +162,7 @@ async function loadExclusive(markRead = props.standalone && selectedKey.value ==
     if (markRead && lastMessage && exclusiveUnread.value) {
       exclusiveUnread.value = (await putMerchantExclusiveReadCursor(lastMessage, token())).data.unread_count
     }
+    error.value = ''
     await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
@@ -188,6 +190,7 @@ async function selectConversation(key: string) {
     if (lastMessage && target.unread_count) {
       target.unread_count = (await putSupportReadCursor(target.conversation_id, lastMessage, token())).data.unread_count
     }
+    error.value = ''
     await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
@@ -230,6 +233,7 @@ async function refreshActiveMessages() {
     if (selectedKey.value !== activeKey) return
     const known = new Set(target.value.map((item) => item.message_id))
     target.value = [...target.value, ...page.items.filter((item) => !known.has(item.message_id))]
+    error.value = ''
     if (shouldScroll) await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
 }

@@ -1652,7 +1652,68 @@ tr.selected td { background: #f0f4ff; }
 .user-message-page-surface .conversation-page.embedded .message-timeline { min-height: 0; height: auto; flex: 1 1 auto; }
 .user-message-page-surface .conversation-page.embedded .message-composer { position: static; flex: 0 0 auto; }
 .admin-message-page-surface .admin-message-window { width: 100%; height: 100%; border-color: #dde2eb; box-shadow: 0 18px 54px rgb(20 31 58 / 10%); }
-.admin-message-page-surface .admin-message-window { grid-template-columns: minmax(220px, 28%) minmax(320px, 1fr) minmax(220px, 27%); }
+.user-message-page-surface .user-message-window { grid-template-columns: clamp(250px, 18vw, 292px) minmax(480px, 1fr) clamp(270px, 18vw, 310px); }
+.merchant-message-page-surface .merchant-message-window { grid-template-columns: clamp(240px, 18vw, 280px) minmax(440px, 1fr) clamp(270px, 19vw, 310px); }
+.admin-message-page-surface .admin-message-window { grid-template-columns: 230px minmax(380px, 1fr) 250px; }
+
+/* Message workspace polish: denser chat chrome, softer selection and calmer scrolling. */
+.message-page-surface :is(.merchant-chat-list, .merchant-chat-timeline, .admin-chat-list, .admin-chat-timeline, .agent-trace-body, .message-timeline) { scrollbar-width: thin; scrollbar-color: #bdc6d5 transparent; }
+.message-page-surface :is(.merchant-chat-list, .merchant-chat-timeline, .admin-chat-list, .admin-chat-timeline, .agent-trace-body, .message-timeline)::-webkit-scrollbar { width: 7px; height: 7px; }
+.message-page-surface :is(.merchant-chat-list, .merchant-chat-timeline, .admin-chat-list, .admin-chat-timeline, .agent-trace-body, .message-timeline)::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: #bdc6d5; background-clip: padding-box; }
+.message-page-surface :is(.merchant-chat-item, .admin-chat-item) { transition: background-color .16s ease, color .16s ease; }
+.message-page-surface .message-bubble.trace-selected,
+.message-page-surface .merchant-chat-bubble-row.trace-selected .merchant-chat-bubble,
+.message-page-surface .admin-chat-timeline article.trace-selected > div { outline: 0; }
+.message-page-surface .message-bubble.trace-selected,
+.message-page-surface .merchant-chat-bubble-row.trace-selected .merchant-chat-bubble,
+.message-page-surface .admin-chat-timeline article.trace-selected > div > p { box-shadow: 0 0 0 2px rgb(92 106 221 / 23%), 0 7px 22px rgb(53 67 139 / 9%); }
+
+.message-empty-guide { margin: 18px 16px; padding: 24px 18px; display: grid; justify-items: center; gap: 7px; border: 1px dashed #cbd3e1; border-radius: 14px; background: rgb(255 255 255 / 45%); }
+.message-empty-guide > span { width: 38px; height: 38px; display: grid; place-items: center; color: #657491; border-radius: 12px; background: #e2e7f0; font-size: 1.15rem; }
+.message-empty-guide strong { color: #4c586d; font-size: .78rem; }
+.message-empty-guide small { color: #8a94a5; line-height: 1.55; }
+.message-empty-guide a { margin-top: 4px; padding: 6px 12px; color: #405fc6; border-radius: 999px; background: #e7ebfb; font-size: .7rem; font-weight: 750; }
+.message-empty-guide a:hover { text-decoration: none; background: #dce3fb; }
+
+.user-message-page-surface .conversation-page.embedded { gap: 10px; }
+.user-message-page-surface .conversation-page.embedded > .conversation-header { padding-block: 11px; }
+.user-message-page-surface .conversation-page.embedded > .conversation-header p { margin: 3px 0 0; font-size: .72rem; }
+.user-message-page-surface .agent-consent-card { padding: 0; display: block; flex: 0 0 auto; overflow: hidden; border-color: #d8def0; border-radius: 12px; background: #f8f9fd; }
+.user-message-page-surface .agent-consent-card summary { min-height: 58px; padding: 9px 13px; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.user-message-page-surface .agent-consent-card summary::-webkit-details-marker { display: none; }
+.user-message-page-surface .agent-consent-card summary > span:nth-child(2) { display: grid; gap: 2px; }
+.user-message-page-surface .agent-consent-card summary small { overflow: hidden; color: #7b8497; font-size: .67rem; text-overflow: ellipsis; white-space: nowrap; }
+.user-message-page-surface .agent-consent-card summary em { color: #4e63ba; font-size: .66rem; font-style: normal; font-weight: 750; }
+.user-message-page-surface .agent-consent-card[open] summary { border-bottom: 1px solid #e0e4f0; }
+.agent-consent-icon { width: 34px; height: 34px; display: grid; place-items: center; color: #5168c8; border-radius: 10px; background: #e8ecfb; font-size: .65rem; font-weight: 850; }
+.user-message-page-surface .agent-consent-body { padding: 11px 13px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.user-message-page-surface .agent-consent-body p { margin: 0; color: #687287; font-size: .7rem; line-height: 1.55; }
+.user-message-page-surface .agent-consent-body button { flex: 0 0 auto; }
+.user-message-page-surface .conversation-page.embedded .message-timeline { padding: 18px; gap: 12px; border: 0; border-radius: 14px; background: linear-gradient(180deg, #f3f5fa, #f6f7fb); }
+.user-message-page-surface .message-bubble { max-width: min(76%, 680px); padding: 10px 12px; gap: 5px; font-size: .82rem; line-height: 1.55; }
+.user-message-page-surface .message-bubble.mine { border-color: #a2dc86; background: #a9e989; }
+.user-message-page-surface .message-bubble p { line-height: 1.55; }
+.user-message-page-surface .ai-feedback-actions { justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
+.user-message-page-surface .ai-feedback-actions button { min-height: 28px; padding: 4px 9px; font-size: .66rem; }
+.user-message-page-surface .conversation-page.embedded .message-composer { padding: 10px 12px; border-radius: 14px; box-shadow: 0 -7px 22px rgb(27 49 101 / 6%); }
+.user-message-page-surface .conversation-page.embedded .message-composer textarea { min-height: 54px; padding: 9px 11px; font-size: .8rem; }
+.user-message-page-surface .rich-message-composer .message-composer-toolbar > span { font-size: .63rem; }
+
+.merchant-message-page-surface .merchant-chat-list > header { height: 64px; }
+.merchant-message-page-surface .merchant-chat-main { grid-template-rows: 64px auto minmax(0, 1fr) 124px; }
+.merchant-message-page-surface .merchant-chat-timeline { padding: 18px 22px; }
+.merchant-message-page-surface .merchant-chat-bubble { padding: 9px 12px; font-size: .78rem; }
+.merchant-message-page-surface .merchant-chat-composer { padding: 10px 15px; }
+.merchant-message-page-surface .merchant-chat-composer textarea { font-size: .78rem; }
+
+.admin-message-page-surface .admin-chat-sidebar > header,
+.admin-message-page-surface .admin-chat-header { min-height: 64px; padding-block: 11px; }
+.admin-message-page-surface .admin-chat-timeline { padding: 18px; gap: 12px; }
+.admin-message-page-surface .admin-chat-timeline article > div { max-width: 78%; }
+.admin-message-page-surface .admin-chat-timeline article p { padding: 9px 12px; font-size: .78rem; line-height: 1.58; }
+.admin-message-page-surface .admin-chat-composer { padding: 10px 14px; }
+.admin-message-page-surface .admin-chat-composer textarea { min-height: 56px; font-size: .76rem; }
+.admin-message-page-surface .admin-chat-composer button { min-width: 76px; min-height: 34px; }
 .admin-message-trigger, .merchant-message-trigger, .user-message-trigger { text-decoration: none; }
 .admin-message-trigger:hover, .merchant-message-trigger:hover, .user-message-trigger:hover { text-decoration: none; }
 
@@ -1660,6 +1721,9 @@ tr.selected td { background: #f0f4ff; }
   .admin-message-window { width: min(1180px, 96vw); grid-template-columns: 320px minmax(0, 1fr); }
   .merchant-message-window { width: min(1040px, 96vw); grid-template-columns: 300px minmax(0, 1fr); }
   .user-message-window { width: min(1120px, 96vw); grid-template-columns: 300px minmax(0, 1fr); }
+  .admin-message-page-surface .admin-message-window { grid-template-columns: 230px minmax(0, 1fr); }
+  .merchant-message-page-surface .merchant-message-window { grid-template-columns: 240px minmax(0, 1fr); }
+  .user-message-page-surface .user-message-window { grid-template-columns: 250px minmax(0, 1fr); }
 }
 
 @media (max-width: 720px) {

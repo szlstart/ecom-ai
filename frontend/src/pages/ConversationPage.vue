@@ -666,15 +666,19 @@ onBeforeUnmount(() => {
       <strong>{{ contextLabel(activeContext) }}</strong>
       <span>客服回答与工具调用将绑定此上下文版本 v{{ activeContext.context_version }}。</span>
     </p>
-    <section v-if="conversation?.conversation_type === 'exclusive'" class="agent-consent-card" aria-labelledby="after-sale-consent-heading">
-      <div>
-        <strong id="after-sale-consent-heading">专属客服售后协助授权</strong>
+    <details v-if="conversation?.conversation_type === 'exclusive'" class="agent-consent-card" aria-labelledby="after-sale-consent-heading">
+      <summary>
+        <span class="agent-consent-icon" aria-hidden="true">盾</span>
+        <span><strong id="after-sale-consent-heading">售后协助授权</strong><small>{{ activeAfterSaleConsent ? '已授权，可为当前订单准备售后草稿' : '按需授权，不会自动提交退款' }}</small></span>
+        <em>管理授权</em>
+      </summary>
+      <div class="agent-consent-body">
         <p v-if="activeAfterSaleConsent">已授权专属客服准备售后草稿<span v-if="activeAfterSaleConsent.expires_at">，有效期至 {{ dateTimeLabel(activeAfterSaleConsent.expires_at) }}</span>。每次退款提交仍需你核对卡片并点击确认。</p>
         <p v-else>授权后，专属客服可以根据你的当前订单准备售后草稿；授权本身不会创建退款，聊天中的“确认”也不会触发提交。</p>
+        <button v-if="activeAfterSaleConsent" type="button" class="small secondary" :disabled="consentBusy" @click="revokeAfterSaleConsent">{{ consentBusy ? '处理中…' : '撤销授权' }}</button>
+        <button v-else type="button" class="small" :disabled="consentBusy" @click="grantAfterSaleConsent">{{ consentBusy ? '授权中…' : '授权售后协助 30 天' }}</button>
       </div>
-      <button v-if="activeAfterSaleConsent" type="button" class="small secondary" :disabled="consentBusy" @click="revokeAfterSaleConsent">{{ consentBusy ? '处理中…' : '撤销授权' }}</button>
-      <button v-else type="button" class="small" :disabled="consentBusy" @click="grantAfterSaleConsent">{{ consentBusy ? '授权中…' : '授权售后协助 30 天' }}</button>
-    </section>
+    </details>
     <section v-if="humanTicket && !['resolved','closed'].includes(humanTicket.ticket_status)" class="alert info human-ticket-status" aria-live="polite">
       <span v-if="humanTicket.ticket_status === 'queued'">人工客服排队中<span v-if="humanTicket.queue_position">，当前第 {{ humanTicket.queue_position }} 位</span>。</span>
       <span v-else-if="humanTicket.ticket_status === 'waiting_user'">人工客服正在等待你的补充信息。</span>

@@ -143,7 +143,9 @@ onBeforeUnmount(() => {
           <button v-if="exclusive" class="merchant-chat-item pinned" :class="{ active: selected?.conversation_id === exclusive.conversation_id }" type="button" @click="selectConversation(exclusive)">
             <span class="merchant-chat-avatar platform">专</span><span><strong>专属客服 <em>置顶</em></strong><small>{{ exclusive.last_message_preview || '平台规则、订单、物流与售后' }}</small></span><i v-if="exclusive.unread_count" class="user-chat-unread" :aria-label="`${exclusive.unread_count} 条未读消息`">{{ unreadLabel(exclusive.unread_count) }}</i>
           </button>
-          <p v-if="!stores.length && !loading" class="merchant-chat-empty">暂无店铺会话，去商品页咨询吧～</p>
+          <div v-if="!stores.length && !loading" class="merchant-chat-empty message-empty-guide">
+            <span aria-hidden="true">⌕</span><strong>还没有店铺咨询</strong><small>在商品详情页联系商家后，会话会出现在这里。</small><RouterLink to="/">去逛逛</RouterLink>
+          </div>
           <button v-for="item in stores" :key="item.conversation_id" class="merchant-chat-item" :class="{ active: selected?.conversation_id === item.conversation_id }" type="button" @click="selectConversation(item)">
             <span class="merchant-chat-avatar">{{ item.title.slice(0, 1) }}</span><span><strong>{{ item.title }}</strong><small>{{ item.last_message_preview || '开始咨询店铺客服' }} · {{ timeLabel(item.last_message_at) }}</small></span><i v-if="item.unread_count" class="user-chat-unread" :aria-label="`${item.unread_count} 条未读消息`">{{ unreadLabel(item.unread_count) }}</i>
           </button>

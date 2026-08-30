@@ -276,7 +276,7 @@ class ExclusiveToolGateway:
                     ),
                 )
                 result["refund_eligibility"] = eligibility.model_dump(
-                    mode="json", exclude={"eligibility_token"}
+                    mode="json", exclude={"eligibility_token", "expires_at"}
                 )
             else:
                 result["refund_eligibility"] = {

@@ -713,7 +713,12 @@ async def _grounded_answer(
     trace["cited_source_ids"] = list(answer.cited_source_ids)
     if answer.limitation:
         trace["limitation"] = answer.limitation
-    return answer.text, trace
+    answer_text = answer.text
+    if plan.intent == "refund_precheck" and not any(
+        marker in answer_text for marker in ("没有创建退款草稿", "未创建退款草稿")
+    ):
+        answer_text += "\n\n本次仅完成只读资格检查，没有创建退款草稿或售后单。"
+    return answer_text, trace
 
 
 def _tool_for_intent(intent: str) -> str:

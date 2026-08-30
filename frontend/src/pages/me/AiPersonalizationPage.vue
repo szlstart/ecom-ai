@@ -35,6 +35,30 @@ function token(): string {
   if (!auth.accessToken) throw new Error('登录状态不可用')
   return auth.accessToken
 }
+function apiDate(value: string): Date {
+  return new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`)
+}
+function dateTime(value: string): string {
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(apiDate(value))
+}
+function consentStatus(value: string | undefined): string {
+  return ({ active: '已开启', paused: '已暂停', revoked: '已撤销' } as Record<string, string>)[value || ''] || '未授权'
+}
+function memoryStatus(value: string): string {
+  return ({ candidate: '等待确认', active: '已生效', superseded: '已被新版本替代', revoked: '已删除', expired: '已过期' } as Record<string, string>)[value] || value
+}
+function memoryType(value: string): string {
+  return ({ preference: '购物偏好', user_preference: '购物偏好', semantic: '语义偏好', episodic: '经历偏好' } as Record<string, string>)[value] || '购物偏好'
+}
+function sourceType(value: string): string {
+  return ({ explicit_user: '用户明确表达', conversation: '对话候选', user_confirmed: '用户确认' } as Record<string, string>)[value] || '用户明确表达'
+}
+function cleanupStatus(value: string): string {
+  return ({ pending: '等待清理', running: '清理中', succeeded: '清理完成', partially_failed: '部分失败', failed: '清理失败' } as Record<string, string>)[value] || value
+}
 
 async function load() {
   loading.value = true
@@ -153,12 +177,12 @@ onMounted(load)
             <h2 id="personalization-consent-title">个性化授权</h2>
             <p>允许专属客服根据你明确表达的低敏偏好改进搜索、推荐和解释。</p>
           </div>
-          <span class="badge">{{ personalization?.status ?? '未授权' }}</span>
+          <span class="badge">{{ consentStatus(personalization?.status) }}</span>
         </div>
         <dl v-if="personalization" class="detail-list">
           <div><dt>告知版本</dt><dd>{{ personalization.policy_version }}</dd></div>
-          <div><dt>授权时间</dt><dd>{{ personalization.created_at }}</dd></div>
-          <div><dt>作用范围</dt><dd>{{ personalization.scope_type }}</dd></div>
+          <div><dt>授权时间</dt><dd>{{ dateTime(personalization.created_at) }}</dd></div>
+          <div><dt>作用范围</dt><dd>{{ personalization.scope_type === 'user' ? '当前账号' : '指定店铺' }}</dd></div>
         </dl>
         <div class="actions">
           <button v-if="!personalization || personalization.status === 'revoked'" type="button" @click="enable">开启个性化</button>
@@ -173,14 +197,14 @@ onMounted(load)
         <p class="muted">这里只展示可由你管理的加密低敏偏好，不展示向量、内部评分或底层存储键。</p>
         <p v-if="!memories.length">当前没有可管理的长期记忆。授权本身不代表已经写入任何记忆。</p>
         <article v-for="memory in memories" :key="memory.memory_id" class="admin-list-row">
-          <div><strong>{{ memory.value }}</strong><p>{{ memory.memory_type }} · {{ memory.namespace === 'store' ? `店铺 ${memory.store_id}` : '专属客服' }} · {{ memory.status }}</p><small>来源：{{ memory.source_type }} · 更新于 {{ memory.updated_at }}</small></div>
+          <div><strong>{{ memory.value }}</strong><p>{{ memoryType(memory.memory_type) }} · {{ memory.namespace === 'store' ? `店铺 ${memory.store_id}` : '专属客服' }} · {{ memoryStatus(memory.status) }}</p><small>来源：{{ sourceType(memory.source_type) }} · 更新于 {{ dateTime(memory.updated_at) }}</small></div>
           <div v-if="['active','candidate'].includes(memory.status)" class="actions"><button v-if="memory.status === 'candidate'" type="button" class="small" :disabled="memoryBusy === memory.memory_id" @click="activateMemory(memory)">确认记住</button><button type="button" class="small secondary" :disabled="memoryBusy === memory.memory_id" @click="reviseMemory(memory)">更正</button><button type="button" class="small danger" :disabled="memoryBusy === memory.memory_id" @click="removeMemory(memory)">删除</button></div>
         </article>
       </section>
       <section v-if="cleanupTasks.length" class="card" aria-labelledby="cleanup-title">
         <h2 id="cleanup-title">清理任务</h2>
         <article v-for="task in cleanupTasks" :key="task.cleanup_task_id" class="admin-list-row">
-          <div><strong>{{ task.cleanup_task_id }} · {{ task.status }}</strong><p>进度 {{ task.processed_count }}/{{ task.total_count }}，失败 {{ task.failed_count }}；清理失败不会恢复已撤销授权或已删除记忆。</p><small v-if="task.error_code">原因码：{{ task.error_code }}</small></div>
+          <div><strong>{{ task.cleanup_task_id }} · {{ cleanupStatus(task.status) }}</strong><p>进度 {{ task.processed_count }}/{{ task.total_count }}，失败 {{ task.failed_count }}；清理失败不会恢复已撤销授权或已删除记忆。</p><small v-if="task.error_code">原因码：{{ task.error_code }}</small></div>
           <div class="actions"><button type="button" class="small secondary" :disabled="memoryBusy === task.cleanup_task_id" @click="refreshTask(task)">刷新</button><button v-if="task.can_retry" type="button" class="small" :disabled="memoryBusy === task.cleanup_task_id" @click="retryTask(task)">重试失败项</button></div>
         </article>
       </section>

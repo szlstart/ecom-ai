@@ -761,7 +761,8 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:
                 lines.append(
                     f"- {safe_untrusted_excerpt(item.get('name'), 120)} "
                     f"({safe_untrusted_excerpt(item.get('store_name'), 120)}): "
-                    f"{_price_display(price)} 起"
+                    f"{_price_display(price)} 起，"
+                    f"可售库存 {max(0, int(item.get('available_stock', 0)))}"
                 )
         lines.append("推荐依据: 按当前公开销量排序; 价格与库存以商品详情和结算页实时结果为准。")
         return "\n".join(lines)

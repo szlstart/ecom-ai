@@ -24,6 +24,28 @@ def test_catalog_candidates_allow_only_genuinely_broad_catalog_fallback() -> Non
     assert _catalog_search_candidates("不存在的独角兽水杯") == ["不存在的独角兽水杯"]
 
 
+def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:
+    rendered = _render(
+        ExclusiveAgentPlan("personalized_recommendation"),
+        {
+            "items": [
+                {
+                    "product_id": "prd_01M11Z2GF6J1C8T661HPNBRQ2D",
+                    "name": "蓝色测试文具",
+                    "store_name": "文具专卖店",
+                    "price": {"min_amount": 600, "currency": "CNY"},
+                    "available_stock": 17,
+                }
+            ],
+            "recalled_memories": [{"value": "偏好蓝色、简约风格"}],
+        },
+    )
+
+    assert "偏好蓝色、简约风格" in rendered
+    assert "¥6.00" in rendered
+    assert "可售库存 17" in rendered
+
+
 def test_order_fallback_renders_amount_and_localized_status() -> None:
     rendered = _render(
         ExclusiveAgentPlan("order_lookup"),

@@ -222,6 +222,17 @@ class ExclusiveToolGateway:
             context, "order.get_user_order_detail", {"order_id": order_no}, handler
         )
 
+    async def latest_order_no(self, context: TrustedExclusiveAgentContext) -> str:
+        order_no = await self.session.scalar(
+            select(Order.order_no)
+            .where(Order.user_id == context.user.id, Order.user_hidden_at.is_(None))
+            .order_by(Order.created_at.desc(), Order.id.desc())
+            .limit(1)
+        )
+        if order_no is None:
+            raise _not_accessible()
+        return order_no
+
     async def shipments(
         self, context: TrustedExclusiveAgentContext, order_no: str
     ) -> StoreToolResult:

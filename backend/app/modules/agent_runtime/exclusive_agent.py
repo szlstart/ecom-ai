@@ -239,19 +239,19 @@ async def process_exclusive_run(
                 else await tools.list_orders(context)
             )
         elif plan.intent == "logistics_lookup":
-            explicit_order_no = _resource_no(trigger_text, "ord")
-            order_no = (
-                explicit_order_no
-                if explicit_order_no is not None
-                else (await builder.require_active_context(context, "order")).resource_no
+            order_no = await _read_order_no(
+                trigger_text,
+                context=context,
+                builder=builder,
+                tools=tools,
             )
             result = await tools.shipments(context, order_no)
         elif plan.intent == "refund_precheck":
-            explicit_order_no = _resource_no(trigger_text, "ord")
-            order_no = (
-                explicit_order_no
-                if explicit_order_no is not None
-                else (await builder.require_active_context(context, "order")).resource_no
+            order_no = await _read_order_no(
+                trigger_text,
+                context=context,
+                builder=builder,
+                tools=tools,
             )
             result = await tools.refund_precheck(context, order_no)
         elif plan.intent == "refund_progress":
@@ -734,6 +734,29 @@ def _tool_for_intent(intent: str) -> str:
         "refund_eligibility": "after_sale.build_refund_draft",
         "refund_progress": "after_sale.list_user_refunds",
     }.get(intent, "unknown")
+
+
+async def _read_order_no(
+    trigger_text: str,
+    *,
+    context: TrustedExclusiveAgentContext,
+    builder: ExclusiveContextBuilder,
+    tools: ExclusiveToolGateway,
+) -> str:
+    explicit_order_no = _resource_no(trigger_text, "ord")
+    if explicit_order_no is not None:
+        return explicit_order_no
+    if _requests_latest_order(trigger_text) or context.context_refs.get("order") is None:
+        return await tools.latest_order_no(context)
+    return (await builder.require_active_context(context, "order")).resource_no
+
+
+def _requests_latest_order(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    return any(
+        marker in normalized
+        for marker in ("最近订单", "最近一笔", "最新订单", "上一笔订单", "刚买", "刚下单")
+    )
 
 
 def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any]) -> str:

@@ -1,4 +1,8 @@
-from app.modules.agent_runtime.exclusive_agent import _render, _resource_no
+from app.modules.agent_runtime.exclusive_agent import (
+    _render,
+    _requests_latest_order,
+    _resource_no,
+)
 from app.modules.agent_runtime.exclusive_model_gateway import ExclusiveAgentPlan
 from app.modules.agent_runtime.exclusive_tools import _catalog_search_candidates
 from app.modules.agent_runtime.operations_agent import _render_multi_agent
@@ -9,6 +13,12 @@ def test_resource_no_extracts_only_bounded_business_identifier() -> None:
     assert _resource_no(f"请查询订单 {order_no} 的物流", "ord") == order_no
     assert _resource_no("请查询别人的编号 ord_short", "ord") is None
     assert _resource_no("prd_01M19K9GS9ZG90TSGAFJ3DPMNY", "ord") is None
+
+
+def test_latest_order_language_is_detected_without_treating_any_order_question_as_latest() -> None:
+    assert _requests_latest_order("请查我最近一笔订单的物流") is True
+    assert _requests_latest_order("刚买的商品能不能退款") is True
+    assert _requests_latest_order("这个订单能不能退款") is False
 
 
 def test_catalog_candidates_remove_instruction_but_keep_business_term() -> None:

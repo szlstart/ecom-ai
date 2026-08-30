@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
+from app.core.id_generator import new_prefixed_ulid
 from app.core.logging import configure_logging
 from app.core.observability import AiMetric, metrics
 from app.core.security import SecurityService, utc_now
@@ -28,6 +29,7 @@ from app.modules.agent_runtime.provider_gateway import (
     configured_operations_gateway,
     probe_model_provider,
 )
+from app.modules.agent_runtime.public_trace import public_question
 from app.modules.agent_runtime.service import AgentRuntimeService
 from app.modules.agent_runtime.store_agent import process_store_run
 from app.modules.messaging.models import Conversation, Message
@@ -129,6 +131,30 @@ async def process_batch(limit: int = 20) -> int:
             run.current_phase = "claimed"
             run.version += 1
             run_nos.append(run.run_no)
+            conversation = await session.get(Conversation, run.conversation_id)
+            trigger = await session.get(Message, run.trigger_message_id)
+            if conversation is not None and trigger is not None:
+                session.add(
+                    OutboxEvent(
+                        event_no=new_prefixed_ulid("evt_"),
+                        event_type="agent.response.started.v1",
+                        aggregate_type="conversation",
+                        aggregate_no=conversation.conversation_no,
+                        aggregate_version=conversation.version,
+                        payload={
+                            "conversation_id": conversation.conversation_no,
+                            "run_id": run.run_no,
+                            "question": public_question(trigger.text_content),
+                            "stage": "understanding",
+                            "label": "思考开始",
+                            "summary": "正在识别问题、会话上下文、身份范围和可用权限。",
+                        },
+                        event_status="pending",
+                        available_at=utc_now(),
+                        attempt_count=0,
+                        trace_id=run.trace_id,
+                    )
+                )
         await session.commit()
 
     for run_no in run_nos:

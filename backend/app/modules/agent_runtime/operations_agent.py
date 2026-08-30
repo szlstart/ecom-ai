@@ -39,6 +39,7 @@ from app.modules.agent_runtime.operations_context import (
 )
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection
 from app.modules.agent_runtime.provider_gateway import ProviderOperationsModelGateway
+from app.modules.agent_runtime.public_trace import public_trace
 from app.modules.catalog.models import Product, ProductSku
 from app.modules.identity.models import User
 from app.modules.inventory.models import Inventory
@@ -175,7 +176,46 @@ async def process_operations_run(
 
     small_talk_reply = _operations_small_talk_reply(user_text, context.audience)
     if small_talk_reply is not None:
-        await _complete(session, context, small_talk_reply, "general_chat", {})
+        small_evidence: dict[str, object] = {
+            "assistant_scope": (
+                "商家经营、商品、库存、订单与平台服务"
+                if context.audience == "merchant"
+                else "平台用户、店铺、商品、交易与系统运行的只读分析"
+            )
+        }
+        small_answer = small_talk_reply
+        small_answer_mode = "deterministic_fallback"
+        small_citations: tuple[str, ...] = ("context:assistant_scope",)
+        small_confidence = "high"
+        if model_gateway is not None:
+            run.current_phase = "answering"
+            run.version += 1
+            try:
+                grounded = await model_gateway.synthesize(
+                    agent_prompt=context.agent_version.system_prompt,
+                    user_text=user_text,
+                    intent="general_chat",
+                    evidence=small_evidence,
+                    source_ids=small_citations,
+                )
+                small_answer = grounded.text
+                small_answer_mode = "model_grounded"
+                small_confidence = grounded.confidence
+                small_citations = grounded.cited_source_ids or small_citations
+            except (ModelGatewayError, TimeoutError):
+                run.degraded_reason = "answer_model_unavailable"
+        await _complete(
+            session,
+            context,
+            small_answer,
+            "general_chat",
+            small_evidence,
+            trace_extra={
+                "answer_mode": small_answer_mode,
+                "confidence": small_confidence,
+                "cited_source_ids": list(small_citations),
+            },
+        )
         await _finish_checkpoint(checkpoint_store, context, "general_chat")
         return
 
@@ -660,6 +700,8 @@ def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, A
     label = "店铺经营" if context.audience == "merchant" else "平台运行"
     lines = [f"已完成{label}的只读查询 ({intent}):"]
     for key, value in data.items():
+        if key == "conversation_window":
+            continue
         if isinstance(value, dict):
             rendered = "、".join(
                 f"{item_key}={item_value}" for item_key, item_value in value.items()
@@ -687,14 +729,7 @@ async def _complete(
     conversation.last_sequence_no += 1
     conversation.last_message_at = now
     conversation.version += 1
-    trace: dict[str, Any] = {
-        "version": "public-agent-trace-v1",
-        "run_id": context.run.run_no,
-        "agent": context.agent_definition.display_name,
-        "model": context.agent_version.model_profile,
-        "status": "completed",
-        "intent": intent,
-        "steps": [
+    steps = [
             {"kind": "plan", "label": "识别只读任务", "status": "completed"},
             *(
                 [
@@ -709,11 +744,19 @@ async def _complete(
                 else []
             ),
             {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
-        ],
-        "source_ids": [f"tool:{tool_code}"] if tool_code else [],
-        "raw_reasoning_exposed": False,
-        **dict(trace_extra or {}),
-    }
+        ]
+    trace = public_trace(
+        run_id=context.run.run_no,
+        agent=context.agent_definition.display_name,
+        model=context.agent_version.model_profile,
+        question=context.trigger.text_content,
+        intent=intent,
+        data=data,
+        steps=steps,
+        source_ids=[f"tool:{tool_code}"] if tool_code else [],
+        tool_code=tool_code,
+        extra=trace_extra,
+    )
     message = Message(
         message_no=new_prefixed_ulid("msg_"),
         conversation_id=conversation.id,
@@ -750,20 +793,7 @@ def _message_events(
     context: TrustedOperationsContext, message: Message, text: str, now: Any
 ) -> list[OutboxEvent]:
     common = {"conversation_id": context.conversation.conversation_no, "run_id": context.run.run_no}
-    events = [
-        OutboxEvent(
-            event_no=new_prefixed_ulid("evt_"),
-            event_type="agent.response.started.v1",
-            aggregate_type="conversation",
-            aggregate_no=context.conversation.conversation_no,
-            aggregate_version=context.conversation.version,
-            payload={**common, "chunk_index": 0},
-            event_status="pending",
-            available_at=now,
-            attempt_count=0,
-            trace_id=context.run.trace_id,
-        )
-    ]
+    events: list[OutboxEvent] = []
     for index, end in enumerate(range(160, len(text) + 160, 160), start=1):
         events.append(
             OutboxEvent(

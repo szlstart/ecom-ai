@@ -10,6 +10,26 @@ export interface RealtimeEvent {
   data: Record<string, unknown>
 }
 
+export interface AgentLiveTrace {
+  runId: string
+  question: string
+  stage: string
+  label: string
+  summary: string
+}
+
+export function liveTraceFromEvent(event: RealtimeEvent): AgentLiveTrace | null {
+  const runId = event.data.run_id
+  if (event.type !== 'agent.response.started' || typeof runId !== 'string') return null
+  return {
+    runId,
+    question: String(event.data.question ?? ''),
+    stage: String(event.data.stage ?? 'understanding'),
+    label: String(event.data.label ?? '思考开始'),
+    summary: String(event.data.summary ?? '正在理解问题并核对可用权限。'),
+  }
+}
+
 interface RealtimeTicket {
   ticket: string
   expires_in: number

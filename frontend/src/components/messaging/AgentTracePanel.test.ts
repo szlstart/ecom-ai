@@ -14,6 +14,9 @@ function agentMessage(sequence: number, runId: string, label: string): ChatMessa
       run_id: runId,
       execution_trace: {
         run_id: runId, agent: 'AI 管家', status: 'completed', intent: 'complex_platform_diagnosis',
+        question: '请分析平台用户和店铺情况',
+        analysis_summary: '先拆解问题，再核对权限并执行只读查询。',
+        result_summary: '已完成 3 个受控步骤，获得 2 项可用结果。',
         orchestration_mode: 'multi_agent', answer_mode: 'model_grounded', confidence: 'high',
         cited_source_ids: ['tool:governance.users'],
         steps: [{ kind: 'delegation', label, status: 'succeeded', specialist: 'governance_users', tool_calls: 1, latency_ms: 28 }],
@@ -35,9 +38,32 @@ describe('AgentTracePanel', () => {
     expect(wrapper.text()).toContain('多智能体协作')
     expect(wrapper.text()).toContain('工具调用：1 次')
     expect(wrapper.text()).toContain('耗时：28 ms')
-    expect(wrapper.text()).toContain('不显示模型的私密推理文本')
+    expect(wrapper.text()).toContain('请分析平台用户和店铺情况')
+    expect(wrapper.text()).toContain('先拆解问题，再核对权限并执行只读查询')
+    expect(wrapper.text()).toContain('已完成 3 个受控步骤')
+    expect(wrapper.text()).toContain('不会暴露隐藏提示、私密推理或敏感数据')
     expect(wrapper.text()).not.toContain('运行编号')
     expect(wrapper.findAll('details')).toHaveLength(2)
     expect(wrapper.find('details').attributes('open')).toBeUndefined()
+  })
+
+  it('shows the real started-event summary without placing a fake tool step', () => {
+    const wrapper = mount(AgentTracePanel, {
+      props: {
+        messages: [],
+        running: true,
+        liveTrace: {
+          runId: 'run_LIVE',
+          question: 'hello',
+          stage: 'understanding',
+          label: '思考开始',
+          summary: '正在识别问题、会话上下文、身份范围和可用权限。',
+        },
+      },
+    })
+    expect(wrapper.text()).toContain('hello')
+    expect(wrapper.text()).toContain('思考开始')
+    expect(wrapper.text()).toContain('正在识别问题')
+    expect(wrapper.text()).not.toContain('调用工具')
   })
 })

@@ -8,7 +8,7 @@ import {
   listConversations,
   type Conversation,
 } from '@/api/messaging'
-import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
+import { RealtimeConnection, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import ConversationPage from '@/pages/ConversationPage.vue'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import type { ChatMessage } from '@/api/messaging'
@@ -28,6 +28,7 @@ const shaking = ref(false)
 const traceMessages = ref<ChatMessage[]>([])
 const selectedTraceRunId = ref<string | null>(null)
 const traceRunning = ref(false)
+const liveTrace = ref<AgentLiveTrace | null>(null)
 let realtime: RealtimeConnection | undefined
 let refreshTimer: number | undefined
 let pollingTimer: number | undefined
@@ -152,10 +153,10 @@ onBeforeUnmount(() => {
           </button>
         </aside>
         <main class="user-chat-main">
-          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" @trace-select="selectedTraceRunId = $event" @trace-running="traceRunning = $event" />
+          <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" @trace-select="selectedTraceRunId = $event" @trace-running="traceRunning = $event" @trace-progress="liveTrace = $event" />
           <div v-else class="merchant-chat-welcome"><span class="merchant-chat-avatar platform">专</span><h2>消息中心</h2><p>选择左侧会话开始沟通。</p></div>
         </main>
-        <AgentTracePanel :messages="traceMessages" :selected-run-id="selectedTraceRunId" :running="traceRunning" />
+        <AgentTracePanel :messages="traceMessages" :selected-run-id="selectedTraceRunId" :running="traceRunning" :live-trace="liveTrace" />
       </section>
   </div>
 </template>

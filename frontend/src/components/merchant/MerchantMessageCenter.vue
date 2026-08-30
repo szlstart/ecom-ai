@@ -27,7 +27,7 @@ import type { ChatMessage } from '@/api/messaging'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import MessageAttachmentPicker, { type MessagePickerProduct } from '@/components/messaging/MessageAttachmentPicker.vue'
-import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
+import { liveTraceFromEvent, RealtimeConnection, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 
 const props = withDefaults(defineProps<{ storeId?: string; storeName?: string; storeLogoUrl?: string | null; standalone?: boolean }>(), { standalone: false, storeLogoUrl: null })
@@ -53,6 +53,7 @@ const connectionState = ref<RealtimeState>('polling')
 const shaking = ref(false)
 const selectedTraceRunId = ref<string | null>(null)
 const traceRunning = ref(false)
+const liveTrace = ref<AgentLiveTrace | null>(null)
 const attachmentOpen = ref(false)
 const attachmentLoading = ref(false)
 const attachmentSendingId = ref<string | null>(null)
@@ -140,7 +141,7 @@ async function loadExclusive(markRead = props.standalone && selectedKey.value ==
 }
 
 async function selectConversation(key: string) {
-  selectedKey.value = key; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; attachmentOpen.value = false; error.value = ''
+  selectedKey.value = key; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; liveTrace.value = null; attachmentOpen.value = false; error.value = ''
   if (key === 'exclusive') { await loadExclusive(); return }
   const target = conversations.value.find((item) => item.conversation_id === key)
   if (!target) return
@@ -226,8 +227,11 @@ function scheduleRefresh() {
 function handleRealtime(event: RealtimeEvent) {
   const eventConversationId = String(event.data.conversation_id ?? '')
   const selectedConversationId = selectedKey.value === 'exclusive' ? exclusiveConversationId.value : selectedKey.value
-  if (eventConversationId === selectedConversationId && event.type === 'agent.response.started') traceRunning.value = true
-  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') traceRunning.value = false
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.started') {
+    traceRunning.value = true
+    liveTrace.value = liveTraceFromEvent(event)
+  }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false; liveTrace.value = null }
   if (event.type === 'unread.updated' && String(event.data.conversation_id ?? '') === exclusiveConversationId.value) {
     const unread = Number(event.data.conversation_unread)
     if (Number.isFinite(unread) && unread >= 0) exclusiveUnread.value = unread
@@ -352,7 +356,7 @@ onBeforeUnmount(() => {
           </div>
           <form class="merchant-chat-composer unified-chat-composer" :class="{ 'without-attachments': selectedKey === 'exclusive' }" @submit.prevent="send"><button v-if="selectedKey !== 'exclusive'" type="button" class="message-plus-button" :disabled="!canReply" aria-label="发送本店商品" title="发送本店商品" @click="openAttachments">＋</button><textarea v-model="draft" rows="3" maxlength="4000" :disabled="selectedKey !== 'exclusive' && !canReply" :placeholder="selectedKey === 'exclusive' ? '向专属客服描述经营问题…' : canReply ? '回复顾客…' : 'AI 正在接待；转人工后可在这里回复'" @keydown.enter.exact.prevent="send" /><button class="unified-chat-send" :disabled="sending || !draft.trim() || (selectedKey !== 'exclusive' && !canReply)">{{ sending ? '发送中…' : '发送' }}</button><small>{{ selectedKey === 'exclusive' || canReply ? 'Enter 发送 · Shift + Enter 换行' : '输入区始终保留；AI 转人工后即可回复' }}</small></form>
         </main>
-        <AgentTracePanel :messages="activeMessages" :selected-run-id="selectedTraceRunId" :running="traceRunning" title="AI 工作过程" />
+        <AgentTracePanel :messages="activeMessages" :selected-run-id="selectedTraceRunId" :running="traceRunning" :live-trace="liveTrace" title="思考过程" />
       </section>
       <MessageAttachmentPicker :open="attachmentOpen" :loading="attachmentLoading" :products="attachmentProducts" :sending-id="attachmentSendingId" title="发送本店商品" @close="attachmentOpen = false" @product="sendPickedProduct" />
   </div>

@@ -19,7 +19,7 @@ import {
 } from '@/api/admin-support'
 import { errorMessage, messageSendError, resolveApiAssetUrl } from '@/api/http'
 import { createClientMessageId, type ChatMessage } from '@/api/messaging'
-import { RealtimeConnection, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
+import { liveTraceFromEvent, RealtimeConnection, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
@@ -46,6 +46,7 @@ const timeline = ref<HTMLElement | null>(null)
 const connectionState = ref<RealtimeState>('polling')
 const selectedTraceRunId = ref<string | null>(null)
 const traceRunning = ref(false)
+const liveTrace = ref<AgentLiveTrace | null>(null)
 let realtime: RealtimeConnection | undefined
 let pollingTimer: number | undefined
 let refreshTimer: number | undefined
@@ -109,12 +110,12 @@ async function scrollBottom() {
 }
 
 async function selectAi() {
-  selected.value = 'ai'; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; error.value = ''; loading.value = true
+  selected.value = 'ai'; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; liveTrace.value = null; error.value = ''; loading.value = true
   try { await loadAiMessages(); await scrollBottom() } finally { loading.value = false }
 }
 
 async function selectConversation(item: SupportConversation) {
-  selected.value = item.conversation_id; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; error.value = ''; loading.value = true
+  selected.value = item.conversation_id; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; liveTrace.value = null; error.value = ''; loading.value = true
   try {
     if (item.active_ticket_id) workspace.value = (await getSupportWorkspace(item.active_ticket_id, token())).data
     const page = (await listSupportMessages(item.conversation_id, token())).data
@@ -180,8 +181,11 @@ function scheduleRefresh() {
 function handleRealtime(event: RealtimeEvent) {
   const eventConversationId = String(event.data.conversation_id ?? '')
   const selectedConversationId = selected.value === 'ai' ? aiConversationId.value : selected.value
-  if (eventConversationId === selectedConversationId && event.type === 'agent.response.started') traceRunning.value = true
-  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') traceRunning.value = false
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.started') {
+    traceRunning.value = true
+    liveTrace.value = liveTraceFromEvent(event)
+  }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false; liveTrace.value = null }
   if (['message.created', 'unread.updated', 'support.ticket.updated'].includes(event.type)) scheduleRefresh()
 }
 
@@ -284,7 +288,7 @@ onBeforeUnmount(() => {
           </section>
         </template>
       </main>
-      <AgentTracePanel :messages="selected === 'ai' ? aiMessages : messages" :selected-run-id="selectedTraceRunId" :running="traceRunning" title="AI 工作过程" />
+      <AgentTracePanel :messages="selected === 'ai' ? aiMessages : messages" :selected-run-id="selectedTraceRunId" :running="traceRunning" :live-trace="liveTrace" title="思考过程" />
     </section>
   </div>
 </template>

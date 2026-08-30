@@ -30,6 +30,7 @@ from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.agent_runtime.provider_gateway import ProviderExclusiveModelGateway
+from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
 from app.modules.agent_runtime.store_agent import _stream_events
 from app.modules.agent_runtime.store_tools import StoreToolResult
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
@@ -497,6 +498,15 @@ async def _complete(
 ) -> None:
     now = utc_now()
     conversation = context.conversation
+    trace = ensure_public_trace(
+        execution_trace,
+        run_id=context.run.run_no,
+        agent="专属客服",
+        model=context.agent_version.model_profile,
+        question=context.trigger.text_content,
+        data=data or {},
+        degraded_reason=degraded_reason,
+    )
     conversation.last_sequence_no += 1
     conversation.last_message_at = now
     conversation.version += 1
@@ -513,7 +523,7 @@ async def _complete(
             "run_id": context.run.run_no,
             "sources": _source_refs(data or {}),
             "data_scope": context.trusted_scope,
-            "execution_trace": dict(execution_trace or {}),
+            "execution_trace": trace,
             **dict(extra_content or {}),
         },
         agent_version_id=context.agent_version.id,
@@ -633,24 +643,19 @@ async def _grounded_answer(
                 "omitted_count": int(window.get("omitted_count", 0)),
             },
         )
-    trace: dict[str, object] = {
-        "version": "public-agent-trace-v1",
-        "run_id": context.run.run_no,
-        "agent": "专属客服",
-        "model": context.agent_version.model_profile,
-        "status": "completed",
-        "intent": plan.intent,
-        "steps": steps,
-        "source_ids": list(source_ids),
-        "raw_reasoning_exposed": False,
-    }
+    trace = public_trace(
+        run_id=context.run.run_no,
+        agent="专属客服",
+        model=context.agent_version.model_profile,
+        question=context.trigger.text_content,
+        intent=plan.intent,
+        data=data,
+        steps=steps,
+        source_ids=source_ids,
+        tool_code=tool_code,
+    )
     if not isinstance(gateway, ProviderExclusiveModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
-        return fallback, trace
-    if plan.intent == "general_chat":
-        trace["answer_mode"] = "model_routed_safe_reply"
-        trace["confidence"] = "high"
-        trace["cited_source_ids"] = list(source_ids)
         return fallback, trace
     context.run.current_phase = "answering"
     context.run.version += 1

@@ -418,11 +418,10 @@ async def _grounded_answer(
         source_ids=source_ids,
         tool_code=tool_code,
     )
-    # Inventory is transactional evidence: SKU names, prices and quantities must
-    # survive answer generation byte-for-byte.  A language model is useful for
-    # planning the lookup, but must not rename a SKU (or omit a zero-stock row)
-    # while paraphrasing the result.
-    if plan.intent == "inventory_lookup":
+    # Inventory and policy answers are exact evidence: SKU facts and published
+    # policy provenance must survive answer generation without omissions,
+    # fictional salutations, or unsupported paraphrases.
+    if plan.intent in {"inventory_lookup", "policy_qa"}:
         trace["answer_mode"] = "grounded_deterministic"
         return fallback, trace
     if not isinstance(gateway, ProviderStoreModelGateway):

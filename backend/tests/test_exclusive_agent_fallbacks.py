@@ -98,7 +98,7 @@ def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:
     assert "10支装: ¥8.00，实时可售 0 件，缺货" in rendered
     assert _requires_exact_catalog_rendering("personalized_recommendation") is True
     assert _requires_exact_catalog_rendering("product_search") is True
-    assert _requires_exact_catalog_rendering("policy_qa") is False
+    assert _requires_exact_catalog_rendering("policy_qa") is True
 
 
 def test_order_fallback_renders_amount_and_localized_status() -> None:

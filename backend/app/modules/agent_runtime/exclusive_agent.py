@@ -694,9 +694,9 @@ async def _grounded_answer(
         source_ids=source_ids,
         tool_code=tool_code,
     )
-    # Public catalogue answers are exact business evidence. The model may plan
-    # and rank the request, but it must not rename a product, invent a matching
-    # item from a remembered preference, or replace live stock with vague prose.
+    # Public catalogue and policy answers are exact business evidence. The model
+    # may plan and rank the request, but final wording must not rename products,
+    # invent matching items, omit policy provenance, or add a fictional salutation.
     if _requires_exact_catalog_rendering(plan.intent):
         trace["answer_mode"] = "grounded_deterministic"
         return fallback, trace
@@ -733,7 +733,7 @@ async def _grounded_answer(
 
 
 def _requires_exact_catalog_rendering(intent: str) -> bool:
-    return intent in {"product_search", "personalized_recommendation"}
+    return intent in {"policy_qa", "product_search", "personalized_recommendation"}
 
 
 def _tool_for_intent(intent: str) -> str:

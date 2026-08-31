@@ -18,7 +18,7 @@ import {
   type AgentToolApproval,
   type AiMemoryItem,
 } from '@/api/agent-runtime'
-import { RealtimeConnection, type AgentLiveTrace, type RealtimeEvent } from '@/api/realtime'
+import { liveTraceFromEvent, RealtimeConnection, updateLiveTrace, type AgentLiveTrace, type RealtimeEvent } from '@/api/realtime'
 import {
   createClientMessageId,
   cancelHumanServiceTicket,
@@ -81,6 +81,7 @@ const approvalBusy = ref<string | null>(null)
 const messageList = ref<HTMLElement | null>(null)
 const newBelowCount = ref(0)
 const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
+const liveTrace = ref<AgentLiveTrace | null>(null)
 const attachmentOpen = ref(false)
 const attachmentLoading = ref(false)
 const attachmentSendingId = ref<string | null>(null)
@@ -374,6 +375,7 @@ async function load() {
   loading.value = true
   error.value = ''
   clearReadState()
+  let loaded = false
   try {
     const [detail, history] = await Promise.all([
       getConversation(conversationId.value, token()),
@@ -394,13 +396,16 @@ async function load() {
       refreshMemoryCards(history.data.items),
     ])
     restoreDraft()
-    await nextTick()
-    scrollToBottom()
     setupObserver()
     connectionState.value = navigator.onLine ? 'polling' : 'offline'
+    loaded = true
   } catch (cause) {
     error.value = errorMessage(cause)
   } finally { loading.value = false }
+  if (loaded) {
+    await nextTick()
+    scrollToBottom()
+  }
 }
 async function loadEarlier() {
   const cursor = previousCursor.value
@@ -440,14 +445,19 @@ async function handleRealtime(event: RealtimeEvent) {
   if (event.data.conversation_id !== conversationId.value) return
   if (event.type === 'agent.response.started') {
     const runId = event.data.run_id
-    if (typeof runId === 'string') streamingReply.value = { runId, text: '', chunkIndex: 0 }
-    if (typeof runId === 'string') emit('trace-progress', {
-      runId,
-      question: String(event.data.question ?? ''),
-      stage: String(event.data.stage ?? 'understanding'),
-      label: String(event.data.label ?? '思考开始'),
-      summary: String(event.data.summary ?? '正在理解问题并核对可用权限。'),
-    })
+    if (typeof runId === 'string') {
+      streamingReply.value = { runId, text: '', chunkIndex: 0 }
+      selectedTraceRunId.value = runId
+      emit('trace-select', runId)
+    }
+    liveTrace.value = liveTraceFromEvent(event)
+    emit('trace-progress', liveTrace.value)
+    emit('trace-running', true)
+    return
+  }
+  if (event.type === 'agent.response.reasoning.delta') {
+    liveTrace.value = updateLiveTrace(liveTrace.value, event)
+    emit('trace-progress', liveTrace.value)
     emit('trace-running', true)
     return
   }
@@ -464,6 +474,7 @@ async function handleRealtime(event: RealtimeEvent) {
   if (event.type === 'agent.response.completed') {
     if (streamingReply.value?.runId === event.data.run_id) streamingReply.value = null
     emit('trace-running', false)
+    liveTrace.value = null
     emit('trace-progress', null)
     return
   }
@@ -684,7 +695,7 @@ function onlineChanged() {
 }
 
 watch(draft, persistDraft)
-watch(conversationId, async () => { pending.value = []; streamingReply.value = null; emit('trace-running', false); emit('trace-progress', null); newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; selectedTraceRunId.value = null; attachmentOpen.value = false; emit('trace-select', null); await load() })
+watch(conversationId, async () => { pending.value = []; streamingReply.value = null; liveTrace.value = null; emit('trace-running', false); emit('trace-progress', null); newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; selectedTraceRunId.value = null; attachmentOpen.value = false; emit('trace-select', null); await load() })
 onMounted(async () => {
   await load()
   realtime = new RealtimeConnection({
@@ -746,7 +757,7 @@ onBeforeUnmount(() => {
     <PageState :loading="loading" :error="''" :empty="false" @retry="load">
       <div ref="messageList" class="message-timeline" aria-label="聊天消息" @scroll.passive="timelineScrolled">
         <button v-if="previousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
-        <p v-if="messages.length === 0 && pending.length === 0" class="conversation-welcome">{{ conversation?.conversation_type === 'exclusive' ? '您好，我是专属客服。您可以咨询平台规则、订单、物流和售后问题。' : '您好，请描述您想咨询的商品或订单问题。' }}</p>
+        <div v-if="messages.length === 0 && pending.length === 0" class="message-row theirs conversation-welcome-row"><span class="message-avatar agent" aria-hidden="true"><img src="/ai-avatar.svg" alt="" /></span><article class="message-bubble theirs"><p>{{ conversation?.conversation_type === 'exclusive' ? '你好，我是你的专属客服。商品推荐、订单、物流或售后都可以直接问我。今天想先解决什么？' : activeContext?.context_type === 'product' ? '你好，我已经在看这件商品了。你想先了解款式、尺码或规格、库存、发货，还是适不适合你的使用场景？' : '你好，我是本店智能客服。商品、款式、库存、发货和订单问题都可以问我。你想先了解什么？' }}</p></article></div>
         <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'system' ? 'system-message-row' : message.sender_type === 'user' ? 'mine' : 'theirs']">
           <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' && !platformHuman, platform: message.sender_type === 'human' && platformHuman }" aria-hidden="true"><img v-if="message.sender_type === 'user' && userAvatarUrl" :src="userAvatarUrl" alt="" /><img v-else-if="message.sender_type === 'human' && !platformHuman && storeLogoUrl" :src="storeLogoUrl" alt="" /><img v-else-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" />{{ message.sender_type === 'user' ? userAvatarUrl ? '' : userAvatarLabel : message.sender_type === 'agent' ? '' : message.sender_type === 'human' && platformHuman ? '管' : storeLogoUrl ? '' : '店' }}</span>
           <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'system' ? 'system-message-bubble' : message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
@@ -787,8 +798,8 @@ onBeforeUnmount(() => {
         <div v-for="item in pending" :key="item.clientMessageId" class="message-row mine"><span class="message-avatar" aria-hidden="true"><img v-if="userAvatarUrl" :src="userAvatarUrl" alt="" /><template v-else>{{ userAvatarLabel }}</template></span><article class="message-bubble mine pending-message">
           <p>{{ item.text }}</p><small v-if="item.status === 'sending'">正在发送…</small><small v-else-if="item.status === 'recovering'">连接短暂中断，正在自动重试…</small><small v-else-if="item.status === 'blocked'" class="error-text">内容未通过安全检查，请修改后重新发送。</small><button v-else type="button" class="small danger" @click="retry(item)">发送失败，重试</button>
         </article></div>
-        <div v-if="streamingReply?.text" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true"><img src="/ai-avatar.svg" alt="" /></span><article class="message-bubble theirs agent-stream" aria-live="polite">
-          <p>{{ streamingReply.text }}</p><small>正在生成回复…</small>
+        <div v-if="streamingReply" class="message-row theirs"><span class="message-avatar agent" aria-hidden="true"><img src="/ai-avatar.svg" alt="" /></span><article class="message-bubble theirs agent-stream" aria-live="polite">
+          <p v-if="streamingReply.text">{{ streamingReply.text }}</p><p v-else class="agent-thinking-indicator">正在思考<span>·</span><span>·</span><span>·</span></p><small>{{ streamingReply.text ? '正在生成回复…' : '正在理解你的问题…' }}</small>
         </article></div>
       </div>
       <button v-if="newBelowCount" type="button" class="new-message-button" @click="scrollToBottom">有 {{ newBelowCount }} 条新消息</button>

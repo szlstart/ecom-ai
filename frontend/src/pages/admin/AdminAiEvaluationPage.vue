@@ -94,7 +94,7 @@ onBeforeUnmount(() => window.clearTimeout(pollTimer))
       <div>
         <p class="eyebrow">发布证据</p>
         <h1>AI 评估</h1>
-        <p class="muted">40 个固定用例真实调用 Kimi，逐项检查工具、引用、权限、安全、延迟和成本。</p>
+        <p class="muted">40 个固定用例真实调用当前 GPT 模型，逐项检查工具、引用、权限、安全、延迟和成本。</p>
       </div>
     </header>
     <p v-if="error" class="alert error">{{ error }}</p>

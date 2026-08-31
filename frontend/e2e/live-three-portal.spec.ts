@@ -50,13 +50,11 @@ async function loginAdministrator(page: Page, username: string) {
 async function expectTrace(page: Page) {
   const trace = page.getByRole('complementary', { name: 'AI 思考过程' })
   await expect(trace.getByText('思考过程', { exact: true })).toBeVisible()
-  await expect(trace.getByText('已完成', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
-  const analysis = trace.locator('.agent-trace-analysis')
-  await expect(analysis).toHaveCount(1)
-  expect(await analysis.evaluate((item) => (item as HTMLDetailsElement).open)).toBe(false)
-  await expect(analysis.getByText('分析与计划', { exact: true })).toBeVisible()
-  await expect(trace).toContainText('服务端根据本次实际意图、上下文、权限、工具与知识检索记录')
-  await expect(trace).not.toContainText(/理解当前消息|重建最近对话上下文|生成安全回复|结果整理完成|参考内容|原始思维链：|执行时间线|运行编号|可信来源|隐私保护|Kimi 意图路由/)
+  await expect(trace.getByText(/已完成|等待中/, { exact: true }).first()).toBeVisible({ timeout: 20_000 })
+  await expect(trace.locator('.agent-trace-analysis')).toHaveCount(0)
+  await expect(trace.locator('details')).toHaveCount(0)
+  await expect(trace).not.toContainText(/理解当前消息|重建最近对话上下文|生成安全回复|结果整理完成|参考内容|执行时间线|运行编号|可信来源|隐私保护/)
+  expect(await trace.evaluate((item) => getComputedStyle(item).backgroundColor)).toBe('rgb(255, 255, 255)')
 }
 
 async function expectMessageWorkspaceFitsViewport(page: Page) {

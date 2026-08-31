@@ -96,6 +96,7 @@ def refine_store_plan_for_context(
     user_text: str,
     *,
     has_product_context: bool,
+    has_order_context: bool = False,
 ) -> StoreAgentPlan:
     """Repair an obviously under-classified plan using trusted page context.
 
@@ -105,7 +106,7 @@ def refine_store_plan_for_context(
     questions deliberately remain small talk.
     """
 
-    if not has_product_context:
+    if not (has_product_context or has_order_context):
         return plan
     text = _normalize(user_text)
     if not text or _is_general_chat(text):
@@ -114,7 +115,22 @@ def refine_store_plan_for_context(
         return StoreAgentPlan("product_qa")
     if (
         plan.intent == "product_recommend"
-        and _contains(text, "这个", "这件", "这款", "该商品", "当前商品")
+        and _contains(
+            text,
+            "这个",
+            "这件",
+            "这款",
+            "这支",
+            "这本",
+            "这盒",
+            "这套",
+            "这双",
+            "这台",
+            "该商品",
+            "当前商品",
+            "订单里的",
+            "刚买的",
+        )
         and not _contains(text, "推荐别的", "还有什么", "类似商品", "换一个", "其他商品")
     ):
         return StoreAgentPlan("product_qa")

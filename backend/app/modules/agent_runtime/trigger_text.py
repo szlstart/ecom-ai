@@ -18,13 +18,17 @@ def agent_trigger_text(message: Message) -> str:
         suffix = f"，订单支付总额为 {display_amount}" if display_amount else ""
         return (
             f"用户发送了订单卡片 {order_no}{suffix}。请读取这张卡片绑定的当前订单上下文，"
-            "确认已收到并解释可查询的订单信息。不要仅因收到卡片而转人工。"
+            "用户尚未说明具体问题。只需自然确认已经看到订单，并询问用户遇到的是付款、"
+            "发货、物流、收货还是售后问题。不要主动罗列全部订单字段，也不要仅因收到卡片"
+            "而转人工。"
         )
     if message.message_type == "product_card":
         product_name = str(payload.get("product_name") or payload.get("product_id") or "当前商品")
         return (
             f"用户发送了商品卡片“{product_name}”。请读取这张卡片绑定的当前商品上下文，"
-            "确认已收到并说明可以继续咨询的商品信息。不要仅因收到卡片而转人工。"
+            "用两到四个短段落做简洁、有购买帮助的介绍，只挑三到五项重要信息，最后询问"
+            "用户更关心款式、尺码或规格、库存、发货还是使用场景。不要罗列全部字段，也不要"
+            "仅因收到卡片而转人工。"
         )
     return "用户发送了一条结构化会话消息，请按其消息类型和已绑定上下文处理。"
 

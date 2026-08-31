@@ -23,7 +23,11 @@ from app.modules.agent_runtime.model_gateway import (
 )
 from app.modules.agent_runtime.models import AgentRun
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
-from app.modules.agent_runtime.provider_gateway import ProviderStoreModelGateway, model_failure_code
+from app.modules.agent_runtime.provider_gateway import (
+    AgentStreamCallback,
+    ProviderStoreModelGateway,
+    model_failure_code,
+)
 from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
 from app.modules.agent_runtime.store_context import StoreContextBuilder, TrustedStoreAgentContext
 from app.modules.agent_runtime.store_tools import StoreToolGateway, StoreToolResult
@@ -40,6 +44,7 @@ async def process_store_run(
     model_gateway: StoreModelGateway | None = None,
     checkpoint_store: AgentCheckpointStore | None = None,
     security: SecurityService | None = None,
+    stream_callback: AgentStreamCallback | None = None,
 ) -> None:
     builder = StoreContextBuilder(session)
     try:
@@ -96,21 +101,30 @@ async def process_store_run(
             user_no=context.user.user_no,
             store_no=context.store.store_no,
         )
-    planning_input = (
-        context_window.planning_input(trigger_text)
-        if isinstance(gateway, ProviderStoreModelGateway)
-        else trigger_text
-    )
-    try:
-        plan = await gateway.plan(planning_input)
-    except (ModelGatewayError, TimeoutError) as exc:
-        plan = await DeterministicStoreModelGateway().plan(trigger_text)
-        run.degraded_reason = model_failure_code(exc, "planning")
-    plan = refine_store_plan_for_context(
-        plan,
+    fast_plan = await DeterministicStoreModelGateway().plan(trigger_text)
+    fast_plan = refine_store_plan_for_context(
+        fast_plan,
         trigger_text,
         has_product_context="product" in context.context_refs,
+        has_order_context="order" in context.context_refs,
     )
+    if fast_plan.intent != "general_chat" or not isinstance(
+        gateway, ProviderStoreModelGateway
+    ):
+        plan = fast_plan
+    else:
+        planning_input = context_window.planning_input(trigger_text)
+        try:
+            plan = await gateway.plan(planning_input)
+        except (ModelGatewayError, TimeoutError) as exc:
+            plan = fast_plan
+            run.degraded_reason = model_failure_code(exc, "planning")
+        plan = refine_store_plan_for_context(
+            plan,
+            trigger_text,
+            has_product_context="product" in context.context_refs,
+            has_order_context="order" in context.context_refs,
+        )
 
     if checkpoint_store is not None:
         try:
@@ -151,6 +165,7 @@ async def process_store_run(
             gateway,
             plan,
             outcome.data,
+            stream_callback=stream_callback,
         )
         await _complete_message(
             session,
@@ -235,6 +250,8 @@ async def _execute_plan(
     resolved_product_no = resolution.data.get("product_id")
     if isinstance(resolved_product_no, str):
         product_no = resolved_product_no
+    elif "order" in context.context_refs:
+        product_no = await _single_order_product_no(builder, tools, context)
     else:
         product_no = (await builder.require_active_context(context, "product")).resource_no
     if plan.intent == "sku_compare":
@@ -242,6 +259,44 @@ async def _execute_plan(
     if plan.intent == "inventory_lookup":
         return await tools.inventory(context, product_no)
     return await tools.product(context, product_no)
+
+
+async def _single_order_product_no(
+    builder: StoreContextBuilder,
+    tools: StoreToolGateway,
+    context: TrustedStoreAgentContext,
+) -> str:
+    """Resolve a referential product question against a one-product order card."""
+
+    order_ref = await builder.require_active_context(context, "order")
+    summary = await tools.order_summary(context, order_ref.resource_no)
+    if summary.status != "succeeded":
+        raise ApplicationError(
+            status=409,
+            code=summary.error_code or "AGENT_CONTEXT_REQUIRED",
+            title="Agent context unavailable",
+            detail="订单中的商品暂时无法读取。",
+        )
+    items = summary.data.get("items")
+    product_nos = (
+        list(
+            dict.fromkeys(
+                str(item["product_id"])
+                for item in items
+                if isinstance(item, dict) and isinstance(item.get("product_id"), str)
+            )
+        )
+        if isinstance(items, list)
+        else []
+    )
+    if len(product_nos) != 1:
+        raise ApplicationError(
+            status=409,
+            code="AGENT_PRODUCT_CONTEXT_AMBIGUOUS",
+            title="Agent context unavailable",
+            detail="订单包含多个商品，请先选择要咨询的商品。",
+        )
+    return product_nos[0]
 
 
 async def _handoff_or_fallback(
@@ -365,6 +420,8 @@ async def _grounded_answer(
     gateway: StoreModelGateway,
     plan: StoreAgentPlan,
     data: Mapping[str, Any],
+    *,
+    stream_callback: AgentStreamCallback | None = None,
 ) -> tuple[str, dict[str, object]]:
     fallback = _render(plan, data, agent_trigger_text(context.trigger))
     tool_code = _tool_for_intent(plan.intent)
@@ -425,12 +482,6 @@ async def _grounded_answer(
         source_ids=source_ids,
         tool_code=tool_code,
     )
-    # Inventory and policy answers are exact evidence: SKU facts and published
-    # policy provenance must survive answer generation without omissions,
-    # fictional salutations, or unsupported paraphrases.
-    if plan.intent in {"inventory_lookup", "policy_qa"}:
-        trace["answer_mode"] = "grounded_deterministic"
-        return fallback, trace
     if not isinstance(gateway, ProviderStoreModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
@@ -443,6 +494,7 @@ async def _grounded_answer(
             intent=plan.intent,
             evidence=data,
             source_ids=source_ids,
+            stream_callback=stream_callback,
         )
     except (ModelGatewayError, TimeoutError) as exc:
         reason = model_failure_code(exc, "answer")
@@ -454,6 +506,7 @@ async def _grounded_answer(
     trace["confidence"] = answer.confidence
     trace["cited_source_ids"] = list(answer.cited_source_ids)
     trace["thinking_mode"] = "enabled" if answer.thinking_used else "not_reported"
+    trace["grounding_verified"] = answer.grounding_verified
     if answer.analysis_summary:
         trace["analysis_summary"] = answer.analysis_summary
     if answer.analysis_details:
@@ -531,21 +584,29 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         )
         return concise_policy_answer(user_text, sources, intro="根据本店当前生效政策")
     if plan.intent == "order_explain":
+        if "用户发送了订单卡片" in user_text:
+            order_no = safe_untrusted_excerpt(data.get("order_id") or "这笔订单", 80)
+            return (
+                f"我已经看到订单 {order_no} 了。你遇到的是付款、发货、物流、收货，"
+                "还是退款售后方面的问题? 告诉我具体情况，我来帮你查。"
+            )
         status_value = data.get("status")
         amounts_value = data.get("amounts")
         status: Mapping[str, Any] = status_value if isinstance(status_value, dict) else {}
         amounts: Mapping[str, Any] = amounts_value if isinstance(amounts_value, dict) else {}
         result = (
-            f"该本店订单当前状态: 订单 {status.get('order', 'unknown')}, "
-            f"支付 {status.get('payment', 'unknown')}, "
-            f"履约 {status.get('fulfillment', 'unknown')}, "
-            f"售后 {status.get('after_sale', 'unknown')}。实付 "
+            f"该本店订单当前状态: 订单{_store_status_label('order', status.get('order'))}，"
+            f"支付{_store_status_label('payment', status.get('payment'))}，"
+            f"履约{_store_status_label('fulfillment', status.get('fulfillment'))}，"
+            f"售后{_store_status_label('after_sale', status.get('after_sale'))}。实付"
             f"{_money_value(amounts.get('paid'))}。"
             "如需执行取消、确认收货或退款，请进入订单详情页操作。"
         )
         actions = data.get("available_actions")
         if isinstance(actions, list) and actions:
-            result += " 当前页面可用操作: " + "、".join(str(item) for item in actions[:8]) + "。"
+            result += " 当前页面可用操作: " + "、".join(
+                _ORDER_ACTION_LABELS.get(str(item), "查看订单") for item in actions[:8]
+            ) + "。"
         shipments = data.get("shipments")
         if isinstance(shipments, list) and shipments:
             result += f" 当前共有 {len(shipments)} 个公开物流包裹，可进入订单物流页查看轨迹。"
@@ -568,40 +629,26 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
     size_answer = _render_size_answer(data, user_text)
     if size_answer is not None:
         return size_answer
+    product_name = safe_untrusted_excerpt(data.get("name", "当前商品"), 120)
+    lines = [f"这款是“{product_name}”。"]
     attributes = data.get("attributes")
-    lines = [f"商品: {safe_untrusted_excerpt(data.get('name', '当前商品'), 120)}"]
-    if data.get("subtitle"):
-        lines.append(f"商品说明: {safe_untrusted_excerpt(data['subtitle'], 300)}")
-    if isinstance(attributes, list) and attributes:
-        lines.append("公开参数:")
-        for item in attributes[:8]:
-            if isinstance(item, dict):
-                lines.append(
-                    f"- {safe_untrusted_excerpt(item.get('name', item.get('code', '参数')), 100)}: "
-                    f"{safe_untrusted_excerpt(item.get('value', '未提供'), 300)}"
-                    f"{safe_untrusted_excerpt(item.get('unit') or '', 30)}"
-                )
+    highlights: list[str] = []
+    if isinstance(attributes, list):
+        for item in attributes[:5]:
+            if not isinstance(item, Mapping):
+                continue
+            name = safe_untrusted_excerpt(item.get("name", item.get("code", "特点")), 40)
+            value = safe_untrusted_excerpt(item.get("value", ""), 80)
+            unit = safe_untrusted_excerpt(item.get("unit") or "", 12)
+            if name and value:
+                highlights.append(f"{name}为{value}{unit}")
+    if highlights:
+        lines.append("它的主要特点是" + "，".join(highlights[:4]) + "。")
     skus = data.get("skus")
     if isinstance(skus, list) and skus:
-        lines.append("可选款式:")
-        for item in skus[:20]:
-            if isinstance(item, dict):
-                lines.append(f"- {safe_untrusted_excerpt(item.get('sku_name'), 120)}")
-    faqs = data.get("faqs")
-    if isinstance(faqs, list) and faqs and isinstance(faqs[0], dict):
-        lines.append(f"店铺 FAQ: {safe_untrusted_excerpt(faqs[0].get('answer'), 500)}")
-    estimate_value = data.get("dispatch_estimate")
-    estimate: Mapping[str, Any] = estimate_value if isinstance(estimate_value, dict) else {}
-    if estimate.get("status") == "available":
-        lines.append(
-            "预计发货范围: "
-            f"{estimate.get('min_at')} 至 {estimate.get('max_at')}。"
-            "这是基于店铺资料的估算，不构成发货承诺。"
-        )
-    else:
-        lines.append("当前没有可靠的发货时效估算，我不会承诺具体发货时间。")
-    lines.append("以上是店铺公开资料; 无法确认的兼容性、安全性或效果问题请转人工核实。")
-    return "\n".join(lines)
+        lines.append(f"目前商品页有 {len(skus)} 个可选款式，具体价格和库存以下单时为准。")
+    lines.append("你更想了解款式、尺码或规格、库存、发货，还是适不适合某个使用场景?")
+    return "\n\n".join(lines)
 
 
 _SIZE_TOKEN = re.compile(
@@ -807,7 +854,54 @@ def _attach_conversation_window(window: ContextWindow, data: dict[str, object]) 
 def _money(amount: object, currency: object) -> str:
     if not isinstance(amount, int) or isinstance(amount, bool):
         return "金额未知"
-    return f"{currency or 'CNY'!s} {amount / 100:.2f}"
+    prefix = "¥" if str(currency or "CNY") == "CNY" else f"{currency or 'CNY'!s} "
+    return f"{prefix}{amount / 100:.2f}"
+
+
+_STORE_STATUS_LABELS: dict[str, dict[str, str]] = {
+    "order": {
+        "pending_payment": "待付款",
+        "paid": "已付款",
+        "pending_shipment": "待发货",
+        "shipped": "运输中",
+        "completed": "已完成",
+        "cancelled": "已取消",
+        "closed": "已关闭",
+    },
+    "payment": {
+        "unpaid": "未付款",
+        "processing": "处理中",
+        "paid": "已支付",
+        "partially_refunded": "部分退款",
+        "refunded": "已退款",
+    },
+    "fulfillment": {
+        "unfulfilled": "未履约",
+        "partial": "部分发货",
+        "shipped": "已发货",
+        "received": "已收货",
+    },
+    "after_sale": {
+        "none": "无进行中售后",
+        "in_progress": "处理中",
+        "partial": "部分处理完成",
+        "completed": "已完成",
+    },
+}
+
+_ORDER_ACTION_LABELS = {
+    "view_logistics": "查看物流",
+    "confirm_receipt": "确认收货",
+    "apply_after_sale": "申请售后",
+    "cancel": "取消订单",
+    "pay": "去支付",
+    "review": "评价",
+}
+
+
+def _store_status_label(kind: str, value: object) -> str:
+    text = str(value or "未知")
+    return _STORE_STATUS_LABELS.get(kind, {}).get(text, "未知")
 
 
 def _money_value(value: object) -> str:

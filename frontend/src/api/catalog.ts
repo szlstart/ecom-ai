@@ -123,6 +123,7 @@ export interface HomepageSection {
   status: 'available' | 'unavailable'
   items: ProductCardData[]
   next_cursor: string | null
+  recommendation_seed: number
   error_code: string | null
 }
 
@@ -217,6 +218,7 @@ export interface ProductSearchFilters {
   sort?: string
   cursor?: string
   limit?: number
+  recommendation_seed?: number
 }
 
 export function getHomepage(accessToken?: string | null): Promise<ApiResult<HomepageData>> {
@@ -237,6 +239,7 @@ export function searchProducts(
     sort: filters.sort,
     cursor: filters.cursor,
     limit: filters.limit,
+    recommendation_seed: filters.recommendation_seed,
   })}`, {}, accessToken)
 }
 

@@ -154,6 +154,7 @@ class HomepageSection(BaseModel):
     status: Literal["available", "unavailable"]
     items: list[ProductCard]
     next_cursor: str | None = None
+    recommendation_seed: int
     error_code: str | None = None
 
 

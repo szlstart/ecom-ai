@@ -174,9 +174,9 @@ onBeforeUnmount(() => {
         <form v-if="mode === 'login'" aria-labelledby="auth-modal-title" @submit.prevent="login">
           <p class="eyebrow">用户端</p>
           <h1 id="auth-modal-title">欢迎回来</h1>
-          <p class="muted">使用用户名、手机号或邮箱登录。</p>
+          <p class="muted">使用唯一用户名登录；邮箱仅用于忘记密码时核对。</p>
           <p v-if="error" class="alert error" role="alert">{{ error }}</p>
-          <label>账号<input ref="firstInput" v-model="identifier" autocomplete="username" required /></label>
+          <label>用户名<input ref="firstInput" v-model="identifier" autocomplete="username" required /></label>
           <label>密码<input v-model="loginPassword" autocomplete="current-password" required type="password" /></label>
           <button :disabled="pending" type="submit">{{ pending ? '正在登录…' : '登录' }}</button>
           <div class="form-links"><RouterLink to="/forgot-password">忘记密码</RouterLink></div>

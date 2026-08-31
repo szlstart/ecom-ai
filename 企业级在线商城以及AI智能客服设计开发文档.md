@@ -267,7 +267,7 @@
 
 #### 2.1.3 首页加载、分页与返回恢复
 
-首屏显示与最终卡片等高的骨架屏；后续推荐商品使用服务端 opaque Cursor 加载，前端只原样透传 `next_cursor`。一次只允许一个推荐区请求，失败保留已加载卡片并显示行内 [重新加载]，不得无限自动重试。到达末页显示“已经到底了”，重复卡片按 `product_id` 去重但不能据此修补服务端排序错误。
+首屏显示与最终卡片等高的骨架屏；“为你推荐”每次进入或刷新首页生成新的随机种子，在同一次浏览中使用“随机种子 + opaque Cursor”稳定加载全部候选，不按最新上架时间置顶，也不在翻页时重复或跳过商品。前端后续请求必须同时透传 `recommendation_seed` 和 `next_cursor`。一次只允许一个推荐区请求，失败保留已加载卡片并显示行内 [重新加载]，不得无限自动重试。到达末页显示“已经到底了”，重复卡片按 `product_id` 去重但不能据此修补服务端排序错误。
 
 从商品详情返回首页时，恢复 `home_feed_version、recommended_cursor、已加载商品公开 ID 和 scroll_y`；恢复信息只保存在当前 Session 的内存/`sessionStorage`，设置短 TTL，不保存价格之外的敏感信息。若首页版本、登录身份或推荐 Consent 已变化，则丢弃旧 Cursor、重新加载并尽量滚动到原 `anchor_product_id`，不能继续请求已失效 Cursor。
 
@@ -1680,7 +1680,7 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 | 昵称 | 2～20 个字符，过滤纯空格和违规内容 |
 | 账号 | 展示用户名；唯一用户名不可直接修改 |
 | 当前邮箱 | 只在本人账号安全页完整显示，响应不得缓存、记录或进入 Agent 上下文 |
-| 更换邮箱 | 只填写新的邮箱并点击 [确认换绑]；不要求当前密码或验证码，后端校验有效登录会话、格式、唯一性、幂等与归属并写安全审计 |
+| 更换邮箱 | 只填写新的邮箱并点击 [确认换绑]；不要求当前密码或验证码，后端校验有效登录会话、格式、幂等与归属并写安全审计；找回邮箱允许被不同账号重复使用 |
 | 密码 | 页面只显示 `••••••••`，任何接口不得返回明文或可逆密码 |
 | 修改密码 | 点击打开修改密码弹窗，填写原密码、新密码、确认新密码 |
 
@@ -1698,7 +1698,7 @@ AI、消息卡片和聊天记录只展示 `tracking_no_masked`。预计时间必
 
 用户密码不能为空，且不能包含空格、换行、制表符等 Unicode 空白字符；首版不设置字符长度限制，也不强制大小写、数字或特殊符号组合。密码不得与原密码相同，不截断粘贴内容，不妨碍密码管理器和浏览器自动填充。修改成功后关闭弹窗、显示成功提示，并使其他设备登录令牌失效；当前设备可根据安全策略保留登录或要求重新登录。
 
-更换邮箱区域固定显示“当前邮箱（完整值）”“新的邮箱”和 [确认换绑]，不显示联系方式类型、当前密码或验证码字段。新注册用户显示注册时填写的邮箱；历史账号尚未设置邮箱时显示“尚未设置”，首次提交按同一接口完成绑定。成功后刷新当前邮箱并清空输入框；邮箱格式错误或已被占用时在“新的邮箱”字段下直接说明原因。
+更换邮箱区域固定显示“当前邮箱（完整值）”“新的邮箱”和 [确认换绑]，不显示联系方式类型、当前密码或验证码字段。新注册用户显示注册时填写的邮箱；历史账号尚未设置邮箱时显示“尚未设置”，首次提交按同一接口完成绑定。成功后刷新当前邮箱并清空输入框；邮箱格式错误时在“新的邮箱”字段下直接说明原因。邮箱只用于“用户名 + 完整邮箱”的找回密码核对，允许不同账号填写相同邮箱，因此不得单独使用邮箱登录或定位唯一账号。
 
 #### 2.8.3 我的收货地址
 
@@ -2151,7 +2151,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 │  │ · 订单、支付和售后全程可追踪       │     │ 登录                                       │  │
 │  │ · 专属客服与店铺客服边界清晰       │     │                                            │  │
 │  │ · 账号凭证和隐私数据安全保护       │     │ 账号                                       │  │
-│  │                                    │     │ [用户名 / 手机号 / 邮箱________________]    │  │
+│  │                                    │     │ [唯一用户名____________________________]    │  │
 │  │ 新用户？[免费注册]                 │     │                                            │  │
 │  └────────────────────────────────────┘     │ 密码                         [显示密码]    │  │
 │                                             │ [____________________________________]    │  │
@@ -2170,7 +2170,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 | 项目 | 账号密码登录 |
 | :--- | :--- |
-| 登录标识 | 一个字段接受用户名；为兼容后续已绑定联系方式的账号，后端仍可解析规范化手机号或邮箱，但界面不提供验证码登录 |
+| 登录标识 | 一个字段只接受全平台唯一用户名；邮箱允许跨账号重复且只用于找回密码核对，不得作为登录标识；界面不提供验证码登录 |
 | 凭证 | 密码允许粘贴、密码管理器和浏览器自动填充；默认隐藏，不截断用户输入 |
 | 提交条件 | 账号和密码非空；本地校验只改善体验，不代替服务端认证 |
 | 成功结果 | 服务端确认唯一 Active 普通用户角色且不存在管理类角色后，Access Token 只写内存，Refresh Cookie 由服务端设置；加载当前用户安全摘要后跳转 |
@@ -2202,7 +2202,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 ##### 2.12.3.2 用户注册弹窗
 
-注册作为全局认证弹窗的第二个 Tab，历史 `/register` 仅重定向为 `/?auth=register`。首版不接入短信或邮件验证码发送服务，注册要求唯一用户名、一次性算术验证码、密码和一个找回邮箱；邮箱不做发送验证，只用于用户忘记密码时根据脱敏提示输入完整值进行精确核对。注册成功后创建普通用户、邮箱凭证、User Audience Session 和固定专属客服会话并自动登录；若原请求来自受保护页面，可按登录相同的安全 `redirect` 规则返回，否则关闭弹窗并留在当前公开页面。注册不是创建店铺或管理员身份的入口。
+注册作为全局认证弹窗的第二个 Tab，历史 `/register` 仅重定向为 `/?auth=register`。首版不接入短信或邮件验证码发送服务，注册要求全平台唯一用户名、一次性算术验证码、密码和一个找回邮箱；邮箱允许不同账号重复、不做发送验证，也不得用于登录，只用于用户忘记密码时根据脱敏提示输入完整值进行精确核对。注册成功后创建普通用户、邮箱凭证、User Audience Session 和固定专属客服会话并自动登录；若原请求来自受保护页面，可按登录相同的安全 `redirect` 规则返回，否则关闭弹窗并留在当前公开页面。注册不是创建店铺或管理员身份的入口。
 
 注册页面 Text UI：
 
@@ -2248,7 +2248,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 算术验证码 | 是 | 显示“验证码：整数 ± 整数 = ?”，用户将结果输入下方；支持 [换一道题] | `captcha_id` 与答案绑定，Redis 保存 HMAC 校验值并设置 10 分钟 TTL；正确答案只可成功消费一次，过期、错误或重复使用均拒绝 |
 | 密码 | 是 | 允许粘贴、Unicode 和密码管理器；不能为空、不能含空格/换行/制表符等空白字符，不设置长度限制 | 执行相同的非空与无空白校验后使用 Argon2id 哈希；不得截断、规范化或记录明文 |
 | 确认密码 | 是 | 与密码逐字符一致；只在前端使用 | 不传第二份确认密码，API 只接收一次 `password` |
-| 找回邮箱 | 是 | 使用邮箱输入语义；提示“仅用于忘记密码时核对身份并重置密码；注册后可在‘我的 → 账号安全’中按需更换” | 规范化为小写后校验格式和全局唯一性；密文存储完整值、HMAC 用于精确查询，响应和日志不得回显完整值（本人安全页除外） |
+| 找回邮箱 | 是 | 使用邮箱输入语义；提示“仅用于忘记密码时核对身份并重置密码；注册后可在‘我的 → 账号安全’中按需更换” | 规范化为小写后校验格式；允许不同账号重复，密文存储完整值、HMAC 只用于“用户名 + 邮箱”核对，响应和日志不得回显完整值（本人安全页除外） |
 | 协议同意 | 是 | 用户必须主动勾选；协议/隐私链接打开后不清空表单 | 提交精确 `document_type/version`，服务端校验仍可接受且在注册事务内写不可变接受记录 |
 | Locale/Timezone | 否 | 从应用和浏览器给出候选，可由用户后续修改 | 只接受白名单值；缺失使用平台默认值，不信任它做安全决策 |
 
@@ -2257,7 +2257,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 1. 页面初始化调用 `GET /auth/registration-config`，读取用户名策略、非空/无空白密码策略、一次性算术题以及当前必须接受的协议版本；配置或 Redis 验证码生成失败时禁止提交，不使用前端内置固定题目或旧版本协议冒充当前配置。
 2. 算术题由后端使用两个 1～20 的整数和随机加减运算生成；减法调整操作数顺序以保证结果非负。响应只返回随机 `captcha_id`、题目和有效期，不返回答案或答案派生值。
 3. 用户点击 [换一道题]、算术题过期或注册提交失败后重新读取注册配置并清空旧答案；旧 `captcha_id` 不能代替新题继续提交。服务端必须验证答案并以原子删除结果保证同一题最多成功使用一次。
-4. 用户名和邮箱均不提供无频率限制的逐键实时查重。失焦时只执行本地格式提示；最终提交后冲突分别返回 `REGISTRATION_USERNAME_UNAVAILABLE` 或 `REGISTRATION_EMAIL_UNAVAILABLE`。
+4. 用户名不提供无频率限制的逐键实时查重，最终提交后由全平台唯一约束裁决并返回 `REGISTRATION_USERNAME_UNAVAILABLE`。邮箱失焦时只校验格式，允许不同账号重复，不返回“已被占用”。
 5. 点击 [注册并登录] 后先聚焦错误摘要或进入 Loading。请求携 `Idempotency-Key`；网络超时使用同一 Key 查询/重放，不生成第二个用户、第二份协议接受记录、第二个默认角色或第二个专属客服会话。
 6. 成功响应为 201；前端清除密码、算术答案、Captcha ID 和注册草稿，Access Token 仅驻留内存，Refresh Cookie 由服务端设置。随后获取当前用户摘要并安全跳转。
 7. 算术答案错误、过期或已使用时保留用户名和协议勾选，重新生成题目并清空答案；密码为空或含空白字符时保留非敏感字段并清空两次密码。协议版本在填写期间更新时返回 409 `AGREEMENT_VERSION_CHANGED`，页面展示新版摘要并要求用户重新查看、主动勾选。
@@ -2271,7 +2271,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 | 配置或算术题生成失败 | 503 `REGISTRATION_CONFIG_UNAVAILABLE/REGISTRATION_CAPTCHA_UNAVAILABLE` | 禁用注册，提供 [重新加载] 和 Request ID |
 | 算术验证码错误/过期/已使用 | 422 `REGISTRATION_CAPTCHA_INVALID/EXPIRED` | 关联计算结果字段，自动换题并清空旧答案 |
 | 用户名已被注册 | 409 `REGISTRATION_USERNAME_UNAVAILABLE` | 在用户名字段下提示“该用户名已被注册，请更换一个用户名”，聚焦用户名并保留其他非敏感字段 |
-| 邮箱格式错误/已占用 | 422 `INVALID_EMAIL` / 409 `REGISTRATION_EMAIL_UNAVAILABLE` | 在邮箱字段下说明原因；不清空用户名、协议或算术答案 |
+| 邮箱格式错误 | 422 `INVALID_EMAIL` | 在邮箱字段下说明格式原因；邮箱允许跨账号重复，不执行占用冲突检查；不清空用户名、协议或算术答案 |
 | 协议版本变化 | 409 `AGREEMENT_VERSION_CHANGED` | 加载新版本并清除旧勾选状态 |
 | 幂等请求处理中 | 409 `IDEMPOTENCY_REQUEST_IN_PROGRESS` | 按 `Retry-After` 使用同一 Key 查询/重放 |
 | 注册成功 | 201 | 建立登录态并跳转；重复响应不重复初始化 |
@@ -2782,7 +2782,7 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 #### 2.14.1 定位、入口与权限边界
 
-商家中心匿名入口固定为 `/merchant`，在同一页面提供“登录 / 注册店铺”两个页签和“忘记密码”流程；旧 `/merchant/login` 只做保留 Query 的兼容重定向。登录或注册成功后直接进入 `/merchant/products`，不要求 TOTP、恢复码或其他二次验证。注册通过 `POST /merchant/auth/registrations` 校验一次性整数加减验证码，并在单事务内创建唯一商家用户名、唯一找回邮箱、唯一店铺、`store_operator` Store Scope Grant 和 Merchant Session；用户名、邮箱或店铺名重复分别返回明确 409，不能注册普通用户角色或 Platform Scope。找回密码采用“用户名 → 脱敏邮箱提示 → 输入完整邮箱核对 → 设置新密码”，不发送短信或邮件验证码。商家账号必须具有 `store_operator` 角色和至少一个有效 Store Scope，并且不得同时具有普通用户或平台管理角色；混合角色账号按配置异常 Fail Closed。商家登录使用独立的 `/merchant/auth/login` 准入接口，在服务端完成角色和 Store Scope 校验；会话使用 Admin Audience 但固定标记 `client_type=merchant`，并使用独立的 `ecom_merchant_refresh/ecom_merchant_csrf` Cookie、非轮换的 `/merchant/auth/session-resume`、真正续期用的 `/merchant/auth/token-refresh` 和 `/merchant/auth/logout`，不得与平台管理端 Cookie 相互覆盖。Vue 使用独立 `MerchantAuthLayout/MerchantLayout`，不复用平台管理端菜单；平台管理入口另由 Platform Scope 强校验，三类账号不能交叉登录。
+商家中心匿名入口固定为 `/merchant`，在同一页面提供“登录 / 注册店铺”两个页签和“忘记密码”流程；旧 `/merchant/login` 只做保留 Query 的兼容重定向。登录或注册成功后直接进入 `/merchant/products`，不要求 TOTP、恢复码或其他二次验证。注册通过 `POST /merchant/auth/registrations` 校验一次性整数加减验证码，并在单事务内创建全平台唯一商家用户名、可重复使用的找回邮箱、唯一店铺、`store_operator` Store Scope Grant 和 Merchant Session；用户名或店铺名重复分别返回明确 409，不能注册普通用户角色或 Platform Scope。找回密码采用“用户名 → 脱敏邮箱提示 → 输入完整邮箱核对 → 设置新密码”，不发送短信或邮件验证码。商家账号必须具有 `store_operator` 角色和至少一个有效 Store Scope，并且不得同时具有普通用户或平台管理角色；混合角色账号按配置异常 Fail Closed。商家登录使用独立的 `/merchant/auth/login` 准入接口，在服务端完成角色和 Store Scope 校验；会话使用 Admin Audience 但固定标记 `client_type=merchant`，并使用独立的 `ecom_merchant_refresh/ecom_merchant_csrf` Cookie、非轮换的 `/merchant/auth/session-resume`、真正续期用的 `/merchant/auth/token-refresh` 和 `/merchant/auth/logout`，不得与平台管理端 Cookie 相互覆盖。Vue 使用独立 `MerchantAuthLayout/MerchantLayout`，不复用平台管理端菜单；平台管理入口另由 Platform Scope 强校验，三类账号不能交叉登录。
 
 商家端只能处理当前店铺商品、库存、店铺人工客服、店铺评价回复和公开店铺资料。商家不得审核自己提交的商品，不得屏蔽/恢复用户评价，不得访问其他店铺、平台用户治理、支付对账、AI 治理、系统任务或全平台指标。公开商品遵循“草稿 → 提交审核 → 平台审核通过 → 商家上架”的状态机；商家拥有上架/下架命令，但没有 `products:review`。
 
@@ -2809,10 +2809,10 @@ Vue Router 路径参数使用前端惯用 camelCase（如 `:productId、:storeId
 
 | 页面 | Vue Route / Component | 主要能力 | Permission / Scope |
 | :--- | :--- | :--- | :--- |
-| 商家登录、注册与找回密码 | `/merchant` / `MerchantLoginPage.vue` | 页签切换登录/注册；注册填写唯一用户名、唯一店铺名、找回邮箱、密码并完成一次性整数加减验证码；登录支持“忘记密码”，按用户名取得脱敏邮箱提示，再以完整邮箱核对并重置密码；“忘记密码、返回登录、换一道题”使用左对齐的无背景文字按钮，禁止被主按钮绿色背景覆盖；`/merchant/login` 仅兼容跳转 | 匿名创建纯 `store_operator` + Store Scope；邮箱加密存储并唯一；拒绝消费者/平台身份混用 |
+| 商家登录、注册与找回密码 | `/merchant` / `MerchantLoginPage.vue` | 页签切换登录/注册；注册填写唯一用户名、唯一店铺名、找回邮箱、密码并完成一次性整数加减验证码；登录支持“忘记密码”，按用户名取得脱敏邮箱提示，再以完整邮箱核对并重置密码；“忘记密码、返回登录、换一道题”使用左对齐的无背景文字按钮，禁止被主按钮绿色背景覆盖；`/merchant/login` 仅兼容跳转 | 匿名创建纯 `store_operator` + Store Scope；邮箱加密存储但允许跨账号重复，禁止邮箱登录；拒绝消费者/平台身份混用 |
 | 工作台 | `/merchant/dashboard` / `MerchantDashboardPage.vue` | 在售/待完善商品、待处理咨询、待回复评价；可直接修改当前店铺名称 | `stores:read/manage` + Store；不授予平台仪表盘权限 |
 | 商品列表 | `/merchant/products` / `MerchantProductListPage.vue` | 按名称和状态筛选本店商品 | `products:read` + Store |
-| 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 商品名称、款式价格库存、图片、参数、发货地、详情、FAQ、评价回复、提交审核、上架/下架 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
+| 新建/编辑商品 | `/merchant/products/new`、`/merchant/products/:productId` / `MerchantProductEditorPage.vue` | 商品名称、款式价格库存、图片、参数、发货地、详情、FAQ、评价回复、提交审核、上架/下架；编辑字段同步保留本机恢复草稿，详情图片上传后立即持久化；首次直接提交审核必须先原子化完成整页保存并刷新版本 | `products:create/update/publish`、`inventories:read/adjust`、`reviews:read/reply` + Store |
 | 我的订单 | `/merchant/orders` / `MerchantOrderListPage.vue` | 总/今日/昨日/近 30 日收益，订单状态分段、游标加载全部历史订单、售后入口和按剩余可发数量创建包裹 | `orders:read`、`shipments:create`、`refunds:read` + Store |
 | 售后处理 | `/merchant/after-sales`、`/merchant/after-sales/:refundId` / `MerchantAfterSaleListPage.vue`、`MerchantAfterSaleDetailPage.vue` | 查看本店售后、领取申请、批准或拒绝；大额退款自动进入平台复核 | `refunds:read/review` + Store；金额审批规则不放宽 |
 | 库存 | `/merchant/inventory` / `AdminInventoryPage.vue(portal=merchant)` | 本店 SKU 库存查询和有据可查的增减调整 | `inventories:read/adjust` + Store |
@@ -5066,7 +5066,7 @@ Payment 只归属 Trade Order 支付尝试，不向 `orders/order_items` 增加�
 | `verified_at` / `password_changed_at` | `DATETIME(6)` | NULL |
 | `credential_status` | `VARCHAR(32)` | `active/disabled/revoked` |
 
-约束：密码凭证 `UNIQUE(user_id, credential_type)`；可登录标识通过活跃生成列约束 `UNIQUE(credential_type, active_identifier_hash)`。禁止在任何列保存明文密码。
+约束：每个账号的凭证类型满足 `UNIQUE(user_id, credential_type)`；`users.username_normalized` 是消费者、商家和管理员共用的全局唯一账号名。邮箱不是登录标识，允许跨账号重复，只保留 `(credential_type, identifier_hash)` 普通索引用于受控核对。禁止在任何列保存明文密码。
 
 ##### 3.7.1.3 auth_sessions 登录会话表
 
@@ -5150,7 +5150,7 @@ Payment 只归属 Trade Order 支付尝试，不向 `orders/order_items` 增加�
 
 ##### 3.7.1.7 credential_change_records 联系方式换绑记录表
 
-兼容性预留表。首版“更换邮箱”由已登录用户直接提交新邮箱并通过幂等、唯一性、数据归属与会话校验后更新 `user_credentials`，不创建换绑 Ticket、不要求当前密码或验证码；该表不参与首版请求链路，待未来引入外部邮箱验证服务时再启用。
+兼容性预留表。首版“更换邮箱”由已登录用户直接提交新邮箱并通过幂等、格式、数据归属与会话校验后更新 `user_credentials`，不创建换绑 Ticket、不要求当前密码或验证码；该表不参与首版请求链路，待未来引入外部邮箱验证服务时再启用。
 
 | 字段 | 类型 | 约束/内容 |
 | :--- | :--- | :--- |
@@ -8487,7 +8487,7 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 | --- | --- | --- | --- |
 | `GET` | `/auth/registration-config` | 匿名 | 返回用户名/密码策略、一次性算术验证码和必须接受的 Published 协议版本；算术答案的 HMAC 校验值只在 Redis 保存，不返回客户端 |
 | `GET` | `/content/legal-documents/{document_type}` | 匿名 | 按 `version、locale、region_code` 返回注册配置引用的精确不可变用户协议/隐私政策安全正文；不得用新版静默替换旧版本 |
-| `POST` | `/auth/registrations` | 匿名 | 使用一次性算术验证码、用户名、密码和找回邮箱注册；邮箱加密存储并以 HMAC 保证唯一，不发送验证码；幂等；密码立即做 Argon2id 哈希且不记录明文 |
+| `POST` | `/auth/registrations` | 匿名 | 使用一次性算术验证码、全平台唯一用户名、密码和找回邮箱注册；邮箱加密存储、允许跨账号重复且不得用于登录，不发送验证码；幂等；密码立即做 Argon2id 哈希且不记录明文 |
 | `POST` | `/auth/login` | 匿名 | 仅支持账号密码登录；成功在 JSON 返回短期 Access Token 与当前用户/Session 摘要，Refresh Token 仅通过安全 Cookie 返回 |
 | `POST` | `/auth/session-resume` | 持有当前用户刷新凭证 | 页面刷新或新标签页启动时，为同一有效 Session 重新签发仅存内存的短期 Access Token，不轮换 Refresh Token、不创建新 Session；必须校验 CSRF、用户身份类别和会话状态 |
 | `POST` | `/auth/token-refresh` | 持有刷新凭证 | Refresh Token 轮换；旧 Token 进入重用检测，发现重放时撤销该 Token Family |
@@ -8581,7 +8581,7 @@ CI 先生成客户端再执行 Type Check/前端测试，检查 Git Worktree 无
 
 - 请求必须携 `Idempotency-Key`；幂等 Scope 绑定规范化 Username Hash 和 `config_version`，相同 Key 但关键 Payload Hash 不同返回 409 `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`。
 - API 不接收 `confirm_password、role、user_status、is_admin、store_id、permission`。默认用户角色和所有 Scope 由服务端固定创建；Mass Assignment 字段由 Pydantic `extra=forbid` 拒绝。
-- `email` 是必填找回凭证，服务端规范化后校验格式和唯一性；完整值以字段加密保存，精确查找只使用带服务端密钥的 HMAC。
+- `email` 是必填找回凭证，服务端规范化后校验格式并允许跨账号重复；完整值以字段加密保存，重置密码时必须先按唯一用户名定位账号，再使用带服务端密钥的 HMAC 核对完整邮箱。
 - `agreement_acceptances` 必须与配置中所有 Required Agreement 精确覆盖，不允许缺失、重复、增加未知类型或接受尚未生效/已撤回版本。服务端按 Content Version 重新取得 Hash，不信任客户端传正文/Hash。
 - `captcha_id` 对应的答案 HMAC 只在 Redis 保存 10 分钟；答案正确后依靠删除结果保证最多一个请求继续注册。题目错误、过期、已使用或 Redis 不可用均 Fail Closed。用户名唯一约束处理并发。
 
@@ -8652,13 +8652,13 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | `PATCH` | `/users/me` | 用户 | 修改昵称、头像等可编辑资料；If-Match；账号标识不能由此接口直接修改 |
 | `PUT` | `/users/me/password` | 用户 | 使用旧密码或一次性安全 Ticket 修改密码；幂等；成功后按策略撤销其他会话 |
 | `GET` | `/users/me/security` | 用户 | 查询密码设置状态、当前完整邮箱、最近修改时间和活跃会话数量；仅本人可读，响应强制 `no-store` |
-| `POST` | `/users/me/contact-changes` | 用户 | 提交 `new_email` 直接更换本人找回邮箱；不要求当前密码或验证码；幂等、校验全局唯一性并撤销除当前会话外的其他会话 |
+| `POST` | `/users/me/contact-changes` | 用户 | 提交 `new_email` 直接更换本人找回邮箱；不要求当前密码或验证码；幂等、校验格式并撤销除当前会话外的其他会话；允许与其他账号邮箱相同 |
 | `GET` | `/users/me/wallet` | 用户 | 获取人民币可用余额、累计充值和账户状态；响应 `no-store` |
 | `GET` | `/users/me/wallet/transactions` | 用户 | 获取本人余额不可变流水，默认最近 50 条 |
 | `POST` | `/users/me/wallet/recharges` | 用户 | 选择 `wechat/alipay` 执行明确标注的模拟充值；1.00～50,000.00 元、Idempotency-Key、锁账户并同事务写充值记录和流水，成功立即到账 |
 | `DELETE` | `/users/me` | 用户 | 输入 `DELETE_MY_ACCOUNT` 后永久注销；无冷静期；无历史交易时物理删除本人及关联非交易数据，存在历史订单返回 409 `ACCOUNT_DELETION_BLOCKED` |
 
-`GET /users/me` 不返回 `password_hash`、加密密钥或完整邮箱；只有专用的 `GET /users/me/security` 可向当前已登录本人显示完整邮箱，且必须 `no-store`、不得进入埋点或 Agent 上下文。`PATCH /users/me` 对昵称按 Unicode 字符执行 2～20 字符、去除首尾空白、禁止纯空白及内容安全校验。更换邮箱不要求当前密码和验证码，但必须依赖有效 User Audience Session、数据归属、邮箱格式与唯一约束、幂等键和安全审计；成功后撤销除当前会话外的其他会话。密码修改成功也应写安全审计，通知内容不得包含新旧密码。用户头像先走 3.11.16 文件上传，资料更新只提交已激活且 Purpose 为 Avatar 的 `file_id`。
+`GET /users/me` 不返回 `password_hash`、加密密钥或完整邮箱；只有专用的 `GET /users/me/security` 可向当前已登录本人显示完整邮箱，且必须 `no-store`、不得进入埋点或 Agent 上下文。`PATCH /users/me` 对昵称按 Unicode 字符执行 2～20 字符、去除首尾空白、禁止纯空白及内容安全校验。更换邮箱不要求当前密码和验证码，但必须依赖有效 User Audience Session、数据归属、邮箱格式、幂等键和安全审计；邮箱允许重复且不得作为登录名；成功后撤销除当前会话外的其他会话。密码修改成功也应写安全审计，通知内容不得包含新旧密码。用户头像先走 3.11.16 文件上传，资料更新只提交已激活且 Purpose 为 Avatar 的 `file_id`。
 
 `GET /users/me/dashboard` 的计数均以当前用户、`user_hidden_at IS NULL` 为范围，返回固定字段：`pending_payment` 对应未过期 `order_status=pending_payment`，`pending_shipment` 对应 `pending_shipment`，`in_transit` 对应 `shipped` 且 `fulfillment_status!=received`，`pending_review` 对应 `completed` 且至少一个订单项 `review_status=pending`，`after_sale` 对应存在进行中售后。订单角标按店铺订单计数，评价角标按可评价订单项计数；同一订单可同时计入 `pending_review` 与 `after_sale`，响应必须在 OpenAPI 明示该重叠语义。
 
@@ -8694,7 +8694,7 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 
 | 方法 | 路径 | 访问者 | 用途与关键规则 |
 | --- | --- | --- | --- |
-| `GET` | `/homepage` | 公开/用户 | 首页专用聚合 Read Model：只返回有效 Banner/公告及唯一 `recommended` 商品区块、opaque Cursor、`feed_version` 和局部降级状态；不返回分类、热门或新品区块；未授权个性化时使用通用推荐 |
+| `GET` | `/homepage` | 公开/用户 | 首页专用聚合 Read Model：只返回有效 Banner/公告及唯一 `recommended` 商品区块、随机 `recommendation_seed`、opaque Cursor、`feed_version` 和局部降级状态；不返回分类、热门或新品区块；不按最新上架顺序固定置顶 |
 | `GET` | `/products` | 公开 | 搜索/浏览商品；API 为店铺页、管理能力和未来扩展保留 `category_id、brand_id、store_id、price_min、price_max`，当前公共搜索页只发送 `q、sort、cursor` |
 | `GET` | `/products/{product_id}` | 公开 | 商品详情、店铺摘要、规格模型、结构化履约资料、服务承诺、销量展示值和当前用户关系；下架/删除按可见性返回 404 或受限状态 |
 | `GET` | `/products/{product_id}/skus` | 公开 | SKU 组合、可售状态、Money、`stock_status`、可选 `low_stock_remaining` 和 `max_purchase_quantity`；不返回真实仓库库存、安全库存或预占量 |
@@ -8704,7 +8704,7 @@ Refresh Token 仅通过 `Set-Cookie` 返回，不出现在 JSON、URL 或日志�
 | `GET` | `/brands` | 公开 | 品牌列表和搜索 |
 | `GET` | `/search/suggestions` | 公开 | 输入联想；最小字符数、敏感词与高频限流 |
 
-`GET /homepage` 由单个查询服务读取/预计算首页投影，禁止 Router 在请求内串行调用 Banner 和每个商品详情形成 N+1；`sections` 必须且只能包含一个 `section=recommended` 项，局部失败以该项 `status=available/unavailable` 表示，公共 `ProductCard` DTO 不含后台字段。Cursor 绑定 `feed_version、section、identity/consent_scope`，失效返回 410 `CURSOR_EXPIRED`，前端保留推荐区并从首 Cursor 重载。
+`GET /homepage` 由单个查询服务读取/预计算首页投影，禁止 Router 在请求内串行调用 Banner 和每个商品详情形成 N+1；`sections` 必须且只能包含一个 `section=recommended` 项，局部失败以该项 `status=available/unavailable` 表示，公共 `ProductCard` DTO 不含后台字段。首页响应使用 `no-store`，每次生成新的随机 `recommendation_seed`；推荐 Cursor 与同一种子绑定，后续页使用稳定哈希顺序，种子错配返回 400，失效返回 410 `CURSOR_EXPIRED`，前端保留推荐区并从首 Cursor 重载。
 
 搜索结果是可变快照，不能作为下单价格依据。详情响应中的 `selected_sku` 只可作为前端初始选择；创建结算会话必须提交明确 `sku_id` 与数量，由结算服务重新校验商品、SKU、店铺、区域和库存。履约资料至少返回城市级发货地、`dispatch_estimate: ServiceEstimate`、购买注意事项和资料版本；商品页面与 AI 客服均读取同一 DTO/Tool Result，不从富文本或模型常识重复推断。
 
@@ -9587,7 +9587,7 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 | `POST` | `/merchant/auth/token-refresh` | Merchant Cookie | 轮换商家独立 Refresh Session 并重新校验身份类别与 Store Scope |
 | `POST` | `/merchant/auth/logout` | Merchant Session | 注销商家会话并清除商家独立 Cookie，不影响用户端和平台管理端 Cookie |
 | `GET` | `/merchant/account/security` | 商家 | 返回当前找回邮箱；历史商家无邮箱时返回空值，不伪造占位邮箱 |
-| `PUT` | `/merchant/account/email` | 商家 | 用当前密码校验后设置唯一新邮箱；历史空邮箱账号同样允许首次设置，成功后更新加密字段与盲索引 |
+| `PUT` | `/merchant/account/email` | 商家 | 用当前密码校验后设置新邮箱；历史空邮箱账号同样允许首次设置，成功后更新加密字段与盲索引；允许与其他账号相同但不得用于登录 |
 | `PUT` | `/merchant/account/password` | 商家 | 校验当前密码后设置新密码并执行会话安全处置；密码不得回显或进入日志 |
 | `GET` | `/merchant/stores/{store_id}/revenue` | 商家 | 查询本人店铺确认收货口径的累计/今日/昨日/近 30 日收益与订单状态计数 |
 | `DELETE` | `/merchant/account` | 商家 | 无任何店铺交易时物理注销商家身份与店铺；存在交易时阻断 |
@@ -9608,7 +9608,7 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 
 `store_operator` 首版权限集合固定为：`stores:read/manage`、`store_policies:read/create/update/publish`、`products:read/create/update/publish`、`inventories:read/adjust`、`orders:read`、`shipments:read/create`、`refunds:read/review`、`reviews:read/reply`、`support:queue_read/claim/reply/wait/resume/resolve`。退款审核仍受 Store Scope、领取人、ETag、幂等、状态机、金额阈值和平台复核约束。明确排除平台仪表盘 `dashboard:read`、`products:review`、`reviews:moderate`、跨店/平台权限、客服转派与内部高敏备注。角色 Permission Binding 只能由服务端种子预置；自助注册只引用既有 `store_operator` 角色并固定创建当前 Store Scope Grant，请求 Schema 不接受 Role、Permission 或 Scope，因此商家不能自行选权或扩权。本地仍可用 `merchant-bootstrap` 建立开发账号。
 
-商家注册执行 `MerchantAuth_Register`，仅创建固定的纯商家身份，并要求唯一找回邮箱与一次性算术验证码；商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有普通用户或平台管理身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受纯 Platform Scope 管理身份并拒绝普通用户和店铺身份。用户登录同样只接受纯消费者身份。三条登录链路均为密码认证，但使用不同 Operation、Cookie Namespace、`aud/client_type` 和权限投影，不创建 MFA Challenge，也不得混用。Refresh、Bearer 请求与 WebSocket Principal 必须重新检查角色有效期和身份类别；类别不再匹配时撤销 Session Family。平台管理员与商家均不使用基于登录时长的密码/MFA Step-up，超级管理员高风险动作采用页面确认；该产品决定不放宽 Permission、Scope、金额审批、幂等、ETag、业务规则和审计。测试必须覆盖商家注册邮箱/验证码唯一性、找回密码 Audience 隔离、三入口全排列拒绝、Cookie 交叉刷新拒绝、混合角色 Fail Closed、Store Scope 列表过滤、跨店 404、缺权限 403、无时间型 Step-up 和审计记录。
+商家注册执行 `MerchantAuth_Register`，仅创建固定的纯商家身份，并要求全平台唯一用户名、格式正确且可重复的找回邮箱与一次性算术验证码；商家登录执行 `MerchantAuth_Login`，服务端在签发会话前验证密码、`store_operator` 角色、有效 Store Scope，并拒绝同时持有普通用户或平台管理身份；平台管理登录执行 `AdminAuth_PasswordLogin`，服务端只接受纯 Platform Scope 管理身份并拒绝普通用户和店铺身份。用户登录同样只接受纯消费者身份。三条登录链路均为密码认证，但使用不同 Operation、Cookie Namespace、`aud/client_type` 和权限投影，不创建 MFA Challenge，也不得混用。Refresh、Bearer 请求与 WebSocket Principal 必须重新检查角色有效期和身份类别；类别不再匹配时撤销 Session Family。平台管理员与商家均不使用基于登录时长的密码/MFA Step-up，超级管理员高风险动作采用页面确认；该产品决定不放宽 Permission、Scope、金额审批、幂等、ETag、业务规则和审计。测试必须覆盖商家用户名唯一性、邮箱重复使用与算术验证码、找回密码 Audience 隔离、三入口全排列拒绝、Cookie 交叉刷新拒绝、混合角色 Fail Closed、Store Scope 列表过滤、跨店 404、缺权限 403、无时间型 Step-up 和审计记录。
 
 ---
 
@@ -9633,7 +9633,7 @@ Webhook 响应不返回内部堆栈、订单详情或验签差异。失败是否
 5. 密码策略遵循 3.13.11；在 Argon2id 哈希完成前，密码只存在于当前请求受控内存，异常、APM、审计、队列和 Outbox 均不得包含原文。
 6. Required Agreement 必须逐项主动接受。服务端按 `document_type + document_version + locale + region` 重新加载 Published 不可变版本和 Hash；缺失、撤回、未生效或版本变化一律拒绝，不从旧勾选推定接受新版。
 7. 客户端不得传 Role/Permission/Store/Admin/Phone 字段；只允许 Schema 明确声明的找回 `email`。注册用例固定授予普通 User Role。密码凭证、加密邮箱凭证、协议接受记录、默认角色、专属客服会话、Session 和 `UserRegistered` Outbox 的原子范围以 3.14.1 为准。
-8. 算术验证码只作为基础防误提交措施，不替代限流、用户名/邮箱唯一约束、风险监控和审计。首版找回邮箱不发送所有权验证码，而是由用户在找回流程输入完整值进行精确核对；页面必须明确这一用途和边界。
+8. 算术验证码只作为基础防误提交措施，不替代限流、用户名唯一约束、风险监控和审计；邮箱允许跨账号重复，找回时必须与用户名组合核对。首版找回邮箱不发送所有权验证码，而是由用户在找回流程输入完整值进行精确核对；页面必须明确这一用途和边界。
 
 ##### 3.13.1.2 用户登录安全
 
@@ -9916,7 +9916,7 @@ Prompt Injection 包括用户直接注入，也包括商品描述、评价、网
   → 校验 Username、找回 Email、密码非空/无空白、IP 限流
   → 常量时间校验 Redis 中 Captcha HMAC，并以 DELETE 返回值保证单次成功使用
   → 校验 config_version 和 Required Agreements
-  → 规范化用户名与邮箱并预检查冲突；邮箱完整值加密、HMAC 用于精确查找
+  → 规范化用户名并预检查全局唯一冲突，邮箱只校验格式且允许重复；邮箱完整值加密、HMAC 用于“用户名 + 邮箱”精确核对
   → Argon2id 哈希密码（进入数据库事务前完成）
   → Transaction:
        users(active)
@@ -9932,7 +9932,7 @@ Prompt Injection 包括用户直接注入，也包括商品描述、评价、网
   → 异步欢迎通知/安全通知/非关键初始化
 ```
 
-密码哈希属于 CPU 密集步骤，在受限线程池/Worker 舱壁中执行，不长时间占用 Event Loop 或数据库行锁；但生成的 Hash 仅在当前请求内存保留到事务完成。用户名唯一约束和邮箱活跃标识唯一约束是并发最终裁判；任一冲突时整个事务回滚且客户端重新获取算术题，不产生半个账号。专属客服会话以唯一约束保证一个用户一条；在同一注册事务内新用户不应发生正常冲突，异常冲突必须回滚并告警，不能静默关联其他用户会话。
+密码哈希属于 CPU 密集步骤，在受限线程池/Worker 舱壁中执行，不长时间占用 Event Loop 或数据库行锁；但生成的 Hash 仅在当前请求内存保留到事务完成。用户名唯一约束是消费者、商家和管理员并发注册的最终裁判；邮箱允许重复，不参与账号唯一性裁决；用户名冲突时整个事务回滚且客户端重新获取算术题，不产生半个账号。专属客服会话以唯一约束保证一个用户一条；在同一注册事务内新用户不应发生正常冲突，异常冲突必须回滚并告警，不能静默关联其他用户会话。
 
 协议 Version 在算术题生成后可能变化，因此只以注册提交时重新读取的 Published/Effective 版本为准；版本不匹配返回 `AGREEMENT_VERSION_CHANGED` 并要求重新加载配置。欢迎通知和风控外部查询不得放在持有核心数据库锁的事务内。欢迎通知失败不回滚注册，Outbox 负责重试。
 
@@ -9963,7 +9963,7 @@ Prompt Injection 包括用户直接注入，也包括商品描述、评价、网
 | 密码错误 | 原子增加凭证失败次数；达到阈值后设置短时锁定，写 `auth_attempts`；匿名响应保持模糊 |
 | 注册算术题错误/过期/已用 | 拒绝注册并返回字段错误；客户端重新取得题目；Redis 不可用时 Fail Closed |
 | 账号业务冻结/关闭 | 仅在凭证正确后返回安全 `AUTH_ACCOUNT_UNAVAILABLE`；不创建 Session |
-| 并发注册同一用户名或邮箱 | 数据库唯一约束只允许一个事务成功；其他请求回滚并返回稳定冲突，不关联成功用户 ID |
+| 并发注册同一用户名 | `users.username_normalized` 数据库唯一约束只允许一个事务成功；其他请求回滚并返回稳定冲突，不关联成功用户 ID；同一邮箱允许被不同账号使用 |
 | 相同注册幂等 Key 重放 | Processing 返回 409 + `Retry-After`；Completed 返回同一 `user_id` 且不重复算术题消费、协议、角色或会话初始化。若需恢复登录态，必须在再次校验相同 Payload Hash 与客户端绑定后撤销原 Bootstrap Session、创建替代 Session 并轮换认证材料；不能保存/重放 Refresh Token 明文 |
 | 登录响应在网络中丢失 | 已创建 Session 保持可见；客户端不自动重发密码，用户重试可创建新 Session，旧同设备 Session 可由策略合并/撤销并在安全页可见 |
 | Session/Token 签发前 Commit 失败 | 不返回 Token/Cookie；清理请求内 Token 材料，按同一注册 Key安全重试 |

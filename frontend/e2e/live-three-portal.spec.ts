@@ -24,7 +24,7 @@ function scenario(): Scenario {
 
 async function loginConsumer(page: Page, username: string) {
   await page.goto('/?auth=login')
-  await page.getByLabel('账号').fill(username)
+  await page.getByLabel('用户名').fill(username)
   await page.getByLabel('密码').fill(password)
   await page.getByRole('button', { name: '登录', exact: true }).click()
   await expect(page.getByRole('heading', { name: '欢迎回来' })).toHaveCount(0, { timeout: 15_000 })

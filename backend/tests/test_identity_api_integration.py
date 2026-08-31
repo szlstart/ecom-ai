@@ -498,6 +498,62 @@ async def test_user_authentication_profile_address_and_session_lifecycle(
         assert pending_user is not None and pending_user.user_status == "deletion_pending"
 
 
+async def test_registration_allows_shared_recovery_email_but_keeps_username_unique(
+    client: AsyncClient,
+) -> None:
+    suffix = secrets.token_hex(4)
+    shared_email = f"shared_{suffix}@example.com"
+    password = f"Shared-{suffix}-Password!"
+
+    async def payload(username: str) -> dict[str, object]:
+        config = (await client.get("/api/v1/auth/registration-config")).json()["data"]
+        captcha = config["captcha"]
+        left, operator, right, _, _ = captcha["question"].split()
+        answer = int(left) + int(right) if operator == "+" else int(left) - int(right)
+        return {
+            "username": username,
+            "email": shared_email,
+            "captcha_id": captcha["captcha_id"],
+            "captcha_answer": str(answer),
+            "password": password,
+            "config_version": config["config_version"],
+            "agreement_acceptances": [
+                {
+                    "document_type": item["document_type"],
+                    "document_version": item["document_version"],
+                }
+                for item in config["required_agreements"]
+            ],
+        }
+
+    first_username = f"shared_email_a_{suffix}"
+    second_username = f"shared_email_b_{suffix}"
+    first = await client.post(
+        "/api/v1/auth/registrations",
+        headers={"Idempotency-Key": f"shared-email-first-{suffix}"},
+        json=await payload(first_username),
+    )
+    second = await client.post(
+        "/api/v1/auth/registrations",
+        headers={"Idempotency-Key": f"shared-email-second-{suffix}"},
+        json=await payload(second_username),
+    )
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+
+    email_login = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "auth_method": "password",
+            "identifier": shared_email,
+            "password": password,
+            "client": {"client_type": "web", "device_name": "Email login must stay disabled"},
+        },
+    )
+    assert email_login.status_code == 401
+    assert email_login.json()["code"] == "AUTH_INVALID_CREDENTIALS"
+
+
 async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     client: AsyncClient,
 ) -> None:
@@ -654,6 +710,39 @@ async def test_admin_password_mfa_audience_and_reauthentication_lifecycle(
     me_response = await client.get("/api/v1/admin/me", headers=admin_headers)
     assert me_response.status_code == 200
     assert me_response.json()["data"]["assurance_level"] == "aal2"
+
+    shared_admin_user_email = f"admin-created-shared-{suffix}@example.com"
+    first_created_user = await client.post(
+        "/api/v1/admin/users",
+        headers={**admin_headers, "Idempotency-Key": f"admin-user-shared-a-{suffix}"},
+        json={
+            "username": f"admin_user_a_{suffix}",
+            "password": f"AdminUser-A-{suffix}!",
+            "email": shared_admin_user_email,
+        },
+    )
+    second_created_user = await client.post(
+        "/api/v1/admin/users",
+        headers={**admin_headers, "Idempotency-Key": f"admin-user-shared-b-{suffix}"},
+        json={
+            "username": f"admin_user_b_{suffix}",
+            "password": f"AdminUser-B-{suffix}!",
+            "email": shared_admin_user_email,
+        },
+    )
+    assert first_created_user.status_code == 201, first_created_user.text
+    assert second_created_user.status_code == 201, second_created_user.text
+    duplicate_created_user = await client.post(
+        "/api/v1/admin/users",
+        headers={**admin_headers, "Idempotency-Key": f"admin-user-duplicate-{suffix}"},
+        json={
+            "username": f"admin_user_a_{suffix}",
+            "password": f"AdminUser-C-{suffix}!",
+            "email": f"another-admin-user-{suffix}@example.com",
+        },
+    )
+    assert duplicate_created_user.status_code == 409
+    assert duplicate_created_user.json()["errors"][0]["pointer"] == "/username"
 
     admin_sessions_response = await client.get("/api/v1/admin/auth/sessions", headers=admin_headers)
     assert admin_sessions_response.status_code == 200

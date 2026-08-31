@@ -100,17 +100,6 @@ class AdminStoreService:
                 "/merchant_email", "INVALID_EMAIL", "请输入有效的商家邮箱。", status=422
             ) from exc
         email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
-        if await self.session.scalar(
-            select(UserCredential.id).where(
-                UserCredential.credential_type == "email",
-                UserCredential.active_identifier_hash == email_hash,
-            )
-        ):
-            raise _field_error(
-                "/merchant_email",
-                "MERCHANT_EMAIL_ALREADY_EXISTS",
-                "该邮箱已经绑定其他账号，请输入其他邮箱。",
-            )
         role = await self.session.scalar(
             select(Role).where(
                 Role.role_code == "store_operator",

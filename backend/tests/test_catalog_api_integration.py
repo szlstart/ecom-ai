@@ -394,6 +394,35 @@ async def test_public_catalog_store_cursor_and_favorite_lifecycle(client: AsyncC
     assert homepage_data["sections"][0]["title"] == "为你推荐"
     homepage_product = homepage_data["sections"][0]["items"][0]
     assert "subtitle" not in homepage_product
+    recommendation_seed = homepage_data["sections"][0]["recommendation_seed"]
+    assert recommendation_seed > 0
+
+    random_page = await client.get(
+        "/api/v1/products",
+        params={"sort": "random", "recommendation_seed": recommendation_seed, "limit": 2},
+    )
+    repeated_random_page = await client.get(
+        "/api/v1/products",
+        params={"sort": "random", "recommendation_seed": recommendation_seed, "limit": 2},
+    )
+    assert random_page.status_code == 200, random_page.text
+    assert repeated_random_page.status_code == 200, repeated_random_page.text
+    assert random_page.json()["data"]["items"] == repeated_random_page.json()["data"]["items"]
+    random_cursor = random_page.json()["meta"]["pagination"]["next_cursor"]
+    assert random_cursor
+    next_random_page = await client.get(
+        "/api/v1/products",
+        params={
+            "sort": "random",
+            "recommendation_seed": recommendation_seed,
+            "cursor": random_cursor,
+            "limit": 2,
+        },
+    )
+    assert next_random_page.status_code == 200, next_random_page.text
+    first_random_ids = {item["product_id"] for item in random_page.json()["data"]["items"]}
+    next_random_ids = {item["product_id"] for item in next_random_page.json()["data"]["items"]}
+    assert first_random_ids.isdisjoint(next_random_ids)
 
     first_page = await client.get("/api/v1/products", params={"sort": "sales", "limit": 2})
     assert first_page.status_code == 200, first_page.text
@@ -794,6 +823,45 @@ async def test_admin_store_status_and_policy_lifecycle(
     assert mfa.status_code == 200, mfa.text
     token = mfa.json()["data"]["session"]["access_token"]
     admin_headers = {"Authorization": f"Bearer {token}"}
+
+    shared_merchant_email = f"shared-merchant-{suffix}@example.com"
+    first_created_store = await client.post(
+        "/api/v1/admin/stores",
+        headers={**admin_headers, "Idempotency-Key": f"admin-store-shared-email-a-{suffix}"},
+        json={
+            "store_name": f"共享邮箱管理店铺甲 {suffix}",
+            "description": "验证管理员创建店铺时允许找回邮箱重复。",
+            "merchant_username": f"admin_created_a_{suffix}",
+            "merchant_password": f"Merchant-A-{suffix}!",
+            "merchant_email": shared_merchant_email,
+        },
+    )
+    second_created_store = await client.post(
+        "/api/v1/admin/stores",
+        headers={**admin_headers, "Idempotency-Key": f"admin-store-shared-email-b-{suffix}"},
+        json={
+            "store_name": f"共享邮箱管理店铺乙 {suffix}",
+            "description": "同一邮箱只用于找回密码，不作为唯一账号名。",
+            "merchant_username": f"admin_created_b_{suffix}",
+            "merchant_password": f"Merchant-B-{suffix}!",
+            "merchant_email": shared_merchant_email,
+        },
+    )
+    assert first_created_store.status_code == 201, first_created_store.text
+    assert second_created_store.status_code == 201, second_created_store.text
+    duplicate_created_username = await client.post(
+        "/api/v1/admin/stores",
+        headers={**admin_headers, "Idempotency-Key": f"admin-store-duplicate-user-{suffix}"},
+        json={
+            "store_name": f"重复商家账号店铺 {suffix}",
+            "description": None,
+            "merchant_username": f"admin_created_a_{suffix}",
+            "merchant_password": f"Merchant-C-{suffix}!",
+            "merchant_email": f"another-{suffix}@example.com",
+        },
+    )
+    assert duplicate_created_username.status_code == 409
+    assert duplicate_created_username.json()["errors"][0]["pointer"] == "/merchant_username"
 
     # Store status changes deliberately use an explicit command confirmation instead
     # of password/MFA step-up, even when the management session is no longer recent.

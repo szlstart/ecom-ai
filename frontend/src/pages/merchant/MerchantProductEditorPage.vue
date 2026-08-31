@@ -84,6 +84,9 @@ const detailUploadBusy = ref(false)
 const detailUploadError = ref('')
 const detailUploadNotice = ref('')
 let imageSavePromise: Promise<void> | null = null
+const detailSaving = ref(false)
+let detailSavePromise: Promise<void> | null = null
+let draftHydrating = true
 const replyDrafts = reactive<Record<string, string>>({})
 const replyingReviewId = ref('')
 const basic = reactive({ store_id: '', category_id: '', brand_id: '', product_name: '' })
@@ -111,7 +114,7 @@ const activeImages = computed(() => {
 })
 const displayImage = computed(() => activeImages.value[selectedImage.value] ?? activeImages.value[0] ?? null)
 const canEdit = computed(() => !product.value || ['draft', 'rejected', 'off_shelf', 'on_sale'].includes(product.value.status))
-const editorBusy = computed(() => saving.value || pasteBusy.value || uploadBusy.value || imageSaving.value || detailPasteBusy.value || detailUploadBusy.value)
+const editorBusy = computed(() => saving.value || pasteBusy.value || uploadBusy.value || imageSaving.value || detailSaving.value || detailPasteBusy.value || detailUploadBusy.value)
 const returnTarget = computed(() => {
   const requested = typeof route.query.return_to === 'string' ? route.query.return_to : ''
   if (requested.startsWith(adminMode.value ? '/admin/' : '/merchant/')) return requested
@@ -154,6 +157,40 @@ function restoreEditorDrafts(snapshot: ReturnType<typeof captureEditorDrafts>) {
   Object.assign(fulfillment, snapshot.fulfillment)
   originProvinceCode.value = snapshot.originProvinceCode
   originCityCode.value = snapshot.originCityCode
+}
+
+function localDraftKey() {
+  return productId.value ? `ecom-ai:product-editor:${adminMode.value ? 'admin' : 'merchant'}:${productId.value}` : ''
+}
+
+function persistLocalEditorDraft() {
+  if (draftHydrating || !product.value || !canEdit.value) return
+  const key = localDraftKey()
+  if (!key) return
+  try {
+    window.localStorage.setItem(key, JSON.stringify({ saved_at: Date.now(), editor: captureEditorDrafts() }))
+  } catch { /* The server-side save remains available if browser storage is unavailable. */ }
+}
+
+function restoreLocalEditorDraft(): boolean {
+  const key = localDraftKey()
+  if (!key) return false
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return false
+    const parsed = JSON.parse(raw) as { editor?: ReturnType<typeof captureEditorDrafts> }
+    if (!parsed.editor?.basic || !Array.isArray(parsed.editor.detailBlocks) || !Array.isArray(parsed.editor.attributes)) return false
+    restoreEditorDrafts(parsed.editor)
+    return true
+  } catch {
+    window.localStorage.removeItem(key)
+    return false
+  }
+}
+
+function clearLocalEditorDraft() {
+  const key = localDraftKey()
+  if (key) window.localStorage.removeItem(key)
 }
 
 function token() { return requireAdminToken(auth.accessToken) }
@@ -231,6 +268,7 @@ async function loadReferences() {
 
 async function load(options: { preserveDrafts?: boolean } = {}) {
   const draftSnapshot = options.preserveDrafts ? captureEditorDrafts() : null
+  draftHydrating = true
   let loaded = false
   loading.value = true; error.value = ''
   if (!options.preserveDrafts) notice.value = ''
@@ -273,26 +311,14 @@ async function load(options: { preserveDrafts?: boolean } = {}) {
     if (!fulfillment.shipping_template_id) fulfillment.shipping_template_id = shippingTemplates.value.find((item) => item.status === 'effective')?.template_id ?? ''
     restoreOriginSelection(fulfillment.origin_region_code)
     loaded = true
+    if (!draftSnapshot && restoreLocalEditorDraft()) notice.value = '已恢复上次尚未提交的本地编辑内容。'
   } catch (cause) { error.value = errorMessage(cause) }
   finally {
     if (draftSnapshot && loaded) restoreEditorDrafts(draftSnapshot)
     loading.value = false
+    await nextTick()
+    draftHydrating = false
   }
-}
-
-async function perform(
-  action: () => Promise<unknown>,
-  success: string | ((result: unknown) => string),
-  reload = true,
-) {
-  saving.value = true; error.value = ''; notice.value = ''
-  try {
-    const result = await action()
-    notice.value = typeof success === 'function' ? success(result) : success
-    if (reload) await load({ preserveDrafts: true })
-  }
-  catch (cause) { error.value = errorMessage(cause) }
-  finally { saving.value = false }
 }
 
 function resetSku() { skuEditing.value = null; Object.assign(skuForm, { name: '', sale_price: '', stock: 0 }) }
@@ -434,10 +460,33 @@ async function removeImage(index: number) {
   catch (cause) { images.value.splice(actualIndex, 0, removed); pasteError.value = `图片移除失败：${errorMessage(cause)}` }
 }
 
+function queueDetailContentSave() {
+  const previous = detailSavePromise ?? Promise.resolve()
+  const pending = previous.catch(() => undefined).then(async () => {
+    const blocks = serializedDetailBlocks()
+    if (!product.value || !blocks.length) return
+    detailSaving.value = true
+    await adminCreate(path('/detail-content-versions'), { source_format: 'structured', source_content: JSON.stringify(blocks) }, token(), `${adminMode.value ? 'admin' : 'merchant'}-detail-autosave-${Date.now()}`)
+    await refreshProduct()
+  })
+  detailSavePromise = pending
+  void pending.finally(() => {
+    if (detailSavePromise === pending) {
+      detailSavePromise = null
+      detailSaving.value = false
+    }
+  }).catch(() => undefined)
+  return pending
+}
+
 function addDetailImage(fileId: string) {
   detailBlocks.value.push({ ...blankDetailBlock('image'), file_id: fileId, alt: basic.product_name || '商品详情图片' })
+  persistLocalEditorDraft()
   detailUploadError.value = ''
-  detailUploadNotice.value = '图片已添加到商品详情末尾；点击页面底部“完成编辑”后统一生效。'
+  detailUploadNotice.value = '图片已添加，正在自动保存到商品详情…'
+  void queueDetailContentSave()
+    .then(() => { detailUploadNotice.value = '详情图片已自动保存，刷新页面也不会丢失。' })
+    .catch((cause) => { detailUploadError.value = `图片上传成功，但详情自动保存失败：${errorMessage(cause)}。本机草稿仍已保留，可稍后重试。` })
 }
 async function pasteDetailImage(event: ClipboardEvent) {
   if (!canEdit.value || detailPasteBusy.value || detailUploadBusy.value) return
@@ -506,7 +555,7 @@ async function replyReview(item: AdminReview) {
 async function refreshProduct() {
   product.value = (await adminGet<AdminProduct>(path(), token())).data
 }
-async function finishEditing(label: string, requireComplete = true) {
+function validateEditor(requireComplete: boolean) {
   if (!product.value || !basic.product_name.trim()) { error.value = '请填写商品名称。'; return }
   const blocks = serializedDetailBlocks()
   const faqItems = faqPayload()
@@ -516,25 +565,40 @@ async function finishEditing(label: string, requireComplete = true) {
   if (requireComplete && skuWithoutImage) { error.value = `请先为款式“${skuWithoutImage.sku_name}”上传至少一张图片。`; return }
   if (requireComplete && !originProvinceCode.value) { error.value = '请选择发货地。'; return }
   if (requireComplete && !blocks.length) { error.value = '商品详情至少需要一段文字或一张图片。'; return }
+  return { blocks, faqItems }
+}
+
+async function saveEditorData(requireComplete: boolean) {
+  const payload = validateEditor(requireComplete)
+  if (!payload || !product.value) return false
+  const { blocks, faqItems } = payload
+  if (imageSavePromise) await imageSavePromise
+  if (detailSavePromise) await detailSavePromise
+  if (imageSaveFailed.value) throw new Error('商品图片尚未保存成功，请根据图片区提示处理后再完成编辑。')
+  await adminUpdate(path(), { product_name: basic.product_name, subtitle: null, description: null }, token(), product.value.version)
+  await refreshProduct()
+  await adminReplace(path('/attributes'), { items: attributePayload() }, token(), product.value.version)
+  await refreshProduct()
+  if (blocks.length) {
+    await adminCreate(path('/detail-content-versions'), { source_format: 'structured', source_content: JSON.stringify(blocks) }, token(), `${adminMode.value ? 'admin' : 'merchant'}-detail-finish-${Date.now()}`)
+    await refreshProduct()
+  }
+  if (originProvinceCode.value) {
+    fulfillment.shipping_template_id = await ensureEffectiveShippingTemplate()
+    fulfillment.origin_region_code = originCityCode.value || originProvinceCode.value
+    await adminReplace(path('/fulfillment-profile'), { shipping_template_id: fulfillment.shipping_template_id, origin_region_code: fulfillment.origin_region_code, dispatch_min_hours: fulfillment.dispatch_min_hours, dispatch_max_hours: fulfillment.dispatch_max_hours, purchase_notice: fulfillment.purchase_notice || null }, token(), product.value.version)
+    await refreshProduct()
+  }
+  await adminReplace(path('/faqs'), { items: faqItems }, token(), product.value.version)
+  await refreshProduct()
+  clearLocalEditorDraft()
+  return true
+}
+
+async function finishEditing(label: string, requireComplete = true) {
   saving.value = true; error.value = ''; notice.value = ''
   try {
-    if (imageSavePromise) await imageSavePromise
-    if (imageSaveFailed.value) throw new Error('商品图片尚未保存成功，请根据图片区提示处理后再完成编辑。')
-    await adminUpdate(path(), { product_name: basic.product_name, subtitle: null, description: null }, token(), product.value.version)
-    await refreshProduct()
-    await adminReplace(path('/attributes'), { items: attributePayload() }, token(), product.value.version)
-    await refreshProduct()
-    if (blocks.length) {
-      await adminCreate(path('/detail-content-versions'), { source_format: 'structured', source_content: JSON.stringify(blocks) }, token(), `${adminMode.value ? 'admin' : 'merchant'}-detail-finish-${Date.now()}`)
-      await refreshProduct()
-    }
-    if (originProvinceCode.value) {
-      fulfillment.shipping_template_id = await ensureEffectiveShippingTemplate()
-      fulfillment.origin_region_code = originCityCode.value || originProvinceCode.value
-      await adminReplace(path('/fulfillment-profile'), { shipping_template_id: fulfillment.shipping_template_id, origin_region_code: fulfillment.origin_region_code, dispatch_min_hours: fulfillment.dispatch_min_hours, dispatch_max_hours: fulfillment.dispatch_max_hours, purchase_notice: fulfillment.purchase_notice || null }, token(), product.value.version)
-      await refreshProduct()
-    }
-    await adminReplace(path('/faqs'), { items: faqItems }, token(), product.value.version)
+    if (!await saveEditorData(requireComplete)) return
     notice.value = label
     await router.push(returnTarget.value)
   } catch (cause) { error.value = errorMessage(cause) }
@@ -544,23 +608,32 @@ async function productCommand(action: 'submit_review' | 'publish' | 'off_shelf')
   const endpoint = { submit_review: '/review-submissions', publish: '/publications', off_shelf: '/off-shelf-commands' }[action]
   const actor = adminMode.value ? '超级管理员' : '商家'
   const reason = { submit_review: `${actor}完成商品资料并提交审核`, publish: `${actor}确认商品开始销售`, off_shelf: `${actor}主动停止商品销售` }[action]
-  await perform(
-    () => adminCommand<AdminProduct>(path(endpoint), { reason_code: adminMode.value ? 'PLATFORM_OPERATIONS' : 'MERCHANT_OPERATION', reason }, token(), product.value!.version, actionKey(`product-${action}`)),
-    action === 'submit_review'
-      ? (result) => {
-          const status = (result as { data?: AdminProduct }).data?.status
-          return status === 'on_sale'
-            ? '系统自动审核通过，商品已立即上架。'
-            : status === 'rejected'
-              ? '自动审核未通过：商品内容包含毒品、杀人相关违禁词，请修改后重新提交。'
-              : '商品已提交审核。'
-        }
-      : action === 'publish' ? '商品已上架。' : '商品已下架。',
-  )
+  if (!product.value) return
+  saving.value = true; error.value = ''; notice.value = ''
+  try {
+    if (action === 'submit_review' && !await saveEditorData(true)) return
+    const result = await adminCommand<AdminProduct>(path(endpoint), { reason_code: adminMode.value ? 'PLATFORM_OPERATIONS' : 'MERCHANT_OPERATION', reason }, token(), product.value.version, actionKey(`product-${action}`))
+    const status = result.data.status
+    const success = action === 'submit_review'
+      ? status === 'on_sale'
+        ? '商品资料已保存，系统自动审核通过并立即上架。'
+        : status === 'rejected'
+          ? '商品资料已保存，但自动审核未通过：商品内容包含毒品、杀人相关违禁词，请修改后重新提交。'
+          : '商品资料已保存并提交审核。'
+      : action === 'publish' ? '商品已上架。' : '商品已下架。'
+    await load()
+    notice.value = success
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { saving.value = false }
 }
 
 watch(() => route.params.productId, () => void load())
 watch(selectedSkuId, () => { selectedImage.value = 0 })
+watch(
+  [basic, attributes, detailBlocks, faqDrafts, fulfillment, originProvinceCode, originCityCode, skuForm, selectedSkuId, showSkuEditor],
+  persistLocalEditorDraft,
+  { deep: true, flush: 'sync' },
+)
 onMounted(() => { resetSku(); void load() })
 </script>
 

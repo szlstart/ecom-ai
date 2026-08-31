@@ -44,6 +44,7 @@ class CatalogRepository:
         sort: str,
         position: CursorPosition | None,
         limit: int,
+        random_seed: int = 0,
     ) -> tuple[list[tuple[Product, Store]], bool]:
         statement = (
             select(Product, Store)
@@ -85,7 +86,9 @@ class CatalogRepository:
         if price_max is not None:
             statement = statement.where(Product.min_price_amount <= price_max)
 
-        statement, reverse_result = _apply_product_cursor(statement, sort, position)
+        statement, reverse_result = _apply_product_cursor(
+            statement, sort, position, random_seed=random_seed
+        )
         rows = list((await self.session.execute(statement.limit(limit + 1))).all())
         has_more = len(rows) > limit
         rows = rows[:limit]
@@ -363,6 +366,8 @@ def _apply_product_cursor(
     statement: Select[tuple[Product, Store]],
     sort: str,
     position: CursorPosition | None,
+    *,
+    random_seed: int = 0,
 ) -> tuple[Select[tuple[Product, Store]], bool]:
     reverse_result = position is not None and position.direction == "previous"
     descending = sort in {"relevance", "sales", "newest", "price_desc"}
@@ -371,7 +376,13 @@ def _apply_product_cursor(
 
     sort_column: ColumnElement[Any]
     parse_value: Callable[[str], Any]
-    if sort == "newest":
+    if sort == "random":
+        sort_column = cast(
+            ColumnElement[Any],
+            func.crc32(func.concat(Product.product_no, ":", str(random_seed))),
+        )
+        parse_value = int
+    elif sort == "newest":
         sort_column = cast(
             ColumnElement[Any], func.coalesce(Product.published_at, Product.created_at)
         )

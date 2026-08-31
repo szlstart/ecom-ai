@@ -283,13 +283,6 @@ class RbacService:
                 status=409,
             )
         email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
-        if await self.identity.credential_by_identifier("email", email_hash) is not None:
-            raise _field_error(
-                "/email",
-                "ADMIN_USER_EMAIL_EXISTS",
-                "该邮箱已经绑定其他账号，请输入其他邮箱。",
-                status=409,
-            )
         role = await self.identity.role_by_code("user")
         if role is None:
             raise ApplicationError(
@@ -418,14 +411,6 @@ class RbacService:
             except ValueError as exc:
                 raise _field_error("/email", "INVALID_EMAIL", "请输入有效的邮箱地址。") from exc
             email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
-            existing_email = await self.identity.credential_by_identifier("email", email_hash)
-            if existing_email is not None and existing_email.user_id != target.id:
-                raise _field_error(
-                    "/email",
-                    "ADMIN_USER_EMAIL_EXISTS",
-                    "该邮箱已经绑定其他账号，请输入其他邮箱。",
-                    status=409,
-                )
             email_credential = next(
                 (
                     item

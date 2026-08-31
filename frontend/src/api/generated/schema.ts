@@ -9598,6 +9598,8 @@ export interface components {
             items: components["schemas"]["ProductCard"][];
             /** Next Cursor */
             next_cursor?: string | null;
+            /** Recommendation Seed */
+            recommendation_seed: number;
             /** Error Code */
             error_code?: string | null;
         };
@@ -15579,7 +15581,8 @@ export interface operations {
                 store_id?: string | null;
                 price_min?: number | null;
                 price_max?: number | null;
-                sort?: "relevance" | "sales" | "newest" | "price_asc" | "price_desc";
+                sort?: "relevance" | "sales" | "newest" | "price_asc" | "price_desc" | "random";
+                recommendation_seed?: number;
                 cursor?: string | null;
                 limit?: number;
             };

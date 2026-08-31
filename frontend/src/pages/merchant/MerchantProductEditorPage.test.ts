@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   getCategories: vi.fn(),
   listAdminReviews: vi.fn(),
   pastedFile: null as File | null,
+  uploadBarrier: null as Promise<void> | null,
   persistedImages: [] as Array<Record<string, unknown>>,
 }))
 
@@ -73,6 +74,7 @@ const FileUploadStub = defineComponent({
     expose({
       async uploadFile(file: File) {
         mocks.pastedFile = file
+        if (mocks.uploadBarrier) await mocks.uploadBarrier
         emit('uploaded', uploadedFileId)
       },
     })
@@ -114,7 +116,10 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     window.localStorage.clear()
     document.body.innerHTML = ''
     mocks.pastedFile = null
+    mocks.uploadBarrier = null
     mocks.persistedImages = []
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(() => 'blob:detail-preview') })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: vi.fn() })
     mocks.adminCreate.mockImplementation(async (path: string) => {
       if (path.endsWith('/shipping-templates')) return { data: { template_id: 'sht_default', version: 1 } }
       return { data: {} }
@@ -253,6 +258,29 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
       { type: 'image', file_id: uploadedFileId, alt: '剪贴板测试商品' },
       { type: 'paragraph', text: '第二段文字' },
     ])
+  })
+
+  it('shows a pasted detail image immediately while upload and scanning are still running', async () => {
+    let releaseUpload!: () => void
+    mocks.uploadBarrier = new Promise<void>((resolve) => { releaseUpload = resolve })
+    const wrapper = await mountPage()
+    const source = new File(['detail'], '', { type: 'image/png' })
+
+    wrapper.get('.merchant-detail-image-insert').element.dispatchEvent(pasteEvent([
+      { kind: 'file', type: 'image/png', getAsFile: () => source },
+    ]))
+    await flushPromises()
+
+    expect(wrapper.get('.merchant-detail-block.is-image img').attributes('src')).toBe('blob:detail-preview')
+    expect(wrapper.text()).toContain('已读取图片，正在上传和安全扫描')
+    expect(mocks.adminCreate.mock.calls.some(([requestPath]) => requestPath.endsWith('/detail-content-versions'))).toBe(false)
+
+    releaseUpload()
+    await flushPromises()
+
+    expect(wrapper.get('.merchant-detail-block.is-image img').attributes('src')).toContain(uploadedFileId)
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:detail-preview')
+    expect(wrapper.text()).toContain('详情图片已自动保存，刷新页面也不会丢失')
   })
 
   it('restores a previously saved structured detail version in the same order', async () => {

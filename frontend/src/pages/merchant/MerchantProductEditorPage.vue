@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import areaData from 'china-area-data'
 
@@ -83,6 +83,8 @@ const detailPasteBusy = ref(false)
 const detailUploadBusy = ref(false)
 const detailUploadError = ref('')
 const detailUploadNotice = ref('')
+const detailPreviewUrls = new Map<string, string>()
+const pendingDetailImageKey = ref('')
 let imageSavePromise: Promise<void> | null = null
 const detailSaving = ref(false)
 let detailSavePromise: Promise<void> | null = null
@@ -136,7 +138,9 @@ function captureEditorDrafts() {
     selectedSkuId: selectedSkuId.value,
     selectedImage: selectedImage.value,
     attributes: attributes.value.map((item) => ({ ...item })),
-    detailBlocks: detailBlocks.value.map((item) => ({ ...item, items: [...item.items] })),
+    detailBlocks: detailBlocks.value
+      .filter((item) => item.type !== 'image' || (Boolean(item.file_id) && !item.file_id.startsWith('local-preview:')))
+      .map((item) => ({ ...item, items: [...item.items] })),
     faqDrafts: faqDrafts.value.map((item) => ({ ...item })),
     fulfillment: { ...fulfillment },
     originProvinceCode: originProvinceCode.value,
@@ -238,9 +242,22 @@ function moveDetailBlock(index: number, offset: -1 | 1) {
   const [block] = detailBlocks.value.splice(index, 1)
   if (block) detailBlocks.value.splice(target, 0, block)
 }
-function removeDetailBlock(index: number) { detailBlocks.value.splice(index, 1) }
+function revokeDetailPreview(fileId: string) {
+  const previewUrl = detailPreviewUrls.get(fileId)
+  if (previewUrl) URL.revokeObjectURL(previewUrl)
+  detailPreviewUrls.delete(fileId)
+}
+function removeDetailBlock(index: number) {
+  const block = detailBlocks.value[index]
+  if (!block) return
+  revokeDetailPreview(block.file_id)
+  if (pendingDetailImageKey.value === block.key) pendingDetailImageKey.value = ''
+  detailBlocks.value.splice(index, 1)
+}
 function detailBlockLabel(block: DetailBlock) { return ({ paragraph: '文字', heading: '标题', bullet_list: '列表', image: '图片' } as const)[block.type] }
-function detailImageUrl(fileId: string) { return resolveApiAssetUrl(`/api/v1/files/${fileId}`) }
+function detailImageUrl(fileId: string) {
+  return detailPreviewUrls.get(fileId) ?? (fileId && !fileId.startsWith('local-preview:') ? resolveApiAssetUrl(`/api/v1/files/${fileId}`) : '')
+}
 function skuImage(skuId: string) { return images.value.find((image) => image.sku_id === skuId) ?? null }
 function selectOriginProvince() { originCityCode.value = ''; fulfillment.origin_region_code = originProvinceCode.value }
 function selectOriginCity() { fulfillment.origin_region_code = originCityCode.value || originProvinceCode.value }
@@ -479,8 +496,34 @@ function queueDetailContentSave() {
   return pending
 }
 
+function beginDetailImageUpload(sourceFile: File) {
+  if (pendingDetailImageKey.value) failDetailImageUpload()
+  const block = { ...blankDetailBlock('image'), alt: basic.product_name || '商品详情图片' }
+  block.file_id = `local-preview:${block.key}`
+  detailPreviewUrls.set(block.file_id, URL.createObjectURL(sourceFile))
+  pendingDetailImageKey.value = block.key
+  detailBlocks.value.push(block)
+  detailUploadError.value = ''
+  detailUploadNotice.value = '已读取图片，正在上传和安全扫描…'
+}
+function failDetailImageUpload() {
+  const key = pendingDetailImageKey.value
+  if (!key) return
+  const index = detailBlocks.value.findIndex((item) => item.key === key && item.file_id.startsWith('local-preview:'))
+  if (index >= 0) {
+    revokeDetailPreview(detailBlocks.value[index]!.file_id)
+    detailBlocks.value.splice(index, 1)
+  }
+  pendingDetailImageKey.value = ''
+}
 function addDetailImage(fileId: string) {
-  detailBlocks.value.push({ ...blankDetailBlock('image'), file_id: fileId, alt: basic.product_name || '商品详情图片' })
+  const pending = detailBlocks.value.find((item) => item.key === pendingDetailImageKey.value)
+  if (pending) {
+    revokeDetailPreview(pending.file_id)
+    pending.file_id = fileId
+  }
+  else detailBlocks.value.push({ ...blankDetailBlock('image'), file_id: fileId, alt: basic.product_name || '商品详情图片' })
+  pendingDetailImageKey.value = ''
   persistLocalEditorDraft()
   detailUploadError.value = ''
   detailUploadNotice.value = '图片已添加，正在自动保存到商品详情…'
@@ -499,12 +542,19 @@ async function pasteDetailImage(event: ClipboardEvent) {
     }
     event.preventDefault()
     if (!detailImageUpload.value) throw new Error('详情图片上传组件尚未准备好，请稍后重试。')
+    beginDetailImageUpload(file)
     detailPasteBusy.value = true
     await detailImageUpload.value.uploadFile(file)
   } catch (cause) {
+    failDetailImageUpload()
     detailUploadError.value = cause instanceof Error ? cause.message : errorMessage(cause)
   } finally { detailPasteBusy.value = false }
 }
+
+onBeforeUnmount(() => {
+  for (const previewUrl of detailPreviewUrls.values()) URL.revokeObjectURL(previewUrl)
+  detailPreviewUrls.clear()
+})
 
 function addAttribute() { attributes.value.push({ attribute_code: `property_${attributes.value.length + 1}`, attribute_name: '', value_text: '', value_normalized: null, unit: null, is_searchable: false, sort_order: attributes.value.length }) }
 function attributePayload() {

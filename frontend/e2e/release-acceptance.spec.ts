@@ -194,8 +194,8 @@ test('AUTH-BROWSER keeps user and admin authentication entry points keyboard rea
   await page.goto('/login')
   await expect(page).toHaveURL(/\/?auth=login$/)
   await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible()
-  await page.getByLabel('账号').focus()
-  await expect(page.getByLabel('账号')).toBeFocused()
+  await page.getByLabel('用户名').focus()
+  await expect(page.getByLabel('用户名')).toBeFocused()
   await assertBaselineAccessibility(page)
   await page.screenshot({ path: testInfo.outputPath('user-login.png'), fullPage: true })
 

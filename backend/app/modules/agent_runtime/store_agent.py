@@ -108,9 +108,7 @@ async def process_store_run(
         has_product_context="product" in context.context_refs,
         has_order_context="order" in context.context_refs,
     )
-    if fast_plan.intent != "general_chat" or not isinstance(
-        gateway, ProviderStoreModelGateway
-    ):
+    if fast_plan.intent != "general_chat" or not isinstance(gateway, ProviderStoreModelGateway):
         plan = fast_plan
     else:
         planning_input = context_window.planning_input(trigger_text)
@@ -250,6 +248,13 @@ async def _execute_plan(
     resolved_product_no = resolution.data.get("product_id")
     if isinstance(resolved_product_no, str):
         product_no = resolved_product_no
+    elif "product" in context.context_refs:
+        # A deictic product question (for example, "介绍一下这个商品") must stay
+        # bound to the product card captured when the message was sent.  A
+        # conversation may also retain an order card, but falling back to that
+        # order first would bypass the product snapshot's active/version check
+        # after the user switches products while the run is still queued.
+        product_no = (await builder.require_active_context(context, "product")).resource_no
     elif "order" in context.context_refs:
         product_no = await _single_order_product_no(builder, tools, context)
     else:
@@ -501,12 +506,17 @@ async def _grounded_answer(
         trace["answer_mode"] = "deterministic_fallback"
         trace["degraded_reason"] = reason
         context.run.degraded_reason = reason
+        if stream_callback is not None:
+            await stream_callback("answer_replace", fallback)
         return fallback, trace
     trace["answer_mode"] = "model_grounded"
     trace["confidence"] = answer.confidence
     trace["cited_source_ids"] = list(answer.cited_source_ids)
     trace["thinking_mode"] = "enabled" if answer.thinking_used else "not_reported"
     trace["grounding_verified"] = answer.grounding_verified
+    trace["evidence_truncated"] = answer.evidence_truncated
+    trace["truncated_evidence_fields"] = list(answer.truncated_evidence_fields)
+    trace["model_invocation"] = _model_invocation_trace(answer)
     if answer.analysis_summary:
         trace["analysis_summary"] = answer.analysis_summary
     if answer.analysis_details:
@@ -527,6 +537,21 @@ def _tool_for_intent(intent: str) -> str:
         "inventory_lookup": "catalog.get_inventory_availability",
         "product_qa": "catalog.get_product",
     }.get(intent, "unknown")
+
+
+def _model_invocation_trace(answer: object) -> dict[str, object]:
+    return {
+        "model": getattr(answer, "model_name", None),
+        "input_tokens": getattr(answer, "input_tokens", None),
+        "output_tokens": getattr(answer, "output_tokens", None),
+        "total_tokens": getattr(answer, "total_tokens", None),
+        "first_token_latency_ms": getattr(answer, "first_token_latency_ms", None),
+        "model_latency_ms": getattr(answer, "model_latency_ms", None),
+        "estimated_cost_usd": getattr(answer, "estimated_cost_usd", None),
+        "cost_status": (
+            "known" if getattr(answer, "estimated_cost_usd", None) is not None else "unknown"
+        ),
+    }
 
 
 def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") -> str:
@@ -604,9 +629,11 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         )
         actions = data.get("available_actions")
         if isinstance(actions, list) and actions:
-            result += " 当前页面可用操作: " + "、".join(
-                _ORDER_ACTION_LABELS.get(str(item), "查看订单") for item in actions[:8]
-            ) + "。"
+            result += (
+                " 当前页面可用操作: "
+                + "、".join(_ORDER_ACTION_LABELS.get(str(item), "查看订单") for item in actions[:8])
+                + "。"
+            )
         shipments = data.get("shipments")
         if isinstance(shipments, list) and shipments:
             result += f" 当前共有 {len(shipments)} 个公开物流包裹，可进入订单物流页查看轨迹。"
@@ -647,6 +674,7 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
     skus = data.get("skus")
     if isinstance(skus, list) and skus:
         lines.append(f"目前商品页有 {len(skus)} 个可选款式，具体价格和库存以下单时为准。")
+    lines.append("发货时效以店铺已发布政策和订单物流为准，我不会承诺具体发货时间。")
     lines.append("你更想了解款式、尺码或规格、库存、发货，还是适不适合某个使用场景?")
     return "\n\n".join(lines)
 

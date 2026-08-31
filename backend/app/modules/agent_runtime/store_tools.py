@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
@@ -15,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
+from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
 from app.modules.agent_runtime.models import AgentToolAudit
 from app.modules.agent_runtime.store_context import TrustedStoreAgentContext
 from app.modules.catalog.models import Product, ProductAttribute, ProductSku
@@ -45,6 +47,7 @@ class StoreToolGateway:
         self.session = session
         self.catalog = CatalogRepository(session)
         self.stores = StoreRepository(session)
+        self._call_counts: dict[str, int] = {}
 
     async def execute(
         self,
@@ -60,13 +63,26 @@ class StoreToolGateway:
             ).encode()
         ).digest()
         result: StoreToolResult
-        if tool_code not in context.allowed_tools:
+        policy = context.tool_policies.get(tool_code)
+        call_count = self._call_counts.get(tool_code, 0)
+        if tool_code not in context.allowed_tools or policy is None:
             result = StoreToolResult("denied", {}, "TOOL_NOT_ALLOWED")
+        elif call_count >= policy.call_budget:
+            result = StoreToolResult("denied", {}, "TOOL_CALL_BUDGET_EXCEEDED")
+        elif policy.confirmation_policy != "none" and not (
+            tool_code == "support.create_store_ticket"
+            and is_explicit_handoff_request(context.trigger.text_content or "")
+        ):
+            result = StoreToolResult("denied", {}, "TOOL_CONFIRMATION_REQUIRED")
         elif _contains_scope_override(arguments):
             result = StoreToolResult("denied", {}, "TOOL_SCOPE_OVERRIDE_DENIED")
         else:
+            self._call_counts[tool_code] = call_count + 1
             try:
-                result = StoreToolResult("succeeded", await handler())
+                result = StoreToolResult(
+                    "succeeded",
+                    await asyncio.wait_for(handler(), timeout=policy.timeout_ms / 1000),
+                )
             except ApplicationError as exc:
                 result = StoreToolResult("denied", {}, exc.code)
             except TimeoutError:
@@ -741,10 +757,7 @@ def _product_match_score(
 
     def bigrams(value: str) -> set[str]:
         compacted = compact(value)
-        return {
-            compacted[index : index + 2]
-            for index in range(max(0, len(compacted) - 1))
-        }
+        return {compacted[index : index + 2] for index in range(max(0, len(compacted) - 1))}
 
     query_compact = compact(query)
     labels = [product_name, *(aliases or [])]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping
 from typing import Any, Literal, cast
 
@@ -22,16 +23,22 @@ from app.modules.agent_runtime.privacy_schemas import (
     AiPersonalizationDisableRequest,
 )
 from app.modules.identity.models import User
+from app.modules.knowledge.embedding import EmbeddingProvider, EmbeddingUnavailable, vector_literal
 from app.modules.system.models import OutboxEvent
 
 
 class AiPrivacyService:
     def __init__(
-        self, mysql: AsyncSession, postgres: AsyncSession, security: SecurityService
+        self,
+        mysql: AsyncSession,
+        postgres: AsyncSession,
+        security: SecurityService,
+        embedder: EmbeddingProvider | None = None,
     ) -> None:
         self.mysql = mysql
         self.postgres = postgres
         self.security = security
+        self.embedder = embedder
         self.idempotency = IdempotencyService(mysql)
 
     async def list_memories(
@@ -99,6 +106,7 @@ class AiPrivacyService:
                 title="Sensitive memory rejected",
                 detail="密码、证件、支付信息或完整地址不能写入长期记忆。",
             )
+        embedding = await self._embedding(new_value)
         new_no = new_prefixed_ulid("mem_")
         event_no = new_prefixed_ulid("mev_")
         ciphertext = self.security.encrypt("ai-memory-content", new_value)
@@ -158,6 +166,14 @@ class AiPrivacyService:
             row["content_hash"],
             content_hash,
         )
+        await self._upsert_embedding(new_no, new_value, embedding)
+        await self.postgres.execute(
+            text(
+                """UPDATE memory.item_embeddings SET embedding_status='retired'
+                WHERE memory_id=:memory_id AND embedding_status='active'"""
+            ),
+            {"memory_id": row["id"]},
+        )
         await self.postgres.commit()
         return self._memory_view(await self._memory_row(user, new_no))
 
@@ -179,6 +195,11 @@ class AiPrivacyService:
             raise _state_conflict()
         if row["consent_no"] != consent.consent_no:
             raise _consent_conflict()
+        ciphertext = row["content_ciphertext"]
+        if not isinstance(ciphertext, bytes):
+            raise _state_conflict()
+        value = self.security.decrypt("ai-memory-content", ciphertext).strip()
+        embedding = await self._embedding(value)
         conflict_params = {
             "user_no": user.user_no,
             "namespace": row["namespace"],
@@ -191,7 +212,7 @@ class AiPrivacyService:
             (
                 await self.postgres.execute(
                     text(
-                        """SELECT memory_no,content_hash FROM memory.items
+                        """SELECT id,memory_no,content_hash FROM memory.items
                         WHERE user_no=:user_no AND namespace=:namespace
                           AND store_no IS NOT DISTINCT FROM :store_no
                           AND memory_type=:memory_type AND memory_key=:memory_key
@@ -215,6 +236,13 @@ class AiPrivacyService:
                 conflict_params,
             )
             for conflict in conflicts:
+                await self.postgres.execute(
+                    text(
+                        """UPDATE memory.item_embeddings SET embedding_status='retired'
+                        WHERE memory_id=:memory_id AND embedding_status='active'"""
+                    ),
+                    {"memory_id": conflict["id"]},
+                )
                 await self._memory_event(
                     new_prefixed_ulid("mev_"),
                     str(conflict["memory_no"]),
@@ -244,6 +272,7 @@ class AiPrivacyService:
             row["content_hash"],
             row["content_hash"],
         )
+        await self._upsert_embedding(memory_no, value, embedding)
         await self.postgres.commit()
         return self._memory_view(await self._memory_row(user, memory_no))
 
@@ -282,6 +311,13 @@ class AiPrivacyService:
             row["content_hash"],
             None,
         )
+        await self.postgres.execute(
+            text(
+                """UPDATE memory.item_embeddings SET embedding_status='retired'
+                WHERE memory_id=:memory_id AND embedding_status='active'"""
+            ),
+            {"memory_id": row["id"]},
+        )
         await self.postgres.commit()
         return await self._create_cleanup(
             user,
@@ -292,6 +328,44 @@ class AiPrivacyService:
             memory_no,
             1,
             idempotency_key,
+        )
+
+    async def _embedding(self, value: str) -> list[float] | None:
+        if self.embedder is None:
+            return None
+        try:
+            vectors = await self.embedder.embed([value[:500]])
+        except EmbeddingUnavailable:
+            return None
+        return vectors[0] if vectors else None
+
+    async def _upsert_embedding(
+        self,
+        memory_no: str,
+        value: str,
+        embedding: list[float] | None,
+    ) -> None:
+        if self.embedder is None or embedding is None:
+            return
+        await self.postgres.execute(
+            text(
+                """INSERT INTO memory.item_embeddings
+                (memory_id,embedding_model_id,embedding,dimension,input_hash,embedding_status)
+                SELECT id,:model_code,CAST(:embedding AS vector),:dimension,:input_hash,'active'
+                FROM memory.items WHERE memory_no=:memory_no
+                ON CONFLICT (memory_id,embedding_model_id) DO UPDATE SET
+                  embedding=EXCLUDED.embedding,
+                  dimension=EXCLUDED.dimension,
+                  input_hash=EXCLUDED.input_hash,
+                  embedding_status='active'"""
+            ),
+            {
+                "memory_no": memory_no,
+                "model_code": self.embedder.model_code,
+                "embedding": vector_literal(embedding),
+                "dimension": self.embedder.dimension,
+                "input_hash": hashlib.sha256(value.encode()).digest(),
+            },
         )
 
     async def disable_all(

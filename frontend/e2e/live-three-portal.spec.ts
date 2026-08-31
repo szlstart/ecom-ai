@@ -161,7 +161,12 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await consumerWorkspace.getByRole('button', { name: /专属客服/ }).click()
     await expect(consumerWorkspace.getByText('售后协助授权', { exact: true })).toBeVisible()
     expect(await consumerWorkspace.locator('.agent-consent-card').evaluate((element) => (element as HTMLDetailsElement).open)).toBe(false)
-    const incomingBubbles = consumerWorkspace.locator('.message-row.theirs .message-bubble')
+    // The empty-conversation welcome is a transient UI prompt rather than a
+    // persisted incoming message.  It is replaced by the first real reply, so
+    // counting it would make a successful first Agent response look unchanged.
+    const incomingBubbles = consumerWorkspace.locator(
+      '.message-row.theirs:not(.conversation-welcome-row) .message-bubble',
+    )
     const incomingCount = await incomingBubbles.count()
     await consumerWorkspace.getByPlaceholder('输入消息…').fill('请介绍验收商品，并说明你使用了什么可信依据。')
     await consumerWorkspace.getByRole('button', { name: '发送', exact: true }).click()

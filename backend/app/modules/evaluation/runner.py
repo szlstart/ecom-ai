@@ -37,9 +37,10 @@ class CaseObservation:
     passed: bool
     safety_violations: int
     latency_ms: float
-    cost_usd: float
+    cost_usd: float | None
     tool_correct: bool
     citation_correct: bool | None
+    answer_correct: bool = True
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,7 @@ class ReleasePolicy:
     minimum_candidate_pass_rate: float = 0.95
     minimum_tool_accuracy: float = 0.95
     minimum_citation_accuracy: float = 0.95
+    minimum_answer_accuracy: float = 0.95
     non_inferiority_margin: float = 0.01
     maximum_latency_ratio: float = 1.15
     maximum_cost_ratio: float = 1.15
@@ -101,9 +103,7 @@ def load_observations(path: Path, dataset: DatasetManifest) -> tuple[PairedObser
     return parse_observations(raw, dataset)
 
 
-def parse_observations(
-    raw: object, dataset: DatasetManifest
-) -> tuple[PairedObservation, ...]:
+def parse_observations(raw: object, dataset: DatasetManifest) -> tuple[PairedObservation, ...]:
     if not isinstance(raw, dict) or raw.get("dataset_sha256") != dataset.sha256:
         raise ValueError("observation artifact does not match the immutable dataset hash")
     rows = raw.get("observations")
@@ -155,6 +155,7 @@ def evaluate(
     candidate_citation_accuracy = _optional_rate(
         row.candidate.citation_correct for row in observations
     )
+    candidate_answer_accuracy = _rate(row.candidate.answer_correct for row in observations)
     if candidate_rate < policy.minimum_candidate_pass_rate:
         reasons.append("candidate_quality_below_minimum")
     if candidate_tool_accuracy < policy.minimum_tool_accuracy:
@@ -164,6 +165,8 @@ def evaluate(
         and candidate_citation_accuracy < policy.minimum_citation_accuracy
     ):
         reasons.append("candidate_citation_accuracy_below_minimum")
+    if candidate_answer_accuracy < policy.minimum_answer_accuracy:
+        reasons.append("candidate_answer_accuracy_below_minimum")
     delta = candidate_rate - baseline_rate
     if delta < -policy.non_inferiority_margin:
         reasons.append("candidate_quality_regression")
@@ -173,10 +176,34 @@ def evaluate(
     latency_ratio = _safe_ratio(candidate_latency, baseline_latency)
     if latency_ratio > policy.maximum_latency_ratio:
         reasons.append("candidate_latency_budget_exceeded")
-    baseline_cost = statistics.fmean(row.baseline.cost_usd for row in observations)
-    candidate_cost = statistics.fmean(row.candidate.cost_usd for row in observations)
-    cost_ratio = _safe_ratio(candidate_cost, baseline_cost)
-    if cost_ratio > policy.maximum_cost_ratio:
+    cost_known = all(
+        row.baseline.cost_usd is not None and row.candidate.cost_usd is not None
+        for row in observations
+    )
+    baseline_cost = (
+        statistics.fmean(
+            row.baseline.cost_usd
+            for row in observations
+            if row.baseline.cost_usd is not None
+        )
+        if cost_known
+        else None
+    )
+    candidate_cost = (
+        statistics.fmean(
+            row.candidate.cost_usd
+            for row in observations
+            if row.candidate.cost_usd is not None
+        )
+        if cost_known
+        else None
+    )
+    cost_ratio = (
+        _safe_ratio(candidate_cost, baseline_cost)
+        if candidate_cost is not None and baseline_cost is not None
+        else None
+    )
+    if cost_ratio is not None and cost_ratio > policy.maximum_cost_ratio:
         reasons.append("candidate_cost_budget_exceeded")
 
     improved = sum(row.candidate.passed and not row.baseline.passed for row in observations)
@@ -207,8 +234,10 @@ def evaluate(
         "baseline_average_cost_usd": baseline_cost,
         "candidate_average_cost_usd": candidate_cost,
         "cost_ratio": cost_ratio,
+        "cost_status": "known" if cost_known else "unknown",
         "candidate_tool_accuracy": candidate_tool_accuracy,
         "candidate_citation_accuracy": candidate_citation_accuracy,
+        "candidate_answer_accuracy": candidate_answer_accuracy,
     }
     report["family_counts"] = dict(sorted(Counter(case.family for case in dataset.cases).items()))
     return report
@@ -233,10 +262,13 @@ def _parse_observation(raw: object, case_id: str) -> CaseObservation:
     passed = raw.get("passed")
     tool_correct = raw.get("tool_correct")
     citation_correct = raw.get("citation_correct")
+    answer_correct = raw.get("answer_correct", True)
     if not isinstance(passed, bool) or not isinstance(tool_correct, bool):
         raise ValueError(f"invalid boolean observation for {case_id}")
     if citation_correct is not None and not isinstance(citation_correct, bool):
         raise ValueError(f"invalid citation observation for {case_id}")
+    if not isinstance(answer_correct, bool):
+        raise ValueError(f"invalid answer observation for {case_id}")
     safety = raw.get("safety_violations", 0)
     latency = raw.get("latency_ms")
     cost = raw.get("cost_usd")
@@ -244,10 +276,18 @@ def _parse_observation(raw: object, case_id: str) -> CaseObservation:
         raise ValueError(f"invalid safety count for {case_id}")
     if not isinstance(latency, int | float) or isinstance(latency, bool) or latency < 0:
         raise ValueError(f"invalid latency for {case_id}")
-    if not isinstance(cost, int | float) or isinstance(cost, bool) or cost < 0:
+    if cost is not None and (
+        not isinstance(cost, int | float) or isinstance(cost, bool) or cost < 0
+    ):
         raise ValueError(f"invalid cost for {case_id}")
     return CaseObservation(
-        passed, safety, float(latency), float(cost), tool_correct, citation_correct
+        passed,
+        safety,
+        float(latency),
+        float(cost) if cost is not None else None,
+        tool_correct,
+        citation_correct,
+        answer_correct,
     )
 
 

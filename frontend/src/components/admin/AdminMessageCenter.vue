@@ -212,7 +212,14 @@ function handleRealtime(event: RealtimeEvent) {
       void scrollBottom()
     }
   }
-  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false; liveTrace.value = null; streamingReply.value = null }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false }
+  if (event.type === 'message.created') {
+    const message = event.data.message as { content?: { run_id?: string } } | undefined
+    if (message?.content?.run_id && message.content.run_id === streamingReply.value?.runId) {
+      streamingReply.value = null
+      liveTrace.value = null
+    }
+  }
   if (['message.created', 'unread.updated', 'support.ticket.updated'].includes(event.type)) scheduleRefresh()
 }
 

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import SecurityService, utc_now
 from app.modules.agent_runtime.models import UserAgentConsent
 from app.modules.identity.models import User
+from app.modules.knowledge.embedding import EmbeddingProvider, EmbeddingUnavailable, vector_literal
 
 
 @dataclass(frozen=True)
@@ -48,10 +49,14 @@ class AgentMemoryRuntime:
         mysql: AsyncSession,
         postgres: AsyncSession,
         security: SecurityService,
+        embedder: EmbeddingProvider | None = None,
+        min_vector_similarity: float = 0.40,
     ) -> None:
         self.mysql = mysql
         self.postgres = postgres
         self.security = security
+        self.embedder = embedder
+        self.min_vector_similarity = min_vector_similarity
 
     async def propose_exclusive(
         self,
@@ -209,6 +214,48 @@ class AgentMemoryRuntime:
         )
         if not consent_nos:
             return MemoryRecall(items=(), authorized=False)
+        vector_scores: dict[str, float] = {}
+        degraded = False
+        if self.embedder is not None:
+            try:
+                query_embedding = (await self.embedder.embed([query[:500]]))[0]
+                vector_rows = (
+                    (
+                        await self.postgres.execute(
+                            text(
+                                """SELECT item.memory_no,
+                                1 - (embedding.embedding <=> CAST(:embedding AS vector)) AS score
+                                FROM memory.items AS item
+                                JOIN memory.item_embeddings AS embedding
+                                  ON embedding.memory_id=item.id
+                                 AND embedding.embedding_status='active'
+                                 AND embedding.embedding_model_id=:model_code
+                                WHERE item.user_no=:user_no AND item.namespace='exclusive'
+                                  AND item.store_no IS NULL AND item.memory_status='active'
+                                  AND item.consent_no = ANY(:consent_nos)
+                                  AND item.expires_at > now()
+                                  AND (item.valid_until IS NULL OR item.valid_until > now())
+                                  AND 1 - (embedding.embedding <=> CAST(:embedding AS vector))
+                                      >= :min_similarity
+                                ORDER BY embedding.embedding <=> CAST(:embedding AS vector),
+                                         item.memory_no
+                                LIMIT 24"""
+                            ),
+                            {
+                                "embedding": vector_literal(query_embedding),
+                                "model_code": self.embedder.model_code,
+                                "user_no": user.user_no,
+                                "consent_nos": list(consent_nos),
+                                "min_similarity": self.min_vector_similarity,
+                            },
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+                vector_scores = {str(row["memory_no"]): float(row["score"]) for row in vector_rows}
+            except EmbeddingUnavailable:
+                degraded = True
         rows = (
             (
                 await self.postgres.execute(
@@ -249,6 +296,17 @@ class AgentMemoryRuntime:
                 Decimal(str(row["confidence"])),
                 Decimal(str(row["salience"])),
             )
+            semantic_score = vector_scores.get(str(row["memory_no"]))
+            if semantic_score is not None:
+                relevance = max(
+                    relevance,
+                    min(
+                        1.0,
+                        semantic_score * 0.80
+                        + float(row["confidence"]) * 0.10
+                        + float(row["salience"]) * 0.10,
+                    ),
+                )
             if relevance < 0.35:
                 continue
             candidates.append(
@@ -262,7 +320,11 @@ class AgentMemoryRuntime:
                 )
             )
         candidates.sort(key=lambda item: (-item.relevance, item.memory_no))
-        return MemoryRecall(items=tuple(candidates[: min(max(limit, 1), 5)]), authorized=True)
+        return MemoryRecall(
+            items=tuple(candidates[: min(max(limit, 1), 5)]),
+            authorized=True,
+            degraded=degraded,
+        )
 
 
 def _query_terms(value: str) -> frozenset[str]:

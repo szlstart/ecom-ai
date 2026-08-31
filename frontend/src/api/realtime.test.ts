@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { RealtimeConnection } from '@/api/realtime'
+import { liveTraceFromEvent, RealtimeConnection, updateLiveTrace } from '@/api/realtime'
 
 class MockWebSocket {
   static readonly CONNECTING = 0
@@ -62,7 +62,55 @@ describe('RealtimeConnection', () => {
     const event = { schema_version: 1, event_id: 'rte_once', type: 'message.created', occurred_at: '', data: {} }
     socket.message(event)
     socket.message(event)
-    expect(events).toEqual(['rte_once'])
+    await vi.waitFor(() => expect(events).toEqual(['rte_once']))
     connection.stop()
+  })
+
+  it('serializes async handlers so websocket frames cannot overtake each other', async () => {
+    vi.stubGlobal('WebSocket', MockWebSocket)
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({
+        data: { ticket: 'rt_secret', expires_in: 30, websocket_path: '/ws/v1', subprotocol: 'ecom.realtime.v1' },
+        meta: { request_id: 'req_test', pagination: null },
+      }), { status: 200, headers: { 'content-type': 'application/json' } }),
+    )
+    let releaseFirst: (() => void) | undefined
+    const firstPending = new Promise<void>((resolve) => { releaseFirst = resolve })
+    const handled: string[] = []
+    const connection = new RealtimeConnection({
+      audience: 'user', token: () => 'token', onState: () => undefined,
+      onEvent: async (event) => {
+        handled.push(`start:${event.event_id}`)
+        if (event.event_id === 'rte_1') await firstPending
+        handled.push(`end:${event.event_id}`)
+      },
+    })
+    connection.start()
+    await vi.waitFor(() => expect(MockWebSocket.instances).toHaveLength(1))
+    const socket = MockWebSocket.instances[0]!
+    socket.open()
+    socket.message({ schema_version: 1, event_id: 'rte_1', type: 'message.created', occurred_at: '', data: {} })
+    socket.message({ schema_version: 1, event_id: 'rte_2', type: 'message.created', occurred_at: '', data: {} })
+    await vi.waitFor(() => expect(handled).toEqual(['start:rte_1']))
+    releaseFirst?.()
+    await vi.waitFor(() => expect(handled).toEqual(['start:rte_1', 'end:rte_1', 'start:rte_2', 'end:rte_2']))
+    connection.stop()
+  })
+
+  it('ignores duplicate and out-of-order reasoning chunks', () => {
+    const started = liveTraceFromEvent({
+      schema_version: 1, event_id: 'rte_start', type: 'agent.response.started', occurred_at: '',
+      data: { run_id: 'run_1' },
+    })
+    const latest = updateLiveTrace(started, {
+      schema_version: 1, event_id: 'rte_2', type: 'agent.response.reasoning.delta', occurred_at: '',
+      data: { run_id: 'run_1', chunk_index: 2, text_so_far: '最新推理' },
+    })
+    const stale = updateLiveTrace(latest, {
+      schema_version: 1, event_id: 'rte_1', type: 'agent.response.reasoning.delta', occurred_at: '',
+      data: { run_id: 'run_1', chunk_index: 1, text_so_far: '旧推理' },
+    })
+    expect(stale).toEqual(latest)
+    expect(stale?.reasoning).toBe('最新推理')
   })
 })

@@ -121,6 +121,33 @@ def test_release_gate_requires_minimum_absolute_candidate_quality() -> None:
     assert "candidate_quality_below_minimum" in report["reasons"]
 
 
+def test_release_gate_scores_final_answer_constraints_separately_from_route() -> None:
+    dataset = load_dataset(ROOT / "eval/golden.json")
+    bad_answer = CaseObservation(True, 0, 100.0, 0.01, True, True, False)
+    rows = tuple(
+        PairedObservation(case.case_id, _observation(), bad_answer) for case in dataset.cases
+    )
+    report = evaluate(dataset, rows)
+    assert report["release_gate"] == "insufficient_evidence"
+    assert "candidate_answer_accuracy_below_minimum" in report["reasons"]
+    assert report["metrics"]["candidate_answer_accuracy"] == 0.0
+
+
+def test_unknown_model_price_remains_null_in_release_report() -> None:
+    dataset = load_dataset(ROOT / "eval/golden.json")
+    unknown_cost = CaseObservation(True, 0, 100.0, None, True, True, True)
+    rows = tuple(
+        PairedObservation(case.case_id, unknown_cost, unknown_cost) for case in dataset.cases
+    )
+
+    report = evaluate(dataset, rows)
+
+    assert report["metrics"]["cost_status"] == "unknown"
+    assert report["metrics"]["baseline_average_cost_usd"] is None
+    assert report["metrics"]["candidate_average_cost_usd"] is None
+    assert report["metrics"]["cost_ratio"] is None
+
+
 def test_observation_artifact_must_match_dataset_hash(tmp_path: Path) -> None:
     dataset = load_dataset(ROOT / "eval/golden.json")
     artifact = tmp_path / "observations.json"

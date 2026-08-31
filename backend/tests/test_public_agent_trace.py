@@ -63,6 +63,42 @@ def test_ensure_public_trace_upgrades_security_and_memory_responses() -> None:
     assert trace["raw_reasoning_exposed"] is False
 
 
+def test_ensure_public_trace_preserves_safe_model_observability_metrics() -> None:
+    trace = ensure_public_trace(
+        {
+            "intent": "general_chat",
+            "grounding_verified": True,
+            "evidence_truncated": True,
+            "truncated_evidence_fields": ["orders"],
+            "model_invocation": {
+                "model": "gpt-test",
+                "input_tokens": 12,
+                "output_tokens": 4,
+                "total_tokens": 16,
+                "estimated_cost_usd": None,
+                "cost_status": "unknown",
+            },
+        },
+        run_id="run-1",
+        agent="exclusive",
+        model="gpt-test",
+        question="你好",
+        data={},
+    )
+
+    assert trace["grounding_verified"] is True
+    assert trace["evidence_truncated"] is True
+    assert trace["truncated_evidence_fields"] == ["orders"]
+    assert trace["model_invocation"] == {
+        "model": "gpt-test",
+        "input_tokens": 12,
+        "output_tokens": 4,
+        "total_tokens": 16,
+        "estimated_cost_usd": None,
+        "cost_status": "unknown",
+    }
+
+
 def test_public_trace_explains_supervisor_and_specialist_delegations() -> None:
     trace = public_trace(
         run_id="run_multi",

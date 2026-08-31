@@ -45,20 +45,38 @@ class SkillExecutionPlan:
         )
 
 
+@dataclass(frozen=True)
+class RuntimeToolPolicy:
+    tool_code: str
+    confirmation_policy: str
+    call_budget: int
+    timeout_ms: int
+
+
 class SkillRegistry:
     """Loads a fixed, published Skill snapshot for one immutable Agent Version."""
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def effective_tools(
-        self, agent_version: AgentVersion, agent_code: str
-    ) -> frozenset[str]:
+    async def effective_tools(self, agent_version: AgentVersion, agent_code: str) -> frozenset[str]:
         """Resolve the executable Tool set through every published Skill binding.
 
         Agent/Skill/Tool/MCP kill switches are applied on every Run. A published
         Agent Version whose declared allowlist is not fully backed by active,
         published bindings fails closed instead of silently gaining or losing tools.
+        """
+
+        return frozenset((await self.effective_tool_policies(agent_version, agent_code)).keys())
+
+    async def effective_tool_policies(
+        self, agent_version: AgentVersion, agent_code: str
+    ) -> dict[str, RuntimeToolPolicy]:
+        """Resolve executable tools and their strictest runtime policy.
+
+        A tool may be exposed by more than one Skill. The runtime deliberately applies
+        the lowest call/timeout budget and strongest confirmation requirement so a
+        second binding cannot silently widen an Agent's authority.
         """
 
         switches = list(
@@ -81,6 +99,9 @@ class SkillRegistry:
                         ToolDefinition.tool_code,
                         ToolDefinition.server_code,
                         SkillToolBinding.permission_effect,
+                        SkillToolBinding.confirmation_policy,
+                        SkillToolBinding.call_budget,
+                        SkillToolBinding.timeout_ms,
                     )
                     .select_from(AgentSkillBinding)
                     .join(SkillVersion, SkillVersion.id == AgentSkillBinding.skill_version_id)
@@ -102,9 +123,17 @@ class SkillRegistry:
                 )
             ).all()
         )
-        allowed: set[str] = set()
+        allowed: dict[str, list[RuntimeToolPolicy]] = {}
         denied: set[str] = set()
-        for skill_code, tool_code, server_code, effect in rows:
+        for (
+            skill_code,
+            tool_code,
+            server_code,
+            effect,
+            confirmation_policy,
+            call_budget,
+            timeout_ms,
+        ) in rows:
             tool = str(tool_code)
             if (
                 ("skill", str(skill_code)) in disabled
@@ -115,16 +144,35 @@ class SkillRegistry:
             elif effect == "deny":
                 denied.add(tool)
             elif effect == "allow":
-                allowed.add(tool)
+                allowed.setdefault(tool, []).append(
+                    RuntimeToolPolicy(
+                        tool_code=tool,
+                        confirmation_policy=str(confirmation_policy),
+                        call_budget=int(call_budget),
+                        timeout_ms=int(timeout_ms),
+                    )
+                )
         declared = {
             str(tool_code)
             for tool_code in agent_version.tool_allowlist
             if isinstance(tool_code, str)
         }
-        effective = frozenset((allowed - denied) & declared)
-        if effective != declared:
+        effective_codes = (set(allowed) - denied) & declared
+        if effective_codes != declared:
             raise PermissionError("agent tool allowlist is not backed by executable skills")
-        return effective
+        confirmation_rank = {"none": 0, "user_confirmation": 1, "required_approval": 2}
+        return {
+            tool_code: RuntimeToolPolicy(
+                tool_code=tool_code,
+                confirmation_policy=max(
+                    allowed[tool_code],
+                    key=lambda item: confirmation_rank.get(item.confirmation_policy, 3),
+                ).confirmation_policy,
+                call_budget=min(item.call_budget for item in allowed[tool_code]),
+                timeout_ms=min(item.timeout_ms for item in allowed[tool_code]),
+            )
+            for tool_code in sorted(effective_codes)
+        }
 
     async def load(self, agent_version_id: int, skill_code: str) -> SkillExecutionPlan:
         agent_version = await self.session.get(AgentVersion, agent_version_id)

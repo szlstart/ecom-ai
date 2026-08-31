@@ -99,6 +99,7 @@ async def hybrid_search(
     scope_no: str,
     limit: int,
     trace_id: str,
+    min_vector_similarity: float = 0.35,
 ) -> HybridRetrieval:
     """Run ACL-filtered keyword/vector retrieval and fuse rankings by chunk identity."""
     started = time.monotonic()
@@ -145,6 +146,8 @@ async def hybrid_search(
                            WHERE chunk.scope_type=:scope_type AND chunk.scope_no=:scope_no
                              AND chunk.embedding IS NOT NULL
                              AND chunk.embedding_model_code=:model_code
+                             AND 1 - (chunk.embedding <=> CAST(:embedding AS vector))
+                                 >= :min_vector_similarity
                            ORDER BY chunk.embedding <=> CAST(:embedding AS vector), chunk.chunk_no
                            LIMIT 40"""
                     ),
@@ -152,6 +155,7 @@ async def hybrid_search(
                         **base_parameters,
                         "embedding": vector_literal(query_embedding),
                         "model_code": embedder.model_code,
+                        "min_vector_similarity": min_vector_similarity,
                     },
                 )
             )

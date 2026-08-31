@@ -41,15 +41,15 @@ class AgentLiveStreamPublisher:
         self.last_answer_length = 0
 
     async def publish(self, kind: str, text_so_far: str) -> None:
-        if kind == "reasoning":
+        if kind in {"reasoning", "reasoning_replace"}:
             self.reasoning_index += 1
             event_type = "agent.response.reasoning.delta"
             chunk_index = self.reasoning_index
             text = text_so_far[:6000]
-        elif kind == "answer":
+        elif kind in {"answer", "answer_replace"}:
             # Providers commonly emit one or two characters per delta. Coalesce those
             # micro-deltas before Redis while preserving cumulative text semantics.
-            if len(text_so_far) - self.last_answer_length < 6:
+            if kind == "answer" and len(text_so_far) - self.last_answer_length < 6:
                 return
             self.last_answer_length = len(text_so_far)
             self.answer_index += 1

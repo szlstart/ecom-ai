@@ -51,6 +51,8 @@ class Settings(BaseSettings):
     embedding_model: str = "tongyi-embedding-vision-flash"
     embedding_dimension: int = Field(default=768, ge=1, le=4096)
     embedding_timeout_seconds: float = Field(default=10.0, gt=0, le=60)
+    rag_min_vector_similarity: float = Field(default=0.35, ge=-1.0, le=1.0)
+    memory_min_vector_similarity: float = Field(default=0.40, ge=-1.0, le=1.0)
     agent_model_required: bool = False
     agent_model_api_url: str | None = None
     agent_model_api_key: SecretStr | None = None
@@ -167,9 +169,7 @@ class Settings(BaseSettings):
         }
         expected = fixed_dimensions.get(self.embedding_model)
         if expected is not None and self.embedding_dimension != expected:
-            raise ValueError(
-                f"{self.embedding_model} requires embedding dimension {expected}"
-            )
+            raise ValueError(f"{self.embedding_model} requires embedding dimension {expected}")
         return self
 
     @model_validator(mode="after")

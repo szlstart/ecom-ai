@@ -19,6 +19,8 @@ function agentMessage(sequence: number, runId: string, label: string): ChatMessa
         analysis_details: ['已识别当前请求。', '业务工具 governance.users 已通过权限网关执行，返回 2 项结果。'],
         result_summary: '已完成 3 个受控步骤，获得 2 项可用结果。',
         orchestration_mode: 'multi_agent', answer_mode: 'model_grounded', confidence: 'high',
+        thinking_mode: 'enabled',
+        source_ids: ['tool:governance.users'],
         cited_source_ids: ['tool:governance.users'],
         steps: [{ kind: 'delegation', label, status: 'succeeded', specialist: 'governance_users', tool_calls: 1, latency_ms: 28 }],
       },
@@ -39,14 +41,18 @@ describe('AgentTracePanel', () => {
     expect(wrapper.text()).toContain('先拆解问题，再核对权限并执行只读查询')
     expect(wrapper.text()).toContain('业务工具 governance.users')
     expect(wrapper.text()).toContain('本次实际意图')
+    expect(wrapper.text()).toContain('Kimi K2.6 思考模式')
+    expect(wrapper.text()).toContain('可信依据')
     expect(wrapper.text()).not.toContain('理解当前消息')
     expect(wrapper.text()).not.toContain('重建最近对话上下文')
     expect(wrapper.text()).not.toContain('生成安全回复')
     expect(wrapper.text()).not.toContain('结果整理完成')
     expect(wrapper.text()).not.toContain('参考内容')
     expect(wrapper.text()).not.toContain('运行编号')
-    expect(wrapper.findAll('details')).toHaveLength(1)
-    expect(wrapper.find('details').attributes('open')).toBeUndefined()
+    expect(wrapper.text()).toContain('旧任务')
+    expect(wrapper.find('section[aria-label="实际执行步骤"]').exists()).toBe(true)
+    expect(wrapper.findAll('details')).toHaveLength(3)
+    expect(wrapper.findAll('details').every((item) => item.attributes('open') === undefined)).toBe(true)
   })
 
   it('shows the real started-event summary without placing a fake tool step', () => {

@@ -16,16 +16,30 @@ const collaborationLabel = computed(() => trace.value?.orchestration_mode === 'm
 const question = computed(() => String(props.running && props.liveTrace?.question ? props.liveTrace.question : trace.value?.question ?? ''))
 const analysisSummary = computed(() => String(trace.value?.analysis_summary ?? ''))
 const analysisDetails = computed<string[]>(() => Array.isArray(trace.value?.analysis_details) ? trace.value.analysis_details.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [])
+const traceSteps = computed<Record<string, unknown>[]>(() => Array.isArray(trace.value?.steps) ? trace.value.steps.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item)) : [])
+const sourceIds = computed<string[]>(() => Array.isArray(trace.value?.source_ids) ? trace.value.source_ids.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [])
+const thinkingEnabled = computed(() => trace.value?.thinking_mode === 'enabled')
+const stepIcons: Record<string, string> = { plan: '思', context: '境', tool: '具', rag: '知', retrieval: '检', memory: '忆', supervisor: '总', delegation: '分', security: '安', answer: '答' }
+const stepStatuses: Record<string, string> = { completed: '已完成', succeeded: '成功', partial: '部分完成', failed: '失败', timed_out: '超时', reused: '已复用' }
+const stepIcon = (kind: unknown) => stepIcons[String(kind)] || '·'
+const stepStatus = (status: unknown) => stepStatuses[String(status)] || String(status || '已完成')
 </script>
 
 <template>
   <aside class="agent-trace-panel" aria-label="AI 思考过程">
-    <header><div><span class="agent-trace-logo">✦</span><div><strong>{{ title }}</strong><small>问题分析、实际动作与结果摘要</small></div></div><b :class="{ active: running, failed: traceFailed }">{{ stateLabel }}</b></header>
+    <header><div><span class="agent-trace-logo">✦</span><div><strong>{{ title }}</strong><small>{{ thinkingEnabled ? 'Kimi K2.6 思考模式 · 可审计执行轨迹' : '问题分析、实际动作与结果摘要' }}</small></div></div><b :class="{ active: running, failed: traceFailed }">{{ stateLabel }}</b></header>
     <div v-if="running || trace" class="agent-trace-body">
       <section v-if="question" class="agent-trace-question"><small>本次问题</small><p>{{ question }}</p></section>
       <section class="agent-trace-summary" :class="{ thinking: running }"><span class="agent-trace-orb">✦</span><div><strong>{{ running ? '思考开始' : '思考已完成' }}</strong><small>{{ running ? '正在执行真实的 Agent 流程' : `${String(trace?.agent || '智能客服')} · ${collaborationLabel}` }}</small></div><i>{{ running ? '•••' : '✓' }}</i></section>
       <section v-if="running" class="agent-trace-narrative" aria-live="polite"><strong>{{ liveTrace?.label || '正在理解问题' }}</strong><p>{{ liveTrace?.summary || '正在识别问题、会话上下文、身份范围和可用权限。' }}</p><span class="agent-trace-loader"><i /><i /><i /></span></section>
       <details v-else-if="analysisSummary" class="agent-trace-narrative agent-trace-analysis"><summary><strong>分析与计划</strong><span>点击展开</span></summary><p>{{ analysisSummary }}</p><ol v-if="analysisDetails.length"><li v-for="(item, index) in analysisDetails" :key="`${index}-${item}`">{{ item }}</li></ol></details>
+      <section v-if="!running && traceSteps.length" class="agent-trace-steps" aria-label="实际执行步骤">
+        <details v-for="(step, index) in traceSteps" :key="`${index}-${String(step.label || step.kind)}`">
+          <summary><i>{{ stepIcon(step.kind) }}</i><span><strong>{{ String(step.label || '受控处理步骤') }}</strong><small>{{ stepStatus(step.status) }}</small></span><b>展开</b></summary>
+          <div><p>{{ String(step.summary || '本步骤已完成。') }}</p><ul v-if="step.tool_code || step.result_count !== undefined || step.message_count !== undefined"><li v-if="step.tool_code">工具：{{ String(step.tool_code) }}</li><li v-if="step.result_count !== undefined">可用结果：{{ String(step.result_count) }} 项</li><li v-if="step.message_count !== undefined">读取最近消息：{{ String(step.message_count) }} 条</li></ul></div>
+        </details>
+      </section>
+      <section v-if="!running && sourceIds.length" class="agent-trace-references"><details><summary><span>⌁</span><strong>可信依据</strong><b>{{ sourceIds.length }} 项</b></summary><div><code v-for="source in sourceIds" :key="source">{{ source }}</code></div></details></section>
       <p class="agent-trace-note">以上是服务端根据本次实际意图、上下文、权限、工具与知识检索记录生成的可核验分析。</p>
     </div>
     <div v-else class="agent-trace-empty"><span>✦</span><h3>等待 AI 开始工作</h3><p>发送问题后，这里会实时显示所用能力；完成后可逐步展开查看。</p></div>

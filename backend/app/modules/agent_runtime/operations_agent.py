@@ -199,6 +199,7 @@ async def process_operations_run(
         small_answer_mode = "deterministic_fallback"
         small_citations: tuple[str, ...] = ("context:assistant_scope",)
         small_confidence = "high"
+        small_analysis: dict[str, object] = {}
         if model_gateway is not None:
             run.current_phase = "answering"
             run.version += 1
@@ -214,6 +215,7 @@ async def process_operations_run(
                 small_answer_mode = "model_grounded"
                 small_confidence = grounded.confidence
                 small_citations = grounded.cited_source_ids or small_citations
+                small_analysis = _grounded_analysis_trace(grounded)
             except (ModelGatewayError, TimeoutError) as exc:
                 run.degraded_reason = model_failure_code(exc, "answer")
         await _complete(
@@ -226,6 +228,7 @@ async def process_operations_run(
                 "answer_mode": small_answer_mode,
                 "confidence": small_confidence,
                 "cited_source_ids": list(small_citations),
+                **small_analysis,
             },
         )
         await _finish_checkpoint(checkpoint_store, context, "general_chat")
@@ -243,6 +246,7 @@ async def process_operations_run(
             answer_mode = "deterministic_fallback"
             confidence = "high"
             multi_citations = source_ids
+            multi_analysis: dict[str, object] = {}
             if model_gateway is not None:
                 run.current_phase = "answering"
                 run.version += 1
@@ -258,6 +262,7 @@ async def process_operations_run(
                     answer_mode = "model_grounded"
                     confidence = grounded.confidence
                     multi_citations = grounded.cited_source_ids or source_ids
+                    multi_analysis = _grounded_analysis_trace(grounded)
                 except (ModelGatewayError, TimeoutError) as exc:
                     run.degraded_reason = model_failure_code(exc, "answer")
             await _complete(
@@ -273,6 +278,7 @@ async def process_operations_run(
                     "orchestration_mode": "multi_agent",
                     "answer_mode": answer_mode,
                     "confidence": confidence,
+                    **multi_analysis,
                 },
             )
             await _finish_checkpoint(checkpoint_store, context, intent)
@@ -306,6 +312,7 @@ async def process_operations_run(
     answer_mode = "deterministic_fallback"
     confidence = "high"
     citations: tuple[str, ...] = (f"tool:{tool_code}",)
+    grounded_analysis: dict[str, object] = {}
     if model_gateway is not None:
         run.current_phase = "answering"
         run.version += 1
@@ -321,6 +328,7 @@ async def process_operations_run(
             answer_mode = "model_grounded"
             confidence = grounded.confidence
             citations = grounded.cited_source_ids or citations
+            grounded_analysis = _grounded_analysis_trace(grounded)
         except (ModelGatewayError, TimeoutError) as exc:
             run.degraded_reason = model_failure_code(exc, "answer")
     await _complete(
@@ -334,9 +342,24 @@ async def process_operations_run(
             "answer_mode": answer_mode,
             "confidence": confidence,
             "cited_source_ids": list(citations),
+            **grounded_analysis,
         },
     )
     await _finish_checkpoint(checkpoint_store, context, intent)
+
+
+def _grounded_analysis_trace(answer: object) -> dict[str, object]:
+    summary = getattr(answer, "analysis_summary", None)
+    details = getattr(answer, "analysis_details", ())
+    thinking_used = getattr(answer, "thinking_used", False)
+    result: dict[str, object] = {
+        "thinking_mode": "enabled" if thinking_used else "not_reported"
+    }
+    if isinstance(summary, str) and summary:
+        result["analysis_summary"] = summary
+    if isinstance(details, tuple) and details:
+        result["analysis_details"] = list(details)
+    return result
 
 
 async def _execute_operations_multi_agent(

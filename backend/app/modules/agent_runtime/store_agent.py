@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -18,6 +19,7 @@ from app.modules.agent_runtime.model_gateway import (
     ModelGatewayError,
     StoreAgentPlan,
     StoreModelGateway,
+    refine_store_plan_for_context,
 )
 from app.modules.agent_runtime.models import AgentRun
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
@@ -104,6 +106,11 @@ async def process_store_run(
     except (ModelGatewayError, TimeoutError) as exc:
         plan = await DeterministicStoreModelGateway().plan(trigger_text)
         run.degraded_reason = model_failure_code(exc, "planning")
+    plan = refine_store_plan_for_context(
+        plan,
+        trigger_text,
+        has_product_context="product" in context.context_refs,
+    )
 
     if checkpoint_store is not None:
         try:
@@ -446,6 +453,11 @@ async def _grounded_answer(
     trace["answer_mode"] = "model_grounded"
     trace["confidence"] = answer.confidence
     trace["cited_source_ids"] = list(answer.cited_source_ids)
+    trace["thinking_mode"] = "enabled" if answer.thinking_used else "not_reported"
+    if answer.analysis_summary:
+        trace["analysis_summary"] = answer.analysis_summary
+    if answer.analysis_details:
+        trace["analysis_details"] = list(answer.analysis_details)
     if answer.limitation:
         trace["limitation"] = answer.limitation
     return answer.text, trace
@@ -553,6 +565,9 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
                     f"{_money(price.get('min_amount'), price.get('currency'))} 起"
                 )
         return "\n".join(lines)
+    size_answer = _render_size_answer(data, user_text)
+    if size_answer is not None:
+        return size_answer
     attributes = data.get("attributes")
     lines = [f"商品: {safe_untrusted_excerpt(data.get('name', '当前商品'), 120)}"]
     if data.get("subtitle"):
@@ -587,6 +602,76 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         lines.append("当前没有可靠的发货时效估算，我不会承诺具体发货时间。")
     lines.append("以上是店铺公开资料; 无法确认的兼容性、安全性或效果问题请转人工核实。")
     return "\n".join(lines)
+
+
+_SIZE_TOKEN = re.compile(
+    r"(?<![A-Za-z])(?:XXXXXL|XXXXL|XXXL|XXL|XL|L|M|S|XS|XXS|XXXS)(?![A-Za-z])",
+    re.IGNORECASE,
+)
+_SIZE_ORDER = {
+    value: index
+    for index, value in enumerate(
+        ("XXXS", "XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "XXXXL", "XXXXXL")
+    )
+}
+
+
+def _render_size_answer(data: Mapping[str, Any], user_text: str) -> str | None:
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    if not any(
+        term in normalized
+        for term in (
+            "尺码",
+            "码数",
+            "最大码",
+            "最小码",
+            "多少码",
+            "几码",
+            "多大码",
+            "最大号",
+            "最小号",
+        )
+    ):
+        return None
+    skus = data.get("skus")
+    if not isinstance(skus, list) or not skus:
+        return "当前商品资料中没有可核实的尺码信息，请以商品页款式选择区为准。"
+    variants: dict[str, list[str]] = {}
+    for item in skus[:20]:
+        if not isinstance(item, Mapping):
+            continue
+        sku_name = safe_untrusted_excerpt(item.get("sku_name"), 160)
+        values = [sku_name]
+        specifications = item.get("specifications")
+        if isinstance(specifications, list):
+            for spec in specifications:
+                if not isinstance(spec, Mapping):
+                    continue
+                name = str(spec.get("name") or "").casefold()
+                if any(term in name for term in ("尺码", "码数", "大小", "size")):
+                    values.append(str(spec.get("value") or ""))
+        for value in values:
+            for match in _SIZE_TOKEN.findall(value):
+                size = match.upper()
+                variants.setdefault(size, [])
+                if sku_name and sku_name not in variants[size]:
+                    variants[size].append(sku_name)
+    if not variants:
+        return None
+    ordered = sorted(variants, key=lambda value: _SIZE_ORDER.get(value, -1))
+    product_name = safe_untrusted_excerpt(data.get("name") or "当前商品", 120)
+    if "最小" in normalized:
+        selected = ordered[0]
+        prefix = f"{product_name}当前最小尺码是 {selected}"
+    elif "最大" in normalized or "多大码" in normalized:
+        selected = ordered[-1]
+        prefix = f"{product_name}当前最大尺码是 {selected}"
+    else:
+        return f"{product_name}当前可选尺码为: {'、'.join(ordered)}。"
+    sku_names = variants[selected]
+    if sku_names:
+        return prefix + "。对应款式: " + "、".join(sku_names[:8]) + "。"
+    return prefix + "。"
 
 
 def _stream_events(

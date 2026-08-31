@@ -78,6 +78,42 @@ async def test_provider_uses_model_specific_temperature() -> None:
 
 
 @pytest.mark.asyncio
+async def test_kimi_k26_uses_thinking_mode_and_required_temperature() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        assert payload["model"] == "kimi-k2.6"
+        assert payload["temperature"] == 1.0
+        assert payload["thinking"] == {"type": "enabled"}
+        assert payload["max_tokens"] >= 512
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "reasoning_content": "private provider reasoning",
+                            "content": '{"intent":"product_qa","search_text":null}',
+                        }
+                    }
+                ]
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1/chat/completions",
+        api_key="model-secret",
+        model="kimi-k2.6",
+        timeout_seconds=5,
+        temperature=0,
+        client=client,
+    )
+    plan = await planner.plan_store("这个衣服最大码是多大?")
+    assert plan.intent == "product_qa"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_provider_falls_back_only_after_transient_primary_failure() -> None:
     seen: list[str] = []
 
@@ -237,6 +273,60 @@ async def test_provider_accepts_moonshot_validated_source_ids_alias() -> None:
     )
     assert answer.text == "你好，请问想咨询什么?"
     assert answer.cited_source_ids == ("context:assistant_scope",)
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_provider_accepts_kimi_public_answer_and_detail_shape_variants() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        schema_name = payload["response_format"]["json_schema"]["name"]
+        if schema_name == "grounding_verdict":
+            content = '{"supported":true,"unsupported_claims":[]}'
+        else:
+            content = json.dumps(
+                {
+                    "analysis": "这件商品最大尺码是 L。",
+                    "source_ids": ["product:prd_public"],
+                    "confidence": "high",
+                    "limitation": None,
+                    "analysis_summary": "已把问题识别为当前商品的尺码咨询。",
+                    "analysis_details": "读取全部在售款式后，确认最大尺码为 L。",
+                },
+                ensure_ascii=False,
+            )
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": content,
+                            "reasoning_content": "private provider reasoning",
+                        }
+                    }
+                ]
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1/chat/completions",
+        api_key="model-secret",
+        model="kimi-k2.6",
+        timeout_seconds=5,
+        client=client,
+    )
+    answer = await planner.synthesize(
+        agent_prompt="只按证据回答",
+        user_text="最大码是多大?",
+        intent="product_qa",
+        evidence={"product_id": "prd_public", "skus": [{"sku_name": "L"}]},
+        source_ids=("product:prd_public",),
+    )
+    assert answer.text == "这件商品最大尺码是 L。"
+    assert answer.analysis_details == ("读取全部在售款式后，确认最大尺码为 L。",)
+    assert answer.thinking_used is True
     await client.aclose()
 
 

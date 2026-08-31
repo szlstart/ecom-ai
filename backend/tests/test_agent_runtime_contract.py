@@ -18,7 +18,11 @@ from app.modules.agent_runtime.exclusive_context import EXCLUSIVE_AGENT_TOOL_COD
 from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
 )
-from app.modules.agent_runtime.model_gateway import DeterministicStoreModelGateway, StoreAgentPlan
+from app.modules.agent_runtime.model_gateway import (
+    DeterministicStoreModelGateway,
+    StoreAgentPlan,
+    refine_store_plan_for_context,
+)
 from app.modules.agent_runtime.operations_agent import (
     _merchant_complex_domains,
     _operations_small_talk_reply,
@@ -182,6 +186,29 @@ async def test_greetings_remain_in_ai_conversation_instead_of_handoff() -> None:
 
 
 @pytest.mark.asyncio
+async def test_store_agent_understands_natural_product_size_questions() -> None:
+    gateway = DeterministicStoreModelGateway()
+    assert (await gateway.plan("这个衣服最大码是多大?")).intent == "product_qa"
+    assert (await gateway.plan("有哪些颜色和面料?")).intent == "product_qa"
+    assert (
+        refine_store_plan_for_context(
+            StoreAgentPlan("general_chat"),
+            "这个可以机洗吗?",
+            has_product_context=True,
+        ).intent
+        == "product_qa"
+    )
+    assert (
+        refine_store_plan_for_context(
+            StoreAgentPlan("general_chat"),
+            "你好",
+            has_product_context=True,
+        ).intent
+        == "general_chat"
+    )
+
+
+@pytest.mark.asyncio
 async def test_discussing_human_service_does_not_reopen_handoff() -> None:
     exclusive = DeterministicExclusiveModelGateway()
     store = DeterministicStoreModelGateway()
@@ -316,6 +343,26 @@ def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:
     assert answer.startswith("绿杆2B铅笔的款式、价格和实时可售库存如下")
     assert "10支: ¥8.00，实时可售 0 件，缺货" in answer
     assert "out_of_stock" not in answer
+
+
+def test_store_product_fallback_answers_maximum_size_instead_of_repeating_catalog() -> None:
+    answer = _render_store(
+        StoreAgentPlan("product_qa"),
+        {
+            "name": "法式碎花衬衫",
+            "skus": [
+                {"sku_name": "红色(优质版)S 95斤以下", "specifications": []},
+                {"sku_name": "红色(优质版)M 110斤以下", "specifications": []},
+                {"sku_name": "红色(优质版)L 130斤以下", "specifications": []},
+                {"sku_name": "黑色(优质版)L 130斤以下", "specifications": []},
+            ],
+        },
+        "这个衣服最大码是多大?",
+    )
+    assert "最大尺码是 L" in answer
+    assert "红色(优质版)L 130斤以下" in answer
+    assert "黑色(优质版)L 130斤以下" in answer
+    assert "你好，我是本店智能客服" not in answer
 
 
 def test_logistics_answer_uses_only_structured_absolute_service_estimate() -> None:

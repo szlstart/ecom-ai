@@ -190,6 +190,9 @@ def ensure_public_trace(
         "limitation",
         "orchestration_mode",
         "degraded_reason",
+        "analysis_summary",
+        "analysis_details",
+        "thinking_mode",
     }
     extra = {key: value for key, value in supplied.items() if key in allowed_extra}
     if degraded_reason:

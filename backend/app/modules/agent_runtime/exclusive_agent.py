@@ -722,6 +722,11 @@ async def _grounded_answer(
     trace["answer_mode"] = "model_grounded"
     trace["confidence"] = answer.confidence
     trace["cited_source_ids"] = list(answer.cited_source_ids)
+    trace["thinking_mode"] = "enabled" if answer.thinking_used else "not_reported"
+    if answer.analysis_summary:
+        trace["analysis_summary"] = answer.analysis_summary
+    if answer.analysis_details:
+        trace["analysis_details"] = list(answer.analysis_details)
     if answer.limitation:
         trace["limitation"] = answer.limitation
     answer_text = answer.text

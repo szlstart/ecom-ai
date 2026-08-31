@@ -140,8 +140,12 @@ AGENTS: tuple[AgentSeed, ...] = (
         "store_support",
         "店铺客服",
         "store_service",
-        COMMON_SAFETY_PROMPT + "\n你面向顾客服务，只能使用当前会话绑定店铺的公开商品、政策，"
-        "以及该顾客在本店的订单信息。",
+        COMMON_SAFETY_PROMPT
+        + "\n你是当前店铺的智能客服，面向正在购物的顾客。先理解当前会话绑定的店铺、"
+        "商品或订单，再判断用户是在问哪一个具体事实。用户说“这个、这件、这款、它”时，"
+        "必须结合服务端绑定的当前商品继续理解。商品问题优先读取商品名称、全部在售 SKU、"
+        "规格参数、详情文本、FAQ 与实时库存，并直接回答用户所问的重点; 只有纯问候、感谢或"
+        "询问能力时才介绍服务范围。不得跨店读取数据，也不得把无法确认的内容当成商品事实。",
         ("store_product_consult", "store_order_assist"),
     ),
     AgentSeed(
@@ -149,7 +153,9 @@ AGENTS: tuple[AgentSeed, ...] = (
         "专属客服",
         "exclusive_service",
         COMMON_SAFETY_PROMPT
-        + "\n你面向当前消费者，处理平台规则、全平台商品检索、本人订单物流和售后协助。",
+        + "\n你是消费者的专属客服。结合最近会话和服务端绑定的商品、订单、物流或售后上下文"
+        "理解连续问题，处理平台规则、全平台商品检索、本人订单物流和售后协助。回答应直达"
+        "当前问题，并清楚区分公开商品事实、用户本人数据和平台规则。",
         ("user_shopping_assist", "user_order_assist", "user_after_sale_assist"),
     ),
     AgentSeed(
@@ -157,7 +163,8 @@ AGENTS: tuple[AgentSeed, ...] = (
         "商家专属客服",
         "merchant_copilot",
         COMMON_SAFETY_PROMPT
-        + "\n你面向当前店铺经营人员，只分析其有权管理的店铺并提供经营协作，不代替平台审批。",
+        + "\n你是商家的专属经营客服。结合当前店铺的商品、库存、订单、物流和评价上下文理解"
+        "连续问题，只分析经营人员有权管理的店铺并提供可执行建议，不代替平台审批。",
         ("merchant_operations_assist", "merchant_platform_support"),
         executable=True,
     ),
@@ -166,7 +173,8 @@ AGENTS: tuple[AgentSeed, ...] = (
         "AI 管家",
         "admin_copilot",
         COMMON_SAFETY_PROMPT
-        + "\n你面向超级管理员，默认只读诊断。任何治理写操作都必须进入独立确认或审批资源。",
+        + "\n你是超级管理员的 AI 管家。结合平台用户、店铺、商品、交易和运行上下文进行"
+        "结构化只读诊断，明确数据范围、证据和建议。任何治理写操作都必须进入独立确认或审批资源。",
         ("admin_readonly_diagnostics",),
         executable=True,
     ),
@@ -319,7 +327,9 @@ async def _seed_agents(
             )
             session.add(definition)
             await session.flush()
-        target_version_no = 2 if item.code in {"merchant_copilot", "admin_copilot"} else 1
+        target_version_no = (
+            3 if item.code in {"merchant_copilot", "admin_copilot"} else 2
+        )
         version = await session.scalar(
             select(AgentVersion).where(
                 AgentVersion.agent_id == definition.id,
@@ -331,7 +341,7 @@ async def _seed_agents(
         )
         if version is None:
             policy_config: dict[str, object] = {
-                "prompt_version": "safe-agent-v1",
+                "prompt_version": "safe-agent-v2",
                 "max_tool_calls": 6,
                 "max_delegations": (
                     4
@@ -364,7 +374,7 @@ async def _seed_agents(
                 version_no=target_version_no,
                 version_status="published" if item.executable else "draft",
                 system_prompt=item.prompt,
-                model_profile="moonshot-openai-compatible-v1",
+                model_profile="kimi-k2.6-thinking",
                 tool_allowlist=allowed_tools,
                 policy_config=policy_config,
                 published_at=published_at if item.executable else None,
@@ -374,10 +384,10 @@ async def _seed_agents(
         elif version.version_status == "draft" and item.executable:
             # Bootstrap drafts can be completed in place. Published versions are immutable.
             version.system_prompt = item.prompt
-            version.model_profile = "moonshot-openai-compatible-v1"
+            version.model_profile = "kimi-k2.6-thinking"
             version.tool_allowlist = allowed_tools
             version.policy_config = {
-                "prompt_version": "safe-agent-v1",
+                "prompt_version": "safe-agent-v2",
                 "max_tool_calls": 6,
                 "max_delegations": 4,
                 "max_delegation_depth": 1,

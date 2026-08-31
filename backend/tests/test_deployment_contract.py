@@ -26,6 +26,11 @@ def test_spa_document_has_browser_security_headers() -> None:
     ):
         assert directive in nginx
     assert "add_header_inherit merge" in nginx
+    # Local development uploads use a browser-facing MinIO presigned URL. Keep
+    # this narrowly scoped origin in connect-src so CSP cannot silently turn a
+    # healthy upload service into a generic browser network error.
+    assert "http://127.0.0.1:19000" in nginx
+    assert "http://localhost:19000" in nginx
 
 
 def test_compose_uses_loopback_ports_and_observability_profiles() -> None:

@@ -54,11 +54,16 @@ export async function uploadBindableFile(
   if (!session.upload) throw new Error('上传会话未返回对象存储指令')
 
   onProgress('正在上传到临时隔离区…')
-  const uploadResponse = await fetch(session.upload.url, {
-    method: session.upload.method,
-    headers: session.upload.headers,
-    body: file,
-  })
+  let uploadResponse: Response
+  try {
+    uploadResponse = await fetch(session.upload.url, {
+      method: session.upload.method,
+      headers: session.upload.headers,
+      body: file,
+    })
+  } catch {
+    throw new Error('无法连接图片存储服务。请刷新页面后重试；若仍失败，请确认本地文件服务已启动。')
+  }
   if (!uploadResponse.ok) throw new Error(`对象存储上传失败（${uploadResponse.status}）`)
 
   onProgress('正在验证并提交安全扫描…')

@@ -328,7 +328,7 @@ async def _seed_agents(
             session.add(definition)
             await session.flush()
         target_version_no = (
-            3 if item.code in {"merchant_copilot", "admin_copilot"} else 2
+            4 if item.code in {"merchant_copilot", "admin_copilot"} else 3
         )
         version = await session.scalar(
             select(AgentVersion).where(
@@ -341,7 +341,7 @@ async def _seed_agents(
         )
         if version is None:
             policy_config: dict[str, object] = {
-                "prompt_version": "safe-agent-v2",
+                "prompt_version": "safe-agent-v3",
                 "max_tool_calls": 6,
                 "max_delegations": (
                     4
@@ -374,7 +374,7 @@ async def _seed_agents(
                 version_no=target_version_no,
                 version_status="published" if item.executable else "draft",
                 system_prompt=item.prompt,
-                model_profile="kimi-k2.6-thinking",
+                model_profile="gpt-5.4-reasoning",
                 tool_allowlist=allowed_tools,
                 policy_config=policy_config,
                 published_at=published_at if item.executable else None,
@@ -384,10 +384,10 @@ async def _seed_agents(
         elif version.version_status == "draft" and item.executable:
             # Bootstrap drafts can be completed in place. Published versions are immutable.
             version.system_prompt = item.prompt
-            version.model_profile = "kimi-k2.6-thinking"
+            version.model_profile = "gpt-5.4-reasoning"
             version.tool_allowlist = allowed_tools
             version.policy_config = {
-                "prompt_version": "safe-agent-v2",
+                "prompt_version": "safe-agent-v3",
                 "max_tool_calls": 6,
                 "max_delegations": 4,
                 "max_delegation_depth": 1,

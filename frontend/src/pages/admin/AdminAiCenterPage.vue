@@ -44,10 +44,10 @@ onMounted(() => void loadProvider())
 <template><section class="admin-page-stack admin-ai-center-page">
   <header class="admin-ai-center-hero"><div><p class="eyebrow">AI 控制中心</p><h1>AI 智能客服控制中心</h1><p>用业务语言管理 Agent、Skill、MCP 和 RAG。配置变更先评估、再审批、后发布，生产问题可追踪、可回滚。</p><div><span><i />运行保护已启用</span><RouterLink to="/admin/observability">查看实时运行状态 →</RouterLink></div></div><span class="admin-ai-hero-orb">✦</span></header>
   <section v-if="auth.has('ai_observability:read')" class="admin-provider-health admin-panel" :class="provider?.status || 'loading'" aria-live="polite">
-    <header><div><p class="eyebrow">模型供应商</p><h2>Kimi 模型服务</h2></div><button type="button" class="secondary" :disabled="providerLoading" @click="loadProvider(true)">{{ providerLoading ? '正在检测…' : '重新检测' }}</button></header>
+    <header><div><p class="eyebrow">模型供应商</p><h2>GPT 模型服务</h2></div><button type="button" class="secondary" :disabled="providerLoading" @click="loadProvider(true)">{{ providerLoading ? '正在检测…' : '重新检测' }}</button></header>
     <p v-if="providerError" class="alert error">{{ providerError }}</p>
     <div v-else-if="provider" class="admin-provider-health-grid">
-      <div class="provider-health-state"><span aria-hidden="true">{{ provider.status === 'available' ? '✓' : provider.status === 'degraded' ? '!' : '×' }}</span><div><strong>{{ providerLabel }}</strong><small>{{ provider.provider === 'moonshot' ? 'Moonshot' : 'OpenAI 兼容服务' }} · {{ provider.configured_model || '未选择模型' }}</small></div></div>
+      <div class="provider-health-state"><span aria-hidden="true">{{ provider.status === 'available' ? '✓' : provider.status === 'degraded' ? '!' : '×' }}</span><div><strong>{{ providerLabel }}</strong><small>{{ provider.provider === 'apinebula' ? 'APINebula' : 'OpenAI 兼容服务' }} · {{ provider.configured_model || '未选择模型' }}</small></div></div>
       <dl><div><dt>模型发现</dt><dd>{{ provider.model_available ? '通过' : '未通过' }}</dd></div><div><dt>结构化输出</dt><dd>{{ provider.structured_output ? '通过' : '未通过' }}</dd></div><div><dt>流式输出</dt><dd>{{ provider.streaming ? '通过' : '未通过' }}</dd></div><div><dt>用量统计</dt><dd>{{ provider.usage_reporting ? '通过' : '未通过' }}</dd></div></dl>
       <p>检测耗时 {{ provider.latency_ms }}ms · {{ provider.cache_hit ? '缓存结果' : '实时探测' }} · {{ checkedAt(provider.checked_at) }}<span v-if="provider.error_code"> · {{ provider.error_code }}</span></p>
     </div>

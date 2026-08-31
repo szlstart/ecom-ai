@@ -40,6 +40,7 @@ from app.modules.agent_runtime.operations_context import (
 )
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection
 from app.modules.agent_runtime.provider_gateway import (
+    AgentStreamCallback,
     ProviderOperationsModelGateway,
     model_failure_code,
 )
@@ -69,6 +70,7 @@ async def process_operations_run(
     checkpoint_store: AgentCheckpointStore,
     model_gateway: ProviderOperationsModelGateway | None,
     security: SecurityService | None = None,
+    stream_callback: AgentStreamCallback | None = None,
 ) -> None:
     try:
         context = await OperationsContextBuilder(session).build(run)
@@ -210,6 +212,7 @@ async def process_operations_run(
                     intent="general_chat",
                     evidence=small_evidence,
                     source_ids=small_citations,
+                    stream_callback=stream_callback,
                 )
                 small_answer = grounded.text
                 small_answer_mode = "model_grounded"
@@ -257,6 +260,7 @@ async def process_operations_run(
                         intent=intent,
                         evidence=evidence,
                         source_ids=source_ids,
+                        stream_callback=stream_callback,
                     )
                     answer = grounded.text
                     answer_mode = "model_grounded"
@@ -323,6 +327,7 @@ async def process_operations_run(
                 intent=intent,
                 evidence=evidence,
                 source_ids=citations,
+                stream_callback=stream_callback,
             )
             answer = grounded.text
             answer_mode = "model_grounded"
@@ -352,8 +357,10 @@ def _grounded_analysis_trace(answer: object) -> dict[str, object]:
     summary = getattr(answer, "analysis_summary", None)
     details = getattr(answer, "analysis_details", ())
     thinking_used = getattr(answer, "thinking_used", False)
+    grounding_verified = getattr(answer, "grounding_verified", None)
     result: dict[str, object] = {
-        "thinking_mode": "enabled" if thinking_used else "not_reported"
+        "thinking_mode": "enabled" if thinking_used else "not_reported",
+        "grounding_verified": grounding_verified,
     }
     if isinstance(summary, str) and summary:
         result["analysis_summary"] = summary

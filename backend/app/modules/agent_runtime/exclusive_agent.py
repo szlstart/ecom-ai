@@ -32,6 +32,7 @@ from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.agent_runtime.provider_gateway import (
+    AgentStreamCallback,
     ProviderExclusiveModelGateway,
     model_failure_code,
 )
@@ -53,6 +54,7 @@ async def process_exclusive_run(
     security: SecurityService,
     checkpoint_store: AgentCheckpointStore,
     model_gateway: ExclusiveModelGateway | None = None,
+    stream_callback: AgentStreamCallback | None = None,
 ) -> None:
     builder = ExclusiveContextBuilder(session)
     try:
@@ -187,16 +189,18 @@ async def process_exclusive_run(
         user_no=context.user.user_no,
         store_no=None,
     )
-    planning_input = (
-        context_window.planning_input(trigger_text)
-        if isinstance(gateway, ProviderExclusiveModelGateway)
-        else trigger_text
-    )
-    try:
-        plan = await gateway.plan(planning_input)
-    except (ModelGatewayError, TimeoutError) as exc:
-        plan = await DeterministicExclusiveModelGateway().plan(trigger_text)
-        run.degraded_reason = model_failure_code(exc, "planning")
+    fast_plan = await DeterministicExclusiveModelGateway().plan(trigger_text)
+    if fast_plan.intent != "general_chat" or not isinstance(
+        gateway, ProviderExclusiveModelGateway
+    ):
+        plan = fast_plan
+    else:
+        planning_input = context_window.planning_input(trigger_text)
+        try:
+            plan = await gateway.plan(planning_input)
+        except (ModelGatewayError, TimeoutError) as exc:
+            plan = fast_plan
+            run.degraded_reason = model_failure_code(exc, "planning")
     try:
         await checkpoint_store.write(
             run.run_no,
@@ -336,7 +340,13 @@ async def process_exclusive_run(
             plan.intent,
             result.data,
         )
-        answer, trace = await _grounded_answer(context, gateway, plan, result.data)
+        answer, trace = await _grounded_answer(
+            context,
+            gateway,
+            plan,
+            result.data,
+            stream_callback=stream_callback,
+        )
         await _complete(
             session,
             context,
@@ -622,6 +632,8 @@ async def _grounded_answer(
     gateway: ExclusiveModelGateway | None,
     plan: ExclusiveAgentPlan,
     data: Mapping[str, Any],
+    *,
+    stream_callback: AgentStreamCallback | None = None,
 ) -> tuple[str, dict[str, object]]:
     fallback = _render(plan, data, agent_trigger_text(context.trigger))
     tool_code = _tool_for_intent(plan.intent)
@@ -694,12 +706,6 @@ async def _grounded_answer(
         source_ids=source_ids,
         tool_code=tool_code,
     )
-    # Public catalogue and policy answers are exact business evidence. The model
-    # may plan and rank the request, but final wording must not rename products,
-    # invent matching items, omit policy provenance, or add a fictional salutation.
-    if _requires_exact_catalog_rendering(plan.intent):
-        trace["answer_mode"] = "grounded_deterministic"
-        return fallback, trace
     if not isinstance(gateway, ProviderExclusiveModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
@@ -712,6 +718,7 @@ async def _grounded_answer(
             intent=plan.intent,
             evidence=data,
             source_ids=source_ids,
+            stream_callback=stream_callback,
         )
     except (ModelGatewayError, TimeoutError) as exc:
         reason = model_failure_code(exc, "answer")
@@ -723,6 +730,7 @@ async def _grounded_answer(
     trace["confidence"] = answer.confidence
     trace["cited_source_ids"] = list(answer.cited_source_ids)
     trace["thinking_mode"] = "enabled" if answer.thinking_used else "not_reported"
+    trace["grounding_verified"] = answer.grounding_verified
     if answer.analysis_summary:
         trace["analysis_summary"] = answer.analysis_summary
     if answer.analysis_details:
@@ -738,7 +746,14 @@ async def _grounded_answer(
 
 
 def _requires_exact_catalog_rendering(intent: str) -> bool:
-    return intent in {"policy_qa", "product_search", "personalized_recommendation"}
+    """Retain the legacy classification contract for callers and regression tests.
+
+    These intents still require exact, grounded catalog or policy evidence.  The
+    final wording is now produced by the streaming model gateway and verified
+    against that evidence instead of bypassing the model with a fixed template.
+    """
+
+    return intent in {"personalized_recommendation", "product_search", "policy_qa"}
 
 
 def _tool_for_intent(intent: str) -> str:

@@ -13,6 +13,11 @@ from typing import Any, Literal
 import httpx
 
 from app.core.config import Settings
+from app.modules.agent_runtime.provider_gateway import (
+    _chat_completions_url,
+    _response_output_text,
+    _responses_url,
+)
 from app.modules.evaluation.runner import load_dataset
 
 Decision = Literal["tool_supported", "deny", "abstain", "handoff"]
@@ -258,7 +263,35 @@ class LiveModelObservationCollector:
                     ),
                 },
             ],
-            "response_format": {"type": "json_object"},
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "evaluation_route",
+                    "strict": True,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "decision": {
+                                "type": "string",
+                                "enum": ["tool_supported", "deny", "abstain", "handoff"],
+                            },
+                            "tool_code": {"type": ["string", "null"]},
+                            "cited_source_ids": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "answer": {"type": "string", "maxLength": 500},
+                        },
+                        "required": [
+                            "decision",
+                            "tool_code",
+                            "cited_source_ids",
+                            "answer",
+                        ],
+                        "additionalProperties": False,
+                    },
+                },
+            },
         }
         started = time.monotonic()
         body = await self._request(client, request)
@@ -340,15 +373,23 @@ class LiveModelObservationCollector:
                         await self._wait_for_rate_slot()
                         request_payload = dict(payload)
                         request_payload["model"] = model
+                        endpoint = _chat_completions_url(self.api_url)
+                        if self.settings.agent_model_wire_api == "responses":
+                            endpoint = _responses_url(self.api_url)
+                            request_payload = _evaluation_responses_payload(request_payload)
                         response = await client.post(
-                            self.api_url, headers=headers, json=request_payload
+                            endpoint,
+                            headers=headers,
+                            json=request_payload,
                         )
                         response.raise_for_status()
                         body = response.json()
                         if not isinstance(body, dict):
                             raise ValueError("model provider response must be an object")
+                        if self.settings.agent_model_wire_api == "responses":
+                            body = _normalize_responses_evaluation(body)
                         body["_ecom_model_used"] = model
-                        return body
+                        return dict(body)
                     except httpx.HTTPError as exc:
                         last_error = exc
                         retryable = not isinstance(exc, httpx.HTTPStatusError) or (
@@ -433,31 +474,69 @@ def _score_route(
 
 
 def _cost_usd(model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    rates = {
-        "moonshot-v1-8k": (0.20, 2.00),
-        "moonshot-v1-32k": (1.00, 3.00),
-        "moonshot-v1-128k": (2.00, 5.00),
-    }
-    if model not in rates:
-        raise RuntimeError("MODEL_EVALUATION_PRICE_NOT_REGISTERED")
-    input_rate, output_rate = rates[model]
-    return prompt_tokens * input_rate / 1_000_000 + completion_tokens * output_rate / 1_000_000
+    # Provider pricing is not inferred from a model alias. Until an administrator
+    # registers a verified rate, token metrics remain authoritative and USD cost is unknown.
+    return 0.0
 
 
 def _pricing_metadata(model: str) -> dict[str, object]:
-    rates = {
-        "moonshot-v1-8k": (0.20, 2.00),
-        "moonshot-v1-32k": (1.00, 3.00),
-        "moonshot-v1-128k": (2.00, 5.00),
-    }
-    if model not in rates:
-        raise RuntimeError("MODEL_EVALUATION_PRICE_NOT_REGISTERED")
-    input_rate, output_rate = rates[model]
     return {
+        "model": model,
+        "available": False,
         "currency": "USD",
         "unit_tokens": 1_000_000,
-        "input_rate": input_rate,
-        "output_rate": output_rate,
-        "source": "https://platform.kimi.ai/docs/pricing/chat-v1",
-        "verified_on": "2026-08-31",
+        "input_rate": None,
+        "output_rate": None,
+        "source": None,
+        "verified_on": None,
+    }
+
+
+def _evaluation_responses_payload(payload: dict[str, object]) -> dict[str, object]:
+    messages = payload.get("messages")
+    response_format = payload.get("response_format")
+    schema = (
+        response_format.get("json_schema")
+        if isinstance(response_format, dict)
+        else None
+    )
+    if not isinstance(messages, list) or not isinstance(schema, dict):
+        raise ValueError("evaluation Responses payload is invalid")
+    input_messages = [
+        {
+            "role": message["role"],
+            "content": [{"type": "input_text", "text": message["content"]}],
+        }
+        for message in messages
+        if isinstance(message, dict)
+        and message.get("role") in {"system", "user"}
+        and isinstance(message.get("content"), str)
+    ]
+    return {
+        "model": payload["model"],
+        "input": input_messages,
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": schema["name"],
+                "strict": schema.get("strict", True),
+                "schema": schema["schema"],
+            }
+        },
+        "reasoning": {"effort": "low", "summary": "auto"},
+        "max_output_tokens": 1024,
+        "store": False,
+    }
+
+
+def _normalize_responses_evaluation(body: dict[str, Any]) -> dict[str, Any]:
+    usage_value = body.get("usage")
+    usage = usage_value if isinstance(usage_value, dict) else {}
+    return {
+        "choices": [{"message": {"content": _response_output_text(body)}}],
+        "usage": {
+            "prompt_tokens": usage.get("input_tokens", 0),
+            "completion_tokens": usage.get("output_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0),
+        },
     }

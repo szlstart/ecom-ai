@@ -22,6 +22,7 @@ from app.database.redis import close_redis, get_redis, initialize_redis
 from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.exclusive_agent import process_exclusive_run
+from app.modules.agent_runtime.live_stream import AgentLiveStreamPublisher
 from app.modules.agent_runtime.models import AgentDefinition, AgentRun, AgentVersion
 from app.modules.agent_runtime.operations_agent import process_operations_run
 from app.modules.agent_runtime.provider_gateway import (
@@ -33,6 +34,7 @@ from app.modules.agent_runtime.public_trace import public_question
 from app.modules.agent_runtime.service import AgentRuntimeService
 from app.modules.agent_runtime.store_agent import process_store_run
 from app.modules.agent_runtime.trigger_text import agent_trace_question
+from app.modules.identity.models import User
 from app.modules.messaging.models import Conversation, Message
 from app.modules.system.models import OutboxEvent
 
@@ -113,6 +115,7 @@ async def process_batch(limit: int = 20) -> int:
     security = SecurityService(settings)
     store_model_gateway, exclusive_model_gateway = configured_model_gateways(settings)
     operations_model_gateway = configured_operations_gateway(settings)
+    redis = get_redis()
     run_nos: list[str] = []
     async for session in mysql_session():
         await AgentApprovalService(session, settings, security).reconcile_unknown(limit=limit)
@@ -169,6 +172,20 @@ async def process_batch(limit: int = 20) -> int:
                 break
             run = claimed_run
             conversation = await session.get(Conversation, run.conversation_id)
+            conversation_user = (
+                await session.get(User, conversation.user_id) if conversation is not None else None
+            )
+            live_stream = (
+                AgentLiveStreamPublisher(
+                    redis,
+                    settings,
+                    conversation,
+                    conversation_user,
+                    run.run_no,
+                )
+                if conversation is not None and conversation_user is not None
+                else None
+            )
             agent_code = await session.scalar(
                 select(AgentDefinition.agent_code)
                 .join(AgentVersion, AgentVersion.agent_id == AgentDefinition.id)
@@ -196,6 +213,7 @@ async def process_batch(limit: int = 20) -> int:
                                 security=security,
                                 checkpoint_store=checkpoint_store,
                                 model_gateway=exclusive_model_gateway,
+                                stream_callback=live_stream.publish if live_stream else None,
                             )
                         elif agent_code == "store_support":
                             await process_store_run(
@@ -204,6 +222,7 @@ async def process_batch(limit: int = 20) -> int:
                                 checkpoint_store=checkpoint_store,
                                 model_gateway=store_model_gateway,
                                 security=security,
+                                stream_callback=live_stream.publish if live_stream else None,
                             )
                         elif agent_code in {"merchant_copilot", "admin_copilot"}:
                             await process_operations_run(
@@ -212,6 +231,7 @@ async def process_batch(limit: int = 20) -> int:
                                 checkpoint_store=checkpoint_store,
                                 model_gateway=operations_model_gateway,
                                 security=security,
+                                stream_callback=live_stream.publish if live_stream else None,
                             )
                         else:
                             run.run_status = "failed"

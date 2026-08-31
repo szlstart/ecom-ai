@@ -21,7 +21,7 @@ import {
 } from '@/api/admin-support'
 import { errorMessage, messageSendError, resolveApiAssetUrl } from '@/api/http'
 import { createClientMessageId, type ChatMessage } from '@/api/messaging'
-import { liveTraceFromEvent, RealtimeConnection, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
+import { liveTraceFromEvent, RealtimeConnection, updateLiveTrace, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
@@ -50,6 +50,7 @@ const connectionState = ref<RealtimeState>('polling')
 const selectedTraceRunId = ref<string | null>(null)
 const traceRunning = ref(false)
 const liveTrace = ref<AgentLiveTrace | null>(null)
+const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
 let realtime: RealtimeConnection | undefined
 let pollingTimer: number | undefined
 let refreshTimer: number | undefined
@@ -111,16 +112,18 @@ function appendUnique(target: ChatMessage[], incoming: ChatMessage[]) {
 
 async function scrollBottom() {
   await nextTick()
-  timeline.value?.scrollTo({ top: timeline.value.scrollHeight })
+  if (timeline.value) timeline.value.scrollTop = timeline.value.scrollHeight
 }
 
 async function selectAi() {
-  selected.value = 'ai'; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; liveTrace.value = null; error.value = ''; loading.value = true
-  try { await loadAiMessages(); await scrollBottom() } finally { loading.value = false }
+  selected.value = 'ai'; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; liveTrace.value = null; streamingReply.value = null; error.value = ''; loading.value = true
+  try { await loadAiMessages() } finally { loading.value = false }
+  await scrollBottom()
 }
 
 async function selectConversation(item: SupportConversation) {
-  selected.value = item.conversation_id; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; liveTrace.value = null; error.value = ''; loading.value = true
+  selected.value = item.conversation_id; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; liveTrace.value = null; streamingReply.value = null; error.value = ''; loading.value = true
+  let loaded = false
   try {
     if (item.active_ticket_id) workspace.value = (await getSupportWorkspace(item.active_ticket_id, token())).data
     const page = (await listSupportMessages(item.conversation_id, token())).data
@@ -131,9 +134,10 @@ async function selectConversation(item: SupportConversation) {
     item.unread_count = 0
     emit('unread-change', conversations.value.reduce((total, conversation) => total + conversation.unread_count, 0))
     error.value = ''
-    await scrollBottom()
+    loaded = true
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
+  if (loaded) await scrollBottom()
 }
 
 async function loadEarlier() {
@@ -191,8 +195,24 @@ function handleRealtime(event: RealtimeEvent) {
   if (eventConversationId === selectedConversationId && event.type === 'agent.response.started') {
     traceRunning.value = true
     liveTrace.value = liveTraceFromEvent(event)
+    const runId = event.data.run_id
+    if (typeof runId === 'string') {
+      streamingReply.value = { runId, text: '', chunkIndex: 0 }
+      selectedTraceRunId.value = runId
+    }
   }
-  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false; liveTrace.value = null }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.reasoning.delta') { traceRunning.value = true; liveTrace.value = updateLiveTrace(liveTrace.value, event) }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.delta') {
+    const runId = event.data.run_id
+    const text = event.data.text_so_far
+    const chunkIndex = Number(event.data.chunk_index)
+    if (typeof runId === 'string' && typeof text === 'string' && Number.isInteger(chunkIndex)) {
+      if (!streamingReply.value || streamingReply.value.runId !== runId) streamingReply.value = { runId, text: '', chunkIndex: 0 }
+      if (chunkIndex > streamingReply.value.chunkIndex) streamingReply.value = { runId, text, chunkIndex }
+      void scrollBottom()
+    }
+  }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false; liveTrace.value = null; streamingReply.value = null }
   if (['message.created', 'unread.updated', 'support.ticket.updated'].includes(event.type)) scheduleRefresh()
 }
 
@@ -292,15 +312,10 @@ onBeforeUnmount(() => {
       <main class="admin-chat-main">
         <template v-if="selected === 'ai'">
           <header class="admin-chat-header"><div><strong>AI 管家</strong><small><span />{{ connectionState === 'connected' ? '实时在线' : connectionState === 'offline' ? '网络离线' : '正在连接' }} · 默认只读</small></div><button class="danger small" type="button" :disabled="busy" @click="removeConversation">删除对话</button></header>
-          <section v-if="!aiMessages.length && !loading" class="admin-ai-concierge">
-            <div class="admin-ai-orb"><img src="/ai-avatar.svg" alt="" /></div><p class="eyebrow">管理端智能管家</p><h2>今天想先处理什么？</h2><p>我可以帮助你快速定位用户、店铺、订单和 AI 运行问题。涉及资金、冻结、删除或发布的操作仍会要求人工确认。</p>
-            <div class="admin-ai-suggestions"><RouterLink to="/admin/users"><span>♙</span><strong>查看异常用户</strong><small>账号状态与登录会话</small></RouterLink><RouterLink to="/admin/orders"><span>▤</span><strong>检查异常订单</strong><small>支付、履约与售后</small></RouterLink><RouterLink to="/admin/observability"><span>⌇</span><strong>分析 AI 告警</strong><small>延迟、错误与工具调用</small></RouterLink><RouterLink to="/admin/approval-requests"><span>✓</span><strong>查看待办审批</strong><small>高风险操作复核</small></RouterLink></div>
-            <div class="alert info">AI 管家已接入受控 Agent Runtime。当前仅开放脱敏、只读诊断，不会修改用户、店铺、订单或资金数据。</div>
-          </section>
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取 AI 会话…</div>
           <section v-else class="admin-chat-conversation admin-ai-chat">
-            <div v-if="aiMessages.length" ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user', 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(message) || selectedTraceRunId"><span class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'user' ? '管理员' : 'AI 管家'"><template v-if="message.sender_type === 'user'">{{ initials }}</template><img v-else src="/ai-avatar.svg" alt="" /></span><div><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article></div>
+            <div ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-if="!aiMessages.length" class="admin-ai-welcome"><span class="admin-chat-bubble-avatar"><img src="/ai-avatar.svg" alt="" /></span><div><p>你好，我是 AI 管家。用户、店铺、商品、订单和运行状态都可以问我。今天想先查看哪一部分？</p></div></article><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user', 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(message) || selectedTraceRunId"><span class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'user' ? '管理员' : 'AI 管家'"><template v-if="message.sender_type === 'user'">{{ initials }}</template><img v-else src="/ai-avatar.svg" alt="" /></span><div><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article><article v-if="streamingReply"><span class="admin-chat-bubble-avatar"><img src="/ai-avatar.svg" alt="" /></span><div class="agent-stream" aria-live="polite"><p v-if="streamingReply.text">{{ streamingReply.text }}</p><p v-else class="agent-thinking-indicator">正在思考<span>·</span><span>·</span><span>·</span></p><time>正在生成回复…</time></div></article></div>
             <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" placeholder="询问平台概况、用户、店铺、订单或 Agent 运行状态…" @keydown.enter.exact.prevent="send" /><div><span>默认只读 · 右侧同步展示可核验分析</span><button :disabled="!reply.trim() || busy">{{ busy ? '发送中…' : '发送' }}</button></div></form>
           </section>
         </template>
@@ -311,7 +326,7 @@ onBeforeUnmount(() => {
           <div v-if="loading" class="admin-chat-loading">正在读取会话…</div>
           <section v-else-if="selectedConversation" class="admin-chat-conversation">
             <div v-if="selectedConversation.requires_human && !assignedToMe" class="admin-chat-claim compact"><span>◍</span><div><h2>{{ selectedTicket?.ticket_status === 'queued' ? '对方正在等待人工接待' : '会话由其他客服处理' }}</h2><p>历史消息可查看；领取后才可人工回复，避免多人同时处理。</p></div><button v-if="selectedTicket?.ticket_status === 'queued' && auth.has('support:claim')" :disabled="busy" @click="claim">领取会话</button></div>
-            <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: ['human','agent'].includes(message.sender_type), system: message.sender_type === 'system' }"><span v-if="message.sender_type !== 'system'" class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'human' ? '平台客服' : message.sender_type === 'agent' ? 'AI 客服' : selectedConversation.participant_type === 'merchant' ? '店铺' : '用户'"><img v-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" /><img v-else-if="message.sender_type === 'user' && selectedConversation.participant_avatar_url" :src="resolveApiAssetUrl(selectedConversation.participant_avatar_url) || undefined" alt="" /><template v-else>{{ message.sender_type === 'human' ? initials : selectedConversation.participant_name.slice(0, 1) }}</template></span><div><ChatMessageContent :message="message" audience="admin" /><time v-if="message.sender_type !== 'system'">{{ dateTime(message.sent_at) }}</time></div></article><p v-if="!messages.length" class="empty-state">暂无聊天消息</p></div>
+            <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: ['human','agent'].includes(message.sender_type), system: message.sender_type === 'system' }"><span v-if="message.sender_type !== 'system'" class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'human' ? '平台客服' : message.sender_type === 'agent' ? 'AI 客服' : selectedConversation.participant_type === 'merchant' ? '店铺' : '用户'"><img v-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" /><img v-else-if="message.sender_type === 'user' && selectedConversation.participant_avatar_url" :src="resolveApiAssetUrl(selectedConversation.participant_avatar_url) || undefined" alt="" /><template v-else>{{ message.sender_type === 'human' ? initials : selectedConversation.participant_name.slice(0, 1) }}</template></span><div><ChatMessageContent :message="message" audience="admin" /><time v-if="message.sender_type !== 'system'">{{ dateTime(message.sent_at) }}</time></div></article><article v-if="streamingReply" class="mine"><span class="admin-chat-bubble-avatar"><img src="/ai-avatar.svg" alt="" /></span><div class="agent-stream" aria-live="polite"><p v-if="streamingReply.text">{{ streamingReply.text }}</p><p v-else class="agent-thinking-indicator">正在思考<span>·</span><span>·</span><span>·</span></p><time>正在生成回复…</time></div></article><p v-if="!messages.length && !streamingReply" class="empty-state">暂无聊天消息</p></div>
             <form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" :disabled="!canChat" :placeholder="canChat ? '输入人工回复…' : selectedConversation.requires_human ? '领取后可回复' : 'AI 正在接待；需要转人工时会进入人工队列'" /><div><span>{{ canChat ? '回复会立即同步给对方，并写入 AI 上下文' : 'AI 与人工消息共用同一条会话历史' }}</span><button :disabled="!canChat || !reply.trim() || busy">发送</button></div></form>
           </section>
         </template>

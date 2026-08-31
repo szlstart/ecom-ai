@@ -1,58 +1,63 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+
 import type { ChatMessage } from '@/api/messaging'
 import type { AgentLiveTrace } from '@/api/realtime'
 
-const props = withDefaults(defineProps<{ messages: ChatMessage[]; title?: string; selectedRunId?: string | null; running?: boolean; liveTrace?: AgentLiveTrace | null }>(), { title: '思考过程', selectedRunId: null, running: false, liveTrace: null })
-const trace = computed<Record<string, unknown> | null>(() => {
-  const candidates = [...props.messages].reverse().filter((item) => { const value = item.content?.execution_trace; return item.sender_type === 'agent' && value && typeof value === 'object' && !Array.isArray(value) })
-  const message = props.selectedRunId ? candidates.find((item) => { const value = item.content?.execution_trace as Record<string, unknown> | undefined; return value?.run_id === props.selectedRunId || item.content?.run_id === props.selectedRunId }) ?? candidates[0] : candidates[0]
-  const value = message?.content?.execution_trace
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null
+const props = withDefaults(defineProps<{
+  messages: ChatMessage[]
+  title?: string
+  selectedRunId?: string | null
+  running?: boolean
+  liveTrace?: AgentLiveTrace | null
+}>(), {
+  title: '思考过程',
+  selectedRunId: null,
+  running: false,
+  liveTrace: null,
 })
-const traceFailed = computed(() => trace.value?.status === 'failed')
-const stateLabel = computed(() => props.running ? '思考中' : traceFailed.value ? '处理失败' : trace.value ? '已完成' : '等待消息')
-const collaborationLabel = computed(() => trace.value?.orchestration_mode === 'multi_agent' ? '多智能体协作' : '智能客服处理')
-const question = computed(() => String(props.running && props.liveTrace?.question ? props.liveTrace.question : trace.value?.question ?? ''))
-const analysisSummary = computed(() => String(trace.value?.analysis_summary ?? ''))
-const analysisDetails = computed<string[]>(() => Array.isArray(trace.value?.analysis_details) ? trace.value.analysis_details.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [])
-const traceSteps = computed<Record<string, unknown>[]>(() => Array.isArray(trace.value?.steps) ? trace.value.steps.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item)) : [])
-const sourceIds = computed<string[]>(() => Array.isArray(trace.value?.source_ids) ? trace.value.source_ids.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())) : [])
-const thinkingEnabled = computed(() => trace.value?.thinking_mode === 'enabled')
-const stepIcons: Record<string, string> = { plan: '思', context: '境', tool: '具', rag: '知', retrieval: '检', memory: '忆', supervisor: '总', delegation: '分', security: '安', answer: '答' }
-const stepStatuses: Record<string, string> = { completed: '已完成', succeeded: '成功', partial: '部分完成', failed: '失败', timed_out: '超时', reused: '已复用' }
-const stepIcon = (kind: unknown) => stepIcons[String(kind)] || '·'
-const stepStatus = (status: unknown) => stepStatuses[String(status)] || String(status || '已完成')
+
+const completedReasoning = computed(() => {
+  const candidates = [...props.messages].reverse().filter((message) => {
+    const value = message.content?.execution_trace
+    return message.sender_type === 'agent' && value && typeof value === 'object' && !Array.isArray(value)
+  })
+  const selected = props.selectedRunId
+    ? candidates.find((message) => {
+        const value = message.content?.execution_trace as Record<string, unknown>
+        return value.run_id === props.selectedRunId || message.content?.run_id === props.selectedRunId
+      }) ?? candidates[0]
+    : candidates[0]
+  const trace = selected?.content?.execution_trace
+  if (!trace || typeof trace !== 'object' || Array.isArray(trace)) return ''
+  const value = trace as Record<string, unknown>
+  if (value.answer_mode !== 'model_grounded' || value.thinking_mode !== 'enabled') return ''
+  return typeof value.analysis_summary === 'string'
+    ? String(value.analysis_summary).trim()
+    : ''
+})
+
+const reasoning = computed(() => {
+  if (props.running) return props.liveTrace?.reasoning?.trim() ?? ''
+  return completedReasoning.value
+})
 </script>
 
 <template>
-  <aside class="agent-trace-panel" aria-label="AI 思考过程">
-    <header><div><span class="agent-trace-logo">✦</span><div><strong>{{ title }}</strong><small>{{ thinkingEnabled ? 'Kimi K2.6 思考模式 · 可审计执行轨迹' : '问题分析、实际动作与结果摘要' }}</small></div></div><b :class="{ active: running, failed: traceFailed }">{{ stateLabel }}</b></header>
-    <div v-if="running || trace" class="agent-trace-body">
-      <section v-if="question" class="agent-trace-question"><small>本次问题</small><p>{{ question }}</p></section>
-      <section class="agent-trace-summary" :class="{ thinking: running }"><span class="agent-trace-orb">✦</span><div><strong>{{ running ? '思考开始' : '思考已完成' }}</strong><small>{{ running ? '正在执行真实的 Agent 流程' : `${String(trace?.agent || '智能客服')} · ${collaborationLabel}` }}</small></div><i>{{ running ? '•••' : '✓' }}</i></section>
-      <section v-if="running" class="agent-trace-narrative" aria-live="polite"><strong>{{ liveTrace?.label || '正在理解问题' }}</strong><p>{{ liveTrace?.summary || '正在识别问题、会话上下文、身份范围和可用权限。' }}</p><span class="agent-trace-loader"><i /><i /><i /></span></section>
-      <details v-else-if="analysisSummary" class="agent-trace-narrative agent-trace-analysis"><summary><strong>分析与计划</strong><span>点击展开</span></summary><p>{{ analysisSummary }}</p><ol v-if="analysisDetails.length"><li v-for="(item, index) in analysisDetails" :key="`${index}-${item}`">{{ item }}</li></ol></details>
-      <section v-if="!running && traceSteps.length" class="agent-trace-steps" aria-label="实际执行步骤">
-        <details v-for="(step, index) in traceSteps" :key="`${index}-${String(step.label || step.kind)}`">
-          <summary><i>{{ stepIcon(step.kind) }}</i><span><strong>{{ String(step.label || '受控处理步骤') }}</strong><small>{{ stepStatus(step.status) }}</small></span><b>展开</b></summary>
-          <div><p>{{ String(step.summary || '本步骤已完成。') }}</p><ul v-if="step.tool_code || step.result_count !== undefined || step.message_count !== undefined"><li v-if="step.tool_code">工具：{{ String(step.tool_code) }}</li><li v-if="step.result_count !== undefined">可用结果：{{ String(step.result_count) }} 项</li><li v-if="step.message_count !== undefined">读取最近消息：{{ String(step.message_count) }} 条</li></ul></div>
-        </details>
-      </section>
-      <section v-if="!running && sourceIds.length" class="agent-trace-references"><details><summary><span>⌁</span><strong>可信依据</strong><b>{{ sourceIds.length }} 项</b></summary><div><code v-for="source in sourceIds" :key="source">{{ source }}</code></div></details></section>
-      <p class="agent-trace-note">以上是服务端根据本次实际意图、上下文、权限、工具与知识检索记录生成的可核验分析。</p>
+  <aside class="agent-reasoning-panel" aria-label="AI 思考过程">
+    <header>
+      <div><img src="/ai-avatar.svg" alt="" /><strong>{{ title }}</strong></div>
+      <span :class="{ active: running }">{{ running ? '思考中' : reasoning ? '已完成' : '等待中' }}</span>
+    </header>
+    <div class="agent-reasoning-body" aria-live="polite">
+      <div v-if="running && !reasoning" class="agent-reasoning-loading">
+        <i /><i /><i />
+      </div>
+      <p v-else-if="reasoning" class="agent-reasoning-text">{{ reasoning }}</p>
     </div>
-    <div v-else class="agent-trace-empty"><span>✦</span><h3>等待 AI 开始工作</h3><p>发送问题后，这里会实时显示所用能力；完成后可逐步展开查看。</p></div>
   </aside>
 </template>
 
 <style scoped>
-.agent-trace-panel{min-width:0;min-height:0;display:grid;grid-template-rows:auto 1fr;color:#e7ecff;border-left:1px solid rgb(143 168 232 / 18%);background:radial-gradient(circle at 88% 0,rgb(91 76 210 / 23%),transparent 35%),#10182a}.agent-trace-panel>header{min-height:64px;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgb(147 166 219 / 14%)}.agent-trace-panel>header>div{min-width:0;display:flex;align-items:center;gap:8px}.agent-trace-logo{width:31px;height:31px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(145deg,#766de8,#3b73d7)}.agent-trace-panel>header>div>div{min-width:0;display:grid;gap:2px}.agent-trace-panel>header strong{font-size:.82rem}.agent-trace-panel>header small{overflow:hidden;color:#8492b3;font-size:.58rem;text-overflow:ellipsis;white-space:nowrap}.agent-trace-panel>header>b{padding:5px 8px;color:#8f9ab5;border:1px solid #33405c;border-radius:999px;font-size:.6rem}.agent-trace-panel>header>b.active{color:#8ff0c7;border-color:#2b6e55;background:#153b30;animation:trace-pulse 1.35s ease-in-out infinite}.agent-trace-panel>header>b.failed{color:#ffc1c1;border-color:#7f3f4c;background:#3c1f2a}
-.agent-trace-body{padding:13px;display:grid;align-content:start;gap:11px;overflow-y:auto}.agent-trace-summary{padding:11px;display:grid;grid-template-columns:35px minmax(0,1fr) auto;align-items:center;gap:9px;border:1px solid rgb(121 145 211 / 20%);border-radius:13px;background:rgb(255 255 255 / 4%)}.agent-trace-summary.thinking{border-color:rgb(102 126 230 / 45%);box-shadow:inset 0 0 24px rgb(80 84 210 / 11%)}.agent-trace-orb{width:35px;height:35px;display:grid;place-items:center;border-radius:11px;background:linear-gradient(145deg,#776be4,#3a70cd);box-shadow:0 8px 22px rgb(65 87 206 / 30%)}.agent-trace-summary>div{min-width:0;display:grid;gap:3px}.agent-trace-summary small{color:#8fa0c4;font-size:.62rem}.agent-trace-summary>i{color:#73ddb2;font-style:normal}.agent-trace-summary.thinking>i{letter-spacing:2px;animation:trace-blink 1s steps(2) infinite}
-.agent-trace-question{padding:10px 11px;border-left:3px solid #776de8;border-radius:4px 11px 11px 4px;background:rgb(117 108 230 / 9%)}.agent-trace-question small{color:#8797bc;font-size:.58rem}.agent-trace-question p{margin:5px 0 0;color:#eef2ff;font-size:.72rem;line-height:1.55;word-break:break-word}.agent-trace-narrative{padding:11px;border:1px solid #2b3957;border-radius:11px;background:#141e32}.agent-trace-narrative strong{color:#dce5ff;font-size:.68rem}.agent-trace-narrative p{margin:6px 0 0;color:#94a5c8;font-size:.62rem;line-height:1.65}.agent-trace-loader{margin-top:9px;display:flex;gap:4px}.agent-trace-loader i{width:5px;height:5px;border-radius:99px;background:#7e91e8;animation:trace-wave 1.2s ease-in-out infinite}.agent-trace-loader i:nth-child(2){animation-delay:.15s}.agent-trace-loader i:nth-child(3){animation-delay:.3s}.agent-trace-result{padding:10px;display:grid;grid-template-columns:25px 1fr;gap:8px;border:1px solid rgb(70 181 137 / 27%);border-radius:11px;background:rgb(38 135 99 / 9%)}.agent-trace-result>span{width:25px;height:25px;display:grid;place-items:center;color:#8be3bd;border-radius:8px;background:#173d32}.agent-trace-result strong{font-size:.66rem}.agent-trace-result p{margin:4px 0 0;color:#8fa8a0;font-size:.6rem;line-height:1.55}
-.agent-trace-analysis summary{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;list-style:none}.agent-trace-analysis summary::-webkit-details-marker{display:none}.agent-trace-analysis summary span{color:#8191b7;font-size:.58rem}.agent-trace-analysis[open] summary span{font-size:0}.agent-trace-analysis[open] summary span::after{content:'收起';font-size:.58rem}.agent-trace-analysis ol{margin:10px 0 0;padding-left:20px;display:grid;gap:8px}.agent-trace-analysis li{padding-left:3px;color:#b4c2e1;font-size:.62rem;line-height:1.65}
-.agent-trace-live{display:grid;gap:7px}.agent-trace-live>div{padding:8px;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:center;gap:8px;color:#7483a4;border:1px solid #26334d;border-radius:10px;background:#141d30}.agent-trace-live>div.active{color:#dce5ff;border-color:#415a99;background:#182541;box-shadow:0 0 18px rgb(77 100 194 / 10%)}.agent-trace-live i{width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:#1d2a43;font-style:normal}.agent-trace-live span{display:grid;gap:2px}.agent-trace-live strong{font-size:.65rem}.agent-trace-live small{color:#7d8cac;font-size:.56rem}
-.agent-trace-steps{display:grid;gap:7px}.agent-trace-steps details,.agent-trace-references details{overflow:hidden;border:1px solid #293753;border-radius:11px;background:#151f34}.agent-trace-steps summary{padding:8px;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px;cursor:pointer;list-style:none}.agent-trace-steps summary::-webkit-details-marker,.agent-trace-references summary::-webkit-details-marker{display:none}.agent-trace-steps summary>i{width:28px;height:28px;display:grid;place-items:center;color:#a8b8ee;border:1px solid #35476a;border-radius:8px;background:#1b2841;font-style:normal}.agent-trace-steps summary>span{min-width:0;display:grid;gap:2px}.agent-trace-steps summary strong{overflow:hidden;font-size:.68rem;text-overflow:ellipsis;white-space:nowrap}.agent-trace-steps summary small{color:#6ed6ab;font-size:.57rem}.agent-trace-steps summary>b{color:#7181a5;font-size:.56rem}.agent-trace-steps details>div{padding:9px 11px;border-top:1px solid #293753;color:#92a1c2;font-size:.61rem;line-height:1.55}.agent-trace-steps p{margin:0}.agent-trace-steps ul{margin:7px 0 0;padding-left:16px;display:grid;gap:3px}
-.agent-trace-references summary{padding:9px 10px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:7px;cursor:pointer;list-style:none}.agent-trace-references summary strong{font-size:.66rem}.agent-trace-references summary b{color:#8293ba;font-size:.58rem}.agent-trace-references details>div{padding:9px;display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid #293753}.agent-trace-references code{max-width:100%;padding:5px 7px;overflow:hidden;color:#aabcf0;border:1px solid #34466e;border-radius:7px;background:#172239;font-size:.56rem;text-overflow:ellipsis}.agent-trace-note{margin:0;padding:8px 10px;color:#73819e;border-radius:10px;background:rgb(255 255 255 / 3%);font-size:.56rem;line-height:1.5}.agent-trace-empty{align-self:center;padding:24px;text-align:center}.agent-trace-empty>span{width:52px;height:52px;margin:auto;display:grid;place-items:center;color:#adbbdf;border:1px solid #33405e;border-radius:17px;background:#182238}.agent-trace-empty h3{margin:13px 0 6px;color:#d2dbef;font-size:.8rem}.agent-trace-empty p{margin:0;color:#7483a4;font-size:.65rem;line-height:1.55}
-@keyframes trace-pulse{50%{box-shadow:0 0 18px rgb(92 214 166 / 25%)}}@keyframes trace-blink{50%{opacity:.4}}@keyframes trace-wave{50%{transform:translateY(-3px);opacity:.45}}@media(max-width:899px){.agent-trace-panel{display:none}}
+.agent-reasoning-panel{min-width:0;min-height:0;display:grid;grid-template-rows:auto 1fr;color:#171a1f;border-left:1px solid #e5e7eb;background:#fff}.agent-reasoning-panel>header{min-height:64px;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eceef1;background:#fff}.agent-reasoning-panel>header>div{display:flex;align-items:center;gap:9px}.agent-reasoning-panel>header img{width:31px;height:31px;border-radius:10px}.agent-reasoning-panel>header strong{font-size:.84rem}.agent-reasoning-panel>header>span{padding:5px 9px;color:#68707b;border:1px solid #d9dde3;border-radius:999px;background:#f8f9fa;font-size:.61rem}.agent-reasoning-panel>header>span.active{color:#187a4b;border-color:#b9e3ce;background:#eefaf4}.agent-reasoning-body{padding:18px;overflow-y:auto;background:#fff}.agent-reasoning-text{margin:0;color:#20242a;font-size:.75rem;line-height:1.85;white-space:pre-wrap;word-break:break-word}.agent-reasoning-loading{display:flex;align-items:center;gap:5px;color:#272c33}.agent-reasoning-loading i{width:5px;height:5px;border-radius:50%;background:#4f5967;animation:reasoning-dot 1.1s ease-in-out infinite}.agent-reasoning-loading i:nth-child(2){animation-delay:.14s}.agent-reasoning-loading i:nth-child(3){animation-delay:.28s}@keyframes reasoning-dot{50%{transform:translateY(-3px);opacity:.35}}@media(max-width:899px){.agent-reasoning-panel{display:none}}
 </style>

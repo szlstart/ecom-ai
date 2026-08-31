@@ -78,22 +78,144 @@ async def test_provider_uses_model_specific_temperature() -> None:
 
 
 @pytest.mark.asyncio
-async def test_kimi_k26_uses_thinking_mode_and_required_temperature() -> None:
+async def test_responses_wire_uses_reasoning_and_structured_output() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
-        assert payload["model"] == "kimi-k2.6"
-        assert payload["temperature"] == 1.0
-        assert payload["thinking"] == {"type": "enabled"}
-        assert payload["max_tokens"] >= 512
+        assert request.url.path == "/v1/responses"
+        assert payload["model"] == "gpt-5.4"
+        assert payload["reasoning"] == {"effort": "low", "summary": "auto"}
+        assert payload["text"]["format"]["type"] == "json_schema"
         return httpx.Response(
             200,
             json={
-                "choices": [
+                "output": [
                     {
-                        "message": {
-                            "reasoning_content": "private provider reasoning",
-                            "content": '{"intent":"product_qa","search_text":null}',
-                        }
+                        "type": "reasoning",
+                        "summary": [{"type": "summary_text", "text": "识别商品问题"}],
+                    },
+                    {
+                        "type": "message",
+                        "content": [{
+                            "type": "output_text",
+                            "text": '{"intent":"product_qa","search_text":null}',
+                        }],
+                    },
+                ]
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1",
+        api_key="model-secret",
+        model="gpt-5.4",
+        wire_api="responses",
+        timeout_seconds=5,
+        client=client,
+    )
+    plan = await planner.plan_store("这个衣服最大码是多大?")
+    assert plan.intent == "product_qa"
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        if payload.get("stream") is True:
+            assert payload["reasoning"] == {"effort": "medium", "summary": "detailed"}
+            assert "罗列全部参数" in payload["input"][0]["content"][0]["text"]
+            frames = [
+                {"type": "response.reasoning_summary_part.added", "part": {"type": "summary_text"}},
+                {"type": "response.reasoning_summary_text.delta", "delta": "先识别用户是在"},
+                {"type": "response.reasoning_summary_text.delta", "delta": "询问商品特点。"},
+                {"type": "response.reasoning_summary_part.added", "part": {"type": "summary_text"}},
+                {"type": "response.reasoning_summary_text.delta", "delta": "再核对公开资料。"},
+                {"type": "response.output_text.delta", "delta": "这款商品轻便耐用。"},
+                {"type": "response.completed"},
+            ]
+            content = "".join(
+                f"data: {json.dumps(frame, ensure_ascii=False)}\n\n" for frame in frames
+            )
+            return httpx.Response(200, text=content)
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [{
+                            "type": "output_text",
+                            "text": '{"supported":true,"unsupported_claims":[]}',
+                        }],
+                    }
+                ]
+            },
+        )
+
+    updates: list[tuple[str, str]] = []
+
+    async def capture(kind: str, text: str) -> None:
+        updates.append((kind, text))
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1",
+        api_key="model-secret",
+        model="gpt-5.4",
+        wire_api="responses",
+        timeout_seconds=5,
+        client=client,
+    )
+    answer = await planner.synthesize(
+        agent_prompt="只按证据回答",
+        user_text="介绍一下这个商品",
+        intent="product_qa",
+        evidence={"name": "轻便水杯", "material": "不锈钢"},
+        source_ids=("product:prd_public",),
+        stream_callback=capture,
+    )
+    assert answer.text == "这款商品轻便耐用。"
+    assert answer.analysis_summary == "先识别用户是在询问商品特点。\n\n再核对公开资料。"
+    assert answer.grounding_verified is True
+    assert updates == [
+        ("reasoning", "先识别用户是在"),
+        ("reasoning", "先识别用户是在询问商品特点。"),
+        ("reasoning", "先识别用户是在询问商品特点。\n\n"),
+        ("reasoning", "先识别用户是在询问商品特点。\n\n再核对公开资料。"),
+        ("answer", "这款商品轻便耐用。"),
+    ]
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_streamed_responses_answer_is_not_replaced_by_postcheck_false_positive() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        if payload.get("stream") is True:
+            frames = [
+                {"type": "response.reasoning_summary_text.delta", "delta": "核对订单金额。"},
+                {"type": "response.output_text.delta", "delta": "这笔订单实付 ¥6.00。"},
+                {"type": "response.completed"},
+            ]
+            return httpx.Response(
+                200,
+                text="".join(
+                    f"data: {json.dumps(frame, ensure_ascii=False)}\n\n" for frame in frames
+                ),
+            )
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": '{"supported":false,"unsupported_claims":["误判"]}',
+                            }
+                        ],
                     }
                 ]
             },
@@ -101,15 +223,23 @@ async def test_kimi_k26_uses_thinking_mode_and_required_temperature() -> None:
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
     planner = OpenAICompatiblePlanner(
-        api_url="https://models.invalid/v1/chat/completions",
+        api_url="https://models.invalid/v1",
         api_key="model-secret",
-        model="kimi-k2.6",
+        model="gpt-5.4",
+        wire_api="responses",
         timeout_seconds=5,
-        temperature=0,
         client=client,
     )
-    plan = await planner.plan_store("这个衣服最大码是多大?")
-    assert plan.intent == "product_qa"
+    answer = await planner.synthesize(
+        agent_prompt="只按证据回答",
+        user_text="这笔订单实付多少钱?",
+        intent="order_explain",
+        evidence={"amounts": {"paid": {"display": "¥6.00"}}},
+        source_ids=("order:ord_public",),
+    )
+    assert answer.text == "这笔订单实付 ¥6.00。"
+    assert answer.grounding_verified is False
+    assert answer.confidence == "low"
     await client.aclose()
 
 
@@ -252,7 +382,7 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
 
 
 @pytest.mark.asyncio
-async def test_provider_accepts_moonshot_validated_source_ids_alias() -> None:
+async def test_provider_accepts_validated_source_ids_alias() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         schema_name = payload["response_format"]["json_schema"]["name"]
@@ -277,7 +407,7 @@ async def test_provider_accepts_moonshot_validated_source_ids_alias() -> None:
 
 
 @pytest.mark.asyncio
-async def test_provider_accepts_kimi_public_answer_and_detail_shape_variants() -> None:
+async def test_provider_accepts_compatible_public_answer_and_detail_shape_variants() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         schema_name = payload["response_format"]["json_schema"]["name"]
@@ -313,7 +443,7 @@ async def test_provider_accepts_kimi_public_answer_and_detail_shape_variants() -
     planner = OpenAICompatiblePlanner(
         api_url="https://models.invalid/v1/chat/completions",
         api_key="model-secret",
-        model="kimi-k2.6",
+        model="approved-model",
         timeout_seconds=5,
         client=client,
     )

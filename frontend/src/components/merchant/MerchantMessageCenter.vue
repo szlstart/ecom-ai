@@ -29,7 +29,7 @@ import type { ChatMessage } from '@/api/messaging'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import MessageAttachmentPicker, { type MessagePickerProduct } from '@/components/messaging/MessageAttachmentPicker.vue'
-import { liveTraceFromEvent, RealtimeConnection, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
+import { liveTraceFromEvent, RealtimeConnection, updateLiveTrace, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import { confirmAction } from '@/composables/confirmation'
 
@@ -57,6 +57,7 @@ const shaking = ref(false)
 const selectedTraceRunId = ref<string | null>(null)
 const traceRunning = ref(false)
 const liveTrace = ref<AgentLiveTrace | null>(null)
+const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
 const attachmentOpen = ref(false)
 const attachmentLoading = ref(false)
 const attachmentSendingId = ref<string | null>(null)
@@ -135,7 +136,10 @@ function traceRunId(item: ChatMessage): string | null {
     : null
   return typeof value === 'string' ? value : null
 }
-async function scrollBottom() { await nextTick(); timeline.value?.scrollTo({ top: timeline.value.scrollHeight }) }
+async function scrollBottom() {
+  await nextTick()
+  if (timeline.value) timeline.value.scrollTop = timeline.value.scrollHeight
+}
 
 async function markActiveRead(lastMessage: ChatMessage | undefined) {
   if (!lastMessage || !props.standalone || document.visibilityState !== 'visible') return
@@ -161,6 +165,7 @@ async function loadConversations() {
 
 async function loadExclusive(markRead = props.standalone && selectedKey.value === 'exclusive') {
   loading.value = true; error.value = ''
+  let loaded = false
   try {
     const previousUnread = exclusiveUnread.value
     const conversation = (await getMerchantExclusiveConversation(token())).data
@@ -173,17 +178,19 @@ async function loadExclusive(markRead = props.standalone && selectedKey.value ==
     const lastMessage = exclusiveMessages.value.at(-1)
     if (markRead && exclusiveUnread.value) await markActiveRead(lastMessage)
     error.value = ''
-    await scrollBottom()
+    loaded = true
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
+  if (loaded) await scrollBottom()
 }
 
 async function selectConversation(key: string) {
-  selectedKey.value = key; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; liveTrace.value = null; attachmentOpen.value = false; error.value = ''
+  selectedKey.value = key; workspace.value = null; messages.value = []; supportPreviousCursor.value = null; selectedTraceRunId.value = null; traceRunning.value = false; liveTrace.value = null; streamingReply.value = null; attachmentOpen.value = false; error.value = ''
   if (key === 'exclusive') { await loadExclusive(); return }
   const target = conversations.value.find((item) => item.conversation_id === key)
   if (!target) return
   loading.value = true
+  let loaded = false
   try {
     if (target.active_ticket_id) {
       workspace.value = (await getSupportWorkspace(target.active_ticket_id, token())).data
@@ -199,9 +206,10 @@ async function selectConversation(key: string) {
     const lastMessage = messages.value.at(-1)
     if (target.unread_count) await markActiveRead(lastMessage)
     error.value = ''
-    await scrollBottom()
+    loaded = true
   } catch (cause) { error.value = errorMessage(cause) }
   finally { loading.value = false }
+  if (loaded) await scrollBottom()
 }
 
 async function loadEarlier() {
@@ -270,8 +278,24 @@ function handleRealtime(event: RealtimeEvent) {
   if (eventConversationId === selectedConversationId && event.type === 'agent.response.started') {
     traceRunning.value = true
     liveTrace.value = liveTraceFromEvent(event)
+    const runId = event.data.run_id
+    if (typeof runId === 'string') {
+      streamingReply.value = { runId, text: '', chunkIndex: 0 }
+      selectedTraceRunId.value = runId
+    }
   }
-  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false; liveTrace.value = null }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.reasoning.delta') { traceRunning.value = true; liveTrace.value = updateLiveTrace(liveTrace.value, event) }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.delta') {
+    const runId = event.data.run_id
+    const text = event.data.text_so_far
+    const chunkIndex = Number(event.data.chunk_index)
+    if (typeof runId === 'string' && typeof text === 'string' && Number.isInteger(chunkIndex)) {
+      if (!streamingReply.value || streamingReply.value.runId !== runId) streamingReply.value = { runId, text: '', chunkIndex: 0 }
+      if (chunkIndex > streamingReply.value.chunkIndex) streamingReply.value = { runId, text, chunkIndex }
+      void scrollBottom()
+    }
+  }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false; liveTrace.value = null; streamingReply.value = null }
   if (event.type === 'unread.updated' && String(event.data.conversation_id ?? '') === exclusiveConversationId.value) {
     const unread = Number(event.data.conversation_unread)
     if (Number.isFinite(unread) && unread >= 0) exclusiveUnread.value = unread
@@ -393,6 +417,7 @@ onBeforeUnmount(() => {
             <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><h2>你好，我是你的专属客服</h2><p>我可以在当前店铺范围内分析商品、订单、库存和经营概况。默认只读，不会替你修改业务数据。</p></div>
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>
             <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isRight(item), system: item.sender_type === 'system', 'trace-selectable': traceRunId(item), 'trace-selected': traceRunId(item) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(item) || selectedTraceRunId"><span v-if="item.sender_type !== 'system'" class="merchant-chat-avatar" :class="{ platform: item.sender_type === 'agent' }"><img v-if="avatarUrl(item)" :src="avatarUrl(item)!" alt="" />{{ avatarUrl(item) ? '' : avatarLabel(item) }}</span><div class="merchant-chat-bubble"><ChatMessageContent :message="item" audience="merchant" /><time v-if="item.sender_type !== 'system'">{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
+            <article v-if="streamingReply" class="merchant-chat-bubble-row" :class="{ mine: selectedKey !== 'exclusive' }"><span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><div class="merchant-chat-bubble agent-stream" aria-live="polite"><p v-if="streamingReply.text">{{ streamingReply.text }}</p><p v-else class="agent-thinking-indicator">正在思考<span>·</span><span>·</span><span>·</span></p><time>正在生成回复…</time></div></article>
           </div>
           <form class="merchant-chat-composer unified-chat-composer" :class="{ 'without-attachments': selectedKey === 'exclusive' }" @submit.prevent="send"><button v-if="selectedKey !== 'exclusive'" type="button" class="message-plus-button" :disabled="!canReply" aria-label="发送本店商品" title="发送本店商品" @click="openAttachments">＋</button><textarea v-model="draft" rows="3" maxlength="4000" :disabled="selectedKey !== 'exclusive' && !canReply" :placeholder="selectedKey === 'exclusive' ? '向专属客服描述经营问题…' : canReply ? '回复顾客…' : 'AI 正在接待；转人工后可在这里回复'" @keydown.enter.exact.prevent="send" /><button class="unified-chat-send" :disabled="sending || !draft.trim() || (selectedKey !== 'exclusive' && !canReply)">{{ sending ? '发送中…' : '发送' }}</button><small>{{ selectedKey === 'exclusive' || canReply ? 'Enter 发送 · Shift + Enter 换行' : '输入区始终保留；AI 转人工后即可回复' }}</small></form>
         </main>

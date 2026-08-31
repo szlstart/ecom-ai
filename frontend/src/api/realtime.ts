@@ -16,6 +16,7 @@ export interface AgentLiveTrace {
   stage: string
   label: string
   summary: string
+  reasoning: string
 }
 
 export function liveTraceFromEvent(event: RealtimeEvent): AgentLiveTrace | null {
@@ -27,7 +28,25 @@ export function liveTraceFromEvent(event: RealtimeEvent): AgentLiveTrace | null 
     stage: String(event.data.stage ?? 'understanding'),
     label: String(event.data.label ?? '思考开始'),
     summary: String(event.data.summary ?? '正在理解问题并核对可用权限。'),
+    reasoning: '',
   }
+}
+
+export function updateLiveTrace(current: AgentLiveTrace | null, event: RealtimeEvent): AgentLiveTrace | null {
+  if (event.type === 'agent.response.started') return liveTraceFromEvent(event)
+  if (event.type !== 'agent.response.reasoning.delta') return current
+  const runId = event.data.run_id
+  if (typeof runId !== 'string') return current
+  if (!current) return {
+    runId,
+    question: '',
+    stage: 'reasoning',
+    label: '思考中',
+    summary: '',
+    reasoning: String(event.data.text_so_far ?? ''),
+  }
+  if (runId !== current.runId) return current
+  return { ...current, reasoning: String(event.data.text_so_far ?? '') }
 }
 
 interface RealtimeTicket {

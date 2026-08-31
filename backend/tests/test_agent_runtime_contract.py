@@ -206,6 +206,15 @@ async def test_store_agent_understands_natural_product_size_questions() -> None:
         ).intent
         == "general_chat"
     )
+    assert (
+        refine_store_plan_for_context(
+            StoreAgentPlan("product_recommend", search_text="这支铅笔适合什么场景?"),
+            "这支铅笔适合什么场景?",
+            has_product_context=False,
+            has_order_context=True,
+        ).intent
+        == "product_qa"
+    )
 
 
 @pytest.mark.asyncio

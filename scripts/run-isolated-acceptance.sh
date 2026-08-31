@@ -18,7 +18,7 @@ export ECOM_FILE_SCANNER_HOST='127.0.0.1'
 export ECOM_FILE_SCANNER_PORT=13310
 export ECOM_RUN_INTEGRATION_TESTS=1
 export ECOM_RUN_FILE_INTEGRATION_TESTS=1
-# Acceptance fixtures exercise the deterministic fallback gateway. Live Kimi
+# Acceptance fixtures exercise the deterministic fallback gateway. Live model
 # compatibility and quality are evaluated by the separate provider/eval jobs.
 export ECOM_AGENT_MODEL_API_URL=''
 export ECOM_AGENT_MODEL_API_KEY=''

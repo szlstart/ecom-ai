@@ -348,20 +348,6 @@ class IdentityService:
                     }
                 ],
             )
-        if await self.repository.credential_by_identifier("email", email_hash) is not None:
-            raise ApplicationError(
-                status=409,
-                code="REGISTRATION_EMAIL_UNAVAILABLE",
-                title="Email unavailable",
-                detail="该邮箱已被其他账号使用。",
-                errors=[
-                    {
-                        "pointer": "/email",
-                        "code": "REGISTRATION_EMAIL_UNAVAILABLE",
-                        "message": "该邮箱已被其他账号使用。",
-                    }
-                ],
-            )
         now = utc_now()
         user = User(
             user_no=new_prefixed_ulid("usr_"),
@@ -1175,18 +1161,6 @@ class IdentityService:
         except ValueError as exc:
             raise _field_error("/new_email", "INVALID_EMAIL", "邮箱格式不正确。") from exc
         target_hash = self.security.keyed_hash("credential-identifier", new_email)
-        conflict = await self.repository.credential_by_identifier(
-            "email",
-            target_hash,
-            for_update=True,
-        )
-        if conflict is not None and conflict.user_id != user.id:
-            raise ApplicationError(
-                status=409,
-                code="CONTACT_TARGET_ALREADY_BOUND",
-                title="Contact already bound",
-                detail="该邮箱已绑定其他账号。",
-            )
         credentials = await self.repository.credentials_for_user(user.id)
         current = next((item for item in credentials if item.credential_type == "email"), None)
         if current is None:
@@ -1445,30 +1419,11 @@ class IdentityService:
         self, identifier: str
     ) -> tuple[User | None, UserCredential | None, bytes]:
         raw = identifier.strip()
-        credential: UserCredential | None = None
-        user: User | None = None
         monitoring_hash = self.security.keyed_hash("auth-monitoring", normalize_username(raw))
-        if "@" in raw or raw.startswith("+"):
-            target_type = "email" if "@" in raw else "phone"
-            try:
-                target = normalize_target(target_type, raw)
-            except ValueError:
-                return None, None, monitoring_hash
-            monitoring_hash = self.security.keyed_hash("auth-monitoring", target)
-            credential = await self.repository.credential_by_identifier(
-                target_type,
-                self.security.keyed_hash("credential-identifier", target),
-                for_update=True,
-            )
-            if credential:
-                user = await self.session.get(User, credential.user_id)
-                credential = await self.repository.password_credential(
-                    credential.user_id, for_update=True
-                )
-        else:
-            user = await self.repository.user_by_username(normalize_username(raw), for_update=True)
-            if user:
-                credential = await self.repository.password_credential(user.id, for_update=True)
+        user = await self.repository.user_by_username(normalize_username(raw), for_update=True)
+        credential = (
+            await self.repository.password_credential(user.id, for_update=True) if user else None
+        )
         return user, credential, monitoring_hash
 
     async def issue_session(

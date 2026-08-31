@@ -45,7 +45,7 @@ async function loadMoreRecommended() {
   loadingMore.value = true
   loadMoreError.value = ''
   try {
-    const response = await searchProducts({ sort: 'relevance', cursor, limit: 12 }, auth.accessToken)
+    const response = await searchProducts({ sort: 'random', recommendation_seed: section.recommendation_seed, cursor, limit: 12 }, auth.accessToken)
     if (requestVersion !== feedRequestVersion || cursor !== section.next_cursor) return
     const existingIds = new Set(section.items.map((product) => product.product_id))
     section.items.push(...response.data.items.filter((product) => !existingIds.has(product.product_id)))

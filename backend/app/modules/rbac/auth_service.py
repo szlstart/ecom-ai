@@ -303,20 +303,6 @@ class AdminAuthService:
                 ],
             ) from exc
         email_hash = self.security.keyed_hash("credential-identifier", normalized_email)
-        if await self.identity.credential_by_identifier("email", email_hash) is not None:
-            raise ApplicationError(
-                status=409,
-                code="MERCHANT_EMAIL_ALREADY_EXISTS",
-                title="Merchant email already exists",
-                detail="该邮箱已经绑定其他账号，请更换邮箱。",
-                errors=[
-                    {
-                        "pointer": "/email",
-                        "code": "MERCHANT_EMAIL_ALREADY_EXISTS",
-                        "message": "该邮箱已经绑定其他账号，请更换邮箱。",
-                    }
-                ],
-            )
         normalized_store_name = " ".join(request.store_name.casefold().split())
         if (
             await self.session.scalar(
@@ -760,19 +746,7 @@ class AdminAuthService:
         return AdminNavigation(items=items, scopes=scopes)
 
     async def _resolve_identity(self, raw: str) -> tuple[User | None, UserCredential | None]:
-        if "@" in raw:
-            try:
-                identifier = normalize_target("email", raw)
-            except ValueError:
-                return None, None
-            contact = await self.identity.credential_by_identifier(
-                "email",
-                self.security.keyed_hash("credential-identifier", identifier),
-                for_update=True,
-            )
-            user = await self.session.get(User, contact.user_id) if contact else None
-        else:
-            user = await self.identity.user_by_username(normalize_username(raw), for_update=True)
+        user = await self.identity.user_by_username(normalize_username(raw), for_update=True)
         password = (
             await self.identity.password_credential(user.id, for_update=True) if user else None
         )

@@ -6859,11 +6859,24 @@
                 "sales",
                 "newest",
                 "price_asc",
-                "price_desc"
+                "price_desc",
+                "random"
               ],
               "type": "string",
               "default": "relevance",
               "title": "Sort"
+            }
+          },
+          {
+            "name": "recommendation_seed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 0,
+              "default": 0,
+              "title": "Recommendation Seed"
             }
           },
           {
@@ -50479,6 +50492,10 @@
             ],
             "title": "Next Cursor"
           },
+          "recommendation_seed": {
+            "type": "integer",
+            "title": "Recommendation Seed"
+          },
           "error_code": {
             "anyOf": [
               {
@@ -50496,7 +50513,8 @@
           "section",
           "title",
           "status",
-          "items"
+          "items",
+          "recommendation_seed"
         ],
         "title": "HomepageSection"
       },

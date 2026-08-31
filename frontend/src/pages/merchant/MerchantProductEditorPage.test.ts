@@ -111,6 +111,7 @@ function pasteEvent(items: Array<{ kind: string; type: string; getAsFile: () => 
 describe('MerchantProductEditorPage clipboard image upload', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
     document.body.innerHTML = ''
     mocks.pastedFile = null
     mocks.persistedImages = []
@@ -233,7 +234,7 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     ]))
     await flushPromises()
     expect(mocks.pastedFile?.name).toMatch(/^clipboard-\d+\.png$/)
-    expect(wrapper.text()).toContain('图片已添加到商品详情末尾')
+    expect(wrapper.text()).toContain('详情图片已自动保存，刷新页面也不会丢失')
     expect(wrapper.get('.merchant-detail-block.is-image img').attributes('src')).toContain(uploadedFileId)
     expect(wrapper.findAll('.file-upload-stub')).toHaveLength(2)
 
@@ -245,7 +246,7 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     await finishDraft!.trigger('click')
     await flushPromises()
 
-    const detailCall = mocks.adminCreate.mock.calls.find(([requestPath]) => requestPath.endsWith('/detail-content-versions'))
+    const detailCall = mocks.adminCreate.mock.calls.filter(([requestPath]) => requestPath.endsWith('/detail-content-versions')).at(-1)
     expect(detailCall?.[1]).toMatchObject({ source_format: 'structured' })
     expect(JSON.parse(detailCall?.[1].source_content as string)).toEqual([
       { type: 'paragraph', text: '第一段文字' },
@@ -403,6 +404,60 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
       'merchant-token',
       1,
     )
+  })
+
+  it('restores unsaved parameters and detail content after an unexpected refresh', async () => {
+    const wrapper = await mountPage()
+    await wrapper.get('.merchant-detail-editors > section:first-child header button').trigger('click')
+    const attributeInputs = wrapper.findAll<HTMLInputElement>('.merchant-attribute-rows input')
+    await attributeInputs[0]!.setValue('纸张克重')
+    await attributeInputs[1]!.setValue('120g')
+    await wrapper.get<HTMLTextAreaElement>('.merchant-detail-block textarea').setValue('尚未点击暂存的重要详情')
+    wrapper.unmount()
+
+    const refreshed = await mountPage()
+    expect(refreshed.text()).toContain('已恢复上次尚未提交的本地编辑内容')
+    expect(refreshed.findAll<HTMLInputElement>('.merchant-attribute-rows input').map((field) => field.element.value)).toEqual(['纸张克重', '120g'])
+    expect(refreshed.get<HTMLTextAreaElement>('.merchant-detail-block textarea').element.value).toBe('尚未点击暂存的重要详情')
+  })
+
+  it('saves the complete editor state before a first-time review submission', async () => {
+    mocks.persistedImages = [{ file_id: uploadedFileId, sku_id: 'sku_test', image_type: 'spec', alt_text: '黑色款', sort_order: 0, image_url: `/api/v1/files/${uploadedFileId}`, width: 100, height: 100, status: 'active' }]
+    mocks.adminGet.mockImplementation(async (requestPath: string) => {
+      if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
+      if (requestPath === '/admin/products/prd_test') return { data: { ...product, available_actions: ['submit_review'] } }
+      if (requestPath.endsWith('/skus')) return { data: [sku] }
+      if (requestPath.endsWith('/images')) return { data: mocks.persistedImages }
+      if (requestPath.endsWith('/attributes') || requestPath.endsWith('/faqs')) return { data: [] }
+      if (requestPath.startsWith('/admin/inventories?')) return { data: { items: [inventory] } }
+      if (requestPath.endsWith('/fulfillment-profile')) return { data: null }
+      if (requestPath.endsWith('/shipping-templates')) return { data: [{ template_id: 'sht_default', status: 'effective', version: 1 }] }
+      throw new Error(`unexpected path: ${requestPath}`)
+    })
+    mocks.adminCommand.mockImplementation(async (requestPath: string) => {
+      if (requestPath.endsWith('/review-submissions')) return { data: { ...product, status: 'on_sale', available_actions: ['off_shelf'] } }
+      return { data: { template_id: 'sht_default', status: 'effective', version: 2 } }
+    })
+    const wrapper = await mountPage()
+    await wrapper.get<HTMLTextAreaElement>('.merchant-detail-block textarea').setValue('第一次编辑完成后直接送审的详情')
+    await wrapper.get('.merchant-origin-field select').setValue('110000')
+    const submit = wrapper.findAll('button').find((button) => button.text() === '提交并自动审核')
+    await submit!.trigger('click')
+    await flushPromises()
+
+    const detailCall = mocks.adminCreate.mock.calls.find(([requestPath]) => requestPath.endsWith('/detail-content-versions'))
+    const fulfillmentCall = mocks.adminReplace.mock.calls.find(([requestPath]) => requestPath.endsWith('/fulfillment-profile'))
+    const faqCall = mocks.adminReplace.mock.calls.find(([requestPath]) => requestPath.endsWith('/faqs'))
+    const submitCall = mocks.adminCommand.mock.calls.find(([requestPath]) => requestPath.endsWith('/review-submissions'))
+    expect(detailCall).toBeTruthy()
+    expect(fulfillmentCall).toBeTruthy()
+    expect(faqCall).toBeTruthy()
+    expect(submitCall).toBeTruthy()
+    expect(faqCall![0]).toBe('/admin/products/prd_test/faqs')
+    expect(mocks.adminReplace.mock.invocationCallOrder.at(-1)).toBeLessThan(mocks.adminCommand.mock.invocationCallOrder.at(-1)!)
+    expect(wrapper.text()).toContain('商品资料已保存，系统自动审核通过并立即上架')
+    expect(wrapper.text()).not.toContain('detail_content')
+    expect(wrapper.text()).not.toContain('fulfillment')
   })
 
   it('stages FAQ deletion until the bottom save action', async () => {

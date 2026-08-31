@@ -58,9 +58,6 @@ class UserCredential(MutableMySQLModel, MySQLBase):
     __tablename__ = "user_credentials"
     __table_args__ = (
         UniqueConstraint("user_id", "credential_type", name="uk_user_credentials_user_type"),
-        UniqueConstraint(
-            "credential_type", "active_identifier_hash", name="uk_credentials_active_identifier"
-        ),
         Index("idx_credentials_identifier", "credential_type", "identifier_hash"),
     )
 

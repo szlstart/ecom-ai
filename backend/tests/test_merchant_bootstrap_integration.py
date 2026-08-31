@@ -5,6 +5,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from app.bootstrap.admin import provision_platform_super_admin
 from app.bootstrap.merchant import STORE_OPERATOR_PERMISSIONS, provision_store_operator
 from app.core.config import get_settings
 from app.core.security import SecurityService
@@ -255,9 +256,18 @@ async def test_merchant_self_registration_creates_isolated_store_identity(
     username = f"merchant_signup_{suffix}"
     password = f"Merchant-{suffix}-Password!"
     store_name = f"自主注册店铺 {suffix}"
+    security = SecurityService(get_settings())
+
+    async for session in mysql_session():
+        await provision_platform_super_admin(
+            session,
+            security,
+            username=f"merchant_registration_admin_{suffix}",
+            password=f"Admin-{suffix}-Password!",
+        )
 
     async def registration_payload(
-        *, next_username: str, next_store_name: str
+        *, next_username: str, next_store_name: str, email: str | None = None
     ) -> dict[str, object]:
         config = await client.get("/api/v1/auth/registration-config")
         assert config.status_code == 200, config.text
@@ -266,7 +276,7 @@ async def test_merchant_self_registration_creates_isolated_store_identity(
         answer = int(left) + int(right) if operator == "+" else int(left) - int(right)
         return {
             "username": next_username,
-            "email": f"{next_username}@example.com",
+            "email": email or f"{next_username}@example.com",
             "password": password,
             "store_name": next_store_name,
             "captcha_id": captcha["captcha_id"],
@@ -320,6 +330,16 @@ async def test_merchant_self_registration_creates_isolated_store_identity(
     )
     assert duplicate_username.status_code == 409
     assert duplicate_username.json()["code"] == "MERCHANT_USERNAME_ALREADY_EXISTS"
+
+    shared_email_registration = await client.post(
+        "/api/v1/merchant/auth/registrations",
+        json=await registration_payload(
+            next_username=f"merchant_shared_email_{suffix}",
+            next_store_name=f"共享找回邮箱店铺 {suffix}",
+            email=str(payload["email"]),
+        ),
+    )
+    assert shared_email_registration.status_code == 201, shared_email_registration.text
 
     duplicate_store = await client.post(
         "/api/v1/merchant/auth/registrations",

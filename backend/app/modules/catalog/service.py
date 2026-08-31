@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import json
+import secrets
+import zlib
 from datetime import timedelta
 from decimal import Decimal
 from typing import Literal, cast
@@ -45,7 +47,7 @@ from app.modules.files.models import FileObject
 from app.modules.inventory.models import Inventory
 from app.modules.stores.models import Store
 
-ProductSort = Literal["relevance", "sales", "newest", "price_asc", "price_desc"]
+ProductSort = Literal["relevance", "sales", "newest", "price_asc", "price_desc", "random"]
 StockStatus = Literal["in_stock", "low_stock", "out_of_stock", "frozen"]
 
 
@@ -69,6 +71,7 @@ class CatalogService:
         sort: ProductSort,
         cursor: str | None,
         limit: int,
+        random_seed: int = 0,
     ) -> tuple[ProductList, PaginationMeta]:
         q = q.strip() if q else None
         if price_min is not None and price_max is not None and price_min > price_max:
@@ -87,6 +90,7 @@ class CatalogService:
             price_min=price_min,
             price_max=price_max,
             sort=sort,
+            random_seed=random_seed,
         )
         position = self.cursor.decode(cursor, filter_key=filter_key)
         try:
@@ -101,6 +105,7 @@ class CatalogService:
                 sort=sort,
                 position=position,
                 limit=limit,
+                random_seed=random_seed,
             )
         except (TypeError, ValueError, OverflowError) as exc:
             raise ApplicationError(
@@ -117,6 +122,7 @@ class CatalogService:
             filter_key=filter_key,
             sort=sort,
             limit=limit,
+            random_seed=random_seed,
         )
 
     async def product_cards(
@@ -310,6 +316,7 @@ class CatalogService:
         content = ContentService(self.session)
         announcements = await content.published("announcement")
         banners = await content.published("banner")
+        random_seed = secrets.randbelow(2_147_483_647) + 1
         products, pagination = await self.search(
             user_id=user_id,
             q=None,
@@ -319,9 +326,10 @@ class CatalogService:
             group_no=None,
             price_min=None,
             price_max=None,
-            sort="relevance",
+            sort="random",
             cursor=None,
             limit=12,
+            random_seed=random_seed,
         )
         return HomepageView(
             feed_version="catalog-v1",
@@ -334,6 +342,7 @@ class CatalogService:
                     status="available",
                     items=products.items,
                     next_cursor=pagination.next_cursor,
+                    recommendation_seed=random_seed,
                 )
             ],
         )
@@ -391,6 +400,7 @@ class CatalogService:
         filter_key: str,
         sort: ProductSort,
         limit: int,
+        random_seed: int = 0,
     ) -> PaginationMeta:
         backward = position is not None and position.direction == "previous"
         has_previous = has_more if backward else position is not None
@@ -398,7 +408,7 @@ class CatalogService:
         previous_cursor = (
             self.cursor.encode(
                 filter_key=filter_key,
-                values=_product_cursor_values(rows[0][0], sort),
+                values=_product_cursor_values(rows[0][0], sort, random_seed=random_seed),
                 direction="previous",
             )
             if rows and has_previous
@@ -407,7 +417,7 @@ class CatalogService:
         next_cursor = (
             self.cursor.encode(
                 filter_key=filter_key,
-                values=_product_cursor_values(rows[-1][0], sort),
+                values=_product_cursor_values(rows[-1][0], sort, random_seed=random_seed),
                 direction="next",
             )
             if rows and has_next
@@ -506,8 +516,12 @@ def _filter_key(**filters: object) -> str:
     return json.dumps(filters, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
 
 
-def _product_cursor_values(product: Product, sort: ProductSort) -> tuple[str, str]:
-    if sort == "newest":
+def _product_cursor_values(
+    product: Product, sort: ProductSort, *, random_seed: int = 0
+) -> tuple[str, str]:
+    if sort == "random":
+        value = str(zlib.crc32(f"{product.product_no}:{random_seed}".encode()))
+    elif sort == "newest":
         value = (product.published_at or product.created_at).isoformat()
     elif sort in {"relevance", "sales"}:
         value = str(product.sales_count)

@@ -28,7 +28,8 @@ async def homepage(
     context: OptionalUserContext,
     service: CatalogServiceDependency,
 ) -> Envelope[HomepageView]:
-    _public_cache(response, personalized=context is not None)
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["Vary"] = "Authorization"
     return Envelope(data=await service.homepage(context.user.id if context else None))
 
 
@@ -43,7 +44,10 @@ async def search_products(
     store_id: Annotated[str | None, Query(min_length=5, max_length=40)] = None,
     price_min: Annotated[int | None, Query(ge=0)] = None,
     price_max: Annotated[int | None, Query(ge=0)] = None,
-    sort: Literal["relevance", "sales", "newest", "price_asc", "price_desc"] = "relevance",
+    sort: Literal[
+        "relevance", "sales", "newest", "price_asc", "price_desc", "random"
+    ] = "relevance",
+    recommendation_seed: Annotated[int, Query(ge=0, le=2_147_483_647)] = 0,
     cursor: Annotated[str | None, Query(max_length=2048)] = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
 ) -> Envelope[ProductList]:
@@ -59,6 +63,7 @@ async def search_products(
         sort=sort,
         cursor=cursor,
         limit=limit,
+        random_seed=recommendation_seed,
     )
     _public_cache(response, personalized=context is not None)
     return Envelope(data=data, meta=ResponseMeta(pagination=pagination))

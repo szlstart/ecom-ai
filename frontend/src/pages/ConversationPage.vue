@@ -472,10 +472,7 @@ async function handleRealtime(event: RealtimeEvent) {
     return
   }
   if (event.type === 'agent.response.completed') {
-    if (streamingReply.value?.runId === event.data.run_id) streamingReply.value = null
     emit('trace-running', false)
-    liveTrace.value = null
-    emit('trace-progress', null)
     return
   }
   if (event.type === 'message.created') {
@@ -486,7 +483,11 @@ async function handleRealtime(event: RealtimeEvent) {
     if (message.sequence_no > lastSequence + 1) await poll()
     mergeMessages([message], shouldScroll)
     const runId = message.content?.run_id
-    if (typeof runId === 'string' && streamingReply.value?.runId === runId) streamingReply.value = null
+    if (typeof runId === 'string' && streamingReply.value?.runId === runId) {
+      streamingReply.value = null
+      liveTrace.value = null
+      emit('trace-progress', null)
+    }
     return
   }
   if (event.type === 'support.status.updated' && conversation.value) {

@@ -55,6 +55,7 @@ describe('AgentTracePanel', () => {
           label: '思考开始',
           summary: '正在识别问题、会话上下文、身份范围和可用权限。',
           reasoning: '用户在询问当前商品，我需要先找出最相关的规格。',
+          chunkIndex: 2,
         },
       },
     })
@@ -76,6 +77,7 @@ describe('AgentTracePanel', () => {
           label: '',
           summary: '',
           reasoning: '',
+          chunkIndex: 0,
         },
       },
     })

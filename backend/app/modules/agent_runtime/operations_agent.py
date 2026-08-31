@@ -45,6 +45,7 @@ from app.modules.agent_runtime.provider_gateway import (
     model_failure_code,
 )
 from app.modules.agent_runtime.public_trace import public_trace
+from app.modules.agent_runtime.store_agent import _model_invocation_trace
 from app.modules.catalog.models import Product, ProductSku
 from app.modules.identity.models import User
 from app.modules.inventory.models import Inventory
@@ -214,7 +215,9 @@ async def process_operations_run(
                     source_ids=small_citations,
                     stream_callback=stream_callback,
                 )
-                small_answer = grounded.text
+                small_answer = _normalize_operations_answer(grounded.text)
+                if stream_callback is not None and small_answer != grounded.text:
+                    await stream_callback("answer_replace", small_answer)
                 small_answer_mode = "model_grounded"
                 small_confidence = grounded.confidence
                 small_citations = grounded.cited_source_ids or small_citations
@@ -262,7 +265,9 @@ async def process_operations_run(
                         source_ids=source_ids,
                         stream_callback=stream_callback,
                     )
-                    answer = grounded.text
+                    answer = _normalize_operations_answer(grounded.text)
+                    if stream_callback is not None and answer != grounded.text:
+                        await stream_callback("answer_replace", answer)
                     answer_mode = "model_grounded"
                     confidence = grounded.confidence
                     multi_citations = grounded.cited_source_ids or source_ids
@@ -329,13 +334,17 @@ async def process_operations_run(
                 source_ids=citations,
                 stream_callback=stream_callback,
             )
-            answer = grounded.text
+            answer = _normalize_operations_answer(grounded.text)
+            if stream_callback is not None and answer != grounded.text:
+                await stream_callback("answer_replace", answer)
             answer_mode = "model_grounded"
             confidence = grounded.confidence
             citations = grounded.cited_source_ids or citations
             grounded_analysis = _grounded_analysis_trace(grounded)
         except (ModelGatewayError, TimeoutError) as exc:
             run.degraded_reason = model_failure_code(exc, "answer")
+            if stream_callback is not None:
+                await stream_callback("answer_replace", answer)
     await _complete(
         session,
         context,
@@ -358,15 +367,63 @@ def _grounded_analysis_trace(answer: object) -> dict[str, object]:
     details = getattr(answer, "analysis_details", ())
     thinking_used = getattr(answer, "thinking_used", False)
     grounding_verified = getattr(answer, "grounding_verified", None)
+    evidence_truncated = getattr(answer, "evidence_truncated", False)
+    truncated_evidence_fields = getattr(answer, "truncated_evidence_fields", ())
     result: dict[str, object] = {
         "thinking_mode": "enabled" if thinking_used else "not_reported",
         "grounding_verified": grounding_verified,
+        "evidence_truncated": evidence_truncated,
+        "truncated_evidence_fields": list(truncated_evidence_fields),
+        "model_invocation": _model_invocation_trace(answer),
     }
     if isinstance(summary, str) and summary:
         result["analysis_summary"] = summary
     if isinstance(details, tuple) and details:
         result["analysis_details"] = list(details)
     return result
+
+
+def _normalize_operations_answer(text: str) -> str:
+    """Keep operator-facing prose free of internal enum values.
+
+    The model is instructed to localize statuses, but the durable response must not
+    depend on prompt compliance alone. These narrow replacements preserve the
+    factual counts while translating the enum tokens that can occur in overview
+    answers. They intentionally do not rewrite arbitrary user-authored text.
+    """
+
+    normalized = re.sub(
+        r"(\d+\s*个店铺(?:处于|为))\s*active\b",
+        r"\1营业中",
+        text,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        r"(\d+\s*个用户(?:处于|为))\s*active\b",
+        r"\1正常状态",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    status_labels = {
+        "shipped": "已发货",
+        "completed": "已完成",
+        "cancelled": "已取消",
+        "closed": "已关闭",
+        "on_sale": "销售中",
+        "off_shelf": "已下架",
+        "pending_review": "审核中",
+        "needs_revision": "需修改",
+        "draft": "草稿",
+    }
+    for code, label in status_labels.items():
+        normalized = re.sub(
+            rf"((?:处于|状态为|为))\s*{re.escape(code)}\b",
+            rf"\1{label}",
+            normalized,
+            flags=re.IGNORECASE,
+        )
+        normalized = re.sub(rf"\b{re.escape(code)}\b", label, normalized, flags=re.IGNORECASE)
+    return normalized
 
 
 async def _execute_operations_multi_agent(
@@ -775,7 +832,10 @@ async def _snapshot(
         assert context.store is not None
         store_id = context.store.id
         product_counts = await _counts(
-            session, Product.product_status, Product.store_id == store_id
+            session,
+            Product.product_status,
+            Product.store_id == store_id,
+            Product.deleted_at.is_(None),
         )
         order_counts = await _counts(session, Order.order_status, Order.store_id == store_id)
         revenue = int(

@@ -17,6 +17,7 @@ export interface AgentLiveTrace {
   label: string
   summary: string
   reasoning: string
+  chunkIndex: number
 }
 
 export function liveTraceFromEvent(event: RealtimeEvent): AgentLiveTrace | null {
@@ -29,6 +30,7 @@ export function liveTraceFromEvent(event: RealtimeEvent): AgentLiveTrace | null 
     label: String(event.data.label ?? '思考开始'),
     summary: String(event.data.summary ?? '正在理解问题并核对可用权限。'),
     reasoning: '',
+    chunkIndex: 0,
   }
 }
 
@@ -36,7 +38,9 @@ export function updateLiveTrace(current: AgentLiveTrace | null, event: RealtimeE
   if (event.type === 'agent.response.started') return liveTraceFromEvent(event)
   if (event.type !== 'agent.response.reasoning.delta') return current
   const runId = event.data.run_id
+  const chunkIndex = Number(event.data.chunk_index)
   if (typeof runId !== 'string') return current
+  if (!Number.isInteger(chunkIndex) || chunkIndex < 1) return current
   if (!current) return {
     runId,
     question: '',
@@ -44,9 +48,11 @@ export function updateLiveTrace(current: AgentLiveTrace | null, event: RealtimeE
     label: '思考中',
     summary: '',
     reasoning: String(event.data.text_so_far ?? ''),
+    chunkIndex,
   }
   if (runId !== current.runId) return current
-  return { ...current, reasoning: String(event.data.text_so_far ?? '') }
+  if (chunkIndex <= current.chunkIndex) return current
+  return { ...current, reasoning: String(event.data.text_so_far ?? ''), chunkIndex }
 }
 
 interface RealtimeTicket {
@@ -71,6 +77,7 @@ export class RealtimeConnection {
   private attempt = 0
   private connecting = false
   private readonly seenEventIds = new Set<string>()
+  private eventQueue: Promise<void> = Promise.resolve()
 
   constructor(private readonly options: RealtimeOptions) {}
 
@@ -116,7 +123,9 @@ export class RealtimeConnection {
           if (this.seenEventIds.has(event.event_id)) return
           this.seenEventIds.add(event.event_id)
           if (this.seenEventIds.size > 2_000) this.seenEventIds.delete(this.seenEventIds.values().next().value!)
-          void this.options.onEvent(event)
+          this.eventQueue = this.eventQueue
+            .then(() => this.options.onEvent(event))
+            .catch(() => undefined)
         } catch {
           socket.close(1008, 'invalid server frame')
         }

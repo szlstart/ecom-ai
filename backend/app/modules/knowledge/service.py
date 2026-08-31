@@ -41,6 +41,7 @@ class KnowledgeService:
             scope_no=payload.scope_id,
             limit=payload.limit,
             trace_id=request_id_context.get() or new_prefixed_ulid("req_"),
+            min_vector_similarity=get_settings().rag_min_vector_similarity,
         )
         document_nos = {item.document_no for item in retrieval.chunks}
         rows = (
@@ -104,6 +105,7 @@ class KnowledgeService:
             scope_no=scope_no,
             limit=min(max(limit, 1), 8),
             trace_id=trace_id,
+            min_vector_similarity=get_settings().rag_min_vector_similarity,
         )
         document_nos = {item.document_no for item in retrieval.chunks}
         rows = (

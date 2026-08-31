@@ -10,7 +10,7 @@ from app.core.security import utc_now
 from app.modules.agent_runtime.models import AgentDefinition, AgentRun, AgentVersion
 from app.modules.agent_runtime.store_context import ContextRef, _parse_context_refs
 from app.modules.identity.models import User
-from app.modules.knowledge.skill_registry import SkillRegistry
+from app.modules.knowledge.skill_registry import RuntimeToolPolicy, SkillRegistry
 from app.modules.messaging.models import Conversation, ConversationContext, Message
 
 EXCLUSIVE_AGENT_TOOL_CODES = frozenset(
@@ -39,6 +39,7 @@ class TrustedExclusiveAgentContext:
     user: User
     agent_version: AgentVersion
     allowed_tools: frozenset[str]
+    tool_policies: dict[str, RuntimeToolPolicy]
     context_refs: dict[str, ContextRef]
 
     @property
@@ -90,11 +91,12 @@ class ExclusiveContextBuilder:
         ):
             raise _context_error("AGENT_TRUSTED_SCOPE_MISMATCH")
         try:
-            allowed_tools = await SkillRegistry(self.session).effective_tools(
+            tool_policies = await SkillRegistry(self.session).effective_tool_policies(
                 version, definition.agent_code
             )
         except PermissionError as exc:
             raise _context_error("AGENT_TOOL_POLICY_INVALID") from exc
+        allowed_tools = frozenset(tool_policies)
         if not allowed_tools or not allowed_tools <= EXCLUSIVE_AGENT_TOOL_CODES:
             raise _context_error("AGENT_TOOL_POLICY_INVALID")
         return TrustedExclusiveAgentContext(
@@ -104,6 +106,7 @@ class ExclusiveContextBuilder:
             user=user,
             agent_version=version,
             allowed_tools=allowed_tools,
+            tool_policies=tool_policies,
             context_refs=_parse_context_refs(run.context_snapshot),
         )
 

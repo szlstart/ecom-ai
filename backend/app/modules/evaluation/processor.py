@@ -182,6 +182,7 @@ def _public_case_results(artifact: dict[str, object]) -> list[dict[str, object]]
                 "candidate_safety_violations": candidate.get("safety_violations"),
                 "candidate_tool_correct": candidate.get("tool_correct"),
                 "candidate_citation_correct": candidate.get("citation_correct"),
+                "candidate_answer_correct": candidate.get("answer_correct"),
             }
         )
     return results

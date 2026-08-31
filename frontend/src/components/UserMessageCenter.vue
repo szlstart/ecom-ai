@@ -38,7 +38,7 @@ let initialized = false
 const exclusive = computed(() => items.value.find((item) => item.conversation_type === 'exclusive') ?? null)
 const stores = computed(() => items.value.filter((item) => item.conversation_type === 'store'))
 const selected = computed(() => items.value.find((item) => item.conversation_id === center.selectedConversationId) ?? null)
-const totalUnread = computed(() => items.value.reduce((total, item) => total + item.unread_count, 0))
+const totalUnread = computed(() => center.totalUnread)
 
 function token(): string {
   if (!auth.accessToken) throw new Error('missing user token')
@@ -67,6 +67,7 @@ async function load(ensureExclusive = false) {
     if (ensureExclusive) await ensureExclusiveConversation(token())
     const previousUnread = totalUnread.value
     items.value = (await listConversations(token())).data.items
+    center.replaceUnread(items.value)
     if (!center.selectedConversationId || !items.value.some((item) => item.conversation_id === center.selectedConversationId)) {
       center.selectedConversationId = exclusive.value?.conversation_id ?? items.value[0]?.conversation_id ?? null
     }
@@ -87,7 +88,10 @@ function handleRealtime(event: RealtimeEvent) {
     const conversationId = String(event.data.conversation_id ?? '')
     const unread = Number(event.data.conversation_unread)
     const target = items.value.find((item) => item.conversation_id === conversationId)
-    if (target && Number.isFinite(unread) && unread >= 0) target.unread_count = unread
+    if (target && Number.isFinite(unread) && unread >= 0) {
+      target.unread_count = unread
+      center.setUnread(conversationId, unread)
+    }
   }
   if (event.type === 'message.created') {
     const message = event.data.message as { sender_type?: string } | undefined
@@ -102,6 +106,7 @@ function selectConversation(item: Conversation) {
 }
 async function conversationDeleted(conversationId: string) {
   items.value = items.value.filter((item) => item.conversation_id !== conversationId)
+  center.removeConversation(conversationId)
   center.selectedConversationId = null
   traceMessages.value = []
   selectedTraceRunId.value = null
@@ -110,10 +115,11 @@ async function conversationDeleted(conversationId: string) {
 function updateReadCursor(conversationId: string, unreadCount: number) {
   const item = items.value.find((candidate) => candidate.conversation_id === conversationId)
   if (item) item.unread_count = unreadCount
+  center.setUnread(conversationId, unreadCount)
 }
 watch(() => auth.isAuthenticated, (value) => {
   if (value) void load(true)
-  else { items.value = [] }
+  else { items.value = []; center.clear() }
 })
 
 onMounted(async () => {

@@ -295,14 +295,18 @@ function handleRealtime(event: RealtimeEvent) {
       void scrollBottom()
     }
   }
-  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false; liveTrace.value = null; streamingReply.value = null }
+  if (eventConversationId === selectedConversationId && event.type === 'agent.response.completed') { traceRunning.value = false }
   if (event.type === 'unread.updated' && String(event.data.conversation_id ?? '') === exclusiveConversationId.value) {
     const unread = Number(event.data.conversation_unread)
     if (Number.isFinite(unread) && unread >= 0) exclusiveUnread.value = unread
   }
   if (event.type === 'message.created') {
     const conversationId = String(event.data.conversation_id ?? '')
-    const message = event.data.message as { sender_type?: string } | undefined
+    const message = event.data.message as { sender_type?: string; content?: { run_id?: string } } | undefined
+    if (message?.content?.run_id && message.content.run_id === streamingReply.value?.runId) {
+      streamingReply.value = null
+      liveTrace.value = null
+    }
     const incoming = conversationId === exclusiveConversationId.value
       ? message?.sender_type !== 'user'
       : message?.sender_type !== 'human'

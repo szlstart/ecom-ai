@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -20,6 +21,7 @@ from app.modules.after_sale.schemas import (
 )
 from app.modules.after_sale.service import AfterSaleService
 from app.modules.agent_runtime.exclusive_context import TrustedExclusiveAgentContext
+from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
 from app.modules.agent_runtime.models import AgentToolAudit
 from app.modules.agent_runtime.store_tools import (
     StoreToolResult,
@@ -53,6 +55,7 @@ class ExclusiveToolGateway:
         self.security = security
         self.catalog = CatalogRepository(session)
         self.after_sale = AfterSaleService(session, settings, security)
+        self._call_counts: dict[str, int] = {}
 
     async def execute(
         self,
@@ -60,6 +63,8 @@ class ExclusiveToolGateway:
         tool_code: str,
         arguments: dict[str, object],
         handler: Callable[[], Awaitable[dict[str, object]]],
+        *,
+        trusted_approval_no: str | None = None,
     ) -> StoreToolResult:
         started = time.monotonic()
         arguments_hash = hashlib.sha256(
@@ -67,13 +72,33 @@ class ExclusiveToolGateway:
                 arguments, ensure_ascii=False, sort_keys=True, separators=(",", ":")
             ).encode()
         ).digest()
-        if tool_code not in context.allowed_tools:
+        policy = context.tool_policies.get(tool_code)
+        call_count = self._call_counts.get(tool_code, 0)
+        if tool_code not in context.allowed_tools or policy is None:
             result = StoreToolResult("denied", {}, "TOOL_NOT_ALLOWED")
+        elif call_count >= policy.call_budget:
+            result = StoreToolResult("denied", {}, "TOOL_CALL_BUDGET_EXCEEDED")
+        elif policy.confirmation_policy != "none" and not (
+            (
+                tool_code == "support.create_platform_ticket"
+                and is_explicit_handoff_request(context.trigger.text_content or "")
+            )
+            or (
+                tool_code == "after_sale.submit_refund_application"
+                and trusted_approval_no is not None
+                and arguments.get("approval_id") == trusted_approval_no
+            )
+        ):
+            result = StoreToolResult("denied", {}, "TOOL_CONFIRMATION_REQUIRED")
         elif _contains_scope_override(arguments):
             result = StoreToolResult("denied", {}, "TOOL_SCOPE_OVERRIDE_DENIED")
         else:
+            self._call_counts[tool_code] = call_count + 1
             try:
-                result = StoreToolResult("succeeded", await handler())
+                result = StoreToolResult(
+                    "succeeded",
+                    await asyncio.wait_for(handler(), timeout=policy.timeout_ms / 1000),
+                )
             except ApplicationError as exc:
                 result = StoreToolResult("denied", {}, exc.code)
             except TimeoutError:
@@ -346,8 +371,10 @@ class ExclusiveToolGateway:
                 self.settings.security_hmac_secret.get_secret_value(),
             )
             result["shipments"] = (
-                await logistics.list_for_order(context.user, order_no)
-            ).model_dump(mode="json").get("items", [])
+                (await logistics.list_for_order(context.user, order_no))
+                .model_dump(mode="json")
+                .get("items", [])
+            )
             return result
 
         return await self.execute(
@@ -452,9 +479,7 @@ class ExclusiveToolGateway:
                     # refunded quantity means nothing has been refunded, not that no
                     # quantity remains refundable.
                     "refunded_quantity": item.refunded_quantity,
-                    "remaining_refundable_quantity": max(
-                        0, item.quantity - item.refunded_quantity
-                    ),
+                    "remaining_refundable_quantity": max(0, item.quantity - item.refunded_quantity),
                 }
                 for item in items
             ],
@@ -559,10 +584,10 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
         for token in re.findall(r"[\u4e00-\u9fff]+|[A-Za-z0-9]+", cleaned):
             if len(token) >= 2 and token not in {"商品", "在售", "当前", "平台"}:
                 candidates.append(token[:120])
-    broad = any(
-        marker in raw
-        for marker in ("全部商品", "所有商品", "当前在售", "平台在售", "全平台")
-    ) and cleaned in generic_terms
+    broad = (
+        any(marker in raw for marker in ("全部商品", "所有商品", "当前在售", "平台在售", "全平台"))
+        and cleaned in generic_terms
+    )
     if broad or cleaned in generic_terms:
         candidates.append(None)
     result: list[str | None] = []

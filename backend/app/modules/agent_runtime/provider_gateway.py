@@ -108,6 +108,25 @@ class GroundedAnswer:
     analysis_details: tuple[str, ...] = ()
     thinking_used: bool = False
     grounding_verified: bool | None = True
+    evidence_truncated: bool = False
+    truncated_evidence_fields: tuple[str, ...] = ()
+    model_name: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+    first_token_latency_ms: int | None = None
+    model_latency_ms: int | None = None
+    estimated_cost_usd: float | None = None
+
+
+@dataclass(frozen=True)
+class ModelInvocationMetrics:
+    model_name: str
+    input_tokens: int | None
+    output_tokens: int | None
+    total_tokens: int | None
+    first_token_latency_ms: int | None
+    model_latency_ms: int
 
 
 def model_failure_code(exc: Exception, stage: str) -> str:
@@ -251,13 +270,9 @@ class OpenAICompatiblePlanner:
         answer_evidence = {
             key: value for key, value in evidence.items() if key != "conversation_window"
         }
-        evidence_json = json.dumps(
-            answer_evidence,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-            default=str,
-        )[:24_000]
+        evidence_json, evidence_truncated, truncated_evidence_fields = _bounded_evidence_json(
+            answer_evidence
+        )
         if self._wire_api == "responses":
             return await self._synthesize_responses(
                 agent_prompt=agent_prompt,
@@ -266,6 +281,8 @@ class OpenAICompatiblePlanner:
                 evidence_json=evidence_json,
                 source_ids=source_ids,
                 stream_callback=stream_callback,
+                evidence_truncated=evidence_truncated,
+                truncated_evidence_fields=truncated_evidence_fields,
             )
         schema = {
             "name": "grounded_agent_answer",
@@ -412,6 +429,8 @@ class OpenAICompatiblePlanner:
                 if isinstance(item, str) and item.strip()
             ),
             thinking_used=result.get("_provider_thinking_used") is True,
+            evidence_truncated=evidence_truncated,
+            truncated_evidence_fields=truncated_evidence_fields,
         )
         platform_admin_scope = intent == "complex_platform_diagnosis" or any(
             source_id.startswith(("tool:governance.", "tool:observability."))
@@ -438,6 +457,8 @@ class OpenAICompatiblePlanner:
         evidence_json: str,
         source_ids: tuple[str, ...],
         stream_callback: AgentStreamCallback | None,
+        evidence_truncated: bool,
+        truncated_evidence_fields: tuple[str, ...],
     ) -> GroundedAnswer:
         """Stream the provider's public reasoning summary and final answer.
 
@@ -491,29 +512,46 @@ class OpenAICompatiblePlanner:
             "store": False,
             "stream": True,
         }
-        output, reasoning = await self._request_responses_stream(
+        output, reasoning, metrics = await self._request_responses_stream(
             payload, stream_callback=stream_callback
         )
         answer = _strip_untrusted_user_salutation(output.strip())
         if not answer or len(answer) > 4000:
             raise ModelGatewayError("model returned an invalid grounded answer")
-        try:
-            grounding_verified: bool | None = await self._verify_grounding(
+        grounding_verified = False
+        for _attempt in range(2):
+            grounding_verified = await self._verify_grounding(
                 user_text=user_text,
                 evidence_json=evidence_json,
                 answer=answer,
             )
-        except (ModelGatewayError, TimeoutError):
-            grounding_verified = None
+            if grounding_verified:
+                break
+        if not grounding_verified:
+            raise ModelGatewayError("model answer contains claims outside trusted evidence")
         return GroundedAnswer(
             text=answer,
-            cited_source_ids=source_ids,
-            confidence="medium" if grounding_verified is True else "low",
+            # The Responses text stream does not carry machine-verifiable citation
+            # annotations. Keep available sources in the run trace, but never claim
+            # the model cited all of them.
+            cited_source_ids=(),
+            confidence="medium",
             limitation=None,
             analysis_summary=reasoning[:6000] or None,
             analysis_details=(),
             thinking_used=bool(reasoning),
-            grounding_verified=grounding_verified,
+            grounding_verified=True,
+            evidence_truncated=evidence_truncated,
+            truncated_evidence_fields=truncated_evidence_fields,
+            model_name=metrics.model_name,
+            input_tokens=metrics.input_tokens,
+            output_tokens=metrics.output_tokens,
+            total_tokens=metrics.total_tokens,
+            first_token_latency_ms=metrics.first_token_latency_ms,
+            model_latency_ms=metrics.model_latency_ms,
+            # Provider pricing is not registered in this application. Unknown is
+            # deliberately persisted as null instead of a misleading zero.
+            estimated_cost_usd=None,
         )
 
     async def _request_responses_stream(
@@ -521,51 +559,125 @@ class OpenAICompatiblePlanner:
         payload: Mapping[str, Any],
         *,
         stream_callback: AgentStreamCallback | None,
-    ) -> tuple[str, str]:
-        output = ""
-        reasoning = ""
+    ) -> tuple[str, str, ModelInvocationMetrics]:
+        configured_models = (self._model, *self._fallback_models)
+        now = time.monotonic()
+        models = (
+            tuple(
+                model
+                for model in configured_models
+                if self._model_unavailable_until.get(model, 0.0) <= now
+            )
+            or configured_models
+        )
+        last_error: Exception | None = None
         owned_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:
-            async with client.stream(
-                "POST",
-                _responses_url(self._api_url),
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                json=dict(payload),
-                timeout=self._timeout_seconds,
-            ) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line.startswith("data:"):
-                        continue
-                    raw = line.removeprefix("data:").strip()
-                    if not raw or raw == "[DONE]":
-                        continue
-                    frame = json.loads(raw)
-                    event_type = frame.get("type")
-                    delta = frame.get("delta")
-                    if event_type == "response.reasoning_summary_part.added" and reasoning:
-                        reasoning = reasoning.rstrip() + "\n\n"
-                        if stream_callback is not None:
-                            await stream_callback("reasoning", reasoning[:6000])
-                    elif event_type == "response.reasoning_summary_text.delta" and isinstance(
-                        delta, str
+            for index, model in enumerate(models):
+                output = ""
+                reasoning = ""
+                completed = False
+                usage: Mapping[str, Any] = {}
+                attempt_started = time.monotonic()
+                first_token_latency_ms: int | None = None
+                request_payload = dict(payload)
+                request_payload["model"] = model
+                try:
+                    async with client.stream(
+                        "POST",
+                        _responses_url(self._api_url),
+                        headers={"Authorization": f"Bearer {self._api_key}"},
+                        json=request_payload,
+                        timeout=self._timeout_seconds,
+                    ) as response:
+                        response.raise_for_status()
+                        async for line in response.aiter_lines():
+                            if not line.startswith("data:"):
+                                continue
+                            raw = line.removeprefix("data:").strip()
+                            if not raw or raw == "[DONE]":
+                                continue
+                            frame = json.loads(raw)
+                            event_type = frame.get("type")
+                            delta = frame.get("delta")
+                            if isinstance(delta, str) and delta and first_token_latency_ms is None:
+                                first_token_latency_ms = int(
+                                    (time.monotonic() - attempt_started) * 1000
+                                )
+                            if event_type == "response.reasoning_summary_part.added" and reasoning:
+                                reasoning = reasoning.rstrip() + "\n\n"
+                                if stream_callback is not None:
+                                    await stream_callback("reasoning", reasoning[:6000])
+                            elif (
+                                event_type == "response.reasoning_summary_text.delta"
+                                and isinstance(delta, str)
+                            ):
+                                reasoning += delta
+                                if stream_callback is not None:
+                                    await stream_callback("reasoning", reasoning[:6000])
+                            elif event_type == "response.output_text.delta" and isinstance(
+                                delta, str
+                            ):
+                                output += delta
+                                if stream_callback is not None:
+                                    await stream_callback("answer", output[:4000])
+                            elif event_type == "response.completed":
+                                completed = True
+                                response_payload = frame.get("response")
+                                if isinstance(response_payload, Mapping) and isinstance(
+                                    response_payload.get("usage"), Mapping
+                                ):
+                                    usage = response_payload["usage"]
+                            elif event_type in {"response.failed", "response.incomplete"}:
+                                raise ModelGatewayError("Agent model response stream failed")
+                    if not completed:
+                        raise ModelGatewayError("Agent model response stream ended incomplete")
+                    input_tokens = _optional_non_negative_int(usage.get("input_tokens"))
+                    output_tokens = _optional_non_negative_int(usage.get("output_tokens"))
+                    total_tokens = _optional_non_negative_int(usage.get("total_tokens"))
+                    if (
+                        total_tokens is None
+                        and input_tokens is not None
+                        and output_tokens is not None
                     ):
-                        reasoning += delta
-                        if stream_callback is not None:
-                            await stream_callback("reasoning", reasoning[:6000])
-                    elif event_type == "response.output_text.delta" and isinstance(delta, str):
-                        output += delta
-                        if stream_callback is not None:
-                            await stream_callback("answer", output[:4000])
-                    elif event_type in {"response.failed", "response.incomplete"}:
-                        raise ModelGatewayError("Agent model response stream failed")
-        except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as exc:
-            raise ModelGatewayError("Agent model request failed") from exc
+                        total_tokens = input_tokens + output_tokens
+                    return (
+                        output,
+                        reasoning,
+                        ModelInvocationMetrics(
+                            model_name=model,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            total_tokens=total_tokens,
+                            first_token_latency_ms=first_token_latency_ms,
+                            model_latency_ms=int((time.monotonic() - attempt_started) * 1000),
+                        ),
+                    )
+                except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                    last_error = exc
+                    self._model_unavailable_until[model] = time.monotonic() + 60.0
+                except httpx.HTTPStatusError as exc:
+                    last_error = exc
+                    if _transient_provider_response(exc.response):
+                        self._model_unavailable_until[model] = time.monotonic() + 60.0
+                    else:
+                        break
+                except json.JSONDecodeError as exc:
+                    last_error = exc
+                    break
+                except ModelGatewayError as exc:
+                    last_error = exc
+                    break
+                if index + 1 < len(models):
+                    if stream_callback is not None:
+                        await stream_callback("reasoning_replace", "")
+                        await stream_callback("answer_replace", "")
+                    continue
         finally:
             if owned_client:
                 await client.aclose()
-        return output, reasoning
+        raise ModelGatewayError("Agent model request failed or stream was invalid") from last_error
 
     async def _verify_grounding(
         self,
@@ -705,11 +817,14 @@ class OpenAICompatiblePlanner:
             return await self._request_responses_json(payload)
         configured_models = (self._model, *self._fallback_models)
         now = time.monotonic()
-        models = tuple(
-            model
-            for model in configured_models
-            if self._model_unavailable_until.get(model, 0.0) <= now
-        ) or configured_models
+        models = (
+            tuple(
+                model
+                for model in configured_models
+                if self._model_unavailable_until.get(model, 0.0) <= now
+            )
+            or configured_models
+        )
         last_error: Exception | None = None
         owned_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=self._timeout_seconds)
@@ -765,9 +880,7 @@ class OpenAICompatiblePlanner:
     async def _request_responses_json(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         response_format = payload.get("response_format")
         json_schema = (
-            response_format.get("json_schema")
-            if isinstance(response_format, Mapping)
-            else None
+            response_format.get("json_schema") if isinstance(response_format, Mapping) else None
         )
         if not isinstance(json_schema, Mapping):
             raise ModelGatewayError("Responses request requires a JSON schema")
@@ -800,32 +913,56 @@ class OpenAICompatiblePlanner:
             "max_output_tokens": payload.get("max_tokens", 1024),
             "store": False,
         }
+        configured_models = (self._model, *self._fallback_models)
+        now = time.monotonic()
+        models = (
+            tuple(
+                model
+                for model in configured_models
+                if self._model_unavailable_until.get(model, 0.0) <= now
+            )
+            or configured_models
+        )
+        last_error: Exception | None = None
         owned_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=self._timeout_seconds)
         try:
-            response = await client.post(
-                _responses_url(self._api_url),
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                json=request_payload,
-                timeout=self._timeout_seconds,
-            )
-            response.raise_for_status()
-            body = response.json()
-            content = _response_output_text(body)
-            result = _loads_model_json(content)
-            result["_provider_thinking_used"] = bool(_response_reasoning_summary(body))
-            return result
-        except (httpx.TimeoutException, httpx.NetworkError, httpx.HTTPStatusError) as exc:
-            raise ModelGatewayError(
-                "Agent model request failed or returned an invalid plan"
-            ) from exc
-        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
-            raise ModelGatewayError(
-                "Agent model request failed or returned an invalid plan"
-            ) from exc
+            for index, model in enumerate(models):
+                model_payload = dict(request_payload)
+                model_payload["model"] = model
+                try:
+                    response = await client.post(
+                        _responses_url(self._api_url),
+                        headers={"Authorization": f"Bearer {self._api_key}"},
+                        json=model_payload,
+                        timeout=self._timeout_seconds,
+                    )
+                    response.raise_for_status()
+                    body = response.json()
+                    content = _response_output_text(body)
+                    result = _loads_model_json(content)
+                    result["_provider_thinking_used"] = bool(_response_reasoning_summary(body))
+                    return result
+                except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                    last_error = exc
+                    self._model_unavailable_until[model] = time.monotonic() + 60.0
+                except httpx.HTTPStatusError as exc:
+                    last_error = exc
+                    if _transient_provider_response(exc.response):
+                        self._model_unavailable_until[model] = time.monotonic() + 60.0
+                    else:
+                        break
+                except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+                    last_error = exc
+                    break
+                if index + 1 >= len(models):
+                    break
         finally:
             if owned_client:
                 await client.aclose()
+        raise ModelGatewayError(
+            "Agent model request failed or returned an invalid plan"
+        ) from last_error
 
 
 class ProviderStoreModelGateway:
@@ -1228,6 +1365,92 @@ def _response_output_text(payload: Mapping[str, Any]) -> str:
     if not chunks:
         raise TypeError("Responses output has no text")
     return "".join(chunks)
+
+
+def _optional_non_negative_int(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+
+
+def _bounded_evidence_json(
+    evidence: Mapping[str, Any],
+    *,
+    max_chars: int = 24_000,
+) -> tuple[str, bool, tuple[str, ...]]:
+    """Serialize evidence without ever cutting JSON in the middle of a token.
+
+    Evidence can contain long rich-text product details. Raw string slicing made the
+    prompt invalid JSON and also made truncation depend on the last byte. This bounded
+    serializer progressively reduces leaf and collection budgets while keeping a valid,
+    deterministic object and an explicit non-sensitive truncation marker.
+    """
+
+    def dump(value: object) -> str:
+        return json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+
+    serialized = dump(evidence)
+    if len(serialized) <= max_chars:
+        return serialized, False, ()
+
+    def compact(value: object, *, string_limit: int, item_limit: int) -> object:
+        if isinstance(value, Mapping):
+            return {
+                str(key): compact(item, string_limit=string_limit, item_limit=item_limit)
+                for key, item in list(sorted(value.items(), key=lambda pair: str(pair[0])))[
+                    :item_limit
+                ]
+            }
+        if isinstance(value, (list, tuple)):
+            return [
+                compact(item, string_limit=string_limit, item_limit=item_limit)
+                for item in value[:item_limit]
+            ]
+        if isinstance(value, str) and len(value) > string_limit:
+            return value[: max(0, string_limit - 1)] + "…"
+        return value
+
+    for string_limit, item_limit in (
+        (2_000, 40),
+        (1_000, 24),
+        (500, 16),
+        (240, 10),
+        (120, 6),
+        (60, 3),
+    ):
+        candidate = compact(evidence, string_limit=string_limit, item_limit=item_limit)
+        if not isinstance(candidate, dict):
+            continue
+        candidate_dict: dict[str, object] = candidate
+        candidate_dict["_evidence_budget"] = {"truncated": True}
+        serialized = dump(candidate)
+        if len(serialized) <= max_chars:
+            changed_fields = tuple(
+                str(key)
+                for key, value in sorted(evidence.items(), key=lambda pair: str(pair[0]))
+                if str(key) not in candidate_dict or dump(candidate_dict[str(key)]) != dump(value)
+            )
+            return serialized, True, changed_fields
+
+    # An adversarial object may contain thousands of top-level keys. Retain as many
+    # deterministic compact entries as fit, instead of emitting malformed JSON.
+    bounded: dict[str, object] = {"_evidence_budget": {"truncated": True}}
+    for key, value in sorted(evidence.items(), key=lambda pair: str(pair[0])):
+        bounded[str(key)] = compact(value, string_limit=40, item_limit=2)
+        candidate = dump(bounded)
+        if len(candidate) > max_chars:
+            bounded.pop(str(key), None)
+            break
+    changed_fields = tuple(
+        str(key)
+        for key, value in sorted(evidence.items(), key=lambda pair: str(pair[0]))
+        if str(key) not in bounded or dump(bounded[str(key)]) != dump(value)
+    )
+    return dump(bounded), True, changed_fields
 
 
 def _response_reasoning_summary(payload: Mapping[str, Any]) -> str:

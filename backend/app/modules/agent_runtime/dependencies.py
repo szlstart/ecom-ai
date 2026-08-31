@@ -8,6 +8,7 @@ from app.core.security import SecurityService
 from app.modules.agent_runtime.approval_service import AgentApprovalService
 from app.modules.agent_runtime.privacy_service import AiPrivacyService
 from app.modules.agent_runtime.service import AgentRuntimeService
+from app.modules.knowledge.embedding import embedding_provider
 
 
 def get_agent_runtime_service(session: DatabaseSession) -> AgentRuntimeService:
@@ -34,7 +35,7 @@ def get_ai_privacy_service(
     postgres: PostgresSession,
     security: Annotated[SecurityService, Depends(get_security_service)],
 ) -> AiPrivacyService:
-    return AiPrivacyService(session, postgres, security)
+    return AiPrivacyService(session, postgres, security, embedding_provider(get_settings()))
 
 
 AiPrivacyServiceDependency = Annotated[AiPrivacyService, Depends(get_ai_privacy_service)]

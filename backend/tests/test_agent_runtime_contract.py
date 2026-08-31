@@ -25,6 +25,7 @@ from app.modules.agent_runtime.model_gateway import (
 )
 from app.modules.agent_runtime.operations_agent import (
     _merchant_complex_domains,
+    _normalize_operations_answer,
     _operations_small_talk_reply,
     _render,
     _render_merchant_multi_agent,
@@ -237,6 +238,18 @@ def test_operations_agents_have_distinct_small_talk_responses() -> None:
     assert admin is not None and "超级管理员 AI 管家" in admin
     assert schedule is not None and "请帮我转人工客服" in schedule
     assert _operations_small_talk_reply("查看今天的订单", "merchant") is None
+
+
+def test_operations_answer_localizes_internal_status_codes() -> None:
+    answer = _normalize_operations_answer(
+        "3 个店铺处于 active，5 个用户为 active，1 笔订单状态为 shipped，"
+        "另有商品处于 pending_review。"
+    )
+
+    assert answer == (
+        "3 个店铺处于营业中，5 个用户为正常状态，1 笔订单状态为已发货，"
+        "另有商品处于审核中。"
+    )
 
 
 def test_merchant_cross_domain_diagnosis_routes_to_bounded_specialists() -> None:

@@ -9,6 +9,7 @@ from app.core.config import Settings
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.provider_gateway import (
     OpenAICompatiblePlanner,
+    _bounded_evidence_json,
     _loads_model_json,
     _strip_untrusted_user_salutation,
     configured_model_gateways,
@@ -95,10 +96,12 @@ async def test_responses_wire_uses_reasoning_and_structured_output() -> None:
                     },
                     {
                         "type": "message",
-                        "content": [{
-                            "type": "output_text",
-                            "text": '{"intent":"product_qa","search_text":null}',
-                        }],
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": '{"intent":"product_qa","search_text":null}',
+                            }
+                        ],
                     },
                 ]
             },
@@ -132,7 +135,12 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
                 {"type": "response.reasoning_summary_part.added", "part": {"type": "summary_text"}},
                 {"type": "response.reasoning_summary_text.delta", "delta": "再核对公开资料。"},
                 {"type": "response.output_text.delta", "delta": "这款商品轻便耐用。"},
-                {"type": "response.completed"},
+                {
+                    "type": "response.completed",
+                    "response": {
+                        "usage": {"input_tokens": 21, "output_tokens": 9, "total_tokens": 30}
+                    },
+                },
             ]
             content = "".join(
                 f"data: {json.dumps(frame, ensure_ascii=False)}\n\n" for frame in frames
@@ -144,10 +152,12 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
                 "output": [
                     {
                         "type": "message",
-                        "content": [{
-                            "type": "output_text",
-                            "text": '{"supported":true,"unsupported_claims":[]}',
-                        }],
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": '{"supported":true,"unsupported_claims":[]}',
+                            }
+                        ],
                     }
                 ]
             },
@@ -178,6 +188,12 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
     assert answer.text == "这款商品轻便耐用。"
     assert answer.analysis_summary == "先识别用户是在询问商品特点。\n\n再核对公开资料。"
     assert answer.grounding_verified is True
+    assert answer.cited_source_ids == ()
+    assert answer.model_name == "gpt-5.4"
+    assert (answer.input_tokens, answer.output_tokens, answer.total_tokens) == (21, 9, 30)
+    assert answer.first_token_latency_ms is not None
+    assert answer.model_latency_ms is not None
+    assert answer.estimated_cost_usd is None
     assert updates == [
         ("reasoning", "先识别用户是在"),
         ("reasoning", "先识别用户是在询问商品特点。"),
@@ -189,8 +205,11 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streamed_responses_answer_is_not_replaced_by_postcheck_false_positive() -> None:
+async def test_streamed_responses_grounding_verifier_retries_once() -> None:
+    verification_attempts = 0
+
     async def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal verification_attempts
         payload = json.loads(request.content)
         if payload.get("stream") is True:
             frames = [
@@ -204,6 +223,7 @@ async def test_streamed_responses_answer_is_not_replaced_by_postcheck_false_posi
                     f"data: {json.dumps(frame, ensure_ascii=False)}\n\n" for frame in frames
                 ),
             )
+        verification_attempts += 1
         return httpx.Response(
             200,
             json={
@@ -213,7 +233,11 @@ async def test_streamed_responses_answer_is_not_replaced_by_postcheck_false_posi
                         "content": [
                             {
                                 "type": "output_text",
-                                "text": '{"supported":false,"unsupported_claims":["误判"]}',
+                                "text": (
+                                    '{"supported":false,"unsupported_claims":["首次误判"]}'
+                                    if verification_attempts == 1
+                                    else '{"supported":true,"unsupported_claims":[]}'
+                                ),
                             }
                         ],
                     }
@@ -238,9 +262,169 @@ async def test_streamed_responses_answer_is_not_replaced_by_postcheck_false_posi
         source_ids=("order:ord_public",),
     )
     assert answer.text == "这笔订单实付 ¥6.00。"
-    assert answer.grounding_verified is False
-    assert answer.confidence == "low"
+    assert answer.grounding_verified is True
+    assert answer.confidence == "medium"
+    assert verification_attempts == 2
     await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_streamed_responses_rejects_answer_after_two_grounding_failures() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        if payload.get("stream") is True:
+            frames = [
+                {"type": "response.output_text.delta", "delta": "该订单已退款 600 元。"},
+                {"type": "response.completed"},
+            ]
+            return httpx.Response(
+                200,
+                text="".join(f"data: {json.dumps(frame)}\n\n" for frame in frames),
+            )
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": '{"supported":false,"unsupported_claims":["金额错误"]}',
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1",
+        api_key="model-secret",
+        model="gpt-5.4",
+        wire_api="responses",
+        timeout_seconds=5,
+        client=client,
+    )
+    with pytest.raises(ModelGatewayError, match="claims outside trusted evidence"):
+        await planner.synthesize(
+            agent_prompt="只按证据回答",
+            user_text="退款多少钱?",
+            intent="refund_progress",
+            evidence={"amount": {"display": "¥6.00"}},
+            source_ids=("refund:ref_public",),
+        )
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_responses_stream_falls_back_after_transient_primary_failure() -> None:
+    seen: list[str] = []
+
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        seen.append(payload["model"])
+        if payload["model"] == "overloaded-model":
+            return httpx.Response(503, json={"error": {"type": "engine_overloaded_error"}})
+        if payload.get("stream") is True:
+            frames = [
+                {"type": "response.output_text.delta", "delta": "当前有库存。"},
+                {"type": "response.completed"},
+            ]
+            return httpx.Response(
+                200,
+                text="".join(f"data: {json.dumps(frame)}\n\n" for frame in frames),
+            )
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": '{"supported":true,"unsupported_claims":[]}',
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+
+    updates: list[tuple[str, str]] = []
+
+    async def capture(kind: str, text: str) -> None:
+        updates.append((kind, text))
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1",
+        api_key="model-secret",
+        model="overloaded-model",
+        fallback_models=("fallback-model",),
+        wire_api="responses",
+        timeout_seconds=5,
+        client=client,
+    )
+    answer = await planner.synthesize(
+        agent_prompt="只按证据回答",
+        user_text="还有库存吗?",
+        intent="inventory_lookup",
+        evidence={"available_quantity": 3},
+        source_ids=("inventory:sku_public",),
+        stream_callback=capture,
+    )
+    assert answer.text == "当前有库存。"
+    assert seen == ["overloaded-model", "fallback-model", "fallback-model"]
+    assert updates[:2] == [("reasoning_replace", ""), ("answer_replace", "")]
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_responses_stream_rejects_malformed_or_incomplete_sse() -> None:
+    responses = iter(
+        [
+            httpx.Response(200, text="data: {not-json}\n\n"),
+            httpx.Response(
+                200,
+                text='data: {"type":"response.output_text.delta","delta":"半截"}\n\n',
+            ),
+        ]
+    )
+
+    async def respond(_request: httpx.Request) -> httpx.Response:
+        return next(responses)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1",
+        api_key="model-secret",
+        model="gpt-5.4",
+        wire_api="responses",
+        timeout_seconds=5,
+        client=client,
+    )
+    payload = {"model": "gpt-5.4", "stream": True}
+    with pytest.raises(ModelGatewayError, match="stream was invalid"):
+        await planner._request_responses_stream(payload, stream_callback=None)
+    with pytest.raises(ModelGatewayError, match="stream was invalid"):
+        await planner._request_responses_stream(payload, stream_callback=None)
+    await client.aclose()
+
+
+def test_bounded_evidence_is_valid_json_and_reports_truncation() -> None:
+    payload, truncated, fields = _bounded_evidence_json(
+        {"product": {"name": "保留名称", "detail": "说明" * 30_000}},
+        max_chars=1_200,
+    )
+    decoded = json.loads(payload)
+    assert truncated is True
+    assert len(payload) <= 1_200
+    assert decoded["_evidence_budget"]["truncated"] is True
+    assert decoded["product"]["name"] == "保留名称"
+    assert fields == ("product",)
 
 
 @pytest.mark.asyncio
@@ -258,9 +442,7 @@ async def test_provider_falls_back_only_after_transient_primary_failure() -> Non
         return httpx.Response(
             200,
             json={
-                "choices": [
-                    {"message": {"content": '{"intent":"policy_qa","search_text":null}'}}
-                ]
+                "choices": [{"message": {"content": '{"intent":"policy_qa","search_text":null}'}}]
             },
         )
 

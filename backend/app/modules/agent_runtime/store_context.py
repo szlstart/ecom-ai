@@ -10,7 +10,7 @@ from app.core.exceptions import ApplicationError
 from app.core.security import utc_now
 from app.modules.agent_runtime.models import AgentDefinition, AgentRun, AgentVersion
 from app.modules.identity.models import User
-from app.modules.knowledge.skill_registry import SkillRegistry
+from app.modules.knowledge.skill_registry import RuntimeToolPolicy, SkillRegistry
 from app.modules.messaging.models import Conversation, ConversationContext, Message
 from app.modules.stores.models import Store
 
@@ -49,6 +49,7 @@ class TrustedStoreAgentContext:
     store: Store
     agent_version: AgentVersion
     allowed_tools: frozenset[str]
+    tool_policies: dict[str, RuntimeToolPolicy]
     context_refs: dict[str, ContextRef]
 
     @property
@@ -100,13 +101,14 @@ class StoreContextBuilder:
         ):
             raise _context_error("AGENT_TRUSTED_SCOPE_MISMATCH", "会话与店铺 Agent 范围不匹配。")
         try:
-            allowed_tools = await SkillRegistry(self.session).effective_tools(
+            tool_policies = await SkillRegistry(self.session).effective_tool_policies(
                 version, definition.agent_code
             )
         except PermissionError as exc:
             raise _context_error(
                 "AGENT_TOOL_POLICY_INVALID", "Agent Skill 或 MCP 工具策略无效。"
             ) from exc
+        allowed_tools = frozenset(tool_policies)
         if not allowed_tools or not allowed_tools <= STORE_AGENT_TOOL_CODES:
             raise _context_error("AGENT_TOOL_POLICY_INVALID", "Agent 工具策略无效。")
         refs = _parse_context_refs(run.context_snapshot)
@@ -118,6 +120,7 @@ class StoreContextBuilder:
             store=store,
             agent_version=version,
             allowed_tools=allowed_tools,
+            tool_policies=tool_policies,
             context_refs=refs,
         )
 

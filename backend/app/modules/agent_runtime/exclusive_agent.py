@@ -8,7 +8,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
@@ -37,10 +37,11 @@ from app.modules.agent_runtime.provider_gateway import (
     model_failure_code,
 )
 from app.modules.agent_runtime.public_trace import ensure_public_trace, public_trace
-from app.modules.agent_runtime.store_agent import _stream_events
+from app.modules.agent_runtime.store_agent import _model_invocation_trace, _stream_events
 from app.modules.agent_runtime.store_tools import StoreToolResult
 from app.modules.agent_runtime.trigger_text import agent_trace_question, agent_trigger_text
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
+from app.modules.knowledge.embedding import embedding_provider
 from app.modules.knowledge.service import KnowledgeService
 from app.modules.messaging.models import Message
 from app.modules.system.models import OutboxEvent
@@ -98,7 +99,11 @@ async def process_exclusive_run(
     if requested_memory is not None:
         try:
             candidate = await AgentMemoryRuntime(
-                session, checkpoint_store.session, security
+                session,
+                checkpoint_store.session,
+                security,
+                embedding_provider(settings),
+                settings.memory_min_vector_similarity,
             ).propose_exclusive(
                 context.user,
                 source_message_no=context.trigger.message_no,
@@ -190,9 +195,7 @@ async def process_exclusive_run(
         store_no=None,
     )
     fast_plan = await DeterministicExclusiveModelGateway().plan(trigger_text)
-    if fast_plan.intent != "general_chat" or not isinstance(
-        gateway, ProviderExclusiveModelGateway
-    ):
+    if fast_plan.intent != "general_chat" or not isinstance(gateway, ProviderExclusiveModelGateway):
         plan = fast_plan
     else:
         planning_input = context_window.planning_input(trigger_text)
@@ -418,6 +421,7 @@ async def _resume_approval(
         "after_sale.submit_refund_application",
         {"approval_id": approval.approval_no},
         execute,
+        trusted_approval_no=approval.approval_no,
     )
     if result.status == "succeeded" and result.data.get("status") == "succeeded":
         await _complete(
@@ -725,12 +729,17 @@ async def _grounded_answer(
         trace["answer_mode"] = "deterministic_fallback"
         trace["degraded_reason"] = reason
         context.run.degraded_reason = reason
+        if stream_callback is not None:
+            await stream_callback("answer_replace", fallback)
         return fallback, trace
     trace["answer_mode"] = "model_grounded"
     trace["confidence"] = answer.confidence
     trace["cited_source_ids"] = list(answer.cited_source_ids)
     trace["thinking_mode"] = "enabled" if answer.thinking_used else "not_reported"
     trace["grounding_verified"] = answer.grounding_verified
+    trace["evidence_truncated"] = answer.evidence_truncated
+    trace["truncated_evidence_fields"] = list(answer.truncated_evidence_fields)
+    trace["model_invocation"] = _model_invocation_trace(answer)
     if answer.analysis_summary:
         trace["analysis_summary"] = answer.analysis_summary
     if answer.analysis_details:
@@ -794,9 +803,7 @@ def _requests_latest_order(value: str) -> bool:
     )
 
 
-def _render(
-    plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = ""
-) -> str:
+def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = "") -> str:
     if plan.intent == "general_chat":
         return "你好，我是你的专属客服。你可以问我平台规则、商品推荐、本人订单、物流或售后问题。"
     items = data.get("items")
@@ -830,9 +837,7 @@ def _render(
                         continue
                     sku_price = sku.get("price")
                     display = (
-                        sku_price.get("display")
-                        if isinstance(sku_price, dict)
-                        else "价格待核对"
+                        sku_price.get("display") if isinstance(sku_price, dict) else "价格待核对"
                     )
                     lines.append(
                         f"  - {safe_untrusted_excerpt(sku.get('sku_name'), 120)}: "
@@ -883,9 +888,7 @@ def _render(
             eligibility_value if isinstance(eligibility_value, Mapping) else {}
         )
         status_value = data.get("status")
-        order_status: Mapping[str, Any] = (
-            status_value if isinstance(status_value, Mapping) else {}
-        )
+        order_status: Mapping[str, Any] = status_value if isinstance(status_value, Mapping) else {}
         eligible = eligibility.get("eligible") is True
         lines = [
             f"订单 {data.get('order_id')} 当前订单状态为"
@@ -1054,8 +1057,13 @@ async def _attach_exclusive_memories(
     context.run.current_phase = "recalling"
     context.run.version += 1
     try:
+        settings = get_settings()
         recall = await AgentMemoryRuntime(
-            mysql, checkpoint_store.session, security
+            mysql,
+            checkpoint_store.session,
+            security,
+            embedding_provider(settings),
+            settings.memory_min_vector_similarity,
         ).recall_exclusive(
             context.user,
             query=context.trigger.text_content or "购物偏好",

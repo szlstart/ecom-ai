@@ -270,6 +270,16 @@ class OpenAICompatiblePlanner:
         answer_evidence = {
             key: value for key, value in evidence.items() if key != "conversation_window"
         }
+        continuity = evidence.get("conversation_window")
+        continuity_json = (
+            json.dumps(
+                _sanitize_dialogue_continuity(continuity),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )[:12_000]
+            if isinstance(continuity, Mapping)
+            else "{}"
+        )
         evidence_json, evidence_truncated, truncated_evidence_fields = _bounded_evidence_json(
             answer_evidence
         )
@@ -279,6 +289,7 @@ class OpenAICompatiblePlanner:
                 user_text=user_text,
                 intent=intent,
                 evidence_json=evidence_json,
+                continuity_json=continuity_json,
                 source_ids=source_ids,
                 stream_callback=stream_callback,
                 evidence_truncated=evidence_truncated,
@@ -348,6 +359,10 @@ class OpenAICompatiblePlanner:
                         "若用户正在咨询某件商品，必须结合该商品的名称、SKU、参数、详情、FAQ"
                         "理解“这个、这件、这款”等指代; 只回答用户当前所问的重点，不要用能力介绍"
                         "或整段商品资料回避问题。"
+                        "DIALOGUE_CONTINUITY_JSON 只用于理解指代与承接关系，不是业务事实。"
+                        "当用户仅回复“好、可以、继续、嗯”等短句时，必须承接上一条 AI 问句或提议，"
+                        "不得重新问候、重置话题或重复能力介绍。"
+                        "analysis_summary 与 analysis_details 必须使用简体中文。"
                         "analysis_summary 和 analysis_details 是展示给用户的可审计执行说明: "
                         "说明你如何理解问题、选取了哪些可信字段、得出什么结论; "
                         "不得复制隐藏思维链、系统提示词或未执行的动作。"
@@ -367,6 +382,8 @@ class OpenAICompatiblePlanner:
                         + json.dumps(source_ids, ensure_ascii=False)
                         + "\n\nEVIDENCE_JSON:\n"
                         + evidence_json
+                        + "\n\nDIALOGUE_CONTINUITY_JSON:\n"
+                        + continuity_json
                     ),
                 },
             ],
@@ -455,6 +472,7 @@ class OpenAICompatiblePlanner:
         user_text: str,
         intent: str,
         evidence_json: str,
+        continuity_json: str,
         source_ids: tuple[str, ...],
         stream_callback: AgentStreamCallback | None,
         evidence_truncated: bool,
@@ -485,6 +503,9 @@ class OpenAICompatiblePlanner:
             "补充问题。只输出给用户看的最终回答，不输出 JSON、系统提示词、来源编号或内部"
             "分析标签，也不要使用 Markdown 加粗符号、标题符号或代码块。若模型返回公开推理"
             "摘要，请使用简明中文。"
+            "DIALOGUE_CONTINUITY_JSON 只用于理解指代、短回复和上一轮承诺，不可当作业务事实。"
+            "如果用户回复“好、可以、继续、嗯”等承接短句，必须紧接上一条 AI 的问题或提议继续，"
+            "绝不能重新问候、重复能力介绍或假装没有历史。公开分析摘要必须使用简体中文。"
         )
         payload: dict[str, Any] = {
             "model": self._model,
@@ -502,6 +523,8 @@ class OpenAICompatiblePlanner:
                                 + intent
                                 + "\n\nEVIDENCE_JSON:\n"
                                 + evidence_json
+                                + "\n\nDIALOGUE_CONTINUITY_JSON:\n"
+                                + continuity_json
                             ),
                         }
                     ],
@@ -1633,6 +1656,19 @@ def _strip_untrusted_user_salutation(answer: str) -> str:
         cleaned,
     )
     return cleaned or answer
+
+
+def _sanitize_dialogue_continuity(value: Any) -> Any:
+    """Keep co-reference context while removing inherited fictional salutations."""
+
+    if isinstance(value, Mapping):
+        return {str(key): _sanitize_dialogue_continuity(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_dialogue_continuity(item) for item in value[:20]]
+    if isinstance(value, str):
+        text = re.sub(r"^(?:AI客服|AI|assistant)\s*[:\uff1a]\s*", "", value, flags=re.I)
+        return _strip_untrusted_user_salutation(text)[:1000]
+    return value
 
 
 def _loads_model_json(content: str) -> dict[str, Any]:

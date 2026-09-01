@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import {
   claimSupportTicket,
+  clearSupportConversationHistory,
   deleteSupportConversation,
   getSupportWorkspace,
   listSupportConversations,
@@ -20,6 +21,7 @@ import { resolveApiAssetUrl } from '@/api/http'
 import { adminGet, requireAdminToken, type AdminProductSummary, type AdminStore } from '@/api/admin-catalog'
 import {
   getMerchantExclusiveConversation,
+  clearMerchantExclusiveConversationHistory,
   deleteMerchantExclusiveConversation,
   listMerchantExclusiveMessages,
   putMerchantExclusiveReadCursor,
@@ -57,6 +59,7 @@ const shaking = ref(false)
 const selectedTraceRunId = ref<string | null>(null)
 const traceRunning = ref(false)
 const liveTrace = ref<AgentLiveTrace | null>(null)
+const openMenuKey = ref('')
 const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
 const attachmentOpen = ref(false)
 const attachmentLoading = ref(false)
@@ -109,22 +112,43 @@ function avatarUrl(item: ChatMessage): string | null {
     ? resolveApiAssetUrl(resolvedStoreLogo.value)
     : null
 }
-async function removeConversation() {
+async function clearHistory() {
   if (sending.value) return
   const name = selectedKey.value === 'exclusive' ? '专属客服' : activeConversation.value?.participant_name || '当前顾客'
-  if (!await confirmAction(`确认删除与“${name}”的对话吗？聊天记录和本会话 AI 记忆会被清除，且无法恢复。`)) return
+  if (!await confirmAction(`确认清除与“${name}”的聊天记录吗？会话仍保留在左侧，历史与本会话 AI 记忆会清空，并重新开始。`)) return
   sending.value = true; error.value = ''
   try {
     if (selectedKey.value === 'exclusive') {
+      await clearMerchantExclusiveConversationHistory(token())
+      exclusiveMessages.value = []
+      await loadExclusive()
+    } else if (activeConversation.value) {
+      await clearSupportConversationHistory(activeConversation.value.conversation_id, token())
+      messages.value = []
+      supportPreviousCursor.value = null
+      workspace.value = null
+      await loadConversations()
+    }
+    selectedTraceRunId.value = null
+    liveTrace.value = null
+    streamingReply.value = null
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { sending.value = false }
+}
+async function deleteConversationEntry(key: string, name: string) {
+  openMenuKey.value = ''
+  if (sending.value || !await confirmAction(`确认删除与“${name}”的对话吗？聊天记录、上下文和本会话 AI 记忆都会清除，且无法恢复。`)) return
+  sending.value = true; error.value = ''
+  try {
+    if (key === 'exclusive') {
       await deleteMerchantExclusiveConversation(token())
       exclusiveMessages.value = []
       exclusiveConversationId.value = ''
       await loadExclusive()
-    } else if (activeConversation.value) {
-      const deletedId = activeConversation.value.conversation_id
-      await deleteSupportConversation(deletedId, token())
-      conversations.value = conversations.value.filter((item) => item.conversation_id !== deletedId)
-      await selectConversation('exclusive')
+    } else {
+      await deleteSupportConversation(key, token())
+      conversations.value = conversations.value.filter((item) => item.conversation_id !== key)
+      if (selectedKey.value === key) await selectConversation('exclusive')
     }
   } catch (cause) { error.value = errorMessage(cause) }
   finally { sending.value = false }
@@ -402,19 +426,25 @@ onBeforeUnmount(() => {
     <span aria-hidden="true">💬</span><span>消息</span><b v-if="unreadCount" :class="{ neutral: !humanUnreadCount }" :aria-label="`${unreadCount} 条未读消息`">{{ unreadCount > 99 ? '99+' : unreadCount }}</b>
   </RouterLink>
   <div v-else class="message-page-surface merchant-message-page-surface">
-      <section class="merchant-message-window" aria-label="商家消息中心">
+      <section class="merchant-message-window" aria-label="商家消息中心" @click="openMenuKey = ''" @keydown.esc="openMenuKey = ''">
         <aside class="merchant-chat-list">
           <header><div><strong>会话列表</strong><small><span class="connection-dot" :class="connectionState" />{{ unreadCount ? `${unreadCount} 条未读` : '消息已读' }}</small></div><RouterLink class="message-workspace-back" to="/merchant/products">返回</RouterLink></header>
-          <button class="merchant-chat-item pinned" :class="{ active: selectedKey === 'exclusive' }" type="button" @click="selectConversation('exclusive')">
-            <span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><span><strong>专属客服 <em>置顶</em></strong><small>面向商家的 AI 经营助理</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
-          </button>
+          <div class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = 'exclusive'">
+            <button class="merchant-chat-item pinned" :class="{ active: selectedKey === 'exclusive' }" type="button" @click.stop="selectConversation('exclusive')">
+              <span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><span><strong>专属客服 <em>置顶</em></strong><small>面向商家的 AI 经营助理</small></span><i v-if="exclusiveUnread" class="merchant-chat-unread">{{ exclusiveUnread > 99 ? '99+' : exclusiveUnread }}</i>
+            </button>
+            <div v-if="openMenuKey === 'exclusive'" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry('exclusive', '专属客服')">删除对话</button></div>
+          </div>
           <p v-if="!conversations.length" class="merchant-chat-empty">暂时没有顾客咨询</p>
-          <button v-for="item in conversations" :key="item.conversation_id" class="merchant-chat-item" :class="{ active: selectedKey === item.conversation_id }" type="button" @click="selectConversation(item.conversation_id)">
-            <span class="merchant-chat-avatar"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) || '客' }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? statusLabel(item.active_ticket_status || '') : 'AI 接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><i v-if="item.unread_count" class="merchant-chat-unread" :class="{ neutral: !item.requires_human }">{{ item.unread_count > 99 ? '99+' : item.unread_count }}</i>
-          </button>
+          <div v-for="item in conversations" :key="item.conversation_id" class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = item.conversation_id">
+            <button class="merchant-chat-item" :class="{ active: selectedKey === item.conversation_id }" type="button" @click.stop="selectConversation(item.conversation_id)">
+              <span class="merchant-chat-avatar"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) || '客' }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? statusLabel(item.active_ticket_status || '') : 'AI 接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><i v-if="item.unread_count" class="merchant-chat-unread" :class="{ neutral: !item.requires_human }">{{ item.unread_count > 99 ? '99+' : item.unread_count }}</i>
+            </button>
+            <div v-if="openMenuKey === item.conversation_id" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry(item.conversation_id, item.participant_name)">删除对话</button></div>
+          </div>
         </aside>
         <main class="merchant-chat-main">
-          <header><div><strong>{{ title }}</strong><small>{{ subtitle }}</small></div><div class="actions"><button v-if="canReply" class="secondary small" :disabled="sending" @click="finishHumanService">结束人工服务</button><button class="danger small" type="button" :disabled="sending" @click="removeConversation">删除对话</button></div></header>
+          <header><div><strong>{{ title }}</strong><small>{{ subtitle }}</small></div><div class="actions"><button v-if="canReply" class="secondary small" :disabled="sending" @click="finishHumanService">结束人工服务</button><button class="secondary small" type="button" :disabled="sending" @click="clearHistory">清除记录</button></div></header>
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>
           <div ref="timeline" class="merchant-chat-timeline">
             <button v-if="selectedKey === 'exclusive' ? exclusivePreviousCursor : supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>

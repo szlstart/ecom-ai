@@ -199,6 +199,26 @@ async def test_store_agent_understands_natural_product_size_questions() -> None:
         ).intent
         == "product_qa"
     )
+
+
+def test_store_plan_refinement_keeps_affirmative_follow_up_in_current_task() -> None:
+    assert (
+        refine_store_plan_for_context(
+            StoreAgentPlan("general_chat"),
+            "好",
+            has_product_context=True,
+        ).intent
+        == "product_qa"
+    )
+    assert (
+        refine_store_plan_for_context(
+            StoreAgentPlan("general_chat"),
+            "继续",
+            has_product_context=False,
+            has_order_context=True,
+        ).intent
+        == "order_explain"
+    )
     assert (
         refine_store_plan_for_context(
             StoreAgentPlan("general_chat"),

@@ -3,6 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import {
+  clearAdminAiConversationHistory,
+  clearSupportConversationHistory,
   claimSupportTicket,
   deleteAdminAiConversation,
   deleteSupportConversation,
@@ -50,6 +52,7 @@ const connectionState = ref<RealtimeState>('polling')
 const selectedTraceRunId = ref<string | null>(null)
 const traceRunning = ref(false)
 const liveTrace = ref<AgentLiveTrace | null>(null)
+const openMenuKey = ref('')
 const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
 let realtime: RealtimeConnection | undefined
 let pollingTimer: number | undefined
@@ -262,22 +265,44 @@ async function finishHumanService() {
   finally { busy.value = false }
 }
 
-async function removeConversation() {
+async function clearHistory() {
   if (busy.value) return
   const name = selected.value === 'ai' ? 'AI 管家' : selectedConversation.value?.participant_name || '当前会话'
-  if (!await confirmAction(`确认删除与“${name}”的对话吗？聊天记录和本会话 AI 记忆会被清除，且无法恢复。`)) return
+  if (!await confirmAction(`确认清除与“${name}”的聊天记录吗？会话仍保留在左侧，历史与本会话 AI 记忆会清空，并重新开始。`)) return
   busy.value = true; error.value = ''
   try {
     if (selected.value === 'ai') {
+      await clearAdminAiConversationHistory(token())
+      aiMessages.value = []
+      await loadAiMessages()
+    } else if (selectedConversation.value) {
+      await clearSupportConversationHistory(selectedConversation.value.conversation_id, token())
+      messages.value = []
+      supportPreviousCursor.value = null
+      workspace.value = null
+      await loadConversations()
+    }
+    selectedTraceRunId.value = null
+    liveTrace.value = null
+    streamingReply.value = null
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { busy.value = false }
+}
+
+async function deleteConversationEntry(key: string, name: string) {
+  openMenuKey.value = ''
+  if (busy.value || !await confirmAction(`确认删除与“${name}”的对话吗？聊天记录、上下文和本会话 AI 记忆都会清除，且无法恢复。`)) return
+  busy.value = true; error.value = ''
+  try {
+    if (key === 'ai') {
       await deleteAdminAiConversation(token())
       aiMessages.value = []
       aiConversationId.value = ''
       await loadAiMessages()
-    } else if (selectedConversation.value) {
-      const deletedId = selectedConversation.value.conversation_id
-      await deleteSupportConversation(deletedId, token())
-      conversations.value = conversations.value.filter((item) => item.conversation_id !== deletedId)
-      await selectAi()
+    } else {
+      await deleteSupportConversation(key, token())
+      conversations.value = conversations.value.filter((item) => item.conversation_id !== key)
+      if (selected.value === key) await selectAi()
     }
   } catch (cause) { error.value = errorMessage(cause) }
   finally { busy.value = false }
@@ -305,20 +330,20 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="message-page-surface admin-message-page-surface">
-    <section class="admin-message-window" aria-label="管理端消息中心">
+    <section class="admin-message-window" aria-label="管理端消息中心" @click="openMenuKey = ''" @keydown.esc="openMenuKey = ''">
       <aside class="admin-chat-sidebar">
         <header><div><strong>会话列表</strong><small>用户、店铺与 AI 管家</small></div><RouterLink class="message-workspace-back" to="/admin">返回</RouterLink></header>
         <label class="admin-chat-search"><span>⌕</span><input v-model="search" placeholder="搜索会话" /></label>
         <div class="admin-chat-list">
-          <button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click="selectAi"><span class="admin-chat-avatar ai"><img src="/ai-avatar.svg" alt="" /></span><span><strong>AI 管家</strong><small>只读诊断助手 · 固定置顶</small></span><time>置顶</time></button>
-          <section class="admin-chat-group"><button class="admin-chat-group-title" @click="userGroupOpen = !userGroupOpen"><span>{{ userGroupOpen ? '⌄' : '›' }} 用户消息</span><b>{{ userConversations.length }}</b></button><template v-if="userGroupOpen"><button v-for="item in userConversations" :key="item.conversation_id" class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click="selectConversation(item)"><span class="admin-chat-avatar"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? '等待人工接待' : 'AI 接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><p v-if="!userConversations.length">暂无用户会话</p></template></section>
-          <section class="admin-chat-group"><button class="admin-chat-group-title" @click="storeGroupOpen = !storeGroupOpen"><span>{{ storeGroupOpen ? '⌄' : '›' }} 店铺消息</span><b>{{ storeConversations.length }}</b></button><template v-if="storeGroupOpen"><button v-for="item in storeConversations" :key="item.conversation_id" class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click="selectConversation(item)"><span class="admin-chat-avatar store"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) || '店' }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? '等待平台人工接待' : '商家 AI 助理接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><p v-if="!storeConversations.length">暂无店铺会话</p></template></section>
+          <div class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = 'ai'"><button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click.stop="selectAi"><span class="admin-chat-avatar ai"><img src="/ai-avatar.svg" alt="" /></span><span><strong>AI 管家</strong><small>只读诊断助手 · 固定置顶</small></span><time>置顶</time></button><div v-if="openMenuKey === 'ai'" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry('ai', 'AI 管家')">删除对话</button></div></div>
+          <section class="admin-chat-group"><button class="admin-chat-group-title" @click="userGroupOpen = !userGroupOpen"><span>{{ userGroupOpen ? '⌄' : '›' }} 用户消息</span><b>{{ userConversations.length }}</b></button><template v-if="userGroupOpen"><div v-for="item in userConversations" :key="item.conversation_id" class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = item.conversation_id"><button class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click.stop="selectConversation(item)"><span class="admin-chat-avatar"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? '等待人工接待' : 'AI 接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><div v-if="openMenuKey === item.conversation_id" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry(item.conversation_id, item.participant_name)">删除对话</button></div></div><p v-if="!userConversations.length">暂无用户会话</p></template></section>
+          <section class="admin-chat-group"><button class="admin-chat-group-title" @click="storeGroupOpen = !storeGroupOpen"><span>{{ storeGroupOpen ? '⌄' : '›' }} 店铺消息</span><b>{{ storeConversations.length }}</b></button><template v-if="storeGroupOpen"><div v-for="item in storeConversations" :key="item.conversation_id" class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = item.conversation_id"><button class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click.stop="selectConversation(item)"><span class="admin-chat-avatar store"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) || '店' }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? '等待平台人工接待' : '商家 AI 助理接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><div v-if="openMenuKey === item.conversation_id" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry(item.conversation_id, item.participant_name)">删除对话</button></div></div><p v-if="!storeConversations.length">暂无店铺会话</p></template></section>
         </div>
       </aside>
 
       <main class="admin-chat-main">
         <template v-if="selected === 'ai'">
-          <header class="admin-chat-header"><div><strong>AI 管家</strong><small><span />{{ connectionState === 'connected' ? '实时在线' : connectionState === 'offline' ? '网络离线' : '正在连接' }} · 默认只读</small></div><button class="danger small" type="button" :disabled="busy" @click="removeConversation">删除对话</button></header>
+          <header class="admin-chat-header"><div><strong>AI 管家</strong><small><span />{{ connectionState === 'connected' ? '实时在线' : connectionState === 'offline' ? '网络离线' : '正在连接' }} · 默认只读</small></div><button class="secondary small" type="button" :disabled="busy" @click="clearHistory">清除记录</button></header>
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取 AI 会话…</div>
           <section v-else class="admin-chat-conversation admin-ai-chat">
@@ -328,7 +353,7 @@ onBeforeUnmount(() => {
         </template>
 
         <template v-else>
-          <header class="admin-chat-header"><div><strong>{{ selectedConversation?.participant_type === 'merchant' ? '店铺专属客服' : '用户专属客服' }} · {{ selectedConversation?.participant_name }}</strong><small>{{ selectedConversation?.requires_human ? `人工接待 · ${selectedTicket?.ticket_status || '同步中'}` : 'AI 正在接待 · 完整历史已同步' }}</small></div><div class="actions"><button v-if="canChat" class="secondary small" :disabled="busy" @click="finishHumanService">结束人工服务</button><button class="danger small" type="button" :disabled="busy" @click="removeConversation">删除对话</button><RouterLink v-if="selectedTicket" :to="`/admin/support/tickets/${selectedTicket.ticket_id}`">完整工作台 ↗</RouterLink></div></header>
+          <header class="admin-chat-header"><div><strong>{{ selectedConversation?.participant_type === 'merchant' ? '店铺专属客服' : '用户专属客服' }} · {{ selectedConversation?.participant_name }}</strong><small>{{ selectedConversation?.requires_human ? `人工接待 · ${selectedTicket?.ticket_status || '同步中'}` : 'AI 正在接待 · 完整历史已同步' }}</small></div><div class="actions"><button v-if="canChat" class="secondary small" :disabled="busy" @click="finishHumanService">结束人工服务</button><button class="secondary small" type="button" :disabled="busy" @click="clearHistory">清除记录</button><RouterLink v-if="selectedTicket" :to="`/admin/support/tickets/${selectedTicket.ticket_id}`">完整工作台 ↗</RouterLink></div></header>
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取会话…</div>
           <section v-else-if="selectedConversation" class="admin-chat-conversation">

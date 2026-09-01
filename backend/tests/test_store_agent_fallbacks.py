@@ -37,3 +37,22 @@ def test_order_fallback_localizes_status_actions_and_money() -> None:
         "apply_after_sale",
     ):
         assert internal_code not in answer
+
+
+def test_product_fallback_continues_after_affirmative_short_reply() -> None:
+    answer = _render(
+        StoreAgentPlan("product_qa"),
+        {
+            "name": "通勤阔腿裤",
+            "conversation_window": {
+                "recent_turns": [
+                    {"role": "AI客服", "text": "我可以继续帮你看尺码、库存或发货。"}
+                ]
+            },
+        },
+        "好",
+    )
+
+    assert "接着看“通勤阔腿裤”" in answer
+    assert "款式和尺码" in answer
+    assert "你好，我是本店智能客服" not in answer

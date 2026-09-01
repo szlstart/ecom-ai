@@ -653,6 +653,12 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
                     f"{_money(price.get('min_amount'), price.get('currency'))} 起"
                 )
         return "\n".join(lines)
+    if _is_affirmative_product_follow_up(user_text, data):
+        product_name = safe_untrusted_excerpt(data.get("name", "当前商品"), 120)
+        return (
+            f"可以，我们接着看“{product_name}”。你想先看款式和尺码、实时库存、"
+            "发货信息，还是具体使用场景? 选一个方向，我就继续帮你查。"
+        )
     size_answer = _render_size_answer(data, user_text)
     if size_answer is not None:
         return size_answer
@@ -677,6 +683,27 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
     lines.append("发货时效以店铺已发布政策和订单物流为准，我不会承诺具体发货时间。")
     lines.append("你更想了解款式、尺码或规格、库存、发货，还是适不适合某个使用场景?")
     return "\n\n".join(lines)
+
+
+def _is_affirmative_product_follow_up(user_text: str, data: Mapping[str, Any]) -> bool:
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    affirmative_replies = {
+        "好",
+        "好的",
+        "好呀",
+        "可以",
+        "行",
+        "行啊",
+        "继续",
+        "嗯",
+        "嗯嗯",
+        "ok",
+        "okay",
+    }
+    if normalized not in affirmative_replies:
+        return False
+    window = data.get("conversation_window")
+    return isinstance(window, Mapping) and bool(window.get("recent_turns"))
 
 
 _SIZE_TOKEN = re.compile(

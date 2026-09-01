@@ -7,6 +7,7 @@ from app.api.schemas import Envelope
 from app.modules.identity.router import _etag, _expected_version, _no_store
 from app.modules.messaging.deletion_service import ConversationDeletionService
 from app.modules.messaging.schemas import (
+    ConversationClearView,
     ConversationDeletionView,
     MessageList,
     MessageView,
@@ -137,6 +138,25 @@ async def delete_support_conversation(
     access: Annotated[AdminAccess, require_admin_permission("support:reply")],
 ) -> Envelope[ConversationDeletionView]:
     result = await ConversationDeletionService(session, postgres).delete_scoped(
+        access, conversation_id
+    )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.delete(
+    "/conversations/{conversation_id}/messages",
+    response_model=Envelope[ConversationClearView],
+    operation_id="SupportConversation_ClearMessages",
+)
+async def clear_support_conversation_messages(
+    conversation_id: str,
+    response: Response,
+    session: DatabaseSession,
+    postgres: PostgresSession,
+    access: Annotated[AdminAccess, require_admin_permission("support:reply")],
+) -> Envelope[ConversationClearView]:
+    result = await ConversationDeletionService(session, postgres).clear_scoped(
         access, conversation_id
     )
     _no_store(response)

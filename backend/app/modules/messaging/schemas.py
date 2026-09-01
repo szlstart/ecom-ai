@@ -40,6 +40,13 @@ class ConversationDeletionView(StrictRequest):
     memory_cleared: bool
 
 
+class ConversationClearView(StrictRequest):
+    conversation_id: str
+    cleared_at: datetime
+    memory_cleared: bool
+    version: int
+
+
 class TextMessageContent(StrictRequest):
     type: Literal["text"] = "text"
     text: str = Field(min_length=1, max_length=4000)

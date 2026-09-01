@@ -24,6 +24,7 @@ from app.modules.messaging.feedback_schemas import (
 from app.modules.messaging.human_schemas import HumanHandoffRequest, HumanTicketView
 from app.modules.messaging.schemas import (
     ConversationArchiveView,
+    ConversationClearView,
     ConversationContextClearView,
     ConversationContextRequest,
     ConversationContextView,
@@ -56,6 +57,25 @@ async def delete_admin_ai_conversation(
 ) -> Envelope[ConversationDeletionView]:
     conversation = await service.get_or_create_exclusive(context.user)
     result = await ConversationDeletionService(service.session, postgres).delete_owned(
+        context.user, conversation.conversation_id
+    )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@admin_ai_router.delete(
+    "/messages",
+    response_model=Envelope[ConversationClearView],
+    operation_id="AdminAiConversation_ClearMessages",
+)
+async def clear_admin_ai_conversation_messages(
+    response: Response,
+    context: PlatformAdminContext,
+    service: MessagingServiceDependency,
+    postgres: PostgresSession,
+) -> Envelope[ConversationClearView]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await ConversationDeletionService(service.session, postgres).clear_owned(
         context.user, conversation.conversation_id
     )
     _no_store(response)
@@ -165,6 +185,25 @@ async def delete_merchant_exclusive_conversation(
 ) -> Envelope[ConversationDeletionView]:
     conversation = await service.get_or_create_exclusive(context.user)
     result = await ConversationDeletionService(service.session, postgres).delete_owned(
+        context.user, conversation.conversation_id
+    )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@merchant_router.delete(
+    "/exclusive-conversation/messages",
+    response_model=Envelope[ConversationClearView],
+    operation_id="MerchantExclusiveConversation_ClearMessages",
+)
+async def clear_merchant_exclusive_conversation_messages(
+    response: Response,
+    context: MerchantContext,
+    service: MessagingServiceDependency,
+    postgres: PostgresSession,
+) -> Envelope[ConversationClearView]:
+    conversation = await service.get_or_create_exclusive(context.user)
+    result = await ConversationDeletionService(service.session, postgres).clear_owned(
         context.user, conversation.conversation_id
     )
     _no_store(response)
@@ -404,6 +443,25 @@ async def delete_conversation(
     postgres: PostgresSession,
 ) -> Envelope[ConversationDeletionView]:
     result = await ConversationDeletionService(service.session, postgres).delete_owned(
+        context.user, conversation_id
+    )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.delete(
+    "/conversations/{conversation_id}/messages",
+    response_model=Envelope[ConversationClearView],
+    operation_id="Conversation_ClearMessagesMine",
+)
+async def clear_conversation_messages(
+    conversation_id: str,
+    response: Response,
+    context: UserContext,
+    service: MessagingServiceDependency,
+    postgres: PostgresSession,
+) -> Envelope[ConversationClearView]:
+    result = await ConversationDeletionService(service.session, postgres).clear_owned(
         context.user, conversation_id
     )
     _no_store(response)

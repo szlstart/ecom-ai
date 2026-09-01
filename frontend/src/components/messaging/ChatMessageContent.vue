@@ -21,7 +21,7 @@ function integerValue(value: unknown): number | null {
 }
 function safeImageUrl(value: unknown): string | null {
   const url = stringValue(value)
-  return /^\/api\/v1\/files\/fil_[0-9A-Z]+(?:\?variant=thumbnail)?$/.test(url) ? url : null
+  return /^\/api\/v1\/files\/file_[0-9A-Z]+(?:\?variant=thumbnail)?$/.test(url) ? url : null
 }
 function money(value: unknown): string {
   const amount = objectValue(value)

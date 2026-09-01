@@ -25,6 +25,7 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
     ExclusiveAgentPlan,
     ExclusiveModelGateway,
+    complete_exclusive_plan,
 )
 from app.modules.agent_runtime.exclusive_tools import ExclusiveToolGateway
 from app.modules.agent_runtime.memory_runtime import AgentMemoryRuntime, explicit_memory_request
@@ -194,7 +195,9 @@ async def process_exclusive_run(
         user_no=context.user.user_no,
         store_no=None,
     )
-    fast_plan = await DeterministicExclusiveModelGateway().plan(trigger_text)
+    fast_plan = complete_exclusive_plan(
+        await DeterministicExclusiveModelGateway().plan(trigger_text)
+    )
     if fast_plan.intent != "general_chat" or not isinstance(gateway, ProviderExclusiveModelGateway):
         plan = fast_plan
     else:
@@ -204,6 +207,7 @@ async def process_exclusive_run(
         except (ModelGatewayError, TimeoutError) as exc:
             plan = fast_plan
             run.degraded_reason = model_failure_code(exc, "planning")
+    plan = complete_exclusive_plan(plan)
     try:
         await checkpoint_store.write(
             run.run_no,
@@ -213,6 +217,15 @@ async def process_exclusive_run(
     except Exception:
         await checkpoint_store.session.rollback()
         await _handoff(session, context, settings, security, "CHECKPOINT_UNAVAILABLE")
+        return
+    if plan.response_strategy == "clarify" and plan.missing_slots:
+        await _complete(
+            session,
+            context,
+            _clarification_text(plan.missing_slots),
+            execution_trace=_clarification_trace(plan),
+        )
+        await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
     tools = ExclusiveToolGateway(session, settings, security)
     try:
@@ -327,7 +340,7 @@ async def process_exclusive_run(
         return
 
     if result.status == "succeeded":
-        _attach_conversation_window(context_window, result.data)
+        _attach_conversation_window(context_window, context.context_refs, result.data)
         await _attach_platform_knowledge(
             session,
             checkpoint_store,
@@ -709,6 +722,13 @@ async def _grounded_answer(
         steps=steps,
         source_ids=source_ids,
         tool_code=tool_code,
+        extra={
+            "planning_confidence": plan.confidence,
+            "required_capabilities": list(plan.required_capabilities),
+            "missing_slots": list(plan.missing_slots),
+            "continuation_of_previous_turn": plan.continuation_of_previous_turn,
+            "response_strategy": plan.response_strategy,
+        },
     )
     if not isinstance(gateway, ProviderExclusiveModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
@@ -1099,9 +1119,35 @@ async def _attach_exclusive_memories(
     }
 
 
-def _attach_conversation_window(window: ContextWindow, data: dict[str, object]) -> None:
-    if window.recent_turns:
-        data["conversation_window"] = window.evidence_projection()
+def _attach_conversation_window(
+    window: ContextWindow,
+    resource_refs: Mapping[str, Any],
+    data: dict[str, object],
+) -> None:
+    if window.recent_turns or window.rolling_summary:
+        data["conversation_window"] = window.model_projection(resource_refs)
+
+
+def _clarification_text(missing_slots: tuple[str, ...]) -> str:
+    details = "、".join(
+        safe_untrusted_excerpt(item, 64).strip() for item in missing_slots if item.strip()
+    )
+    return f"为了准确帮你处理，还需要你补充: {details}。"
+
+
+def _clarification_trace(plan: ExclusiveAgentPlan) -> dict[str, object]:
+    return {
+        "intent": plan.intent,
+        "steps": [
+            {"kind": "plan", "label": "识别仍需用户补充的信息", "status": "completed"},
+            {"kind": "answer", "label": "提出一个最小澄清问题", "status": "completed"},
+        ],
+        "planning_confidence": plan.confidence,
+        "required_capabilities": list(plan.required_capabilities),
+        "missing_slots": list(plan.missing_slots),
+        "continuation_of_previous_turn": plan.continuation_of_previous_turn,
+        "response_strategy": plan.response_strategy,
+    }
 
 
 def _nested_value(value: Mapping[str, Any], outer: str, inner: str) -> object:

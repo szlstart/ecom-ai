@@ -50,9 +50,16 @@ async function loginAdministrator(page: Page, username: string) {
 async function expectTrace(page: Page) {
   const trace = page.getByRole('complementary', { name: 'AI 思考过程' })
   await expect(trace.getByText('思考过程', { exact: true })).toBeVisible()
-  await expect(trace.getByText(/已完成|等待中/, { exact: true }).first()).toBeVisible({ timeout: 20_000 })
+  // Do not mistake the initial idle state for a completed Agent turn.  The
+  // trace evidence is only stable after the streamed run reaches completion.
+  await expect(trace.getByText('已完成', { exact: true }).first()).toBeVisible({ timeout: 30_000 })
   await expect(trace.locator('.agent-trace-analysis')).toHaveCount(0)
-  await expect(trace.locator('details')).toHaveCount(0)
+  // Completed runs expose the public reasoning summary and verified execution
+  // evidence as expandable sections.  Hidden provider chain-of-thought is
+  // intentionally never rendered.
+  await expect(trace.locator('details')).not.toHaveCount(0)
+  await expect(trace.getByText('分析与计划', { exact: true })).toBeVisible()
+  await expect(trace.getByText('结果', { exact: true })).toBeVisible()
   await expect(trace).not.toContainText(/理解当前消息|重建最近对话上下文|生成安全回复|结果整理完成|参考内容|执行时间线|运行编号|可信来源|隐私保护/)
   expect(await trace.evaluate((item) => getComputedStyle(item).backgroundColor)).toBe('rgb(255, 255, 255)')
 }
@@ -149,7 +156,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await expect(consumer).toHaveURL(/\/messages\//)
     await expectMessageWorkspaceFitsViewport(consumer)
     const consumerWorkspace = consumer.getByLabel('用户消息中心')
-    await expect(consumerWorkspace.getByRole('button', { name: '删除对话' })).toBeVisible()
+    await expect(consumerWorkspace.getByRole('button', { name: '清除记录' })).toBeVisible()
     const attachmentButton = consumerWorkspace.getByRole('button', { name: '发送商品或订单' })
     await expect(attachmentButton).toBeEnabled()
     await attachmentButton.click()
@@ -182,7 +189,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await expect(merchant).toHaveURL(/\/merchant\/messages/)
     await expectMessageWorkspaceFitsViewport(merchant)
     const merchantDialog = merchant.getByLabel('商家消息中心')
-    await expect(merchantDialog.getByRole('button', { name: '删除对话' })).toBeVisible()
+    await expect(merchantDialog.getByRole('button', { name: '清除记录' })).toBeVisible()
     await merchantDialog.getByPlaceholder('向专属客服描述经营问题…').fill('请概览当前店铺商品和库存。')
     await merchantDialog.getByRole('button', { name: '发送', exact: true }).click()
     await expectTrace(merchant)
@@ -195,7 +202,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await expect(administrator).toHaveURL(/\/admin\/messages/)
     await expectMessageWorkspaceFitsViewport(administrator)
     const adminDialog = administrator.getByLabel('管理端消息中心')
-    await expect(adminDialog.getByRole('button', { name: '删除对话' })).toBeVisible()
+    await expect(adminDialog.getByRole('button', { name: '清除记录' })).toBeVisible()
     await adminDialog.getByPlaceholder('询问平台概况、用户、店铺、订单或 Agent 运行状态…').fill('请用只读方式概览平台订单与 Agent 运行状态。')
     await adminDialog.getByRole('button', { name: '发送', exact: true }).click()
     await expectTrace(administrator)

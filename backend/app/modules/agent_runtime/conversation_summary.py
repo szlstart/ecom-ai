@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -18,8 +19,8 @@ from app.modules.agent_runtime.context_window import (
 )
 from app.modules.messaging.models import Conversation, Message
 
-SUMMARY_PROMPT_VERSION = "deterministic-summary-v1"
-SUMMARY_MODEL_NAME = "deterministic-safe-summarizer-v1"
+SUMMARY_PROMPT_VERSION = "deterministic-dossier-v2"
+SUMMARY_MODEL_NAME = "deterministic-safe-dossier-v2"
 SUMMARY_EXPIRY_DAYS = 90
 MIN_NEW_MESSAGES = 8
 MAX_NEW_MESSAGES = 50
@@ -297,24 +298,144 @@ async def attach_rolling_summary(
 
 
 def _compact_summary(previous: str, new_lines: list[str]) -> str:
-    warning = "[不可信对话连续性摘要; 涉及订单、金额、库存、权限和状态时必须调用业务工具重新核验]"
-    previous_lines = [line for line in previous.splitlines() if line and line != warning]
-    important = [
-        line
-        for line in previous_lines
-        if any(token in line for token in ("确认", "决定", "偏好", "订单", "退款", "物流"))
-    ]
-    candidates = [*important[-8:], *previous_lines[-12:], *new_lines]
-    deduped: list[str] = []
-    for line in candidates:
-        if line not in deduped:
-            deduped.append(line)
-    body: list[str] = []
-    used = len(warning) + 1
-    for line in reversed(deduped):
-        if used + len(line) + 1 > MAX_SUMMARY_CHARACTERS:
+    """Rewrite previous and new turns into a bounded e-commerce continuity dossier."""
+
+    dossier = _load_previous_dossier(previous)
+    for line in new_lines:
+        role, _, text_value = line.partition(":")
+        value = text_value.strip()
+        if not value:
             continue
-        body.append(line)
-        used += len(line) + 1
-    body.reverse()
-    return "\n".join((warning, *body))
+        _append_unique(dossier["continuity_notes"], line, 12)
+        if role == "用户":
+            if not _is_small_reply(value):
+                dossier["current_goal"] = value
+            if _contains_any(
+                value,
+                "预算",
+                "偏好",
+                "喜欢",
+                "不喜欢",
+                "不要",
+                "需要",
+                "想要",
+                "必须",
+                "尺码",
+                "颜色",
+                "用途",
+                "场景",
+            ):
+                _append_unique(dossier["user_constraints"], value, 8)
+        else:
+            if _contains_any(value, "已经", "已为", "已读取", "查到", "确认了", "创建了", "提交了"):
+                _append_unique(dossier["completed_actions"], value, 8)
+            if _contains_any(value, "我会", "我来", "可以继续", "接下来", "帮你", "为你查询"):
+                _append_unique(dossier["commitments"], value, 8)
+            if _looks_like_open_question(value):
+                _append_unique(dossier["unresolved_questions"], value, 8)
+        for resource in re.findall(
+            r"\b(?:prd|sku|ord|ref|shp|sto)_[A-Za-z0-9]{6,40}\b", value
+        ):
+            _append_unique(dossier["resource_mentions"], resource, 8)
+    return _bounded_dossier_json(dossier)
+
+
+def _load_previous_dossier(previous: str) -> dict[str, object]:
+    empty: dict[str, object] = {
+        "schema_version": "conversation_dossier_v1",
+        "trust_level": "untrusted_dialogue_continuity",
+        "business_fact_authoritative": False,
+        "current_goal": None,
+        "resource_mentions": [],
+        "user_constraints": [],
+        "completed_actions": [],
+        "commitments": [],
+        "unresolved_questions": [],
+        "continuity_notes": [],
+    }
+    try:
+        parsed = json.loads(previous) if previous else {}
+    except (json.JSONDecodeError, TypeError):
+        parsed = {}
+    if isinstance(parsed, dict) and parsed.get("schema_version") == "conversation_dossier_v1":
+        for key in empty:
+            value = parsed.get(key)
+            if key == "current_goal":
+                empty[key] = value if isinstance(value, str) else None
+            elif isinstance(empty[key], list) and isinstance(value, list):
+                empty[key] = [str(item) for item in value if isinstance(item, str)][-12:]
+        return empty
+    legacy_lines = [line for line in previous.splitlines() if line and not line.startswith("[")]
+    empty["continuity_notes"] = legacy_lines[-12:]
+    return empty
+
+
+def _append_unique(value: object, item: str, limit: int) -> None:
+    if not isinstance(value, list):
+        return
+    safe = item.strip()[:500]
+    if safe and safe not in value:
+        value.append(safe)
+        del value[:-limit]
+
+
+def _bounded_dossier_json(dossier: dict[str, object]) -> str:
+    def dump() -> str:
+        return json.dumps(dossier, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+
+    serialized = dump()
+    if len(serialized) <= MAX_SUMMARY_CHARACTERS:
+        return serialized
+    for key in (
+        "continuity_notes",
+        "completed_actions",
+        "commitments",
+        "unresolved_questions",
+        "user_constraints",
+        "resource_mentions",
+    ):
+        values = dossier.get(key)
+        while (
+            isinstance(values, list)
+            and len(values) > 2
+            and len(serialized) > MAX_SUMMARY_CHARACTERS
+        ):
+            values.pop(0)
+            serialized = dump()
+    current = dossier.get("current_goal")
+    if len(serialized) > MAX_SUMMARY_CHARACTERS and isinstance(current, str):
+        dossier["current_goal"] = current[:240]
+        serialized = dump()
+    if len(serialized) > MAX_SUMMARY_CHARACTERS:
+        raise ValueError("conversation dossier exceeds the configured size limit")
+    return serialized
+
+
+def _contains_any(value: str, *tokens: str) -> bool:
+    return any(token in value for token in tokens)
+
+
+def _is_small_reply(value: str) -> bool:
+    return re.sub(r"\s+", "", value).casefold() in {
+        "好",
+        "好的",
+        "可以",
+        "行",
+        "继续",
+        "嗯",
+        "嗯嗯",
+        "ok",
+        "okay",
+    }
+
+
+def _looks_like_open_question(value: str) -> bool:
+    return value.rstrip().endswith(("?", "？")) or _contains_any(  # noqa: RUF001
+        value,
+        "你想先",
+        "你更关心",
+        "你更想",
+        "需要我继续",
+        "是否需要",
+        "告诉我具体",
+    )

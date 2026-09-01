@@ -316,7 +316,7 @@ async def process_operations_run(
 
     evidence = dict(result.safe_data)
     if context_window.recent_turns or context_window.summary_no:
-        evidence["conversation_window"] = context_window.evidence_projection()
+        evidence["conversation_window"] = context_window.model_projection()
     answer = _render(context, intent, evidence)
     answer_mode = "deterministic_fallback"
     confidence = "high"

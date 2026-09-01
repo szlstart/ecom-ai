@@ -10,7 +10,7 @@ EvaluationTargetType = Literal["agent", "skill", "model", "prompt", "tool", "mul
 
 class EvaluationRunCreate(StrictRequest):
     dataset_id: Literal["ecom-ai-release-holdout"]
-    dataset_version: Literal["2026.08.31-v2"]
+    dataset_version: Literal["2026.09.01-v3"]
     baseline_type: EvaluationTargetType
     baseline_version: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9._:-]+$")
     candidate_type: EvaluationTargetType

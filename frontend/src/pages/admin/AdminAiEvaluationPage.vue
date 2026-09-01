@@ -15,7 +15,7 @@ const form = reactive({
   baseline_type: 'prompt',
   baseline_version: 'ecom-safe-router-v1',
   candidate_type: 'prompt',
-  candidate_version: 'ecom-safe-router-v2',
+  candidate_version: 'ecom-safe-router-v3',
   require_significant_gain: false,
 })
 let pollTimer: number | undefined
@@ -51,7 +51,7 @@ async function submit() {
   try {
     const result = await runEvaluation({
       dataset_id: 'ecom-ai-release-holdout',
-      dataset_version: '2026.08.31-v2',
+      dataset_version: '2026.09.01-v3',
       ...form,
     }, token())
     notice.value = `评估任务 ${result.data.evaluation_id} 已开始。系统会自动刷新进度。`

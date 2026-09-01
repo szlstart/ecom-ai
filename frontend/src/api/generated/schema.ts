@@ -1968,7 +1968,8 @@ export interface paths {
         put?: never;
         /** Send Message */
         post: operations["Message_CreateMine"];
-        delete?: never;
+        /** Clear Conversation Messages */
+        delete: operations["Conversation_ClearMessagesMine"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2124,7 +2125,8 @@ export interface paths {
         put?: never;
         /** Send Merchant Exclusive Message */
         post: operations["MerchantExclusiveMessage_CreateMine"];
-        delete?: never;
+        /** Clear Merchant Exclusive Conversation Messages */
+        delete: operations["MerchantExclusiveConversation_ClearMessages"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2194,7 +2196,8 @@ export interface paths {
         put?: never;
         /** Send Admin Ai Message */
         post: operations["AdminAiMessage_CreateMine"];
-        delete?: never;
+        /** Clear Admin Ai Conversation Messages */
+        delete: operations["AdminAiConversation_ClearMessages"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2297,7 +2300,8 @@ export interface paths {
         put?: never;
         /** Send Support Conversation Message */
         post: operations["SupportConversationMessage_Send"];
-        delete?: never;
+        /** Clear Support Conversation Messages */
+        delete: operations["SupportConversation_ClearMessages"];
         options?: never;
         head?: never;
         patch?: never;
@@ -8161,6 +8165,20 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** ConversationClearView */
+        ConversationClearView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /**
+             * Cleared At
+             * Format: date-time
+             */
+            cleared_at: string;
+            /** Memory Cleared */
+            memory_cleared: boolean;
+            /** Version */
+            version: number;
+        };
         /** ConversationContextClearView */
         ConversationContextClearView: {
             /** Conversation Id */
@@ -8720,6 +8738,11 @@ export interface components {
         /** Envelope[ConversationArchiveView] */
         Envelope_ConversationArchiveView_: {
             data: components["schemas"]["ConversationArchiveView"];
+            meta?: components["schemas"]["ResponseMeta"];
+        };
+        /** Envelope[ConversationClearView] */
+        Envelope_ConversationClearView_: {
+            data: components["schemas"]["ConversationClearView"];
             meta?: components["schemas"]["ResponseMeta"];
         };
         /** Envelope[ConversationContextClearView] */
@@ -9374,7 +9397,7 @@ export interface components {
              * Dataset Version
              * @constant
              */
-            dataset_version: "2026.08.31-v2";
+            dataset_version: "2026.09.01-v3";
             /**
              * Baseline Type
              * @enum {string}
@@ -17486,6 +17509,43 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    Conversation_ClearMessagesMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationClearView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     ConversationContext_PutMine: {
         parameters: {
             query?: never;
@@ -17942,6 +18002,31 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    MerchantExclusiveConversation_ClearMessages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationClearView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     MerchantExclusiveReadCursor_PutMine: {
         parameters: {
             query?: never;
@@ -18140,6 +18225,31 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAiConversation_ClearMessages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationClearView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
             429: components["responses"]["Problem429"];
             500: components["responses"]["Problem500"];
             503: components["responses"]["Problem503"];
@@ -18395,6 +18505,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Envelope_MessageView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    SupportConversation_ClearMessages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_ConversationClearView_"];
                 };
             };
             401: components["responses"]["Problem401"];

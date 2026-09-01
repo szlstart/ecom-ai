@@ -24,6 +24,13 @@ ExclusiveIntent = Literal[
 class ExclusiveAgentPlan:
     intent: ExclusiveIntent
     search_text: str | None = None
+    confidence: float = 1.0
+    required_capabilities: tuple[str, ...] = ()
+    missing_slots: tuple[str, ...] = ()
+    continuation_of_previous_turn: bool = False
+    needs_human: bool = False
+    handoff_reason: str | None = None
+    response_strategy: Literal["answer", "clarify", "handoff", "refuse"] = "answer"
 
 
 class ExclusiveModelGateway(Protocol):
@@ -62,6 +69,50 @@ class DeterministicExclusiveModelGateway:
         if _contains(text, "规则", "政策", "平台", "运费", "退换", "保修", "发票"):
             return ExclusiveAgentPlan("policy_qa")
         return ExclusiveAgentPlan("general_chat")
+
+
+EXCLUSIVE_CAPABILITIES: dict[ExclusiveIntent, tuple[str, ...]] = {
+    "general_chat": (),
+    "policy_qa": ("rag.policy.search",),
+    "product_search": ("catalog.search_products",),
+    "personalized_recommendation": (
+        "catalog.search_products",
+        "memory.list_mine",
+    ),
+    "order_lookup": ("order.list_user_orders", "order.get_user_order_detail"),
+    "logistics_lookup": ("logistics.get_user_order_shipments",),
+    "refund_precheck": ("after_sale.check_refund_eligibility",),
+    "refund_eligibility": ("after_sale.build_refund_draft",),
+    "refund_progress": (
+        "after_sale.list_user_refunds",
+        "after_sale.get_user_refund_detail",
+    ),
+    "human_handoff": ("support.create_platform_ticket",),
+}
+
+
+def complete_exclusive_plan(plan: ExclusiveAgentPlan) -> ExclusiveAgentPlan:
+    capabilities = plan.required_capabilities or EXCLUSIVE_CAPABILITIES[plan.intent]
+    is_handoff = plan.intent == "human_handoff"
+    return ExclusiveAgentPlan(
+        intent=plan.intent,
+        search_text=plan.search_text,
+        confidence=min(max(plan.confidence, 0.0), 1.0),
+        required_capabilities=tuple(dict.fromkeys(capabilities)),
+        missing_slots=tuple(dict.fromkeys(plan.missing_slots)),
+        continuation_of_previous_turn=plan.continuation_of_previous_turn,
+        needs_human=is_handoff,
+        handoff_reason=plan.handoff_reason if is_handoff else None,
+        response_strategy=(
+            "handoff"
+            if is_handoff
+            else "clarify"
+            if plan.missing_slots and plan.confidence < 0.65
+            else "answer"
+            if plan.response_strategy in {"handoff", "refuse"}
+            else plan.response_strategy
+        ),
+    )
 
 
 def _contains(value: str, *terms: str) -> bool:

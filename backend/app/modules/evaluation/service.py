@@ -17,7 +17,7 @@ from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
 from app.modules.system.models import OutboxEvent
 
-DATASET_PATH = Path(__file__).resolve().parent / "data" / "release-holdout-v2.json"
+DATASET_PATH = Path(__file__).resolve().parent / "data" / "release-holdout-v3.json"
 DATASET_MANIFEST = load_dataset(DATASET_PATH)
 DATASET_SHA256 = DATASET_MANIFEST.sha256
 DATASET_CASE_COUNT = len(DATASET_MANIFEST.cases)
@@ -25,7 +25,7 @@ DATASET_VERSION = DATASET_MANIFEST.version
 BASELINE_TYPE = "prompt"
 BASELINE_VERSION = "ecom-safe-router-v1"
 CANDIDATE_TYPE = "prompt"
-CANDIDATE_VERSION = "ecom-safe-router-v2"
+CANDIDATE_VERSION = "ecom-safe-router-v3"
 
 
 class EvaluationService:

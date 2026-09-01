@@ -1,3 +1,6 @@
+import json
+from types import SimpleNamespace
+
 from app.modules.agent_runtime.context_window import (
     ContextWindow,
     RecentTurn,
@@ -37,12 +40,27 @@ def test_context_window_redacts_secrets_and_isolates_old_injection() -> None:
 
 
 def test_context_window_marks_summary_untrusted_without_exposing_it_in_trace() -> None:
+    summary = json.dumps(
+        {
+            "schema_version": "conversation_dossier_v1",
+            "trust_level": "untrusted_dialogue_continuity",
+            "business_fact_authoritative": False,
+            "current_goal": "继续上次的键盘推荐",
+            "resource_mentions": [],
+            "user_constraints": ["偏好安静的键盘"],
+            "completed_actions": [],
+            "commitments": ["可以继续比较价格"],
+            "unresolved_questions": ["你更在意声音还是价格?"],
+            "continuity_notes": [],
+        },
+        ensure_ascii=False,
+    )
     window = ContextWindow(
         recent_turns=(RecentTurn("msg_recent", "用户", "继续上次的键盘推荐"),),
         omitted_count=12,
         character_count=10,
     ).with_summary(
-        "用户: 偏好安静的键盘\nAI客服: 需要重新查询当前价格",
+        summary,
         summary_no="sum_test",
         message_count=18,
     )
@@ -58,3 +76,41 @@ def test_context_window_marks_summary_untrusted_without_exposing_it_in_trace() -
         "content_exposed": False,
     }
     assert "偏好安静" not in str(projection)
+    model_projection = window.model_projection(
+        {
+            "product": SimpleNamespace(
+                resource_no="prd_public",
+                resource_version=3,
+            )
+        }
+    )
+    rolling = model_projection["rolling_summary"]
+    assert isinstance(rolling, dict)
+    assert rolling["content"] == summary
+    dossier = model_projection["dossier"]
+    assert isinstance(dossier, dict)
+    assert dossier["current_goal"] == "继续上次的键盘推荐"
+    assert dossier["active_resources"] == [
+        {
+            "resource_type": "product",
+            "resource_id": "prd_public",
+            "resource_version": 3,
+        }
+    ]
+
+
+def test_short_reply_keeps_pending_question_and_previous_goal() -> None:
+    window = ContextWindow(
+        recent_turns=(
+            RecentTurn("msg_goal", "用户", "帮我看看这款衣服适合哪个尺码"),
+            RecentTurn("msg_offer", "AI客服", "需要我继续比较 S、M、L 三个款式吗?"),
+            RecentTurn("msg_reply", "用户", "好"),
+        ),
+        omitted_count=0,
+        character_count=35,
+    )
+
+    dossier = window.dossier().projection()
+    assert dossier["current_goal"] == "帮我看看这款衣服适合哪个尺码"
+    assert dossier["last_user_message"] == "好"
+    assert dossier["pending_assistant_question"] == "需要我继续比较 S、M、L 三个款式吗?"

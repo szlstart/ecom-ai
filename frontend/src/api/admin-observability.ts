@@ -26,7 +26,7 @@ export function listEvaluations(token: string): Promise<ApiResult<{ items: Evalu
 
 export function runEvaluation(payload: {
   dataset_id: 'ecom-ai-release-holdout'
-  dataset_version: '2026.08.31-v2'
+  dataset_version: '2026.09.01-v3'
   baseline_type: string
   baseline_version: string
   candidate_type: string

@@ -46,7 +46,7 @@ acceptance-test: build
 	cd frontend && pnpm test --reporter=junit --outputFile=../artifacts/acceptance/current/quality/frontend-junit.xml
 	PYTHON_BIN="$(PYTHON)" ./scripts/run-live-browser-acceptance.sh
 	$(MAKE) agent-security-test
-	$(PYTHON) scripts/evaluate-agent.py backend/app/modules/evaluation/data/release-holdout-v2.json --allow-missing-observations --output artifacts/acceptance/current/agent/evaluation-report.json
+	$(PYTHON) scripts/evaluate-agent.py backend/app/modules/evaluation/data/release-holdout-v3.json --allow-missing-observations --output artifacts/acceptance/current/agent/evaluation-report.json
 	$(MAKE) acceptance-evidence
 
 # Preferred local entry point: exact test-only database/cache/object namespaces
@@ -161,11 +161,11 @@ release-preflight:
 
 collect-agent-observations:
 	mkdir -p artifacts/acceptance/current/agent
-	PYTHONPATH=backend $(PYTHON) scripts/collect-agent-observations.py backend/app/modules/evaluation/data/release-holdout-v2.json --output artifacts/acceptance/current/agent/live-observations.json $(if $(filter 1,$(REFRESH)),--refresh,) $(if $(filter 1,$(REFRESH_CANDIDATE)),--refresh-candidate,)
+	PYTHONPATH=backend $(PYTHON) scripts/collect-agent-observations.py backend/app/modules/evaluation/data/release-holdout-v3.json --output artifacts/acceptance/current/agent/live-observations.json $(if $(filter 1,$(REFRESH)),--refresh,) $(if $(filter 1,$(REFRESH_CANDIDATE)),--refresh-candidate,)
 
 evaluate-agent:
 	mkdir -p artifacts/acceptance/current/agent
-	$(PYTHON) scripts/evaluate-agent.py backend/app/modules/evaluation/data/release-holdout-v2.json $(if $(AGENT_OBSERVATIONS),--observations $(AGENT_OBSERVATIONS),) --output artifacts/acceptance/current/agent/evaluation-report.json
+	$(PYTHON) scripts/evaluate-agent.py backend/app/modules/evaluation/data/release-holdout-v3.json $(if $(AGENT_OBSERVATIONS),--observations $(AGENT_OBSERVATIONS),) --output artifacts/acceptance/current/agent/evaluation-report.json
 
 api:
 	cd backend && $(PYTHON) -m uvicorn app.main:create_app --factory --reload --host 127.0.0.1 --port 8000

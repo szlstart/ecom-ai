@@ -18,6 +18,58 @@ from app.modules.agent_runtime.provider_gateway import (
 )
 
 
+def _decision_json(
+    intent: str,
+    *,
+    capabilities: tuple[str, ...] = (),
+    search_text: str | None = None,
+    confidence: float = 0.94,
+    missing_slots: tuple[str, ...] = (),
+    continuation: bool = False,
+    needs_human: bool = False,
+    handoff_reason: str | None = None,
+    strategy: str = "answer",
+) -> str:
+    return json.dumps(
+        {
+            "intent": intent,
+            "confidence": confidence,
+            "required_capabilities": list(capabilities),
+            "missing_slots": list(missing_slots),
+            "continuation_of_previous_turn": continuation,
+            "needs_human": needs_human,
+            "handoff_reason": handoff_reason,
+            "response_strategy": strategy,
+            "search_text": search_text,
+        },
+        ensure_ascii=False,
+    )
+
+
+def _verdict_json(
+    supported: bool = True,
+    *,
+    unsupported_claims: tuple[str, ...] = (),
+    citations: tuple[str, ...] = (),
+    confidence: str = "high",
+    limitation: str | None = None,
+    answers_user_request: bool = True,
+    missing_required_facts: tuple[str, ...] = (),
+) -> str:
+    return json.dumps(
+        {
+            "supported": supported,
+            "unsupported_claims": list(unsupported_claims),
+            "answers_user_request": answers_user_request,
+            "missing_required_facts": list(missing_required_facts),
+            "cited_source_ids": list(citations),
+            "confidence": confidence,
+            "limitation": limitation,
+        },
+        ensure_ascii=False,
+    )
+
+
 def _planner(
     handler: httpx.MockTransport,
     *,
@@ -44,11 +96,22 @@ async def test_provider_store_plan_uses_closed_schema_without_tools() -> None:
         schema = payload["response_format"]["json_schema"]["schema"]
         assert schema["additionalProperties"] is False
         assert "inventory_lookup" in schema["properties"]["intent"]["enum"]
+        assert set(schema["required"]) == set(schema["properties"])
+        assert "support.create_store_ticket" in schema["properties"][
+            "required_capabilities"
+        ]["items"]["enum"]
         return httpx.Response(
             200,
             json={
                 "choices": [
-                    {"message": {"content": '{"intent":"inventory_lookup","search_text":null}'}}
+                    {
+                        "message": {
+                            "content": _decision_json(
+                                "inventory_lookup",
+                                capabilities=("catalog.get_inventory_availability",),
+                            )
+                        }
+                    }
                 ]
             },
         )
@@ -57,6 +120,62 @@ async def test_provider_store_plan_uses_closed_schema_without_tools() -> None:
     plan = await planner.plan_store("这个 SKU 还有库存吗")
     assert plan.intent == "inventory_lookup"
     assert plan.search_text is None
+    assert plan.confidence == 0.94
+    assert plan.required_capabilities == ("catalog.get_inventory_availability",)
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_provider_plan_rejects_capability_outside_selected_intent() -> None:
+    async def respond(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": _decision_json(
+                                "product_qa",
+                                capabilities=("support.create_store_ticket",),
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    with pytest.raises(ModelGatewayError, match="outside the selected intent"):
+        await planner.plan_store("介绍商品")
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_low_confidence_plan_with_missing_slot_is_forced_to_clarify() -> None:
+    async def respond(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": _decision_json(
+                                "product_search",
+                                confidence=0.42,
+                                missing_slots=("想找的商品类型",),
+                                strategy="answer",
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    plan = await planner.plan_exclusive("帮我找一个")
+    assert plan.response_strategy == "clarify"
+    assert plan.missing_slots == ("想找的商品类型",)
+    assert plan.required_capabilities == ("catalog.search_products",)
     await client.aclose()
 
 
@@ -68,7 +187,15 @@ async def test_provider_uses_model_specific_temperature() -> None:
         return httpx.Response(
             200,
             json={
-                "choices": [{"message": {"content": '{"intent":"policy_qa","search_text":null}'}}]
+                "choices": [
+                    {
+                        "message": {
+                            "content": _decision_json(
+                                "policy_qa", capabilities=("rag.policy.search",)
+                            )
+                        }
+                    }
+                ]
             },
         )
 
@@ -99,7 +226,9 @@ async def test_responses_wire_uses_reasoning_and_structured_output() -> None:
                         "content": [
                             {
                                 "type": "output_text",
-                                "text": '{"intent":"product_qa","search_text":null}',
+                                "text": _decision_json(
+                                    "product_qa", capabilities=("catalog.get_product",)
+                                ),
                             }
                         ],
                     },
@@ -155,7 +284,9 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
                         "content": [
                             {
                                 "type": "output_text",
-                                "text": '{"supported":true,"unsupported_claims":[]}',
+                                "text": _verdict_json(
+                                    citations=("product:prd_public",)
+                                ),
                             }
                         ],
                     }
@@ -188,7 +319,8 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
     assert answer.text == "这款商品轻便耐用。"
     assert answer.analysis_summary == "先识别用户是在询问商品特点。\n\n再核对公开资料。"
     assert answer.grounding_verified is True
-    assert answer.cited_source_ids == ()
+    assert answer.cited_source_ids == ("product:prd_public",)
+    assert answer.confidence == "high"
     assert answer.model_name == "gpt-5.4"
     assert (answer.input_tokens, answer.output_tokens, answer.total_tokens) == (21, 9, 30)
     assert answer.first_token_latency_ms is not None
@@ -234,9 +366,15 @@ async def test_streamed_responses_grounding_verifier_retries_once() -> None:
                             {
                                 "type": "output_text",
                                 "text": (
-                                    '{"supported":false,"unsupported_claims":["首次误判"]}'
+                                    _verdict_json(
+                                        False,
+                                        unsupported_claims=("首次误判",),
+                                        confidence="low",
+                                    )
                                     if verification_attempts == 1
-                                    else '{"supported":true,"unsupported_claims":[]}'
+                                    else _verdict_json(
+                                        citations=("order:ord_public",)
+                                    )
                                 ),
                             }
                         ],
@@ -263,7 +401,8 @@ async def test_streamed_responses_grounding_verifier_retries_once() -> None:
     )
     assert answer.text == "这笔订单实付 ¥6.00。"
     assert answer.grounding_verified is True
-    assert answer.confidence == "medium"
+    assert answer.confidence == "high"
+    assert answer.cited_source_ids == ("order:ord_public",)
     assert verification_attempts == 2
     await client.aclose()
 
@@ -290,7 +429,11 @@ async def test_streamed_responses_rejects_answer_after_two_grounding_failures() 
                         "content": [
                             {
                                 "type": "output_text",
-                                "text": '{"supported":false,"unsupported_claims":["金额错误"]}',
+                                "text": _verdict_json(
+                                    False,
+                                    unsupported_claims=("金额错误",),
+                                    confidence="low",
+                                ),
                             }
                         ],
                     }
@@ -315,6 +458,64 @@ async def test_streamed_responses_rejects_answer_after_two_grounding_failures() 
             evidence={"amount": {"display": "¥6.00"}},
             source_ids=("refund:ref_public",),
         )
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_streamed_responses_rejects_answer_that_omits_available_requested_fact() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        if payload.get("stream") is True:
+            frames = [
+                {"type": "response.output_text.delta", "delta": "这件衣服有多个尺码可选。"},
+                {"type": "response.completed"},
+            ]
+            return httpx.Response(
+                200,
+                text="".join(f"data: {json.dumps(frame)}\n\n" for frame in frames),
+            )
+        return httpx.Response(
+            200,
+            json={
+                "output": [
+                    {
+                        "type": "message",
+                        "content": [
+                            {
+                                "type": "output_text",
+                                "text": _verdict_json(
+                                    answers_user_request=False,
+                                    missing_required_facts=("最大尺码 L",),
+                                    confidence="low",
+                                ),
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1",
+        api_key="model-secret",
+        model="gpt-5.4",
+        wire_api="responses",
+        timeout_seconds=5,
+        client=client,
+    )
+    with pytest.raises(ModelGatewayError, match="omitted evidence-backed requested facts"):
+        await planner.synthesize(
+            agent_prompt="只按证据回答",
+            user_text="这件衣服最大码是什么?",
+            intent="product_qa",
+            evidence={"skus": [{"sku_name": "S"}, {"sku_name": "M"}, {"sku_name": "L"}]},
+            source_ids=("product:prd_public",),
+        )
+    assert model_failure_code(
+        ModelGatewayError("model answer omitted evidence-backed requested facts"),
+        "answer",
+    ) == "answer_model_answer_incomplete"
     await client.aclose()
 
 
@@ -345,7 +546,7 @@ async def test_responses_stream_falls_back_after_transient_primary_failure() -> 
                         "content": [
                             {
                                 "type": "output_text",
-                                "text": '{"supported":true,"unsupported_claims":[]}',
+                                "text": _verdict_json(),
                             }
                         ],
                     }
@@ -442,7 +643,15 @@ async def test_provider_falls_back_only_after_transient_primary_failure() -> Non
         return httpx.Response(
             200,
             json={
-                "choices": [{"message": {"content": '{"intent":"policy_qa","search_text":null}'}}]
+                "choices": [
+                    {
+                        "message": {
+                            "content": _decision_json(
+                                "policy_qa", capabilities=("rag.policy.search",)
+                            )
+                        }
+                    }
+                ]
             },
         )
 
@@ -470,7 +679,17 @@ async def test_previous_handoff_message_cannot_turn_current_greeting_into_handof
             200,
             json={
                 "choices": [
-                    {"message": {"content": '{"intent":"human_handoff","search_text":null}'}}
+                    {
+                        "message": {
+                            "content": _decision_json(
+                                "human_handoff",
+                                capabilities=("support.create_platform_ticket",),
+                                needs_human=True,
+                                handoff_reason="历史消息提及人工",
+                                strategy="handoff",
+                            )
+                        }
+                    }
                 ]
             },
         )
@@ -482,6 +701,10 @@ async def test_previous_handoff_message_cannot_turn_current_greeting_into_handof
         "AI客服: 已为你转接平台人工客服，请留意排队状态。"
     )
     assert plan.intent == "general_chat"
+    assert plan.required_capabilities == ()
+    assert plan.needs_human is False
+    assert plan.handoff_reason is None
+    assert plan.response_strategy == "answer"
     await client.aclose()
 
 
@@ -492,7 +715,17 @@ async def test_provider_cannot_reopen_handoff_for_a_status_question() -> None:
             200,
             json={
                 "choices": [
-                    {"message": {"content": '{"intent":"human_handoff","search_text":null}'}}
+                    {
+                        "message": {
+                            "content": _decision_json(
+                                "human_handoff",
+                                capabilities=("support.create_platform_ticket",),
+                                needs_human=True,
+                                handoff_reason="误判为人工请求",
+                                strategy="handoff",
+                            )
+                        }
+                    }
                 ]
             },
         )
@@ -500,6 +733,8 @@ async def test_provider_cannot_reopen_handoff_for_a_status_question() -> None:
     planner, client = _planner(httpx.MockTransport(respond))
     plan = await planner.plan_exclusive("人工服务结束了吗?")
     assert plan.intent == "general_chat"
+    assert plan.required_capabilities == ()
+    assert plan.needs_human is False
     await client.aclose()
 
 
@@ -516,7 +751,11 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
                 200,
                 json={
                     "choices": [
-                        {"message": {"content": '{"supported":true,"unsupported_claims":[]}'}}
+                        {
+                            "message": {
+                                "content": _verdict_json(citations=("prd_public",))
+                            }
+                        }
                     ]
                 },
             )
@@ -571,7 +810,7 @@ async def test_provider_accepts_validated_source_ids_alias() -> None:
         payload = json.loads(request.content)
         schema_name = payload["response_format"]["json_schema"]["name"]
         content = (
-            '{"supported":true,"unsupported_claims":[]}'
+            _verdict_json(citations=("context:assistant_scope",))
             if schema_name == "grounding_verdict"
             else '{"answer":"你好，请问想咨询什么?","source_ids":["context:assistant_scope"]}'
         )
@@ -596,7 +835,7 @@ async def test_provider_accepts_compatible_public_answer_and_detail_shape_varian
         payload = json.loads(request.content)
         schema_name = payload["response_format"]["json_schema"]["name"]
         if schema_name == "grounding_verdict":
-            content = '{"supported":true,"unsupported_claims":[]}'
+            content = _verdict_json(citations=("product:prd_public",))
         else:
             content = json.dumps(
                 {
@@ -683,7 +922,7 @@ async def test_provider_exclusive_plan_rejects_unknown_or_malformed_output() -> 
                 200,
                 json={
                     "choices": [
-                        {"message": {"content": '{"intent":"admin_override","search_text":null}'}}
+                        {"message": {"content": _decision_json("admin_override")}}
                     ]
                 },
             ),
@@ -695,7 +934,7 @@ async def test_provider_exclusive_plan_rejects_unknown_or_malformed_output() -> 
         return next(responses)
 
     planner, client = _planner(httpx.MockTransport(respond))
-    with pytest.raises(ModelGatewayError, match="unsupported exclusive intent"):
+    with pytest.raises(ModelGatewayError, match="unsupported Agent intent"):
         await planner.plan_exclusive("越权")
     with pytest.raises(ModelGatewayError, match="failed or returned an invalid plan"):
         await planner.plan_exclusive("订单在哪里")

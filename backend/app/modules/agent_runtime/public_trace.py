@@ -197,6 +197,11 @@ def ensure_public_trace(
         "analysis_summary",
         "analysis_details",
         "thinking_mode",
+        "planning_confidence",
+        "required_capabilities",
+        "missing_slots",
+        "continuation_of_previous_turn",
+        "response_strategy",
     }
     extra = {key: value for key, value in supplied.items() if key in allowed_extra}
     if degraded_reason:

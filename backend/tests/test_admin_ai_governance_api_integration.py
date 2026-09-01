@@ -82,11 +82,11 @@ async def test_admin_dashboard_observability_evaluation_policy_and_skill_lifecyc
 
     evaluation_payload = {
         "dataset_id": "ecom-ai-release-holdout",
-        "dataset_version": "2026.08.31-v2",
+        "dataset_version": "2026.09.01-v3",
         "baseline_type": "prompt",
         "baseline_version": "ecom-safe-router-v1",
         "candidate_type": "prompt",
-        "candidate_version": "ecom-safe-router-v2",
+        "candidate_version": "ecom-safe-router-v3",
         "require_significant_gain": True,
     }
     evaluation = await client.post(

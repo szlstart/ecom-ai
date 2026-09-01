@@ -22,6 +22,13 @@ StoreIntent = Literal[
 class StoreAgentPlan:
     intent: StoreIntent
     search_text: str | None = None
+    confidence: float = 1.0
+    required_capabilities: tuple[str, ...] = ()
+    missing_slots: tuple[str, ...] = ()
+    continuation_of_previous_turn: bool = False
+    needs_human: bool = False
+    handoff_reason: str | None = None
+    response_strategy: Literal["answer", "clarify", "handoff", "refuse"] = "answer"
 
 
 class ModelGatewayError(RuntimeError):
@@ -91,6 +98,50 @@ class DeterministicStoreModelGateway:
         return StoreAgentPlan("general_chat")
 
 
+STORE_CAPABILITIES: dict[StoreIntent, tuple[str, ...]] = {
+    "general_chat": (),
+    "product_qa": ("catalog.get_product",),
+    "sku_compare": ("catalog.compare_skus",),
+    "inventory_lookup": ("catalog.get_inventory_availability",),
+    "policy_qa": ("catalog.get_store_policy", "rag.store_policy.search"),
+    "order_explain": (
+        "order.get_store_order_summary",
+        "logistics.get_store_order_shipments",
+    ),
+    "product_recommend": (
+        "catalog.search_store_products",
+        "catalog.compare_products",
+    ),
+    "human_handoff": ("support.create_store_ticket",),
+}
+
+
+def complete_store_plan(plan: StoreAgentPlan) -> StoreAgentPlan:
+    """Apply deterministic server defaults to every planner implementation."""
+
+    capabilities = plan.required_capabilities or STORE_CAPABILITIES[plan.intent]
+    is_handoff = plan.intent == "human_handoff"
+    return StoreAgentPlan(
+        intent=plan.intent,
+        search_text=plan.search_text,
+        confidence=min(max(plan.confidence, 0.0), 1.0),
+        required_capabilities=tuple(dict.fromkeys(capabilities)),
+        missing_slots=tuple(dict.fromkeys(plan.missing_slots)),
+        continuation_of_previous_turn=plan.continuation_of_previous_turn,
+        needs_human=is_handoff,
+        handoff_reason=plan.handoff_reason if is_handoff else None,
+        response_strategy=(
+            "handoff"
+            if is_handoff
+            else "clarify"
+            if plan.missing_slots and plan.confidence < 0.65
+            else "answer"
+            if plan.response_strategy in {"handoff", "refuse"}
+            else plan.response_strategy
+        ),
+    )
+
+
 def refine_store_plan_for_context(
     plan: StoreAgentPlan,
     user_text: str,
@@ -107,19 +158,31 @@ def refine_store_plan_for_context(
     """
 
     if not (has_product_context or has_order_context):
-        return plan
+        return complete_store_plan(plan)
     text = _normalize(user_text)
     if not text:
-        return plan
+        return complete_store_plan(plan)
     if plan.intent == "general_chat" and _is_affirmative_follow_up(text):
         if has_product_context:
-            return StoreAgentPlan("product_qa")
+            return complete_store_plan(
+                StoreAgentPlan(
+                    "product_qa",
+                    confidence=max(plan.confidence, 0.9),
+                    continuation_of_previous_turn=True,
+                )
+            )
         if has_order_context:
-            return StoreAgentPlan("order_explain")
+            return complete_store_plan(
+                StoreAgentPlan(
+                    "order_explain",
+                    confidence=max(plan.confidence, 0.9),
+                    continuation_of_previous_turn=True,
+                )
+            )
     if _is_general_chat(text):
-        return plan
+        return complete_store_plan(plan)
     if plan.intent == "general_chat" and _looks_like_substantive_request(text, user_text):
-        return StoreAgentPlan("product_qa")
+        return complete_store_plan(StoreAgentPlan("product_qa", confidence=plan.confidence))
     if (
         plan.intent == "product_recommend"
         and _contains(
@@ -140,8 +203,8 @@ def refine_store_plan_for_context(
         )
         and not _contains(text, "推荐别的", "还有什么", "类似商品", "换一个", "其他商品")
     ):
-        return StoreAgentPlan("product_qa")
-    return plan
+        return complete_store_plan(StoreAgentPlan("product_qa", confidence=plan.confidence))
+    return complete_store_plan(plan)
 
 
 def _normalize(value: str) -> str:

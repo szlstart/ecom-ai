@@ -736,6 +736,25 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
     finally:
         await pubsub.aclose()  # type: ignore[no-untyped-call]
 
+    cleared = await client.delete(
+        f"/api/v1/conversations/{conversation_no}/messages",
+        headers=headers,
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["data"]["conversation_id"] == conversation_no
+    assert cleared.json()["data"]["memory_cleared"] is True
+    still_exists = await client.get(
+        f"/api/v1/conversations/{conversation_no}",
+        headers=headers,
+    )
+    assert still_exists.status_code == 200
+    empty_history = await client.get(
+        f"/api/v1/conversations/{conversation_no}/messages",
+        headers=headers,
+    )
+    assert empty_history.status_code == 200
+    assert empty_history.json()["data"]["items"] == []
+
     deleted = await client.delete(
         f"/api/v1/conversations/{conversation_no}",
         headers=headers,

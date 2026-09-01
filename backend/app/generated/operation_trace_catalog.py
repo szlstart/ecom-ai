@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "27d511a544989a6ce91b5968897c3f56dcdb26190796ce7cb685480b9fbca603"
+SOURCE_SHA256 = "d0dc510e2bd84df54fa0fb099629d1b370a96e0121a10d2d54062d7570b9d7e6"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -141,6 +141,22 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["ADM-AI-AGENT-01"],
         "x-scope-policy": ["ai_agents:read", "ai_agents:manage", "ai_agents:publish"],
         "x-test-case-ids": ["ADM-AGENT-*"],
+    },
+    "AdminAiConversation_ClearMessages": {
+        "x-audit-event": "command.AdminAiConversation_ClearMessages",
+        "x-domain-command": "AdminAiConversation_ClearMessages",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["ADM-MSG-01"],
+        "x-scope-policy": [
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:resolve",
+            "platform_admin_session",
+        ],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*"],
     },
     "AdminAiConversation_DeleteMine": {
         "x-audit-event": "command.AdminAiConversation_DeleteMine",
@@ -3712,6 +3728,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["public_or_historical_owner", "conversation_owner"],
         "x-test-case-ids": ["AI-FEEDBACK-*", "MSG-USER-*", "STORE-*"],
     },
+    "Conversation_ClearMessagesMine": {
+        "x-audit-event": "command.Conversation_ClearMessagesMine",
+        "x-domain-command": "Conversation_ClearMessagesMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["USR-MSG-02"],
+        "x-scope-policy": ["conversation_owner"],
+        "x-test-case-ids": ["AI-FEEDBACK-*", "MSG-USER-*"],
+    },
     "Conversation_DeleteMine": {
         "x-audit-event": "command.Conversation_DeleteMine",
         "x-domain-command": "Conversation_DeleteMine",
@@ -4153,6 +4179,23 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-requirement-id": ["MCH-AUTH-01"],
         "x-scope-policy": ["store_operator_with_store_scope"],
         "x-test-case-ids": ["AUTH-CAPTCHA-*", "AUTH-RESET-*", "MCH-PORTAL-*"],
+    },
+    "MerchantExclusiveConversation_ClearMessages": {
+        "x-audit-event": "command.MerchantExclusiveConversation_ClearMessages",
+        "x-domain-command": "MerchantExclusiveConversation_ClearMessages",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["MCH-MSG-01"],
+        "x-scope-policy": [
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:resolve",
+            "store_scope",
+            "merchant_exclusive_conversation_owner",
+        ],
+        "x-test-case-ids": ["ADM-SUPPORT-*", "MCH-PORTAL-*"],
     },
     "MerchantExclusiveConversation_DeleteMine": {
         "x-audit-event": "command.MerchantExclusiveConversation_DeleteMine",
@@ -4913,6 +4956,24 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "support:resume",
             "platform_admin_session",
             "support:transfer",
+        ],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+    },
+    "SupportConversation_ClearMessages": {
+        "x-audit-event": "command.SupportConversation_ClearMessages",
+        "x-domain-command": "SupportConversation_ClearMessages",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": ["support:reply"],
+        "x-requirement-id": ["ADM-MSG-01", "MCH-MSG-01"],
+        "x-scope-policy": [
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:resolve",
+            "store_scope",
+            "merchant_exclusive_conversation_owner",
+            "platform_admin_session",
         ],
         "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
     },

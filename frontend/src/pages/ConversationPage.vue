@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, type RouteLocationRaw } from 'vue-router'
 
 import { ApiProblem, errorMessage, messageSendError, resolveApiAssetUrl } from '@/api/http'
 import { getStore, getStoreProducts, type ProductCardData } from '@/api/catalog'
@@ -22,7 +22,7 @@ import { liveTraceFromEvent, RealtimeConnection, updateLiveTrace, type AgentLive
 import {
   createClientMessageId,
   cancelHumanServiceTicket,
-  deleteConversation,
+  clearConversationHistory,
   getConversation,
   getHumanServiceTicket,
   listMessages,
@@ -98,6 +98,16 @@ const userAvatarUrl = computed(() => resolveApiAssetUrl(auth.user?.avatar_url ??
 const userAvatarLabel = computed(() => (auth.user?.username || '用').slice(0, 1).toUpperCase())
 const platformHuman = computed(() => conversation.value?.conversation_type === 'exclusive')
 const activeContext = computed(() => conversation.value?.active_contexts.find((item) => item.status === 'active') ?? null)
+const activeContextRoute = computed<RouteLocationRaw | null>(() => {
+  const context = activeContext.value
+  if (!context) return null
+  if (context.context_type === 'product') return `/products/${encodeURIComponent(context.resource_id)}`
+  if (context.context_type === 'order') return `/me/orders/${encodeURIComponent(context.resource_id)}`
+  if (context.context_type === 'shipment') return `/me/shipments/${encodeURIComponent(context.resource_id)}`
+  if (context.context_type === 'refund') return `/me/after-sales/${encodeURIComponent(context.resource_id)}`
+  if (context.context_type === 'store') return `/stores/${encodeURIComponent(context.resource_id)}`
+  return null
+})
 const activeAfterSaleConsent = computed(() => agentConsents.value.find((item) => (
   item.consent_type === 'after_sale_write'
   && item.scope_type === 'user'
@@ -605,14 +615,25 @@ async function cancelHuman() {
   } catch (cause) { error.value = errorMessage(cause) }
   finally { humanBusy.value = false }
 }
-async function removeConversation() {
+async function clearHistory() {
   if (!conversation.value || humanBusy.value) return
-  const confirmed = await confirmAction('确认删除这段对话吗？聊天记录、会话摘要和由本会话产生的 AI 记忆都会清除，且无法恢复。')
+  const confirmed = await confirmAction('确认清除当前聊天记录吗？会话仍保留在左侧列表，但聊天画面、上下文和由本会话产生的 AI 记忆会清空，并重新开始。')
   if (!confirmed) return
   humanBusy.value = true; error.value = ''
   try {
-    await deleteConversation(conversation.value.conversation_id, token())
-    emit('conversation-deleted', conversation.value.conversation_id)
+    await clearConversationHistory(conversation.value.conversation_id, token())
+    messages.value = []
+    previousCursor.value = null
+    humanTicket.value = null
+    streamingReply.value = null
+    liveTrace.value = null
+    selectedTraceRunId.value = null
+    clearReadState()
+    conversation.value = (await getConversation(conversation.value.conversation_id, token())).data
+    emit('trace-update', [])
+    emit('trace-select', null)
+    emit('trace-running', false)
+    emit('trace-progress', null)
   } catch (cause) { error.value = errorMessage(cause) }
   finally { humanBusy.value = false }
 }
@@ -727,12 +748,16 @@ onBeforeUnmount(() => {
   <section class="conversation-page" :class="{ embedded }">
     <header class="conversation-header">
       <div><RouterLink v-if="!embedded" to="/messages">← 返回会话</RouterLink><h1 v-if="!embedded">{{ conversation?.title || '会话' }}</h1><strong v-else>{{ conversation?.title || '正在读取会话' }}</strong><p class="muted"><span class="connection-dot" :class="connectionState" />{{ connectionState === 'offline' ? '连接中断，恢复后自动补拉' : '消息实时同步' }}</p></div>
-      <div class="actions"><RouterLink v-if="conversation?.store_id" :to="`/stores/${conversation.store_id}`" @click="closeEmbeddedNavigation">查看店铺</RouterLink><button v-if="conversation" type="button" class="danger small" :disabled="humanBusy" @click="removeConversation">删除对话</button></div>
+      <div class="actions"><RouterLink v-if="conversation?.store_id" :to="`/stores/${conversation.store_id}`" @click="closeEmbeddedNavigation">查看店铺</RouterLink><button v-if="conversation" type="button" class="secondary small" :disabled="humanBusy" @click="clearHistory">清除记录</button></div>
     </header>
     <p v-if="error" class="alert error" role="alert">{{ error }}</p>
     <p v-if="humanNotice" class="alert success" role="status">{{ humanNotice }}</p>
     <p v-if="consentNotice" class="alert success" role="status">{{ consentNotice }}</p>
-    <div v-if="activeContext" class="conversation-context-card" role="status">
+    <RouterLink v-if="activeContext && activeContextRoute" class="conversation-context-card clickable" :to="activeContextRoute" :aria-label="`${contextLabel(activeContext)}，点击查看详情`" @click="closeEmbeddedNavigation">
+      <span class="conversation-context-cover"><img v-if="activeContextImage()" :src="activeContextImage()!" alt="" /><i v-else>{{ activeContext.context_type === 'product' ? '商' : '询' }}</i></span>
+      <div><small>当前咨询 · 点击查看</small><strong>{{ contextLabel(activeContext).replace('正在咨询', '') }}</strong><b v-if="activeContextPrice()">{{ activeContextPrice() }}</b></div>
+    </RouterLink>
+    <div v-else-if="activeContext" class="conversation-context-card" role="status">
       <span class="conversation-context-cover"><img v-if="activeContextImage()" :src="activeContextImage()!" alt="" /><i v-else>{{ activeContext.context_type === 'product' ? '商' : '询' }}</i></span>
       <div><small>当前咨询</small><strong>{{ contextLabel(activeContext).replace('正在咨询', '') }}</strong><b v-if="activeContextPrice()">{{ activeContextPrice() }}</b></div>
     </div>

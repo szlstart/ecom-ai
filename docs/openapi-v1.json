@@ -11466,6 +11466,86 @@
       }
     },
     "/api/v1/conversations/{conversation_id}/messages": {
+      "delete": {
+        "tags": [
+          "messaging"
+        ],
+        "summary": "Clear Conversation Messages",
+        "operationId": "Conversation_ClearMessagesMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationClearView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.Conversation_ClearMessagesMine",
+        "x-domain-command": "Conversation_ClearMessagesMine",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-MSG-02"
+        ],
+        "x-scope-policy": [
+          "conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "AI-FEEDBACK-*",
+          "MSG-USER-*"
+        ]
+      },
       "get": {
         "tags": [
           "messaging"
@@ -12605,6 +12685,67 @@
       }
     },
     "/api/v1/merchant/support/exclusive-conversation/messages": {
+      "delete": {
+        "tags": [
+          "merchant-support"
+        ],
+        "summary": "Clear Merchant Exclusive Conversation Messages",
+        "operationId": "MerchantExclusiveConversation_ClearMessages",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationClearView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantExclusiveConversation_ClearMessages",
+        "x-domain-command": "MerchantExclusiveConversation_ClearMessages",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-MSG-01"
+        ],
+        "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:resolve",
+          "store_scope",
+          "merchant_exclusive_conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
+        ]
+      },
       "get": {
         "tags": [
           "merchant-support"
@@ -13123,6 +13264,66 @@
       }
     },
     "/api/v1/admin/support/ai-conversation/messages": {
+      "delete": {
+        "tags": [
+          "admin-support"
+        ],
+        "summary": "Clear Admin Ai Conversation Messages",
+        "operationId": "AdminAiConversation_ClearMessages",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationClearView_"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminAiConversation_ClearMessages",
+        "x-domain-command": "AdminAiConversation_ClearMessages",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "ADM-MSG-01"
+        ],
+        "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:resolve",
+          "platform_admin_session"
+        ],
+        "x-test-case-ids": [
+          "ADM-AUTH-*",
+          "ADM-SUPPORT-*"
+        ]
+      },
       "get": {
         "tags": [
           "admin-support"
@@ -13962,6 +14163,99 @@
           "support:resume",
           "platform_admin_session",
           "support:transfer"
+        ],
+        "x-test-case-ids": [
+          "ADM-AUTH-*",
+          "ADM-SUPPORT-*",
+          "MCH-PORTAL-*"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "support-workspace"
+        ],
+        "summary": "Clear Support Conversation Messages",
+        "operationId": "SupportConversation_ClearMessages",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Conversation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_ConversationClearView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.SupportConversation_ClearMessages",
+        "x-domain-command": "SupportConversation_ClearMessages",
+        "x-idempotency-policy": "http_method_idempotent",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "support:reply"
+        ],
+        "x-requirement-id": [
+          "ADM-MSG-01",
+          "MCH-MSG-01"
+        ],
+        "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:resolve",
+          "store_scope",
+          "merchant_exclusive_conversation_owner",
+          "platform_admin_session"
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
@@ -46164,6 +46458,36 @@
         ],
         "title": "ConversationArchiveView"
       },
+      "ConversationClearView": {
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "title": "Conversation Id"
+          },
+          "cleared_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Cleared At"
+          },
+          "memory_cleared": {
+            "type": "boolean",
+            "title": "Memory Cleared"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "cleared_at",
+          "memory_cleared",
+          "version"
+        ],
+        "title": "ConversationClearView"
+      },
       "ConversationContextClearView": {
         "properties": {
           "conversation_id": {
@@ -47831,6 +48155,21 @@
           "data"
         ],
         "title": "Envelope[ConversationArchiveView]"
+      },
+      "Envelope_ConversationClearView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConversationClearView"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Envelope[ConversationClearView]"
       },
       "Envelope_ConversationContextClearView_": {
         "properties": {

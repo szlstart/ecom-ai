@@ -86,8 +86,19 @@ export interface ConversationDeletion {
   memory_cleared: boolean
 }
 
+export interface ConversationClear {
+  conversation_id: string
+  cleared_at: string
+  memory_cleared: boolean
+  version: number
+}
+
 export function deleteConversation(conversationId: string, token: string): Promise<ApiResult<ConversationDeletion>> {
   return apiRequest(`/conversations/${encodeURIComponent(conversationId)}`, { method: 'DELETE' }, token)
+}
+
+export function clearConversationHistory(conversationId: string, token: string): Promise<ApiResult<ConversationClear>> {
+  return apiRequest(`/conversations/${encodeURIComponent(conversationId)}/messages`, { method: 'DELETE' }, token)
 }
 
 export function listConversations(token: string): Promise<ApiResult<{ items: Conversation[] }>> {

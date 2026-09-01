@@ -109,7 +109,14 @@ def refine_store_plan_for_context(
     if not (has_product_context or has_order_context):
         return plan
     text = _normalize(user_text)
-    if not text or _is_general_chat(text):
+    if not text:
+        return plan
+    if plan.intent == "general_chat" and _is_affirmative_follow_up(text):
+        if has_product_context:
+            return StoreAgentPlan("product_qa")
+        if has_order_context:
+            return StoreAgentPlan("order_explain")
+    if _is_general_chat(text):
         return plan
     if plan.intent == "general_chat" and _looks_like_substantive_request(text, user_text):
         return StoreAgentPlan("product_qa")
@@ -164,6 +171,22 @@ def _is_general_chat(value: str) -> bool:
         value.startswith(prefix)
         for prefix in ("谢谢你", "感谢你", "辛苦了", "你好呀", "您好呀")
     )
+
+
+def _is_affirmative_follow_up(value: str) -> bool:
+    return value in {
+        "好",
+        "好的",
+        "好呀",
+        "可以",
+        "行",
+        "行啊",
+        "继续",
+        "嗯",
+        "嗯嗯",
+        "ok",
+        "okay",
+    }
 
 
 def _looks_like_substantive_request(normalized: str, original: str) -> bool:

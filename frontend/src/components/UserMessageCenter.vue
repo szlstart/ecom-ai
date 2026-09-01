@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import { errorMessage } from '@/api/http'
 import {
+  deleteConversation,
   ensureExclusiveConversation,
   listConversations,
   type Conversation,
@@ -14,6 +15,7 @@ import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import type { ChatMessage } from '@/api/messaging'
 import { useMessageCenterStore } from '@/stores/message-center'
 import { useUserAuthStore } from '@/stores/user-auth'
+import { confirmAction } from '@/composables/confirmation'
 
 withDefaults(defineProps<{ standalone?: boolean }>(), { standalone: false })
 
@@ -29,6 +31,8 @@ const traceMessages = ref<ChatMessage[]>([])
 const selectedTraceRunId = ref<string | null>(null)
 const traceRunning = ref(false)
 const liveTrace = ref<AgentLiveTrace | null>(null)
+const openMenuId = ref('')
+const deletingId = ref('')
 let realtime: RealtimeConnection | undefined
 let refreshTimer: number | undefined
 let pollingTimer: number | undefined
@@ -100,9 +104,21 @@ function handleRealtime(event: RealtimeEvent) {
   if (['message.created', 'unread.updated', 'support.status.updated'].includes(event.type)) scheduleRefresh()
 }
 function selectConversation(item: Conversation) {
+  openMenuId.value = ''
   center.selectedConversationId = item.conversation_id
   traceMessages.value = []
   selectedTraceRunId.value = null
+}
+async function deleteFromList(item: Conversation) {
+  openMenuId.value = ''
+  if (!await confirmAction(`确认删除与“${item.title}”的对话吗？聊天记录、上下文和本会话 AI 记忆都会清除，且无法恢复。`)) return
+  deletingId.value = item.conversation_id
+  error.value = ''
+  try {
+    await deleteConversation(item.conversation_id, token())
+    await conversationDeleted(item.conversation_id)
+  } catch (cause) { error.value = errorMessage(cause) }
+  finally { deletingId.value = '' }
 }
 async function conversationDeleted(conversationId: string) {
   items.value = items.value.filter((item) => item.conversation_id !== conversationId)
@@ -154,20 +170,26 @@ onBeforeUnmount(() => {
     <b v-if="totalUnread" :aria-label="`${totalUnread} 条未读消息`">{{ unreadLabel(totalUnread) }}</b>
   </RouterLink>
   <div v-else class="message-page-surface user-message-page-surface">
-      <section class="merchant-message-window user-message-window" aria-label="用户消息中心">
+      <section class="merchant-message-window user-message-window" aria-label="用户消息中心" @click="openMenuId = ''" @keydown.esc="openMenuId = ''">
         <aside class="merchant-chat-list user-chat-list">
           <header><div><strong>会话列表</strong><small><span class="connection-dot" :class="connectionState" />{{ totalUnread ? `${totalUnread} 条未读` : '消息已读' }}</small></div></header>
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>
           <p v-if="loading && !items.length" class="merchant-chat-empty">正在读取会话…</p>
-          <button v-if="exclusive" class="merchant-chat-item pinned" :class="{ active: selected?.conversation_id === exclusive.conversation_id }" type="button" @click="selectConversation(exclusive)">
-            <span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><span><strong>专属客服 <em>置顶</em></strong><small>{{ exclusive.last_message_preview || '平台规则、订单、物流与售后' }}</small></span><i v-if="exclusive.unread_count" class="user-chat-unread" :aria-label="`${exclusive.unread_count} 条未读消息`">{{ unreadLabel(exclusive.unread_count) }}</i>
-          </button>
+          <div v-if="exclusive" class="message-conversation-entry" @contextmenu.prevent.stop="openMenuId = exclusive.conversation_id">
+            <button class="merchant-chat-item pinned" :class="{ active: selected?.conversation_id === exclusive.conversation_id }" type="button" @click.stop="selectConversation(exclusive)">
+              <span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><span><strong>专属客服 <em>置顶</em></strong><small>{{ exclusive.last_message_preview || '平台规则、订单、物流与售后' }}</small></span><i v-if="exclusive.unread_count" class="user-chat-unread" :aria-label="`${exclusive.unread_count} 条未读消息`">{{ unreadLabel(exclusive.unread_count) }}</i>
+            </button>
+            <div v-if="openMenuId === exclusive.conversation_id" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" :disabled="deletingId === exclusive.conversation_id" @click="deleteFromList(exclusive)">{{ deletingId === exclusive.conversation_id ? '删除中…' : '删除对话' }}</button></div>
+          </div>
           <div v-if="!stores.length && !loading" class="merchant-chat-empty message-empty-guide">
             <span aria-hidden="true">⌕</span><strong>还没有店铺咨询</strong><small>在商品详情页联系商家后，会话会出现在这里。</small><RouterLink to="/">去逛逛</RouterLink>
           </div>
-          <button v-for="item in stores" :key="item.conversation_id" class="merchant-chat-item" :class="{ active: selected?.conversation_id === item.conversation_id }" type="button" @click="selectConversation(item)">
-            <span class="merchant-chat-avatar">{{ item.title.slice(0, 1) }}</span><span><strong>{{ item.title }}</strong><small>{{ item.last_message_preview || '开始咨询店铺客服' }} · {{ timeLabel(item.last_message_at) }}</small></span><i v-if="item.unread_count" class="user-chat-unread" :aria-label="`${item.unread_count} 条未读消息`">{{ unreadLabel(item.unread_count) }}</i>
-          </button>
+          <div v-for="item in stores" :key="item.conversation_id" class="message-conversation-entry" @contextmenu.prevent.stop="openMenuId = item.conversation_id">
+            <button class="merchant-chat-item" :class="{ active: selected?.conversation_id === item.conversation_id }" type="button" @click.stop="selectConversation(item)">
+              <span class="merchant-chat-avatar">{{ item.title.slice(0, 1) }}</span><span><strong>{{ item.title }}</strong><small>{{ item.last_message_preview || '开始咨询店铺客服' }} · {{ timeLabel(item.last_message_at) }}</small></span><i v-if="item.unread_count" class="user-chat-unread" :aria-label="`${item.unread_count} 条未读消息`">{{ unreadLabel(item.unread_count) }}</i>
+            </button>
+            <div v-if="openMenuId === item.conversation_id" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" :disabled="deletingId === item.conversation_id" @click="deleteFromList(item)">{{ deletingId === item.conversation_id ? '删除中…' : '删除对话' }}</button></div>
+          </div>
         </aside>
         <main class="user-chat-main">
           <ConversationPage v-if="center.selectedConversationId" :key="center.selectedConversationId" :conversation-id="center.selectedConversationId" embedded @trace-update="traceMessages = $event" @trace-select="selectedTraceRunId = $event" @trace-running="traceRunning = $event" @trace-progress="liveTrace = $event" @conversation-deleted="conversationDeleted" @read-cursor="updateReadCursor" />

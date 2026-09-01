@@ -36,7 +36,7 @@ describe('ChatMessageContent', () => {
         schema_version: 2, product_id: 'prd_ABC', product_name: '旅行水杯', product_status: 'on_sale',
         sku_id: 'sku_BLUE', sku_name: '海盐蓝', image_url: 'javascript:alert(1)',
         price: { minor_units: '1299', currency: 'CNY' }, available_quantity: 8, sales_count: 31,
-        stock_status: 'available', store: { store_id: 'sto_1', store_name: '生活商店', logo_url: '/api/v1/files/fil_LOGO' },
+        stock_status: 'available', store: { store_id: 'sto_1', store_name: '生活商店', logo_url: '/api/v1/files/file_LOGO' },
       },
     })
     expect(wrapper.text()).toContain('旅行水杯')
@@ -44,6 +44,30 @@ describe('ChatMessageContent', () => {
     expect(wrapper.text()).toContain('¥12.99')
     expect(wrapper.findAll('img')).toHaveLength(1)
     expect(wrapper.get('a').attributes('href')).toBe('/products/prd_ABC?sku_id=sku_BLUE')
+  })
+
+  it('renders canonical file images for product and order cards', async () => {
+    const product = await render({
+      ...base,
+      content: {
+        product_id: 'prd_ABC', product_name: '旅行水杯', product_status: 'on_sale',
+        image_url: '/api/v1/files/file_PRODUCT?variant=thumbnail',
+        price: { minor_units: '1299', currency: 'CNY' }, available_quantity: 8,
+        stock_status: 'available', store: { store_name: '生活商店', logo_url: '/api/v1/files/file_STORE' },
+      },
+    })
+    expect(product.findAll('img')).toHaveLength(2)
+
+    const order = await render({
+      ...base,
+      message_type: 'order_card',
+      content: {
+        order_id: 'ord_ABC', order_status: 'paid', payable_amount: { minor_units: '1299', currency: 'CNY' },
+        total_quantity: 1, store: { store_name: '生活商店', logo_url: '/api/v1/files/file_STORE' },
+        items: [{ product_name: '旅行水杯', sku_name: '蓝色', quantity: 1, image_url: '/api/v1/files/file_ITEM?variant=thumbnail' }],
+      },
+    })
+    expect(order.findAll('img')).toHaveLength(2)
   })
 
   it('renders a privacy-safe order snapshot and uses audience-specific navigation', async () => {

@@ -18,7 +18,7 @@ from app.modules.messaging.models import (
     Message,
 )
 from app.modules.messaging.repository import MessagingRepository
-from app.modules.messaging.schemas import ConversationDeletionView
+from app.modules.messaging.schemas import ConversationClearView, ConversationDeletionView
 from app.modules.rbac.dependencies import AdminAccess
 
 
@@ -49,6 +49,146 @@ class ConversationDeletionService:
         if not allowed:
             raise _not_found()
         return await self._delete(conversation, actor_type="admin", actor_id=access.context.user.id)
+
+    async def clear_owned(self, user: User, conversation_no: str) -> ConversationClearView:
+        conversation = await self.repository.by_no(user.id, conversation_no, for_update=True)
+        if conversation is None:
+            raise _not_found()
+        return await self._clear(conversation, actor_type="user", actor_id=user.id)
+
+    async def clear_scoped(
+        self, access: AdminAccess, conversation_no: str
+    ) -> ConversationClearView:
+        row = await self.repository.conversation_for_operator(conversation_no, for_update=True)
+        if row is None:
+            raise _not_found()
+        conversation, _ = row
+        allowed = ("platform", 0) in access.scopes or (
+            conversation.store_id is not None and ("store", conversation.store_id) in access.scopes
+        )
+        if not allowed:
+            raise _not_found()
+        return await self._clear(
+            conversation, actor_type="admin", actor_id=access.context.user.id
+        )
+
+    async def _clear(
+        self, conversation: Conversation, *, actor_type: str, actor_id: int
+    ) -> ConversationClearView:
+        """Clear visible history and AI state while retaining the conversation identity.
+
+        Messages stay in MySQL for security and dispute audit, but are hidden from every
+        participant and excluded from future Agent context. New messages continue with a
+        monotonic sequence number so realtime consumers never see duplicates.
+        """
+
+        now = utc_now().replace(microsecond=0)
+        message_nos = list(
+            (
+                await self.mysql.scalars(
+                    select(Message.message_no).where(
+                        Message.conversation_id == conversation.id,
+                        Message.message_status != "hidden",
+                    )
+                )
+            ).all()
+        )
+        run_nos = list(
+            (
+                await self.mysql.scalars(
+                    select(AgentRun.run_no).where(
+                        AgentRun.conversation_id == conversation.id
+                    )
+                )
+            ).all()
+        )
+        await self._clear_postgres(conversation.conversation_no, message_nos, run_nos)
+
+        ticket = await self.repository.active_ticket(conversation.id)
+        request_id = request_id_context.get() or new_prefixed_ulid("req_")
+        if ticket is not None:
+            previous_ticket_status = ticket.ticket_status
+            ticket.ticket_status = "closed"
+            ticket.active_key = None
+            ticket.closed_at = now
+            ticket.resolution_code = "CONVERSATION_HISTORY_CLEARED"
+            ticket.resolution_summary = "会话记录已清除"
+            ticket.version += 1
+            await self.mysql.execute(
+                update(HumanServiceAssignment)
+                .where(
+                    HumanServiceAssignment.ticket_id == ticket.id,
+                    HumanServiceAssignment.assignment_status.in_(("assigned", "accepted")),
+                )
+                .values(
+                    assignment_status="ended",
+                    ended_at=now,
+                    end_reason="CONVERSATION_HISTORY_CLEARED",
+                )
+            )
+            self.mysql.add(
+                HumanServiceTicketEvent(
+                    event_no=new_prefixed_ulid("hte_"),
+                    ticket_id=ticket.id,
+                    event_type="closed",
+                    from_status=previous_ticket_status,
+                    to_status="closed",
+                    actor_type=actor_type,
+                    actor_user_id=actor_id,
+                    reason_code="CONVERSATION_HISTORY_CLEARED",
+                    reason=None,
+                    sla_due_at_before=ticket.sla_due_at,
+                    sla_due_at_after=None,
+                    ticket_version=ticket.version,
+                    request_id=request_id,
+                    trace_id=request_id,
+                )
+            )
+
+        previous_status = conversation.conversation_status
+        await self.mysql.execute(
+            update(Message)
+            .where(
+                Message.conversation_id == conversation.id,
+                Message.message_status != "hidden",
+            )
+            .values(message_status="hidden")
+        )
+        await self.mysql.execute(
+            update(ConversationContext)
+            .where(
+                ConversationContext.conversation_id == conversation.id,
+                ConversationContext.context_status == "active",
+            )
+            .values(context_status="inactive", active_context_key=None)
+        )
+        conversation.conversation_status = "active"
+        conversation.last_message_id = None
+        conversation.last_message_at = None
+        conversation.user_hidden_at = None
+        conversation.human_ticket_id = None
+        conversation.version += 1
+        self.mysql.add(
+            ConversationStatusLog(
+                conversation_id=conversation.id,
+                from_status=previous_status,
+                to_status="active",
+                event_type="history_cleared",
+                actor_type=actor_type,
+                actor_id=actor_id,
+                ticket_id=ticket.id if ticket else None,
+                reason="VISIBLE_HISTORY_AND_AI_MEMORY_CLEARED",
+                conversation_version=conversation.version,
+                trace_id=request_id,
+            )
+        )
+        await self.mysql.commit()
+        return ConversationClearView(
+            conversation_id=conversation.conversation_no,
+            cleared_at=now,
+            memory_cleared=True,
+            version=conversation.version,
+        )
 
     async def _delete(
         self, conversation: Conversation, *, actor_type: str, actor_id: int

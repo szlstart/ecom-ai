@@ -520,6 +520,8 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
                     ]
                 },
             )
+        assert "DIALOGUE_CONTINUITY_JSON" in payload["messages"][1]["content"]
+        assert "你好" in payload["messages"][1]["content"]
         schema = payload["response_format"]["json_schema"]["schema"]
         assert "600 分是 ¥6.00" in payload["messages"][0]["content"]
         assert "remaining_refundable_quantity" in payload["messages"][0]["content"]

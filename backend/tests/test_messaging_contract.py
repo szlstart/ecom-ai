@@ -29,6 +29,10 @@ def test_messaging_contract_is_published() -> None:
         == "Message_CreateMine"
     )
     assert (
+        paths["/api/v1/conversations/{conversation_id}/messages"]["delete"]["operationId"]
+        == "Conversation_ClearMessagesMine"
+    )
+    assert (
         paths["/api/v1/conversations/{conversation_id}/contexts/{context_type}"]["put"][
             "operationId"
         ]
@@ -120,6 +124,22 @@ def test_messaging_contract_is_published() -> None:
     }
     for path, (method, operation_id) in support.items():
         assert paths[path][method]["operationId"] == operation_id
+    assert (
+        paths["/api/v1/support/conversations/{conversation_id}/messages"]["delete"][
+            "operationId"
+        ]
+        == "SupportConversation_ClearMessages"
+    )
+    assert (
+        paths["/api/v1/merchant/support/exclusive-conversation/messages"]["delete"][
+            "operationId"
+        ]
+        == "MerchantExclusiveConversation_ClearMessages"
+    )
+    assert (
+        paths["/api/v1/admin/support/ai-conversation/messages"]["delete"]["operationId"]
+        == "AdminAiConversation_ClearMessages"
+    )
     ticket_schema = create_app().openapi()["components"]["schemas"]["SupportTicketItem"]
     assert "unread_count" in ticket_schema["required"]
     assert ticket_schema["properties"]["unread_count"]["minimum"] == 0

@@ -29,7 +29,7 @@ function agentMessage(sequence: number, runId: string, label: string): ChatMessa
 }
 
 describe('AgentTracePanel', () => {
-  it('shows only the provider reasoning summary for the selected completed run', () => {
+  it('shows the selected run as expandable Chinese audit sections', () => {
     const wrapper = mount(AgentTracePanel, {
       props: {
         messages: [agentMessage(1, 'run_OLD', '旧任务'), agentMessage(2, 'run_NEW', '用户治理 Agent')],
@@ -37,10 +37,9 @@ describe('AgentTracePanel', () => {
       },
     })
     expect(wrapper.text()).toContain('先拆解问题，再核对权限并执行只读查询')
-    expect(wrapper.text()).not.toContain('业务工具 governance.users')
-    expect(wrapper.text()).not.toContain('可信依据')
-    expect(wrapper.text()).not.toContain('旧任务')
-    expect(wrapper.findAll('details')).toHaveLength(0)
+    expect(wrapper.text()).toContain('旧任务')
+    expect(wrapper.text()).toContain('结果')
+    expect(wrapper.findAll('details').length).toBeGreaterThanOrEqual(3)
   })
 
   it('streams the public reasoning summary returned by the provider', () => {
@@ -63,6 +62,15 @@ describe('AgentTracePanel', () => {
     expect(wrapper.text()).toContain('思考中')
     expect(wrapper.text()).not.toContain('hello')
     expect(wrapper.text()).not.toContain('正在识别问题')
+  })
+
+  it('does not render an English-only provider summary and falls back to Chinese audit text', () => {
+    const message = agentMessage(1, 'run_EN', '核对当前商品')
+    const trace = message.content!.execution_trace as Record<string, unknown>
+    trace.analysis_summary = 'I need to inspect the product and answer the user.'
+    const wrapper = mount(AgentTracePanel, { props: { messages: [message] } })
+    expect(wrapper.text()).not.toContain('I need to inspect')
+    expect(wrapper.text()).toContain('只在当前身份')
   })
 
   it('clears the previous summary while a new run is waiting for its first delta', () => {

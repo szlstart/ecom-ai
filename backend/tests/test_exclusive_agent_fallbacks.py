@@ -1,4 +1,5 @@
 from app.modules.agent_runtime.exclusive_agent import (
+    _exclusive_detail_cards,
     _render,
     _requests_latest_order,
     _requires_exact_catalog_rendering,
@@ -67,7 +68,7 @@ def test_catalog_candidates_fall_back_to_exact_current_message() -> None:
     assert "铅笔" in candidates
 
 
-def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:
+def test_product_recommendation_fallback_defers_dense_facts_to_product_cards() -> None:
     rendered = _render(
         ExclusiveAgentPlan("personalized_recommendation"),
         {
@@ -93,9 +94,8 @@ def test_product_recommendation_fallback_exposes_live_stock_evidence() -> None:
     )
 
     assert "偏好蓝色、简约风格" in rendered
-    assert "¥6.00" in rendered
-    assert "可售库存 17" in rendered
-    assert "10支装: ¥8.00，实时可售 0 件，缺货" in rendered
+    assert "点击卡片" in rendered
+    assert "10支装" not in rendered
     assert _requires_exact_catalog_rendering("personalized_recommendation") is True
     assert _requires_exact_catalog_rendering("product_search") is True
     assert _requires_exact_catalog_rendering("policy_qa") is True
@@ -154,27 +154,27 @@ def test_policy_fallback_selects_one_relevant_sentence_instead_of_dumping_chunks
 
 
 def test_logistics_fallback_renders_tracking_location_and_localized_status() -> None:
-    rendered = _render(
-        ExclusiveAgentPlan("logistics_lookup"),
-        {
-            "items": [
-                {
-                    "carrier_name": "模拟快递",
-                    "tracking_no_masked": "FAKE****1234",
-                    "shipment_status": "in_transit",
-                    "last_track": {
-                        "description": "正在派送中...",
-                        "location_text": "海淀区",
-                    },
-                    "delivery_estimate": {"status": "unavailable"},
+    data = {
+        "order_id": "ord_TRACK",
+        "items": [
+            {
+                "carrier_name": "模拟快递",
+                "tracking_no_masked": "FAKE****1234",
+                "shipment_status": "in_transit",
+                "last_track": {
+                    "description": "正在派送中...",
+                    "location_text": "海淀区",
                 }
-            ]
-        },
-    )
-    assert "FAKE****1234" in rendered
-    assert "运输中" in rendered
-    assert "海淀区" in rendered
-    assert "in_transit" not in rendered
+            }
+        ],
+    }
+    rendered = _render(ExclusiveAgentPlan("logistics_lookup"), data)
+    cards = _exclusive_detail_cards(ExclusiveAgentPlan("logistics_lookup"), data)
+    assert "点击卡片" in rendered
+    assert "FAKE****1234" in str(cards)
+    assert "运输中" in str(cards)
+    assert "海淀区" in str(cards)
+    assert "in_transit" not in str(cards)
 
 
 def test_refund_precheck_is_read_only_and_renders_exact_money() -> None:

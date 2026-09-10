@@ -19,10 +19,19 @@ from app.modules.agent_runtime.model_gateway import (
     ModelGatewayError,
     StoreAgentPlan,
     StoreModelGateway,
+    complete_store_plan,
     refine_store_plan_for_context,
 )
 from app.modules.agent_runtime.models import AgentRun
 from app.modules.agent_runtime.order_cards import build_order_cards, order_nos_from_result
+from app.modules.agent_runtime.product_cards import (
+    build_product_cards,
+    is_short_affirmative,
+    product_card_reference_index,
+    product_nos_from_result,
+    recent_agent_product_cards,
+    referenced_product_card,
+)
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.agent_runtime.provider_gateway import (
     AgentStreamCallback,
@@ -91,6 +100,11 @@ async def process_store_run(
     context_window = await ContextWindowBuilder(session).build(
         context.conversation, context.trigger
     )
+    planning_product_cards = await recent_agent_product_cards(
+        session,
+        context.conversation,
+        before_sequence=context.trigger.sequence_no,
+    )
     if checkpoint_store is not None and security is not None:
         context_window = await attach_rolling_summary(
             context_window,
@@ -106,7 +120,9 @@ async def process_store_run(
     fast_plan = refine_store_plan_for_context(
         fast_plan,
         trigger_text,
-        has_product_context="product" in context.context_refs,
+        has_product_context=(
+            "product" in context.context_refs or len(planning_product_cards) == 1
+        ),
         has_order_context="order" in context.context_refs,
     )
     if fast_plan.intent != "general_chat" or not isinstance(gateway, ProviderStoreModelGateway):
@@ -121,8 +137,21 @@ async def process_store_run(
         plan = refine_store_plan_for_context(
             plan,
             trigger_text,
-            has_product_context="product" in context.context_refs,
+            has_product_context=(
+                "product" in context.context_refs or len(planning_product_cards) == 1
+            ),
             has_order_context="order" in context.context_refs,
+        )
+
+    if is_short_affirmative(trigger_text) and len(planning_product_cards) > 1:
+        plan = complete_store_plan(
+            StoreAgentPlan(
+                "product_qa",
+                confidence=1.0,
+                missing_slots=("product_choice",),
+                continuation_of_previous_turn=True,
+                response_strategy="clarify",
+            )
         )
 
     if checkpoint_store is not None:
@@ -162,6 +191,13 @@ async def process_store_run(
         return
     if outcome.status == "succeeded":
         _attach_conversation_window(context_window, context.context_refs, outcome.data)
+        if plan.intent in {"inventory_lookup", "sku_compare", "policy_qa"}:
+            outcome.data["presentation"] = "detail_cards"
+        elif plan.intent == "product_qa" and _is_usage_question(trigger_text):
+            # Suitability questions need a deterministic, evidence-only answer.
+            # A model must not repeat the product title and then ask the same
+            # question back to the shopper.
+            outcome.data["presentation"] = "product_cards"
         await _attach_store_knowledge(
             session,
             checkpoint_store,
@@ -182,13 +218,26 @@ async def process_store_run(
             context.conversation,
             order_nos_from_result(outcome.data),
         )
+        product_cards = await build_product_cards(
+            session,
+            context.conversation,
+            product_nos_from_result(outcome.data),
+        )
+        rich_content: dict[str, object] = {}
+        if order_cards:
+            rich_content["order_cards"] = order_cards
+        if product_cards:
+            rich_content["product_cards"] = product_cards
+        detail_cards = _store_detail_cards(plan, outcome.data)
+        if detail_cards:
+            rich_content["detail_cards"] = detail_cards
         await _complete_message(
             session,
             context,
             answer,
             data=outcome.data,
             execution_trace=trace,
-            extra_content={"order_cards": order_cards} if order_cards else None,
+            extra_content=rich_content or None,
         )
         await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
@@ -235,6 +284,7 @@ async def _execute_plan(
         recommendations = await tools.recommendations(context, plan.search_text)
         if recommendations.status != "succeeded":
             return recommendations
+        recommendations.data["presentation"] = "product_cards"
         items = recommendations.data.get("items")
         product_nos = (
             [
@@ -263,23 +313,48 @@ async def _execute_plan(
         summary.data["shipments"] = shipment_result.data.get("items", [])
         summary.data["presentation"] = "order_card"
         return summary
-    resolution = await tools.resolve_product(context, trigger_text)
-    if resolution.status != "succeeded":
-        return resolution
-    resolved_product_no = resolution.data.get("product_id")
-    if isinstance(resolved_product_no, str):
-        product_no = resolved_product_no
-    elif "product" in context.context_refs:
-        # A deictic product question (for example, "介绍一下这个商品") must stay
-        # bound to the product card captured when the message was sent.  A
-        # conversation may also retain an order card, but falling back to that
-        # order first would bypass the product snapshot's active/version check
-        # after the user switches products while the run is still queued.
-        product_no = (await builder.require_active_context(context, "product")).resource_no
-    elif "order" in context.context_refs:
-        product_no = await _single_order_product_no(builder, tools, context)
+    captured_product_ref = None
+    if "product" in context.context_refs:
+        # Validate the immutable context snapshot before resolving conversational
+        # focus. A recent card may guide pronouns, but must never bypass a page
+        # context switch that happened after the user sent this message.
+        captured_product_ref = await builder.require_active_context(context, "product")
+    reference_index = product_card_reference_index(trigger_text)
+    recent_cards = await recent_agent_product_cards(
+        tools.session,
+        context.conversation,
+        before_sequence=context.trigger.sequence_no,
+        minimum_count=max(2, reference_index + 1) if reference_index is not None else 1,
+    )
+    recent_reference = referenced_product_card(
+        trigger_text,
+        recent_cards,
+    )
+    recent_product_no = recent_reference.get("product_id") if recent_reference else None
+    if isinstance(recent_product_no, str):
+        product_no = recent_product_no
     else:
-        product_no = (await builder.require_active_context(context, "product")).resource_no
+        resolution = await tools.resolve_product(context, trigger_text)
+        if resolution.status != "succeeded":
+            return resolution
+        resolved_product_no = resolution.data.get("product_id")
+        if isinstance(resolved_product_no, str):
+            product_no = resolved_product_no
+        elif "product" in context.context_refs:
+            # A deictic product question remains bound to the server-captured
+            # product context when neither an ordinal card nor an explicit name
+            # resolves to another current-store product.
+            product_no = (await builder.require_active_context(context, "product")).resource_no
+        elif "order" in context.context_refs:
+            product_no = await _single_order_product_no(builder, tools, context)
+        else:
+            product_no = (await builder.require_active_context(context, "product")).resource_no
+    if captured_product_ref is not None and product_no != captured_product_ref.resource_no:
+        # A conversationally selected card may become the new linguistic focus,
+        # while the original page context still needs a scoped, audited check.
+        captured_scope_check = await tools.product(context, captured_product_ref.resource_no)
+        if captured_scope_check.status != "succeeded":
+            return captured_scope_check
     if plan.intent == "sku_compare":
         return await tools.compare_skus(context, product_no)
     if plan.intent == "inventory_lookup":
@@ -521,7 +596,12 @@ async def _grounded_answer(
             "response_strategy": plan.response_strategy,
         },
     )
-    if data.get("presentation") in {"order_card", "order_cards"}:
+    if data.get("presentation") in {
+        "order_card",
+        "order_cards",
+        "product_cards",
+        "detail_cards",
+    }:
         trace["answer_mode"] = "structured_ui"
         return fallback, trace
     if not isinstance(gateway, ProviderStoreModelGateway):
@@ -603,30 +683,14 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         if not isinstance(items, list) or not items:
             return "当前没有可靠的展示库存结果，请稍后刷新商品页。"
         product_name = safe_untrusted_excerpt(data.get("product_name"), 160)
-        lines = [
-            f"{product_name or '当前商品'}的款式、价格和实时可售库存如下"
-            " (查询结果不代表预占, 最终以结算为准):"
-        ]
-        for item in items[:4]:
-            if isinstance(item, dict):
-                lines.append(
-                    f"- {item.get('sku_name', '规格')}: "
-                    f"{_money_value(item.get('price'))}，"
-                    f"实时可售 {item.get('available_quantity', 0)} 件，"
-                    f"{item.get('availability_label', '库存暂不可用')}"
-                )
-        return "\n".join(lines)
+        return (
+            f"已查到“{product_name or '当前商品'}”的实时库存。"
+            "款式、价格和可售数量都整理在卡片中。"
+        )
     if plan.intent == "sku_compare":
         items = data.get("items")
-        lines = ["同一商品下的规格对比 (价格和可售状态以结算为准):"]
-        if isinstance(items, list):
-            for item in items[:4]:
-                if isinstance(item, dict):
-                    lines.append(
-                        f"- {item.get('name', '规格')}: {item.get('specifications', [])}, "
-                        f"{_money(item.get('sale_price_amount'), item.get('currency'))}"
-                    )
-        return "\n".join(lines)
+        count = len(items) if isinstance(items, list) else 0
+        return f"已把 {count} 个可选款式放在对比卡片中。点击商品入口可以继续选择和购买。"
     if plan.intent == "policy_qa":
         items = data.get("items")
         knowledge = data.get("knowledge_sources")
@@ -686,17 +750,10 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         items = data.get("items")
         if not isinstance(items, list) or not items:
             return "本店当前没有符合条件的在售商品。我不会跨店补充结果，你可以调整一个筛选条件。"
-        lines = ["根据本店当前在售商品, 先提供这些候选:"]
-        for item in items[:5]:
-            if isinstance(item, dict):
-                price_value = item.get("price")
-                price: Mapping[str, Any] = price_value if isinstance(price_value, dict) else {}
-                lines.append(
-                    f"- {safe_untrusted_excerpt(item.get('name', '商品'), 120)}: "
-                    f"{safe_untrusted_excerpt(item.get('subtitle') or '查看商品详情', 300)}, "
-                    f"{_money(price.get('min_amount'), price.get('currency'))} 起"
-                )
-        return "\n".join(lines)
+        return (
+            f"为你找到 {min(len(items), 5)} 件本店在售商品。"
+            "可以直接点击卡片查看详情; 如果你告诉我考试类型、科目或预算，我还能继续缩小范围。"
+        )
     if _is_affirmative_product_follow_up(user_text, data):
         product_name = safe_untrusted_excerpt(data.get("name", "当前商品"), 120)
         return (
@@ -706,6 +763,9 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
     size_answer = _render_size_answer(data, user_text)
     if size_answer is not None:
         return size_answer
+    usage_answer = _render_usage_answer(data, user_text)
+    if usage_answer is not None:
+        return usage_answer
     product_name = safe_untrusted_excerpt(data.get("name", "当前商品"), 120)
     lines = [f"这款是“{product_name}”。"]
     attributes = data.get("attributes")
@@ -729,6 +789,72 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
     return "\n\n".join(lines)
 
 
+def _is_usage_question(user_text: str) -> bool:
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    return any(
+        marker in normalized
+        for marker in ("适合", "使用场景", "什么场景", "什么用途", "用来做什么", "能干什么")
+    )
+
+
+def _render_usage_answer(data: Mapping[str, Any], user_text: str) -> str | None:
+    if not _is_usage_question(user_text):
+        return None
+    evidence_values = [
+        data.get("name"),
+        data.get("subtitle"),
+        data.get("description"),
+        data.get("safe_detail_text"),
+    ]
+    faqs = data.get("faqs")
+    if isinstance(faqs, list):
+        for item in faqs[:10]:
+            if isinstance(item, Mapping):
+                evidence_values.extend((item.get("question"), item.get("answer")))
+    evidence = " ".join(str(value) for value in evidence_values if value)
+    usage_terms = (
+        "考试",
+        "办公",
+        "学习",
+        "学生",
+        "书写",
+        "绘图",
+        "测量",
+        "记录",
+        "日程",
+        "裁纸",
+        "裁剪",
+        "手工",
+        "手帐",
+        "切割",
+        "削笔",
+    )
+    supported = [term for term in usage_terms if term in evidence]
+    product_name = safe_untrusted_excerpt(data.get("name") or "这款商品", 80)
+    normalized_question = re.sub(r"\s+", "", user_text).casefold()
+    requested = [term for term in usage_terms if term in normalized_question]
+    if requested and all(term in supported for term in requested):
+        conclusion = f"商家资料明确标注它可用于{'、'.join(requested)}。"
+    elif requested:
+        conclusion = (
+            f"商家资料没有明确标注“{'、'.join(requested)}”这一用途，"
+            "所以我不能替商家保证适用。"
+        )
+    elif supported:
+        conclusion = f"商家资料明确标注的使用场景包括{'、'.join(supported[:6])}。"
+    else:
+        conclusion = "商家当前资料没有明确写出适用场景，所以我不能只凭商品名称替你判断。"
+    known_uses = (
+        f" 已核实的用途关键词还有{'、'.join(supported[:6])}。"
+        if requested and supported
+        else ""
+    )
+    return (
+        f"关于“{product_name}”，{conclusion}{known_uses}"
+        "你可以告诉我具体准备怎么用，我再按现有尺寸、材质和款式帮你核对。"
+    )
+
+
 def _requests_order_list(value: str) -> bool:
     normalized = re.sub(r"\s+", "", value).casefold()
     return any(
@@ -746,6 +872,94 @@ def _requests_order_list(value: str) -> bool:
             "我在你店买过",
         )
     )
+
+
+def _store_detail_cards(
+    plan: StoreAgentPlan,
+    data: Mapping[str, Any],
+) -> list[dict[str, object]]:
+    product_no = data.get("product_id")
+    product_action = (
+        {"resource_type": "product", "resource_id": product_no, "label": "打开商品详情"}
+        if isinstance(product_no, str)
+        else None
+    )
+    if plan.intent == "inventory_lookup":
+        values = data.get("items")
+        rows = [
+            {
+                "label": safe_untrusted_excerpt(item.get("sku_name") or "默认款式", 80),
+                "value": _money_value(item.get("price")),
+                "meta": (
+                    f"{safe_untrusted_excerpt(item.get('availability_label') or '库存待确认', 40)}"
+                    f" · 可售 {max(0, int(item.get('available_quantity', 0)))} 件"
+                ),
+            }
+            for item in (values if isinstance(values, list) else [])[:8]
+            if isinstance(item, Mapping)
+        ]
+        return [
+            {
+                "kind": "inventory",
+                "icon": "库",
+                "eyebrow": "实时库存",
+                "title": safe_untrusted_excerpt(data.get("product_name") or "当前商品", 120),
+                "badge": "实时查询",
+                "summary": "库存不会提前占用, 最终数量以结算页为准。",
+                "rows": rows,
+                "action": product_action,
+            }
+        ]
+    if plan.intent == "sku_compare":
+        values = data.get("items")
+        rows = []
+        for item in (values if isinstance(values, list) else [])[:8]:
+            if not isinstance(item, Mapping):
+                continue
+            specifications = item.get("specifications")
+            rows.append(
+                {
+                    "label": safe_untrusted_excerpt(item.get("name") or "商品款式", 80),
+                    "value": _money(item.get("sale_price_amount"), item.get("currency")),
+                    "meta": safe_untrusted_excerpt(specifications or "查看商品页了解规格", 160),
+                }
+            )
+        return [
+            {
+                "kind": "sku_compare",
+                "icon": "比",
+                "eyebrow": "款式对比",
+                "title": "可选款式一览",
+                "badge": f"{len(rows)} 个款式",
+                "summary": "直接比较价格和关键规格, 点击下方可进入商品页选择。",
+                "rows": rows,
+                "action": product_action,
+            }
+        ]
+    if plan.intent == "policy_qa":
+        values = data.get("items")
+        rows = [
+            {
+                "label": safe_untrusted_excerpt(item.get("title") or "店铺政策", 80),
+                "value": "当前生效",
+                "meta": safe_untrusted_excerpt(item.get("content") or "", 180),
+            }
+            for item in (values if isinstance(values, list) else [])[:4]
+            if isinstance(item, Mapping)
+        ]
+        if rows:
+            return [
+                {
+                    "kind": "store_policy",
+                    "icon": "规",
+                    "eyebrow": "店铺服务政策",
+                    "title": "本次回答依据",
+                    "badge": "已核验",
+                    "summary": "以下内容来自本店当前发布的有效政策。",
+                    "rows": rows,
+                }
+            ]
+    return []
 
 
 def _is_affirmative_product_follow_up(user_text: str, data: Mapping[str, Any]) -> bool:
@@ -974,6 +1188,8 @@ def _attach_conversation_window(
 
 
 def _clarification_text(missing_slots: tuple[str, ...]) -> str:
+    if "product_choice" in missing_slots:
+        return "你想继续了解第几个商品? 可以直接说“第一个”或“第二个”，也可以点击上面的商品卡片。"
     details = "、".join(
         safe_untrusted_excerpt(item, 64).strip() for item in missing_slots if item.strip()
     )

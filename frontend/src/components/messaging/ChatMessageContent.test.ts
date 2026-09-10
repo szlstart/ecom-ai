@@ -18,6 +18,7 @@ async function render(message: ChatMessage, audience: 'user' | 'merchant' | 'adm
     routes: [
       { path: '/products/:id', component: { template: '<div />' } },
       { path: '/me/orders/:id', component: { template: '<div />' } },
+      { path: '/me/after-sales/:id', component: { template: '<div />' } },
       { path: '/merchant/products/:id', component: { template: '<div />' } },
       { path: '/merchant/orders', component: { template: '<div />' } },
       { path: '/admin/products/:id', component: { template: '<div />' } },
@@ -108,5 +109,58 @@ describe('ChatMessageContent', () => {
     expect(wrapper.text()).toContain('实付 ¥6.00')
     expect(wrapper.text()).not.toContain('PRIVATE123456')
     expect(wrapper.get('a').attributes('href')).toBe('/me/orders/ord_PRIVATE123456')
+  })
+
+  it('renders Agent recommendations as clickable product cards instead of a text list', async () => {
+    const wrapper = await render({
+      ...base,
+      sender_type: 'agent',
+      message_type: 'text',
+      text: '为你找到 2 件本店在售商品。可以直接点击卡片查看详情。',
+      content: {
+        product_cards: [
+          {
+            product_id: 'prd_RULER', product_name: '透明考试直尺', product_status: 'on_sale',
+            sku_id: 'sku_15CM', sku_name: '15cm', image_url: '/api/v1/files/file_RULER?variant=thumbnail',
+            price: { minor_units: '871', currency: 'CNY' }, available_quantity: 18, sales_count: 72,
+            stock_status: 'available', store: { store_name: '文具专卖店' },
+          },
+          {
+            product_id: 'prd_PENCIL', product_name: '考试涂卡铅笔', product_status: 'on_sale',
+            price: { minor_units: '600', currency: 'CNY' }, available_quantity: 30, sales_count: 99,
+            stock_status: 'available', store: { store_name: '文具专卖店' },
+          },
+        ],
+      },
+    })
+
+    expect(wrapper.text()).toContain('透明考试直尺')
+    expect(wrapper.text()).toContain('考试涂卡铅笔')
+    expect(wrapper.text()).toContain('查看商品 ›')
+    expect(wrapper.text()).not.toContain('- 透明考试直尺')
+    expect(wrapper.findAll('a')).toHaveLength(2)
+    expect(wrapper.findAll('a')[0]?.attributes('href')).toBe('/products/prd_RULER?sku_id=sku_15CM')
+  })
+
+  it('renders operational results as a compact actionable detail card', async () => {
+    const wrapper = await render({
+      ...base,
+      sender_type: 'agent',
+      message_type: 'text',
+      text: '已更新物流包裹的最新进度。',
+      content: {
+        detail_cards: [{
+          kind: 'logistics', icon: '运', eyebrow: '订单物流', title: '包裹最新进度',
+          badge: '实时轨迹', summary: '物流节点按最近一次同步结果展示。',
+          rows: [{ label: '模拟快递', value: '运输中', meta: '上海市 · 包裹正在运输' }],
+          action: { resource_type: 'order', resource_id: 'ord_TRACK', label: '查看完整物流' },
+        }],
+      },
+    })
+
+    expect(wrapper.text()).toContain('包裹最新进度')
+    expect(wrapper.text()).toContain('模拟快递')
+    expect(wrapper.text()).toContain('上海市 · 包裹正在运输')
+    expect(wrapper.get('a').attributes('href')).toBe('/me/orders/ord_TRACK')
   })
 })

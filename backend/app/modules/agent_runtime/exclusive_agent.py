@@ -36,6 +36,14 @@ from app.modules.agent_runtime.order_cards import (
     order_nos_from_result,
     recent_agent_order_nos,
 )
+from app.modules.agent_runtime.product_cards import (
+    build_product_cards,
+    is_short_affirmative,
+    product_card_reference_index,
+    product_nos_from_result,
+    recent_agent_product_cards,
+    referenced_product_card,
+)
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.agent_runtime.provider_gateway import (
     AgentStreamCallback,
@@ -190,6 +198,11 @@ async def process_exclusive_run(
     context_window = await ContextWindowBuilder(session).build(
         context.conversation, context.trigger
     )
+    planning_product_cards = await recent_agent_product_cards(
+        session,
+        context.conversation,
+        before_sequence=context.trigger.sequence_no,
+    )
     context_window = await attach_rolling_summary(
         context_window,
         mysql=session,
@@ -213,6 +226,27 @@ async def process_exclusive_run(
             plan = fast_plan
             run.degraded_reason = model_failure_code(exc, "planning")
     plan = complete_exclusive_plan(plan)
+    if plan.intent == "general_chat" and is_short_affirmative(trigger_text):
+        if len(planning_product_cards) == 1:
+            product_name = planning_product_cards[0].get("product_name")
+            plan = complete_exclusive_plan(
+                ExclusiveAgentPlan(
+                    "product_search",
+                    search_text=str(product_name) if isinstance(product_name, str) else None,
+                    confidence=1.0,
+                    continuation_of_previous_turn=True,
+                )
+            )
+        elif len(planning_product_cards) > 1:
+            plan = complete_exclusive_plan(
+                ExclusiveAgentPlan(
+                    "product_search",
+                    confidence=1.0,
+                    missing_slots=("product_choice",),
+                    continuation_of_previous_turn=True,
+                    response_strategy="clarify",
+                )
+            )
     try:
         await checkpoint_store.write(
             run.run_no,
@@ -251,11 +285,32 @@ async def process_exclusive_run(
         elif plan.intent == "policy_qa":
             result = await _platform_policy(session, context)
         elif plan.intent in {"product_search", "personalized_recommendation"}:
+            if "product" in context.context_refs:
+                # Conversational focus can override which card a pronoun means,
+                # but it cannot bypass optimistic validation of the page context
+                # captured with this message.
+                await builder.require_active_context(context, "product")
+            reference_index = product_card_reference_index(trigger_text)
+            recent_cards = await recent_agent_product_cards(
+                session,
+                context.conversation,
+                before_sequence=context.trigger.sequence_no,
+                minimum_count=max(2, reference_index + 1) if reference_index is not None else 1,
+            )
+            recent_reference = referenced_product_card(
+                trigger_text,
+                recent_cards,
+            )
+            referenced_name = (
+                recent_reference.get("product_name") if recent_reference is not None else None
+            )
             result = await tools.search_products(
                 context,
-                plan.search_text,
+                str(referenced_name) if isinstance(referenced_name, str) else plan.search_text,
                 fallback_query=trigger_text,
             )
+            if result.status == "succeeded":
+                result.data["presentation"] = "product_cards"
         elif plan.intent == "order_lookup":
             explicit_order_no = _resource_no(trigger_text, "ord")
             ref = context.context_refs.get("order")
@@ -361,6 +416,13 @@ async def process_exclusive_run(
                         status="waiting",
                     )
                     return
+        if result.status == "succeeded" and plan.intent in {
+            "logistics_lookup",
+            "refund_precheck",
+            "refund_progress",
+            "policy_qa",
+        }:
+            result.data["presentation"] = "detail_cards"
     except ApplicationError as exc:
         if exc.code == "AGENT_RESOURCE_NOT_ACCESSIBLE":
             message = "没有找到你有权查看的对应订单或售后记录，请核对编号。"
@@ -408,13 +470,26 @@ async def process_exclusive_run(
             context.conversation,
             order_nos_from_result(result.data),
         )
+        product_cards = await build_product_cards(
+            session,
+            context.conversation,
+            product_nos_from_result(result.data),
+        )
+        rich_content: dict[str, object] = {}
+        if order_cards:
+            rich_content["order_cards"] = order_cards
+        if product_cards:
+            rich_content["product_cards"] = product_cards
+        detail_cards = _exclusive_detail_cards(plan, result.data)
+        if detail_cards:
+            rich_content["detail_cards"] = detail_cards
         await _complete(
             session,
             context,
             answer,
             data=result.data,
             execution_trace=trace,
-            extra_content={"order_cards": order_cards} if order_cards else None,
+            extra_content=rich_content or None,
         )
     elif result.error_code == "AI_CONSENT_REQUIRED":
         await _complete(
@@ -776,7 +851,12 @@ async def _grounded_answer(
             "response_strategy": plan.response_strategy,
         },
     )
-    if data.get("presentation") in {"order_card", "order_cards"}:
+    if data.get("presentation") in {
+        "order_card",
+        "order_cards",
+        "product_cards",
+        "detail_cards",
+    }:
         trace["answer_mode"] = "structured_ui"
         return fallback, trace
     if not isinstance(gateway, ProviderExclusiveModelGateway):
@@ -872,6 +952,168 @@ def _requests_latest_order(value: str) -> bool:
     )
 
 
+def _exclusive_detail_cards(
+    plan: ExclusiveAgentPlan,
+    data: Mapping[str, Any],
+) -> list[dict[str, object]]:
+    if plan.intent == "logistics_lookup":
+        values = data.get("items")
+        rows: list[dict[str, object]] = []
+        for item in (values if isinstance(values, list) else [])[:5]:
+            if not isinstance(item, Mapping):
+                continue
+            last_track = item.get("last_track")
+            track: Mapping[str, Any] = last_track if isinstance(last_track, Mapping) else {}
+            location = safe_untrusted_excerpt(track.get("location_text") or "位置更新中", 80)
+            description = safe_untrusted_excerpt(track.get("description") or "暂无最新轨迹", 120)
+            tracking_no = safe_untrusted_excerpt(
+                item.get("tracking_no_masked") or "物流单号同步中", 80
+            )
+            rows.append(
+                {
+                    "label": safe_untrusted_excerpt(item.get("carrier_name") or "物流包裹", 80),
+                    "value": _status_label("shipment", item.get("shipment_status")),
+                    "meta": f"{tracking_no} · {location} · {description}",
+                }
+            )
+        order_no = data.get("order_id")
+        return [
+            {
+                "kind": "logistics",
+                "icon": "运",
+                "eyebrow": "订单物流",
+                "title": "包裹最新进度",
+                "badge": "实时轨迹",
+                "summary": "物流节点按承运商最近一次同步结果展示。",
+                "rows": rows,
+                "action": (
+                    {"resource_type": "order", "resource_id": order_no, "label": "查看完整物流"}
+                    if isinstance(order_no, str)
+                    else None
+                ),
+            }
+        ]
+    if plan.intent == "refund_precheck":
+        eligibility_value = data.get("refund_eligibility")
+        eligibility: Mapping[str, Any] = (
+            eligibility_value if isinstance(eligibility_value, Mapping) else {}
+        )
+        eligible = eligibility.get("eligible") is True
+        refund_rows: list[dict[str, object]] = []
+        suggested = eligibility.get("suggested_refund_amount")
+        if isinstance(suggested, Mapping):
+            refund_rows.append(
+                {
+                    "label": "建议申请金额",
+                    "value": _money_object_display(suggested),
+                    "meta": "最终以售后申请确认为准",
+                }
+            )
+        allowed = eligibility.get("allowed_types")
+        if isinstance(allowed, list) and allowed:
+            labels = {"refund_only": "仅退款", "return_and_refund": "退货退款"}
+            refund_rows.append(
+                {
+                    "label": "可申请类型",
+                    "value": "、".join(labels.get(str(value), str(value)) for value in allowed),
+                    "meta": "提交前仍需核对并确认",
+                }
+            )
+        blocking = eligibility.get("blocking_reasons")
+        if not eligible and isinstance(blocking, list) and blocking:
+            refund_rows.append(
+                {
+                    "label": "暂不可申请",
+                    "value": "需要处理",
+                    "meta": safe_untrusted_excerpt(
+                        "、".join(str(value) for value in blocking), 180
+                    ),
+                }
+            )
+        order_no = data.get("order_id")
+        return [
+            {
+                "kind": "refund_eligibility",
+                "icon": "售",
+                "eyebrow": "售后资格预检",
+                "title": "当前可申请" if eligible else "当前暂不可申请",
+                "badge": "符合资格" if eligible else "受限",
+                "tone": "" if eligible else "warning",
+                "summary": "本次仅检查资格, 尚未创建或提交退款申请。",
+                "rows": refund_rows,
+                "action": (
+                    {"resource_type": "order", "resource_id": order_no, "label": "查看订单售后"}
+                    if isinstance(order_no, str)
+                    else None
+                ),
+            }
+        ]
+    if plan.intent == "refund_progress":
+        values = data.get("items")
+        if "refund_id" in data:
+            values = [data]
+        cards: list[dict[str, object]] = []
+        for item in (values if isinstance(values, list) else [])[:5]:
+            if not isinstance(item, Mapping):
+                continue
+            refund_no = item.get("refund_id")
+            if not isinstance(refund_no, str):
+                continue
+            requested = item.get("requested_amount")
+            progress_rows: list[dict[str, object]] = []
+            if isinstance(requested, Mapping):
+                progress_rows.append(
+                    {
+                        "label": "申请金额",
+                        "value": _money_object_display(requested),
+                        "meta": "售后申请金额",
+                    }
+                )
+            cards.append(
+                {
+                    "kind": "refund_progress",
+                    "icon": "退",
+                    "eyebrow": "售后进度",
+                    "title": "退款申请",
+                    "badge": _status_label("refund", item.get("refund_status")),
+                    "summary": "点击查看处理记录、当前节点和可执行操作。",
+                    "rows": progress_rows,
+                    "action": {
+                        "resource_type": "refund",
+                        "resource_id": refund_no,
+                        "label": "查看售后详情",
+                    },
+                }
+            )
+        return cards
+    if plan.intent == "policy_qa":
+        values = data.get("knowledge_sources")
+        rows = [
+            {
+                "label": safe_untrusted_excerpt(item.get("title") or "平台规则", 80),
+                "value": "已发布",
+                "meta": safe_untrusted_excerpt(
+                    item.get("excerpt") or item.get("content") or "", 180
+                ),
+            }
+            for item in (values if isinstance(values, list) else [])[:4]
+            if isinstance(item, Mapping)
+        ]
+        if rows:
+            return [
+                {
+                    "kind": "platform_policy",
+                    "icon": "规",
+                    "eyebrow": "平台规则",
+                    "title": "本次回答依据",
+                    "badge": "知识库已核验",
+                    "summary": "只展示与当前问题相关的已发布规则来源。",
+                    "rows": rows,
+                }
+            ]
+    return []
+
+
 def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = "") -> str:
     if plan.intent == "general_chat":
         return "你好，我是你的专属客服。你可以问我平台规则、商品推荐、本人订单、物流或售后问题。"
@@ -883,7 +1125,7 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
     if plan.intent in {"product_search", "personalized_recommendation"}:
         if not isinstance(items, list) or not items:
             return "暂未找到符合当前条件的公开在售商品。你可以补充品类、用途或预算。"
-        lines: list[str] = []
+        prefix = ""
         memories = data.get("recalled_memories")
         if isinstance(memories, list) and memories:
             remembered = [
@@ -892,33 +1134,11 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
                 if isinstance(item, dict)
             ]
             if remembered:
-                lines.append("根据你之前允许我记住的偏好: " + "、".join(remembered) + "。")
-        lines.append("找到这些公开在售商品候选:")
-        for item in items[:8]:
-            if isinstance(item, dict):
-                price_value = item.get("price")
-                price: Mapping[str, Any] = price_value if isinstance(price_value, dict) else {}
-                lines.append(
-                    f"- {safe_untrusted_excerpt(item.get('name'), 120)} "
-                    f"({safe_untrusted_excerpt(item.get('store_name'), 120)}): "
-                    f"{_price_display(price)} 起，"
-                    f"可售库存 {max(0, int(item.get('available_stock', 0)))}"
-                )
-                skus = item.get("skus")
-                for sku in skus[:12] if isinstance(skus, list) else []:
-                    if not isinstance(sku, dict):
-                        continue
-                    sku_price = sku.get("price")
-                    display = (
-                        sku_price.get("display") if isinstance(sku_price, dict) else "价格待核对"
-                    )
-                    lines.append(
-                        f"  - {safe_untrusted_excerpt(sku.get('sku_name'), 120)}: "
-                        f"{display}，实时可售 {max(0, int(sku.get('available_stock', 0)))} 件，"
-                        f"{safe_untrusted_excerpt(sku.get('availability_label'), 40)}"
-                    )
-        lines.append("推荐依据: 按当前公开销量排序; 价格与库存以商品详情和结算页实时结果为准。")
-        return "\n".join(lines)
+                prefix = "我参考了你已授权的偏好: " + "、".join(remembered) + "。"
+        return (
+            f"{prefix}为你找到 {min(len(items), 5)} 件全平台在售商品。"
+            "点击卡片可以直接查看; 价格和库存以商品详情与结算页的实时结果为准。"
+        )
     if plan.intent == "order_lookup":
         if "order_id" in data:
             return "已找到这笔订单。点击卡片可查看详情或继续处理。"
@@ -928,29 +1148,14 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
     if plan.intent == "logistics_lookup":
         if not isinstance(items, list) or not items:
             return "该订单当前没有可见物流包裹。"
-        return "订单物流包裹:\n" + "\n".join(
-            f"- {safe_untrusted_excerpt(item.get('carrier_name'), 80)}，"
-            f"物流单号 {item.get('tracking_no_masked')}: "
-            f"{_status_label('shipment', item.get('shipment_status'))}"
-            f"{_last_track_text(item)}{_delivery_estimate_text(item)}"
-            for item in items
-            if isinstance(item, dict)
-        )
+        return f"已更新 {len(items)} 个物流包裹的最新进度。点击卡片可以查看完整物流。"
     if plan.intent == "refund_precheck":
         eligibility_value = data.get("refund_eligibility")
         eligibility: Mapping[str, Any] = (
             eligibility_value if isinstance(eligibility_value, Mapping) else {}
         )
-        status_value = data.get("status")
-        order_status: Mapping[str, Any] = status_value if isinstance(status_value, Mapping) else {}
         eligible = eligibility.get("eligible") is True
-        lines = [
-            f"订单 {data.get('order_id')} 当前订单状态为"
-            f"{_status_label('order', order_status.get('order'))}，支付"
-            f"{_status_label('payment', order_status.get('payment'))}，履约"
-            f"{_status_label('fulfillment', order_status.get('fulfillment'))}。",
-            "售后资格预检结果: " + ("当前具备申请资格。" if eligible else "当前不具备申请资格。"),
-        ]
+        lines = ["资格检查完成: " + ("当前可以申请售后。" if eligible else "当前暂不能申请售后。")]
         suggested = eligibility.get("suggested_refund_amount")
         if eligible and isinstance(suggested, Mapping):
             lines.append(f"当前建议可申请金额为 {_money_object_display(suggested)}。")
@@ -981,14 +1186,10 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
         return "\n".join(lines)
     if plan.intent == "refund_progress":
         if "refund_id" in data:
-            return f"售后单 {data.get('refund_id')} 当前状态: {data.get('refund_status')}。"
+            return "已找到这笔售后申请。点击卡片可以查看当前节点和处理记录。"
         if not isinstance(items, list) or not items:
             return "你的账号下暂未查询到售后申请。"
-        return "最近售后:\n" + "\n".join(
-            f"- {item.get('refund_id')}: {item.get('refund_status')}"
-            for item in items
-            if isinstance(item, dict)
-        )
+        return f"找到 {len(items)} 笔最近售后申请。点击卡片可以查看处理进度。"
     if plan.intent == "policy_qa":
         knowledge = data.get("knowledge_sources")
         if (not isinstance(items, list) or not items) and not (
@@ -1163,6 +1364,8 @@ def _attach_conversation_window(
 
 
 def _clarification_text(missing_slots: tuple[str, ...]) -> str:
+    if "product_choice" in missing_slots:
+        return "你想继续了解第几个商品? 可以直接说“第一个”或“第二个”，也可以点击上面的商品卡片。"
     details = "、".join(
         safe_untrusted_excerpt(item, 64).strip() for item in missing_slots if item.strip()
     )
@@ -1246,6 +1449,19 @@ _STATUS_LABELS: dict[str, dict[str, str]] = {
         "returned": "已退回",
         "closed": "已关闭",
         "voided": "已作废",
+    },
+    "refund": {
+        "submitted": "已提交",
+        "merchant_review": "商家处理中",
+        "approved": "已同意",
+        "waiting_return": "等待退货",
+        "returning": "退货运输中",
+        "received": "商家已收货",
+        "refunding": "退款中",
+        "succeeded": "退款成功",
+        "rejected": "已拒绝",
+        "cancelled": "已取消",
+        "closed": "已关闭",
     },
 }
 

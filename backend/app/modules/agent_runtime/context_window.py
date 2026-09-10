@@ -172,7 +172,6 @@ class ContextWindowBuilder:
                         Message.recalled_at.is_(None),
                         Message.message_status == "sent",
                         Message.sender_type.in_(("user", "human", "agent")),
-                        Message.text_content.is_not(None),
                     )
                     .order_by(Message.sequence_no.desc())
                     .limit(MAX_RECENT_MESSAGES * 3)
@@ -182,7 +181,7 @@ class ContextWindowBuilder:
         selected: list[RecentTurn] = []
         characters = 0
         for message in rows:
-            text = _safe_dialogue_text(message.text_content or "")
+            text = _message_continuity_text(message)
             if not text:
                 continue
             projected = RecentTurn(
@@ -220,6 +219,50 @@ def _safe_dialogue_text(value: str) -> str:
     redacted = re.sub(r"\b1[3-9]\d{9}\b", "[手机号已隐藏]", redacted)
     redacted = re.sub(r"\b\d{15,19}\b", "[敏感数字已隐藏]", redacted)
     return safe_untrusted_excerpt(redacted, MAX_MESSAGE_CHARACTERS).strip()
+
+
+def _message_continuity_text(message: Message) -> str:
+    """Include bounded card labels so ordinal follow-ups retain their referent."""
+
+    text = _safe_dialogue_text(message.text_content or "")
+    payload = message.content_payload if isinstance(message.content_payload, Mapping) else {}
+    product_values = payload.get("product_cards")
+    if message.message_type == "product_card":
+        product_values = [payload]
+    product_names = [
+        _safe_dialogue_text(str(item.get("product_name") or "商品"))
+        for item in (product_values if isinstance(product_values, list) else [])[:5]
+        if isinstance(item, Mapping)
+    ]
+    order_values = payload.get("order_cards")
+    if message.message_type == "order_card":
+        order_values = [payload]
+    order_labels = []
+    for item in (order_values if isinstance(order_values, list) else [])[:5]:
+        if not isinstance(item, Mapping):
+            continue
+        store = item.get("store")
+        store_name = store.get("store_name") if isinstance(store, Mapping) else "店铺"
+        products = item.get("items")
+        first_product = (
+            products[0].get("product_name")
+            if isinstance(products, list) and products and isinstance(products[0], Mapping)
+            else "订单商品"
+        )
+        order_labels.append(_safe_dialogue_text(f"{store_name} / {first_product}"))
+    suffixes = []
+    if product_names:
+        suffixes.append(
+            "本轮商品卡片: "
+            + "; ".join(f"{index + 1}. {name}" for index, name in enumerate(product_names))
+        )
+    if order_labels:
+        suffixes.append(
+            "本轮订单卡片: "
+            + "; ".join(f"{index + 1}. {label}" for index, label in enumerate(order_labels))
+        )
+    combined = "\n".join(part for part in (text, *suffixes) if part)
+    return safe_untrusted_excerpt(combined, MAX_MESSAGE_CHARACTERS).strip()
 
 
 def _role(sender_type: str) -> str:

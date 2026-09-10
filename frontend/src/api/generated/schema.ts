@@ -12038,6 +12038,8 @@ export interface components {
             product_id?: string | null;
             /** Sku Id */
             sku_id?: string | null;
+            /** Order Id */
+            order_id?: string | null;
         };
         /** SupportReadCursorView */
         SupportReadCursorView: {

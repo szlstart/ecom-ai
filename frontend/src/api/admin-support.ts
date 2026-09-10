@@ -141,6 +141,18 @@ export function sendSupportProductCard(
   }, token)
 }
 
+export function sendSupportOrderCard(
+  conversationId: string,
+  orderId: string,
+  token: string,
+  clientMessageId = createClientMessageId(),
+): Promise<ApiResult<ChatMessage>> {
+  return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ client_message_id: clientMessageId, order_id: orderId }),
+  }, token)
+}
+
 export function putSupportReadCursor(conversationId: string, message: ChatMessage, token: string): Promise<ApiResult<{ conversation_id: string; last_read_message_id: string; last_read_sequence_no: number; unread_count: number; cursor_version: number }>> {
   return apiRequest(`/support/conversations/${encodeURIComponent(conversationId)}/read-cursor`, {
     method: 'PUT',

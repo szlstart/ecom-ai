@@ -110,4 +110,28 @@ describe('MerchantMessageCenter', () => {
     )
     expect(wrapper.text()).not.toContain('3 条未读')
   })
+
+  it('labels the merchant agent clearly and lets operators collapse the customer list', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useAdminAuthStore().accessToken = 'merchant-token'
+    const router = createRouter({ history: createMemoryHistory(), routes: [
+      { path: '/', component: { template: '<div />' } },
+      { path: '/merchant/messages', component: { template: '<div />' } },
+    ] })
+    await router.push('/merchant/messages')
+    await router.isReady()
+    const wrapper = mount(MerchantMessageCenter, {
+      props: { standalone: true },
+      global: { plugins: [pinia, router], stubs: { Teleport: true } },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('AI 经营助理')
+    expect(wrapper.text()).toContain('顾客咨询')
+    expect(wrapper.text()).toContain('顾客小李')
+
+    await wrapper.get('.merchant-chat-group-title').trigger('click')
+    expect(wrapper.text()).not.toContain('顾客小李')
+  })
 })

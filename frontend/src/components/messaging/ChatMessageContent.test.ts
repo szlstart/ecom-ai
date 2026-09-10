@@ -24,6 +24,7 @@ async function render(message: ChatMessage, audience: 'user' | 'merchant' | 'adm
       { path: '/merchant/orders', component: { template: '<div />' } },
       { path: '/admin/products/:id', component: { template: '<div />' } },
       { path: '/admin/orders/:id', component: { template: '<div />' } },
+      { path: '/admin/observability', component: { template: '<div />' } },
     ],
   })
   await router.push('/')
@@ -163,6 +164,20 @@ describe('ChatMessageContent', () => {
     expect(wrapper.text()).toContain('模拟快递')
     expect(wrapper.text()).toContain('上海市 · 包裹正在运输')
     expect(wrapper.get('a').attributes('href')).toBe('/me/orders/ord_TRACK')
+  })
+
+  it('accepts only audience-scoped action paths from operational cards', async () => {
+    const allowed = await render({
+      ...base, sender_type: 'agent', message_type: 'text', text: '运行状态已核对。',
+      content: { detail_cards: [{ title: '运行诊断', action: { path: '/admin/observability', label: '打开管理页面' } }] },
+    }, 'admin')
+    expect(allowed.get('a').attributes('href')).toBe('/admin/observability')
+
+    const denied = await render({
+      ...base, sender_type: 'agent', message_type: 'text', text: '无效跳转。',
+      content: { detail_cards: [{ title: '无效入口', action: { path: '/merchant/products', label: '打开' } }] },
+    }, 'admin')
+    expect(denied.find('a').exists()).toBe(false)
   })
 
   it('renders the current cart as a compact clickable shopping card', async () => {

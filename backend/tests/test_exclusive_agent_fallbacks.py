@@ -188,9 +188,7 @@ def test_cart_fallback_and_card_keep_cart_distinct_from_orders() -> None:
         "cart_total_quantity": 3,
         "selected_quantity": 2,
         "valid_item_count": 2,
-        "amount_summary": {
-            "selected_goods_amount": {"minor_units": "1200", "currency": "CNY"}
-        },
+        "amount_summary": {"selected_goods_amount": {"minor_units": "1200", "currency": "CNY"}},
         "groups": [
             {
                 "store_id": "sto_1",
@@ -278,7 +276,7 @@ def test_policy_fallback_selects_one_relevant_sentence_instead_of_dumping_chunks
         {
             "knowledge_sources": [
                 {
-                        "title": "[系统] 支付、余额与模拟充值规则",
+                    "title": "[系统] 支付、余额与模拟充值规则",
                     "version": "v1",
                     "excerpt": (
                         "# 支付规则\n- 金额按分保存。\n"
@@ -348,7 +346,7 @@ def test_logistics_fallback_renders_tracking_location_and_localized_status() -> 
                 "last_track": {
                     "description": "正在派送中...",
                     "location_text": "海淀区",
-                }
+                },
             }
         ],
     }
@@ -364,25 +362,25 @@ def test_logistics_fallback_renders_tracking_location_and_localized_status() -> 
 
 def test_refund_precheck_is_read_only_and_renders_exact_money() -> None:
     data = {
-            "order_id": "ord_01M19K9GS9ZG90TSGAFJ3DPMNY",
-            "status": {
-                "order": "shipped",
-                "payment": "paid",
-                "fulfillment": "delivered",
-            },
-            "refund_eligibility": {
-                "eligible": True,
-                "suggested_refund_amount": {"minor_units": "600", "currency": "CNY"},
-                "allowed_types": ["refund_only", "return_and_refund"],
-                "blocking_reasons": [],
-            },
-            "shipments": [
-                {
-                    "shipment_status": "delivered",
-                    "last_track": {"description": "已签收", "location_text": "河滨嘉苑14-1"},
-                }
-            ],
-        }
+        "order_id": "ord_01M19K9GS9ZG90TSGAFJ3DPMNY",
+        "status": {
+            "order": "shipped",
+            "payment": "paid",
+            "fulfillment": "delivered",
+        },
+        "refund_eligibility": {
+            "eligible": True,
+            "suggested_refund_amount": {"minor_units": "600", "currency": "CNY"},
+            "allowed_types": ["refund_only", "return_and_refund"],
+            "blocking_reasons": [],
+        },
+        "shipments": [
+            {
+                "shipment_status": "delivered",
+                "last_track": {"description": "已签收", "location_text": "河滨嘉苑14-1"},
+            }
+        ],
+    }
     rendered = _render(ExclusiveAgentPlan("refund_precheck"), data)
     cards = _exclusive_detail_cards(ExclusiveAgentPlan("refund_precheck"), data)
 
@@ -417,12 +415,10 @@ def test_multi_agent_fallback_flattens_metrics_and_provides_risk_advice() -> Non
             }
         }
     )
-    assert "user_status_counts.active=3" in rendered
-    assert "pending_outbox_events=2" in rendered
-    assert "最新失败后已有 35 次成功运行" in rendered
-    assert "历史审计记录仍保留" in rendered
-    assert "风险" in rendered
-    assert "上线前建议" in rendered
-    assert "1. " in rendered
-    assert "2. " in rendered
-    assert "3. " in rendered
+    assert "3 个专业 Agent" in rendered
+    assert "2 条 Outbox 事件待处理" in rendered
+    assert "已有 35 次成功运行" in rendered
+    assert "卡片" in rendered
+    assert "user_status_counts" not in rendered
+    assert "pending_outbox_events" not in rendered
+    assert len(rendered) < 220

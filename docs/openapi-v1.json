@@ -57744,6 +57744,19 @@
               }
             ],
             "title": "Sku Id"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^ord_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
           }
         },
         "additionalProperties": false,

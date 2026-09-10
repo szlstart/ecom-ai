@@ -1,8 +1,11 @@
+import pytest
+from pydantic import ValidationError
 from sqlalchemy import UniqueConstraint
 
 from app.database.base import MySQLBase
 from app.main import create_app
 from app.modules.messaging import models as messaging_models  # noqa: F401
+from app.modules.messaging.support_schemas import SupportMessageRequest
 
 
 def test_messaging_schema_has_sequence_and_read_cursor_uniques() -> None:
@@ -61,15 +64,11 @@ def test_messaging_contract_is_published() -> None:
         == "MessageReadCursor_PutMine"
     )
     assert (
-        paths["/api/v1/merchant/support/exclusive-conversation/read-cursor"]["put"][
-            "operationId"
-        ]
+        paths["/api/v1/merchant/support/exclusive-conversation/read-cursor"]["put"]["operationId"]
         == "MerchantExclusiveReadCursor_PutMine"
     )
     assert (
-        paths["/api/v1/conversations/{conversation_id}/human-service-ticket"]["get"][
-            "operationId"
-        ]
+        paths["/api/v1/conversations/{conversation_id}/human-service-ticket"]["get"]["operationId"]
         == "HumanServiceTicket_GetMine"
     )
     cancellation = paths["/api/v1/human-service-tickets/{ticket_id}/cancellations"]["post"]
@@ -125,15 +124,11 @@ def test_messaging_contract_is_published() -> None:
     for path, (method, operation_id) in support.items():
         assert paths[path][method]["operationId"] == operation_id
     assert (
-        paths["/api/v1/support/conversations/{conversation_id}/messages"]["delete"][
-            "operationId"
-        ]
+        paths["/api/v1/support/conversations/{conversation_id}/messages"]["delete"]["operationId"]
         == "SupportConversation_ClearMessages"
     )
     assert (
-        paths["/api/v1/merchant/support/exclusive-conversation/messages"]["delete"][
-            "operationId"
-        ]
+        paths["/api/v1/merchant/support/exclusive-conversation/messages"]["delete"]["operationId"]
         == "MerchantExclusiveConversation_ClearMessages"
     )
     assert (
@@ -158,12 +153,21 @@ def test_messaging_contract_is_published() -> None:
         assert {"If-Match", "Idempotency-Key"} <= required_headers
 
 
+def test_support_message_accepts_exactly_one_text_product_or_order_payload() -> None:
+    order = SupportMessageRequest(client_message_id="cmsg_01ABCDEF", order_id="ord_01ORDER")
+    assert order.order_id == "ord_01ORDER"
+    with pytest.raises(ValidationError):
+        SupportMessageRequest(
+            client_message_id="cmsg_01ABCDEF",
+            text="重复内容",
+            order_id="ord_01ORDER",
+        )
+
+
 def test_realtime_ticket_contract_and_websocket_route_are_published() -> None:
     app = create_app()
     paths = app.openapi()["paths"]
-    assert paths["/api/v1/realtime/tickets"]["post"]["operationId"] == (
-        "RealtimeTicket_CreateMine"
-    )
+    assert paths["/api/v1/realtime/tickets"]["post"]["operationId"] == ("RealtimeTicket_CreateMine")
     assert paths["/api/v1/support/realtime/tickets"]["post"]["operationId"] == (
         "SupportRealtimeTicket_Create"
     )

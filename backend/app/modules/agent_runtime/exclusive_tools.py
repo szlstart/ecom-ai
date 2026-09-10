@@ -223,9 +223,30 @@ class ExclusiveToolGateway:
                     )
                 ).all()
             )
+            order_ids = [order.id for order, _store in rows]
+            order_items = (
+                list(
+                    (
+                        await self.session.scalars(
+                            select(OrderItem)
+                            .where(OrderItem.order_id.in_(order_ids))
+                            .order_by(OrderItem.order_id, OrderItem.id)
+                        )
+                    ).all()
+                )
+                if order_ids
+                else []
+            )
+            items_by_order: dict[int, list[OrderItem]] = {}
+            for item in order_items:
+                items_by_order.setdefault(item.order_id, []).append(item)
             return {
-                "items": [self._order_projection(order, store, []) for order, store in rows],
+                "items": [
+                    self._order_projection(order, store, items_by_order.get(order.id, []))
+                    for order, store in rows
+                ],
                 "as_of": utc_now(),
+                "presentation": "order_cards",
             }
 
         return await self.execute(context, "order.list_user_orders", {}, handler)

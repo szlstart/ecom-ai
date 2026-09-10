@@ -210,7 +210,7 @@ async def test_responses_wire_uses_reasoning_and_structured_output() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         assert request.url.path == "/v1/responses"
-        assert payload["model"] == "gpt-5.4"
+        assert payload["model"] == "gpt-5.5"
         assert payload["reasoning"] == {"effort": "low", "summary": "auto"}
         assert payload["text"]["format"]["type"] == "json_schema"
         return httpx.Response(
@@ -240,7 +240,7 @@ async def test_responses_wire_uses_reasoning_and_structured_output() -> None:
     planner = OpenAICompatiblePlanner(
         api_url="https://models.invalid/v1",
         api_key="model-secret",
-        model="gpt-5.4",
+        model="gpt-5.5",
         wire_api="responses",
         timeout_seconds=5,
         client=client,
@@ -303,7 +303,7 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
     planner = OpenAICompatiblePlanner(
         api_url="https://models.invalid/v1",
         api_key="model-secret",
-        model="gpt-5.4",
+        model="gpt-5.5",
         wire_api="responses",
         timeout_seconds=5,
         client=client,
@@ -321,7 +321,7 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
     assert answer.grounding_verified is True
     assert answer.cited_source_ids == ("product:prd_public",)
     assert answer.confidence == "high"
-    assert answer.model_name == "gpt-5.4"
+    assert answer.model_name == "gpt-5.5"
     assert (answer.input_tokens, answer.output_tokens, answer.total_tokens) == (21, 9, 30)
     assert answer.first_token_latency_ms is not None
     assert answer.model_latency_ms is not None
@@ -387,7 +387,7 @@ async def test_streamed_responses_grounding_verifier_retries_once() -> None:
     planner = OpenAICompatiblePlanner(
         api_url="https://models.invalid/v1",
         api_key="model-secret",
-        model="gpt-5.4",
+        model="gpt-5.5",
         wire_api="responses",
         timeout_seconds=5,
         client=client,
@@ -445,7 +445,7 @@ async def test_streamed_responses_rejects_answer_after_two_grounding_failures() 
     planner = OpenAICompatiblePlanner(
         api_url="https://models.invalid/v1",
         api_key="model-secret",
-        model="gpt-5.4",
+        model="gpt-5.5",
         wire_api="responses",
         timeout_seconds=5,
         client=client,
@@ -499,7 +499,7 @@ async def test_streamed_responses_rejects_answer_that_omits_available_requested_
     planner = OpenAICompatiblePlanner(
         api_url="https://models.invalid/v1",
         api_key="model-secret",
-        model="gpt-5.4",
+        model="gpt-5.5",
         wire_api="responses",
         timeout_seconds=5,
         client=client,
@@ -602,12 +602,12 @@ async def test_responses_stream_rejects_malformed_or_incomplete_sse() -> None:
     planner = OpenAICompatiblePlanner(
         api_url="https://models.invalid/v1",
         api_key="model-secret",
-        model="gpt-5.4",
+        model="gpt-5.5",
         wire_api="responses",
         timeout_seconds=5,
         client=client,
     )
-    payload = {"model": "gpt-5.4", "stream": True}
+    payload = {"model": "gpt-5.5", "stream": True}
     with pytest.raises(ModelGatewayError, match="stream was invalid"):
         await planner._request_responses_stream(payload, stream_callback=None)
     with pytest.raises(ModelGatewayError, match="stream was invalid"):

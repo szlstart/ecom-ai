@@ -22,6 +22,7 @@ from app.modules.agent_runtime.model_gateway import (
     refine_store_plan_for_context,
 )
 from app.modules.agent_runtime.models import AgentRun
+from app.modules.agent_runtime.order_cards import build_order_cards, order_nos_from_result
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.agent_runtime.provider_gateway import (
     AgentStreamCallback,
@@ -175,12 +176,19 @@ async def process_store_run(
             outcome.data,
             stream_callback=stream_callback,
         )
+        order_cards = await build_order_cards(
+            session,
+            context.user,
+            context.conversation,
+            order_nos_from_result(outcome.data),
+        )
         await _complete_message(
             session,
             context,
             answer,
             data=outcome.data,
             execution_trace=trace,
+            extra_content={"order_cards": order_cards} if order_cards else None,
         )
         await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
@@ -243,6 +251,8 @@ async def _execute_plan(
                 recommendations.data["comparison"] = comparison.data.get("items", [])
         return recommendations
     if plan.intent == "order_explain":
+        if _requests_order_list(trigger_text) or "order" not in context.context_refs:
+            return await tools.list_user_orders(context)
         ref = await builder.require_active_context(context, "order")
         summary = await tools.order_summary(context, ref.resource_no)
         if summary.status != "succeeded":
@@ -251,6 +261,7 @@ async def _execute_plan(
         if shipment_result.status != "succeeded":
             return shipment_result
         summary.data["shipments"] = shipment_result.data.get("items", [])
+        summary.data["presentation"] = "order_card"
         return summary
     resolution = await tools.resolve_product(context, trigger_text)
     if resolution.status != "succeeded":
@@ -349,6 +360,7 @@ async def _complete_message(
     error_code: str | None = None,
     degraded_reason: str | None = None,
     execution_trace: Mapping[str, Any] | None = None,
+    extra_content: Mapping[str, Any] | None = None,
 ) -> None:
     now = utc_now()
     conversation = context.conversation
@@ -378,6 +390,7 @@ async def _complete_message(
             "sources": _source_refs(data or {}),
             "data_scope": context.trusted_scope,
             "execution_trace": trace,
+            **dict(extra_content or {}),
         },
         agent_version_id=context.agent_version.id,
         ai_run_no=context.run.run_no,
@@ -439,7 +452,11 @@ async def _grounded_answer(
     stream_callback: AgentStreamCallback | None = None,
 ) -> tuple[str, dict[str, object]]:
     fallback = _render(plan, data, agent_trigger_text(context.trigger))
-    tool_code = _tool_for_intent(plan.intent)
+    tool_code = (
+        "order.list_user_store_orders"
+        if data.get("presentation") == "order_cards"
+        else _tool_for_intent(plan.intent)
+    )
     sources = _source_refs(data)
     source_ids = tuple(
         f"{item['type']}:{item['id']}"
@@ -504,6 +521,9 @@ async def _grounded_answer(
             "response_strategy": plan.response_strategy,
         },
     )
+    if data.get("presentation") in {"order_card", "order_cards"}:
+        trace["answer_mode"] = "structured_ui"
+        return fallback, trace
     if not isinstance(gateway, ProviderStoreModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
@@ -626,12 +646,19 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         )
         return concise_policy_answer(user_text, sources, intro="根据本店当前生效政策")
     if plan.intent == "order_explain":
+        if data.get("presentation") == "order_cards":
+            items = data.get("items")
+            count = len(items) if isinstance(items, list) else 0
+            if count == 0:
+                return "你在本店暂时没有可见订单。"
+            return f"找到你在本店的 {count} 笔订单。点击卡片可查看详情或继续处理。"
         if "用户发送了订单卡片" in user_text:
-            order_no = safe_untrusted_excerpt(data.get("order_id") or "这笔订单", 80)
             return (
-                f"我已经看到订单 {order_no} 了。你遇到的是付款、发货、物流、收货，"
+                "我已经看到这笔订单了。你遇到的是付款、发货、物流、收货，"
                 "还是退款售后方面的问题? 告诉我具体情况，我来帮你查。"
             )
+        if data.get("presentation") == "order_card":
+            return "已找到这笔订单。点击卡片可查看详情, 也可以直接告诉我你想查物流、收货还是售后。"
         status_value = data.get("status")
         amounts_value = data.get("amounts")
         status: Mapping[str, Any] = status_value if isinstance(status_value, dict) else {}
@@ -700,6 +727,25 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
     lines.append("发货时效以店铺已发布政策和订单物流为准，我不会承诺具体发货时间。")
     lines.append("你更想了解款式、尺码或规格、库存、发货，还是适不适合某个使用场景?")
     return "\n\n".join(lines)
+
+
+def _requests_order_list(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    return any(
+        marker in normalized
+        for marker in (
+            "哪些订单",
+            "什么订单",
+            "所有订单",
+            "全部订单",
+            "订单记录",
+            "购买记录",
+            "买过什么",
+            "买了什么",
+            "我都买过",
+            "我在你店买过",
+        )
+    )
 
 
 def _is_affirmative_product_follow_up(user_text: str, data: Mapping[str, Any]) -> bool:

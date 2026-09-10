@@ -323,7 +323,10 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
     order_message = await _send(client, headers, conversation_no, "查询这个订单")
     await _drain_agent()
     order_reply = _reply_after(await _messages(client, headers, conversation_no), order_message)
-    assert order_no in str(order_reply["text"])
+    assert order_no not in str(order_reply["text"])
+    order_content = cast(dict[str, object], order_reply["content"])
+    order_cards = cast(list[dict[str, object]], order_content["order_cards"])
+    assert [item["order_id"] for item in order_cards] == [order_no]
 
     logistics_message = await _send(client, headers, conversation_no, "查询这个订单的物流")
     await _drain_agent()

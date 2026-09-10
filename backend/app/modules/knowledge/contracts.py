@@ -40,6 +40,7 @@ READ_ONLY_TOOLS = frozenset(
         "catalog.search_products",
         "catalog.get_inventory_availability",
         "catalog.get_store_policy",
+        "order.list_user_store_orders",
         "order.get_store_order_summary",
         "order.list_user_orders",
         "order.get_user_order_detail",

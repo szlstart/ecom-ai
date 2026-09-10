@@ -79,7 +79,18 @@ class DeterministicStoreModelGateway:
             return StoreAgentPlan("inventory_lookup")
         if _contains(text, "政策", "运费", "退换", "保修", "发票", "客服时间"):
             return StoreAgentPlan("policy_qa")
-        if _contains(text, "订单", "付款", "发货", "收货", "物流", "售后"):
+        if _contains(
+            text,
+            "订单",
+            "付款",
+            "发货",
+            "收货",
+            "物流",
+            "售后",
+            "买过",
+            "买了什么",
+            "购买记录",
+        ):
             return StoreAgentPlan("order_explain")
         if _contains(
             text,
@@ -105,6 +116,7 @@ STORE_CAPABILITIES: dict[StoreIntent, tuple[str, ...]] = {
     "inventory_lookup": ("catalog.get_inventory_availability",),
     "policy_qa": ("catalog.get_store_policy", "rag.store_policy.search"),
     "order_explain": (
+        "order.list_user_store_orders",
         "order.get_store_order_summary",
         "logistics.get_store_order_shipments",
     ),

@@ -375,7 +375,7 @@ def _looks_sensitive(value: str) -> bool:
 
 def explicit_memory_request(value: str) -> str | None:
     match = re.fullmatch(
-        r"\s*(?:请|麻烦你|帮我)?记住[\uFF1A:,，\s]+(.{1,500}?)\s*[。\uFF01!]?\s*",
+        r"\s*(?:请|麻烦你|帮我)?记住[\uFF1A:,，\s]*(.{1,500}?)\s*[。\uFF01!]?\s*",
         value,
     )
     if match is None:

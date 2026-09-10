@@ -29,12 +29,14 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
 )
 from app.modules.agent_runtime.exclusive_tools import ExclusiveToolGateway
 from app.modules.agent_runtime.memory_runtime import AgentMemoryRuntime, explicit_memory_request
-from app.modules.agent_runtime.model_gateway import ModelGatewayError
+from app.modules.agent_runtime.model_gateway import ModelGatewayError, requests_other_user_data
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
 from app.modules.agent_runtime.order_cards import (
     build_order_cards,
     order_nos_from_result,
     recent_agent_order_nos,
+    referenced_order_no,
+    requests_direct_transaction_action,
 )
 from app.modules.agent_runtime.product_cards import (
     build_product_cards,
@@ -106,6 +108,36 @@ async def process_exclusive_run(
             "检测到可能要求绕过系统规则或泄露敏感信息的指令，本次不会调用业务工具。你可以重新描述正常的平台、订单、物流或售后问题。",
             error_code="AI_PROMPT_INJECTION_BLOCKED",
             degraded_reason="prompt_injection_blocked",
+        )
+        await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
+    if requests_other_user_data(trigger_text):
+        await _complete(
+            session,
+            context,
+            "我只能读取当前登录账号本人的订单、物流、售后、购物车和收藏，不能查看其他用户的数据。",
+            error_code="AI_OTHER_USER_DATA_BLOCKED",
+            degraded_reason="data_scope_blocked",
+        )
+        await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
+    if requests_direct_transaction_action(trigger_text):
+        await _complete(
+            session,
+            context,
+            "为了保护你的账户和资金安全，我不能代你付款、取消订单或确认收货。请在购物车或订单详情页核对金额和状态后自行操作。",
+            error_code="AI_DIRECT_TRANSACTION_BLOCKED",
+            degraded_reason="protected_action_blocked",
+        )
+        await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
+    if _requests_direct_refund_payout(trigger_text):
+        await _complete(
+            session,
+            context,
+            "我不能跳过用户确认、售后审核或支付处理直接退款。你可以让我先检查退款资格。符合条件时，我只能准备申请草稿，并在你核对确认后提交申请。",
+            error_code="AI_DIRECT_REFUND_BLOCKED",
+            degraded_reason="protected_action_blocked",
         )
         await _finish_checkpoint(checkpoint_store, context, "security_refusal")
         return
@@ -295,14 +327,21 @@ async def process_exclusive_run(
                 session,
                 context.conversation,
                 before_sequence=context.trigger.sequence_no,
-                minimum_count=max(2, reference_index + 1) if reference_index is not None else 1,
+                minimum_count=max(1, reference_index + 1) if reference_index is not None else 1,
             )
             recent_reference = referenced_product_card(
                 trigger_text,
                 recent_cards,
             )
+            card_name = _trigger_payload_value(
+                context.trigger, "product_card", "product_name"
+            )
             referenced_name = (
-                recent_reference.get("product_name") if recent_reference is not None else None
+                card_name
+                if card_name is not None
+                else recent_reference.get("product_name")
+                if recent_reference is not None
+                else None
             )
             result = await tools.search_products(
                 context,
@@ -311,8 +350,38 @@ async def process_exclusive_run(
             )
             if result.status == "succeeded":
                 result.data["presentation"] = "product_cards"
+                if any(
+                    term in re.sub(r"\s+", "", trigger_text).casefold()
+                    for term in ("库存", "有货", "缺货", "款式", "规格", "尺码", "码数")
+                ):
+                    result.data["catalog_focus"] = "sku_availability"
+        elif plan.intent == "product_compare":
+            recent_cards = await recent_agent_product_cards(
+                session,
+                context.conversation,
+                before_sequence=context.trigger.sequence_no,
+                minimum_count=1,
+            )
+            product_nos = [
+                str(card["product_id"])
+                for card in recent_cards[:2]
+                if isinstance(card.get("product_id"), str)
+            ]
+            result = (
+                await tools.compare_products(context, product_nos)
+                if len(product_nos) >= 2
+                else StoreToolResult(
+                    "succeeded",
+                    {"items": [], "comparison_source_count": len(product_nos)},
+                )
+            )
+            if result.status == "succeeded":
+                result.data["presentation"] = "product_comparison"
         elif plan.intent == "order_lookup":
-            explicit_order_no = _resource_no(trigger_text, "ord")
+            explicit_order_no = (
+                _trigger_payload_value(context.trigger, "order_card", "order_id")
+                or _resource_no(trigger_text, "ord")
+            )
             ref = context.context_refs.get("order")
             result = (
                 await tools.order_detail(context, explicit_order_no)
@@ -327,6 +396,10 @@ async def process_exclusive_run(
                 result.data["presentation"] = (
                     "order_card" if "order_id" in result.data else "order_cards"
                 )
+        elif plan.intent == "cart_lookup":
+            result = await tools.get_cart(context)
+            if result.status == "succeeded":
+                result.data["presentation"] = "cart_card"
         elif plan.intent == "logistics_lookup":
             order_no = await _read_order_no(
                 trigger_text,
@@ -368,7 +441,8 @@ async def process_exclusive_run(
                     context.conversation,
                     before_sequence=context.trigger.sequence_no,
                 )
-                if len(recent_order_nos) == 1:
+                refund_order_no = referenced_order_no(trigger_text, recent_order_nos)
+                if refund_order_no is None and len(recent_order_nos) == 1:
                     refund_order_no = recent_order_nos[0]
             if refund_order_no is None:
                 result = await tools.list_orders(context)
@@ -470,16 +544,23 @@ async def process_exclusive_run(
             context.conversation,
             order_nos_from_result(result.data),
         )
-        product_cards = await build_product_cards(
-            session,
-            context.conversation,
-            product_nos_from_result(result.data),
+        product_cards = (
+            await build_product_cards(
+                session,
+                context.conversation,
+                product_nos_from_result(result.data),
+            )
+            if plan.intent
+            in {"product_search", "personalized_recommendation", "product_compare"}
+            else []
         )
         rich_content: dict[str, object] = {}
         if order_cards:
             rich_content["order_cards"] = order_cards
         if product_cards:
             rich_content["product_cards"] = product_cards
+        if plan.intent == "cart_lookup":
+            rich_content["cart_card"] = _cart_card(result.data)
         detail_cards = _exclusive_detail_cards(plan, result.data)
         if detail_cards:
             rich_content["detail_cards"] = detail_cards
@@ -855,6 +936,8 @@ async def _grounded_answer(
         "order_card",
         "order_cards",
         "product_cards",
+        "product_comparison",
+        "cart_card",
         "detail_cards",
     }:
         trace["answer_mode"] = "structured_ui"
@@ -920,8 +1003,10 @@ def _tool_for_intent(intent: str) -> str:
         "human_handoff": "support.create_platform_ticket",
         "policy_qa": "rag.policy.search",
         "product_search": "catalog.search_products",
+        "product_compare": "catalog.compare_products",
         "personalized_recommendation": "catalog.search_products",
         "order_lookup": "order.list_user_orders",
+        "cart_lookup": "cart.get_mine",
         "logistics_lookup": "logistics.get_user_order_shipments",
         "refund_precheck": "after_sale.check_refund_eligibility",
         "refund_eligibility": "after_sale.build_refund_draft",
@@ -936,12 +1021,32 @@ async def _read_order_no(
     builder: ExclusiveContextBuilder,
     tools: ExclusiveToolGateway,
 ) -> str:
+    card_order_no = _trigger_payload_value(context.trigger, "order_card", "order_id")
+    if card_order_no is not None:
+        return card_order_no
     explicit_order_no = _resource_no(trigger_text, "ord")
     if explicit_order_no is not None:
         return explicit_order_no
+    recent_order_nos = await recent_agent_order_nos(
+        tools.session,
+        context.conversation,
+        before_sequence=context.trigger.sequence_no,
+    )
+    referenced = referenced_order_no(trigger_text, recent_order_nos)
+    if referenced is not None:
+        return referenced
     if _requests_latest_order(trigger_text) or context.context_refs.get("order") is None:
         return await tools.latest_order_no(context)
     return (await builder.require_active_context(context, "order")).resource_no
+
+
+def _trigger_payload_value(message: Message, message_type: str, key: str) -> str | None:
+    """Read one trusted value from the current ACL-validated structured card."""
+
+    if message.message_type != message_type or not isinstance(message.content_payload, Mapping):
+        return None
+    value = message.content_payload.get(key)
+    return value if isinstance(value, str) else None
 
 
 def _requests_latest_order(value: str) -> bool:
@@ -956,6 +1061,94 @@ def _exclusive_detail_cards(
     plan: ExclusiveAgentPlan,
     data: Mapping[str, Any],
 ) -> list[dict[str, object]]:
+    if data.get("catalog_focus") == "sku_availability":
+        values = data.get("items")
+        item = values[0] if isinstance(values, list) and values else None
+        if isinstance(item, Mapping):
+            sku_values = item.get("skus")
+            rows = []
+            for sku in (sku_values if isinstance(sku_values, list) else [])[:10]:
+                if not isinstance(sku, Mapping):
+                    continue
+                price = sku.get("price")
+                availability = safe_untrusted_excerpt(
+                    sku.get("availability_label") or "库存待确认", 30
+                )
+                rows.append(
+                    {
+                        "label": safe_untrusted_excerpt(
+                            sku.get("sku_name") or "默认款式", 80
+                        ),
+                        "value": (
+                            _money_object_display(price)
+                            if isinstance(price, Mapping)
+                            else "价格待确认"
+                        ),
+                        "meta": f"{availability} · 可售 "
+                        f"{max(0, int(sku.get('available_stock') or 0))} 件",
+                    }
+                )
+            product_no = item.get("product_id")
+            return [
+                {
+                    "kind": "sku_availability",
+                    "icon": "库",
+                    "eyebrow": "款式与库存",
+                    "title": safe_untrusted_excerpt(item.get("name") or "当前商品", 100),
+                    "badge": "实时查询",
+                    "summary": "按当前公开款式展示价格和可售数量。",
+                    "rows": rows,
+                    "action": (
+                        {
+                            "resource_type": "product",
+                            "resource_id": product_no,
+                            "label": "打开商品详情",
+                        }
+                        if isinstance(product_no, str)
+                        else None
+                    ),
+                }
+            ]
+    if plan.intent == "product_compare":
+        values = data.get("items")
+        rows = []
+        for item in (values if isinstance(values, list) else [])[:3]:
+            if not isinstance(item, Mapping):
+                continue
+            price = item.get("price")
+            price_text = "价格待确认"
+            if isinstance(price, Mapping):
+                price_text = _money_object_display(
+                    {
+                        "minor_units": str(price.get("min_amount") or 0),
+                        "currency": str(price.get("currency") or "CNY"),
+                    }
+                )
+            rows.append(
+                {
+                    "label": safe_untrusted_excerpt(item.get("name") or "商品", 100),
+                    "value": price_text,
+                    "meta": (
+                        f"{safe_untrusted_excerpt(item.get('store_name') or '店铺', 50)} · "
+                        f"{max(0, int(item.get('sku_count') or 0))} 个款式 · "
+                        f"库存 {max(0, int(item.get('available_stock') or 0))} · "
+                        f"已售 {max(0, int(item.get('sales_count') or 0))} · "
+                        f"评分 {safe_untrusted_excerpt(item.get('rating') or '暂无', 12)}"
+                    ),
+                }
+            )
+        if rows:
+            return [
+                {
+                    "kind": "product_compare",
+                    "icon": "比",
+                    "eyebrow": "商品对比",
+                    "title": "关键购买信息",
+                    "badge": f"{len(rows)} 件商品",
+                    "summary": "同一口径比较当前公开价格、款式、库存、销量与评分。",
+                    "rows": rows,
+                }
+            ]
     if plan.intent == "logistics_lookup":
         values = data.get("items")
         rows: list[dict[str, object]] = []
@@ -966,9 +1159,7 @@ def _exclusive_detail_cards(
             track: Mapping[str, Any] = last_track if isinstance(last_track, Mapping) else {}
             location = safe_untrusted_excerpt(track.get("location_text") or "位置更新中", 80)
             description = safe_untrusted_excerpt(track.get("description") or "暂无最新轨迹", 120)
-            tracking_no = safe_untrusted_excerpt(
-                item.get("tracking_no_masked") or "物流单号同步中", 80
-            )
+            tracking_no = _compact_tracking_no(item.get("tracking_no_masked"))
             rows.append(
                 {
                     "label": safe_untrusted_excerpt(item.get("carrier_name") or "物流包裹", 80),
@@ -1088,17 +1279,73 @@ def _exclusive_detail_cards(
         return cards
     if plan.intent == "policy_qa":
         values = data.get("knowledge_sources")
-        rows = [
-            {
-                "label": safe_untrusted_excerpt(item.get("title") or "平台规则", 80),
-                "value": "已发布",
-                "meta": safe_untrusted_excerpt(
-                    item.get("excerpt") or item.get("content") or "", 180
-                ),
-            }
-            for item in (values if isinstance(values, list) else [])[:4]
-            if isinstance(item, Mapping)
-        ]
+        query = safe_untrusted_excerpt(data.get("policy_query") or "", 300)
+        query_terms = {
+            term
+            for term in (
+                "充值",
+                "微信",
+                "支付宝",
+                "余额",
+                "支付",
+                "退款",
+                "退货",
+                "售后",
+                "到账",
+                "多久",
+                "时效",
+                "物流",
+                "发货",
+                "签收",
+                "运费",
+                "包邮",
+                "隐私",
+                "账号",
+                "密码",
+                "人工",
+                "客服",
+            )
+            if term in query
+        }
+        ranked: list[tuple[int, int, Mapping[str, Any]]] = []
+        for position, item in enumerate(values if isinstance(values, list) else []):
+            if not isinstance(item, Mapping):
+                continue
+            searchable = " ".join(
+                (
+                    safe_untrusted_excerpt(item.get("title") or "", 160),
+                    safe_untrusted_excerpt(item.get("excerpt") or item.get("content") or "", 500),
+                )
+            )
+            score = sum(1 for term in query_terms if term in searchable)
+            ranked.append((score, -position, item))
+        ranked.sort(key=lambda value: (value[0], value[1]), reverse=True)
+        rows: list[dict[str, object]] = []
+        seen_documents: set[str] = set()
+        for score, _, item in ranked:
+            if query_terms and score == 0:
+                continue
+            identity = str(item.get("document_id") or item.get("title") or "")
+            if identity in seen_documents:
+                continue
+            seen_documents.add(identity)
+            source_text = safe_untrusted_excerpt(
+                item.get("excerpt") or item.get("content") or "", 800
+            )
+            title = re.sub(
+                r"^\[(?:系统|平台)\]\s*",
+                "",
+                safe_untrusted_excerpt(item.get("title") or "平台规则", 80),
+            )
+            rows.append(
+                {
+                    "label": title,
+                    "value": "已发布",
+                    "meta": _best_policy_excerpt(source_text, query_terms),
+                }
+            )
+            if len(rows) >= 1:
+                break
         if rows:
             return [
                 {
@@ -1112,6 +1359,67 @@ def _exclusive_detail_cards(
                 }
             ]
     return []
+
+
+def _best_policy_excerpt(source_text: str, query_terms: set[str]) -> str:
+    candidates: list[tuple[int, int, str]] = []
+    for position, raw_part in enumerate(
+        re.split(r"(?<=[\u3002\uff01\uff1f\uff1b])|\n+", source_text)
+    ):
+        part = re.sub(r"^(?:#+\s*|[-*•>]\s*|\d+[.)、]\s*)", "", raw_part.strip())
+        if not part:
+            continue
+        score = sum(1 for term in query_terms if term in part)
+        candidates.append((score, -position, safe_untrusted_excerpt(part, 120)))
+    if not candidates:
+        return "查看本次回答引用的已发布规则。"
+    candidates.sort(reverse=True)
+    return candidates[0][2]
+
+
+def _cart_card(data: Mapping[str, Any]) -> dict[str, object]:
+    groups_value = data.get("groups")
+    groups: list[dict[str, object]] = []
+    for value in groups_value if isinstance(groups_value, list) else []:
+        if not isinstance(value, Mapping):
+            continue
+        items_value = value.get("items")
+        items = [
+            {
+                "product_id": item.get("product_id"),
+                "product_name": safe_untrusted_excerpt(item.get("product_name"), 100),
+                "sku_name": safe_untrusted_excerpt(item.get("sku_name"), 80),
+                "image_url": item.get("image_url"),
+                "quantity": item.get("quantity"),
+                "is_selected": item.get("is_selected"),
+                "is_valid": item.get("is_valid"),
+                "current_price": item.get("current_price"),
+            }
+            for item in (items_value if isinstance(items_value, list) else [])[:4]
+            if isinstance(item, Mapping)
+        ]
+        groups.append(
+            {
+                "store_id": value.get("store_id"),
+                "store_name": safe_untrusted_excerpt(value.get("store_name"), 80),
+                "store_logo_url": value.get("store_logo_url"),
+                "selected_quantity": value.get("selected_quantity"),
+                "selected_amount": value.get("selected_amount"),
+                "items": items,
+            }
+        )
+    amount_summary = data.get("amount_summary")
+    return {
+        "total_quantity": data.get("cart_total_quantity"),
+        "selected_quantity": data.get("selected_quantity"),
+        "valid_item_count": data.get("valid_item_count"),
+        "selected_amount": (
+            amount_summary.get("selected_goods_amount")
+            if isinstance(amount_summary, Mapping)
+            else None
+        ),
+        "groups": groups[:4],
+    }
 
 
 def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = "") -> str:
@@ -1135,16 +1443,62 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
             ]
             if remembered:
                 prefix = "我参考了你已授权的偏好: " + "、".join(remembered) + "。"
+        if "用户发送了商品卡片" in user_text and len(items) == 1:
+            return (
+                "我看到你发来的商品了，关键信息已放在下方卡片中。"
+                "你更想了解款式或规格、库存、发货，还是它是否适合你的使用场景?"
+            )
+        if data.get("catalog_focus") == "sku_availability" and len(items) == 1:
+            item = items[0] if isinstance(items[0], Mapping) else {}
+            name = safe_untrusted_excerpt(item.get("name") or "当前商品", 100)
+            stock = max(0, int(item.get("available_stock") or 0))
+            return (
+                f"已查到“{name}”的在售款式与实时库存，共可售 {stock} 件。"
+                "各款式已整理在下方，最终库存以结算页为准。"
+            )
+        if len(items) == 1:
+            return (
+                f"{prefix}按你给出的条件，全平台在售商品中目前只找到 1 件匹配结果，已放在卡片中。"
+                "点击卡片可以查看详情。我没有用不相关商品凑数; 你可以放宽一个条件，我再继续筛选。"
+            )
         return (
             f"{prefix}为你找到 {min(len(items), 5)} 件全平台在售商品。"
             "点击卡片可以直接查看; 价格和库存以商品详情与结算页的实时结果为准。"
         )
+    if plan.intent == "product_compare":
+        if not isinstance(items, list) or len(items) < 2:
+            return "请先把至少两件想比较的商品发给我，或先让我搜索商品，再说“对比前两个”。"
+        conclusion = _comparison_purchase_conclusion(user_text, items)
+        return conclusion or (
+            "我把价格、在售款式、实时库存、销量和评分整理成了对比卡片。"
+            "点击商品卡可继续查看详情。"
+        )
     if plan.intent == "order_lookup":
         if "order_id" in data:
+            if "用户发送了订单卡片" in user_text:
+                return (
+                    "我已经看到这笔订单了。你想查付款、发货、物流、收货，"
+                    "还是退款售后? 我会沿着这笔订单继续帮你处理。"
+                )
             return "已找到这笔订单。点击卡片可查看详情或继续处理。"
         if not isinstance(items, list) or not items:
             return "你的账号下暂未查询到可见订单。"
+        if requests_direct_transaction_action(user_text):
+            return (
+                "为了避免误操作，我不能代你付款、取消订单或确认收货。"
+                "请从下方订单卡片进入详情页自行核对并操作。"
+            )
         return f"找到你的 {len(items)} 笔最近订单。点击卡片可查看详情或继续处理。"
+    if plan.intent == "cart_lookup":
+        quantity = data.get("cart_total_quantity")
+        if not isinstance(quantity, int) or quantity <= 0:
+            return "你的购物车还是空的。可以先去逛逛，遇到喜欢的商品再加入购物车。"
+        selected = data.get("selected_quantity")
+        return (
+            f"购物车里共有 {quantity} 件商品"
+            + (f"，已选 {selected} 件" if isinstance(selected, int) else "")
+            + "。我已整理在卡片里，点击即可检查商品并结算。"
+        )
     if plan.intent == "logistics_lookup":
         if not isinstance(items, list) or not items:
             return "该订单当前没有可见物流包裹。"
@@ -1155,34 +1509,14 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
             eligibility_value if isinstance(eligibility_value, Mapping) else {}
         )
         eligible = eligibility.get("eligible") is True
-        lines = ["资格检查完成: " + ("当前可以申请售后。" if eligible else "当前暂不能申请售后。")]
-        suggested = eligibility.get("suggested_refund_amount")
-        if eligible and isinstance(suggested, Mapping):
-            lines.append(f"当前建议可申请金额为 {_money_object_display(suggested)}。")
-        allowed = eligibility.get("allowed_types")
-        if eligible and isinstance(allowed, list):
-            labels = {"refund_only": "仅退款", "return_and_refund": "退货退款"}
-            lines.append(
-                "可选类型: "
-                + "、".join(labels.get(str(value), str(value)) for value in allowed)
-                + "。"
+        lines = [
+            (
+                "资格检查完成: 当前可以申请售后。金额、类型和下一步入口已整理在卡片中。"
+                if eligible
+                else "资格检查完成: 当前暂不能申请售后，具体原因已整理在卡片中。"
             )
-        blocking = eligibility.get("blocking_reasons")
-        if not eligible and isinstance(blocking, list) and blocking:
-            lines.append("阻断原因: " + "、".join(str(value) for value in blocking) + "。")
-        shipment_values = data.get("shipments")
-        shipments = shipment_values if isinstance(shipment_values, list) else []
-        if shipments and isinstance(shipments[0], Mapping):
-            latest = shipments[0]
-            lines.append(
-                "当前物流: "
-                f"{_status_label('shipment', latest.get('shipment_status'))}"
-                f"{_last_track_text(latest)}。"
-            )
-        lines.append(
-            "本次只完成资格检查，没有创建退款草稿或售后单。"
-            "如果你要继续申请，请明确告诉我申请类型、原因和数量。提交前仍需授权并再次确认。"
-        )
+        ]
+        lines.append("本次只完成资格检查，没有创建退款草稿或售后单。")
         return "\n".join(lines)
     if plan.intent == "refund_progress":
         if "refund_id" in data:
@@ -1212,6 +1546,37 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
             intro="根据当前已发布平台规则",
         )
     return "已完成查询。"
+
+
+def _comparison_purchase_conclusion(
+    user_text: str, items: list[object]
+) -> str | None:
+    """Give a bounded recommendation only when public evidence separates options."""
+
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    if "考试" not in normalized:
+        return None
+    evidence_terms = ("考试", "铅笔", "中性笔", "笔芯", "橡皮", "直尺", "答题", "书写")
+    ranked: list[tuple[int, str]] = []
+    for item in items[:2]:
+        if not isinstance(item, Mapping):
+            continue
+        name = safe_untrusted_excerpt(item.get("name") or "商品", 100)
+        evidence = " ".join(
+            (
+                name,
+                safe_untrusted_excerpt(item.get("subtitle") or "", 160),
+                safe_untrusted_excerpt(item.get("description") or "", 240),
+            )
+        ).casefold()
+        ranked.append((sum(term in evidence for term in evidence_terms), name))
+    if len(ranked) != 2 or ranked[0][0] == ranked[1][0] or max(ranked)[0] <= 0:
+        return None
+    winner = max(ranked, key=lambda value: value[0])[1]
+    return (
+        f"按商家公开信息，“{winner}”更贴近考试使用场景。"
+        "价格、款式和实时库存已放在下方对比卡片中，能否携带仍以具体考试规定为准。"
+    )
 
 
 def _source_refs(data: Mapping[str, Any]) -> list[dict[str, object]]:
@@ -1291,6 +1656,7 @@ async def _attach_platform_knowledge(
         }
         for item in result.items
     ]
+    data["policy_query"] = context.trigger.text_content or "平台规则"
     data["rag"] = {
         "scope": "platform:platform",
         "returned_count": len(result.items),
@@ -1411,6 +1777,14 @@ def _money_object_display(money: Mapping[str, Any]) -> str:
     return f"{symbol}{int(money.get('minor_units', 0)) / 100:.2f}"
 
 
+def _compact_tracking_no(value: object) -> str:
+    text = safe_untrusted_excerpt(value or "物流单号同步中", 80)
+    if text.count("*") <= 8:
+        return text
+    visible = "".join(character for character in text if character != "*")
+    return f"尾号 {visible[-4:]}" if visible else "物流单号已脱敏"
+
+
 _STATUS_LABELS: dict[str, dict[str, str]] = {
     "order": {
         "pending_payment": "待付款",
@@ -1490,6 +1864,23 @@ def _resource_no(text: str, prefix: str) -> str | None:
         flags=re.I,
     )
     return f"{prefix}_{match.group(1).upper()}" if match is not None else None
+
+
+def _requests_direct_refund_payout(user_text: str) -> bool:
+    """Block requests to bypass the refund application and approval workflow."""
+
+    compact = re.sub(r"\s+", "", user_text).casefold()
+    return any(
+        marker in compact
+        for marker in (
+            "直接把钱退给我",
+            "直接退款",
+            "立即退款",
+            "马上退款",
+            "跳过审核退款",
+            "不用确认退款",
+        )
+    )
 
 
 def _delivery_estimate_text(item: Mapping[str, Any]) -> str:

@@ -78,6 +78,7 @@ SKILLS: tuple[SkillSeed, ...] = (
         (
             "order.list_user_orders",
             "order.get_user_order_detail",
+            "cart.get_mine",
             "logistics.get_user_order_shipments",
             "after_sale.list_user_refunds",
             "after_sale.get_user_refund_detail",
@@ -329,7 +330,9 @@ async def _seed_agents(
             session.add(definition)
             await session.flush()
         target_version_no = (
-            5 if item.code in {"merchant_copilot", "admin_copilot"} else 4
+            5
+            if item.code in {"exclusive_support", "merchant_copilot", "admin_copilot"}
+            else 4
         )
         version = await session.scalar(
             select(AgentVersion).where(

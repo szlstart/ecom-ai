@@ -52,6 +52,7 @@ def test_hybrid_retrieval_fuses_duplicate_chunks() -> None:
 def test_mcp_registry_has_non_overlapping_servers() -> None:
     assert set(MCP_SERVERS) == {
         "catalog-mcp",
+        "cart-mcp",
         "order-mcp",
         "logistics-mcp",
         "after-sale-mcp",

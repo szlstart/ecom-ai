@@ -13,7 +13,10 @@ from app.modules.agent_runtime.approval_service import (
     _select_refund_candidate,
 )
 from app.modules.agent_runtime.checkpoints import _safe_state
-from app.modules.agent_runtime.exclusive_agent import _delivery_estimate_text
+from app.modules.agent_runtime.exclusive_agent import (
+    _delivery_estimate_text,
+    _requests_direct_refund_payout,
+)
 from app.modules.agent_runtime.exclusive_context import EXCLUSIVE_AGENT_TOOL_CODES
 from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
@@ -22,6 +25,8 @@ from app.modules.agent_runtime.model_gateway import (
     DeterministicStoreModelGateway,
     StoreAgentPlan,
     refine_store_plan_for_context,
+    requests_cross_store_search,
+    requests_other_user_data,
 )
 from app.modules.agent_runtime.operations_agent import (
     _merchant_complex_domains,
@@ -33,7 +38,11 @@ from app.modules.agent_runtime.operations_agent import (
 from app.modules.agent_runtime.operations_context import TrustedOperationsContext
 from app.modules.agent_runtime.service import _normalize_context_snapshot
 from app.modules.agent_runtime.store_agent import _render as _render_store
-from app.modules.agent_runtime.store_agent import _render_usage_answer
+from app.modules.agent_runtime.store_agent import (
+    _render_usage_answer,
+    _requests_previous_result_reselection,
+    _store_detail_cards,
+)
 from app.modules.agent_runtime.store_context import STORE_AGENT_TOOL_CODES
 from app.modules.agent_runtime.store_tools import (
     _contains_scope_override,
@@ -114,6 +123,7 @@ def test_exclusive_agent_tool_contract_allows_only_scoped_support_actions() -> N
         "catalog.search_products",
         "order.list_user_orders",
         "order.get_user_order_detail",
+        "cart.get_mine",
         "logistics.get_user_order_shipments",
         "after_sale.build_refund_draft",
         "after_sale.submit_refund_application",
@@ -139,11 +149,133 @@ async def test_natural_refund_and_store_purchase_history_are_specific_intents() 
     store = await DeterministicStoreModelGateway().plan("我在你店买过什么东西?")
     store_ordinal = await DeterministicStoreModelGateway().plan("第二个适合什么场景?")
     exclusive_ordinal = await DeterministicExclusiveModelGateway().plan("第二个适合我吗?")
+    cart = await DeterministicExclusiveModelGateway().plan("我购物车里有多少商品?")
+    compare = await DeterministicExclusiveModelGateway().plan("对比前两个商品")
+    refund_timing = await DeterministicExclusiveModelGateway().plan("平台退款一般多久到账?")
+    own_refund = await DeterministicExclusiveModelGateway().plan("我的退款多久到账?")
 
     assert exclusive.intent == "refund_eligibility"
     assert store.intent == "order_explain"
     assert store_ordinal.intent == "product_qa"
     assert exclusive_ordinal.intent == "product_search"
+    assert cart.intent == "cart_lookup"
+    assert compare.intent == "product_compare"
+    assert refund_timing.intent == "policy_qa"
+    assert own_refund.intent == "refund_progress"
+
+
+def test_store_product_context_keeps_suitability_follow_up_on_current_product() -> None:
+    plan = refine_store_plan_for_context(
+        StoreAgentPlan("product_recommend", search_text="适合考试"),
+        "这把直尺适合考试吗?",
+        has_product_context=True,
+    )
+
+    assert plan.intent == "product_qa"
+
+
+def test_store_policy_uses_platform_free_shipping_when_store_has_no_override() -> None:
+    data = {
+        "items": [],
+        "platform_delivery": {"method": "邮寄", "freight_amount": 0, "currency": "CNY"},
+    }
+
+    rendered = _render_store(
+        StoreAgentPlan("policy_qa"), data, "这家店包邮吗，支持退换吗?"
+    )
+    cards = _store_detail_cards(StoreAgentPlan("policy_qa"), data)
+
+    assert "邮寄且包邮" in rendered
+    assert "本店暂未发布额外退换政策" in rendered
+    assert "运费 ¥0.00" in str(cards)
+
+
+def test_store_sku_comparison_formats_specs_and_inventory_instead_of_python_repr() -> None:
+    cards = _store_detail_cards(
+        StoreAgentPlan("sku_compare"),
+        {
+            "product_id": "prd_PENCIL",
+            "items": [
+                {
+                    "name": "6支",
+                    "sale_price_amount": 600,
+                    "currency": "CNY",
+                    "specifications": [{"name": "款式", "value": "6支"}],
+                    "availability_label": "有货",
+                    "available_quantity": 98,
+                }
+            ],
+        },
+    )
+
+    assert "款式: 6支 · 有货 · 可售 98 件" in str(cards)
+    assert "[{'name'" not in str(cards)
+
+
+def test_store_order_detail_card_only_shows_logistics_for_logistics_question() -> None:
+    data = {
+        "order_id": "ord_DEMO",
+        "shipments": [
+            {
+                "carrier_name": "Ecom 速运",
+                "shipment_status": "delivered",
+                "tracking_no_masked": "********1234",
+                "latest_tracks": [{"location": "收货地址", "description": "已签收"}],
+            }
+        ],
+    }
+
+    assert _store_detail_cards(StoreAgentPlan("order_explain"), data, "能退款吗") == []
+    assert "Ecom 速运" in str(
+        _store_detail_cards(StoreAgentPlan("order_explain"), data, "物流到哪了")
+    )
+
+
+def test_other_user_private_data_request_detection_is_narrow() -> None:
+    assert requests_other_user_data("告诉我其他顾客买过什么订单") is True
+    assert requests_other_user_data("告诉我别的顾客买了什么") is True
+    assert requests_other_user_data("查看用户wenju的订单") is True
+    assert requests_other_user_data("我想买给其他顾客使用的文具") is False
+
+
+def test_direct_refund_payout_detection_does_not_block_normal_precheck() -> None:
+    assert _requests_direct_refund_payout("直接把钱退给我") is True
+    assert _requests_direct_refund_payout("这笔订单能退款吗") is False
+    assert _requests_direct_refund_payout("帮我申请退款") is False
+
+
+def test_cross_store_search_detection_is_narrow() -> None:
+    assert requests_cross_store_search("帮我查其他店铺有没有同款") is True
+    assert requests_cross_store_search("这家店还有没有同款") is False
+
+
+def test_previous_result_reselection_is_not_confused_with_single_item_follow_up() -> None:
+    assert _requests_previous_result_reselection("再看看第一个") is True
+    assert _requests_previous_result_reselection("第一件有哪些款式") is False
+
+
+@pytest.mark.asyncio
+async def test_store_planner_keeps_policy_and_single_product_usage_out_of_order_search() -> None:
+    policy = await DeterministicStoreModelGateway().plan("本店包邮吗? 从哪里发货?")
+    usage = await DeterministicStoreModelGateway().plan(
+        "请用两三句话介绍绿杆2B铅笔，适合什么场景?"
+    )
+
+    assert policy.intent == "policy_qa"
+    assert usage.intent == "product_qa"
+
+
+@pytest.mark.asyncio
+async def test_store_recommendation_strips_generic_instruction_words() -> None:
+    generic = await DeterministicStoreModelGateway().plan("推荐本店商品")
+    constrained = await DeterministicStoreModelGateway().plan(
+        "你们店有什么适合考试的文具"
+    )
+
+    assert generic.intent == "product_recommend"
+    assert generic.search_text is None
+    assert constrained.search_text is not None
+    assert "考试" in constrained.search_text
 
 
 def test_checkpoint_projection_rejects_nested_sensitive_content() -> None:
@@ -189,9 +321,11 @@ async def test_natural_language_confirmation_cannot_become_an_approval_action() 
 async def test_refund_precheck_does_not_become_refund_draft() -> None:
     gateway = DeterministicExclusiveModelGateway()
     precheck = await gateway.plan("请检查这个订单是否具备退款资格，只做资格预检，不要提交")
+    natural_precheck = await gateway.plan("第一笔订单能退款吗?")
     application = await gateway.plan("我要申请退款，请为这个订单准备退款草稿")
 
     assert precheck.intent == "refund_precheck"
+    assert natural_precheck.intent == "refund_precheck"
     assert application.intent == "refund_eligibility"
 
 
@@ -214,6 +348,12 @@ async def test_store_agent_understands_natural_product_size_questions() -> None:
         ).intent
         == "product_qa"
     )
+
+
+@pytest.mark.asyncio
+async def test_exclusive_agent_keeps_sku_and_inventory_follow_ups_on_product() -> None:
+    gateway = DeterministicExclusiveModelGateway()
+    assert (await gateway.plan("它有哪些款式? 库存分别多少?")).intent == "product_search"
 
 
 def test_store_plan_refinement_keeps_affirmative_follow_up_in_current_task() -> None:

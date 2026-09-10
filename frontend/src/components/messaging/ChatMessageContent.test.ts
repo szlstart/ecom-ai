@@ -19,6 +19,7 @@ async function render(message: ChatMessage, audience: 'user' | 'merchant' | 'adm
       { path: '/products/:id', component: { template: '<div />' } },
       { path: '/me/orders/:id', component: { template: '<div />' } },
       { path: '/me/after-sales/:id', component: { template: '<div />' } },
+      { path: '/cart', component: { template: '<div />' } },
       { path: '/merchant/products/:id', component: { template: '<div />' } },
       { path: '/merchant/orders', component: { template: '<div />' } },
       { path: '/admin/products/:id', component: { template: '<div />' } },
@@ -162,5 +163,35 @@ describe('ChatMessageContent', () => {
     expect(wrapper.text()).toContain('模拟快递')
     expect(wrapper.text()).toContain('上海市 · 包裹正在运输')
     expect(wrapper.get('a').attributes('href')).toBe('/me/orders/ord_TRACK')
+  })
+
+  it('renders the current cart as a compact clickable shopping card', async () => {
+    const wrapper = await render({
+      ...base,
+      sender_type: 'agent',
+      message_type: 'text',
+      text: '购物车里共有 2 件商品，已选 1 件。',
+      content: {
+        cart_card: {
+          total_quantity: 2,
+          selected_quantity: 1,
+          selected_amount: { minor_units: '600', currency: 'CNY' },
+          groups: [{
+            store_id: 'sto_1', store_name: '文具专卖店', selected_quantity: 1,
+            items: [{
+              product_id: 'prd_PENCIL', product_name: '考试涂卡铅笔', sku_name: '2B',
+              quantity: 2, current_price: { minor_units: '600', currency: 'CNY' },
+              image_url: '/api/v1/files/file_PENCIL?variant=thumbnail',
+            }],
+          }],
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('我的购物车')
+    expect(wrapper.text()).toContain('考试涂卡铅笔')
+    expect(wrapper.text()).toContain('¥6.00')
+    expect(wrapper.get('a').attributes('href')).toBe('/cart')
+    expect(wrapper.find('img').attributes('src')).toContain('/api/v1/files/file_PENCIL')
   })
 })

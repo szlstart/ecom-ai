@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 
 from sqlalchemy import select
@@ -78,7 +79,10 @@ async def recent_agent_product_cards(
                     Message.recalled_at.is_(None),
                 )
                 .order_by(Message.sequence_no.desc())
-                .limit(10)
+                # Users often ask several policy or order questions before
+                # returning to a previously shown product. Select the newest
+                # structured product-card turn from a bounded, wider window.
+                .limit(30)
             )
         ).all()
     )
@@ -124,6 +128,9 @@ def referenced_product_card(
     index = product_card_reference_index(user_text)
     if index is not None:
         return cards[index] if index < len(cards) else None
+    mentioned = _mentioned_product_card(user_text, cards)
+    if mentioned is not None:
+        return mentioned
     if include_single_deictic and len(cards) == 1 and any(
         marker in compact
         for marker in (
@@ -141,3 +148,32 @@ def referenced_product_card(
     ):
         return cards[0]
     return None
+
+
+def _mentioned_product_card(
+    user_text: str, cards: list[dict[str, object]]
+) -> dict[str, object] | None:
+    """Resolve a uniquely named recent card such as `这把直尺`."""
+
+    normalized = "".join(re.findall(r"[\u4e00-\u9fffA-Za-z0-9]+", user_text)).casefold()
+    ignored = {
+        "这个", "这件", "这款", "这把", "这条", "商品", "东西", "适合", "考试",
+        "多少", "具体", "现在", "还有", "库存", "价格", "比较", "对比", "区别",
+    }
+    phrases = {
+        normalized[start:end]
+        for start in range(len(normalized))
+        for end in range(start + 2, min(len(normalized), start + 6) + 1)
+        if normalized[start:end] not in ignored
+    }
+    scored: list[tuple[int, dict[str, object]]] = []
+    for card in cards:
+        name = str(card.get("product_name") or "").casefold()
+        score = max((len(phrase) for phrase in phrases if phrase in name), default=0)
+        if score >= 2:
+            scored.append((score, card))
+    if not scored:
+        return None
+    best = max(score for score, _card in scored)
+    winners = [card for score, card in scored if score == best]
+    return winners[0] if len(winners) == 1 else None

@@ -1,4 +1,6 @@
 from app.modules.agent_runtime.exclusive_agent import (
+    _cart_card,
+    _compact_tracking_no,
     _exclusive_detail_cards,
     _render,
     _requests_latest_order,
@@ -8,6 +10,7 @@ from app.modules.agent_runtime.exclusive_agent import (
 from app.modules.agent_runtime.exclusive_model_gateway import ExclusiveAgentPlan
 from app.modules.agent_runtime.exclusive_tools import (
     _catalog_search_candidates,
+    _catalog_search_constraints,
     _combined_catalog_search_candidates,
 )
 from app.modules.agent_runtime.operations_agent import _render_multi_agent
@@ -24,6 +27,35 @@ def test_latest_order_language_is_detected_without_treating_any_order_question_a
     assert _requests_latest_order("请查我最近一笔订单的物流") is True
     assert _requests_latest_order("刚买的商品能不能退款") is True
     assert _requests_latest_order("这个订单能不能退款") is False
+
+
+def test_single_product_inventory_uses_actionable_detail_card() -> None:
+    data = {
+        "catalog_focus": "sku_availability",
+        "items": [
+            {
+                "product_id": "prd_01KPRODUCT",
+                "name": "考试铅笔",
+                "available_stock": 12,
+                "skus": [
+                    {
+                        "sku_name": "6支",
+                        "available_stock": 12,
+                        "availability_label": "有货",
+                        "price": {"minor_units": "600", "currency": "CNY"},
+                    }
+                ],
+            }
+        ],
+    }
+
+    rendered = _render(ExclusiveAgentPlan("product_search"), data)
+    cards = _exclusive_detail_cards(ExclusiveAgentPlan("product_search"), data)
+
+    assert "共可售 12 件" in rendered
+    assert cards[0]["kind"] == "sku_availability"
+    assert "6支" in str(cards)
+    assert "¥6.00" in str(cards)
 
 
 def test_catalog_candidates_remove_instruction_but_keep_business_term() -> None:
@@ -66,6 +98,37 @@ def test_catalog_candidates_fall_back_to_exact_current_message() -> None:
     assert "绿杆" in candidates
     assert "2B" in candidates
     assert "铅笔" in candidates
+
+
+def test_catalog_constraints_keep_budget_and_specific_terms_out_of_broad_fallback() -> None:
+    constraints = _catalog_search_constraints(
+        "全平台商品",
+        "帮我找20元以内、适合考试使用的文具",
+    )
+
+    assert constraints.price_max == 2000
+    assert constraints.price_min is None
+    assert "考试" in constraints.keywords
+    assert "文具" in constraints.keywords
+    assert None not in constraints.candidates
+
+
+def test_catalog_constraints_support_decimal_lower_and_upper_budget() -> None:
+    constraints = _catalog_search_constraints(
+        None,
+        "想找至少 8.50 元、不超过 19.90 元的铅笔",
+    )
+
+    assert constraints.price_min == 850
+    assert constraints.price_max == 1990
+    assert "铅笔" in constraints.keywords
+
+
+def test_catalog_constraints_discard_requested_result_count_before_searching() -> None:
+    constraints = _catalog_search_constraints(None, "帮我找几件20元以内的文具")
+
+    assert constraints.candidates[0] == "文具"
+    assert "几件" not in constraints.keywords
 
 
 def test_product_recommendation_fallback_defers_dense_facts_to_product_cards() -> None:
@@ -120,6 +183,95 @@ def test_order_fallback_renders_amount_and_localized_status() -> None:
     assert "ord_01M19K9GS9ZG90TSGAFJ3DPMNY" not in rendered
 
 
+def test_cart_fallback_and_card_keep_cart_distinct_from_orders() -> None:
+    data = {
+        "cart_total_quantity": 3,
+        "selected_quantity": 2,
+        "valid_item_count": 2,
+        "amount_summary": {
+            "selected_goods_amount": {"minor_units": "1200", "currency": "CNY"}
+        },
+        "groups": [
+            {
+                "store_id": "sto_1",
+                "store_name": "文具专卖店",
+                "selected_quantity": 2,
+                "items": [
+                    {
+                        "product_id": "prd_1",
+                        "product_name": "考试铅笔",
+                        "sku_name": "2B",
+                        "quantity": 3,
+                        "current_price": {"minor_units": "600", "currency": "CNY"},
+                        "is_selected": True,
+                        "is_valid": True,
+                    }
+                ],
+            }
+        ],
+    }
+
+    rendered = _render(ExclusiveAgentPlan("cart_lookup"), data)
+    card = _cart_card(data)
+
+    assert "购物车里共有 3 件商品" in rendered
+    assert card["total_quantity"] == 3
+    assert card["selected_amount"] == {"minor_units": "1200", "currency": "CNY"}
+    assert card["groups"][0]["items"][0]["product_name"] == "考试铅笔"
+
+
+def test_product_compare_renders_structured_same_basis_rows() -> None:
+    data = {
+        "items": [
+            {
+                "product_id": "prd_1",
+                "name": "考试铅笔",
+                "store_name": "文具店",
+                "price": {"min_amount": 600, "currency": "CNY"},
+                "sku_count": 2,
+                "available_stock": 30,
+                "sales_count": 8,
+                "rating": "4.80",
+            },
+            {
+                "product_id": "prd_2",
+                "name": "透明直尺",
+                "store_name": "文具店",
+                "price": {"min_amount": 871, "currency": "CNY"},
+                "sku_count": 1,
+                "available_stock": 20,
+                "sales_count": 5,
+                "rating": "4.70",
+            },
+        ]
+    }
+
+    rendered = _render(ExclusiveAgentPlan("product_compare"), data)
+    cards = _exclusive_detail_cards(ExclusiveAgentPlan("product_compare"), data)
+
+    assert "对比卡片" in rendered
+    assert "考试铅笔" in str(cards)
+    assert "¥6.00" in str(cards)
+    assert "库存 30" in str(cards)
+
+
+def test_product_compare_can_make_evidence_bounded_exam_recommendation() -> None:
+    rendered = _render(
+        ExclusiveAgentPlan("product_compare"),
+        {
+            "items": [
+                {"name": "透明直尺15cm", "description": "绘图测量"},
+                {"name": "金属美工刀", "description": "手帐切割"},
+            ]
+        },
+        "对比前两个，哪个更适合考试?",
+    )
+
+    assert "透明直尺15cm" in rendered
+    assert "更贴近考试使用场景" in rendered
+    assert "具体考试规定" in rendered
+
+
 def test_policy_fallback_selects_one_relevant_sentence_instead_of_dumping_chunks() -> None:
     rendered = _render(
         ExclusiveAgentPlan("policy_qa"),
@@ -153,6 +305,38 @@ def test_policy_fallback_selects_one_relevant_sentence_instead_of_dumping_chunks
     assert "金额按分保存" not in rendered
 
 
+def test_policy_fallback_prioritizes_refund_timing_and_deduplicates_source_cards() -> None:
+    data = {
+        "policy_query": "平台退款一般多久到账?",
+        "knowledge_sources": [
+            {
+                "document_id": "doc_refund",
+                "title": "[系统] 售后、退款与客服规则",
+                "excerpt": "提交退款申请不等于退款到账; 申请仍需经过售后处理。",
+            },
+            {
+                "document_id": "doc_refund",
+                "title": "[系统] 售后、退款与客服规则",
+                "excerpt": "当前项目使用模拟支付与退款，不承诺真实支付渠道的固定到账天数。",
+            },
+            {
+                "document_id": "doc_logistics",
+                "title": "[系统] 物流规则",
+                "excerpt": "物流轨迹按节点更新。",
+            },
+        ],
+    }
+
+    rendered = _render(ExclusiveAgentPlan("policy_qa"), data, "平台退款一般多久到账?")
+    cards = _exclusive_detail_cards(ExclusiveAgentPlan("policy_qa"), data)
+
+    assert "退款到账" in rendered
+    assert len(cards) == 1
+    assert len(cards[0]["rows"]) == 1
+    assert "售后、退款与客服规则" in str(cards)
+    assert "物流规则" not in str(cards)
+
+
 def test_logistics_fallback_renders_tracking_location_and_localized_status() -> None:
     data = {
         "order_id": "ord_TRACK",
@@ -175,12 +359,11 @@ def test_logistics_fallback_renders_tracking_location_and_localized_status() -> 
     assert "运输中" in str(cards)
     assert "海淀区" in str(cards)
     assert "in_transit" not in str(cards)
+    assert _compact_tracking_no("*****************************ZVA9") == "尾号 ZVA9"
 
 
 def test_refund_precheck_is_read_only_and_renders_exact_money() -> None:
-    rendered = _render(
-        ExclusiveAgentPlan("refund_precheck"),
-        {
+    data = {
             "order_id": "ord_01M19K9GS9ZG90TSGAFJ3DPMNY",
             "status": {
                 "order": "shipped",
@@ -199,13 +382,15 @@ def test_refund_precheck_is_read_only_and_renders_exact_money() -> None:
                     "last_track": {"description": "已签收", "location_text": "河滨嘉苑14-1"},
                 }
             ],
-        },
-    )
+        }
+    rendered = _render(ExclusiveAgentPlan("refund_precheck"), data)
+    cards = _exclusive_detail_cards(ExclusiveAgentPlan("refund_precheck"), data)
 
-    assert "¥6.00" in rendered
-    assert "仅退款、退货退款" in rendered
+    assert "金额、类型和下一步入口已整理在卡片中" in rendered
     assert "没有创建退款草稿或售后单" in rendered
-    assert "河滨嘉苑14-1" in rendered
+    assert "¥6.00" in str(cards)
+    assert "仅退款、退货退款" in str(cards)
+    assert "河滨嘉苑14-1" not in rendered
 
 
 def test_multi_agent_fallback_flattens_metrics_and_provides_risk_advice() -> None:

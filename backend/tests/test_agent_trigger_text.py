@@ -30,7 +30,8 @@ def test_order_card_trigger_uses_exact_major_amount_and_does_not_request_handoff
 
     assert "¥6.00" in text
     assert "¥600" not in text
-    assert "不要仅因收到卡片而转人工" in text
+    assert "请读取" not in text
+    assert "转人工" not in text
     public_text = agent_trace_question(message)
     assert public_text == "用户发送了订单卡片 ord_01KORDER，支付总额 ¥6.00。"
     assert "不要仅因" not in public_text
@@ -41,4 +42,5 @@ def test_product_card_trigger_names_selected_product() -> None:
         _message("product_card", {"product_id": "prd_01KPRODUCT", "product_name": "测试铅笔"})
     )
     assert "测试铅笔" in text
-    assert "当前商品上下文" in text
+    assert text == "用户发送了商品卡片“测试铅笔”。"
+    assert "使用场景" not in text

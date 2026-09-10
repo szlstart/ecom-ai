@@ -111,10 +111,11 @@ class StoreToolGateway:
                 raise _not_accessible()
             product, _store = row
             attributes = await self.catalog.product_attributes(product.id)
-            skus = list(
+            sku_rows = list(
                 (
-                    await self.session.scalars(
-                        select(ProductSku)
+                    await self.session.execute(
+                        select(ProductSku, Inventory)
+                        .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
                         .where(
                             ProductSku.product_id == product.id,
                             ProductSku.store_id == context.store.id,
@@ -144,8 +145,11 @@ class StoreToolGateway:
                         "sku_id": sku.sku_no,
                         "sku_name": sku.sku_name,
                         "specifications": sku.spec_values,
+                        "availability": _availability(inventory),
+                        "availability_label": _availability_label(inventory),
+                        "available_quantity": _available_quantity(inventory),
                     }
-                    for sku in skus[:20]
+                    for sku, inventory in sku_rows[:20]
                 ],
                 "safe_detail_text": content.safe_text[:6000] if content else None,
                 "faqs": [
@@ -277,7 +281,9 @@ class StoreToolGateway:
             )
             if product is None:
                 raise _not_accessible()
-            statement = select(ProductSku).where(
+            statement = select(ProductSku, Inventory).outerjoin(
+                Inventory, Inventory.sku_id == ProductSku.id
+            ).where(
                 ProductSku.product_id == product.id,
                 ProductSku.store_id == context.store.id,
                 ProductSku.sku_status == "active",
@@ -287,13 +293,13 @@ class StoreToolGateway:
                 if not 2 <= len(unique) <= 4:
                     raise _invalid_arguments("SKU 对比必须选择 2 至 4 个规格。")
                 statement = statement.where(ProductSku.sku_no.in_(unique))
-            rows = list((await self.session.scalars(statement.order_by(ProductSku.id))).all())
+            rows = list((await self.session.execute(statement.order_by(ProductSku.id))).all())
             rows = rows[:4] if not sku_nos else rows
             if len(rows) < 2 or (sku_nos and len(rows) != len(set(sku_nos))):
                 raise _not_accessible()
             return {
                 "product_id": product.product_no,
-                "items": [_sku(item) for item in rows],
+                "items": [_sku(sku, inventory) for sku, inventory in rows],
                 "as_of": utc_now(),
                 "source_version": product.version,
                 "data_scope": {"store_id": context.store.store_no},
@@ -424,6 +430,12 @@ class StoreToolGateway:
                     }
                     for item in rows
                 ],
+                "platform_delivery": {
+                    "method": "邮寄",
+                    "freight_amount": 0,
+                    "currency": "CNY",
+                    "source_version": "platform-free-shipping-v1",
+                },
                 "as_of": utc_now(),
                 "data_scope": {"store_id": context.store.store_no},
             }
@@ -592,18 +604,31 @@ class StoreToolGateway:
         self, context: TrustedStoreAgentContext, search_text: str | None
     ) -> StoreToolResult:
         async def handler() -> dict[str, object]:
-            rows, _has_more = await self.catalog.search_products(
-                q=None,
-                category_no=None,
-                brand_no=None,
-                store_no=context.store.store_no,
-                group_no=None,
-                price_min=None,
-                price_max=None,
-                sort="sales",
-                position=None,
-                limit=5,
+            # Imported lazily because the exclusive gateway already shares the
+            # store tool result type. The parser contains no database or scope
+            # logic; every query below still enforces the trusted store number.
+            from app.modules.agent_runtime.exclusive_tools import (
+                _catalog_search_constraints,
             )
+
+            constraints = _catalog_search_constraints(search_text, search_text)
+            rows = []
+            for term in constraints.candidates:
+                found, _has_more = await self.catalog.search_products(
+                    q=term,
+                    category_no=None,
+                    brand_no=None,
+                    store_no=context.store.store_no,
+                    group_no=None,
+                    price_min=constraints.price_min,
+                    price_max=constraints.price_max,
+                    sort="sales",
+                    position=None,
+                    limit=5,
+                )
+                rows = found
+                if rows:
+                    break
             return {
                 "query": search_text,
                 "items": [
@@ -620,6 +645,11 @@ class StoreToolGateway:
                     }
                     for product, _store in rows
                 ],
+                "applied_filters": {
+                    "keywords": list(constraints.keywords),
+                    "price_min": constraints.price_min,
+                    "price_max": constraints.price_max,
+                },
                 "as_of": utc_now(),
                 "data_scope": {"store_id": context.store.store_no},
             }
@@ -772,14 +802,16 @@ def _attribute(item: ProductAttribute) -> dict[str, object]:
     }
 
 
-def _sku(item: ProductSku) -> dict[str, object]:
+def _sku(item: ProductSku, inventory: Inventory | None) -> dict[str, object]:
     return {
         "sku_id": item.sku_no,
         "name": item.sku_name,
         "specifications": item.spec_values,
         "sale_price_amount": item.sale_price_amount,
         "currency": item.currency,
-        "availability": "available",
+        "availability": _availability(inventory),
+        "availability_label": _availability_label(inventory),
+        "available_quantity": _available_quantity(inventory),
     }
 
 

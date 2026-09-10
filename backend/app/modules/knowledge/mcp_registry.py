@@ -28,6 +28,9 @@ MCP_SERVERS = {
             "order-mcp", frozenset(code for code in READ_ONLY_TOOLS if code.startswith("order."))
         ),
         McpServerDefinition(
+            "cart-mcp", frozenset(code for code in READ_ONLY_TOOLS if code.startswith("cart."))
+        ),
+        McpServerDefinition(
             "logistics-mcp",
             frozenset(code for code in READ_ONLY_TOOLS if code.startswith("logistics.")),
         ),

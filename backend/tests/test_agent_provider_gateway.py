@@ -97,9 +97,10 @@ async def test_provider_store_plan_uses_closed_schema_without_tools() -> None:
         assert schema["additionalProperties"] is False
         assert "inventory_lookup" in schema["properties"]["intent"]["enum"]
         assert set(schema["required"]) == set(schema["properties"])
-        assert "support.create_store_ticket" in schema["properties"][
-            "required_capabilities"
-        ]["items"]["enum"]
+        assert (
+            "support.create_store_ticket"
+            in schema["properties"]["required_capabilities"]["items"]["enum"]
+        )
         return httpx.Response(
             200,
             json={
@@ -275,6 +276,8 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
                 f"data: {json.dumps(frame, ensure_ascii=False)}\n\n" for frame in frames
             )
             return httpx.Response(200, text=content)
+        citation_schema = payload["text"]["format"]["schema"]["properties"]["cited_source_ids"]
+        assert "uniqueItems" not in citation_schema
         return httpx.Response(
             200,
             json={
@@ -284,9 +287,7 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
                         "content": [
                             {
                                 "type": "output_text",
-                                "text": _verdict_json(
-                                    citations=("product:prd_public",)
-                                ),
+                                "text": _verdict_json(citations=("product:prd_public",)),
                             }
                         ],
                     }
@@ -337,7 +338,7 @@ async def test_responses_wire_streams_public_reasoning_and_answer() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streamed_responses_grounding_verifier_retries_once() -> None:
+async def test_streamed_responses_uses_one_grounding_verdict() -> None:
     verification_attempts = 0
 
     async def respond(request: httpx.Request) -> httpx.Response:
@@ -365,17 +366,7 @@ async def test_streamed_responses_grounding_verifier_retries_once() -> None:
                         "content": [
                             {
                                 "type": "output_text",
-                                "text": (
-                                    _verdict_json(
-                                        False,
-                                        unsupported_claims=("首次误判",),
-                                        confidence="low",
-                                    )
-                                    if verification_attempts == 1
-                                    else _verdict_json(
-                                        citations=("order:ord_public",)
-                                    )
-                                ),
+                                "text": _verdict_json(citations=("order:ord_public",)),
                             }
                         ],
                     }
@@ -403,12 +394,12 @@ async def test_streamed_responses_grounding_verifier_retries_once() -> None:
     assert answer.grounding_verified is True
     assert answer.confidence == "high"
     assert answer.cited_source_ids == ("order:ord_public",)
-    assert verification_attempts == 2
+    assert verification_attempts == 1
     await client.aclose()
 
 
 @pytest.mark.asyncio
-async def test_streamed_responses_rejects_answer_after_two_grounding_failures() -> None:
+async def test_streamed_responses_rejects_answer_after_grounding_failure() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
         if payload.get("stream") is True:
@@ -512,10 +503,13 @@ async def test_streamed_responses_rejects_answer_that_omits_available_requested_
             evidence={"skus": [{"sku_name": "S"}, {"sku_name": "M"}, {"sku_name": "L"}]},
             source_ids=("product:prd_public",),
         )
-    assert model_failure_code(
-        ModelGatewayError("model answer omitted evidence-backed requested facts"),
-        "answer",
-    ) == "answer_model_answer_incomplete"
+    assert (
+        model_failure_code(
+            ModelGatewayError("model answer omitted evidence-backed requested facts"),
+            "answer",
+        )
+        == "answer_model_answer_incomplete"
+    )
     await client.aclose()
 
 
@@ -750,13 +744,7 @@ async def test_provider_synthesizes_only_from_closed_evidence_and_valid_sources(
             return httpx.Response(
                 200,
                 json={
-                    "choices": [
-                        {
-                            "message": {
-                                "content": _verdict_json(citations=("prd_public",))
-                            }
-                        }
-                    ]
+                    "choices": [{"message": {"content": _verdict_json(citations=("prd_public",))}}]
                 },
             )
         assert "DIALOGUE_CONTINUITY_JSON" in payload["messages"][1]["content"]
@@ -920,11 +908,7 @@ async def test_provider_exclusive_plan_rejects_unknown_or_malformed_output() -> 
         (
             httpx.Response(
                 200,
-                json={
-                    "choices": [
-                        {"message": {"content": _decision_json("admin_override")}}
-                    ]
-                },
+                json={"choices": [{"message": {"content": _decision_json("admin_override")}}]},
             ),
             httpx.Response(200, json={"choices": []}),
         )

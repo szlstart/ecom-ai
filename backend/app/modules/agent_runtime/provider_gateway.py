@@ -390,7 +390,6 @@ class OpenAICompatiblePlanner:
                     "cited_source_ids": {
                         "type": "array",
                         "items": {"type": "string", "enum": list(source_ids) or ["none"]},
-                        "uniqueItems": True,
                         "maxItems": min(12, max(1, len(source_ids))),
                     },
                     "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
@@ -637,17 +636,13 @@ class OpenAICompatiblePlanner:
         answer = _strip_untrusted_user_salutation(output.strip())
         if not answer or len(answer) > 4000:
             raise ModelGatewayError("model returned an invalid grounded answer")
-        assessment: GroundingAssessment | None = None
-        for _attempt in range(2):
-            assessment = await self._verify_grounding(
-                user_text=user_text,
-                evidence_json=evidence_json,
-                answer=answer,
-                source_ids=source_ids,
-            )
-            if assessment.supported and assessment.answers_user_request:
-                break
-        if assessment is None or not assessment.supported:
+        assessment = await self._verify_grounding(
+            user_text=user_text,
+            evidence_json=evidence_json,
+            answer=answer,
+            source_ids=source_ids,
+        )
+        if not assessment.supported:
             raise ModelGatewayError("model answer contains claims outside trusted evidence")
         if not assessment.answers_user_request:
             raise ModelGatewayError("model answer omitted evidence-backed requested facts")
@@ -828,7 +823,6 @@ class OpenAICompatiblePlanner:
                     "cited_source_ids": {
                         "type": "array",
                         "items": {"type": "string", "enum": allowed_sources},
-                        "uniqueItems": True,
                         "maxItems": min(12, max(1, len(allowed_sources))),
                     },
                     "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
@@ -905,9 +899,7 @@ class OpenAICompatiblePlanner:
             supported=supported,
             unsupported_claims=tuple(item[:300] for item in unsupported[:8]),
             answers_user_request=answers_user_request,
-            missing_required_facts=tuple(
-                item[:300] for item in missing_required_facts[:8]
-            ),
+            missing_required_facts=tuple(item[:300] for item in missing_required_facts[:8]),
             cited_source_ids=tuple(dict.fromkeys(citations)),
             confidence=str(confidence),
             limitation=limitation[:500] if isinstance(limitation, str) else None,

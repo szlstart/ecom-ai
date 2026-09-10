@@ -135,13 +135,10 @@ async def process_operations_run(
                 user_no=context.user.user_no,
                 store_no=context.store.store_no if context.store else None,
             )
-    planning_input = context_window.planning_input(user_text)
     intent = _deterministic_intent(user_text, context.audience)
-    if model_gateway is not None:
-        try:
-            intent = await model_gateway.plan(planning_input, context.agent_definition.agent_code)
-        except (ModelGatewayError, TimeoutError) as exc:
-            run.degraded_reason = model_failure_code(exc, "planning")
+    # Operations intents are a small, closed set and trusted data domains are known
+    # server-side. Deterministic routing avoids an unnecessary remote model round trip;
+    # the model remains responsible for grounded synthesis after tools have returned.
     complex_domains = (
         _admin_complex_domains(user_text)
         if context.audience == "admin"
@@ -657,10 +654,10 @@ def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
     if not isinstance(specialists, dict) or not specialists:
         return "本次经营诊断没有取得足够的可信结果，请缩小查询范围后重试。"
     products: list[Mapping[str, Any]] = []
+    products_loaded = False
     order_counts: Mapping[str, Any] = {}
     low_stock_count = 0
     completed_revenue: Mapping[str, Any] = {}
-    unsettled_paid: Mapping[str, Any] = {}
     for result in specialists.values():
         if not isinstance(result, dict):
             continue
@@ -670,41 +667,14 @@ def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
         candidate_products = safe_data.get("on_sale_products")
         if isinstance(candidate_products, list):
             products = [item for item in candidate_products if isinstance(item, Mapping)]
+            products_loaded = True
         candidate_counts = safe_data.get("order_status_counts")
         if isinstance(candidate_counts, Mapping):
             order_counts = candidate_counts
         candidate_revenue = safe_data.get("completed_order_revenue")
         if isinstance(candidate_revenue, Mapping):
             completed_revenue = candidate_revenue
-        candidate_unsettled = safe_data.get("unsettled_paid_amount")
-        if isinstance(candidate_unsettled, Mapping):
-            unsettled_paid = candidate_unsettled
         low_stock_count = max(low_stock_count, int(safe_data.get("low_stock_sku_count", 0)))
-    lines = ["已并行完成本店商品、库存和订单的只读经营诊断:"]
-    if products:
-        lines.append("在售商品与款式:")
-        for product in products:
-            lines.append(f"- {product.get('name')}:")
-            sku_values = product.get("skus")
-            for sku in sku_values if isinstance(sku_values, list) else []:
-                if not isinstance(sku, Mapping):
-                    continue
-                price = sku.get("price")
-                inventory = sku.get("inventory")
-                price_display = price.get("display") if isinstance(price, Mapping) else "价格待核对"
-                available = inventory.get("available", 0) if isinstance(inventory, Mapping) else 0
-                lines.append(f"  - {sku.get('name')}: {price_display}，可售库存 {available}")
-    else:
-        lines.append("当前没有查询到在售商品。")
-    if order_counts:
-        status_summary = "、".join(
-            f"{_order_status_label(str(key))} {value} 单" for key, value in order_counts.items()
-        )
-        lines.append(f"订单履约: {status_summary}。")
-    lines.append(
-        f"已确认营业额: {completed_revenue.get('display', '¥0.00')}。"
-        f"已支付但待确认收货金额: {unsettled_paid.get('display', '¥0.00')}。"
-    )
     risks: list[str] = []
     if low_stock_count:
         risks.append(f"{low_stock_count} 个款式达到低库存或缺货阈值")
@@ -713,50 +683,33 @@ def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
     )
     if pending_fulfillment:
         risks.append(f"{pending_fulfillment} 单仍在待履约或运输阶段")
-    lines.append("当前风险: " + ("；".join(risks) if risks else "未发现低库存或待履约积压") + "。")  # noqa: RUF001
-    lines.extend(
-        [
-            "经营建议:",
-            "1. 优先补充零库存和低库存款式，并结合实际销量调整安全库存。",
-            "2. 持续跟进待发货和运输中订单，避免履约超时与售后升级。",
-            "3. 商品价格、库存和订单状态变化后重新运行诊断，所有写操作仍由商家本人确认执行。",
-            "以上数据来自本店实时结构化查询，本次没有修改任何业务记录。",
-        ]
+    store = data.get("store")
+    store_name = str(store.get("store_name")) if isinstance(store, Mapping) else "本店"
+    checked_scopes = ["库存", "订单"]
+    if products_loaded:
+        checked_scopes.insert(0, f"{len(products)} 件在售商品")
+    overview = (
+        f"已并行核对{store_name}的{'、'.join(checked_scopes)}，已确认营业额 "
+        f"{completed_revenue.get('display', '¥0.00')}。"
     )
-    return "\n".join(lines)
-
-
-def _order_status_label(value: str) -> str:
-    return {
-        "pending_payment": "待付款",
-        "paid": "已付款待处理",
-        "pending_shipment": "待发货",
-        "shipped": "运输中",
-        "completed": "已完成",
-        "cancelled": "已取消",
-        "closed": "已关闭",
-    }.get(value, value)
+    if risks:
+        return overview + "建议先处理" + "、".join(risks) + "。明细和入口已整理在下方卡片中。"
+    return overview + "当前未发现低库存或待履约积压，明细和入口已整理在下方卡片中。"
 
 
 def _render_multi_agent(data: Mapping[str, Any]) -> str:
     specialists = data.get("specialists")
     if not isinstance(specialists, dict) or not specialists:
         return "跨域诊断没有取得足够的可信结果，请缩小查询范围后重试。"
-    lines = ["已并行完成跨域只读诊断:"]
     all_metrics: dict[str, int] = {}
     for result in specialists.values():
         if not isinstance(result, dict):
             continue
-        specialist = _specialist_label(str(result.get("specialist"))).split(":", 1)[0]
         safe_data = result.get("data")
         if not isinstance(safe_data, dict):
             continue
         metrics = _flatten_summary(safe_data)
         all_metrics.update({key: value for key, value in metrics.items() if isinstance(value, int)})
-        summary = "、".join(f"{key}={value}" for key, value in metrics.items())
-        if not summary:
-            summary = "已取得结构化汇总，可在右侧工作记录查看各领域完成状态"
-        lines.append(f"- {specialist}: {summary}")
     risks: list[str] = []
     if all_metrics.get("pending_outbox_events", 0) > 0:
         risks.append(f"仍有 {all_metrics['pending_outbox_events']} 条 Outbox 事件待处理")
@@ -764,27 +717,26 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
         risks.append(f"存在 {all_metrics['unrecovered_agent_failures']} 个尚未恢复的 Agent 故障")
     if all_metrics.get("product_status_counts.on_sale", 0) == 0:
         risks.append("平台当前没有在售商品")
-    if risks:
-        lines.append("风险: " + "；".join(risks) + "。")  # noqa: RUF001
-    else:
-        lines.append("风险: 当前汇总未发现 Outbox 积压、未恢复的 Agent 故障或无在售商品风险。")
     failed_runs_24h = all_metrics.get("failed_agent_runs_24h", 0)
     recovered_runs = all_metrics.get("successful_runs_after_latest_failure", 0)
+    recovery = ""
     if failed_runs_24h > 0 and all_metrics.get("unrecovered_agent_failures", 0) == 0:
-        lines.append(
-            f"恢复状态: 过去 24 小时记录到 {failed_runs_24h} 次失败；最新失败后已有 "  # noqa: RUF001
-            f"{recovered_runs} 次成功运行，当前判定已恢复，历史审计记录仍保留。"
+        recovery = (
+            f"过去 24 小时的 {failed_runs_24h} 次失败后已有 {recovered_runs} 次成功运行，"
+            "当前判定已恢复。"
         )
-    lines.extend(
-        [
-            "上线前建议:",
-            "1. 逐项定位 Agent 失败运行和死信事件，修复后重新执行同一只读诊断确认归零。",
-            "2. 持续核对订单履约、库存和 Outbox 消费延迟，并按连续失败阈值触发告警。",
-            "3. 上线前完成用户、店铺、订单与 AI 权限回归, 所有治理写操作仍由管理员在业务页面确认。",
-        ]
+    checked = len([item for item in specialists.values() if isinstance(item, Mapping)])
+    if risks:
+        return (
+            f"已由 {checked} 个专业 Agent 并行完成只读诊断。需要优先关注: "
+            + "、".join(risks)
+            + "。具体指标和治理入口已整理在下方卡片中。"
+            + recovery
+        )
+    return (
+        f"已由 {checked} 个专业 Agent 并行完成只读诊断，当前未发现事件积压、"
+        "未恢复的 Agent 故障或无在售商品风险。具体指标已整理在下方卡片中。" + recovery
     )
-    lines.append("以上仅为当前授权范围内的实时汇总，本次没有修改任何业务数据。")
-    return "\n".join(lines)
 
 
 def _flatten_summary(value: Mapping[str, Any]) -> dict[str, str | int]:
@@ -930,20 +882,62 @@ async def _snapshot(
                 },
             }
         if tool_code == "store_ops.inventory_risks":
-            low_stock = int(
-                await session.scalar(
-                    select(func.count(Inventory.id))
-                    .join(ProductSku, ProductSku.id == Inventory.sku_id)
+            risk_rows = (
+                await session.execute(
+                    select(Product, ProductSku, Inventory)
+                    .join(ProductSku, ProductSku.product_id == Product.id)
+                    .join(Inventory, Inventory.sku_id == ProductSku.id)
                     .where(
-                        ProductSku.store_id == store_id,
+                        Product.store_id == store_id,
+                        Product.deleted_at.is_(None),
+                        Product.product_status == "on_sale",
+                        ProductSku.sku_status == "active",
                         Inventory.inventory_status == "active",
                         Inventory.on_hand_quantity - Inventory.reserved_quantity
                         <= Inventory.safety_stock_quantity,
                     )
+                    .order_by(
+                        (Inventory.on_hand_quantity - Inventory.reserved_quantity).asc(),
+                        Product.id,
+                        ProductSku.id,
+                    )
+                    .limit(20)
                 )
-                or 0
+            ).all()
+            return {
+                "store_id": context.store.store_no,
+                "low_stock_sku_count": len(risk_rows),
+                "low_stock_skus": [
+                    {
+                        "product_id": product.product_no,
+                        "product_name": product.product_name,
+                        "sku_id": sku.sku_no,
+                        "sku_name": sku.sku_name,
+                        "available_quantity": inventory.on_hand_quantity
+                        - inventory.reserved_quantity,
+                        "safety_stock_quantity": inventory.safety_stock_quantity,
+                    }
+                    for product, sku, inventory in risk_rows
+                ],
+                "truncated": len(risk_rows) >= 20,
+            }
+        low_stock = int(
+            await session.scalar(
+                select(func.count(Inventory.id))
+                .join(ProductSku, ProductSku.id == Inventory.sku_id)
+                .join(Product, Product.id == ProductSku.product_id)
+                .where(
+                    ProductSku.store_id == store_id,
+                    Product.deleted_at.is_(None),
+                    Product.product_status == "on_sale",
+                    ProductSku.sku_status == "active",
+                    Inventory.inventory_status == "active",
+                    Inventory.on_hand_quantity - Inventory.reserved_quantity
+                    <= Inventory.safety_stock_quantity,
+                )
             )
-            return {"store_id": context.store.store_no, "low_stock_sku_count": low_stock}
+            or 0
+        )
         return {
             "store": {
                 "store_id": context.store.store_no,
@@ -963,6 +957,7 @@ async def _snapshot(
                 "currency": "CNY",
                 "display": _money_display(unsettled_paid_amount, "CNY"),
             },
+            "low_stock_sku_count": low_stock,
         }
 
     user_counts = await _counts(session, User.user_status)
@@ -1080,8 +1075,8 @@ def _operations_small_talk_reply(text: str, audience: str) -> str | None:
         return None
     if audience == "merchant":
         return (
-            "你好，我是商家专属客服。我可以协助查看本店经营概览、商品与库存、"
-            "订单履约等信息。涉及平台人工处理时，也可以由我发起转接。"
+            "你好，我是 AI 经营助理。我可以生成经营简报，分析本店商品、库存、订单、"
+            "履约和营业额，并把风险与下一步整理成可操作卡片，需要平台处理时也能发起转接。"
         )
     return (
         "你好，我是超级管理员 AI 管家。我可以在管理员权限范围内协助分析用户、店铺、"
@@ -1111,45 +1106,336 @@ def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, A
         products = data.get("on_sale_products")
         if not isinstance(products, list) or not products:
             return "本店当前没有可售商品。本次只读取了本店授权范围内的数据。"
-        lines = ["本店当前在售商品与可用库存:"]
         low_stock: list[str] = []
         for product in products:
             if not isinstance(product, dict):
                 continue
-            lines.append(f"- {product.get('name')} ({product.get('product_id')})")
             skus = product.get("skus")
             for sku in skus if isinstance(skus, list) else []:
                 if not isinstance(sku, dict):
                     continue
-                price = sku.get("price")
                 inventory = sku.get("inventory")
-                display = price.get("display") if isinstance(price, dict) else "价格未知"
                 available = inventory.get("available") if isinstance(inventory, dict) else 0
-                lines.append(f"  - {sku.get('name')}: {display}，可售库存 {available}")
                 if isinstance(available, int) and available <= 5:
                     low_stock.append(f"{product.get('name')}/{sku.get('name')}")
         if low_stock:
-            lines.append(
-                "经营建议: 优先核对低库存款式 " + "、".join(low_stock[:5]) + "，避免超卖。"
+            return (
+                f"已核对 {len(products)} 件在售商品。建议先处理这些低库存款式: "
+                + "、".join(low_stock[:3])
+                + "。详细价格和库存已整理在下方卡片中。"
             )
-        else:
-            lines.append("经营建议: 当前款式库存均高于低库存提醒线，可结合销量继续观察补货节奏。")
-        lines.append("价格和库存来自本店实时结构化数据，本次没有修改任何业务记录。")
-        return "\n".join(lines)
-    label = "店铺经营" if context.audience == "merchant" else "平台运行"
-    lines = [f"已完成{label}的只读查询 ({intent}):"]
-    for key, value in data.items():
-        if key == "conversation_window":
-            continue
-        if isinstance(value, dict):
-            rendered = "、".join(
-                f"{item_key}={item_value}" for item_key, item_value in value.items()
+        return (
+            f"已核对 {len(products)} 件在售商品，当前没有款式触发低库存提醒。明细已整理在卡片中。"
+        )
+    if context.audience == "merchant":
+        store_data = data.get("store")
+        store_name = (
+            str(store_data.get("name"))
+            if isinstance(store_data, Mapping) and store_data.get("name")
+            else "本店"
+        )
+        if intent == "overview":
+            order_counts = data.get("order_status_counts")
+            counts = order_counts if isinstance(order_counts, Mapping) else {}
+            pending = sum(
+                int(counts.get(key, 0)) for key in ("paid", "pending_shipment", "shipped")
             )
-            lines.append(f"- {key}: {rendered or '暂无数据'}")
-        else:
-            lines.append(f"- {key}: {value}")
-    lines.append("本次只读取了授权范围内的数据，没有修改任何业务记录。")
-    return "\n".join(lines)
+            low_stock = int(data.get("low_stock_sku_count", 0))
+            if low_stock:
+                priority = f"最优先处理 {low_stock} 个低库存或缺货款式"
+            elif pending:
+                priority = f"最优先跟进 {pending} 单待履约或运输中订单"
+            else:
+                priority = "当前没有紧急库存或履约积压，可优先优化在售商品信息"
+            return f"已生成{store_name}经营快照。{priority}，营业额和订单明细已整理在卡片中。"
+        return {
+            "orders": (
+                "已完成本店订单、履约与营业额核对。先看卡片中的待处理数量，再进入订单页处理。"
+            ),
+            "inventory": "已完成本店库存风险扫描。卡片展示需要优先补货的款式数量和处理入口。",
+        }.get(intent, f"已生成{store_name}经营快照，明细已整理为可操作卡片。")
+    return {
+        "users": "已完成平台用户状态核对。异常状态和治理入口已整理在卡片中。",
+        "stores": "已完成店铺与商品状态核对。建议优先处理暂停店铺和非在售商品。",
+        "catalog": "已完成平台商品状态核对。商品治理入口已附在卡片中。",
+        "orders": "已完成订单履约状态核对。待付款、待发货、运输中和售后风险已整理在卡片中。",
+        "runtime": "已完成 Agent 与异步链路健康核对。故障、积压和恢复状态已整理在卡片中。",
+    }.get(intent, "已生成平台运营快照。用户、店铺、商品、订单和运行风险已整理为卡片。")
+
+
+def _operations_detail_cards(
+    context: TrustedOperationsContext, intent: str, data: Mapping[str, Any]
+) -> list[dict[str, object]]:
+    """Turn trusted operational evidence into compact, actionable UI cards."""
+
+    specialists = data.get("specialists")
+    if isinstance(specialists, Mapping):
+        cards: list[dict[str, object]] = []
+        specialist_intents = {
+            "merchant_catalog": "catalog",
+            "merchant_inventory": "inventory",
+            "merchant_orders": "orders",
+            "governance_users": "users",
+            "governance_stores": "stores",
+            "governance_orders": "orders",
+            "observability": "runtime",
+        }
+        for result in specialists.values():
+            if not isinstance(result, Mapping):
+                continue
+            safe_data = result.get("data")
+            nested_intent = specialist_intents.get(str(result.get("specialist")))
+            if nested_intent and isinstance(safe_data, Mapping):
+                cards.extend(_operations_detail_cards(context, nested_intent, safe_data))
+        if cards:
+            return cards[:5]
+
+    def rows_from_counts(
+        counts: object, labels: Mapping[str, str], *, maximum: int = 8
+    ) -> list[dict[str, str]]:
+        if not isinstance(counts, Mapping):
+            return []
+        return [
+            {"label": labels.get(str(key), str(key)), "value": str(value)}
+            for key, value in list(counts.items())[:maximum]
+        ]
+
+    order_labels = {
+        "pending_payment": "待付款",
+        "paid": "已付款",
+        "pending_shipment": "待发货",
+        "shipped": "运输中",
+        "completed": "已完成",
+        "cancelled": "已取消",
+        "closed": "已关闭",
+    }
+    product_labels = {
+        "draft": "草稿",
+        "pending_review": "审核中",
+        "on_sale": "销售中",
+        "off_shelf": "已下架",
+        "rejected": "需修改",
+    }
+    store_labels = {"active": "营业中", "suspended": "已暂停"}
+    user_labels = {"active": "正常", "frozen": "冻结", "disabled": "停用", "deleted": "已删除"}
+
+    if context.audience == "merchant":
+        if intent == "catalog":
+            cards: list[dict[str, object]] = []
+            products = data.get("on_sale_products")
+            for product in products if isinstance(products, list) else []:
+                if not isinstance(product, Mapping):
+                    continue
+                sku_rows: list[dict[str, str]] = []
+                skus = product.get("skus")
+                for sku in skus if isinstance(skus, list) else []:
+                    if not isinstance(sku, Mapping):
+                        continue
+                    price = sku.get("price")
+                    inventory = sku.get("inventory")
+                    available = (
+                        inventory.get("available", 0) if isinstance(inventory, Mapping) else 0
+                    )
+                    sku_rows.append(
+                        {
+                            "label": str(sku.get("name") or "默认款式"),
+                            "value": str(
+                                price.get("display") if isinstance(price, Mapping) else "价格待核对"
+                            ),
+                            "meta": f"可售 {available}",
+                        }
+                    )
+                cards.append(
+                    {
+                        "kind": "merchant_product",
+                        "icon": "商",
+                        "eyebrow": "在售商品",
+                        "title": str(product.get("name") or "商品"),
+                        "badge": f"已售 {product.get('sales_count', 0)}",
+                        "tone": "",
+                        "rows": sku_rows[:6],
+                        "action": {
+                            "label": "编辑商品",
+                            "path": f"/merchant/products/{product.get('product_id')}",
+                        },
+                    }
+                )
+            return cards[:5]
+        if intent == "inventory":
+            low_count = int(data.get("low_stock_sku_count", 0))
+            risks = data.get("low_stock_skus")
+            risk_items = (
+                [item for item in risks if isinstance(item, Mapping)]
+                if isinstance(risks, list)
+                else []
+            )
+            if not risk_items:
+                return [
+                    {
+                        "kind": "inventory_risk",
+                        "icon": "库",
+                        "eyebrow": "库存守卫",
+                        "title": "当前没有低库存或缺货款式",
+                        "badge": "状态良好",
+                        "tone": "",
+                        "summary": "已按每个款式的安全库存线核对实时可售库存。",
+                        "rows": [{"label": "风险款式", "value": "0", "meta": "实时核对"}],
+                        "action": {"label": "进入商品管理", "path": "/merchant/products"},
+                    }
+                ]
+            cards: list[dict[str, object]] = []
+            for item in risk_items[:5]:
+                available = int(item.get("available_quantity", 0))
+                safety = int(item.get("safety_stock_quantity", 0))
+                product_id = str(item.get("product_id") or "")
+                cards.append(
+                    {
+                        "kind": "inventory_risk",
+                        "icon": "库",
+                        "eyebrow": "缺货款式" if available <= 0 else "低库存款式",
+                        "title": str(item.get("product_name") or "商品"),
+                        "badge": "已缺货" if available <= 0 else f"仅剩 {available}",
+                        "tone": "warning",
+                        "summary": str(item.get("sku_name") or "默认款式"),
+                        "rows": [
+                            {"label": "实时可售", "value": str(available)},
+                            {"label": "安全库存线", "value": str(safety)},
+                        ],
+                        "action": {
+                            "label": "编辑该商品",
+                            "path": (
+                                f"/merchant/products/{product_id}"
+                                if product_id
+                                else "/merchant/products"
+                            ),
+                        },
+                    }
+                )
+            if low_count > len(cards):
+                cards[-1]["summary"] = (
+                    f"另有 {low_count - len(cards)} 个风险款式，请进入商品管理继续查看。"
+                )
+            return cards
+        order_rows = rows_from_counts(data.get("order_status_counts"), order_labels)
+        revenue = data.get("completed_order_revenue")
+        unsettled = data.get("unsettled_paid_amount")
+        if isinstance(revenue, Mapping):
+            order_rows.insert(
+                0, {"label": "已确认营业额", "value": str(revenue.get("display", "¥0.00"))}
+            )
+        if isinstance(unsettled, Mapping):
+            order_rows.insert(
+                1, {"label": "待确认收货金额", "value": str(unsettled.get("display", "¥0.00"))}
+            )
+        low_stock = int(data.get("low_stock_sku_count", 0))
+        if low_stock:
+            order_rows.insert(
+                2,
+                {
+                    "label": "低库存或缺货款式",
+                    "value": str(low_stock),
+                    "meta": "建议优先处理",
+                },
+            )
+        return [
+            {
+                "kind": "merchant_overview",
+                "icon": "营",
+                "eyebrow": "经营快照",
+                "title": context.store.store_name if context.store else "本店经营概况",
+                "badge": "需要处理" if low_stock else "实时",
+                "tone": "warning" if low_stock else "",
+                "rows": order_rows[:8]
+                or rows_from_counts(data.get("product_status_counts"), product_labels),
+                "action": {
+                    "label": "查看本店订单" if intent == "orders" else "进入经营首页",
+                    "path": "/merchant/orders" if intent == "orders" else "/merchant/dashboard",
+                },
+            }
+        ]
+
+    card_specs = {
+        "users": (
+            "用",
+            "用户治理",
+            "平台用户状态",
+            data.get("user_status_counts"),
+            user_labels,
+            "/admin/users",
+        ),
+        "stores": (
+            "店",
+            "店铺治理",
+            "店铺与商品状态",
+            data.get("store_status_counts"),
+            store_labels,
+            "/admin/stores",
+        ),
+        "catalog": (
+            "商",
+            "商品治理",
+            "平台商品状态",
+            data.get("product_status_counts"),
+            product_labels,
+            "/admin/stores",
+        ),
+        "orders": (
+            "单",
+            "交易履约",
+            "平台订单状态",
+            data.get("order_status_counts"),
+            order_labels,
+            "/admin/orders",
+        ),
+        "runtime": (
+            "AI",
+            "运行诊断",
+            "Agent 与事件链路",
+            data,
+            {
+                "pending_outbox_events": "待投递事件",
+                "failed_agent_runs_24h": "24小时失败运行",
+                "successful_runs_after_latest_failure": "故障后成功运行",
+                "unrecovered_agent_failures": "未恢复故障",
+            },
+            "/admin/observability",
+        ),
+    }
+    if intent in card_specs:
+        icon, eyebrow, title, counts, labels, path = card_specs[intent]
+        rows = rows_from_counts(counts, labels)
+        warning = any(
+            int(row["value"]) > 0
+            for row in rows
+            if row["value"].isdigit()
+            and row["label"]
+            in {"冻结", "停用", "已暂停", "待发货", "待投递事件", "24小时失败运行", "未恢复故障"}
+        )
+        return [
+            {
+                "kind": f"admin_{intent}",
+                "icon": icon,
+                "eyebrow": eyebrow,
+                "title": title,
+                "badge": "需要关注" if warning else "已核对",
+                "tone": "warning" if warning else "",
+                "rows": rows,
+                "action": {"label": "打开管理页面", "path": path},
+            }
+        ]
+    return [
+        {
+            "kind": "admin_overview",
+            "icon": "总",
+            "eyebrow": "平台运营",
+            "title": "商城运行总览",
+            "badge": "实时",
+            "rows": rows_from_counts(data.get("user_status_counts"), user_labels, maximum=3)
+            + rows_from_counts(data.get("store_status_counts"), store_labels, maximum=3)
+            + rows_from_counts(data.get("order_status_counts"), order_labels, maximum=3),
+            "action": {"label": "进入管理首页", "path": "/admin"},
+        }
+    ]
 
 
 def _money_display(minor_units: int, currency: str) -> str:
@@ -1191,6 +1477,8 @@ async def _complete(
         {"kind": "answer", "label": "生成证据约束回复", "status": "completed"},
     ]
     extra = dict(trace_extra or {})
+    if context.run.degraded_reason:
+        extra.setdefault("degraded_reason", context.run.degraded_reason)
     supplied_steps = extra.pop("steps", None)
     steps = (
         [dict(item) for item in supplied_steps if isinstance(item, Mapping)]
@@ -1228,6 +1516,7 @@ async def _complete(
             "run_id": context.run.run_no,
             "data_scope": context.trusted_scope,
             "execution_trace": trace,
+            "detail_cards": _operations_detail_cards(context, intent, data),
         },
         agent_version_id=context.agent_version.id,
         ai_run_no=context.run.run_no,

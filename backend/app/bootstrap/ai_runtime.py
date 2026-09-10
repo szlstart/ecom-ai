@@ -108,6 +108,30 @@ SKILLS: tuple[SkillSeed, ...] = (
         ),
     ),
     SkillSeed(
+        "merchant_daily_brief",
+        "商家每日经营简报",
+        "汇总当前店铺营业额、商品和订单状态，先给优先级，再用卡片提供处理入口。只读。",
+        ("store_ops.overview",),
+    ),
+    SkillSeed(
+        "merchant_catalog_insight",
+        "商家商品经营分析",
+        "分析当前店铺在售商品、款式、价格、销量和实时库存，不读取其他店铺数据。",
+        ("store_ops.catalog_summary",),
+    ),
+    SkillSeed(
+        "merchant_inventory_guard",
+        "商家库存守卫",
+        "识别当前店铺缺货和低于安全库存线的款式，给出补货优先级，不直接修改库存。",
+        ("store_ops.inventory_risks",),
+    ),
+    SkillSeed(
+        "merchant_fulfillment_assist",
+        "商家订单履约助手",
+        "汇总当前店铺订单、待履约金额和已确认营业额，提供订单处理入口，不修改订单状态。",
+        ("store_ops.order_summary",),
+    ),
+    SkillSeed(
         "merchant_platform_support",
         "商家平台支持",
         "解释平台规则并在无法可靠处理时创建平台人工工单，不代表平台作出审批承诺。",
@@ -124,6 +148,30 @@ SKILLS: tuple[SkillSeed, ...] = (
             "governance.order_summary",
             "observability.runtime_health",
         ),
+    ),
+    SkillSeed(
+        "admin_user_governance",
+        "平台用户治理助手",
+        "汇总平台用户状态并识别需要人工核对的账号风险，具体治理操作必须进入管理页面。",
+        ("governance.user_summary",),
+    ),
+    SkillSeed(
+        "admin_store_governance",
+        "平台店铺治理助手",
+        "汇总店铺和商品状态，给出治理优先级，不在聊天中直接暂停店铺或下架商品。",
+        ("governance.store_summary",),
+    ),
+    SkillSeed(
+        "admin_order_governance",
+        "平台交易履约助手",
+        "汇总平台订单状态与履约风险，提供订单治理入口，不在聊天中改变资金或订单状态。",
+        ("governance.order_summary",),
+    ),
+    SkillSeed(
+        "admin_runtime_observability",
+        "平台 AI 与任务运行诊断",
+        "检查 Agent、异步事件和故障恢复状态，所有结论必须来自实时运行数据。",
+        ("observability.runtime_health",),
     ),
 )
 
@@ -162,12 +210,20 @@ AGENTS: tuple[AgentSeed, ...] = (
     ),
     AgentSeed(
         "merchant_copilot",
-        "商家专属客服",
+        "AI 经营助理",
         "merchant_copilot",
         COMMON_SAFETY_PROMPT
-        + "\n你是商家的专属经营客服。结合当前店铺的商品、库存、订单、物流和评价上下文理解"
-        "连续问题，只分析经营人员有权管理的店铺并提供可执行建议，不代替平台审批。",
-        ("merchant_operations_assist", "merchant_platform_support"),
+        + "\n你是店铺运营人员的 AI 经营助理。结合当前店铺商品、实时库存、订单、履约、"
+        "营业额、评价和平台商家规则理解连续问题。先给经营结论和处理优先级，详细事实交给"
+        "结构化卡片展示，不要输出数据库字段清单。只分析经营人员有权管理的店铺。你可以"
+        "生成建议和草稿，但不能代替经营人员修改库存、发布或下架商品，也不能代替平台审批。",
+        (
+            "merchant_daily_brief",
+            "merchant_catalog_insight",
+            "merchant_inventory_guard",
+            "merchant_fulfillment_assist",
+            "merchant_platform_support",
+        ),
         executable=True,
     ),
     AgentSeed(
@@ -175,9 +231,16 @@ AGENTS: tuple[AgentSeed, ...] = (
         "AI 管家",
         "admin_copilot",
         COMMON_SAFETY_PROMPT
-        + "\n你是超级管理员的 AI 管家。结合平台用户、店铺、商品、交易和运行上下文进行"
-        "结构化只读诊断，明确数据范围、证据和建议。任何治理写操作都必须进入独立确认或审批资源。",
-        ("admin_readonly_diagnostics",),
+        + "\n你是商城管理人员的 AI 管家和多 Agent Supervisor。结合平台用户、店铺、商品、"
+        "交易、售后、风险、知识与运行上下文进行结构化诊断。复杂问题应委派给最少数量的"
+        "专业 Agent 并合并结果。先给治理结论和优先级，详细事实使用结构化卡片展示，不输出"
+        "数据库字段清单。任何治理写操作都必须进入独立确认或审批资源。",
+        (
+            "admin_user_governance",
+            "admin_store_governance",
+            "admin_order_governance",
+            "admin_runtime_observability",
+        ),
         executable=True,
     ),
 )
@@ -259,6 +322,9 @@ async def _seed_skills(
             )
             session.add(definition)
             await session.flush()
+        elif definition.display_name != item.name:
+            definition.display_name = item.name
+            definition.version += 1
         version = await session.scalar(
             select(SkillVersion).where(
                 SkillVersion.skill_id == definition.id,
@@ -329,9 +395,14 @@ async def _seed_agents(
             )
             session.add(definition)
             await session.flush()
+        if definition.display_name != item.name:
+            definition.display_name = item.name
+            definition.version += 1
         target_version_no = (
-            5
-            if item.code in {"exclusive_support", "merchant_copilot", "admin_copilot"}
+            7
+            if item.code in {"merchant_copilot", "admin_copilot"}
+            else 6
+            if item.code == "exclusive_support"
             else 4
         )
         version = await session.scalar(
@@ -345,7 +416,7 @@ async def _seed_agents(
         )
         if version is None:
             policy_config: dict[str, object] = {
-                "prompt_version": "safe-agent-v4",
+                "prompt_version": "safe-agent-v6",
                 "max_tool_calls": 6,
                 "max_delegations": (
                     4
@@ -391,7 +462,7 @@ async def _seed_agents(
             version.model_profile = "gpt-5.5-reasoning"
             version.tool_allowlist = allowed_tools
             version.policy_config = {
-                "prompt_version": "safe-agent-v4",
+                "prompt_version": "safe-agent-v6",
                 "max_tool_calls": 6,
                 "max_delegations": 4,
                 "max_delegation_depth": 1,

@@ -706,6 +706,10 @@ class SupportService:
             message_type, text_content, content_payload = await self._product_card(
                 conversation, payload.product_id, payload.sku_id
             )
+        elif payload.order_id is not None:
+            message_type, text_content, content_payload = await self._order_card(
+                conversation, payload.order_id
+            )
         conversation.last_sequence_no += 1
         conversation.version += 1
         message = Message(
@@ -761,19 +765,17 @@ class SupportService:
     async def _product_card(
         self, conversation: Conversation, product_no: str, sku_no: str | None
     ) -> tuple[str, None, dict[str, object]]:
-        if conversation.store_id is None:
-            raise _not_found()
-        product = await self.session.scalar(
-            select(Product).where(
-                Product.product_no == product_no,
-                Product.store_id == conversation.store_id,
-                Product.product_status == "on_sale",
-                Product.deleted_at.is_(None),
-            )
+        product_statement = select(Product).where(
+            Product.product_no == product_no,
+            Product.product_status == "on_sale",
+            Product.deleted_at.is_(None),
         )
+        if conversation.store_id is not None:
+            product_statement = product_statement.where(Product.store_id == conversation.store_id)
+        product = await self.session.scalar(product_statement)
         if product is None:
             raise _not_found()
-        store = await self.session.get(Store, conversation.store_id)
+        store = await self.session.get(Store, product.store_id)
         if store is None:
             raise _not_found()
         sku_statement = select(ProductSku).where(
@@ -849,6 +851,21 @@ class SupportService:
                 },
             },
         )
+
+    async def _order_card(
+        self, conversation: Conversation, order_no: str
+    ) -> tuple[str, None, dict[str, object]]:
+        """Build an order card after reapplying the conversation's user/store scope."""
+
+        from app.modules.messaging.service import MessagingService
+
+        customer = await self.session.get(User, conversation.user_id)
+        if customer is None:
+            raise _not_found()
+        payload = await MessagingService(self.session).order_card_payload(
+            customer, conversation, order_no
+        )
+        return "order_card", None, payload
 
     async def send_conversation(
         self, access: AdminAccess, conversation_no: str, payload: SupportMessageRequest

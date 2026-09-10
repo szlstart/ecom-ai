@@ -31,6 +31,7 @@ from app.modules.agent_runtime.model_gateway import (
 from app.modules.agent_runtime.operations_agent import (
     _merchant_complex_domains,
     _normalize_operations_answer,
+    _operations_detail_cards,
     _operations_small_talk_reply,
     _render,
     _render_merchant_multi_agent,
@@ -180,9 +181,7 @@ def test_store_policy_uses_platform_free_shipping_when_store_has_no_override() -
         "platform_delivery": {"method": "邮寄", "freight_amount": 0, "currency": "CNY"},
     }
 
-    rendered = _render_store(
-        StoreAgentPlan("policy_qa"), data, "这家店包邮吗，支持退换吗?"
-    )
+    rendered = _render_store(StoreAgentPlan("policy_qa"), data, "这家店包邮吗，支持退换吗?")
     cards = _store_detail_cards(StoreAgentPlan("policy_qa"), data)
 
     assert "邮寄且包邮" in rendered
@@ -257,9 +256,7 @@ def test_previous_result_reselection_is_not_confused_with_single_item_follow_up(
 @pytest.mark.asyncio
 async def test_store_planner_keeps_policy_and_single_product_usage_out_of_order_search() -> None:
     policy = await DeterministicStoreModelGateway().plan("本店包邮吗? 从哪里发货?")
-    usage = await DeterministicStoreModelGateway().plan(
-        "请用两三句话介绍绿杆2B铅笔，适合什么场景?"
-    )
+    usage = await DeterministicStoreModelGateway().plan("请用两三句话介绍绿杆2B铅笔，适合什么场景?")
 
     assert policy.intent == "policy_qa"
     assert usage.intent == "product_qa"
@@ -268,9 +265,7 @@ async def test_store_planner_keeps_policy_and_single_product_usage_out_of_order_
 @pytest.mark.asyncio
 async def test_store_recommendation_strips_generic_instruction_words() -> None:
     generic = await DeterministicStoreModelGateway().plan("推荐本店商品")
-    constrained = await DeterministicStoreModelGateway().plan(
-        "你们店有什么适合考试的文具"
-    )
+    constrained = await DeterministicStoreModelGateway().plan("你们店有什么适合考试的文具")
 
     assert generic.intent == "product_recommend"
     assert generic.search_text is None
@@ -417,10 +412,68 @@ def test_operations_agents_have_distinct_small_talk_responses() -> None:
     merchant = _operations_small_talk_reply("你好", "merchant")
     admin = _operations_small_talk_reply("你好", "admin")
     schedule = _operations_small_talk_reply("人工客服几点下班?", "merchant")
-    assert merchant is not None and "商家专属客服" in merchant
+    assert merchant is not None and "AI 经营助理" in merchant
     assert admin is not None and "超级管理员 AI 管家" in admin
     assert schedule is not None and "请帮我转人工客服" in schedule
     assert _operations_small_talk_reply("查看今天的订单", "merchant") is None
+
+
+def test_operations_results_include_actionable_cards() -> None:
+    merchant_context = SimpleNamespace(
+        audience="merchant", store=SimpleNamespace(store_name="测试店铺")
+    )
+    merchant_cards = _operations_detail_cards(
+        cast(TrustedOperationsContext, merchant_context),
+        "orders",
+        {
+            "order_status_counts": {"pending_shipment": 2, "completed": 5},
+            "completed_order_revenue": {"display": "¥88.00"},
+            "unsettled_paid_amount": {"display": "¥12.00"},
+        },
+    )
+    assert merchant_cards[0]["action"] == {
+        "label": "查看本店订单",
+        "path": "/merchant/orders",
+    }
+    assert {row["label"] for row in merchant_cards[0]["rows"]} >= {
+        "已确认营业额",
+        "待发货",
+    }
+
+    inventory_cards = _operations_detail_cards(
+        cast(TrustedOperationsContext, merchant_context),
+        "inventory",
+        {
+            "low_stock_sku_count": 1,
+            "low_stock_skus": [
+                {
+                    "product_id": "prd_LOW",
+                    "product_name": "低库存商品",
+                    "sku_name": "黑色 M",
+                    "available_quantity": 2,
+                    "safety_stock_quantity": 5,
+                }
+            ],
+        },
+    )
+    assert inventory_cards[0]["title"] == "低库存商品"
+    assert inventory_cards[0]["summary"] == "黑色 M"
+    assert inventory_cards[0]["action"] == {
+        "label": "编辑该商品",
+        "path": "/merchant/products/prd_LOW",
+    }
+
+    admin_context = SimpleNamespace(audience="admin", store=None)
+    admin_cards = _operations_detail_cards(
+        cast(TrustedOperationsContext, admin_context),
+        "runtime",
+        {"pending_outbox_events": 3, "failed_agent_runs_24h": 1},
+    )
+    assert admin_cards[0]["badge"] == "需要关注"
+    assert admin_cards[0]["action"] == {
+        "label": "打开管理页面",
+        "path": "/admin/observability",
+    }
 
 
 def test_operations_answer_localizes_internal_status_codes() -> None:
@@ -430,19 +483,16 @@ def test_operations_answer_localizes_internal_status_codes() -> None:
     )
 
     assert answer == (
-        "3 个店铺处于营业中，5 个用户为正常状态，1 笔订单状态为已发货，"
-        "另有商品处于审核中。"
+        "3 个店铺处于营业中，5 个用户为正常状态，1 笔订单状态为已发货，另有商品处于审核中。"
     )
 
 
 def test_merchant_cross_domain_diagnosis_routes_to_bounded_specialists() -> None:
-    domains = _merchant_complex_domains(
-        "分析本店在售商品、各款式实时库存和待履约订单风险"
-    )
+    domains = _merchant_complex_domains("分析本店在售商品、各款式实时库存和待履约订单风险")
     assert domains == ("catalog", "inventory", "orders")
 
 
-def test_merchant_multi_agent_fallback_keeps_exact_sku_and_order_facts() -> None:
+def test_merchant_multi_agent_fallback_is_concise_and_defers_details_to_cards() -> None:
     answer = _render_merchant_multi_agent(
         {
             "specialists": {
@@ -482,11 +532,13 @@ def test_merchant_multi_agent_fallback_keeps_exact_sku_and_order_facts() -> None
         }
     )
 
-    assert "6支装: ¥6.00，可售库存 8" in answer
-    assert "运输中 1 单" in answer
-    assert "已确认营业额: ¥6.00" in answer
-    assert "已支付但待确认收货金额: ¥7.00" in answer
-    assert "本次没有修改任何业务记录" in answer
+    assert "1 件在售商品" in answer
+    assert "¥6.00" in answer
+    assert "1 个款式达到低库存或缺货阈值" in answer
+    assert "1 单仍在待履约或运输阶段" in answer
+    assert "卡片" in answer
+    assert "6支装" not in answer
+    assert len(answer) < 180
 
 
 def test_operations_fallback_never_renders_private_conversation_window() -> None:
@@ -505,6 +557,25 @@ def test_operations_fallback_never_renders_private_conversation_window() -> None
     assert "不应展示的历史消息" not in answer
 
 
+def test_merchant_overview_fallback_turns_live_risks_into_a_clear_priority() -> None:
+    context = cast(
+        TrustedOperationsContext,
+        SimpleNamespace(audience="merchant", store=SimpleNamespace(store_name="测试店铺")),
+    )
+
+    answer = _render(
+        context,
+        "overview",
+        {
+            "order_status_counts": {"pending_shipment": 3},
+            "low_stock_sku_count": 2,
+        },
+    )
+
+    assert "最优先处理 2 个低库存或缺货款式" in answer
+    assert "卡片" in answer
+
+
 @pytest.mark.asyncio
 async def test_exclusive_search_planner_extracts_public_catalog_query() -> None:
     plan = await DeterministicExclusiveModelGateway().plan("请帮我全平台搜索退款测试键盘")
@@ -516,9 +587,7 @@ def test_named_store_product_scores_above_stale_context_product() -> None:
     question = "请告诉我本店绿杆2B铅笔所有款式的价格和实时可售库存"
     assert _product_match_score(
         question, "绿杆2B书写铅笔考试绘画专用高质顺滑不卡顿书写利器"
-    ) > _product_match_score(
-        question, "日本ZEBRA斑马笔芯CJK-0.5mm黑色按动笔芯"
-    )
+    ) > _product_match_score(question, "日本ZEBRA斑马笔芯CJK-0.5mm黑色按动笔芯")
 
     assert _product_match_score(question, "绿杆2B铅笔", ["6支", "8支", "10支"]) > 0
     assert _product_match_score("6支装现在能买吗", "绿杆2B铅笔", ["6支"]) > (
@@ -542,7 +611,7 @@ def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:
                     "available_quantity": 0,
                     "availability_label": "缺货",
                 }
-            ]
+            ],
         },
     )
     assert answer == "已查到“绿杆2B铅笔”的实时库存。款式、价格和可售数量都整理在卡片中。"

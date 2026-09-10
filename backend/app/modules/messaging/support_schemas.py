@@ -111,11 +111,13 @@ class SupportMessageRequest(StrictRequest):
     text: str | None = Field(default=None, min_length=1, max_length=4000)
     product_id: str | None = Field(default=None, pattern=r"^prd_[0-9A-Z]+$", max_length=40)
     sku_id: str | None = Field(default=None, pattern=r"^sku_[0-9A-Z]+$", max_length=40)
+    order_id: str | None = Field(default=None, pattern=r"^ord_[0-9A-Z]+$", max_length=40)
 
     @model_validator(mode="after")
     def validate_content(self) -> SupportMessageRequest:
-        if (self.text is None) == (self.product_id is None):
-            raise ValueError("text 与 product_id 必须且只能提供一个")
+        supplied = sum(value is not None for value in (self.text, self.product_id, self.order_id))
+        if supplied != 1:
+            raise ValueError("text、product_id 与 order_id 必须且只能提供一个")
         if self.sku_id is not None and self.product_id is None:
             raise ValueError("sku_id 只能与 product_id 一起提供")
         return self

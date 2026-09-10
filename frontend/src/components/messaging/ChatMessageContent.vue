@@ -96,6 +96,13 @@ function detailRows(card: JsonObject): JsonObject[] {
 }
 function detailRoute(card: JsonObject): RouteLocationRaw | null {
   const action = objectValue(card.action)
+  const path = stringValue(action.path)
+  const audiencePathAllowed = props.audience === 'merchant'
+    ? path.startsWith('/merchant/')
+    : props.audience === 'admin'
+      ? path === '/admin' || path.startsWith('/admin/')
+      : path.startsWith('/me/')
+  if (path && audiencePathAllowed && !path.includes('..') && !path.includes('?')) return path
   const resourceId = stringValue(action.resource_id)
   if (!resourceId) return null
   if (action.resource_type === 'product') return productRoute({ product_id: resourceId })

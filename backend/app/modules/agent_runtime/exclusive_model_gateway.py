@@ -10,8 +10,10 @@ ExclusiveIntent = Literal[
     "general_chat",
     "policy_qa",
     "product_search",
+    "product_compare",
     "personalized_recommendation",
     "order_lookup",
+    "cart_lookup",
     "logistics_lookup",
     "refund_precheck",
     "refund_eligibility",
@@ -43,7 +45,11 @@ class DeterministicExclusiveModelGateway:
         if is_explicit_handoff_request(user_text):
             return ExclusiveAgentPlan("human_handoff")
         if _contains(text, "第一个", "第二个", "第三个", "第四个", "第五个", "刚才推荐"):
+            if _contains(text, "对比", "比较", "区别", "差别"):
+                return ExclusiveAgentPlan("product_compare")
             return ExclusiveAgentPlan("product_search", _search_text(user_text))
+        if _contains(text, "对比", "比较", "区别", "差别"):
+            return ExclusiveAgentPlan("product_compare")
         if _contains(text, "搜索", "查找", "搜一下", "找找") and not _contains(
             text, "订单", "物流", "快递", "售后进度", "退款进度"
         ):
@@ -52,7 +58,33 @@ class DeterministicExclusiveModelGateway:
             text, "订单", "物流", "快递", "售后", "退款方式", "退款进度"
         ):
             return ExclusiveAgentPlan("personalized_recommendation", _search_text(user_text))
-        if _contains(text, "退款进度", "售后进度", "退款到哪", "退款状态"):
+        if (
+            "退款" in text
+            and _contains(
+                text,
+                "多久到账",
+                "多久到",
+                "多久能退",
+                "要多久",
+                "多长时间",
+                "时效",
+                "时间",
+                "几天",
+                "规则",
+            )
+            and not _contains(text, "我的退款", "这笔退款", "当前退款", "退款进度")
+        ):
+            return ExclusiveAgentPlan("policy_qa")
+        if _contains(
+            text,
+            "退款进度",
+            "售后进度",
+            "退款到哪",
+            "退款状态",
+            "我的退款",
+            "这笔退款",
+            "当前退款",
+        ):
             return ExclusiveAgentPlan("refund_progress")
         if _contains(
             text,
@@ -64,6 +96,11 @@ class DeterministicExclusiveModelGateway:
             "是否能退款",
             "是否可以退款",
             "是否具备退款",
+            "能退款吗",
+            "能退吗",
+            "可退款吗",
+            "可以退吗",
+            "有没有退款资格",
         ):
             return ExclusiveAgentPlan("refund_precheck")
         if _contains(
@@ -81,8 +118,12 @@ class DeterministicExclusiveModelGateway:
             return ExclusiveAgentPlan("refund_eligibility")
         if _contains(text, "物流", "快递", "包裹", "到哪", "送达"):
             return ExclusiveAgentPlan("logistics_lookup")
+        if _contains(text, "购物车", "购物袋"):
+            return ExclusiveAgentPlan("cart_lookup")
         if _contains(text, "订单", "付款", "收货", "购买记录"):
             return ExclusiveAgentPlan("order_lookup")
+        if _contains(text, "库存", "有货", "缺货", "款式", "规格", "尺码", "码数"):
+            return ExclusiveAgentPlan("product_search", _search_text(user_text))
         if _contains(text, "商品", "搜索", "找", "买", "价格", "对比"):
             return ExclusiveAgentPlan("product_search", _search_text(user_text))
         if _contains(text, "规则", "政策", "平台", "运费", "退换", "保修", "发票"):
@@ -94,11 +135,13 @@ EXCLUSIVE_CAPABILITIES: dict[ExclusiveIntent, tuple[str, ...]] = {
     "general_chat": (),
     "policy_qa": ("rag.policy.search",),
     "product_search": ("catalog.search_products",),
+    "product_compare": ("catalog.compare_products",),
     "personalized_recommendation": (
         "catalog.search_products",
         "memory.list_mine",
     ),
     "order_lookup": ("order.list_user_orders", "order.get_user_order_detail"),
+    "cart_lookup": ("cart.get_mine",),
     "logistics_lookup": ("logistics.get_user_order_shipments",),
     "refund_precheck": ("after_sale.check_refund_eligibility",),
     "refund_eligibility": ("after_sale.build_refund_draft",),

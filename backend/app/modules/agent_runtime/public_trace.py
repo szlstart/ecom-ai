@@ -14,6 +14,8 @@ _INTENT_LABELS = {
     "order_explain": "查询并解释当前订单",
     "product_recommend": "筛选店内商品候选",
     "product_search": "搜索全平台在售商品",
+    "product_compare": "对比已选商品",
+    "cart_lookup": "读取我的购物车",
     "personalized_recommendation": "结合已授权偏好筛选商品",
     "order_lookup": "查询本人订单",
     "logistics_lookup": "查询订单物流",

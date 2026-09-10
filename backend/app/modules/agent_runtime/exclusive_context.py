@@ -19,6 +19,7 @@ EXCLUSIVE_AGENT_TOOL_CODES = frozenset(
         "catalog.compare_products",
         "order.list_user_orders",
         "order.get_user_order_detail",
+        "cart.get_mine",
         "logistics.get_user_order_shipments",
         "after_sale.check_refund_eligibility",
         "after_sale.build_refund_draft",

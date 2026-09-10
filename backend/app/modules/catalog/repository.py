@@ -58,7 +58,15 @@ class CatalogRepository:
             statement = statement.where(
                 or_(
                     Product.product_name.like(term, escape="\\"),
+                    Product.subtitle.like(term, escape="\\"),
+                    Product.description.like(term, escape="\\"),
+                    Category.category_name.like(term, escape="\\"),
                     Brand.brand_name.like(term, escape="\\"),
+                    # A merchant's store name is a useful public category signal
+                    # when legacy products still sit in a generic category such
+                    # as "其他商品" (for example, "文具专卖店"). Agent callers
+                    # still enforce hard price bounds and never use this match to
+                    # fall back from a more specific purpose term.
                     Store.store_name.like(term, escape="\\"),
                 )
             )

@@ -35,6 +35,66 @@ class ModelGatewayError(RuntimeError):
     pass
 
 
+def requests_other_user_data(user_text: str) -> bool:
+    """Detect explicit attempts to read another shopper's private data."""
+
+    text = _normalize(user_text)
+    subject = _contains(
+        text,
+        "其他顾客",
+        "别的顾客",
+        "其他用户",
+        "别的用户",
+        "别人的",
+        "他人的",
+    )
+    private_data = _contains(
+        text,
+        "订单",
+        "买过",
+        "买了",
+        "购买记录",
+        "物流",
+        "地址",
+        "余额",
+        "购物车",
+        "收藏",
+        "账号",
+    )
+    explicit_named_user = (
+        _contains(text, "查看用户", "查询用户", "查用户", "查看账号", "查询账号")
+        and not _contains(text, "当前用户", "当前账号", "本人", "我自己", "我的")
+    )
+    return (subject or explicit_named_user) and private_data
+
+
+def requests_cross_store_search(user_text: str) -> bool:
+    """Detect a request that exceeds a store Agent's catalog boundary."""
+
+    text = _normalize(user_text)
+    other_store = _contains(
+        text,
+        "其他店铺",
+        "别的店铺",
+        "其他商家",
+        "别的商家",
+        "全平台",
+        "跨店",
+    )
+    catalog_request = _contains(
+        text,
+        "商品",
+        "同款",
+        "有没有",
+        "查",
+        "找",
+        "推荐",
+        "比较",
+        "对比",
+    )
+    return other_store and catalog_request
+
+
 class StoreModelGateway(Protocol):
     async def plan(self, user_text: str) -> StoreAgentPlan: ...
 
@@ -79,15 +139,31 @@ class DeterministicStoreModelGateway:
             "适用",
             "兼容",
             "洗涤",
+            "适合什么",
+            "适合哪",
+            "使用场景",
+            "介绍",
         ):
             return StoreAgentPlan("product_qa")
         if _contains(text, "推荐", "适合", "预算", "选购"):
-            return StoreAgentPlan("product_recommend", search_text=user_text[:120])
+            return StoreAgentPlan("product_recommend", search_text=_store_search_text(user_text))
         if _contains(text, "对比", "比较", "区别", "差别"):
             return StoreAgentPlan("sku_compare")
         if _contains(text, "库存", "有货", "缺货", "现货", "补货"):
             return StoreAgentPlan("inventory_lookup")
-        if _contains(text, "政策", "运费", "退换", "保修", "发票", "客服时间"):
+        if _contains(
+            text,
+            "政策",
+            "运费",
+            "包邮",
+            "邮寄",
+            "配送方式",
+            "发货地",
+            "退换",
+            "保修",
+            "发票",
+            "客服时间",
+        ):
             return StoreAgentPlan("policy_qa")
         if _contains(
             text,
@@ -218,11 +294,15 @@ def refine_store_plan_for_context(
             "这套",
             "这双",
             "这台",
+            "这把",
+            "这条",
             "它",
             "该商品",
             "当前商品",
             "订单里的",
             "刚买的",
+            "适合吗",
+            "适不适合",
         )
         and not _contains(text, "推荐别的", "还有什么", "类似商品", "换一个", "其他商品")
     ):
@@ -236,6 +316,17 @@ def _normalize(value: str) -> str:
 
 def _contains(value: str, *terms: str) -> bool:
     return any(term in value for term in terms)
+
+
+def _store_search_text(value: str) -> str | None:
+    cleaned = re.sub(
+        r"(?:麻烦|请|帮我|给我|我想|想要|看看|一下|你们店|本店|店里|商品|推荐|选购)",
+        " ",
+        value,
+    )
+    cleaned = re.sub(r"[\u3001\u3002\uff0c\uff01\uff1a\uff1b,:;!?]+", " ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned[:120] or None
 
 
 def _is_general_chat(value: str) -> bool:

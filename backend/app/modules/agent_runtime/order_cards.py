@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 
 from sqlalchemy import select
@@ -9,6 +10,25 @@ from app.core.exceptions import ApplicationError
 from app.modules.identity.models import User
 from app.modules.messaging.models import Conversation, Message
 from app.modules.messaging.service import MessagingService
+
+
+def requests_direct_transaction_action(user_text: str) -> bool:
+    """Return true when a shopper asks the Agent to perform a protected action."""
+
+    compact = "".join(user_text.split()).casefold()
+    return any(
+        marker in compact
+        for marker in (
+            "帮我付款",
+            "替我付款",
+            "直接付款",
+            "帮我支付",
+            "替我支付",
+            "直接支付",
+            "帮我确认收货",
+            "帮我取消订单",
+        )
+    )
 
 
 def order_nos_from_result(data: Mapping[str, object]) -> list[str]:
@@ -61,7 +81,10 @@ async def recent_agent_order_nos(
                     Message.sequence_no < before_sequence,
                 )
                 .order_by(Message.sequence_no.desc())
-                .limit(12)
+                # Keep enough structured turns for a realistic support session.
+                # We still select the newest order-card message, never a textual
+                # model guess, so a longer window does not broaden data access.
+                .limit(30)
             )
         ).all()
     )
@@ -85,3 +108,22 @@ def _unique_order_nos(values: Iterable[object]) -> list[str]:
             continue
         result.append(value)
     return result
+
+
+def referenced_order_no(user_text: str, order_nos: list[str]) -> str | None:
+    compact = re.sub(r"\s+", "", user_text).casefold()
+    ordinal_groups = (
+        (("第一笔", "第一个", "第1笔", "1号"), 0),
+        (("第二笔", "第二个", "第2笔", "2号"), 1),
+        (("第三笔", "第三个", "第3笔", "3号"), 2),
+        (("第四笔", "第四个", "第4笔", "4号"), 3),
+        (("第五笔", "第五个", "第5笔", "5号"), 4),
+    )
+    for markers, index in ordinal_groups:
+        if any(marker in compact for marker in markers):
+            return order_nos[index] if index < len(order_nos) else None
+    if len(order_nos) == 1 and any(
+        marker in compact for marker in ("这个订单", "这笔订单", "它", "刚才那个", "刚才的")
+    ):
+        return order_nos[0]
+    return None

@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, type RouteLocationRaw } from 'vue-router'
 
 import { ApiProblem, errorMessage, messageSendError, resolveApiAssetUrl } from '@/api/http'
-import { getStore, getStoreProducts, type ProductCardData } from '@/api/catalog'
+import { getStore, getStoreProducts, searchProducts, type ProductCardData } from '@/api/catalog'
 import { listMyOrders, type OrderSummary } from '@/api/orders'
 import {
   activateAiMemory,
@@ -565,17 +565,22 @@ async function send() {
   finally { sending.value = false }
 }
 async function openAttachments() {
-  if (!conversation.value?.store_id || attachmentLoading.value) return
+  if (!conversation.value || attachmentLoading.value) return
   attachmentOpen.value = true
   attachmentLoading.value = true
   error.value = ''
   try {
+    const storeId = conversation.value.store_id
     const [products, orders] = await Promise.all([
-      getStoreProducts(conversation.value.store_id, { limit: 50 }, token()),
+      storeId
+        ? getStoreProducts(storeId, { limit: 50 }, token())
+        : searchProducts({ sort: 'sales', limit: 50 }, token()),
       listMyOrders({ view: 'all', limit: 50 }, token()),
     ])
     attachmentProducts.value = products.data.items.map(pickerProduct)
-    attachmentOrders.value = orders.data.items.filter((item) => item.store.store_id === conversation.value?.store_id && item.order_status !== 'cancelled').map(pickerOrder)
+    attachmentOrders.value = orders.data.items
+      .filter((item) => (!storeId || item.store.store_id === storeId) && item.order_status !== 'cancelled')
+      .map(pickerOrder)
   } catch (cause) { error.value = errorMessage(cause); attachmentOpen.value = false }
   finally { attachmentLoading.value = false }
 }
@@ -830,11 +835,11 @@ onBeforeUnmount(() => {
       </div>
       <button v-if="newBelowCount" type="button" class="new-message-button" @click="scrollToBottom">有 {{ newBelowCount }} 条新消息</button>
     </PageState>
-    <form class="message-composer rich-message-composer unified-chat-composer" :class="{ 'without-attachments': !conversation?.store_id }" @submit.prevent="send">
-      <button v-if="conversation?.store_id" type="button" class="message-plus-button" aria-label="发送商品或订单" title="发送商品或订单" @click="openAttachments">＋</button>
+    <form class="message-composer rich-message-composer unified-chat-composer" @submit.prevent="send">
+      <button v-if="conversation" type="button" class="message-plus-button" aria-label="发送商品或订单" title="发送商品或订单" @click="openAttachments">＋</button>
       <label><span class="sr-only">输入消息</span><textarea v-model="draft" maxlength="4000" placeholder="输入消息…" required @keydown.enter.exact.prevent="send" /></label>
       <button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button>
     </form>
-    <MessageAttachmentPicker :open="attachmentOpen" :loading="attachmentLoading" :products="attachmentProducts" :orders="attachmentOrders" :sending-id="attachmentSendingId" title="发送本店商品或订单" @close="attachmentOpen = false" @product="sendPickedProduct" @order="sendPickedOrder" />
+    <MessageAttachmentPicker :open="attachmentOpen" :loading="attachmentLoading" :products="attachmentProducts" :orders="attachmentOrders" :sending-id="attachmentSendingId" :title="conversation?.store_id ? '发送本店商品或订单' : '发送商品或我的订单'" :product-title="conversation?.store_id ? '店铺商品' : '商城商品'" :order-title="conversation?.store_id ? '本店订单' : '我的订单'" @close="attachmentOpen = false" @product="sendPickedProduct" @order="sendPickedOrder" />
   </section>
 </template>

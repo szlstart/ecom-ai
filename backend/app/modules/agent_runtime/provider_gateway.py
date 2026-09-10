@@ -51,8 +51,10 @@ EXCLUSIVE_INTENTS: tuple[ExclusiveIntent, ...] = (
     "general_chat",
     "policy_qa",
     "product_search",
+    "product_compare",
     "personalized_recommendation",
     "order_lookup",
+    "cart_lookup",
     "logistics_lookup",
     "refund_precheck",
     "refund_eligibility",
@@ -105,6 +107,8 @@ Intent definitions and priority:
   ask for policy, product, order, logistics, refund, recommendation, or human support data.
 - refund_progress: asks about an existing refund/after-sale case status or arrival of
   refunded funds.
+- policy_qa: general refund timing or policy questions such as "退款一般多久到账", when the
+  user is not asking about their own existing refund case.
 - refund_precheck: asks only whether an order/item is eligible for refund/return, especially
   when the user says to check, precheck, or not submit anything.
 - refund_eligibility: asks to start, apply for, draft, or submit a refund/return request.
@@ -114,9 +118,12 @@ Intent definitions and priority:
 - order_lookup: asks for order list/detail, payment, purchase record, or receipt,
   excluding logistics
   and refund intents above.
+- cart_lookup: asks what is currently in the user's shopping cart, its item count,
+  selected quantity, stores, prices, invalid items, or total.
 - personalized_recommendation: asks for recommendations based on the user's preferences or needs.
+- product_compare: compares two or more products already shown in the conversation.
 - product_search: asks to find, compare, or browse products without personal preference reasoning.
-- policy_qa: substantive questions about platform rules.
+- policy_qa: other substantive questions about platform rules.
 Choose the first matching specific intent; do not invent an intent.
 """.strip()
 

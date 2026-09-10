@@ -7,6 +7,8 @@ import logging
 import re
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +31,7 @@ from app.modules.agent_runtime.store_tools import (
     _available_quantity,
     _contains_scope_override,
 )
+from app.modules.cart.service import CartService
 from app.modules.catalog.models import ProductSku
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.inventory.models import Inventory
@@ -129,17 +132,18 @@ class ExclusiveToolGateway:
         fallback_query: str | None = None,
     ) -> StoreToolResult:
         async def handler() -> dict[str, object]:
+            constraints = _catalog_search_constraints(query, fallback_query)
             rows = []
             has_more = False
-            for term in _combined_catalog_search_candidates(query, fallback_query):
+            for term in constraints.candidates:
                 found, found_has_more = await self.catalog.search_products(
                     q=term,
                     category_no=None,
                     brand_no=None,
                     store_no=None,
                     group_no=None,
-                    price_min=None,
-                    price_max=None,
+                    price_min=constraints.price_min,
+                    price_max=constraints.price_max,
                     sort="sales",
                     position=None,
                     limit=8,
@@ -197,6 +201,11 @@ class ExclusiveToolGateway:
                     for product, store in rows
                 ],
                 "has_more": has_more,
+                "applied_filters": {
+                    "keywords": list(constraints.keywords),
+                    "price_min": constraints.price_min,
+                    "price_max": constraints.price_max,
+                },
                 "as_of": utc_now(),
             }
 
@@ -250,6 +259,54 @@ class ExclusiveToolGateway:
             }
 
         return await self.execute(context, "order.list_user_orders", {}, handler)
+
+    async def get_cart(self, context: TrustedExclusiveAgentContext) -> StoreToolResult:
+        async def handler() -> dict[str, object]:
+            view = await CartService(self.session).get(context.user)
+            return view.model_dump(mode="json")
+
+        return await self.execute(context, "cart.get_mine", {}, handler)
+
+    async def compare_products(
+        self, context: TrustedExclusiveAgentContext, product_nos: list[str]
+    ) -> StoreToolResult:
+        async def handler() -> dict[str, object]:
+            items: list[dict[str, object]] = []
+            for product_no in list(dict.fromkeys(product_nos))[:3]:
+                row = await self.catalog.public_product(product_no)
+                if row is None:
+                    continue
+                product, store = row
+                sku_rows = await self.catalog.public_skus(product.id)
+                available = sum(_available_quantity(inventory) for _sku, inventory in sku_rows)
+                items.append(
+                    {
+                        "product_id": product.product_no,
+                        "name": product.product_name,
+                        "subtitle": product.subtitle,
+                        "description": product.description,
+                        "store_id": store.store_no,
+                        "store_name": store.store_name,
+                        "price": {
+                            "min_amount": product.min_price_amount,
+                            "max_amount": product.max_price_amount,
+                            "currency": product.currency,
+                        },
+                        "available_stock": available,
+                        "sku_count": len(sku_rows),
+                        "rating": str(product.rating_score),
+                        "sales_count": product.sales_count,
+                        "source_version": product.version,
+                    }
+                )
+            return {"items": items, "as_of": utc_now()}
+
+        return await self.execute(
+            context,
+            "catalog.compare_products",
+            {"product_ids": list(dict.fromkeys(product_nos))[:3]},
+            handler,
+        )
 
     async def order_detail(
         self, context: TrustedExclusiveAgentContext, order_no: str
@@ -627,6 +684,116 @@ def _combined_catalog_search_candidates(
             if candidate not in result:
                 result.append(candidate)
     return result[:12]
+
+
+@dataclass(frozen=True)
+class CatalogSearchConstraints:
+    candidates: tuple[str | None, ...]
+    keywords: tuple[str, ...]
+    price_min: int | None
+    price_max: int | None
+
+
+_PRICE_NUMBER = r"(\d+(?:\.\d{1,2})?)"
+
+
+def _catalog_search_constraints(
+    query: str | None, fallback_query: str | None
+) -> CatalogSearchConstraints:
+    """Build enforceable catalogue filters from model and original user text.
+
+    The model is allowed to help select search words, but it is not allowed to
+    silently drop hard price limits or turn a specific request into an
+    unrestricted catalogue listing. The original user message is therefore the
+    source of truth for numeric constraints and whether a request is specific.
+    """
+
+    original = re.sub(r"\s+", " ", (fallback_query or query or "").strip())[:240]
+    price_min = _extract_price_bound(original, lower=True)
+    price_max = _extract_price_bound(original, lower=False)
+    keyword_source = _strip_catalog_request_syntax(original)
+    keywords = _catalog_keywords(keyword_source)
+
+    candidates: list[str | None] = []
+    # Prefer the server-cleaned request. Model output and the raw sentence are
+    # fallbacks only; otherwise filler such as "几件" can accidentally become
+    # the first SQL term with one incidental match and truncate better results.
+    for source in (keyword_source, query, fallback_query):
+        for candidate in _catalog_search_candidates(source):
+            if candidate is None and keywords:
+                continue
+            if candidate not in candidates:
+                candidates.append(candidate)
+    for keyword in keywords:
+        if keyword not in candidates:
+            candidates.append(keyword)
+
+    # A price-only request may search all public products, but a textual request
+    # may never fall back to all products merely because no exact match exists.
+    if not candidates:
+        candidates = (
+            [None] if price_min is not None or price_max is not None else [original or None]
+        )
+    return CatalogSearchConstraints(
+        candidates=tuple(candidates[:12]),
+        keywords=keywords,
+        price_min=price_min,
+        price_max=price_max,
+    )
+
+
+def _extract_price_bound(text: str, *, lower: bool) -> int | None:
+    if lower:
+        patterns = (
+            rf"{_PRICE_NUMBER}\s*元\s*(?:以上|起|起步|不少于|不低于)",
+            rf"(?:至少|最低|不低于)\s*{_PRICE_NUMBER}\s*元?",
+        )
+    else:
+        patterns = (
+            rf"{_PRICE_NUMBER}\s*元\s*(?:以内|以下|内|封顶|不超过|最多)",
+            rf"(?:不超过|最多|最高|预算(?:是|为|在)?|控制在)\s*{_PRICE_NUMBER}\s*元?",
+        )
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match is None:
+            continue
+        try:
+            return int(Decimal(match.group(1)) * 100)
+        except (InvalidOperation, ValueError):
+            return None
+    return None
+
+
+def _strip_catalog_request_syntax(text: str) -> str:
+    cleaned = re.sub(
+        rf"{_PRICE_NUMBER}\s*元\s*(?:以内|以下|以上|内|起|起步|封顶|不超过|不少于|不低于|最多)?",
+        " ",
+        text,
+    )
+    cleaned = re.sub(
+        rf"(?:不超过|最多|最高|最低|至少|预算(?:是|为|在)?|控制在)\s*{_PRICE_NUMBER}\s*元?",
+        " ",
+        cleaned,
+    )
+    cleaned = re.sub(
+        r"(?:麻烦|请|帮我|给我|我想|想要|看看|一下|全平台|当前|在售|搜索|查找|找找|找|推荐)",
+        " ",
+        cleaned,
+    )
+    cleaned = re.sub(r"(?:几件|几款|几个|一些|一批)", " ", cleaned)
+    cleaned = re.sub(r"(?:适合|用于|用来|使用|能用来|可以买来|的)", " ", cleaned)
+    cleaned = re.sub(r"[\u3001\u3002\uff0c\uff01\uff1f\uff1a\uff1b,:;!?]+", " ", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def _catalog_keywords(text: str) -> tuple[str, ...]:
+    generic = {"", "商品", "东西", "一些", "一款", "几款", "看看"}
+    result: list[str] = []
+    for token in re.findall(r"[\u4e00-\u9fffA-Za-z0-9]+", text):
+        if len(token) < 2 or token in generic:
+            continue
+        result.append(token[:120])
+    return tuple(dict.fromkeys(result))[:8]
 
 
 def _not_accessible() -> ApplicationError:

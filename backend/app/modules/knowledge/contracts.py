@@ -44,6 +44,7 @@ READ_ONLY_TOOLS = frozenset(
         "order.get_store_order_summary",
         "order.list_user_orders",
         "order.get_user_order_detail",
+        "cart.get_mine",
         "logistics.get_store_order_shipments",
         "logistics.get_user_order_shipments",
         "after_sale.check_refund_eligibility",

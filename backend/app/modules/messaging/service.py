@@ -1070,10 +1070,29 @@ class MessagingService:
                     },
                 },
             )
+        return "order_card", None, await self.order_card_payload(
+            user,
+            conversation,
+            content.order_id,
+        )
+
+    async def order_card_payload(
+        self,
+        user: User,
+        conversation: Conversation,
+        order_no: str,
+    ) -> dict[str, object]:
+        """Build the canonical, access-checked order-card payload for chat.
+
+        Both user-sent cards and Agent-generated order results use this method so
+        the UI receives the same schema, images and masked display identifier.
+        The trusted conversation scope is always reapplied server-side.
+        """
+
         from app.modules.orders.models import Order, OrderItem
 
         order_statement = select(Order).where(
-            Order.order_no == content.order_id,
+            Order.order_no == order_no,
             Order.user_id == user.id,
         )
         if conversation.store_id is not None:
@@ -1111,46 +1130,42 @@ class MessagingService:
             else []
         )
         files = {item.object_key: item for item in file_rows}
-        return (
-            "order_card",
-            None,
-            {
-                "schema_version": 2,
-                "order_id": order.order_no,
-                "display_order_id": self._masked_order_no(order.order_no),
-                "order_status": order.order_status,
-                "payment_status": order.payment_status,
-                "fulfillment_status": order.fulfillment_status,
-                "after_sale_status": order.after_sale_status,
-                "store": {
-                    "store_id": store.store_no if store else None,
-                    "store_name": store.store_name if store else "店铺",
-                    "logo_url": self._file_url(
-                        files.get(store.logo_object_key or "") if store else None
-                    ),
-                },
-                "items": [
-                    {
-                        "product_id": item.product_no,
-                        "sku_id": item.sku_no,
-                        "product_name": item.product_name,
-                        "sku_name": item.sku_name,
-                        "quantity": item.quantity,
-                        "image_url": self._file_url(
-                            files.get(item.image_object_key or ""), thumbnail=True
-                        ),
-                    }
-                    for item in items[:2]
-                ],
-                "item_count": len(items),
-                "total_quantity": sum(item.quantity for item in items),
-                "payable_amount": {
-                    "minor_units": str(order.payable_amount),
-                    "currency": order.currency,
-                },
-                "created_at": order.created_at.isoformat(),
+        return {
+            "schema_version": 2,
+            "order_id": order.order_no,
+            "display_order_id": self._masked_order_no(order.order_no),
+            "order_status": order.order_status,
+            "payment_status": order.payment_status,
+            "fulfillment_status": order.fulfillment_status,
+            "after_sale_status": order.after_sale_status,
+            "store": {
+                "store_id": store.store_no if store else None,
+                "store_name": store.store_name if store else "店铺",
+                "logo_url": self._file_url(
+                    files.get(store.logo_object_key or "") if store else None
+                ),
             },
-        )
+            "items": [
+                {
+                    "product_id": item.product_no,
+                    "sku_id": item.sku_no,
+                    "product_name": item.product_name,
+                    "sku_name": item.sku_name,
+                    "quantity": item.quantity,
+                    "image_url": self._file_url(
+                        files.get(item.image_object_key or ""), thumbnail=True
+                    ),
+                }
+                for item in items[:2]
+            ],
+            "item_count": len(items),
+            "total_quantity": sum(item.quantity for item in items),
+            "payable_amount": {
+                "minor_units": str(order.payable_amount),
+                "currency": order.currency,
+            },
+            "created_at": order.created_at.isoformat(),
+        }
 
     async def respond_resolution_check(
         self,

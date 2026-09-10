@@ -42,6 +42,14 @@ class DeterministicExclusiveModelGateway:
         text = re.sub(r"\s+", "", user_text).casefold()
         if is_explicit_handoff_request(user_text):
             return ExclusiveAgentPlan("human_handoff")
+        if _contains(text, "搜索", "查找", "搜一下", "找找") and not _contains(
+            text, "订单", "物流", "快递", "售后进度", "退款进度"
+        ):
+            return ExclusiveAgentPlan("product_search", _search_text(user_text))
+        if _contains(text, "推荐", "适合我", "偏好") and not _contains(
+            text, "订单", "物流", "快递", "售后", "退款方式", "退款进度"
+        ):
+            return ExclusiveAgentPlan("personalized_recommendation", _search_text(user_text))
         if _contains(text, "退款进度", "售后进度", "退款到哪", "退款状态"):
             return ExclusiveAgentPlan("refund_progress")
         if _contains(
@@ -56,14 +64,23 @@ class DeterministicExclusiveModelGateway:
             "是否具备退款",
         ):
             return ExclusiveAgentPlan("refund_precheck")
-        if _contains(text, "申请退款", "我要退款", "退货退款", "仅退款", "发起售后"):
+        if _contains(
+            text,
+            "申请退款",
+            "我要退款",
+            "帮我退款",
+            "给我退款",
+            "退货退款",
+            "仅退款",
+            "发起售后",
+            "退款",
+            "退货",
+        ):
             return ExclusiveAgentPlan("refund_eligibility")
         if _contains(text, "物流", "快递", "包裹", "到哪", "送达"):
             return ExclusiveAgentPlan("logistics_lookup")
         if _contains(text, "订单", "付款", "收货", "购买记录"):
             return ExclusiveAgentPlan("order_lookup")
-        if _contains(text, "推荐", "适合我", "偏好"):
-            return ExclusiveAgentPlan("personalized_recommendation", _search_text(user_text))
         if _contains(text, "商品", "搜索", "找", "买", "价格", "对比"):
             return ExclusiveAgentPlan("product_search", _search_text(user_text))
         if _contains(text, "规则", "政策", "平台", "运费", "退换", "保修", "发票"):

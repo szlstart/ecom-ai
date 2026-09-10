@@ -86,6 +86,7 @@ def test_store_agent_tool_contract_is_closed_and_transaction_read_only() -> None
         "catalog.search_store_products",
         "catalog.get_inventory_availability",
         "catalog.get_store_policy",
+        "order.list_user_store_orders",
         "order.get_store_order_summary",
         "logistics.get_store_order_shipments",
         "support.create_store_ticket",
@@ -129,6 +130,15 @@ def test_exclusive_agent_tool_contract_allows_only_scoped_support_actions() -> N
         }
         & EXCLUSIVE_AGENT_TOOL_CODES
     )
+
+
+@pytest.mark.asyncio
+async def test_natural_refund_and_store_purchase_history_are_specific_intents() -> None:
+    exclusive = await DeterministicExclusiveModelGateway().plan("帮我退款")
+    store = await DeterministicStoreModelGateway().plan("我在你店买过什么东西?")
+
+    assert exclusive.intent == "refund_eligibility"
+    assert store.intent == "order_explain"
 
 
 def test_checkpoint_projection_rejects_nested_sensitive_content() -> None:

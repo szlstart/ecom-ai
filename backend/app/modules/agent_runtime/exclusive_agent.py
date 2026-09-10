@@ -31,6 +31,11 @@ from app.modules.agent_runtime.exclusive_tools import ExclusiveToolGateway
 from app.modules.agent_runtime.memory_runtime import AgentMemoryRuntime, explicit_memory_request
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
+from app.modules.agent_runtime.order_cards import (
+    build_order_cards,
+    order_nos_from_result,
+    recent_agent_order_nos,
+)
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.agent_runtime.provider_gateway import (
     AgentStreamCallback,
@@ -263,6 +268,10 @@ async def process_exclusive_run(
                 if ref is not None
                 else await tools.list_orders(context)
             )
+            if result.status == "succeeded":
+                result.data["presentation"] = (
+                    "order_card" if "order_id" in result.data else "order_cards"
+                )
         elif plan.intent == "logistics_lookup":
             order_no = await _read_order_no(
                 trigger_text,
@@ -293,35 +302,65 @@ async def process_exclusive_run(
             )
         else:
             explicit_order_no = _resource_no(trigger_text, "ord")
-            ref = (
-                None
-                if explicit_order_no is not None
-                else await builder.require_active_context(context, "order")
-            )
-            order_no = explicit_order_no or (ref.resource_no if ref is not None else "")
-            approval_service = AgentApprovalService(session, settings, security)
+            refund_order_no: str | None = explicit_order_no
+            if refund_order_no is None and context.context_refs.get("order") is not None:
+                refund_order_no = (
+                    await builder.require_active_context(context, "order")
+                ).resource_no
+            if refund_order_no is None:
+                recent_order_nos = await recent_agent_order_nos(
+                    session,
+                    context.conversation,
+                    before_sequence=context.trigger.sequence_no,
+                )
+                if len(recent_order_nos) == 1:
+                    refund_order_no = recent_order_nos[0]
+            if refund_order_no is None:
+                result = await tools.list_orders(context)
+                visible_items = result.data.get("items")
+                refundable_items = (
+                    [
+                        item
+                        for item in visible_items
+                        if isinstance(item, Mapping)
+                        and isinstance(item.get("available_actions"), list)
+                        and "apply_after_sale" in item["available_actions"]
+                    ]
+                    if isinstance(visible_items, list)
+                    else []
+                )
+                if result.status == "succeeded":
+                    result.data["items"] = refundable_items
+                candidate_nos = order_nos_from_result(result.data)
+                if result.status == "succeeded" and len(candidate_nos) == 1:
+                    refund_order_no = candidate_nos[0]
+                elif result.status == "succeeded":
+                    result.data["selection_required"] = "refund"
+                    result.data["presentation"] = "order_cards"
+            if refund_order_no is not None:
+                approval_service = AgentApprovalService(session, settings, security)
 
-            async def build_draft() -> dict[str, object]:
-                return await approval_service.build_refund_draft(
+                async def build_draft() -> dict[str, object]:
+                    return await approval_service.build_refund_draft(
+                        context,
+                        refund_order_no,
+                        context.trigger.text_content or "申请退款",
+                    )
+
+                result = await tools.execute(
                     context,
-                    order_no,
-                    context.trigger.text_content or "申请退款",
+                    "after_sale.build_refund_draft",
+                    {"order_id": refund_order_no},
+                    build_draft,
                 )
-
-            result = await tools.execute(
-                context,
-                "after_sale.build_refund_draft",
-                {"order_id": order_no},
-                build_draft,
-            )
-            if result.status == "succeeded":
-                await checkpoint_store.write(
-                    run.run_no,
-                    "waiting_confirmation",
-                    _checkpoint_state(context, intent=plan.intent),
-                    status="waiting",
-                )
-                return
+                if result.status == "succeeded":
+                    await checkpoint_store.write(
+                        run.run_no,
+                        "waiting_confirmation",
+                        _checkpoint_state(context, intent=plan.intent),
+                        status="waiting",
+                    )
+                    return
     except ApplicationError as exc:
         if exc.code == "AGENT_RESOURCE_NOT_ACCESSIBLE":
             message = "没有找到你有权查看的对应订单或售后记录，请核对编号。"
@@ -363,12 +402,19 @@ async def process_exclusive_run(
             result.data,
             stream_callback=stream_callback,
         )
+        order_cards = await build_order_cards(
+            session,
+            context.user,
+            context.conversation,
+            order_nos_from_result(result.data),
+        )
         await _complete(
             session,
             context,
             answer,
             data=result.data,
             execution_trace=trace,
+            extra_content={"order_cards": order_cards} if order_cards else None,
         )
     elif result.error_code == "AI_CONSENT_REQUIRED":
         await _complete(
@@ -730,6 +776,9 @@ async def _grounded_answer(
             "response_strategy": plan.response_strategy,
         },
     )
+    if data.get("presentation") in {"order_card", "order_cards"}:
+        trace["answer_mode"] = "structured_ui"
+        return fallback, trace
     if not isinstance(gateway, ProviderExclusiveModelGateway):
         trace["answer_mode"] = "deterministic_fallback"
         return fallback, trace
@@ -827,6 +876,10 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
     if plan.intent == "general_chat":
         return "你好，我是你的专属客服。你可以问我平台规则、商品推荐、本人订单、物流或售后问题。"
     items = data.get("items")
+    if data.get("selection_required") == "refund":
+        if not isinstance(items, list) or not items:
+            return "你的账号下暂时没有可申请退款的可见订单。"
+        return "请选择需要退款的订单。点击卡片进入订单后，我可以继续帮你检查资格并准备退款申请。"
     if plan.intent in {"product_search", "personalized_recommendation"}:
         if not isinstance(items, list) or not items:
             return "暂未找到符合当前条件的公开在售商品。你可以补充品类、用途或预算。"
@@ -868,29 +921,10 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
         return "\n".join(lines)
     if plan.intent == "order_lookup":
         if "order_id" in data:
-            status_value = data.get("status")
-            status: Mapping[str, Any] = status_value if isinstance(status_value, dict) else {}
-            paid = _nested_value(data, "amounts", "paid")
-            paid_display = paid.get("display") if isinstance(paid, dict) else None
-            store_name = safe_untrusted_excerpt(data.get("store_name"), 120)
-            return (
-                f"订单 {data.get('order_id')} ({store_name})，"
-                f"实付 {paid_display or '¥0.00'}。当前状态: "
-                f"订单{_status_label('order', status.get('order'))}，"
-                f"支付{_status_label('payment', status.get('payment'))}，"
-                f"履约{_status_label('fulfillment', status.get('fulfillment'))}，"
-                f"售后{_status_label('after_sale', status.get('after_sale'))}。"
-                "可用操作以订单详情页为准。"
-            )
+            return "已找到这笔订单。点击卡片可查看详情或继续处理。"
         if not isinstance(items, list) or not items:
             return "你的账号下暂未查询到可见订单。"
-        return "最近订单:\n" + "\n".join(
-            f"- {item.get('order_id')} ({safe_untrusted_excerpt(item.get('store_name'), 120)}): "
-            f"实付 {_money_display(item, 'paid')}，"
-            f"{_status_label('order', _nested_value(item, 'status', 'order'))}"
-            for item in items
-            if isinstance(item, dict)
-        )
+        return f"找到你的 {len(items)} 笔最近订单。点击卡片可查看详情或继续处理。"
     if plan.intent == "logistics_lookup":
         if not isinstance(items, list) or not items:
             return "该订单当前没有可见物流包裹。"

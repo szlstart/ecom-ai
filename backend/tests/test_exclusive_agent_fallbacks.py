@@ -115,9 +115,9 @@ def test_order_fallback_renders_amount_and_localized_status() -> None:
             ]
         },
     )
-    assert "¥6.00" in rendered
-    assert "待发货" in rendered
-    assert "pending_shipment" not in rendered
+    assert "1 笔最近订单" in rendered
+    assert "点击卡片" in rendered
+    assert "ord_01M19K9GS9ZG90TSGAFJ3DPMNY" not in rendered
 
 
 def test_policy_fallback_selects_one_relevant_sentence_instead_of_dumping_chunks() -> None:

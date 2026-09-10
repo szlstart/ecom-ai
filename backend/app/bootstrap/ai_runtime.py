@@ -58,6 +58,7 @@ SKILLS: tuple[SkillSeed, ...] = (
         "店铺订单说明",
         "仅解释当前用户在当前店铺的订单和物流。业务写操作必须由页面或确认流程完成。",
         (
+            "order.list_user_store_orders",
             "order.get_store_order_summary",
             "logistics.get_store_order_shipments",
             "support.create_store_ticket",
@@ -328,7 +329,7 @@ async def _seed_agents(
             session.add(definition)
             await session.flush()
         target_version_no = (
-            4 if item.code in {"merchant_copilot", "admin_copilot"} else 3
+            5 if item.code in {"merchant_copilot", "admin_copilot"} else 4
         )
         version = await session.scalar(
             select(AgentVersion).where(
@@ -341,7 +342,7 @@ async def _seed_agents(
         )
         if version is None:
             policy_config: dict[str, object] = {
-                "prompt_version": "safe-agent-v3",
+                "prompt_version": "safe-agent-v4",
                 "max_tool_calls": 6,
                 "max_delegations": (
                     4
@@ -374,7 +375,7 @@ async def _seed_agents(
                 version_no=target_version_no,
                 version_status="published" if item.executable else "draft",
                 system_prompt=item.prompt,
-                model_profile="gpt-5.4-reasoning",
+                model_profile="gpt-5.5-reasoning",
                 tool_allowlist=allowed_tools,
                 policy_config=policy_config,
                 published_at=published_at if item.executable else None,
@@ -384,10 +385,10 @@ async def _seed_agents(
         elif version.version_status == "draft" and item.executable:
             # Bootstrap drafts can be completed in place. Published versions are immutable.
             version.system_prompt = item.prompt
-            version.model_profile = "gpt-5.4-reasoning"
+            version.model_profile = "gpt-5.5-reasoning"
             version.tool_allowlist = allowed_tools
             version.policy_config = {
-                "prompt_version": "safe-agent-v3",
+                "prompt_version": "safe-agent-v4",
                 "max_tool_calls": 6,
                 "max_delegations": 4,
                 "max_delegation_depth": 1,

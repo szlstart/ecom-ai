@@ -511,6 +511,83 @@ class StoreToolGateway:
             context, "order.get_store_order_summary", {"order_id": order_no}, handler
         )
 
+    async def list_user_orders(self, context: TrustedStoreAgentContext) -> StoreToolResult:
+        """List only this customer's visible orders in the bound store."""
+
+        async def handler() -> dict[str, object]:
+            orders = list(
+                (
+                    await self.session.scalars(
+                        select(Order)
+                        .where(
+                            Order.user_id == context.user.id,
+                            Order.store_id == context.store.id,
+                            Order.user_hidden_at.is_(None),
+                        )
+                        .order_by(Order.created_at.desc(), Order.id.desc())
+                        .limit(5)
+                    )
+                ).all()
+            )
+            order_ids = [order.id for order in orders]
+            items = (
+                list(
+                    (
+                        await self.session.scalars(
+                            select(OrderItem)
+                            .where(OrderItem.order_id.in_(order_ids))
+                            .order_by(OrderItem.order_id, OrderItem.id)
+                        )
+                    ).all()
+                )
+                if order_ids
+                else []
+            )
+            items_by_order: dict[int, list[OrderItem]] = {}
+            for item in items:
+                items_by_order.setdefault(item.order_id, []).append(item)
+            return {
+                "items": [
+                    {
+                        "order_id": order.order_no,
+                        "store_id": context.store.store_no,
+                        "store_name": context.store.store_name,
+                        "status": {
+                            "order": order.order_status,
+                            "payment": order.payment_status,
+                            "fulfillment": order.fulfillment_status,
+                            "after_sale": order.after_sale_status,
+                        },
+                        "amounts": {
+                            "paid": _money_projection(order.paid_amount, order.currency),
+                            "refunded": _money_projection(
+                                order.refunded_amount, order.currency
+                            ),
+                        },
+                        "items": [
+                            {
+                                "product_id": item.product_no,
+                                "sku_id": item.sku_no,
+                                "product_name": item.product_name,
+                                "sku_name": item.sku_name,
+                                "quantity": item.quantity,
+                            }
+                            for item in items_by_order.get(order.id, [])
+                        ],
+                        "source_version": order.version,
+                    }
+                    for order in orders
+                ],
+                "as_of": utc_now(),
+                "data_scope": {
+                    "user_id": context.user.user_no,
+                    "store_id": context.store.store_no,
+                },
+                "presentation": "order_cards",
+            }
+
+        return await self.execute(context, "order.list_user_store_orders", {}, handler)
+
     async def recommendations(
         self, context: TrustedStoreAgentContext, search_text: str | None
     ) -> StoreToolResult:

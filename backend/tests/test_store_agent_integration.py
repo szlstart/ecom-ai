@@ -284,6 +284,19 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
     assert "on_hand" not in str(inventory_reply["text"])
     assert "reserved" not in str(inventory_reply["text"])
 
+    history_message = await _send(
+        client, headers, conversation_no, "我都在你店买过什么订单?"
+    )
+    await _drain_agent()
+    history_reply = _reply_after(
+        await _messages(client, headers, conversation_no), history_message
+    )
+    assert "1 笔订单" in str(history_reply["text"])
+    assert order_no not in str(history_reply["text"])
+    history_content = cast(dict[str, object], history_reply["content"])
+    history_cards = cast(list[dict[str, object]], history_content["order_cards"])
+    assert [item["order_id"] for item in history_cards] == [order_no]
+
     current = await client.get(f"/api/v1/conversations/{conversation_no}", headers=headers)
     order_context = await client.put(
         f"/api/v1/conversations/{conversation_no}/contexts/order",
@@ -294,9 +307,10 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
     order_message = await _send(client, headers, conversation_no, "解释这个订单状态")
     await _drain_agent()
     order_reply = _reply_after(await _messages(client, headers, conversation_no), order_message)
-    assert "订单运输中" in str(order_reply["text"])
-    assert "确认收货" in str(order_reply["text"])
-    assert "申请售后" in str(order_reply["text"])
+    assert "点击卡片" in str(order_reply["text"])
+    order_content = cast(dict[str, object], order_reply["content"])
+    order_cards = cast(list[dict[str, object]], order_content["order_cards"])
+    assert [item["order_id"] for item in order_cards] == [order_no]
     assert "shipped" not in str(order_reply["text"])
     assert "confirm_receipt" not in str(order_reply["text"])
     assert "apply_after_sale" not in str(order_reply["text"])
@@ -440,12 +454,18 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
         injection_run = next(
             item for item in runs if item.trigger_message_id == injection_trigger_id
         )
-        assert len(runs) == 10
+        assert len(runs) == 11
         assert all(item.run_status == "completed" for item in runs)
         assert injection_run.error_code == "AI_PROMPT_INJECTION_BLOCKED"
         assert not any(item.run_id == injection_run.id for item in audits)
         assert any(item.error_code == "AGENT_CONTEXT_VERSION_STALE" for item in runs)
         assert any(item.degraded_reason == "tool_denied" for item in runs)
+        assert any(
+            item.tool_code == "order.list_user_store_orders"
+            and item.scope_snapshot["store_no"] == store_no
+            and item.outcome == "succeeded"
+            for item in audits
+        )
         assert any(
             item.tool_code == "catalog.get_inventory_availability"
             and item.scope_snapshot["store_no"] == store_no

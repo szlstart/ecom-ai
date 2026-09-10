@@ -44,6 +44,7 @@ describe('ChatMessageContent', () => {
     expect(wrapper.text()).toContain('¥12.99')
     expect(wrapper.findAll('img')).toHaveLength(1)
     expect(wrapper.get('a').attributes('href')).toBe('/products/prd_ABC?sku_id=sku_BLUE')
+    expect(wrapper.get('img').attributes('src')).toBe('http://127.0.0.1:8000/api/v1/files/file_LOGO')
   })
 
   it('renders canonical file images for product and order cards', async () => {
@@ -84,5 +85,28 @@ describe('ChatMessageContent', () => {
     expect(wrapper.text()).toContain('实付 ¥88.00')
     expect(wrapper.text()).not.toContain('ABCDEFGHIJKLMN')
     expect(wrapper.get('a').attributes('href')).toBe('/admin/orders/ord_ABCDEFGHIJKLMN')
+  })
+
+  it('renders Agent text followed by clickable order cards without exposing raw IDs', async () => {
+    const wrapper = await render({
+      ...base,
+      sender_type: 'agent',
+      message_type: 'text',
+      text: '找到你的 1 笔最近订单。点击卡片可查看详情或继续处理。',
+      content: {
+        order_cards: [{
+          schema_version: 2, order_id: 'ord_PRIVATE123456', display_order_id: 'ord_PR…3456',
+          order_status: 'completed', payable_amount: { minor_units: '600', currency: 'CNY' },
+          total_quantity: 1, store: { store_name: '文具专卖店' },
+          items: [{ product_name: '2B 铅笔', sku_name: '标准款', quantity: 1 }],
+        }],
+      },
+    })
+
+    expect(wrapper.text()).toContain('找到你的 1 笔最近订单')
+    expect(wrapper.text()).toContain('2B 铅笔')
+    expect(wrapper.text()).toContain('实付 ¥6.00')
+    expect(wrapper.text()).not.toContain('PRIVATE123456')
+    expect(wrapper.get('a').attributes('href')).toBe('/me/orders/ord_PRIVATE123456')
   })
 })

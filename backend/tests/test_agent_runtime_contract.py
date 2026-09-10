@@ -36,7 +36,7 @@ from app.modules.agent_runtime.operations_agent import (
     _render,
     _render_merchant_multi_agent,
 )
-from app.modules.agent_runtime.operations_context import TrustedOperationsContext
+from app.modules.agent_runtime.operations_context import ADMIN_TOOLS, TrustedOperationsContext
 from app.modules.agent_runtime.service import _normalize_context_snapshot
 from app.modules.agent_runtime.store_agent import _render as _render_store
 from app.modules.agent_runtime.store_agent import (
@@ -149,6 +149,8 @@ async def test_natural_refund_and_store_purchase_history_are_specific_intents() 
     exclusive = await DeterministicExclusiveModelGateway().plan("帮我退款")
     store = await DeterministicStoreModelGateway().plan("我在你店买过什么东西?")
     store_ordinal = await DeterministicStoreModelGateway().plan("第二个适合什么场景?")
+    store_comparison = await DeterministicStoreModelGateway().plan("第二个和第三个有什么区别?")
+    store_order_ordinal = await DeterministicStoreModelGateway().plan("第一笔现在到哪里了?")
     exclusive_ordinal = await DeterministicExclusiveModelGateway().plan("第二个适合我吗?")
     cart = await DeterministicExclusiveModelGateway().plan("我购物车里有多少商品?")
     compare = await DeterministicExclusiveModelGateway().plan("对比前两个商品")
@@ -158,6 +160,8 @@ async def test_natural_refund_and_store_purchase_history_are_specific_intents() 
     assert exclusive.intent == "refund_eligibility"
     assert store.intent == "order_explain"
     assert store_ordinal.intent == "product_qa"
+    assert store_comparison.intent == "product_compare"
+    assert store_order_ordinal.intent == "order_explain"
     assert exclusive_ordinal.intent == "product_search"
     assert cart.intent == "cart_lookup"
     assert compare.intent == "product_compare"
@@ -335,10 +339,19 @@ async def test_store_agent_understands_natural_product_size_questions() -> None:
     gateway = DeterministicStoreModelGateway()
     assert (await gateway.plan("这个衣服最大码是多大?")).intent == "product_qa"
     assert (await gateway.plan("有哪些颜色和面料?")).intent == "product_qa"
+    assert (await gateway.plan("我问的适合体重呢?")).intent == "product_qa"
     assert (
         refine_store_plan_for_context(
             StoreAgentPlan("general_chat"),
             "这个可以机洗吗?",
+            has_product_context=True,
+        ).intent
+        == "product_qa"
+    )
+    assert (
+        refine_store_plan_for_context(
+            StoreAgentPlan("product_recommend", search_text="适合体重"),
+            "我问的适合体重呢?",
             has_product_context=True,
         ).intent
         == "product_qa"
@@ -418,6 +431,10 @@ def test_operations_agents_have_distinct_small_talk_responses() -> None:
     assert _operations_small_talk_reply("查看今天的订单", "merchant") is None
 
 
+def test_admin_copilot_allows_its_default_platform_overview_tool() -> None:
+    assert "governance.platform_overview" in ADMIN_TOOLS
+
+
 def test_operations_results_include_actionable_cards() -> None:
     merchant_context = SimpleNamespace(
         audience="merchant", store=SimpleNamespace(store_name="测试店铺")
@@ -435,7 +452,8 @@ def test_operations_results_include_actionable_cards() -> None:
         "label": "查看本店订单",
         "path": "/merchant/orders",
     }
-    assert {row["label"] for row in merchant_cards[0]["rows"]} >= {
+    merchant_rows = cast(list[dict[str, object]], merchant_cards[0]["rows"])
+    assert {row["label"] for row in merchant_rows} >= {
         "已确认营业额",
         "待发货",
     }
@@ -473,6 +491,47 @@ def test_operations_results_include_actionable_cards() -> None:
     assert admin_cards[0]["action"] == {
         "label": "打开管理页面",
         "path": "/admin/observability",
+    }
+
+
+def test_merchant_multi_agent_stock_diagnosis_prioritizes_risk_over_catalog_dump() -> None:
+    merchant_context = cast(
+        TrustedOperationsContext,
+        SimpleNamespace(audience="merchant", store=SimpleNamespace(store_name="测试店铺")),
+    )
+
+    cards = _operations_detail_cards(
+        merchant_context,
+        "complex_store_diagnosis",
+        {
+            "specialists": {
+                "merchant_catalog": {
+                    "specialist": "merchant_catalog",
+                    "data": {
+                        "on_sale_products": [
+                            {
+                                "product_id": f"prd_{index}",
+                                "name": f"商品 {index}",
+                                "skus": [],
+                            }
+                            for index in range(7)
+                        ]
+                    },
+                },
+                "merchant_inventory": {
+                    "specialist": "merchant_inventory",
+                    "data": {"low_stock_sku_count": 0, "low_stock_skus": []},
+                },
+            }
+        },
+    )
+
+    assert len(cards) == 1
+    assert cards[0]["kind"] == "inventory_risk"
+    assert cards[0]["title"] == "当前没有低库存或缺货款式"
+    assert cards[0]["action"] == {
+        "label": "进入商品管理",
+        "path": "/merchant/products",
     }
 
 
@@ -593,6 +652,7 @@ def test_named_store_product_scores_above_stale_context_product() -> None:
     assert _product_match_score("6支装现在能买吗", "绿杆2B铅笔", ["6支"]) > (
         _product_match_score("6支装现在能买吗", "斑马笔芯", ["10支黑色", "10支蓝色"])
     )
+    assert _product_match_score("黑色 L 多少钱，还剩几件", "拉夏贝尔法式碎花方领短袖衬衫") < 2
 
 
 def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:

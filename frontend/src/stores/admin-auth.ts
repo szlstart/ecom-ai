@@ -20,6 +20,7 @@ type ManagementPortal = 'admin' | 'merchant'
 interface SharedManagementAuthState {
   access_token: string
   csrf_token: string
+  session_id: string
   portal: ManagementPortal
   permission_codes: string[]
   scopes: Array<{ scope_type: string; scope_id: number }>
@@ -30,7 +31,7 @@ type ManagementAuthChannelMessage =
   | { type: 'state-request'; source_id: string; request_id: string; rejected_token: string | null }
   | { type: 'state-response'; source_id: string; target_id: string; request_id: string; state: SharedManagementAuthState }
   | { type: 'session-updated'; source_id: string; state: SharedManagementAuthState }
-  | { type: 'session-cleared'; source_id: string }
+  | { type: 'session-cleared'; source_id: string; session_id: string | null }
 
 const PEER_RESPONSE_TIMEOUT_MS = 180
 
@@ -41,6 +42,7 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
   const permissions = ref<string[]>([])
   const scopes = ref<Array<{ scope_type: string; scope_id: number }>>([])
   const userId = ref<string | null>(null)
+  const sessionId = ref<string | null>(null)
   const reauthExpiresAt = ref<string | null>(null)
   const tabId = crypto.randomUUID()
   const channels: Record<ManagementPortal, BroadcastChannel | null> = {
@@ -56,6 +58,10 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     merchant: null,
   }
   const knownAccessTokens = new Map<string, ManagementPortal>()
+  const revokedSessionIds: Record<ManagementPortal, Set<string>> = {
+    admin: new Set(),
+    merchant: new Set(),
+  }
   const isAuthenticated = computed(() => isUsableAccessToken(accessToken.value))
   const isAuthenticatedFor = (expectedPortal: ManagementPortal) =>
     isUsableAccessToken(accessToken.value) && portal.value === expectedPortal
@@ -115,10 +121,13 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     permissions.value = bootstrap.permission_codes
     scopes.value = bootstrap.scopes
     userId.value = bootstrap.session.user.user_id
+    sessionId.value = bootstrap.session.session.session_id
+    revokedSessionIds[acceptedPortal].delete(bootstrap.session.session.session_id)
     if (broadcast) broadcastState(acceptedPortal)
   }
 
-  function acceptSharedState(state: SharedManagementAuthState) {
+  function acceptSharedState(state: SharedManagementAuthState): boolean {
+    if (revokedSessionIds[state.portal].has(state.session_id)) return false
     rememberAccessToken(state.access_token, state.portal)
     accessToken.value = state.access_token
     csrfToken.value = state.csrf_token
@@ -126,13 +135,21 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     permissions.value = [...state.permission_codes]
     scopes.value = state.scopes.map((scope) => ({ ...scope }))
     userId.value = state.user_id
+    sessionId.value = state.session_id
+    return true
   }
 
   function currentSharedState(expectedPortal: ManagementPortal): SharedManagementAuthState | null {
-    if (!isAuthenticatedFor(expectedPortal) || !accessToken.value || !userId.value) return null
+    if (
+      !isAuthenticatedFor(expectedPortal)
+      || !accessToken.value
+      || !userId.value
+      || !sessionId.value
+    ) return null
     return {
       access_token: accessToken.value,
       csrf_token: readCookie(csrfCookieName(expectedPortal)) ?? csrfToken.value ?? '',
+      session_id: sessionId.value,
       portal: expectedPortal,
       permission_codes: [...permissions.value],
       scopes: scopes.value.map((scope) => ({ ...scope })),
@@ -159,6 +176,7 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
     permissions.value = []
     scopes.value = []
     userId.value = null
+    sessionId.value = null
     reauthExpiresAt.value = null
     for (const [token, tokenPortal] of knownAccessTokens) {
       if (!expectedPortal || tokenPortal === expectedPortal) knownAccessTokens.delete(token)
@@ -166,11 +184,14 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
   }
 
   function clear(broadcast = true, expectedPortal: ManagementPortal | null = portal.value) {
+    const clearedSessionId = expectedPortal && portal.value === expectedPortal ? sessionId.value : null
+    if (expectedPortal && clearedSessionId) revokedSessionIds[expectedPortal].add(clearedSessionId)
     clearLocal(expectedPortal)
     if (broadcast && expectedPortal) {
       channels[expectedPortal]?.postMessage({
         type: 'session-cleared',
         source_id: tabId,
+        session_id: clearedSessionId,
       } satisfies ManagementAuthChannelMessage)
     }
   }
@@ -214,6 +235,7 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
       csrfToken.value = response.data.csrf_token
       portal.value = expectedPortal
       userId.value = response.data.user.user_id
+      sessionId.value = response.data.session.session_id
       await loadAuthorization(false)
       broadcastState(expectedPortal)
       return true
@@ -294,15 +316,18 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
   }
 
   async function logout(expectedPortal: ManagementPortal = portal.value ?? 'admin') {
-    if (accessToken.value && portal.value === expectedPortal) {
-      const latestCsrfToken = readCookie(csrfCookieName(expectedPortal)) ?? csrfToken.value
+    const token = portal.value === expectedPortal ? accessToken.value : null
+    const latestCsrfToken = readCookie(csrfCookieName(expectedPortal)) ?? csrfToken.value
+    // Clear and broadcast before waiting for the network. A slow logout request must
+    // never leave the current UI usable or let another tab rebroadcast stale state.
+    clear(true, expectedPortal)
+    if (token) {
       await apiRequest<void>(
         `/${expectedPortal}/auth/logout`,
         { method: 'POST', headers: { 'X-CSRF-Token': latestCsrfToken ?? '' } },
-        accessToken.value,
+        token,
       ).catch(() => undefined)
     }
-    clear(true, expectedPortal)
   }
 
   function hasRefreshHint(expectedPortal: ManagementPortal): boolean {
@@ -329,15 +354,17 @@ export const useAdminAuthStore = defineStore('admin-auth', () => {
       }
       if (message.type === 'state-response') {
         if (message.target_id !== tabId) return
-        acceptSharedState(message.state)
-        pendingPeerRequests[expectedPortal].get(message.request_id)?.(true)
+        const accepted = acceptSharedState(message.state)
+        pendingPeerRequests[expectedPortal].get(message.request_id)?.(accepted)
         return
       }
       if (message.type === 'session-updated') {
-        acceptSharedState(message.state)
-        for (const resolve of pendingPeerRequests[expectedPortal].values()) resolve(true)
+        const accepted = acceptSharedState(message.state)
+        for (const resolve of pendingPeerRequests[expectedPortal].values()) resolve(accepted)
         return
       }
+      if (message.session_id) revokedSessionIds[expectedPortal].add(message.session_id)
+      if (message.session_id && sessionId.value !== message.session_id) return
       clearLocal(expectedPortal)
     })
   }

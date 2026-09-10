@@ -102,6 +102,13 @@ async def recent_agent_product_cards(
 
 
 def product_card_reference_index(user_text: str) -> int | None:
+    indices = product_card_reference_indices(user_text)
+    return indices[0] if indices else None
+
+
+def product_card_reference_indices(user_text: str) -> list[int]:
+    """Return every explicitly referenced card index in textual order."""
+
     compact = "".join(user_text.split()).casefold()
     ordinals = (
         (("第一个", "第一件", "第1个", "1号"), 0),
@@ -110,10 +117,12 @@ def product_card_reference_index(user_text: str) -> int | None:
         (("第四个", "第四件", "第4个", "4号"), 3),
         (("第五个", "第五件", "第5个", "5号"), 4),
     )
+    matches: list[tuple[int, int]] = []
     for markers, index in ordinals:
-        if any(marker in compact for marker in markers):
-            return index
-    return None
+        positions = [compact.find(marker) for marker in markers if marker in compact]
+        if positions:
+            matches.append((min(positions), index))
+    return [index for _position, index in sorted(matches)]
 
 
 def referenced_product_card(
@@ -131,19 +140,23 @@ def referenced_product_card(
     mentioned = _mentioned_product_card(user_text, cards)
     if mentioned is not None:
         return mentioned
-    if include_single_deictic and len(cards) == 1 and any(
-        marker in compact
-        for marker in (
-            "这个",
-            "这件",
-            "这款",
-            "它",
-            "刚才那个",
-            "刚才推荐",
-            "好",
-            "可以",
-            "继续",
-            "行",
+    if (
+        include_single_deictic
+        and len(cards) == 1
+        and any(
+            marker in compact
+            for marker in (
+                "这个",
+                "这件",
+                "这款",
+                "它",
+                "刚才那个",
+                "刚才推荐",
+                "好",
+                "可以",
+                "继续",
+                "行",
+            )
         )
     ):
         return cards[0]
@@ -157,8 +170,24 @@ def _mentioned_product_card(
 
     normalized = "".join(re.findall(r"[\u4e00-\u9fffA-Za-z0-9]+", user_text)).casefold()
     ignored = {
-        "这个", "这件", "这款", "这把", "这条", "商品", "东西", "适合", "考试",
-        "多少", "具体", "现在", "还有", "库存", "价格", "比较", "对比", "区别",
+        "这个",
+        "这件",
+        "这款",
+        "这把",
+        "这条",
+        "商品",
+        "东西",
+        "适合",
+        "考试",
+        "多少",
+        "具体",
+        "现在",
+        "还有",
+        "库存",
+        "价格",
+        "比较",
+        "对比",
+        "区别",
     }
     phrases = {
         normalized[start:end]

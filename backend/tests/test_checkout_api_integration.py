@@ -8,7 +8,7 @@ from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import AuthContext
@@ -1106,6 +1106,24 @@ async def test_checkout_snapshot_idempotency_etag_and_repricing(client: AsyncCli
             select(OrderItem).where(OrderItem.order_id == receipt_order.id)
         )
         assert receipt_item is not None
+        product_sales = await session.scalar(
+            select(func.coalesce(func.sum(Inventory.sold_quantity), 0))
+            .join(ProductSku, ProductSku.id == Inventory.sku_id)
+            .where(ProductSku.product_id == receipt_item.product_id)
+        )
+        receipt_product = await session.get(Product, receipt_item.product_id)
+        receipt_store = await session.get(Store, receipt_order.store_id)
+        store_product_sales = await session.scalar(
+            select(func.coalesce(func.sum(Product.sales_count), 0)).where(
+                Product.store_id == receipt_order.store_id
+            )
+        )
+        assert receipt_product is not None and receipt_product.sales_count == int(
+            product_sales or 0
+        )
+        assert receipt_store is not None and receipt_store.sales_count == int(
+            store_product_sales or 0
+        )
         receipt_order_version = receipt_order.version
         receipt_item_no = receipt_item.order_item_no
         receipt_item_quantity = receipt_item.quantity

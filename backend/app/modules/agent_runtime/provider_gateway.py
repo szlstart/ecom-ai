@@ -40,6 +40,7 @@ AgentStreamCallback = Callable[[str, str], Awaitable[None]]
 STORE_INTENTS: tuple[StoreIntent, ...] = (
     "general_chat",
     "product_qa",
+    "product_compare",
     "sku_compare",
     "inventory_lookup",
     "policy_qa",
@@ -88,6 +89,7 @@ Intent definitions and priority:
 - general_chat: greetings, thanks, small talk, capability questions, or a message that does not
   ask for product, policy, inventory, order, recommendation, or human support data.
 - product_recommend: asks what to buy, suitability, budget-based selection, or recommendations.
+- product_compare: compares two or more separate products already shown in the conversation.
 - sku_compare: compares variants, specifications, differences, or multiple SKUs.
 - inventory_lookup: asks whether a product/SKU is in stock, available, or will be restocked.
 - policy_qa: asks about this store's shipping fee, returns, warranty, invoice, or service policy.
@@ -705,6 +707,13 @@ class OpenAICompatiblePlanner:
                         json=request_payload,
                         timeout=self._timeout_seconds,
                     ) as response:
+                        # `raise_for_status()` can leave a streamed error body unread.
+                        # Error classification below may inspect the provider JSON, so
+                        # buffer only error responses before raising.  Otherwise a
+                        # harmless upstream 4xx can escape as `ResponseNotRead` and
+                        # bypass the deterministic Agent fallback.
+                        if response.is_error:
+                            await response.aread()
                         response.raise_for_status()
                         async for line in response.aiter_lines():
                             if not line.startswith("data:"):

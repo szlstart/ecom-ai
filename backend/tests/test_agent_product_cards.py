@@ -5,6 +5,7 @@ from app.modules.agent_runtime.order_cards import (
 from app.modules.agent_runtime.product_cards import (
     is_short_affirmative,
     product_card_reference_index,
+    product_card_reference_indices,
     referenced_product_card,
 )
 
@@ -18,6 +19,7 @@ def test_short_affirmative_requires_exact_acknowledgement() -> None:
 def test_product_card_reference_index_tracks_requested_collection_size() -> None:
     assert product_card_reference_index("接着看看第三个") == 2
     assert product_card_reference_index("这个怎么样") is None
+    assert product_card_reference_indices("第二个和第三个有什么区别") == [1, 2]
 
 
 def test_resolves_ordinal_and_single_card_follow_ups() -> None:

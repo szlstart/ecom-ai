@@ -236,6 +236,7 @@ AGENTS: tuple[AgentSeed, ...] = (
         "专业 Agent 并合并结果。先给治理结论和优先级，详细事实使用结构化卡片展示，不输出"
         "数据库字段清单。任何治理写操作都必须进入独立确认或审批资源。",
         (
+            "admin_readonly_diagnostics",
             "admin_user_governance",
             "admin_store_governance",
             "admin_order_governance",
@@ -399,8 +400,10 @@ async def _seed_agents(
             definition.display_name = item.name
             definition.version += 1
         target_version_no = (
-            7
-            if item.code in {"merchant_copilot", "admin_copilot"}
+            8
+            if item.code == "admin_copilot"
+            else 7
+            if item.code == "merchant_copilot"
             else 6
             if item.code == "exclusive_support"
             else 4

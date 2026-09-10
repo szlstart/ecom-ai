@@ -9,6 +9,7 @@ from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
 StoreIntent = Literal[
     "general_chat",
     "product_qa",
+    "product_compare",
     "sku_compare",
     "inventory_lookup",
     "policy_qa",
@@ -61,10 +62,9 @@ def requests_other_user_data(user_text: str) -> bool:
         "收藏",
         "账号",
     )
-    explicit_named_user = (
-        _contains(text, "查看用户", "查询用户", "查用户", "查看账号", "查询账号")
-        and not _contains(text, "当前用户", "当前账号", "本人", "我自己", "我的")
-    )
+    explicit_named_user = _contains(
+        text, "查看用户", "查询用户", "查用户", "查看账号", "查询账号"
+    ) and not _contains(text, "当前用户", "当前账号", "本人", "我自己", "我的")
     return (subject or explicit_named_user) and private_data
 
 
@@ -110,6 +110,20 @@ class DeterministicStoreModelGateway:
             return StoreAgentPlan("human_handoff")
         if _contains(
             text,
+            "第一笔",
+            "第二笔",
+            "第三笔",
+            "第四笔",
+            "第五笔",
+            "第1笔",
+            "第2笔",
+            "第3笔",
+            "第4笔",
+            "第5笔",
+        ):
+            return StoreAgentPlan("order_explain")
+        if _contains(
+            text,
             "第一个",
             "第二个",
             "第三个",
@@ -117,6 +131,8 @@ class DeterministicStoreModelGateway:
             "第五个",
             "刚才推荐",
         ):
+            if _contains(text, "对比", "比较", "区别", "差别"):
+                return StoreAgentPlan("product_compare")
             return StoreAgentPlan("product_qa")
         if _contains(
             text,
@@ -130,6 +146,9 @@ class DeterministicStoreModelGateway:
             "最大号",
             "最小号",
             "颜色",
+            "体重",
+            "身高",
+            "腰围",
             "重量",
             "尺寸",
             "成分",
@@ -198,6 +217,7 @@ class DeterministicStoreModelGateway:
 STORE_CAPABILITIES: dict[StoreIntent, tuple[str, ...]] = {
     "general_chat": (),
     "product_qa": ("catalog.get_product",),
+    "product_compare": ("catalog.compare_products",),
     "sku_compare": ("catalog.compare_skus",),
     "inventory_lookup": ("catalog.get_inventory_availability",),
     "policy_qa": ("catalog.get_store_policy", "rag.store_policy.search"),
@@ -307,6 +327,33 @@ def refine_store_plan_for_context(
         and not _contains(text, "推荐别的", "还有什么", "类似商品", "换一个", "其他商品")
     ):
         return complete_store_plan(StoreAgentPlan("product_qa", confidence=plan.confidence))
+    if (
+        has_product_context
+        and plan.intent == "product_recommend"
+        and _contains(
+            text,
+            "体重",
+            "身高",
+            "腰围",
+            "胸围",
+            "臀围",
+            "长度",
+            "重量",
+            "材质",
+            "面料",
+            "尺寸",
+            "尺码",
+            "码数",
+        )
+        and not _contains(text, "推荐", "还有什么", "类似商品", "换一个", "其他商品")
+    ):
+        return complete_store_plan(
+            StoreAgentPlan(
+                "product_qa",
+                confidence=max(plan.confidence, 0.9),
+                continuation_of_previous_turn=True,
+            )
+        )
     return complete_store_plan(plan)
 
 
@@ -345,8 +392,7 @@ def _is_general_chat(value: str) -> bool:
     }:
         return True
     return any(
-        value.startswith(prefix)
-        for prefix in ("谢谢你", "感谢你", "辛苦了", "你好呀", "您好呀")
+        value.startswith(prefix) for prefix in ("谢谢你", "感谢你", "辛苦了", "你好呀", "您好呀")
     )
 
 

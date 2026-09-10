@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
 
 import httpx
 import pytest
@@ -574,6 +575,32 @@ async def test_responses_stream_falls_back_after_transient_primary_failure() -> 
     assert answer.text == "当前有库存。"
     assert seen == ["overloaded-model", "fallback-model", "fallback-model"]
     assert updates[:2] == [("reasoning_replace", ""), ("answer_replace", "")]
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_responses_stream_buffers_streamed_error_before_classification() -> None:
+    class ErrorStream(httpx.AsyncByteStream):
+        async def __aiter__(self) -> AsyncIterator[bytes]:
+            yield b'{"error":{"type":"invalid_request_error"}}'
+
+    async def respond(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, stream=ErrorStream())
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1",
+        api_key="model-secret",
+        model="gpt-5.5",
+        wire_api="responses",
+        timeout_seconds=5,
+        client=client,
+    )
+
+    with pytest.raises(ModelGatewayError, match="request failed"):
+        await planner._request_responses_stream(
+            {"model": "gpt-5.5", "stream": True}, stream_callback=None
+        )
     await client.aclose()
 
 

@@ -9,6 +9,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -133,9 +134,15 @@ class ExclusiveToolGateway:
     ) -> StoreToolResult:
         async def handler() -> dict[str, object]:
             constraints = _catalog_search_constraints(query, fallback_query)
+            candidates = list(constraints.candidates)
+            if constraints.semantic_keywords:
+                candidates = list(
+                    dict.fromkeys([candidates[0], *constraints.semantic_keywords, *candidates[1:]])
+                )
             rows = []
+            seen_product_ids: set[int] = set()
             has_more = False
-            for term in constraints.candidates:
+            for term in candidates:
                 found, found_has_more = await self.catalog.search_products(
                     q=term,
                     category_no=None,
@@ -148,10 +155,16 @@ class ExclusiveToolGateway:
                     position=None,
                     limit=8,
                 )
-                rows = found
-                has_more = found_has_more
-                if rows:
+                has_more = has_more or found_has_more
+                for row in found:
+                    product, _store = row
+                    if product.id in seen_product_ids:
+                        continue
+                    seen_product_ids.add(product.id)
+                    rows.append(row)
+                if len(rows) >= constraints.requested_limit:
                     break
+            rows = rows[: constraints.requested_limit]
             skus_by_product: dict[int, list[dict[str, object]]] = {}
             stock_by_product: dict[int, int] = {}
             product_ids = [product.id for product, _store in rows]
@@ -219,18 +232,25 @@ class ExclusiveToolGateway:
             handler,
         )
 
-    async def list_orders(self, context: TrustedExclusiveAgentContext) -> StoreToolResult:
+    async def list_orders(
+        self,
+        context: TrustedExclusiveAgentContext,
+        query: str | None = None,
+    ) -> StoreToolResult:
         async def handler() -> dict[str, object]:
-            rows = list(
-                (
-                    await self.session.execute(
-                        select(Order, Store)
-                        .join(Store, Store.id == Order.store_id)
-                        .where(Order.user_id == context.user.id, Order.user_hidden_at.is_(None))
-                        .order_by(Order.created_at.desc(), Order.id.desc())
-                        .limit(5)
-                    )
-                ).all()
+            rows = cast(
+                list[tuple[Order, Store]],
+                list(
+                    (
+                        await self.session.execute(
+                            select(Order, Store)
+                            .join(Store, Store.id == Order.store_id)
+                            .where(Order.user_id == context.user.id, Order.user_hidden_at.is_(None))
+                            .order_by(Order.created_at.desc(), Order.id.desc())
+                            .limit(20)
+                        )
+                    ).all()
+                ),
             )
             order_ids = [order.id for order, _store in rows]
             order_items = (
@@ -249,6 +269,7 @@ class ExclusiveToolGateway:
             items_by_order: dict[int, list[OrderItem]] = {}
             for item in order_items:
                 items_by_order.setdefault(item.order_id, []).append(item)
+            rows = _filter_order_rows(rows, items_by_order, query)[:5]
             return {
                 "items": [
                     self._order_projection(order, store, items_by_order.get(order.id, []))
@@ -258,7 +279,12 @@ class ExclusiveToolGateway:
                 "presentation": "order_cards",
             }
 
-        return await self.execute(context, "order.list_user_orders", {}, handler)
+        return await self.execute(
+            context,
+            "order.list_user_orders",
+            {"query": (query or "")[:120]},
+            handler,
+        )
 
     async def get_cart(self, context: TrustedExclusiveAgentContext) -> StoreToolResult:
         async def handler() -> dict[str, object]:
@@ -690,8 +716,10 @@ def _combined_catalog_search_candidates(
 class CatalogSearchConstraints:
     candidates: tuple[str | None, ...]
     keywords: tuple[str, ...]
+    semantic_keywords: tuple[str, ...]
     price_min: int | None
     price_max: int | None
+    requested_limit: int
 
 
 _PRICE_NUMBER = r"(\d+(?:\.\d{1,2})?)"
@@ -713,6 +741,7 @@ def _catalog_search_constraints(
     price_max = _extract_price_bound(original, lower=False)
     keyword_source = _strip_catalog_request_syntax(original)
     keywords = _catalog_keywords(keyword_source)
+    semantic_keywords = _semantic_catalog_expansions(original)
 
     candidates: list[str | None] = []
     # Prefer the server-cleaned request. Model output and the raw sentence are
@@ -724,6 +753,9 @@ def _catalog_search_constraints(
                 continue
             if candidate not in candidates:
                 candidates.append(candidate)
+    for keyword in semantic_keywords:
+        if keyword not in candidates:
+            candidates.append(keyword)
     for keyword in keywords:
         if keyword not in candidates:
             candidates.append(keyword)
@@ -737,9 +769,79 @@ def _catalog_search_constraints(
     return CatalogSearchConstraints(
         candidates=tuple(candidates[:12]),
         keywords=keywords,
+        semantic_keywords=semantic_keywords,
         price_min=price_min,
         price_max=price_max,
+        requested_limit=_extract_requested_count(original),
     )
+
+
+def _semantic_catalog_expansions(text: str) -> tuple[str, ...]:
+    """Expand bounded shopping purposes into auditable catalogue terms."""
+
+    normalized = re.sub(r"\s+", "", text).casefold()
+    result: list[str] = []
+    if any(term in normalized for term in ("考试", "考研", "答题", "绘图")):
+        result.extend(("铅笔", "橡皮", "直尺", "笔芯", "笔记本"))
+    if any(term in normalized for term in ("办公", "上班", "会议")):
+        result.extend(("笔", "笔记本", "记录本", "直尺"))
+    return tuple(dict.fromkeys(result))
+
+
+def _extract_requested_count(text: str) -> int:
+    chinese_numbers = {"一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5}
+    match = re.search(r"(?:推荐|找|看看|列出)?\s*([一两二三四五\d]+)\s*(?:件|个|款)", text)
+    if match is None:
+        return 5
+    raw = match.group(1)
+    try:
+        value = int(raw) if raw.isdigit() else chinese_numbers.get(raw, 5)
+    except ValueError:
+        value = 5
+    return max(1, min(value, 8))
+
+
+def _filter_order_rows(
+    rows: list[tuple[Order, Store]],
+    items_by_order: dict[int, list[OrderItem]],
+    query: str | None,
+) -> list[tuple[Order, Store]]:
+    """Narrow natural-language order lists when a store or product is named."""
+
+    normalized = re.sub(r"\s+", "", query or "").casefold()
+    if not normalized:
+        return rows
+    product_query = re.sub(
+        r"(?:订单|刚刚|刚才|我的|这个|那个|状态|买的|购买的|查一下|看看)",
+        "",
+        normalized,
+    )
+    matches: list[tuple[Order, Store]] = []
+    for order, store in rows:
+        store_name = re.sub(r"\s+", "", store.store_name).casefold()
+        store_stem = re.sub(r"(?:官方)?(?:旗舰店|专卖店|店铺|商店)$", "", store_name)
+        store_match = bool(
+            store_name in normalized or (len(store_stem) >= 2 and store_stem in normalized)
+        )
+        product_match = any(
+            _meaningful_product_reference(item.product_name, product_query)
+            for item in items_by_order.get(order.id, [])
+        )
+        if store_match or product_match:
+            matches.append((order, store))
+    return matches or rows
+
+
+def _meaningful_product_reference(product_name: str, normalized_query: str) -> bool:
+    product = re.sub(r"\s+", "", product_name).casefold()
+    if product in normalized_query:
+        return True
+    for token in re.findall(r"[\u4e00-\u9fff]{2,}|[a-z0-9]{2,}", normalized_query):
+        if token in {"订单", "刚刚", "刚才", "我的", "这个", "那个", "状态", "买的"}:
+            continue
+        if token in product:
+            return True
+    return False
 
 
 def _extract_price_bound(text: str, *, lower: bool) -> int | None:

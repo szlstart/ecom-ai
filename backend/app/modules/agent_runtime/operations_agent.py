@@ -1106,7 +1106,7 @@ def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, A
         products = data.get("on_sale_products")
         if not isinstance(products, list) or not products:
             return "本店当前没有可售商品。本次只读取了本店授权范围内的数据。"
-        low_stock: list[str] = []
+        low_stock_names: list[str] = []
         for product in products:
             if not isinstance(product, dict):
                 continue
@@ -1117,11 +1117,11 @@ def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, A
                 inventory = sku.get("inventory")
                 available = inventory.get("available") if isinstance(inventory, dict) else 0
                 if isinstance(available, int) and available <= 5:
-                    low_stock.append(f"{product.get('name')}/{sku.get('name')}")
-        if low_stock:
+                    low_stock_names.append(f"{product.get('name')}/{sku.get('name')}")
+        if low_stock_names:
             return (
                 f"已核对 {len(products)} 件在售商品。建议先处理这些低库存款式: "
-                + "、".join(low_stock[:3])
+                + "、".join(low_stock_names[:3])
                 + "。详细价格和库存已整理在下方卡片中。"
             )
         return (
@@ -1170,7 +1170,6 @@ def _operations_detail_cards(
 
     specialists = data.get("specialists")
     if isinstance(specialists, Mapping):
-        cards: list[dict[str, object]] = []
         specialist_intents = {
             "merchant_catalog": "catalog",
             "merchant_inventory": "inventory",
@@ -1180,15 +1179,42 @@ def _operations_detail_cards(
             "governance_orders": "orders",
             "observability": "runtime",
         }
+        specialist_results: dict[str, Mapping[str, Any]] = {}
         for result in specialists.values():
             if not isinstance(result, Mapping):
                 continue
             safe_data = result.get("data")
-            nested_intent = specialist_intents.get(str(result.get("specialist")))
-            if nested_intent and isinstance(safe_data, Mapping):
-                cards.extend(_operations_detail_cards(context, nested_intent, safe_data))
-        if cards:
-            return cards[:5]
+            specialist = str(result.get("specialist"))
+            if specialist in specialist_intents and isinstance(safe_data, Mapping):
+                specialist_results[specialist] = safe_data
+        specialist_cards: list[dict[str, object]] = []
+        if context.audience == "merchant":
+            # A cross-domain stock diagnosis must not dump the first five products just because
+            # the catalog specialist completed first.  Put risks and orders first; catalog cards
+            # are useful only when no more specific operational result is available.
+            for specialist in ("merchant_inventory", "merchant_orders"):
+                safe_data = specialist_results.get(specialist)
+                if safe_data is not None:
+                    specialist_cards.extend(
+                        _operations_detail_cards(context, specialist_intents[specialist], safe_data)
+                    )
+            catalog_data = specialist_results.get("merchant_catalog")
+            if catalog_data is not None and not specialist_cards:
+                specialist_cards.extend(_operations_detail_cards(context, "catalog", catalog_data))
+        else:
+            for specialist in (
+                "observability",
+                "governance_orders",
+                "governance_stores",
+                "governance_users",
+            ):
+                safe_data = specialist_results.get(specialist)
+                if safe_data is not None:
+                    specialist_cards.extend(
+                        _operations_detail_cards(context, specialist_intents[specialist], safe_data)
+                    )
+        if specialist_cards:
+            return specialist_cards[:5]
 
     def rows_from_counts(
         counts: object, labels: Mapping[str, str], *, maximum: int = 8
@@ -1221,7 +1247,7 @@ def _operations_detail_cards(
 
     if context.audience == "merchant":
         if intent == "catalog":
-            cards: list[dict[str, object]] = []
+            product_cards: list[dict[str, object]] = []
             products = data.get("on_sale_products")
             for product in products if isinstance(products, list) else []:
                 if not isinstance(product, Mapping):
@@ -1245,7 +1271,7 @@ def _operations_detail_cards(
                             "meta": f"可售 {available}",
                         }
                     )
-                cards.append(
+                product_cards.append(
                     {
                         "kind": "merchant_product",
                         "icon": "商",
@@ -1260,7 +1286,7 @@ def _operations_detail_cards(
                         },
                     }
                 )
-            return cards[:5]
+            return product_cards[:5]
         if intent == "inventory":
             low_count = int(data.get("low_stock_sku_count", 0))
             risks = data.get("low_stock_skus")
@@ -1283,12 +1309,12 @@ def _operations_detail_cards(
                         "action": {"label": "进入商品管理", "path": "/merchant/products"},
                     }
                 ]
-            cards: list[dict[str, object]] = []
+            risk_cards: list[dict[str, object]] = []
             for item in risk_items[:5]:
                 available = int(item.get("available_quantity", 0))
                 safety = int(item.get("safety_stock_quantity", 0))
                 product_id = str(item.get("product_id") or "")
-                cards.append(
+                risk_cards.append(
                     {
                         "kind": "inventory_risk",
                         "icon": "库",
@@ -1311,11 +1337,11 @@ def _operations_detail_cards(
                         },
                     }
                 )
-            if low_count > len(cards):
-                cards[-1]["summary"] = (
-                    f"另有 {low_count - len(cards)} 个风险款式，请进入商品管理继续查看。"
+            if low_count > len(risk_cards):
+                risk_cards[-1]["summary"] = (
+                    f"另有 {low_count - len(risk_cards)} 个风险款式，请进入商品管理继续查看。"
                 )
-            return cards
+            return risk_cards
         order_rows = rows_from_counts(data.get("order_status_counts"), order_labels)
         revenue = data.get("completed_order_revenue")
         unsettled = data.get("unsettled_paid_amount")

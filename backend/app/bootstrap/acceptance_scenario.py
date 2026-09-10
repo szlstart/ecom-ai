@@ -28,6 +28,7 @@ from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, St
 
 SCENARIO_VERSION = "commerce-three-portal-v1"
 CONSUMER_USERNAME = "acceptance_user"
+CONSUMER_DISPLAY_NAME = "验收用户"
 MERCHANT_USERNAME = "acceptance_merchant"
 ADMIN_USERNAME = "acceptance_admin"
 TEST_PASSWORD = "Acceptance-only-password-2026!"
@@ -40,9 +41,11 @@ MERCHANT_SKU_CODE = "ACCEPTANCE-NOTEBOOK-V1"
 class AcceptanceScenario:
     scenario_version: str
     consumer_username: str
+    consumer_display_name: str
     consumer_user_id: str
     merchant_username: str
     merchant_user_id: str
+    store_name: str
     administrator_username: str
     administrator_user_id: str
     store_id: str
@@ -98,9 +101,11 @@ async def seed_acceptance_scenario(session: AsyncSession) -> AcceptanceScenario:
     return AcceptanceScenario(
         scenario_version=SCENARIO_VERSION,
         consumer_username=consumer.username,
+        consumer_display_name=consumer.nickname or consumer.username,
         consumer_user_id=consumer.user_no,
         merchant_username=merchant.username,
         merchant_user_id=merchant.user_no,
+        store_name=store.store_name,
         administrator_username=ADMIN_USERNAME,
         administrator_user_id=administrator.user_no,
         store_id=store.store_no,
@@ -119,7 +124,7 @@ async def _create_consumer(
         user_no=new_prefixed_ulid("usr_"),
         username=CONSUMER_USERNAME,
         username_normalized=CONSUMER_USERNAME,
-        nickname="验收用户",
+        nickname=CONSUMER_DISPLAY_NAME,
         user_status="active",
         locale="zh-CN",
         timezone="Asia/Shanghai",
@@ -319,9 +324,11 @@ async def _existing_scenario(
     return AcceptanceScenario(
         scenario_version=SCENARIO_VERSION,
         consumer_username=consumer.username,
+        consumer_display_name=consumer.nickname or consumer.username,
         consumer_user_id=consumer.user_no,
         merchant_username=merchant.username,
         merchant_user_id=merchant.user_no,
+        store_name=store.store_name,
         administrator_username=administrator.username,
         administrator_user_id=administrator.user_no,
         store_id=store.store_no,

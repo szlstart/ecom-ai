@@ -5,6 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 python_bin="${PYTHON_BIN:-/opt/miniconda3/envs/ecom-ai/bin/python}"
 api_log="${repo_root}/artifacts/acceptance/current/quality/live-api.log"
 worker_log="${repo_root}/artifacts/acceptance/current/quality/live-agent-worker.log"
+file_worker_log="${repo_root}/artifacts/acceptance/current/quality/live-file-worker.log"
 
 export ECOM_ALLOWED_ORIGINS='http://127.0.0.1:4173'
 export ECOM_PUBLIC_ORIGIN='http://127.0.0.1:4173'
@@ -13,7 +14,7 @@ export ECOM_LIVE_E2E=1
 export VITE_API_BASE_URL='http://127.0.0.1:18000/api/v1'
 
 cleanup() {
-  for pid in "${worker_pid:-}" "${api_pid:-}"; do
+  for pid in "${file_worker_pid:-}" "${worker_pid:-}" "${api_pid:-}"; do
     if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
       kill "${pid}" 2>/dev/null || true
       wait "${pid}" 2>/dev/null || true
@@ -38,6 +39,15 @@ api_pid=$!
 ) >"${worker_log}" 2>&1 &
 worker_pid=$!
 
+# Product editing is a release-critical browser journey. Run the real file
+# processor as part of connected acceptance so image selection, object storage,
+# malware scanning, binding and the final publish gate are verified together.
+(
+  cd backend
+  exec "${python_bin}" -m app.workers.file_processor
+) >"${file_worker_log}" 2>&1 &
+file_worker_pid=$!
+
 for _ in {1..60}; do
   if curl --fail --silent http://127.0.0.1:18000/health/live >/dev/null; then
     break
@@ -59,7 +69,7 @@ pnpm test:e2e
 # tracebacks, implicit cartesian joins, and internal-server responses.
 if rg --line-number --ignore-case \
   'cartesian product|traceback| 500 internal' \
-  "${api_log}" "${worker_log}"; then
+  "${api_log}" "${worker_log}" "${file_worker_log}"; then
   echo 'Unexpected runtime warning/error found in live acceptance logs.' >&2
   exit 1
 fi

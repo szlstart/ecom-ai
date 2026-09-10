@@ -418,6 +418,8 @@ async def test_discussing_human_service_does_not_reopen_handoff() -> None:
         assert (await store.plan(message)).intent != "human_handoff"
     assert (await exclusive.plan("请帮我转人工客服")).intent == "human_handoff"
     assert (await exclusive.plan("请转平台人工客服")).intent == "human_handoff"
+    assert (await exclusive.plan("再次请求平台人工，用于继续处理问题")).intent == "human_handoff"
+    assert (await exclusive.plan("我只是想了解如何申请平台人工客服")).intent != "human_handoff"
     assert (await store.plan("我要联系真人")).intent == "human_handoff"
 
 

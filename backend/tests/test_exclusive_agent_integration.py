@@ -251,7 +251,11 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
     search_message = await _send(client, headers, conversation_no, "请帮我全平台搜索退款测试键盘")
     await _drain_agent()
     search_reply = _reply_after(await _messages(client, headers, conversation_no), search_message)
-    assert "退款测试键盘" in str(search_reply["text"])
+    assert "全平台在售商品" in str(search_reply["text"])
+    search_content = cast(dict[str, object], search_reply["content"])
+    search_cards = cast(list[dict[str, object]], search_content["product_cards"])
+    assert product.product_no in [item["product_id"] for item in search_cards]
+    assert product.product_name in [item["product_name"] for item in search_cards]
 
     recommendation_message = await _send(client, headers, conversation_no, "推荐退款测试键盘")
     await _drain_agent()
@@ -360,6 +364,21 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
         )
         assert audit_count == 0
         break
+
+    precheck_message = await _send(client, headers, conversation_no, "这个订单能否退款?")
+    await _drain_agent()
+    precheck_reply = _reply_after(
+        await _messages(client, headers, conversation_no), precheck_message
+    )
+    assert "资格检查完成" in str(precheck_reply["text"])
+    precheck_content = cast(dict[str, object], precheck_reply["content"])
+    precheck_cards = cast(list[dict[str, object]], precheck_content["detail_cards"])
+    assert precheck_cards[0]["kind"] == "refund_eligibility"
+    assert precheck_cards[0]["action"] == {
+        "resource_type": "order",
+        "resource_id": order_no,
+        "label": "查看订单售后",
+    }
 
     no_consent_message = await _send(
         client, headers, conversation_no, "这个键盘不合适，我要申请退款"
@@ -503,6 +522,17 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
         break
     await _drain_agent()
     assert await _refund_count(user.id) == 1
+
+    progress_message = await _send(client, headers, conversation_no, "刚才的退款进度怎么样?")
+    await _drain_agent()
+    progress_reply = _reply_after(
+        await _messages(client, headers, conversation_no), progress_message
+    )
+    assert "最近售后申请" in str(progress_reply["text"])
+    progress_content = cast(dict[str, object], progress_reply["content"])
+    progress_cards = cast(list[dict[str, object]], progress_content["detail_cards"])
+    assert progress_cards[0]["kind"] == "refund_progress"
+    assert progress_cards[0]["badge"] == "已提交"
 
     handoff_message = await _send(client, headers, conversation_no, "请转平台人工客服")
     await _drain_agent()

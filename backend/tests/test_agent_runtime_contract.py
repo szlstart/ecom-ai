@@ -33,6 +33,7 @@ from app.modules.agent_runtime.operations_agent import (
 from app.modules.agent_runtime.operations_context import TrustedOperationsContext
 from app.modules.agent_runtime.service import _normalize_context_snapshot
 from app.modules.agent_runtime.store_agent import _render as _render_store
+from app.modules.agent_runtime.store_agent import _render_usage_answer
 from app.modules.agent_runtime.store_context import STORE_AGENT_TOOL_CODES
 from app.modules.agent_runtime.store_tools import (
     _contains_scope_override,
@@ -136,9 +137,13 @@ def test_exclusive_agent_tool_contract_allows_only_scoped_support_actions() -> N
 async def test_natural_refund_and_store_purchase_history_are_specific_intents() -> None:
     exclusive = await DeterministicExclusiveModelGateway().plan("帮我退款")
     store = await DeterministicStoreModelGateway().plan("我在你店买过什么东西?")
+    store_ordinal = await DeterministicStoreModelGateway().plan("第二个适合什么场景?")
+    exclusive_ordinal = await DeterministicExclusiveModelGateway().plan("第二个适合我吗?")
 
     assert exclusive.intent == "refund_eligibility"
     assert store.intent == "order_explain"
+    assert store_ordinal.intent == "product_qa"
+    assert exclusive_ordinal.intent == "product_search"
 
 
 def test_checkpoint_projection_rejects_nested_sensitive_content() -> None:
@@ -243,6 +248,14 @@ def test_store_plan_refinement_keeps_affirmative_follow_up_in_current_task() -> 
             "这支铅笔适合什么场景?",
             has_product_context=False,
             has_order_context=True,
+        ).intent
+        == "product_qa"
+    )
+    assert (
+        refine_store_plan_for_context(
+            StoreAgentPlan("product_recommend", search_text="它适合考试吗?"),
+            "它适合考试吗?",
+            has_product_context=True,
         ).intent
         == "product_qa"
     )
@@ -392,9 +405,25 @@ def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:
             ]
         },
     )
-    assert answer.startswith("绿杆2B铅笔的款式、价格和实时可售库存如下")
-    assert "10支: ¥8.00，实时可售 0 件，缺货" in answer
+    assert answer == "已查到“绿杆2B铅笔”的实时库存。款式、价格和可售数量都整理在卡片中。"
     assert "out_of_stock" not in answer
+
+
+def test_store_usage_answer_uses_only_explicit_merchant_evidence() -> None:
+    data = {
+        "name": "金属美工刀",
+        "subtitle": "办公裁纸与手帐切割工具",
+        "attributes": [{"name": "材质", "value": "不锈钢"}],
+    }
+
+    answer = _render_usage_answer(data, "第二个适合什么场景?")
+    assert answer is not None
+    assert "办公、裁纸、手帐、切割" in answer
+    assert "不能只凭商品名称" not in answer
+
+    exam_answer = _render_usage_answer(data, "适合考试吗?")
+    assert exam_answer is not None
+    assert "没有明确标注“考试”" in exam_answer
 
 
 def test_store_product_fallback_answers_maximum_size_instead_of_repeating_catalog() -> None:

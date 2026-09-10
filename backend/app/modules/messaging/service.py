@@ -972,109 +972,119 @@ class MessagingService:
         if content.type == "text":
             return "text", content.text, None
         if content.type == "product_card":
-            from app.modules.catalog.models import Product, ProductImage, ProductSku
-            from app.modules.inventory.models import Inventory
-
-            statement = select(Product).where(
-                Product.product_no == content.product_id,
-                Product.product_status == "on_sale",
-            )
-            if conversation.store_id is not None:
-                statement = statement.where(Product.store_id == conversation.store_id)
-            product = await self.session.scalar(statement)
-            if product is None:
-                raise _not_found()
-            store = await self.session.get(Store, product.store_id)
-            if store is None:
-                raise _not_found()
-            sku = None
-            if content.sku_id is not None:
-                sku = await self.session.scalar(
-                    select(ProductSku).where(
-                        ProductSku.sku_no == content.sku_id,
-                        ProductSku.product_id == product.id,
-                        ProductSku.sku_status == "active",
-                    )
-                )
-                if sku is None:
-                    raise _not_found()
-            else:
-                sku = await self.session.scalar(
-                    select(ProductSku)
-                    .where(
-                        ProductSku.product_id == product.id,
-                        ProductSku.sku_status == "active",
-                    )
-                    .order_by(
-                        case((ProductSku.id == product.default_sku_id, 0), else_=1),
-                        ProductSku.id,
-                    )
-                    .limit(1)
-                )
-            inventory = (
-                await self.session.scalar(select(Inventory).where(Inventory.sku_id == sku.id))
-                if sku
-                else None
-            )
-            image_file = (
-                await self.session.scalar(
-                    select(FileObject)
-                    .join(ProductImage, ProductImage.file_id == FileObject.id)
-                    .where(
-                        ProductImage.product_id == product.id,
-                        ProductImage.image_status == "active",
-                        FileObject.file_status == "active",
-                        FileObject.scan_status == "safe",
-                    )
-                    .order_by(
-                        case((ProductImage.sku_id == sku.id, 0), else_=1),
-                        ProductImage.sort_order,
-                        ProductImage.id,
-                    )
-                    .limit(1)
-                )
-                if sku
-                else None
-            )
-            logo_file = await self._public_file_by_object_key(store.logo_object_key)
-            available_quantity = max(
-                0,
-                (inventory.on_hand_quantity - inventory.reserved_quantity)
-                if inventory and inventory.inventory_status == "active"
-                else 0,
-            )
-            return (
-                "product_card",
-                None,
-                {
-                    "schema_version": 2,
-                    "product_id": product.product_no,
-                    "product_name": product.product_name,
-                    "product_status": product.product_status,
-                    "sku_id": sku.sku_no if sku else None,
-                    "sku_name": sku.sku_name if sku else None,
-                    "price": (
-                        {"minor_units": str(sku.sale_price_amount), "currency": sku.currency}
-                        if sku
-                        else None
-                    ),
-                    "image_url": self._file_url(image_file, thumbnail=True),
-                    "available_quantity": available_quantity,
-                    "stock_status": "available" if available_quantity > 0 else "sold_out",
-                    "sales_count": product.sales_count,
-                    "store": {
-                        "store_id": store.store_no,
-                        "store_name": store.store_name,
-                        "store_status": store.store_status,
-                        "logo_url": self._file_url(logo_file),
-                    },
-                },
+            return "product_card", None, await self.product_card_payload(
+                conversation,
+                content.product_id,
+                content.sku_id,
             )
         return "order_card", None, await self.order_card_payload(
             user,
             conversation,
             content.order_id,
         )
+
+    async def product_card_payload(
+        self,
+        conversation: Conversation,
+        product_no: str,
+        sku_no: str | None = None,
+    ) -> dict[str, object]:
+        """Build one public, scope-checked product card for chat and Agent replies."""
+
+        from app.modules.catalog.models import Product, ProductImage, ProductSku
+        from app.modules.inventory.models import Inventory
+
+        statement = select(Product).where(
+            Product.product_no == product_no,
+            Product.product_status == "on_sale",
+        )
+        if conversation.store_id is not None:
+            statement = statement.where(Product.store_id == conversation.store_id)
+        product = await self.session.scalar(statement)
+        if product is None:
+            raise _not_found()
+        store = await self.session.get(Store, product.store_id)
+        if store is None:
+            raise _not_found()
+        sku = None
+        if sku_no is not None:
+            sku = await self.session.scalar(
+                select(ProductSku).where(
+                    ProductSku.sku_no == sku_no,
+                    ProductSku.product_id == product.id,
+                    ProductSku.sku_status == "active",
+                )
+            )
+            if sku is None:
+                raise _not_found()
+        else:
+            sku = await self.session.scalar(
+                select(ProductSku)
+                .where(
+                    ProductSku.product_id == product.id,
+                    ProductSku.sku_status == "active",
+                )
+                .order_by(
+                    case((ProductSku.id == product.default_sku_id, 0), else_=1),
+                    ProductSku.id,
+                )
+                .limit(1)
+            )
+        inventory = (
+            await self.session.scalar(select(Inventory).where(Inventory.sku_id == sku.id))
+            if sku
+            else None
+        )
+        image_file = (
+            await self.session.scalar(
+                select(FileObject)
+                .join(ProductImage, ProductImage.file_id == FileObject.id)
+                .where(
+                    ProductImage.product_id == product.id,
+                    ProductImage.image_status == "active",
+                    FileObject.file_status == "active",
+                    FileObject.scan_status == "safe",
+                )
+                .order_by(
+                    case((ProductImage.sku_id == sku.id, 0), else_=1),
+                    ProductImage.sort_order,
+                    ProductImage.id,
+                )
+                .limit(1)
+            )
+            if sku
+            else None
+        )
+        logo_file = await self._public_file_by_object_key(store.logo_object_key)
+        available_quantity = max(
+            0,
+            (inventory.on_hand_quantity - inventory.reserved_quantity)
+            if inventory and inventory.inventory_status == "active"
+            else 0,
+        )
+        return {
+            "schema_version": 2,
+            "product_id": product.product_no,
+            "product_name": product.product_name,
+            "product_status": product.product_status,
+            "sku_id": sku.sku_no if sku else None,
+            "sku_name": sku.sku_name if sku else None,
+            "price": (
+                {"minor_units": str(sku.sale_price_amount), "currency": sku.currency}
+                if sku
+                else None
+            ),
+            "image_url": self._file_url(image_file, thumbnail=True),
+            "available_quantity": available_quantity,
+            "stock_status": "available" if available_quantity > 0 else "sold_out",
+            "sales_count": product.sales_count,
+            "store": {
+                "store_id": store.store_no,
+                "store_name": store.store_name,
+                "store_status": store.store_status,
+                "logo_url": self._file_url(logo_file),
+            },
+        }
 
     async def order_card_payload(
         self,

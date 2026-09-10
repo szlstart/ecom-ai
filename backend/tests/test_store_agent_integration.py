@@ -117,7 +117,20 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
             currency="CNY",
             sku_status="active",
         )
-        session.add_all([sku, second_sku])
+        mouse_sku = ProductSku(
+            sku_no=new_prefixed_ulid("sku_"),
+            product_id=second_product.id,
+            store_id=store.id,
+            merchant_sku_code=f"MOUSE-{suffix}",
+            sku_name="静音版",
+            spec_values=[{"name": "连接", "value": "无线"}],
+            spec_signature=hashlib.sha256(f"mouse-{suffix}".encode()).digest(),
+            sale_price_amount=9900,
+            market_price_amount=12900,
+            currency="CNY",
+            sku_status="active",
+        )
+        session.add_all([sku, second_sku, mouse_sku])
         await session.flush()
         session.add_all(
             [
@@ -133,6 +146,15 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
                 Inventory(
                     sku_id=second_sku.id,
                     on_hand_quantity=8,
+                    reserved_quantity=1,
+                    safety_stock_quantity=3,
+                    sold_quantity=0,
+                    inventory_status="active",
+                    last_reconciled_at=now,
+                ),
+                Inventory(
+                    sku_id=mouse_sku.id,
+                    on_hand_quantity=16,
                     reserved_quantity=1,
                     safety_stock_quantity=3,
                     sold_quantity=0,
@@ -262,27 +284,108 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
     compare_message = await _send(client, headers, conversation_no, "帮我对比不同规格")
     await _drain_agent()
     compare_reply = _reply_after(await _messages(client, headers, conversation_no), compare_message)
-    assert "标准版" in str(compare_reply["text"])
-    assert "专业版" in str(compare_reply["text"])
+    assert "2 个可选款式" in str(compare_reply["text"])
+    compare_content = cast(dict[str, object], compare_reply["content"])
+    compare_cards = cast(list[dict[str, object]], compare_content["detail_cards"])
+    assert compare_cards[0]["kind"] == "sku_compare"
+    assert "标准版" in str(compare_cards)
+    assert "专业版" in str(compare_cards)
 
     recommend_message = await _send(client, headers, conversation_no, "推荐本店商品")
     await _drain_agent()
     recommend_reply = _reply_after(
         await _messages(client, headers, conversation_no), recommend_message
     )
-    assert "安全键盘" in str(recommend_reply["text"])
-    assert "静音鼠标" in str(recommend_reply["text"])
+    assert "2 件本店在售商品" in str(recommend_reply["text"])
+    recommend_content = cast(dict[str, object], recommend_reply["content"])
+    recommend_cards = cast(list[dict[str, object]], recommend_content["product_cards"])
+    assert {str(item["product_id"]) for item in recommend_cards} == {
+        product_no,
+        second_product_no,
+    }
+    assert {str(item["product_name"]) for item in recommend_cards} == {
+        product.product_name,
+        second_product.product_name,
+    }
     assert foreign_secret not in str(recommend_reply["text"])
+    assert foreign_secret not in str(recommend_content)
 
-    inventory_message = await _send(client, headers, conversation_no, "这个商品现在有库存吗?")
+    follow_up_message = await _send(client, headers, conversation_no, "第二个有什么特点?")
+    await _drain_agent()
+    follow_up_reply = _reply_after(
+        await _messages(client, headers, conversation_no), follow_up_message
+    )
+    second_recommended = recommend_cards[1]
+    assert str(second_recommended["product_name"]) in str(follow_up_reply["text"])
+    follow_up_content = cast(dict[str, object], follow_up_reply["content"])
+    follow_up_cards = cast(list[dict[str, object]], follow_up_content["product_cards"])
+    assert [item["product_id"] for item in follow_up_cards] == [
+        second_recommended["product_id"]
+    ]
+
+    first_follow_up_message = await _send(client, headers, conversation_no, "再看看第一个")
+    await _drain_agent()
+    first_follow_up_reply = _reply_after(
+        await _messages(client, headers, conversation_no), first_follow_up_message
+    )
+    first_recommended = recommend_cards[0]
+    assert str(first_recommended["product_name"]) in str(first_follow_up_reply["text"])
+    first_follow_up_content = cast(dict[str, object], first_follow_up_reply["content"])
+    first_follow_up_cards = cast(
+        list[dict[str, object]], first_follow_up_content["product_cards"]
+    )
+    assert [item["product_id"] for item in first_follow_up_cards] == [
+        first_recommended["product_id"]
+    ]
+
+    usage_follow_up_message = await _send(
+        client, headers, conversation_no, "它适合考试吗?"
+    )
+    await _drain_agent()
+    usage_follow_up_reply = _reply_after(
+        await _messages(client, headers, conversation_no), usage_follow_up_message
+    )
+    assert str(first_recommended["product_name"]) in str(usage_follow_up_reply["text"])
+    assert "不能替商家保证适用" in str(usage_follow_up_reply["text"])
+    usage_follow_up_content = cast(dict[str, object], usage_follow_up_reply["content"])
+    usage_follow_up_cards = cast(
+        list[dict[str, object]], usage_follow_up_content["product_cards"]
+    )
+    assert [item["product_id"] for item in usage_follow_up_cards] == [
+        first_recommended["product_id"]
+    ]
+
+    pronoun_inventory_message = await _send(
+        client, headers, conversation_no, "它现在有库存吗?"
+    )
+    await _drain_agent()
+    pronoun_inventory_reply = _reply_after(
+        await _messages(client, headers, conversation_no), pronoun_inventory_message
+    )
+    pronoun_inventory_content = cast(
+        dict[str, object], pronoun_inventory_reply["content"]
+    )
+    pronoun_inventory_cards = cast(
+        list[dict[str, object]], pronoun_inventory_content["product_cards"]
+    )
+    assert [item["product_id"] for item in pronoun_inventory_cards] == [
+        first_recommended["product_id"]
+    ]
+    assert "实时库存" in str(pronoun_inventory_reply["text"])
+
+    inventory_message = await _send(client, headers, conversation_no, "安全键盘现在有库存吗?")
     await _drain_agent()
     inventory_messages = await _messages(client, headers, conversation_no)
     inventory_reply = _reply_after(inventory_messages, inventory_message)
-    assert "有货" in str(inventory_reply["text"])
-    assert "库存紧张" in str(inventory_reply["text"])
-    assert "¥129.00" in str(inventory_reply["text"])
+    assert "实时库存" in str(inventory_reply["text"])
     assert "on_hand" not in str(inventory_reply["text"])
     assert "reserved" not in str(inventory_reply["text"])
+    inventory_content = cast(dict[str, object], inventory_reply["content"])
+    inventory_cards = cast(list[dict[str, object]], inventory_content["detail_cards"])
+    assert inventory_cards[0]["kind"] == "inventory"
+    assert "有货" in str(inventory_cards)
+    assert "库存紧张" in str(inventory_cards)
+    assert "¥129.00" in str(inventory_cards)
 
     history_message = await _send(
         client, headers, conversation_no, "我都在你店买过什么订单?"
@@ -318,9 +421,12 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
     policy_message = await _send(client, headers, conversation_no, "请说明运费政策")
     await _drain_agent()
     policy_reply = _reply_after(await _messages(client, headers, conversation_no), policy_message)
-    assert "本店运费政策" in str(policy_reply["text"])
-    assert "满 99 元" in str(policy_reply["text"])
     assert len(str(policy_reply["text"])) < 180
+    policy_content = cast(dict[str, object], policy_reply["content"])
+    policy_cards = cast(list[dict[str, object]], policy_content["detail_cards"])
+    assert policy_cards[0]["kind"] == "store_policy"
+    assert "本店运费政策" in str(policy_cards)
+    assert "满 99 元" in str(policy_cards)
 
     injection_message = await _send(
         client,
@@ -454,7 +560,7 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
         injection_run = next(
             item for item in runs if item.trigger_message_id == injection_trigger_id
         )
-        assert len(runs) == 11
+        assert len(runs) == 15
         assert all(item.run_status == "completed" for item in runs)
         assert injection_run.error_code == "AI_PROMPT_INJECTION_BLOCKED"
         assert not any(item.run_id == injection_run.id for item in audits)

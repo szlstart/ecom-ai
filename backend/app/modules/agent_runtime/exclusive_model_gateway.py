@@ -42,6 +42,8 @@ class DeterministicExclusiveModelGateway:
         text = re.sub(r"\s+", "", user_text).casefold()
         if is_explicit_handoff_request(user_text):
             return ExclusiveAgentPlan("human_handoff")
+        if _contains(text, "第一个", "第二个", "第三个", "第四个", "第五个", "刚才推荐"):
+            return ExclusiveAgentPlan("product_search", _search_text(user_text))
         if _contains(text, "搜索", "查找", "搜一下", "找找") and not _contains(
             text, "订单", "物流", "快递", "售后进度", "退款进度"
         ):

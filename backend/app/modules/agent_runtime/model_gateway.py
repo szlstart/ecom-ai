@@ -50,6 +50,16 @@ class DeterministicStoreModelGateway:
             return StoreAgentPlan("human_handoff")
         if _contains(
             text,
+            "第一个",
+            "第二个",
+            "第三个",
+            "第四个",
+            "第五个",
+            "刚才推荐",
+        ):
+            return StoreAgentPlan("product_qa")
+        if _contains(
+            text,
             "尺码",
             "码数",
             "最大码",
@@ -208,6 +218,7 @@ def refine_store_plan_for_context(
             "这套",
             "这双",
             "这台",
+            "它",
             "该商品",
             "当前商品",
             "订单里的",

@@ -211,6 +211,7 @@ kbd { padding: 3px 7px; color: #788195; border: 1px solid #d8dde7; border-radius
 .admin-ai-suggestions a > span { width: 38px; height: 38px; grid-row: 1 / 3; display: grid; place-items: center; color: #5169d1; border-radius: 11px; background: #eef1fc; }
 .admin-ai-suggestions small { color: #858ea0; }
 .admin-chat-conversation { min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto auto; overflow: hidden; }
+.admin-chat-conversation.has-claim { grid-template-rows: auto minmax(0, 1fr) auto auto; }
 .admin-chat-loading { display: grid; place-items: center; color: #7d8799; }
 .admin-chat-claim { align-self: center; justify-self: center; width: min(440px, 80%); text-align: center; }
 .admin-chat-claim > span { width: 60px; height: 60px; margin: 0 auto 13px; display: grid; place-items: center; color: #5169d1; border-radius: 19px; background: #e9edfb; font-size: 1.4rem; }

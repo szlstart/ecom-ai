@@ -333,9 +333,7 @@ async def process_exclusive_run(
                 trigger_text,
                 recent_cards,
             )
-            card_name = _trigger_payload_value(
-                context.trigger, "product_card", "product_name"
-            )
+            card_name = _trigger_payload_value(context.trigger, "product_card", "product_name")
             referenced_name = (
                 card_name
                 if card_name is not None
@@ -378,10 +376,9 @@ async def process_exclusive_run(
             if result.status == "succeeded":
                 result.data["presentation"] = "product_comparison"
         elif plan.intent == "order_lookup":
-            explicit_order_no = (
-                _trigger_payload_value(context.trigger, "order_card", "order_id")
-                or _resource_no(trigger_text, "ord")
-            )
+            explicit_order_no = _trigger_payload_value(
+                context.trigger, "order_card", "order_id"
+            ) or _resource_no(trigger_text, "ord")
             ref = context.context_refs.get("order")
             result = (
                 await tools.order_detail(context, explicit_order_no)
@@ -390,7 +387,7 @@ async def process_exclusive_run(
                     context, (await builder.require_active_context(context, "order")).resource_no
                 )
                 if ref is not None
-                else await tools.list_orders(context)
+                else await tools.list_orders(context, trigger_text)
             )
             if result.status == "succeeded":
                 result.data["presentation"] = (
@@ -445,7 +442,7 @@ async def process_exclusive_run(
                 if refund_order_no is None and len(recent_order_nos) == 1:
                     refund_order_no = recent_order_nos[0]
             if refund_order_no is None:
-                result = await tools.list_orders(context)
+                result = await tools.list_orders(context, trigger_text)
                 visible_items = result.data.get("items")
                 refundable_items = (
                     [
@@ -550,8 +547,7 @@ async def process_exclusive_run(
                 context.conversation,
                 product_nos_from_result(result.data),
             )
-            if plan.intent
-            in {"product_search", "personalized_recommendation", "product_compare"}
+            if plan.intent in {"product_search", "personalized_recommendation", "product_compare"}
             else []
         )
         rich_content: dict[str, object] = {}
@@ -1066,7 +1062,7 @@ def _exclusive_detail_cards(
         item = values[0] if isinstance(values, list) and values else None
         if isinstance(item, Mapping):
             sku_values = item.get("skus")
-            rows = []
+            sku_rows = []
             for sku in (sku_values if isinstance(sku_values, list) else [])[:10]:
                 if not isinstance(sku, Mapping):
                     continue
@@ -1074,11 +1070,9 @@ def _exclusive_detail_cards(
                 availability = safe_untrusted_excerpt(
                     sku.get("availability_label") or "库存待确认", 30
                 )
-                rows.append(
+                sku_rows.append(
                     {
-                        "label": safe_untrusted_excerpt(
-                            sku.get("sku_name") or "默认款式", 80
-                        ),
+                        "label": safe_untrusted_excerpt(sku.get("sku_name") or "默认款式", 80),
                         "value": (
                             _money_object_display(price)
                             if isinstance(price, Mapping)
@@ -1097,7 +1091,7 @@ def _exclusive_detail_cards(
                     "title": safe_untrusted_excerpt(item.get("name") or "当前商品", 100),
                     "badge": "实时查询",
                     "summary": "按当前公开款式展示价格和可售数量。",
-                    "rows": rows,
+                    "rows": sku_rows,
                     "action": (
                         {
                             "resource_type": "product",
@@ -1111,7 +1105,7 @@ def _exclusive_detail_cards(
             ]
     if plan.intent == "product_compare":
         values = data.get("items")
-        rows = []
+        comparison_rows = []
         for item in (values if isinstance(values, list) else [])[:3]:
             if not isinstance(item, Mapping):
                 continue
@@ -1124,7 +1118,7 @@ def _exclusive_detail_cards(
                         "currency": str(price.get("currency") or "CNY"),
                     }
                 )
-            rows.append(
+            comparison_rows.append(
                 {
                     "label": safe_untrusted_excerpt(item.get("name") or "商品", 100),
                     "value": price_text,
@@ -1137,21 +1131,21 @@ def _exclusive_detail_cards(
                     ),
                 }
             )
-        if rows:
+        if comparison_rows:
             return [
                 {
                     "kind": "product_compare",
                     "icon": "比",
                     "eyebrow": "商品对比",
                     "title": "关键购买信息",
-                    "badge": f"{len(rows)} 件商品",
+                    "badge": f"{len(comparison_rows)} 件商品",
                     "summary": "同一口径比较当前公开价格、款式、库存、销量与评分。",
-                    "rows": rows,
+                    "rows": comparison_rows,
                 }
             ]
     if plan.intent == "logistics_lookup":
         values = data.get("items")
-        rows: list[dict[str, object]] = []
+        logistics_rows: list[dict[str, object]] = []
         for item in (values if isinstance(values, list) else [])[:5]:
             if not isinstance(item, Mapping):
                 continue
@@ -1160,7 +1154,7 @@ def _exclusive_detail_cards(
             location = safe_untrusted_excerpt(track.get("location_text") or "位置更新中", 80)
             description = safe_untrusted_excerpt(track.get("description") or "暂无最新轨迹", 120)
             tracking_no = _compact_tracking_no(item.get("tracking_no_masked"))
-            rows.append(
+            logistics_rows.append(
                 {
                     "label": safe_untrusted_excerpt(item.get("carrier_name") or "物流包裹", 80),
                     "value": _status_label("shipment", item.get("shipment_status")),
@@ -1176,7 +1170,7 @@ def _exclusive_detail_cards(
                 "title": "包裹最新进度",
                 "badge": "实时轨迹",
                 "summary": "物流节点按承运商最近一次同步结果展示。",
-                "rows": rows,
+                "rows": logistics_rows,
                 "action": (
                     {"resource_type": "order", "resource_id": order_no, "label": "查看完整物流"}
                     if isinstance(order_no, str)
@@ -1320,7 +1314,7 @@ def _exclusive_detail_cards(
             score = sum(1 for term in query_terms if term in searchable)
             ranked.append((score, -position, item))
         ranked.sort(key=lambda value: (value[0], value[1]), reverse=True)
-        rows: list[dict[str, object]] = []
+        policy_rows: list[dict[str, object]] = []
         seen_documents: set[str] = set()
         for score, _, item in ranked:
             if query_terms and score == 0:
@@ -1337,16 +1331,16 @@ def _exclusive_detail_cards(
                 "",
                 safe_untrusted_excerpt(item.get("title") or "平台规则", 80),
             )
-            rows.append(
+            policy_rows.append(
                 {
                     "label": title,
                     "value": "已发布",
                     "meta": _best_policy_excerpt(source_text, query_terms),
                 }
             )
-            if len(rows) >= 1:
+            if len(policy_rows) >= 1:
                 break
-        if rows:
+        if policy_rows:
             return [
                 {
                     "kind": "platform_policy",
@@ -1355,7 +1349,7 @@ def _exclusive_detail_cards(
                     "title": "本次回答依据",
                     "badge": "知识库已核验",
                     "summary": "只展示与当前问题相关的已发布规则来源。",
-                    "rows": rows,
+                    "rows": policy_rows,
                 }
             ]
     return []
@@ -1470,8 +1464,7 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
             return "请先把至少两件想比较的商品发给我，或先让我搜索商品，再说“对比前两个”。"
         conclusion = _comparison_purchase_conclusion(user_text, items)
         return conclusion or (
-            "我把价格、在售款式、实时库存、销量和评分整理成了对比卡片。"
-            "点击商品卡可继续查看详情。"
+            "我把价格、在售款式、实时库存、销量和评分整理成了对比卡片。点击商品卡可继续查看详情。"
         )
     if plan.intent == "order_lookup":
         if "order_id" in data:
@@ -1548,9 +1541,7 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
     return "已完成查询。"
 
 
-def _comparison_purchase_conclusion(
-    user_text: str, items: list[object]
-) -> str | None:
+def _comparison_purchase_conclusion(user_text: str, items: list[object]) -> str | None:
     """Give a bounded recommendation only when public evidence separates options."""
 
     normalized = re.sub(r"\s+", "", user_text).casefold()

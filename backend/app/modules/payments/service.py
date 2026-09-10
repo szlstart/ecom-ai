@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Literal, cast
 
 from pydantic import ValidationError
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,11 +16,12 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.idempotency import IdempotencyService
 from app.core.security import SecurityService, utc_now
 from app.integrations.payments import PaymentProviderRequest, payment_provider
+from app.modules.catalog.models import Product, ProductSku
 from app.modules.catalog.schemas import Money
 from app.modules.finance.models import UserWallet, WalletTransaction
 from app.modules.finance.repository import FinanceRepository
 from app.modules.identity.models import User
-from app.modules.inventory.models import InventoryLog
+from app.modules.inventory.models import Inventory, InventoryLog, InventoryReservation
 from app.modules.orders.domain import ORDER_TRANSITIONS, require_transition
 from app.modules.orders.models import Order, OrderStatusLog, TradeOrder
 from app.modules.orders.repository import OrderRepository
@@ -42,6 +44,7 @@ from app.modules.payments.schemas import (
 )
 from app.modules.rbac.audit import record_admin_operation
 from app.modules.rbac.dependencies import AdminAccess
+from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
 
 
@@ -941,6 +944,7 @@ class PaymentService:
                     inventory_version=inventory.version,
                 )
             )
+        await self._increment_sales_counters(reservations)
 
         previous_payment = payment.payment_status
         payment.payment_status = require_payment_transition(
@@ -961,6 +965,7 @@ class PaymentService:
                 provider_occurred_at=provider_time,
             )
         )
+
         trade.trade_status = "paid"
         trade.paid_amount = trade.payable_amount
         trade.paid_at = now
@@ -1033,6 +1038,55 @@ class PaymentService:
                 trace_id=request_id,
             )
         )
+
+    async def _increment_sales_counters(
+        self, reservations: list[tuple[InventoryReservation, Inventory]]
+    ) -> None:
+        """Project confirmed inventory sales into product and store counters.
+
+        Inventory remains the item-level source of truth. The denormalized counters
+        are updated in the same payment transaction so storefront sorting and
+        merchant/admin dashboards cannot drift after a successful payment.
+        """
+
+        quantities_by_sku: dict[int, int] = {}
+        for reservation, _inventory in reservations:
+            quantities_by_sku[reservation.sku_id] = (
+                quantities_by_sku.get(reservation.sku_id, 0) + reservation.quantity
+            )
+        if not quantities_by_sku:
+            return
+        sku_rows = (
+            await self.session.execute(
+                select(ProductSku.id, ProductSku.product_id, ProductSku.store_id).where(
+                    ProductSku.id.in_(quantities_by_sku)
+                )
+            )
+        ).all()
+        quantities_by_product: dict[int, int] = {}
+        quantities_by_store: dict[int, int] = {}
+        for sku_id, product_id, store_id in sku_rows:
+            quantity = quantities_by_sku[int(sku_id)]
+            quantities_by_product[int(product_id)] = (
+                quantities_by_product.get(int(product_id), 0) + quantity
+            )
+            quantities_by_store[int(store_id)] = (
+                quantities_by_store.get(int(store_id), 0) + quantity
+            )
+        if sum(quantities_by_product.values()) != sum(quantities_by_sku.values()):
+            raise RuntimeError("confirmed sale references an unavailable product SKU")
+        for product_id, quantity in quantities_by_product.items():
+            await self.session.execute(
+                update(Product)
+                .where(Product.id == product_id)
+                .values(sales_count=Product.sales_count + quantity)
+            )
+        for store_id, quantity in quantities_by_store.items():
+            await self.session.execute(
+                update(Store)
+                .where(Store.id == store_id)
+                .values(sales_count=Store.sales_count + quantity)
+            )
 
     async def _admin_view(
         self,

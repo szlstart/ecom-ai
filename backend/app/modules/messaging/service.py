@@ -268,7 +268,7 @@ class MessagingService:
         )
         await self._append_system_message(
             conversation,
-            "正在接入人工客服，请稍候。AI 已暂停回复，人工客服接入后会在这里继续沟通。",
+            "正在接入人工客服，请稍候。",
             request_id,
         )
         self.idempotency.complete(claim, response_status=201, resource_no=ticket.ticket_no)
@@ -972,15 +972,23 @@ class MessagingService:
         if content.type == "text":
             return "text", content.text, None
         if content.type == "product_card":
-            return "product_card", None, await self.product_card_payload(
-                conversation,
-                content.product_id,
-                content.sku_id,
+            return (
+                "product_card",
+                None,
+                await self.product_card_payload(
+                    conversation,
+                    content.product_id,
+                    content.sku_id,
+                ),
             )
-        return "order_card", None, await self.order_card_payload(
-            user,
-            conversation,
-            content.order_id,
+        return (
+            "order_card",
+            None,
+            await self.order_card_payload(
+                user,
+                conversation,
+                content.order_id,
+            ),
         )
 
     async def product_card_payload(

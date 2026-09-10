@@ -36,6 +36,7 @@ from app.modules.agent_runtime.product_cards import (
     build_product_cards,
     is_short_affirmative,
     product_card_reference_index,
+    product_card_reference_indices,
     product_nos_from_result,
     recent_agent_product_cards,
     referenced_product_card,
@@ -278,7 +279,13 @@ async def process_store_run(
                 product_nos_from_result(outcome.data),
             )
             if plan.intent
-            in {"product_qa", "sku_compare", "inventory_lookup", "product_recommend"}
+            in {
+                "product_qa",
+                "product_compare",
+                "sku_compare",
+                "inventory_lookup",
+                "product_recommend",
+            }
             else []
         )
         rich_content: dict[str, object] = {}
@@ -358,6 +365,30 @@ async def _execute_plan(
             if comparison.status == "succeeded":
                 recommendations.data["comparison"] = comparison.data.get("items", [])
         return recommendations
+    if plan.intent == "product_compare":
+        reference_indices = product_card_reference_indices(trigger_text)
+        minimum_count = max(reference_indices, default=1) + 1
+        recent_cards = await recent_agent_product_cards(
+            tools.session,
+            context.conversation,
+            before_sequence=context.trigger.sequence_no,
+            minimum_count=minimum_count,
+        )
+        selected_indices = reference_indices if len(reference_indices) >= 2 else [0, 1]
+        product_nos = [
+            str(recent_cards[index]["product_id"])
+            for index in selected_indices[:4]
+            if index < len(recent_cards) and isinstance(recent_cards[index].get("product_id"), str)
+        ]
+        if len(dict.fromkeys(product_nos)) < 2:
+            return StoreToolResult(
+                "succeeded",
+                {"items": [], "comparison_source_count": len(dict.fromkeys(product_nos))},
+            )
+        comparison = await tools.compare_products(context, product_nos)
+        if comparison.status == "succeeded":
+            comparison.data["presentation"] = "product_comparison"
+        return comparison
     if plan.intent == "order_explain":
         if _requests_order_list(trigger_text):
             return await tools.list_user_orders(context)
@@ -426,7 +457,14 @@ async def _execute_plan(
     if isinstance(recent_product_no, str):
         product_no = recent_product_no
     else:
-        resolution = await tools.resolve_product(context, trigger_text)
+        resolution = await tools.resolve_product(
+            context,
+            trigger_text,
+            # Color, size and package names frequently repeat across a store.  An
+            # active page-bound product remains the focus unless the shopper names
+            # another product (matched from its title) or selects a recent card.
+            include_sku_aliases=captured_product_ref is None,
+        )
         if resolution.status != "succeeded":
             return resolution
         resolved_product_no = resolution.data.get("product_id")
@@ -456,9 +494,7 @@ async def _execute_plan(
     return await tools.product(context, product_no)
 
 
-def _limit_sku_comparison_to_named_variants(
-    data: dict[str, Any], user_text: str
-) -> None:
+def _limit_sku_comparison_to_named_variants(data: dict[str, Any], user_text: str) -> None:
     """Keep a comparison focused on SKU names explicitly mentioned by the shopper."""
 
     values = data.get("items")
@@ -780,6 +816,7 @@ def _tool_for_intent(intent: str) -> str:
         "human_handoff": "support.create_store_ticket",
         "policy_qa": "catalog.get_store_policy",
         "product_recommend": "catalog.search_store_products",
+        "product_compare": "catalog.compare_products",
         "order_explain": "order.get_store_order_summary",
         "sku_compare": "catalog.compare_skus",
         "inventory_lookup": "catalog.get_inventory_availability",
@@ -815,13 +852,18 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
             return "当前没有可靠的展示库存结果，请稍后刷新商品页。"
         product_name = safe_untrusted_excerpt(data.get("product_name"), 160)
         return (
-            f"已查到“{product_name or '当前商品'}”的实时库存。"
-            "款式、价格和可售数量都整理在卡片中。"
+            f"已查到“{product_name or '当前商品'}”的实时库存。款式、价格和可售数量都整理在卡片中。"
         )
     if plan.intent == "sku_compare":
         items = data.get("items")
         count = len(items) if isinstance(items, list) else 0
         return f"已把 {count} 个可选款式放在对比卡片中。点击商品入口可以继续选择和购买。"
+    if plan.intent == "product_compare":
+        items = data.get("items")
+        count = len(items) if isinstance(items, list) else 0
+        if count < 2:
+            return "请先让我推荐至少两件商品，再说“对比前两个”或明确要比较的序号。"
+        return f"已按同一口径对比这 {count} 件商品，价格、公开参数和商品入口都在下方卡片中。"
     if plan.intent == "policy_qa":
         items = data.get("items")
         knowledge = data.get("knowledge_sources")
@@ -1032,17 +1074,14 @@ def _render_usage_answer(data: Mapping[str, Any], user_text: str) -> str | None:
         conclusion = f"商家资料明确标注它可用于{'、'.join(requested)}。"
     elif requested:
         conclusion = (
-            f"商家资料没有明确标注“{'、'.join(requested)}”这一用途，"
-            "所以我不能替商家保证适用。"
+            f"商家资料没有明确标注“{'、'.join(requested)}”这一用途，所以我不能替商家保证适用。"
         )
     elif supported:
         conclusion = f"商家资料明确标注的使用场景包括{'、'.join(supported[:6])}。"
     else:
         conclusion = "商家当前资料没有明确写出适用场景，所以我不能只凭商品名称替你判断。"
     known_uses = (
-        f" 已核实的用途关键词还有{'、'.join(supported[:6])}。"
-        if requested and supported
-        else ""
+        f" 已核实的用途关键词还有{'、'.join(supported[:6])}。" if requested and supported else ""
     )
     inventory_note = _inventory_note(data, user_text)
     return (
@@ -1108,11 +1147,7 @@ def _store_detail_cards(
     asks_logistics = any(
         term in normalized_text for term in ("物流", "快递", "包裹", "到哪里", "到哪")
     )
-    if (
-        plan.intent == "order_explain"
-        and isinstance(data.get("order_id"), str)
-        and asks_logistics
-    ):
+    if plan.intent == "order_explain" and isinstance(data.get("order_id"), str) and asks_logistics:
         shipment_values = data.get("shipments")
         rows: list[dict[str, object]] = []
         for shipment in (shipment_values if isinstance(shipment_values, list) else [])[:3]:
@@ -1123,19 +1158,13 @@ def _store_detail_cards(
             latest_map = latest if isinstance(latest, Mapping) else {}
             rows.append(
                 {
-                    "label": safe_untrusted_excerpt(
-                        shipment.get("carrier_name") or "物流包裹", 60
-                    ),
-                    "value": _store_status_label(
-                        "shipment", shipment.get("shipment_status")
-                    ),
+                    "label": safe_untrusted_excerpt(shipment.get("carrier_name") or "物流包裹", 60),
+                    "value": _store_status_label("shipment", shipment.get("shipment_status")),
                     "meta": safe_untrusted_excerpt(
                         " · ".join(
                             value
                             for value in (
-                                _compact_store_tracking_no(
-                                    shipment.get("tracking_no_masked")
-                                ),
+                                _compact_store_tracking_no(shipment.get("tracking_no_masked")),
                                 str(latest_map.get("location") or ""),
                                 str(latest_map.get("description") or ""),
                             )
@@ -1226,6 +1255,45 @@ def _store_detail_cards(
                 "action": product_action,
             }
         ]
+    if plan.intent == "product_compare":
+        values = data.get("items")
+        comparison_rows: list[dict[str, str]] = []
+        for item in (values if isinstance(values, list) else [])[:4]:
+            if not isinstance(item, Mapping):
+                continue
+            price = item.get("price")
+            min_amount = price.get("min_amount") if isinstance(price, Mapping) else None
+            max_amount = price.get("max_amount") if isinstance(price, Mapping) else None
+            currency = price.get("currency") if isinstance(price, Mapping) else "CNY"
+            price_text = _money(min_amount, currency)
+            if isinstance(max_amount, int) and max_amount != min_amount:
+                price_text = f"{price_text} 至 {_money(max_amount, currency)}"
+            attributes = item.get("attributes")
+            attribute_text = " / ".join(
+                f"{safe_untrusted_excerpt(attribute.get('name') or '参数', 24)}: "
+                f"{safe_untrusted_excerpt(attribute.get('value') or '', 40)}"
+                for attribute in (attributes if isinstance(attributes, list) else [])[:3]
+                if isinstance(attribute, Mapping) and attribute.get("value")
+            )
+            comparison_rows.append(
+                {
+                    "label": safe_untrusted_excerpt(item.get("name") or "商品", 100),
+                    "value": price_text,
+                    "meta": attribute_text or "点击商品卡片查看完整信息",
+                }
+            )
+        if comparison_rows:
+            return [
+                {
+                    "kind": "product_compare",
+                    "icon": "比",
+                    "eyebrow": "商品对比",
+                    "title": "推荐商品差异",
+                    "badge": f"{len(comparison_rows)} 件商品",
+                    "summary": "以下是公开价格和关键参数，库存以商品详情与结算页为准。",
+                    "rows": comparison_rows,
+                }
+            ]
     if plan.intent == "policy_qa":
         values = data.get("items")
         rows = [
@@ -1262,9 +1330,7 @@ def _store_detail_cards(
                     "rows": [
                         {
                             "label": "配送方式",
-                            "value": safe_untrusted_excerpt(
-                                delivery.get("method") or "邮寄", 20
-                            ),
+                            "value": safe_untrusted_excerpt(delivery.get("method") or "邮寄", 20),
                             "meta": "运费 ¥0.00",
                         }
                     ],

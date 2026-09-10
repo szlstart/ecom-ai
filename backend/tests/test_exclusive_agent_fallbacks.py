@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from typing import Any, cast
+
 from app.modules.agent_runtime.exclusive_agent import (
     _cart_card,
     _compact_tracking_no,
@@ -12,6 +15,7 @@ from app.modules.agent_runtime.exclusive_tools import (
     _catalog_search_candidates,
     _catalog_search_constraints,
     _combined_catalog_search_candidates,
+    _filter_order_rows,
 )
 from app.modules.agent_runtime.operations_agent import _render_multi_agent
 
@@ -131,6 +135,32 @@ def test_catalog_constraints_discard_requested_result_count_before_searching() -
     assert "几件" not in constraints.keywords
 
 
+def test_catalog_constraints_expand_exam_purpose_without_dropping_budget() -> None:
+    constraints = _catalog_search_constraints(None, "推荐三件20元以内适合考试的文具")
+
+    assert constraints.price_max == 2000
+    assert constraints.requested_limit == 3
+    assert {"铅笔", "橡皮", "直尺", "笔芯"}.issubset(set(constraints.candidates))
+
+
+def test_order_list_filter_understands_store_and_product_references() -> None:
+    male_order = SimpleNamespace(id=1)
+    stationery_order = SimpleNamespace(id=2)
+    male_store = SimpleNamespace(store_name="男装专卖店")
+    stationery_store = SimpleNamespace(store_name="文具专卖店")
+    rows = [(male_order, male_store), (stationery_order, stationery_store)]
+    items = {
+        1: [SimpleNamespace(product_name="CHICERRO 弯刀裤")],
+        2: [SimpleNamespace(product_name="绿杆2B铅笔")],
+    }
+
+    typed_rows = cast(Any, rows)
+    typed_items = cast(Any, items)
+    assert _filter_order_rows(typed_rows, typed_items, "我刚刚买的男装订单")[0][0].id == 1
+    assert _filter_order_rows(typed_rows, typed_items, "铅笔订单")[0][0].id == 2
+    assert len(_filter_order_rows(typed_rows, typed_items, "我的订单")) == 2
+
+
 def test_product_recommendation_fallback_defers_dense_facts_to_product_cards() -> None:
     rendered = _render(
         ExclusiveAgentPlan("personalized_recommendation"),
@@ -215,7 +245,8 @@ def test_cart_fallback_and_card_keep_cart_distinct_from_orders() -> None:
     assert "购物车里共有 3 件商品" in rendered
     assert card["total_quantity"] == 3
     assert card["selected_amount"] == {"minor_units": "1200", "currency": "CNY"}
-    assert card["groups"][0]["items"][0]["product_name"] == "考试铅笔"
+    groups = cast(list[dict[str, Any]], card["groups"])
+    assert groups[0]["items"][0]["product_name"] == "考试铅笔"
 
 
 def test_product_compare_renders_structured_same_basis_rows() -> None:
@@ -330,7 +361,7 @@ def test_policy_fallback_prioritizes_refund_timing_and_deduplicates_source_cards
 
     assert "退款到账" in rendered
     assert len(cards) == 1
-    assert len(cards[0]["rows"]) == 1
+    assert len(cast(list[dict[str, object]], cards[0]["rows"])) == 1
     assert "售后、退款与客服规则" in str(cards)
     assert "物流规则" not in str(cards)
 

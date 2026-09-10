@@ -188,7 +188,11 @@ class StoreToolGateway:
         )
 
     async def resolve_product(
-        self, context: TrustedStoreAgentContext, query: str
+        self,
+        context: TrustedStoreAgentContext,
+        query: str,
+        *,
+        include_sku_aliases: bool = True,
     ) -> StoreToolResult:
         """Resolve an explicitly named product without trusting stale page context.
 
@@ -238,7 +242,7 @@ class StoreToolGateway:
                         _product_match_score(
                             query,
                             item.product_name,
-                            aliases_by_product.get(item.id, []),
+                            aliases_by_product.get(item.id, []) if include_sku_aliases else [],
                         ),
                         item,
                     )
@@ -281,12 +285,14 @@ class StoreToolGateway:
             )
             if product is None:
                 raise _not_accessible()
-            statement = select(ProductSku, Inventory).outerjoin(
-                Inventory, Inventory.sku_id == ProductSku.id
-            ).where(
-                ProductSku.product_id == product.id,
-                ProductSku.store_id == context.store.id,
-                ProductSku.sku_status == "active",
+            statement = (
+                select(ProductSku, Inventory)
+                .outerjoin(Inventory, Inventory.sku_id == ProductSku.id)
+                .where(
+                    ProductSku.product_id == product.id,
+                    ProductSku.store_id == context.store.id,
+                    ProductSku.sku_status == "active",
+                )
             )
             if sku_nos:
                 unique = list(dict.fromkeys(sku_nos))
@@ -572,9 +578,7 @@ class StoreToolGateway:
                         },
                         "amounts": {
                             "paid": _money_projection(order.paid_amount, order.currency),
-                            "refunded": _money_projection(
-                                order.refunded_amount, order.currency
-                            ),
+                            "refunded": _money_projection(order.refunded_amount, order.currency),
                         },
                         "items": [
                             {
@@ -612,8 +616,14 @@ class StoreToolGateway:
             )
 
             constraints = _catalog_search_constraints(search_text, search_text)
+            candidates = list(constraints.candidates)
+            if constraints.semantic_keywords:
+                candidates = list(
+                    dict.fromkeys([candidates[0], *constraints.semantic_keywords, *candidates[1:]])
+                )
             rows = []
-            for term in constraints.candidates:
+            seen_product_ids: set[int] = set()
+            for term in candidates:
                 found, _has_more = await self.catalog.search_products(
                     q=term,
                     category_no=None,
@@ -626,9 +636,15 @@ class StoreToolGateway:
                     position=None,
                     limit=5,
                 )
-                rows = found
-                if rows:
+                for row in found:
+                    product, _store = row
+                    if product.id in seen_product_ids:
+                        continue
+                    seen_product_ids.add(product.id)
+                    rows.append(row)
+                if len(rows) >= constraints.requested_limit:
                     break
+            rows = rows[: constraints.requested_limit]
             return {
                 "query": search_text,
                 "items": [

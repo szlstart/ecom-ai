@@ -135,4 +135,41 @@ describe('management auth cross-tab synchronization', () => {
     expect(onlyTab.accessToken).toBe('rotated-merchant-token')
     expect(String(server.mock.calls[0]?.[0])).toContain('/merchant/auth/token-refresh')
   })
+
+  it('clears every tab on logout and ignores a late state broadcast from the revoked session', async () => {
+    const server = vi.spyOn(globalThis, 'fetch').mockResolvedValue(envelope({
+      session: session('shared-merchant-token'),
+      permission_codes: ['products:read'],
+      scopes: [{ scope_type: 'store', scope_id: 7 }],
+    }))
+    const firstTab = useAdminAuthStore(createPinia())
+    const secondTab = useAdminAuthStore(createPinia())
+    await firstTab.merchantPasswordLogin('merchant-tabs', 'password', 'first tab')
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
+    expect(secondTab.accessToken).toBe('shared-merchant-token')
+
+    server.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    await firstTab.logout('merchant')
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
+    expect(firstTab.accessToken).toBeNull()
+    expect(secondTab.accessToken).toBeNull()
+
+    const stalePeer = new FakeBroadcastChannel('ecom-merchant-auth-v1')
+    stalePeer.postMessage({
+      type: 'session-updated',
+      source_id: 'stale-tab',
+      state: {
+        access_token: 'shared-merchant-token',
+        csrf_token: 'merchant-csrf-test',
+        session_id: 'ses_merchant_test',
+        portal: 'merchant',
+        permission_codes: ['products:read'],
+        scopes: [{ scope_type: 'store', scope_id: 7 }],
+        user_id: 'usr_merchant_test',
+      },
+    })
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
+    expect(firstTab.accessToken).toBeNull()
+    expect(secondTab.accessToken).toBeNull()
+  })
 })

@@ -450,8 +450,10 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
       'merchant_copilot',
       observations,
     )
-    await expect(merchantPriorityFollowUp.reply).toContainText('今天先处理这三件事')
+    await expect(merchantPriorityFollowUp.reply).toContainText(/第一项|第1项/)
+    await expect(merchantPriorityFollowUp.reply).not.toContainText('今天先处理这三件事')
     expect(merchantPriorityFollowUp.observation.detail_cards).toBeGreaterThanOrEqual(1)
+    expect(merchantPriorityFollowUp.observation.detail_cards).toBeLessThan(3)
     await merchantContext.close()
 
     const adminContext = await browser.newContext()
@@ -478,7 +480,9 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
       observations,
     )
     await expect(adminPriorityFollowUp.reply).toContainText(/专业 Agent|只读诊断/)
-    expect(adminPriorityFollowUp.observation.detail_cards).toBeGreaterThanOrEqual(3)
+    await expect(adminPriorityFollowUp.reply).toContainText(/第一项|第1项/)
+    expect(adminPriorityFollowUp.observation.detail_cards).toBeGreaterThanOrEqual(1)
+    expect(adminPriorityFollowUp.observation.detail_cards).toBeLessThan(3)
     await adminContext.close()
 
     persistAgentQualityObservations(observations)

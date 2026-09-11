@@ -41,7 +41,7 @@ class ExclusiveModelGateway(Protocol):
 
 class DeterministicExclusiveModelGateway:
     async def plan(self, user_text: str) -> ExclusiveAgentPlan:
-        text = re.sub(r"\s+", "", user_text).casefold()
+        text = _strip_negated_intent_phrases(re.sub(r"\s+", "", user_text).casefold())
         if is_explicit_handoff_request(user_text):
             return ExclusiveAgentPlan("human_handoff")
         # “第一个/第二个” is not inherently a product reference.  Once an
@@ -49,9 +49,7 @@ class DeterministicExclusiveModelGateway:
         # “第一笔到哪了”.  Route transaction language before the product-card
         # ordinal shortcut so the executor can resolve the recent order card.
         if _contains(text, "第一笔", "第二笔", "第三笔", "第四笔", "第五笔"):
-            if _contains(
-                text, "物流", "快递", "包裹", "到哪", "送达", "没到", "到没到", "还没到"
-            ):
+            if _contains(text, "物流", "快递", "包裹", "到哪", "送达", "没到", "到没到", "还没到"):
                 return ExclusiveAgentPlan("logistics_lookup")
             if _contains(text, "退款", "退货", "售后"):
                 if _contains(
@@ -85,6 +83,19 @@ class DeterministicExclusiveModelGateway:
             text, "订单", "物流", "快递", "售后", "退款方式", "退款进度"
         ):
             return ExclusiveAgentPlan("personalized_recommendation", _search_text(user_text))
+        # A shopper may follow a read-only refund precheck with a combined
+        # question such as “为什么最多是 19.10 元，还在运输中要先确认收货吗”.
+        # “退款” is often omitted because the active order card already carries
+        # that context. Keep this on the read-only precheck path so both parts
+        # are answered from the same live order projection.
+        if _contains(text, "为什么最多", "最多是", "申请上限", "可退上限") and _contains(
+            text, "确认收货", "运输中", "创建申请", "提交申请"
+        ):
+            return ExclusiveAgentPlan("refund_precheck")
+        if "自动确认收货" in text and _contains(
+            text, "多久", "几天", "什么时候", "规则", "政策", "时效"
+        ):
+            return ExclusiveAgentPlan("policy_qa")
         if (
             "退款" in text
             and _contains(
@@ -126,6 +137,7 @@ class DeterministicExclusiveModelGateway:
             "退款资格",
             "售后资格",
             "资格预检",
+            "资格检查",
             "能否退款",
             "可以退款",
             "是否能退款",
@@ -136,6 +148,9 @@ class DeterministicExclusiveModelGateway:
             "可退款吗",
             "可以退吗",
             "有没有退款资格",
+            "最多能退",
+            "能退多少钱",
+            "可退金额",
         ):
             return ExclusiveAgentPlan("refund_precheck")
         if _contains(
@@ -151,9 +166,7 @@ class DeterministicExclusiveModelGateway:
             "退货",
         ):
             return ExclusiveAgentPlan("refund_eligibility")
-        if _contains(
-            text, "物流", "快递", "包裹", "到哪", "送达", "没到", "到没到", "还没到"
-        ):
+        if _contains(text, "物流", "快递", "包裹", "到哪", "送达", "没到", "到没到", "还没到"):
             return ExclusiveAgentPlan("logistics_lookup")
         if _contains(text, "购物车", "购物袋"):
             return ExclusiveAgentPlan("cart_lookup")
@@ -176,6 +189,27 @@ class DeterministicExclusiveModelGateway:
         if _contains(text, "规则", "政策", "平台", "运费", "退换", "保修", "发票"):
             return ExclusiveAgentPlan("policy_qa")
         return ExclusiveAgentPlan("general_chat")
+
+
+def _strip_negated_intent_phrases(text: str) -> str:
+    """Do not turn an explicitly rejected action into the selected intent.
+
+    The remaining sentence is still routed normally, so ``不是要退款，只想问
+    自动确认收货`` becomes an order/policy question while ``不是申请退款，想问
+    退款多久到账`` remains a refund-policy question because the later occurrence
+    is not inside the negated phrase.
+    """
+
+    value = text
+    for pattern in (
+        r"(?:我)?(?:不是|并非)(?:想|要|准备)?(?:申请|办理|发起)?退款",
+        r"(?:我)?不(?:想|要|需要)(?:申请|办理|发起)?退款",
+        r"(?:先)?不要(?:申请|办理|发起)?退款",
+        r"(?:我)?(?:不是|并非)(?:想|要)?退货",
+        r"(?:我)?不(?:想|要|需要)退货",
+    ):
+        value = re.sub(pattern, "", value)
+    return value
 
 
 EXCLUSIVE_CAPABILITIES: dict[ExclusiveIntent, tuple[str, ...]] = {

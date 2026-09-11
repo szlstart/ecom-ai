@@ -648,9 +648,7 @@ class StoreToolGateway:
             if constraints.sort == "price_asc":
                 rows.sort(key=lambda row: (row[0].min_price_amount, row[0].id))
             elif constraints.sort == "price_desc":
-                rows.sort(
-                    key=lambda row: (row[0].min_price_amount, row[0].id), reverse=True
-                )
+                rows.sort(key=lambda row: (row[0].min_price_amount, row[0].id), reverse=True)
             elif constraints.sort == "newest":
                 rows.sort(
                     key=lambda row: (row[0].published_at or row[0].created_at, row[0].id),

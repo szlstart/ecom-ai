@@ -17,19 +17,24 @@ def requests_direct_transaction_action(user_text: str) -> bool:
     """Return true when a shopper asks the Agent to perform a protected action."""
 
     compact = "".join(user_text.split()).casefold()
-    return any(
+    action = any(marker in compact for marker in ("付款", "支付", "确认收货", "取消订单"))
+    delegation = any(marker in compact for marker in ("帮我", "替我", "代我", "给我", "直接"))
+    explanatory_only = any(
         marker in compact
         for marker in (
-            "帮我付款",
-            "替我付款",
-            "直接付款",
-            "帮我支付",
-            "替我支付",
-            "直接支付",
-            "帮我确认收货",
-            "帮我取消订单",
+            "只解释",
+            "只说明",
+            "别操作",
+            "不要操作",
+            "不执行",
+            "不要执行",
+            "能不能",
+            "是否可以",
+            "怎么",
+            "如何",
         )
     )
+    return action and delegation and not explanatory_only
 
 
 def order_nos_from_result(data: Mapping[str, object]) -> list[str]:

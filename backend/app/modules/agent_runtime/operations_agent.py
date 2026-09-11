@@ -299,6 +299,12 @@ async def process_operations_run(
         multi_response = await _execute_operations_multi_agent(session, context, complex_domains)
         if multi_response is not None:
             evidence, trace_steps, source_ids = multi_response
+            priority_focus = _priority_focus_index(user_text)
+            if priority_focus is not None:
+                evidence["priority_focus"] = priority_focus
+            requested_card_limit = _requested_priority_count(user_text)
+            if requested_card_limit is not None:
+                evidence["requested_card_limit"] = requested_card_limit
             is_admin_priority_follow_up = (
                 context.audience == "admin"
                 and _requests_priority_follow_up(re.sub(r"\s+", "", user_text).casefold())
@@ -308,12 +314,11 @@ async def process_operations_run(
                 and _requests_priority_follow_up(re.sub(r"\s+", "", user_text).casefold())
             )
             answer = (
-                _render_admin_priority_follow_up(evidence)
+                _render_admin_priority_follow_up(evidence, user_text=user_text)
                 if is_admin_priority_follow_up
-                else _render_merchant_priority_follow_up(evidence)
+                else _render_merchant_priority_follow_up(evidence, user_text=user_text)
                 if is_merchant_priority_follow_up
-                else
-                _render_merchant_multi_agent(evidence)
+                else _render_merchant_multi_agent(evidence)
                 if context.audience == "merchant"
                 else _render_multi_agent(evidence)
             )
@@ -520,8 +525,7 @@ def _allows_operations_model_synthesis(intent: str) -> bool:
 def _operations_how_to_guide(value: str, audience: str) -> dict[str, object] | None:
     normalized = re.sub(r"\s+", "", value).casefold()
     asks_how = any(
-        marker in normalized
-        for marker in ("如何", "怎么", "流程", "在哪里", "步骤", "操作说明")
+        marker in normalized for marker in ("如何", "怎么", "流程", "在哪里", "步骤", "操作说明")
     )
     if not asks_how and "入口" in normalized:
         asks_how = any(
@@ -541,13 +545,25 @@ def _operations_how_to_guide(value: str, audience: str) -> dict[str, object] | N
 
     if audience == "merchant":
         if any(marker in normalized for marker in ("下架", "上架", "改价", "价格", "库存")):
+            sku_match = re.search(r"([A-Za-z0-9\u4e00-\u9fff]{1,20}(?:支装|件装|个装|盒装))", value)
+            quantity_match = re.search(r"(?:补到|改到|设为|设置为)\s*(\d+)\s*件", value)
+            sku_label = sku_match.group(1) if sku_match is not None else "目标款式"
+            quantity_label = (
+                f"{quantity_match.group(1)} 件" if quantity_match is not None else "目标数量"
+            )
             return {
                 "title": "在商品管理中核对后操作",
                 "answer": (
-                    "进入“我的商品”，打开目标商品后核对款式、价格和库存，再保存或提交审核。"
+                    f"进入“我的商品”，打开目标商品并选中“{sku_label}”，将库存核对后设置为"
+                    f"“{quantity_label}”，再保存或提交审核。"
                     "上架、下架、改价和库存修改都由你在商品页确认，AI 经营助理不会代为执行。"
                 ),
-                "steps": ["打开我的商品", "选择目标商品", "核对款式、价格与库存", "确认保存或提交"],
+                "steps": [
+                    "打开我的商品并选择目标商品",
+                    f"选中{sku_label}",
+                    f"核对当前库存并填写{quantity_label}",
+                    "确认保存或提交",
+                ],
                 "path": "/merchant/products",
                 "label": "打开我的商品",
             }
@@ -582,8 +598,7 @@ def _operations_how_to_guide(value: str, audience: str) -> dict[str, object] | N
                 "label": "打开用户与权限",
             }
         if any(
-            marker in normalized
-            for marker in ("冻结", "强制下线", "删除用户", "改密码", "邮箱")
+            marker in normalized for marker in ("冻结", "强制下线", "删除用户", "改密码", "邮箱")
         ):
             return {
                 "title": "管理用户账号",
@@ -854,10 +869,7 @@ def _admin_specialist_executor(
 
 def _admin_complex_domains(value: str) -> tuple[str, ...]:
     compact = re.sub(r"\s+", "", value).casefold()
-    if any(
-        term in compact
-        for term in ("平台最需要处理", "平台风险", "运营风险", "最大风险")
-    ):
+    if any(term in compact for term in ("平台最需要处理", "平台风险", "运营风险", "最大风险")):
         return ("users", "stores", "orders", "runtime")
     if _requests_priority_follow_up(compact):
         return ("users", "stores", "orders", "runtime")
@@ -879,33 +891,57 @@ def _merchant_complex_domains(value: str) -> tuple[str, ...]:
     if _requests_priority_follow_up(compact):
         return ("catalog", "inventory", "orders")
     domains: list[str] = []
-    inventory_requested = any(
-        term in compact for term in ("库存", "缺货", "现货", "补货", "超卖")
+    inventory_requested = any(term in compact for term in ("库存", "缺货", "现货", "补货", "超卖"))
+    catalog_requested = any(term in compact for term in ("商品", "价格", "在售")) or (
+        not inventory_requested and any(term in compact for term in ("款式", "sku"))
     )
-    catalog_requested = any(
-        term in compact for term in ("商品", "价格", "在售")
-    ) or (not inventory_requested and any(term in compact for term in ("款式", "sku")))
     if catalog_requested:
         domains.append("catalog")
     if inventory_requested:
         domains.append("inventory")
-    if any(
-        term in compact for term in ("订单", "履约", "发货", "运输", "售后", "营业额", "收益")
-    ):
+    if any(term in compact for term in ("订单", "履约", "发货", "运输", "售后", "营业额", "收益")):
         domains.append("orders")
     return tuple(domains)
 
 
 def _requests_priority_follow_up(compact: str) -> bool:
     ordinal = any(
-        term in compact
-        for term in ("第一项", "第二项", "第三项", "第1项", "第2项", "第3项")
+        term in compact for term in ("第一项", "第二项", "第三项", "第1项", "第2项", "第3项")
     )
     priority_reference = any(
-        term in compact
-        for term in ("优先项", "最优先", "排在最前", "先做什么", "先处理什么")
+        term in compact for term in ("优先项", "最优先", "排在最前", "先做什么", "先处理什么")
     )
     return ordinal or priority_reference
+
+
+def _priority_focus_index(value: str) -> int | None:
+    compact = re.sub(r"\s+", "", value).casefold()
+    for index, markers in (
+        (1, ("第一项", "第1项")),
+        (2, ("第二项", "第2项")),
+        (3, ("第三项", "第3项")),
+    ):
+        if any(marker in compact for marker in markers):
+            return index
+    return (
+        1
+        if any(marker in compact for marker in ("最优先", "排在最前", "排第一"))
+        else None
+    )
+
+
+def _requested_priority_count(value: str) -> int | None:
+    compact = re.sub(r"\s+", "", value).casefold()
+    match = re.search(r"(?:只列|列出|给我)([一二两三四五\d]+)项", compact)
+    if match is None:
+        return None
+    raw = match.group(1)
+    number = (
+        int(raw)
+        if raw.isdigit()
+        else {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5}.get(raw, 3)
+    )
+    return max(1, min(number, 4))
 
 
 def _operations_specialist(audience: str, domain: str) -> tuple[str, str, str]:
@@ -1069,7 +1105,7 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
     )
 
 
-def _render_admin_priority_follow_up(data: Mapping[str, Any]) -> str:
+def _render_admin_priority_follow_up(data: Mapping[str, Any], *, user_text: str = "") -> str:
     diagnosis_prefix = "专业 Agent 已重新完成只读诊断: "
     specialists = data.get("specialists")
     metrics: dict[str, int] = {}
@@ -1085,6 +1121,25 @@ def _render_admin_priority_follow_up(data: Mapping[str, Any]) -> str:
     unrecovered = metrics.get("unrecovered_agent_failures", 0)
     failed = metrics.get("failed_agent_runs_24h", 0)
     recovered = metrics.get("successful_runs_after_latest_failure", 0)
+    focus = _priority_focus_index(user_text)
+    if focus == 2:
+        completed = metrics.get("order_status_counts.completed", 0)
+        shipped = metrics.get("order_status_counts.shipped", 0)
+        pending_shipment = metrics.get("order_status_counts.pending_shipment", 0)
+        return diagnosis_prefix + (
+            "第二项是交易履约，因为它直接关系到顾客是否按时收到商品。"
+            f"当前已完成 {completed} 笔、运输中 {shipped} 笔、待发货 {pending_shipment} 笔。"
+            "先打开“平台订单状态”卡片进入订单治理，优先核对待发货和运输异常; 本次只读，"
+            "没有修改订单。"
+        )
+    if focus == 3:
+        active_stores = metrics.get("store_status_counts.active", 0)
+        on_sale = metrics.get("product_status_counts.on_sale", 0)
+        return diagnosis_prefix + (
+            f"第三项是店铺与商品治理。当前营业中店铺 {active_stores} 家、在售商品 {on_sale} 件。"
+            "先打开“店铺与商品状态”卡片抽查暂停店铺、无在售商品店铺和异常商品状态; "
+            "没有证据时不要批量暂停或下架。"
+        )
     if stale_events:
         return diagnosis_prefix + (
             f"第一项最重要，因为有 {stale_events} 条 Outbox 事件已超过 5 分钟仍未投递，"
@@ -1098,17 +1153,19 @@ def _render_admin_priority_follow_up(data: Mapping[str, Any]) -> str:
         )
     if failed:
         return diagnosis_prefix + (
-            f"重新核对后没有未恢复故障，也没有超过 5 分钟的事件积压。过去 24 小时虽有 "
+            f"第一项是运行诊断。重新核对后没有未恢复故障，也没有超过 5 分钟的事件积压。"
+            "过去 24 小时虽有 "
             f"{failed} 次失败，但之后已有 {recovered} 次成功运行，所以不应把它当成当前阻断。"
             "今天先打开“Agent 与事件链路”卡片抽查最新一次失败原因，再保持常规监控。"
         )
     return diagnosis_prefix + (
-        "重新核对后没有未恢复 Agent 故障或超过 5 分钟的事件积压，目前没有必须立即处理的"
-        "平台级风险。今天先从运行诊断卡片做一次例行抽查，再查看订单和店铺状态。"
+        "第一项是运行诊断。重新核对后没有未恢复 Agent 故障或超过 5 分钟的事件积压，"
+        "目前没有必须立即处理的平台级风险。今天先从运行诊断卡片做一次例行抽查，再查看"
+        "订单和店铺状态。"
     )
 
 
-def _render_merchant_priority_follow_up(data: Mapping[str, Any]) -> str:
+def _render_merchant_priority_follow_up(data: Mapping[str, Any], *, user_text: str = "") -> str:
     specialists = data.get("specialists")
     products: list[Mapping[str, Any]] = []
     order_counts: Mapping[str, Any] = {}
@@ -1126,9 +1183,37 @@ def _render_merchant_priority_follow_up(data: Mapping[str, Any]) -> str:
                 order_counts = counts
             low_stock = max(low_stock, int(safe_data.get("low_stock_sku_count", 0)))
     pending = sum(int(order_counts.get(key, 0)) for key in ("paid", "pending_shipment", "shipped"))
+    zero_sales = sum(int(item.get("sales_count", 0)) <= 0 for item in products)
+    priorities: list[str] = []
+    if low_stock:
+        priorities.append("inventory")
+    if pending:
+        priorities.append("orders")
+    priorities.extend(
+        domain for domain in ("catalog", "orders", "inventory") if domain not in priorities
+    )
+    focus = _priority_focus_index(user_text) or 1
+    selected = priorities[min(focus - 1, len(priorities) - 1)]
+    if selected == "orders":
+        return (
+            f"第{focus}项是履约跟进: 当前有 {pending} 笔订单仍在待履约或运输阶段，"
+            "延迟处理会直接影响顾客体验。现在先打开“经营快照”卡片进入本店订单，"
+            "依次核对待发货、物流长时间未更新和售后状态。本次没有修改订单。"
+        )
+    if selected == "catalog":
+        return (
+            f"第{focus}项是商品复盘: 当前 {len(products)} 件在售商品中有 {zero_sales} 件暂无销量。"
+            "先从商品管理入口核对主图、标题、价格、款式库存和购买入口，先记录问题，"
+            "不要在没有数据依据时批量降价。"
+        )
+    if selected == "inventory" and not low_stock:
+        return (
+            f"第{focus}项是库存巡检: 当前没有款式达到低库存或缺货阈值，因此它不是紧急风险。"
+            "打开商品管理做例行复核即可，不需要立即补货或下架。"
+        )
     if low_stock:
         return (
-            f"第一项最急，因为有 {low_stock} 个款式已经达到低库存或缺货阈值，继续售卖可能"
+            f"第{focus}项最急，因为有 {low_stock} 个款式已经达到低库存或缺货阈值，继续售卖可能"
             "影响下单与履约。现在先打开“库存守卫”卡片进入商品管理，核对具体款式的可售库存"
             "和安全库存线。确认实际库存后再补货或调整上架状态。"
         )
@@ -1673,14 +1758,11 @@ def _operations_detail_cards(
                 else 0
             )
             order_counts = (
-                orders_data.get("order_status_counts")
-                if isinstance(orders_data, Mapping)
-                else {}
+                orders_data.get("order_status_counts") if isinstance(orders_data, Mapping) else {}
             )
             counts = order_counts if isinstance(order_counts, Mapping) else {}
             pending = sum(
-                int(counts.get(key, 0))
-                for key in ("paid", "pending_shipment", "shipped")
+                int(counts.get(key, 0)) for key in ("paid", "pending_shipment", "shipped")
             )
             revenue = (
                 orders_data.get("completed_order_revenue")
@@ -1733,19 +1815,49 @@ def _operations_detail_cards(
                     "meta": "当前无风险款式" if not low_stock else f"当前 {low_stock} 个风险款式",
                 }
             )
+            focus_value = data.get("priority_focus")
+            focus = focus_value if isinstance(focus_value, int) and 1 <= focus_value <= 3 else None
+            visible_priorities = (
+                [priorities[focus - 1]]
+                if focus is not None and len(priorities) >= focus
+                else priorities[:3]
+            )
+            focused_label = str(visible_priorities[0].get("label", "")) if focus else ""
             specialist_cards.append(
                 {
                     "kind": "merchant_priorities",
                     "icon": "策",
                     "eyebrow": "经营优先级",
-                    "title": "今天先处理这三件事",
+                    "title": f"当前只看第 {focus} 项" if focus else "今天先处理这三件事",
                     "badge": "需要处理" if low_stock or pending else "经营建议",
                     "tone": "warning" if low_stock or pending else "",
-                    "summary": "按实时商品、库存、订单和已确认营业额排序。",
-                    "rows": priorities[:3],
+                    "summary": (
+                        "只展示本次追问对应的实时证据与处理入口。"
+                        if focus
+                        else "按实时商品、库存、订单和已确认营业额排序。"
+                    ),
+                    "rows": visible_priorities,
                     "action": {"label": "进入经营首页", "path": "/merchant/dashboard"},
                 }
             )
+            if focus:
+                focused_specialist = (
+                    "merchant_inventory"
+                    if "库存" in focused_label
+                    else "merchant_orders"
+                    if "履约" in focused_label or "订单" in focused_label
+                    else "merchant_catalog"
+                )
+                focused_data = specialist_results.get(focused_specialist)
+                if focused_data is not None:
+                    specialist_cards.extend(
+                        _operations_detail_cards(
+                            context,
+                            specialist_intents[focused_specialist],
+                            focused_data,
+                        )
+                    )
+                return specialist_cards[:2]
             for specialist in ("merchant_inventory", "merchant_orders"):
                 safe_data = specialist_results.get(specialist)
                 if safe_data is not None:
@@ -1755,12 +1867,19 @@ def _operations_detail_cards(
             if catalog_data is not None and len(specialist_cards) == 1:
                 specialist_cards.extend(_operations_detail_cards(context, "catalog", catalog_data))
         else:
-            for specialist in (
+            admin_specialists: tuple[str, ...] = (
                 "observability",
                 "governance_orders",
                 "governance_stores",
                 "governance_users",
-            ):
+            )
+            focus_value = data.get("priority_focus")
+            if isinstance(focus_value, int) and 1 <= focus_value <= len(admin_specialists):
+                admin_specialists = (admin_specialists[focus_value - 1],)
+            requested_limit = data.get("requested_card_limit")
+            if isinstance(requested_limit, int):
+                admin_specialists = admin_specialists[: max(1, min(requested_limit, 4))]
+            for specialist in admin_specialists:
                 safe_data = specialist_results.get(specialist)
                 if safe_data is not None:
                     specialist_cards.extend(

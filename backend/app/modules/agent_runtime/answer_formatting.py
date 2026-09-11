@@ -56,9 +56,7 @@ def concise_policy_answer(
             # factual bullet instead of discarding the complete fragment as a heading.
             if " - " in raw_part:
                 raw_part = raw_part.rsplit(" - ", 1)[-1]
-            part = re.sub(
-                r"^(?:[-*•>]\s*|\d+[.)、]\s*)", "", raw_part.strip()
-            ).strip()
+            part = re.sub(r"^(?:[-*•>]\s*|\d+[.)、]\s*)", "", raw_part.strip()).strip()
             part = part.replace(";", "\uff1b").replace(",", "\uff0c")
             if not part or part.startswith("#"):
                 continue

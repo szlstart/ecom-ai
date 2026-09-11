@@ -42,9 +42,7 @@ class SupervisorResponse:
 
 
 BaselineExecutor = Callable[[SupervisorRequest], Awaitable[Mapping[str, Any]]]
-SpecialistExecutor = Callable[
-    [DelegationPacket, DelegationBudget], Awaitable[SpecialistResult]
-]
+SpecialistExecutor = Callable[[DelegationPacket, DelegationBudget], Awaitable[SpecialistResult]]
 
 
 class _SupervisorState(TypedDict):

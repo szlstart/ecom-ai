@@ -94,9 +94,7 @@ class SQLDelegationLedger:
             if row is None:
                 row = _new_row(packet, run, dependency_nos)
                 session.add(row)
-            row.delegation_status = (
-                "succeeded" if result.status == "reused" else result.status
-            )
+            row.delegation_status = "succeeded" if result.status == "reused" else result.status
             row.result_snapshot = dict(result.safe_data) if result.safe_data else None
             row.tokens_used = result.tokens_used
             row.tool_calls = result.tool_calls
@@ -195,9 +193,7 @@ class SessionDelegationLedger:
             if row is None:
                 row = _new_row(packet, run, dependency_nos)
                 self.session.add(row)
-            row.delegation_status = (
-                "succeeded" if result.status == "reused" else result.status
-            )
+            row.delegation_status = "succeeded" if result.status == "reused" else result.status
             row.result_snapshot = dict(result.safe_data) if result.safe_data else None
             row.tokens_used = result.tokens_used
             row.tool_calls = result.tool_calls

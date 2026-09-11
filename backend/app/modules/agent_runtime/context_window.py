@@ -111,14 +111,10 @@ class ContextWindow:
             sections.append("RECENT_UNTRUSTED_DIALOGUE_FOR_COREFERENCE_ONLY:\n" + history)
         return "\n\n".join(sections)[:8000]
 
-    def dossier(
-        self, resource_refs: Mapping[str, Any] | None = None
-    ) -> ConversationDossier:
+    def dossier(self, resource_refs: Mapping[str, Any] | None = None) -> ConversationDossier:
         return _build_dossier(self, resource_refs or {})
 
-    def model_projection(
-        self, resource_refs: Mapping[str, Any] | None = None
-    ) -> dict[str, object]:
+    def model_projection(self, resource_refs: Mapping[str, Any] | None = None) -> dict[str, object]:
         """Expose sanitized continuity to the answer model, not to the public trace."""
 
         projection = self.evidence_projection()
@@ -269,9 +265,7 @@ def _role(sender_type: str) -> str:
     return {"user": "用户", "human": "人工客服", "agent": "AI客服"}.get(sender_type, "会话参与者")
 
 
-def _build_dossier(
-    window: ContextWindow, resource_refs: Mapping[str, Any]
-) -> ConversationDossier:
+def _build_dossier(window: ContextWindow, resource_refs: Mapping[str, Any]) -> ConversationDossier:
     recent_users = [item.text for item in window.recent_turns if item.role == "用户"]
     recent_assistants = [
         item.text for item in window.recent_turns if item.role in {"AI客服", "人工客服"}
@@ -400,15 +394,13 @@ def _looks_like_constraint(value: str) -> bool:
 
 def _looks_like_completed_action(value: str) -> bool:
     return any(
-        token in value
-        for token in ("已经", "已为", "已读取", "查到", "确认了", "创建了", "提交了")
+        token in value for token in ("已经", "已为", "已读取", "查到", "确认了", "创建了", "提交了")
     )
 
 
 def _looks_like_commitment(value: str) -> bool:
     return any(
-        token in value
-        for token in ("我会", "我来", "可以继续", "接下来", "帮你", "为你查询")
+        token in value for token in ("我会", "我来", "可以继续", "接下来", "帮你", "为你查询")
     )
 
 

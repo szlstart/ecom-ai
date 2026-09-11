@@ -34,6 +34,7 @@ from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
 from app.modules.agent_runtime.order_cards import (
     build_order_cards,
     order_nos_from_result,
+    order_reference_index,
     recent_agent_order_nos,
     referenced_order_no,
     requests_direct_transaction_action,
@@ -59,7 +60,7 @@ from app.modules.agent_runtime.trigger_text import agent_trace_question, agent_t
 from app.modules.content.models import PlatformContentEntry, PlatformContentVersion
 from app.modules.knowledge.embedding import embedding_provider
 from app.modules.knowledge.service import KnowledgeService
-from app.modules.messaging.models import Message
+from app.modules.messaging.models import Conversation, Message
 from app.modules.system.models import OutboxEvent
 
 
@@ -140,6 +141,18 @@ async def process_exclusive_run(
             degraded_reason="protected_action_blocked",
         )
         await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
+    if _asks_human_service_capabilities(trigger_text):
+        await _complete(
+            session,
+            context,
+            (
+                "平台人工客服可以进一步处理需要人工核实或协调的问题，例如订单争议、"
+                "复杂售后、退款申诉、账号异常和平台投诉。一般的商品搜索、本人订单、"
+                "物流与售后资格，我可以先替你查询。只有你明确要求转人工时才会创建工单。"
+            ),
+        )
+        await _finish_checkpoint(checkpoint_store, context, "human_service_information")
         return
     requested_memory = explicit_memory_request(trigger_text)
     if requested_memory is not None:
@@ -248,6 +261,19 @@ async def process_exclusive_run(
     fast_plan = complete_exclusive_plan(
         await DeterministicExclusiveModelGateway().plan(trigger_text)
     )
+    if (
+        fast_plan.intent == "order_lookup"
+        and _is_implicit_refund_precheck_follow_up(trigger_text)
+        and await _recent_agent_intent(
+            session,
+            context.conversation,
+            before_sequence=context.trigger.sequence_no,
+        )
+        == "refund_precheck"
+    ):
+        fast_plan = complete_exclusive_plan(
+            ExclusiveAgentPlan("refund_precheck", continuation_of_previous_turn=True)
+        )
     if fast_plan.intent != "general_chat" or not isinstance(gateway, ProviderExclusiveModelGateway):
         plan = fast_plan
     else:
@@ -379,10 +405,22 @@ async def process_exclusive_run(
             explicit_order_no = _trigger_payload_value(
                 context.trigger, "order_card", "order_id"
             ) or _resource_no(trigger_text, "ord")
+            recent_reference_no: str | None = None
+            if explicit_order_no is None:
+                reference_index = order_reference_index(trigger_text)
+                recent_order_nos = await recent_agent_order_nos(
+                    session,
+                    context.conversation,
+                    before_sequence=context.trigger.sequence_no,
+                    minimum_count=(reference_index + 1 if reference_index is not None else 1),
+                )
+                recent_reference_no = referenced_order_no(trigger_text, recent_order_nos)
             ref = context.context_refs.get("order")
             result = (
                 await tools.order_detail(context, explicit_order_no)
                 if explicit_order_no is not None
+                else await tools.order_detail(context, recent_reference_no)
+                if recent_reference_no is not None
                 else await tools.order_detail(
                     context, (await builder.require_active_context(context, "order")).resource_no
                 )
@@ -396,7 +434,12 @@ async def process_exclusive_run(
         elif plan.intent == "cart_lookup":
             result = await tools.get_cart(context)
             if result.status == "succeeded":
-                result.data["presentation"] = "cart_card"
+                hypothetical = _cart_hypothetical_projection(trigger_text, result.data)
+                if hypothetical is not None:
+                    result.data["cart_hypothetical"] = hypothetical
+                    result.data["presentation"] = "detail_cards"
+                else:
+                    result.data["presentation"] = "cart_card"
         elif plan.intent == "logistics_lookup":
             order_no = await _read_order_no(
                 trigger_text,
@@ -428,11 +471,16 @@ async def process_exclusive_run(
         else:
             explicit_order_no = _resource_no(trigger_text, "ord")
             refund_order_no: str | None = explicit_order_no
-            if refund_order_no is None and context.context_refs.get("order") is not None:
+            force_order_selection = _disclaims_specific_order(trigger_text)
+            if (
+                refund_order_no is None
+                and not force_order_selection
+                and context.context_refs.get("order") is not None
+            ):
                 refund_order_no = (
                     await builder.require_active_context(context, "order")
                 ).resource_no
-            if refund_order_no is None:
+            if refund_order_no is None and not force_order_selection:
                 recent_order_nos = await recent_agent_order_nos(
                     session,
                     context.conversation,
@@ -458,7 +506,11 @@ async def process_exclusive_run(
                 if result.status == "succeeded":
                     result.data["items"] = refundable_items
                 candidate_nos = order_nos_from_result(result.data)
-                if result.status == "succeeded" and len(candidate_nos) == 1:
+                if (
+                    result.status == "succeeded"
+                    and len(candidate_nos) == 1
+                    and not force_order_selection
+                ):
                     refund_order_no = candidate_nos[0]
                 elif result.status == "succeeded":
                     result.data["selection_required"] = "refund"
@@ -555,7 +607,9 @@ async def process_exclusive_run(
             rich_content["order_cards"] = order_cards
         if product_cards:
             rich_content["product_cards"] = product_cards
-        if plan.intent == "cart_lookup":
+        if plan.intent == "cart_lookup" and not isinstance(
+            result.data.get("cart_hypothetical"), Mapping
+        ):
             rich_content["cart_card"] = _cart_card(result.data)
         detail_cards = _exclusive_detail_cards(plan, result.data)
         if detail_cards:
@@ -1023,10 +1077,12 @@ async def _read_order_no(
     explicit_order_no = _resource_no(trigger_text, "ord")
     if explicit_order_no is not None:
         return explicit_order_no
+    reference_index = order_reference_index(trigger_text)
     recent_order_nos = await recent_agent_order_nos(
         tools.session,
         context.conversation,
         before_sequence=context.trigger.sequence_no,
+        minimum_count=(reference_index + 1 if reference_index is not None else 1),
     )
     referenced = referenced_order_no(trigger_text, recent_order_nos)
     if referenced is not None:
@@ -1034,6 +1090,43 @@ async def _read_order_no(
     if _requests_latest_order(trigger_text) or context.context_refs.get("order") is None:
         return await tools.latest_order_no(context)
     return (await builder.require_active_context(context, "order")).resource_no
+
+
+async def _recent_agent_intent(
+    session: AsyncSession,
+    conversation: Conversation,
+    *,
+    before_sequence: int,
+) -> str | None:
+    rows = list(
+        (
+            await session.scalars(
+                select(Message)
+                .where(
+                    Message.conversation_id == conversation.id,
+                    Message.sender_type == "agent",
+                    Message.sequence_no < before_sequence,
+                )
+                .order_by(Message.sequence_no.desc())
+                .limit(5)
+            )
+        ).all()
+    )
+    for message in rows:
+        payload = message.content_payload
+        trace = payload.get("execution_trace") if isinstance(payload, Mapping) else None
+        intent = trace.get("intent") if isinstance(trace, Mapping) else None
+        if isinstance(intent, str) and intent:
+            return intent
+    return None
+
+
+def _is_implicit_refund_precheck_follow_up(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    return order_reference_index(value) is not None and any(
+        marker in normalized
+        for marker in ("只检查", "也检查", "同样检查", "也看看", "也看下", "那这笔呢")
+    )
 
 
 def _trigger_payload_value(message: Message, message_type: str, key: str) -> str | None:
@@ -1053,10 +1146,79 @@ def _requests_latest_order(value: str) -> bool:
     )
 
 
+def _disclaims_specific_order(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    if re.search(
+        r"(?:没有|没|尚未|还没)(?:明确)?(?:指定|选择|选|说)(?:是)?哪(?:一)?(?:笔|个)?(?:订单)?",
+        normalized,
+    ):
+        return True
+    return any(
+        marker in normalized
+        for marker in (
+            "没有指定哪一笔",
+            "没指定哪一笔",
+            "没有说哪一笔",
+            "没说哪一笔",
+            "不知道哪一笔",
+            "不确定哪一笔",
+            "先让我选订单",
+            "先给我选订单",
+            "不要默认订单",
+            "别默认订单",
+        )
+    )
+
+
+def _asks_human_service_capabilities(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    has_human = any(term in normalized for term in ("人工客服", "平台客服", "人工", "真人"))
+    asks_information = any(
+        term in normalized
+        for term in ("能处理什么", "可以处理什么", "能做什么", "可以做什么", "服务范围")
+    )
+    return has_human and asks_information
+
+
 def _exclusive_detail_cards(
     plan: ExclusiveAgentPlan,
     data: Mapping[str, Any],
 ) -> list[dict[str, object]]:
+    hypothetical = data.get("cart_hypothetical")
+    if plan.intent == "cart_lookup" and isinstance(hypothetical, Mapping):
+        return [
+            {
+                "kind": "cart_hypothetical",
+                "icon": "算",
+                "eyebrow": "购物车试算",
+                "title": "仅试算，不修改购物车",
+                "badge": "预计金额",
+                "summary": "按当前购物车价格和选中状态计算，实际结算以结算页为准。",
+                "rows": [
+                    {
+                        "label": safe_untrusted_excerpt(
+                            hypothetical.get("item_label") or "目标商品", 100
+                        ),
+                        "value": (
+                            f"{int(hypothetical.get('from_quantity') or 0)} 件 → "
+                            f"{int(hypothetical.get('to_quantity') or 0)} 件"
+                        ),
+                        "meta": f"单价 {hypothetical.get('unit_price_display', '¥0.00')}",
+                    },
+                    {
+                        "label": "当前已选金额",
+                        "value": str(hypothetical.get("current_total_display") or "¥0.00"),
+                        "meta": "修改前",
+                    },
+                    {
+                        "label": "预计已选金额",
+                        "value": str(hypothetical.get("projected_total_display") or "¥0.00"),
+                        "meta": "本次没有修改购物车",
+                    },
+                ],
+                "action": {"label": "打开购物车", "path": "/cart"},
+            }
+        ]
     if data.get("catalog_focus") == "sku_availability":
         values = data.get("items")
         item = values[0] if isinstance(values, list) and values else None
@@ -1416,6 +1578,123 @@ def _cart_card(data: Mapping[str, Any]) -> dict[str, object]:
     }
 
 
+def _cart_hypothetical_projection(
+    user_text: str,
+    data: Mapping[str, Any],
+) -> dict[str, object] | None:
+    """Conservatively calculate one quantity change without mutating the cart.
+
+    A projection is returned only when the requested old quantity matches exactly one
+    selected, valid cart line. Ambiguous requests keep the normal live cart card so the
+    shopper can choose the intended item instead of receiving a guessed amount.
+    """
+
+    compact = re.sub(r"\s+", "", user_text).casefold()
+    match = re.search(
+        r"从(?P<old>\d+|[一二两三四五六七八九十])件?"
+        r"(?:改成|改为|变成|变为|调成|调为)"
+        r"(?P<new>\d+|[一二两三四五六七八九十])件?",
+        compact,
+    )
+    if match is None:
+        return None
+    from_quantity = _natural_quantity(match.group("old"))
+    to_quantity = _natural_quantity(match.group("new"))
+    if from_quantity is None or to_quantity is None or to_quantity < 1 or to_quantity > 99:
+        return None
+
+    groups = data.get("groups")
+    candidates: list[tuple[str, Mapping[str, Any]]] = []
+    for raw_group in groups if isinstance(groups, list) else []:
+        if not isinstance(raw_group, Mapping):
+            continue
+        store_name = str(raw_group.get("store_name") or "")
+        normalized_store = re.sub(r"\s+", "", store_name).casefold()
+        store_aliases = {
+            normalized_store,
+            re.sub(r"(?:旗舰店|专卖店|店铺|商店|店)$", "", normalized_store),
+        }
+        store_referenced = any(
+            alias and len(alias) >= 2 and alias in compact for alias in store_aliases
+        )
+        raw_items = raw_group.get("items")
+        for raw_item in raw_items if isinstance(raw_items, list) else []:
+            if not isinstance(raw_item, Mapping):
+                continue
+            if raw_item.get("is_selected") is not True or raw_item.get("is_valid") is not True:
+                continue
+            if int(raw_item.get("quantity") or 0) != from_quantity:
+                continue
+            product_name = re.sub(
+                r"\s+", "", str(raw_item.get("product_name") or "")
+            ).casefold()
+            sku_name = re.sub(r"\s+", "", str(raw_item.get("sku_name") or "")).casefold()
+            item_referenced = any(
+                value and len(value) >= 2 and value in compact for value in (product_name, sku_name)
+            )
+            if store_referenced or item_referenced:
+                candidates.append((store_name, raw_item))
+    if len(candidates) != 1:
+        return None
+
+    store_name, item = candidates[0]
+    price = item.get("current_price")
+    amount_summary = data.get("amount_summary")
+    selected_amount = (
+        amount_summary.get("selected_goods_amount")
+        if isinstance(amount_summary, Mapping)
+        else None
+    )
+    if not isinstance(price, Mapping) or not isinstance(selected_amount, Mapping):
+        return None
+    try:
+        unit_minor = int(price.get("minor_units") or 0)
+        current_minor = int(selected_amount.get("minor_units") or 0)
+    except (TypeError, ValueError):
+        return None
+    if unit_minor < 0 or current_minor < 0:
+        return None
+    projected_minor = current_minor + (to_quantity - from_quantity) * unit_minor
+    if projected_minor < 0:
+        return None
+    currency = str(price.get("currency") or selected_amount.get("currency") or "CNY")
+    item_name = safe_untrusted_excerpt(item.get("product_name") or "目标商品", 80)
+    sku_name = safe_untrusted_excerpt(item.get("sku_name") or "", 50)
+    return {
+        "store_name": safe_untrusted_excerpt(store_name or "店铺", 50),
+        "item_label": f"{item_name} · {sku_name}" if sku_name else item_name,
+        "from_quantity": from_quantity,
+        "to_quantity": to_quantity,
+        "unit_price_display": _money_object_display(
+            {"minor_units": str(unit_minor), "currency": currency}
+        ),
+        "current_total_display": _money_object_display(
+            {"minor_units": str(current_minor), "currency": currency}
+        ),
+        "projected_total_display": _money_object_display(
+            {"minor_units": str(projected_minor), "currency": currency}
+        ),
+    }
+
+
+def _natural_quantity(value: str) -> int | None:
+    if value.isdigit():
+        return int(value)
+    return {
+        "一": 1,
+        "二": 2,
+        "两": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+        "十": 10,
+    }.get(value)
+
+
 def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = "") -> str:
     if plan.intent == "general_chat":
         return "你好，我是你的专属客服。你可以问我平台规则、商品推荐、本人订单、物流或售后问题。"
@@ -1483,6 +1762,17 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
             )
         return f"找到你的 {len(items)} 笔最近订单。点击卡片可查看详情或继续处理。"
     if plan.intent == "cart_lookup":
+        hypothetical = data.get("cart_hypothetical")
+        if isinstance(hypothetical, Mapping):
+            return (
+                "按当前购物车价格试算: "
+                f"{hypothetical.get('item_label', '目标商品')}从 "
+                f"{hypothetical.get('from_quantity', 0)} 件改为 "
+                f"{hypothetical.get('to_quantity', 0)} 件后，预计已选商品总额从 "
+                f"{hypothetical.get('current_total_display', '¥0.00')} 变为 "
+                f"{hypothetical.get('projected_total_display', '¥0.00')}。"
+                "这里只进行了试算，没有修改购物车。"
+            )
         quantity = data.get("cart_total_quantity")
         if not isinstance(quantity, int) or quantity <= 0:
             return "你的购物车还是空的。可以先去逛逛，遇到喜欢的商品再加入购物车。"

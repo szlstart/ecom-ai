@@ -68,6 +68,7 @@ async def recent_agent_order_nos(
     conversation: Conversation,
     *,
     before_sequence: int,
+    minimum_count: int = 1,
 ) -> list[str]:
     """Return cards from the latest prior Agent turn that presented orders."""
 
@@ -88,6 +89,7 @@ async def recent_agent_order_nos(
             )
         ).all()
     )
+    fallback: list[str] = []
     for message in rows:
         payload = message.content_payload if isinstance(message.content_payload, dict) else {}
         cards = payload.get("order_cards")
@@ -96,9 +98,11 @@ async def recent_agent_order_nos(
         order_nos = _unique_order_nos(
             card.get("order_id") for card in cards if isinstance(card, Mapping)
         )
-        if order_nos:
+        if order_nos and not fallback:
+            fallback = order_nos
+        if len(order_nos) >= max(1, minimum_count):
             return order_nos
-    return []
+    return fallback
 
 
 def _unique_order_nos(values: Iterable[object]) -> list[str]:
@@ -126,4 +130,19 @@ def referenced_order_no(user_text: str, order_nos: list[str]) -> str | None:
         marker in compact for marker in ("这个订单", "这笔订单", "它", "刚才那个", "刚才的")
     ):
         return order_nos[0]
+    return None
+
+
+def order_reference_index(user_text: str) -> int | None:
+    compact = re.sub(r"\s+", "", user_text).casefold()
+    ordinal_groups = (
+        (("第一笔", "第一个", "第1笔", "1号"), 0),
+        (("第二笔", "第二个", "第2笔", "2号"), 1),
+        (("第三笔", "第三个", "第3笔", "3号"), 2),
+        (("第四笔", "第四个", "第4笔", "4号"), 3),
+        (("第五笔", "第五个", "第5笔", "5号"), 4),
+    )
+    for markers, index in ordinal_groups:
+        if any(marker in compact for marker in markers):
+            return index
     return None

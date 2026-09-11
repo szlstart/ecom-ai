@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 import time
 from collections.abc import Mapping
@@ -12,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
-from app.database.mysql import mysql_session, mysql_session_factory
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
 from app.modules.agent_runtime.context_window import ContextWindowBuilder
 from app.modules.agent_runtime.conversation_summary import attach_rolling_summary
@@ -25,7 +25,7 @@ from app.modules.agent_runtime.delegation import (
     SpecialistResult,
     TrustedDelegationScope,
 )
-from app.modules.agent_runtime.delegation_ledger import SQLDelegationLedger
+from app.modules.agent_runtime.delegation_ledger import SessionDelegationLedger
 from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
 from app.modules.agent_runtime.langgraph_supervisor import (
     LangGraphSupervisor,
@@ -117,9 +117,67 @@ async def process_operations_run(
         )
         await _finish_checkpoint(checkpoint_store, context, "security_refusal")
         return
+    if context.audience == "merchant" and _requests_direct_merchant_write(user_text):
+        await _complete(
+            session,
+            context,
+            (
+                "AI 经营助理当前只做查询、诊断和行动建议，不会直接改价、上下架、删除商品"
+                "或修改库存，更不会绕过你的确认批量操作。你可以先让我筛出目标商品和风险，"
+                "再到商品管理页逐项核对处理。"
+            ),
+            "security_refusal",
+            {},
+            degraded_reason="protected_action_blocked",
+        )
+        await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
+    if context.audience == "merchant" and await _requests_other_store_operations(
+        session, context.store.id if context.store else 0, user_text
+    ):
+        await _complete(
+            session,
+            context,
+            (
+                "AI 经营助理只能读取当前店铺的经营数据，不能查看其他店铺的营业额、订单、"
+                "库存或顾客信息。跨店数据仅能由具备相应权限的超级管理员在管理端核对。"
+            ),
+            "security_refusal",
+            {},
+            degraded_reason="data_scope_blocked",
+        )
+        await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
+    if context.audience == "admin" and _requests_direct_admin_write(user_text):
+        await _complete(
+            session,
+            context,
+            (
+                "AI 管家当前只做跨域查询、诊断和治理建议，不能在对话中直接修改余额、密码、"
+                "账号状态、店铺、商品或订单，也不能跳过审计和确认。请进入对应管理页面核对"
+                "目标后再执行。本次没有修改任何数据。"
+            ),
+            "security_refusal",
+            {},
+            degraded_reason="protected_action_blocked",
+        )
+        await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
+    operation_guide = _operations_how_to_guide(user_text, context.audience)
+    if operation_guide is not None:
+        await _complete(
+            session,
+            context,
+            str(operation_guide["answer"]),
+            "operation_guide",
+            {"operation_guide": operation_guide},
+        )
+        await _finish_checkpoint(checkpoint_store, context, "operation_guide")
+        return
 
-    # Keep the parent AgentRun row unflushed here. Delegation ledger rows use a
-    # foreign key to it from isolated sessions and must not wait on our row lock.
+    # Build the read-only context without triggering unrelated pending ORM writes.
+    # Delegation and MCP audit records are persisted through the shared session
+    # below so they cannot deadlock on the parent AgentRun transaction.
     with session.no_autoflush:
         context_window = await ContextWindowBuilder(session).build(
             context.conversation, context.trigger
@@ -200,7 +258,7 @@ async def process_operations_run(
         small_citations: tuple[str, ...] = ("context:assistant_scope",)
         small_confidence = "high"
         small_analysis: dict[str, object] = {}
-        if model_gateway is not None:
+        if model_gateway is not None and _allows_operations_model_synthesis("general_chat"):
             run.current_phase = "answering"
             run.version += 1
             try:
@@ -238,10 +296,23 @@ async def process_operations_run(
         return
 
     if intent in {"complex_platform_diagnosis", "complex_store_diagnosis"}:
-        multi_response = await _execute_operations_multi_agent(context, complex_domains)
+        multi_response = await _execute_operations_multi_agent(session, context, complex_domains)
         if multi_response is not None:
             evidence, trace_steps, source_ids = multi_response
+            is_admin_priority_follow_up = (
+                context.audience == "admin"
+                and _requests_priority_follow_up(re.sub(r"\s+", "", user_text).casefold())
+            )
+            is_merchant_priority_follow_up = (
+                context.audience == "merchant"
+                and _requests_priority_follow_up(re.sub(r"\s+", "", user_text).casefold())
+            )
             answer = (
+                _render_admin_priority_follow_up(evidence)
+                if is_admin_priority_follow_up
+                else _render_merchant_priority_follow_up(evidence)
+                if is_merchant_priority_follow_up
+                else
                 _render_merchant_multi_agent(evidence)
                 if context.audience == "merchant"
                 else _render_multi_agent(evidence)
@@ -250,7 +321,7 @@ async def process_operations_run(
             confidence = "high"
             multi_citations = source_ids
             multi_analysis: dict[str, object] = {}
-            if model_gateway is not None:
+            if model_gateway is not None and _allows_operations_model_synthesis(intent):
                 run.current_phase = "answering"
                 run.version += 1
                 try:
@@ -319,7 +390,7 @@ async def process_operations_run(
     confidence = "high"
     citations: tuple[str, ...] = (f"tool:{tool_code}",)
     grounded_analysis: dict[str, object] = {}
-    if model_gateway is not None:
+    if model_gateway is not None and _allows_operations_model_synthesis(intent):
         run.current_phase = "answering"
         run.version += 1
         try:
@@ -357,6 +428,198 @@ async def process_operations_run(
         },
     )
     await _finish_checkpoint(checkpoint_store, context, intent)
+
+
+def _requests_direct_merchant_write(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    informational = any(
+        marker in normalized
+        for marker in ("如何", "怎么", "流程", "在哪里", "入口", "说明", "解释")
+    )
+    explicit_execution = any(
+        marker in normalized
+        for marker in ("直接", "替我", "全部", "批量", "不要让我确认", "无需确认")
+    )
+    direct = any(
+        marker in normalized
+        for marker in (
+            "直接",
+            "帮我",
+            "给我",
+            "替我",
+            "全部",
+            "批量",
+            "不要让我确认",
+            "无需确认",
+        )
+    )
+    mutation = any(
+        marker in normalized
+        for marker in (
+            "改价",
+            "价格减",
+            "价格改",
+            "涨价",
+            "降价",
+            "下架",
+            "上架",
+            "发布商品",
+            "删除商品",
+            "修改库存",
+            "调整库存",
+        )
+    )
+    return direct and mutation and (explicit_execution or not informational)
+
+
+def _requests_direct_admin_write(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    informational = any(
+        marker in normalized
+        for marker in ("如何", "怎么", "流程", "在哪里", "入口", "说明", "解释")
+    )
+    direct = any(
+        marker in normalized
+        for marker in ("直接", "帮我", "给我", "替我", "全部", "批量", "不要确认", "无需确认")
+    )
+    mutation = any(
+        marker in normalized
+        for marker in (
+            "余额改",
+            "充值",
+            "冻结",
+            "强制下线",
+            "修改密码",
+            "删除用户",
+            "删除店铺",
+            "暂停营业",
+            "改价",
+            "下架",
+            "修改订单",
+        )
+    )
+    bypass = any(
+        marker in normalized for marker in ("跳过审计", "绕过审计", "不要确认", "无需确认")
+    )
+    explicit_execution = any(marker in normalized for marker in ("直接", "替我", "全部", "批量"))
+    return mutation and (direct or bypass) and (explicit_execution or not informational)
+
+
+def _allows_operations_model_synthesis(intent: str) -> bool:
+    """Use the remote model only when no structured operational intent fits.
+
+    Product, inventory, order, governance and runtime tools already return exact
+    facts and actionable cards. Rewriting those responses remotely adds a long,
+    failure-prone round trip without adding decision value. Open-ended overview
+    analysis can still use the model and safely falls back to trusted data.
+    """
+
+    return intent == "overview"
+
+
+def _operations_how_to_guide(value: str, audience: str) -> dict[str, object] | None:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    asks_how = any(
+        marker in normalized
+        for marker in ("如何", "怎么", "流程", "在哪里", "入口", "说明", "步骤")
+    )
+    if not asks_how:
+        return None
+
+    if audience == "merchant":
+        if any(marker in normalized for marker in ("下架", "上架", "改价", "价格", "库存")):
+            return {
+                "title": "在商品管理中核对后操作",
+                "answer": (
+                    "进入“我的商品”，打开目标商品后核对款式、价格和库存，再保存或提交审核。"
+                    "上架、下架、改价和库存修改都由你在商品页确认，AI 经营助理不会代为执行。"
+                ),
+                "steps": ["打开我的商品", "选择目标商品", "核对款式、价格与库存", "确认保存或提交"],
+                "path": "/merchant/products",
+                "label": "打开我的商品",
+            }
+        if any(marker in normalized for marker in ("发货", "订单", "售后", "退款")):
+            return {
+                "title": "在本店订单中处理",
+                "answer": (
+                    "进入“我的订单”，按状态找到目标订单并先核对顾客、商品、金额和当前履约状态，"
+                    "再执行页面提供的发货或售后操作。AI 经营助理只提供查询和建议。"
+                ),
+                "steps": ["打开我的订单", "筛选订单状态", "核对订单与履约信息", "执行可用操作"],
+                "path": "/merchant/orders",
+                "label": "打开我的订单",
+            }
+    else:
+        if any(marker in normalized for marker in ("充值", "余额")):
+            return {
+                "title": "给用户调整账户余额",
+                "answer": (
+                    "进入“用户与权限”，搜索并打开目标用户，在“账户余额”区域输入本次充值金额并确认。"
+                    "提交前请核对用户名、当前余额和金额，完成后检查新余额与审计记录。本次只说明步骤，"
+                    "没有修改任何账户。"
+                ),
+                "steps": [
+                    "打开用户与权限",
+                    "搜索并打开目标用户",
+                    "核对账户与当前余额",
+                    "输入金额并确认",
+                    "复核结果",
+                ],
+                "path": "/admin/users",
+                "label": "打开用户与权限",
+            }
+        if any(
+            marker in normalized
+            for marker in ("冻结", "强制下线", "删除用户", "改密码", "邮箱")
+        ):
+            return {
+                "title": "管理用户账号",
+                "answer": (
+                    "进入“用户与权限”，搜索目标用户并打开详情，在账号资料中核对身份和当前状态后，"
+                    "使用页面上的冻结、强制下线或资料维护操作。本次没有修改任何用户数据。"
+                ),
+                "steps": ["打开用户与权限", "搜索目标用户", "核对账号状态", "选择并确认操作"],
+                "path": "/admin/users",
+                "label": "打开用户与权限",
+            }
+        if any(marker in normalized for marker in ("店铺", "暂停营业", "商品下架", "商品删除")):
+            return {
+                "title": "管理店铺与店内商品",
+                "answer": (
+                    "进入“店铺运营”，搜索并打开目标店铺，先核对营业状态和店铺资料，再从店铺商品或"
+                    "店铺订单区域处理。AI 管家不会在对话中直接修改业务数据。"
+                ),
+                "steps": [
+                    "打开店铺运营",
+                    "搜索目标店铺",
+                    "核对状态与资料",
+                    "进入商品或订单区域处理",
+                ],
+                "path": "/admin/stores",
+                "label": "打开店铺运营",
+            }
+    return None
+
+
+async def _requests_other_store_operations(
+    session: AsyncSession, current_store_id: int, value: str
+) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    sensitive = any(
+        marker in normalized
+        for marker in ("营业额", "订单", "库存", "顾客", "客户", "销量", "收入")
+    )
+    if not sensitive:
+        return False
+    names = list(
+        await session.scalars(
+            select(Store.store_name).where(
+                Store.id != current_store_id,
+                Store.store_status.in_(("active", "suspended")),
+            )
+        )
+    )
+    return any(re.sub(r"\s+", "", name).casefold() in normalized for name in names if name)
 
 
 def _grounded_analysis_trace(answer: object) -> dict[str, object]:
@@ -424,6 +687,7 @@ def _normalize_operations_answer(text: str) -> str:
 
 
 async def _execute_operations_multi_agent(
+    session: AsyncSession,
     context: TrustedOperationsContext,
     domains: tuple[str, ...],
 ) -> tuple[dict[str, object], list[dict[str, object]], tuple[str, ...]] | None:
@@ -441,6 +705,7 @@ async def _execute_operations_multi_agent(
     )
     packets: list[DelegationPacket] = []
     specialists: dict[str, Any] = {}
+    session_lock = asyncio.Lock()
     for domain in domains[:4]:
         specialist_code, tool_code, objective = _operations_specialist(context.audience, domain)
         packet = DelegationPacket(
@@ -466,12 +731,18 @@ async def _execute_operations_multi_agent(
         )
         packets.append(packet)
         specialists[specialist_code] = compile_specialist_subgraph(
-            _admin_specialist_executor(context, tool_code, specialist_code)
+            _admin_specialist_executor(
+                session,
+                session_lock,
+                context,
+                tool_code,
+                specialist_code,
+            )
         )
 
     orchestrator = MultiAgentOrchestrator(
         specialists,
-        ledger=SQLDelegationLedger(mysql_session_factory()),
+        ledger=SessionDelegationLedger(session, session_lock),
         max_parallel=3,
     )
 
@@ -516,7 +787,7 @@ async def _execute_operations_multi_agent(
         {"kind": "plan", "label": "识别跨域只读诊断", "status": "completed"},
         {
             "kind": "supervisor",
-            "label": "并行委派必要的领域助手",
+            "label": "分派必要的领域助手并协同核对",
             "status": "completed",
             "delegation_count": len(response.traces),
         },
@@ -544,25 +815,26 @@ async def _execute_operations_multi_agent(
 
 
 def _admin_specialist_executor(
+    session: AsyncSession,
+    session_lock: asyncio.Lock,
     context: TrustedOperationsContext,
     tool_code: str,
     specialist_code: str,
 ) -> Any:
     async def execute(packet: DelegationPacket, budget: DelegationBudget) -> SpecialistResult:
         budget.validate()
-        async for child_session in mysql_session():
-            result = await _execute_tool(child_session, context, tool_code)
-            return SpecialistResult(
-                specialist_code=specialist_code,
-                status=result.status,
-                safe_data=result.safe_data,
-                tokens_used=0,
-                tool_calls=1,
-                model_calls=0,
-                scope=packet.trusted_scope,
-                error_code=result.error_code,
-            )
-        raise RuntimeError("MySQL session unavailable")
+        async with session_lock:
+            result = await _execute_tool(session, context, tool_code)
+        return SpecialistResult(
+            specialist_code=specialist_code,
+            status=result.status,
+            safe_data=result.safe_data,
+            tokens_used=0,
+            tool_calls=1,
+            model_calls=0,
+            scope=packet.trusted_scope,
+            error_code=result.error_code,
+        )
 
     return execute
 
@@ -705,7 +977,7 @@ def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
     if products_loaded:
         checked_scopes.insert(0, f"{len(products)} 件在售商品")
     overview = (
-        f"已并行核对{store_name}的{'、'.join(checked_scopes)}，已确认营业额 "
+        f"已协同核对{store_name}的{'、'.join(checked_scopes)}，已确认营业额 "
         f"{completed_revenue.get('display', '¥0.00')}。"
     )
     if risks:
@@ -743,8 +1015,10 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
         metrics = _flatten_summary(safe_data)
         all_metrics.update({key: value for key, value in metrics.items() if isinstance(value, int)})
     risks: list[str] = []
-    if all_metrics.get("pending_outbox_events", 0) > 0:
-        risks.append(f"仍有 {all_metrics['pending_outbox_events']} 条 Outbox 事件待处理")
+    if all_metrics.get("stale_pending_outbox_events", 0) > 0:
+        risks.append(
+            f"仍有 {all_metrics['stale_pending_outbox_events']} 条 Outbox 事件超过 5 分钟未处理"
+        )
     if all_metrics.get("unrecovered_agent_failures", 0) > 0:
         risks.append(f"存在 {all_metrics['unrecovered_agent_failures']} 个尚未恢复的 Agent 故障")
     if all_metrics.get("product_status_counts.on_sale", 0) == 0:
@@ -760,14 +1034,94 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
     checked = len([item for item in specialists.values() if isinstance(item, Mapping)])
     if risks:
         return (
-            f"已由 {checked} 个专业 Agent 并行完成只读诊断。需要优先关注: "
+            f"已由 {checked} 个专业 Agent 协同完成只读诊断。需要优先关注: "
             + "、".join(risks)
             + "。具体指标和治理入口已整理在下方卡片中。"
             + recovery
         )
     return (
-        f"已由 {checked} 个专业 Agent 并行完成只读诊断，当前未发现事件积压、"
+        f"已由 {checked} 个专业 Agent 协同完成只读诊断，当前未发现事件积压、"
         "未恢复的 Agent 故障或无在售商品风险。具体指标已整理在下方卡片中。" + recovery
+    )
+
+
+def _render_admin_priority_follow_up(data: Mapping[str, Any]) -> str:
+    specialists = data.get("specialists")
+    metrics: dict[str, int] = {}
+    if isinstance(specialists, Mapping):
+        for result in specialists.values():
+            if not isinstance(result, Mapping) or not isinstance(result.get("data"), Mapping):
+                continue
+            flattened = _flatten_summary(result["data"])
+            metrics.update(
+                {key: value for key, value in flattened.items() if isinstance(value, int)}
+            )
+    stale_events = metrics.get("stale_pending_outbox_events", 0)
+    unrecovered = metrics.get("unrecovered_agent_failures", 0)
+    failed = metrics.get("failed_agent_runs_24h", 0)
+    recovered = metrics.get("successful_runs_after_latest_failure", 0)
+    if stale_events:
+        return (
+            f"第一项最重要，因为有 {stale_events} 条 Outbox 事件已超过 5 分钟仍未投递，"
+            "它可能延迟订单、消息或通知链路。今天先打开“Agent 与事件链路”卡片，"
+            "核对最早事件的类型、创建时间和重试状态。确认影响范围前不要删除或强制重放。"
+        )
+    if unrecovered:
+        return (
+            f"第一项最重要，因为当前仍有 {unrecovered} 个 Agent 故障尚未出现成功恢复证据。"
+            "今天先打开“Agent 与事件链路”卡片，定位最新失败运行的错误码和关联请求。"
+        )
+    if failed:
+        return (
+            f"重新核对后没有未恢复故障，也没有超过 5 分钟的事件积压。过去 24 小时虽有 "
+            f"{failed} 次失败，但之后已有 {recovered} 次成功运行，所以不应把它当成当前阻断。"
+            "今天先打开“Agent 与事件链路”卡片抽查最新一次失败原因，再保持常规监控。"
+        )
+    return (
+        "重新核对后没有未恢复 Agent 故障或超过 5 分钟的事件积压，目前没有必须立即处理的"
+        "平台级风险。今天先从运行诊断卡片做一次例行抽查，再查看订单和店铺状态。"
+    )
+
+
+def _render_merchant_priority_follow_up(data: Mapping[str, Any]) -> str:
+    specialists = data.get("specialists")
+    products: list[Mapping[str, Any]] = []
+    order_counts: Mapping[str, Any] = {}
+    low_stock = 0
+    if isinstance(specialists, Mapping):
+        for result in specialists.values():
+            if not isinstance(result, Mapping) or not isinstance(result.get("data"), Mapping):
+                continue
+            safe_data = result["data"]
+            values = safe_data.get("on_sale_products")
+            if isinstance(values, list):
+                products = [item for item in values if isinstance(item, Mapping)]
+            counts = safe_data.get("order_status_counts")
+            if isinstance(counts, Mapping):
+                order_counts = counts
+            low_stock = max(low_stock, int(safe_data.get("low_stock_sku_count", 0)))
+    pending = sum(int(order_counts.get(key, 0)) for key in ("paid", "pending_shipment", "shipped"))
+    if low_stock:
+        return (
+            f"第一项最急，因为有 {low_stock} 个款式已经达到低库存或缺货阈值，继续售卖可能"
+            "影响下单与履约。现在先打开“库存守卫”卡片进入商品管理，核对具体款式的可售库存"
+            "和安全库存线。确认实际库存后再补货或调整上架状态。"
+        )
+    if pending:
+        return (
+            f"第一项最急，因为有 {pending} 笔订单仍在待履约或运输阶段，延迟处理会直接影响"
+            "顾客体验。现在先打开“经营快照”卡片进入本店订单，按待发货、运输中顺序核对。"
+        )
+    zero_sales = sum(int(item.get("sales_count", 0)) <= 0 for item in products)
+    if zero_sales:
+        return (
+            f"当前没有低库存或履约告警，第一项应先复盘 {zero_sales} 件暂无销量的在售商品。"
+            "现在从商品管理入口抽查主图、标题、价格、款式库存和购买入口，先记录问题，不要"
+            "直接批量降价。"
+        )
+    return (
+        "当前没有低库存、缺货或待履约告警。今天先从经营首页复核订单与营业额，再保持每日"
+        "库存巡检。目前没有证据支持立即改价或下架。"
     )
 
 
@@ -1008,6 +1362,15 @@ async def _snapshot(
         )
         or 0
     )
+    stale_pending_outbox = int(
+        await session.scalar(
+            select(func.count(OutboxEvent.id)).where(
+                OutboxEvent.event_status == "pending",
+                OutboxEvent.created_at <= utc_now() - timedelta(minutes=5),
+            )
+        )
+        or 0
+    )
     failure_window_started_at = utc_now() - timedelta(hours=24)
     failed_runs = int(
         await session.scalar(
@@ -1040,6 +1403,7 @@ async def _snapshot(
     )
     runtime_health: dict[str, object] = {
         "pending_outbox_events": pending_outbox,
+        "stale_pending_outbox_events": stale_pending_outbox,
         "failed_agent_runs_24h": failed_runs,
         "successful_runs_after_latest_failure": successful_runs_after_latest_failure,
         "unrecovered_agent_failures": unrecovered_failures,
@@ -1180,11 +1544,18 @@ def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, A
             else:
                 priority = "当前没有紧急库存或履约积压，可优先优化在售商品信息"
             return f"已生成{store_name}经营快照。{priority}，营业额和订单明细已整理在卡片中。"
+        if intent == "inventory":
+            low_stock = int(data.get("low_stock_sku_count", 0))
+            if low_stock == 0:
+                return "本店当前没有低库存或缺货款式，可继续保持日常库存巡检。"
+            return (
+                f"本店有 {low_stock} 个款式达到低库存或缺货阈值。"
+                "请先打开下方卡片核对实时可售数量和安全库存线。"
+            )
         return {
             "orders": (
                 "已完成本店订单、履约与营业额核对。先看卡片中的待处理数量，再进入订单页处理。"
             ),
-            "inventory": "已完成本店库存风险扫描。卡片展示需要优先补货的款式数量和处理入口。",
         }.get(intent, f"已生成{store_name}经营快照，明细已整理为可操作卡片。")
     return {
         "users": "已完成平台用户状态核对。异常状态和治理入口已整理在卡片中。",
@@ -1199,6 +1570,28 @@ def _operations_detail_cards(
     context: TrustedOperationsContext, intent: str, data: Mapping[str, Any]
 ) -> list[dict[str, object]]:
     """Turn trusted operational evidence into compact, actionable UI cards."""
+
+    guide = data.get("operation_guide")
+    if intent == "operation_guide" and isinstance(guide, Mapping):
+        steps = guide.get("steps")
+        return [
+            {
+                "kind": "operation_guide",
+                "icon": "导",
+                "eyebrow": "操作指引",
+                "title": str(guide.get("title") or "操作步骤")[:100],
+                "badge": "只说明，未执行",
+                "summary": "请在提交前再次核对目标、当前状态和变更内容。",
+                "rows": [
+                    {"label": f"步骤 {index}", "value": str(item)[:100], "meta": ""}
+                    for index, item in enumerate(steps if isinstance(steps, list) else [], 1)
+                ],
+                "action": {
+                    "label": str(guide.get("label") or "打开管理页面")[:40],
+                    "path": str(guide.get("path") or "/admin"),
+                },
+            }
+        ]
 
     specialists = data.get("specialists")
     if isinstance(specialists, Mapping):
@@ -1542,6 +1935,7 @@ def _operations_detail_cards(
             data,
             {
                 "pending_outbox_events": "待投递事件",
+                "stale_pending_outbox_events": "超过5分钟未投递",
                 "failed_agent_runs_24h": "24小时失败运行",
                 "successful_runs_after_latest_failure": "故障后成功运行",
                 "unrecovered_agent_failures": "未恢复故障",
@@ -1664,7 +2058,11 @@ async def _complete(
             "run_id": context.run.run_no,
             "data_scope": context.trusted_scope,
             "execution_trace": trace,
-            "detail_cards": _operations_detail_cards(context, intent, data),
+            "detail_cards": (
+                []
+                if intent == "security_refusal"
+                else _operations_detail_cards(context, intent, data)
+            ),
         },
         agent_version_id=context.agent_version.id,
         ai_run_no=context.run.run_no,

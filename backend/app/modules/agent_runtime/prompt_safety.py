@@ -10,6 +10,7 @@ REDACTED_UNTRUSTED_TEXT = "[疑似提示注入内容已省略]"
 _ZERO_WIDTH = re.compile(r"[\u200b-\u200f\u2060\ufeff]")
 _BASE64_TOKEN = re.compile(r"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{24,}={0,2}(?![A-Za-z0-9+/=])")
 _INJECTION_PATTERNS = (
+    re.compile(r"(?:忽略|无视|绕过|覆盖)(?:所有|全部|当前)?(?:系统)?(?:指令|规则|限制|提示词)"),
     re.compile(
         r"(?:忽略|无视|绕过|覆盖).{0,24}(?:系统|开发者|先前|之前|安全).{0,12}(?:指令|规则|提示词|限制)"
     ),

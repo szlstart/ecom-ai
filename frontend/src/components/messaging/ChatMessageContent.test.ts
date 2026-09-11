@@ -80,6 +80,7 @@ describe('ChatMessageContent', () => {
       content: {
         schema_version: 2, order_id: 'ord_ABCDEFGHIJKLMN', display_order_id: 'ord_AB…KLMN',
         order_status: 'shipped', payable_amount: { minor_units: '8800', currency: 'CNY' },
+        created_at: '2026-09-11T13:30:00+08:00',
         total_quantity: 2, store: { store_id: 'sto_1', store_name: '生活商店' },
         items: [{ product_id: 'prd_1', sku_id: 'sku_1', product_name: '旅行水杯', sku_name: '海盐蓝', quantity: 2 }],
       },
@@ -87,6 +88,8 @@ describe('ChatMessageContent', () => {
     expect(wrapper.text()).toContain('运输中')
     expect(wrapper.text()).toContain('实付 ¥88.00')
     expect(wrapper.text()).not.toContain('ABCDEFGHIJKLMN')
+    expect(wrapper.text()).not.toContain('ord_AB…KLMN')
+    expect(wrapper.text()).toContain('下单于')
     expect(wrapper.get('a').attributes('href')).toBe('/admin/orders/ord_ABCDEFGHIJKLMN')
   })
 
@@ -100,6 +103,7 @@ describe('ChatMessageContent', () => {
         order_cards: [{
           schema_version: 2, order_id: 'ord_PRIVATE123456', display_order_id: 'ord_PR…3456',
           order_status: 'completed', payable_amount: { minor_units: '600', currency: 'CNY' },
+          created_at: '2026-09-11T13:30:00+08:00',
           total_quantity: 1, store: { store_name: '文具专卖店' },
           items: [{ product_name: '2B 铅笔', sku_name: '标准款', quantity: 1 }],
         }],
@@ -110,6 +114,7 @@ describe('ChatMessageContent', () => {
     expect(wrapper.text()).toContain('2B 铅笔')
     expect(wrapper.text()).toContain('实付 ¥6.00')
     expect(wrapper.text()).not.toContain('PRIVATE123456')
+    expect(wrapper.text()).not.toContain('ord_PR…3456')
     expect(wrapper.get('a').attributes('href')).toBe('/me/orders/ord_PRIVATE123456')
   })
 

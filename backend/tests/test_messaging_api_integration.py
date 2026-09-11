@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import secrets
@@ -13,7 +14,7 @@ from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, TokenClaims, utc_now
-from app.database.mysql import mysql_session
+from app.database.mysql import mysql_session, mysql_session_factory
 from app.database.redis import get_redis
 from app.modules.identity.models import AuthSession, User
 from app.modules.messaging.models import (
@@ -28,6 +29,7 @@ from app.modules.messaging.support_schemas import (
     SupportInternalNoteRequest,
     SupportMessageRequest,
     SupportResolveRequest,
+    SupportTicketView,
     SupportTransferRequest,
     SupportWaitRequest,
 )
@@ -706,6 +708,66 @@ async def test_conversation_uniqueness_message_replay_moderation_and_human_hando
     assert cancelled.status_code == cancelled_replay.status_code == 200
     assert cancelled.json()["data"]["ticket_status"] == "closed"
     assert cancelled_replay.json()["data"] == cancelled.json()["data"]
+
+    # Two operators may see the same queued ticket before realtime catches up.
+    # Row locking and optimistic versioning must still choose exactly one owner.
+    race_handoff = await client.post(
+        f"/api/v1/conversations/{store_conversation_no}/human-service-tickets",
+        headers={**headers, "Idempotency-Key": f"handoff-race-{suffix}-0001"},
+        json={"ticket_type": "general", "summary": "并发领取验收", "message_refs": []},
+    )
+    assert race_handoff.status_code == 201, race_handoff.text
+    race_ticket = race_handoff.json()["data"]
+    async for session in mysql_session():
+        race_ticket_row = await session.scalar(
+            select(HumanServiceTicket).where(
+                HumanServiceTicket.ticket_no == race_ticket["ticket_id"]
+            )
+        )
+        assert race_ticket_row is not None
+        race_version = race_ticket_row.version
+        break
+
+    async def race_claim(actor: AdminAccess, key: str) -> SupportTicketView | ApplicationError:
+        factory = mysql_session_factory()
+        async with factory() as concurrent_session:
+            try:
+                return await SupportService(concurrent_session).claim(
+                    actor,
+                    race_ticket["ticket_id"],
+                    race_version,
+                    key,
+                )
+            except ApplicationError as exc:
+                return exc
+
+    race_results = await asyncio.gather(
+        race_claim(access, f"claim-race-a-{suffix}-0001"),
+        race_claim(target_access, f"claim-race-b-{suffix}-0001"),
+    )
+    race_winners = [item for item in race_results if isinstance(item, SupportTicketView)]
+    race_conflicts = [item for item in race_results if isinstance(item, ApplicationError)]
+    assert len(race_winners) == len(race_conflicts) == 1
+    assert race_conflicts[0].status == 412
+    assert race_conflicts[0].code in {
+        "RESOURCE_VERSION_CONFLICT",
+        "SUPPORT_TICKET_ALREADY_CLAIMED",
+    }
+    winner = race_winners[0]
+    assert winner.ticket_status == "active"
+    winner_access = (
+        access if winner.assigned_user_id == access.context.user.user_no else target_access
+    )
+    async for session in mysql_session():
+        resolved_race = await SupportService(session).resolve(
+            winner_access,
+            race_ticket["ticket_id"],
+            SupportResolveRequest(resolution_code="ANSWERED", summary="并发领取验收已完成"),
+            winner.version,
+            f"resolve-race-{suffix}-0001",
+        )
+        assert resolved_race.ticket_status == "resolved"
+        break
 
     pubsub = get_redis().pubsub(ignore_subscribe_messages=True)
     channel = user_channel(get_settings().environment, user_no)

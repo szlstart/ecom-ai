@@ -292,7 +292,7 @@ onBeforeUnmount(() => document.body.classList.remove('modal-open'))
           <p v-if="originText(product.origin_region_code)" class="muted">发货地：{{ originText(product.origin_region_code) }}</p>
           <p class="muted">{{ estimateText() }}</p>
           <label class="quantity-control">数量
-            <span><button type="button" class="secondary" :disabled="quantity <= 1" @click="setQuantity(quantity - 1)">−</button><input :value="quantity" inputmode="numeric" aria-label="购买数量" @input="setQuantity(Number(($event.target as HTMLInputElement).value))" /><button type="button" class="secondary" :disabled="quantity >= maxQuantity" @click="setQuantity(quantity + 1)">＋</button></span>
+            <span><button type="button" class="secondary" aria-label="减少购买数量" :disabled="quantity <= 1" @click="setQuantity(quantity - 1)">−</button><input :value="quantity" inputmode="numeric" aria-label="购买数量" @input="setQuantity(Number(($event.target as HTMLInputElement).value))" /><button type="button" class="secondary" aria-label="增加购买数量" :disabled="quantity >= maxQuantity" @click="setQuantity(quantity + 1)">＋</button></span>
           </label>
           <small v-if="quantity >= maxQuantity">已达本次可购买上限，结算时仍会重新校验。</small>
           <div class="purchase-total-card" aria-live="polite">

@@ -40,6 +40,7 @@ async function choose(event: Event) {
   if (props.disabled) return
   selected.value = (event.target as HTMLInputElement).files?.[0] ?? null
   error.value = ''
+  status.value = ''
   if (!policy.value) {
     try { policy.value = (await apiRequest<UploadPolicy>(`/file-upload-policies/${encodeURIComponent(props.purpose)}`)).data }
     catch (cause) { error.value = errorMessage(cause) }
@@ -55,9 +56,9 @@ async function upload(throwOnError = false) {
   if (!selected.value || !uploadToken.value || props.disabled) return
   busy.value = true; emit('busyChanged', true); error.value = ''; status.value = '正在计算文件校验值…'
   try {
-    const sha256 = await digest(selected.value)
     if (!policy.value) policy.value = (await apiRequest<UploadPolicy>(`/file-upload-policies/${encodeURIComponent(props.purpose)}`)).data
-    if (selected.value.size > policy.value.max_size_bytes) throw new Error(`文件超过 ${Math.ceil(policy.value.max_size_bytes / 1024 / 1024)} MB 上限`)
+    validateSelectedFile(selected.value, policy.value)
+    const sha256 = await digest(selected.value)
     status.value = '正在创建受控上传会话…'
     const session = (await apiRequest<UploadSession>('/file-upload-sessions', {
       method: 'POST',
@@ -110,6 +111,21 @@ async function waitUntilBindable(uploadId: string): Promise<string> {
 async function digest(file: File): Promise<string> {
   const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer())
   return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+function validateSelectedFile(file: File, currentPolicy: UploadPolicy): void {
+  if (file.size > currentPolicy.max_size_bytes) {
+    throw new Error(`文件超过 ${Math.ceil(currentPolicy.max_size_bytes / 1024 / 1024)} MB 上限`)
+  }
+  const contentType = file.type || 'application/octet-stream'
+  if (!currentPolicy.allowed_mime_types.includes(contentType)) {
+    throw new Error(`不支持 ${contentType} 格式的文件。请选择当前上传区允许的文件格式。`)
+  }
+  const extension = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() || '' : ''
+  if (!extension || !currentPolicy.allowed_extensions.map((item) => item.toLowerCase().replace(/^\./, '')).includes(extension)) {
+    const accepted = currentPolicy.allowed_extensions.map((item) => item.replace(/^\./, '').toUpperCase()).join('、')
+    throw new Error(`文件扩展名不受支持。请选择 ${accepted} 格式的文件。`)
+  }
 }
 
 onMounted(loadPolicy)

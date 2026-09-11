@@ -21,6 +21,7 @@ from app.modules.agent_runtime.exclusive_context import EXCLUSIVE_AGENT_TOOL_COD
 from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
 )
+from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
 from app.modules.agent_runtime.model_gateway import (
     DeterministicStoreModelGateway,
     StoreAgentPlan,
@@ -421,6 +422,40 @@ async def test_discussing_human_service_does_not_reopen_handoff() -> None:
     assert (await exclusive.plan("再次请求平台人工，用于继续处理问题")).intent == "human_handoff"
     assert (await exclusive.plan("我只是想了解如何申请平台人工客服")).intent != "human_handoff"
     assert (await store.plan("我要联系真人")).intent == "human_handoff"
+
+
+@pytest.mark.parametrize(
+    "message",
+    (
+        "转人工",
+        "麻烦帮我转到人工客服",
+        "给我找一个真人客服",
+        "我需要平台客服",
+        "重新申请接入平台人工",
+        "我要投诉",
+        "live agent",
+    ),
+)
+def test_explicit_handoff_language_variants_are_detected(message: str) -> None:
+    assert is_explicit_handoff_request(message)
+
+
+@pytest.mark.parametrize(
+    "message",
+    (
+        "暂时不需要人工",
+        "不要转人工客服",
+        "我不想联系真人",
+        "人工客服能查物流吗",
+        "如何申请平台人工客服",
+        "怎么转人工客服",
+        "如果需要人工怎么办",
+        "为什么刚才转人工",
+        "人工服务结束了吗",
+    ),
+)
+def test_handoff_negation_and_information_questions_do_not_create_tickets(message: str) -> None:
+    assert not is_explicit_handoff_request(message)
 
 
 def test_operations_agents_have_distinct_small_talk_responses() -> None:

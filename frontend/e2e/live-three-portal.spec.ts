@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from '@playwright/test'
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -75,6 +75,17 @@ async function expectMessageWorkspaceFitsViewport(page: Page) {
   ))).toBe(true)
 }
 
+async function expectControlReceivesPointer(page: Page, locator: Locator) {
+  await expect(locator).toBeVisible()
+  const box = await locator.boundingBox()
+  expect(box).not.toBeNull()
+  const hit = await page.evaluate(({ x, y }) => {
+    const target = document.elementFromPoint(x, y)
+    return target instanceof Element ? target.closest('button, a, input, textarea')?.textContent?.trim() ?? '' : ''
+  }, { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 })
+  expect(hit).toContain((await locator.textContent())?.trim() ?? '')
+}
+
 test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
   test.skip(!enabled, 'set ECOM_LIVE_E2E=1 to exercise the real FastAPI test stack')
   test.describe.configure({ mode: 'serial' })
@@ -95,6 +106,8 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await consumer.goto(`/products/${data.product_id}?sku_id=${data.sku_id}`)
     await expect(consumer.getByRole('heading', { name: '三端联动验收笔记本' })).toBeVisible()
     await expect(consumer.getByText('支付总额', { exact: true })).toBeVisible()
+    await expect(consumer.getByRole('button', { name: '减少购买数量' })).toBeDisabled()
+    await expect(consumer.getByRole('button', { name: '增加购买数量' })).toBeEnabled()
     await consumer.getByRole('button', { name: '加入购物车', exact: true }).click()
     await expect(consumer.getByText(/已加入购物车/)).toBeVisible()
     await consumer.getByRole('link', { name: '查看购物车' }).click()
@@ -237,6 +250,18 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await expect(merchant.getByText('当前款式：自动验收款')).toBeVisible()
 
     const skuUpload = merchant.locator('.merchant-image-actions .file-upload-control')
+    // Exercise failure recovery before the happy path. An invalid selection
+    // must explain the exact format problem locally and preserve all fields.
+    await skuUpload.locator('input[type=file]').setInputFiles({
+      name: 'not-an-image.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('this is not an image'),
+    })
+    await skuUpload.getByRole('button', { name: '上传并扫描' }).click()
+    await expect(skuUpload.getByRole('alert')).toContainText('不支持 text/plain 格式的文件')
+    await expect(merchant.getByLabel('商品名称')).toHaveValue(productName)
+    await expect(merchant.getByRole('button', { name: /自动验收款.*¥1\.23.*库存 5/ })).toBeVisible()
+
     await skuUpload.locator('input[type=file]').setInputFiles({
       name: 'acceptance-sku.png',
       mimeType: 'image/png',
@@ -319,7 +344,9 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     const userConversation = adminWorkspace.getByRole('button', { name: new RegExp(`${data.consumer_display_name}.*等待人工接待`) })
     await expect(userConversation).toBeVisible({ timeout: 15_000 })
     await userConversation.click()
-    await adminWorkspace.getByRole('button', { name: '领取会话' }).click()
+    const userClaim = adminWorkspace.getByRole('button', { name: '领取会话' })
+    await expectControlReceivesPointer(administrator, userClaim)
+    await userClaim.click()
     await expect(adminWorkspace.getByPlaceholder('输入人工回复…')).toBeEnabled()
     await adminWorkspace.getByPlaceholder('输入人工回复…').fill('平台人工已接入，这是一条用户转接验收回复。')
     await adminWorkspace.getByRole('button', { name: '发送', exact: true }).click()
@@ -341,7 +368,9 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     const storeConversation = adminWorkspace.getByRole('button', { name: new RegExp(`${data.store_name}.*等待平台人工接待`) })
     await expect(storeConversation).toBeVisible({ timeout: 15_000 })
     await storeConversation.click()
-    await adminWorkspace.getByRole('button', { name: '领取会话' }).click()
+    const storeClaim = adminWorkspace.getByRole('button', { name: '领取会话' })
+    await expectControlReceivesPointer(administrator, storeClaim)
+    await storeClaim.click()
     await expect(adminWorkspace.getByPlaceholder('输入人工回复…')).toBeEnabled()
     await adminWorkspace.getByPlaceholder('输入人工回复…').fill('平台人工已接入，这是一条商家转接验收回复。')
     await adminWorkspace.getByRole('button', { name: '发送', exact: true }).click()
@@ -350,5 +379,59 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await expect(merchantTimeline.getByText('人工服务已结束。如有新问题，请继续发送消息。')).toBeVisible({ timeout: 15_000 })
 
     await Promise.all([consumerContext.close(), merchantContext.close(), adminContext.close()])
+  })
+
+  test('LIVE-MOBILE-MESSAGES keeps all three composers usable without horizontal overflow', async ({ browser, isMobile }) => {
+    test.setTimeout(75_000)
+    test.skip(!isMobile, 'this case specifically validates the narrow-screen fallback')
+    const data = scenario()
+
+    async function expectNarrowWorkspace(page: Page, workspaceLabel: string, placeholder: string) {
+      await expect(page.getByLabel(workspaceLabel)).toBeVisible()
+      const composer = page.getByPlaceholder(placeholder)
+      await expect(composer).toBeVisible()
+      await expect.poll(() => page.evaluate(() => (
+        document.documentElement.scrollWidth <= window.innerWidth + 1
+        && document.body.scrollWidth <= window.innerWidth + 1
+      ))).toBe(true)
+      const rect = await composer.boundingBox()
+      expect(rect).not.toBeNull()
+      expect(rect!.x).toBeGreaterThanOrEqual(0)
+      expect(rect!.x + rect!.width).toBeLessThanOrEqual(413)
+      await expect(page.getByRole('complementary', { name: 'AI 思考过程' })).toBeHidden()
+    }
+
+    const consumerContext = await browser.newContext()
+    const consumer = await consumerContext.newPage()
+    await loginConsumer(consumer, data.consumer_username)
+    await consumer.goto('/messages')
+    const consumerWorkspace = consumer.getByLabel('用户消息中心')
+    // Narrow screens collapse the conversation list and automatically select
+    // the fixed exclusive-support conversation, so the list button is not
+    // expected to remain visible here.
+    await expect(consumerWorkspace.getByText('专属客服', { exact: true }).first()).toBeVisible()
+    await expectNarrowWorkspace(consumer, '用户消息中心', '输入消息…')
+    const plus = consumerWorkspace.getByRole('button', { name: '发送商品或订单' })
+    await expect(plus).toBeVisible()
+    const plusRect = await plus.boundingBox()
+    const inputRect = await consumerWorkspace.getByPlaceholder('输入消息…').boundingBox()
+    expect(plusRect).not.toBeNull()
+    expect(inputRect).not.toBeNull()
+    expect(plusRect!.x + plusRect!.width).toBeLessThanOrEqual(inputRect!.x)
+    await consumerContext.close()
+
+    const merchantContext = await browser.newContext()
+    const merchant = await merchantContext.newPage()
+    await loginMerchant(merchant, data.merchant_username)
+    await merchant.goto('/merchant/messages')
+    await expectNarrowWorkspace(merchant, '商家消息中心', '向 AI 经营助理描述经营问题…')
+    await merchantContext.close()
+
+    const adminContext = await browser.newContext()
+    const administrator = await adminContext.newPage()
+    await loginAdministrator(administrator, data.administrator_username)
+    await administrator.goto('/admin/messages')
+    await expectNarrowWorkspace(administrator, '管理端消息中心', '询问平台概况、用户、店铺、订单或 Agent 运行状态…')
+    await adminContext.close()
   })
 })

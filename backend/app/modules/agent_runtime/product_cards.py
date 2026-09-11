@@ -43,6 +43,8 @@ async def build_product_cards(
     session: AsyncSession,
     conversation: Conversation,
     product_nos: list[str],
+    *,
+    sku_nos_by_product: Mapping[str, str] | None = None,
 ) -> list[dict[str, object]]:
     """Build canonical public product cards while reapplying conversation scope."""
 
@@ -50,7 +52,13 @@ async def build_product_cards(
     cards: list[dict[str, object]] = []
     for product_no in list(dict.fromkeys(product_nos))[:5]:
         try:
-            cards.append(await service.product_card_payload(conversation, product_no))
+            cards.append(
+                await service.product_card_payload(
+                    conversation,
+                    product_no,
+                    (sku_nos_by_product or {}).get(product_no),
+                )
+            )
         except ApplicationError:
             # A product can leave sale between the read tool and presentation
             # assembly. Omitting the stale card is safer than rendering it.

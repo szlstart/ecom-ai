@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import time
 from typing import cast
@@ -103,6 +104,108 @@ class SQLDelegationLedger:
             row.error_code = result.error_code
             row.finished_at = now
             row.version += 1
+
+
+class SessionDelegationLedger:
+    """Persist child audit rows in the already-open parent transaction.
+
+    MySQL validates the ``run_id`` foreign key when a delegation row is inserted.
+    If an isolated ledger transaction inserts while the parent transaction is
+    updating the same Agent Run, the FK check waits for the parent's row lock and
+    every concurrently scheduled child eventually times out. This ledger keeps
+    audit writes in the parent transaction. Operations-Agent tool reads share the
+    same short critical section because ``AsyncSession`` itself is not safe for
+    concurrent use; orchestration and trace collection remain bounded by the
+    Multi-Agent supervisor without creating cross-transaction lock waits.
+    """
+
+    def __init__(self, session: AsyncSession, lock: asyncio.Lock | None = None) -> None:
+        self.session = session
+        self._lock = lock or asyncio.Lock()
+
+    async def get(self, packet: DelegationPacket) -> SpecialistResult | None:
+        async with self._lock:
+            row = await self.session.scalar(
+                select(AgentDelegation).where(
+                    AgentDelegation.fingerprint == bytes.fromhex(packet.fingerprint),
+                    AgentDelegation.delegation_status.in_(("succeeded", "partial")),
+                )
+            )
+            if row is None:
+                return None
+            return SpecialistResult(
+                specialist_code=row.specialist_code,
+                status=cast(DelegationStatus, row.delegation_status),
+                safe_data=row.result_snapshot or {},
+                tokens_used=row.tokens_used,
+                tool_calls=row.tool_calls,
+                model_calls=row.model_calls,
+                scope=packet.trusted_scope,
+            )
+
+    async def start(
+        self,
+        packet: DelegationPacket,
+        *,
+        dependency_nos: tuple[str, ...],
+    ) -> None:
+        async with self._lock:
+            run = await self.session.scalar(
+                select(AgentRun).where(AgentRun.run_no == packet.parent_run_no)
+            )
+            if run is None:
+                raise LookupError("parent Agent Run does not exist")
+            fingerprint = bytes.fromhex(packet.fingerprint)
+            row = await self.session.scalar(
+                select(AgentDelegation)
+                .where(AgentDelegation.fingerprint == fingerprint)
+                .with_for_update()
+            )
+            if row is None:
+                row = _new_row(packet, run, dependency_nos)
+                self.session.add(row)
+            if row.delegation_status not in {"succeeded", "partial"}:
+                row.delegation_status = "running"
+                row.started_at = row.started_at or utc_now()
+                row.version += 1
+            await self.session.flush()
+
+    async def put(
+        self,
+        packet: DelegationPacket,
+        result: SpecialistResult,
+        *,
+        dependency_nos: tuple[str, ...],
+    ) -> None:
+        async with self._lock:
+            run = await self.session.scalar(
+                select(AgentRun).where(AgentRun.run_no == packet.parent_run_no)
+            )
+            if run is None:
+                raise LookupError("parent Agent Run does not exist")
+            fingerprint = bytes.fromhex(packet.fingerprint)
+            row = await self.session.scalar(
+                select(AgentDelegation)
+                .where(AgentDelegation.fingerprint == fingerprint)
+                .with_for_update()
+            )
+            if row is not None and row.delegation_status in {"succeeded", "partial"}:
+                return
+            now = utc_now()
+            if row is None:
+                row = _new_row(packet, run, dependency_nos)
+                self.session.add(row)
+            row.delegation_status = (
+                "succeeded" if result.status == "reused" else result.status
+            )
+            row.result_snapshot = dict(result.safe_data) if result.safe_data else None
+            row.tokens_used = result.tokens_used
+            row.tool_calls = result.tool_calls
+            row.model_calls = result.model_calls
+            row.error_code = result.error_code
+            row.finished_at = now
+            row.version += 1
+            await self.session.flush()
 
 
 def _new_row(

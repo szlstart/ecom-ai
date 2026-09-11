@@ -46,6 +46,8 @@ def requests_other_user_data(user_text: str) -> bool:
         "别的顾客",
         "其他用户",
         "别的用户",
+        "另一个用户",
+        "某个用户",
         "别人的",
         "他人的",
     )

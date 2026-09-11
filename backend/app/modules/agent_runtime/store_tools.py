@@ -145,6 +145,7 @@ class StoreToolGateway:
                         "sku_id": sku.sku_no,
                         "sku_name": sku.sku_name,
                         "specifications": sku.spec_values,
+                        "price": _money_projection(sku.sale_price_amount, sku.currency),
                         "availability": _availability(inventory),
                         "availability_label": _availability_label(inventory),
                         "available_quantity": _available_quantity(inventory),

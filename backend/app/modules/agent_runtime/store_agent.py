@@ -4,6 +4,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,6 +54,7 @@ from app.modules.agent_runtime.store_tools import StoreToolGateway, StoreToolRes
 from app.modules.agent_runtime.trigger_text import agent_trace_question, agent_trigger_text
 from app.modules.knowledge.service import KnowledgeService
 from app.modules.messaging.models import Message
+from app.modules.stores.models import Store
 from app.modules.system.models import OutboxEvent
 
 
@@ -115,7 +117,9 @@ async def process_store_run(
         )
         await _finish_checkpoint(checkpoint_store, context, "security_refusal")
         return
-    if requests_cross_store_search(trigger_text):
+    if requests_cross_store_search(trigger_text) or await _requests_named_other_store(
+        session, context.store.id, trigger_text
+    ):
         await _complete_message(
             session,
             context,
@@ -239,8 +243,15 @@ async def process_store_run(
         await _finish_checkpoint(checkpoint_store, context, plan.intent)
         return
     if outcome.status == "succeeded":
+        _focus_largest_package_variant(outcome.data, trigger_text)
+        _focus_explicit_named_variant(outcome.data, trigger_text)
+        _attach_variant_quantity_projection(outcome.data, trigger_text)
         _attach_conversation_window(context_window, context.context_refs, outcome.data)
-        if plan.intent in {"inventory_lookup", "sku_compare", "policy_qa"}:
+        if outcome.data.get("focused_variant") is not None:
+            outcome.data["presentation"] = "detail_cards"
+        elif plan.intent in {"inventory_lookup", "sku_compare", "policy_qa"}:
+            outcome.data["presentation"] = "detail_cards"
+        elif plan.intent == "product_qa" and _is_targeted_size_or_fit_question(trigger_text):
             outcome.data["presentation"] = "detail_cards"
         elif context.trigger.message_type == "product_card":
             # A card is already a deliberate resource selection. Render it
@@ -277,8 +288,15 @@ async def process_store_run(
                 session,
                 context.conversation,
                 product_nos_from_result(outcome.data),
+                sku_nos_by_product=(
+                    {str(outcome.data["product_id"]): str(outcome.data["focused_sku_id"])}
+                    if isinstance(outcome.data.get("product_id"), str)
+                    and isinstance(outcome.data.get("focused_sku_id"), str)
+                    else None
+                ),
             )
-            if plan.intent
+            if outcome.data.get("presentation") != "detail_cards"
+            and plan.intent
             in {
                 "product_qa",
                 "product_compare",
@@ -512,12 +530,205 @@ def _limit_sku_comparison_to_named_variants(data: dict[str, Any], user_text: str
         data["items"] = selected[:4]
 
 
+def _focus_largest_package_variant(data: dict[str, Any], user_text: str) -> None:
+    """Select an explicitly requested largest pack without guessing about sizes."""
+
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    if "最大" not in normalized or not (
+        "包装" in normalized
+        or re.search(r"最大(?:有|是|为|的)?多少(?:支|件|个|本|片|包)", normalized)
+    ):
+        return
+    source_key = "items" if isinstance(data.get("items"), list) else "skus"
+    values = data.get(source_key)
+    if not isinstance(values, list):
+        return
+    ranked: list[tuple[int, Mapping[str, Any]]] = []
+    for value in values:
+        if not isinstance(value, Mapping):
+            continue
+        name = value.get("sku_name") or value.get("name")
+        if not isinstance(name, str):
+            continue
+        quantities = [int(item) for item in re.findall(r"(?<!\d)(\d{1,5})(?!\d)", name)]
+        if quantities:
+            ranked.append((max(quantities), value))
+    if not ranked:
+        return
+    _, selected = max(ranked, key=lambda item: item[0])
+    focused = dict(selected)
+    data["focused_variant"] = focused
+    data["focused_variant_reason"] = "largest_package"
+    if isinstance(focused.get("sku_id"), str):
+        data["focused_sku_id"] = focused["sku_id"]
+    data[source_key] = [focused]
+
+
+def _focus_explicit_named_variant(data: dict[str, Any], user_text: str) -> None:
+    """Focus a unique SKU named by color, size or package count in the current turn."""
+
+    if data.get("focused_variant") is not None:
+        return
+    values = data.get("items") if isinstance(data.get("items"), list) else data.get("skus")
+    if not isinstance(values, list):
+        return
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    colors = (
+        "黑色",
+        "白色",
+        "红色",
+        "蓝色",
+        "绿色",
+        "灰色",
+        "黄色",
+        "粉色",
+        "紫色",
+        "棕色",
+        "米色",
+    )
+    requested_colors = {item for item in colors if item in normalized}
+    requested_sizes = set(re.findall(r"(?<![a-z])(?:xxxxl|xxxl|xxl|xl|l|m|s)(?![a-z])", normalized))
+    requested_units = set(re.findall(r"\d+(?:支|件|个|本|片|包)", normalized))
+    if not requested_colors and not requested_sizes and not requested_units:
+        return
+    ranked: list[tuple[int, Mapping[str, Any]]] = []
+    for value in values:
+        if not isinstance(value, Mapping):
+            continue
+        name = str(value.get("sku_name") or value.get("name") or "")
+        candidate = re.sub(r"\s+", "", name).casefold()
+        candidate_sizes = set(
+            re.findall(r"(?<![a-z])(?:xxxxl|xxxl|xxl|xl|l|m|s)(?![a-z])", candidate)
+        )
+        score = 2 * len(requested_colors.intersection({c for c in colors if c in candidate}))
+        score += 2 * len(requested_sizes.intersection(candidate_sizes))
+        candidate_units = set(re.findall(r"\d+(?:支|件|个|本|片|包)", candidate))
+        score += 2 * len(requested_units.intersection(candidate_units))
+        if score:
+            ranked.append((score, value))
+    if not ranked:
+        return
+    best_score = max(score for score, _value in ranked)
+    winners = [value for score, value in ranked if score == best_score]
+    if len(winners) != 1:
+        return
+    focused = dict(winners[0])
+    data["focused_variant"] = focused
+    data["focused_variant_reason"] = "explicit_name"
+    if isinstance(focused.get("sku_id"), str):
+        data["focused_sku_id"] = focused["sku_id"]
+    if isinstance(data.get("items"), list):
+        data["items"] = [focused]
+    elif isinstance(data.get("skus"), list):
+        data["skus"] = [focused]
+
+
+def _attach_variant_quantity_projection(data: dict[str, Any], user_text: str) -> None:
+    """Calculate a requested pack quantity without creating or changing an order."""
+
+    focused = data.get("focused_variant")
+    if not isinstance(focused, Mapping):
+        return
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    count_match = re.search(
+        r"(?:买|要|来|算)?(?P<count>\d+|[一二两三四五六七八九十])(?:盒|包|件|份|套|组)",
+        normalized,
+    )
+    if count_match is None:
+        return
+    purchase_count = _natural_quantity(count_match.group("count"))
+    if purchase_count is None or purchase_count < 1 or purchase_count > 99:
+        return
+    name = str(focused.get("sku_name") or focused.get("name") or "")
+    unit_match = re.search(r"(?P<count>\d+)(?:支|个|本|片|枚)", name)
+    price = focused.get("price")
+    if not isinstance(price, Mapping):
+        return
+    try:
+        unit_minor = int(price.get("minor_units") or 0)
+    except (TypeError, ValueError):
+        return
+    if unit_minor < 0:
+        return
+    contained_units = int(unit_match.group("count")) if unit_match else None
+    data["variant_quantity_projection"] = {
+        "sku_name": safe_untrusted_excerpt(name or "当前款式", 80),
+        "purchase_count": purchase_count,
+        "contained_units": contained_units,
+        "total_units": contained_units * purchase_count if contained_units is not None else None,
+        "unit_price": _money_value(price),
+        "total_price": _money_value(
+            {
+                "minor_units": unit_minor * purchase_count,
+                "currency": price.get("currency") or "CNY",
+            }
+        ),
+    }
+
+
+def _natural_quantity(value: str) -> int | None:
+    if value.isdigit():
+        return int(value)
+    return {
+        "一": 1,
+        "二": 2,
+        "两": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+        "九": 9,
+        "十": 10,
+    }.get(value)
+
+
+def _is_targeted_size_or_fit_question(user_text: str) -> bool:
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    return any(
+        marker in normalized
+        for marker in ("尺码", "多少码", "多大码", "最大码", "能穿", "合身", "适合我")
+    ) or bool(re.search(r"\d{2,3}斤", normalized))
+
+
 def _requests_previous_result_reselection(user_text: str) -> bool:
     normalized = re.sub(r"\s+", "", user_text).casefold()
     return any(
         marker in normalized
         for marker in ("再看看第一个", "再看第一个", "回到第一个", "换回第一个")
     )
+
+
+async def _requests_named_other_store(
+    session: AsyncSession, current_store_id: int, user_text: str
+) -> bool:
+    names = list(
+        await session.scalars(
+            select(Store.store_name).where(
+                Store.id != current_store_id,
+                Store.store_status.in_(("active", "suspended")),
+            )
+        )
+    )
+    return _named_other_store_in_text(user_text, names)
+
+
+def _named_other_store_in_text(user_text: str, store_names: list[str]) -> bool:
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    if not any(
+        marker in normalized
+        for marker in ("商品", "衣服", "文具", "同款", "查", "找", "推荐", "比较", "对比", "最便宜")
+    ):
+        return False
+    for store_name in store_names:
+        name = re.sub(r"\s+", "", store_name).casefold()
+        if name and name in normalized:
+            return True
+        alias = re.sub(r"(?:旗舰店|专卖店|店铺|商店|店)$", "", name)
+        if len(alias) >= 4 and alias in normalized:
+            return True
+    return False
 
 
 def _trigger_resource_no(message: Message, message_type: str, key: str) -> str | None:
@@ -846,6 +1057,34 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         return (
             "我正在帮你转接本店人工客服。转接期间我会暂停回复，店铺人员结束服务后我会继续协助你。"
         )
+    projection = data.get("variant_quantity_projection")
+    if isinstance(projection, Mapping):
+        total_units = projection.get("total_units")
+        unit_summary = f"，共 {total_units} 支" if isinstance(total_units, int) else ""
+        return (
+            f"“{projection.get('sku_name', '当前款式')}”每盒 "
+            f"{projection.get('unit_price', '¥0.00')}，"
+            f"{projection.get('purchase_count', 0)} 盒{unit_summary}，商品金额 "
+            f"{projection.get('total_price', '¥0.00')}。这里只做试算，没有下单或修改购物车。"
+        )
+    focused_variant = data.get("focused_variant")
+    if isinstance(focused_variant, Mapping):
+        name = safe_untrusted_excerpt(
+            focused_variant.get("sku_name") or focused_variant.get("name") or "最大包装",
+            80,
+        )
+        price = _money_value(focused_variant.get("price"))
+        availability = safe_untrusted_excerpt(
+            focused_variant.get("availability_label") or "库存待确认", 30
+        )
+        quantity = focused_variant.get("available_quantity")
+        quantity_text = f"，可售 {max(0, quantity)} 件" if isinstance(quantity, int) else ""
+        prefix = (
+            "最大包装"
+            if data.get("focused_variant_reason") == "largest_package"
+            else "你问的款式"
+        )
+        return f"{prefix}是“{name}”，价格 {price}，当前{availability}{quantity_text}。"
     if plan.intent == "inventory_lookup":
         items = data.get("items")
         if not isinstance(items, list) or not items:
@@ -1144,6 +1383,71 @@ def _store_detail_cards(
         else None
     )
     normalized_text = re.sub(r"\s+", "", user_text).casefold()
+    projection = data.get("variant_quantity_projection")
+    if isinstance(projection, Mapping):
+        total_units = projection.get("total_units")
+        return [
+            {
+                "kind": "purchase_projection",
+                "icon": "算",
+                "eyebrow": "购买试算",
+                "title": safe_untrusted_excerpt(
+                    projection.get("sku_name") or "当前款式", 80
+                ),
+                "badge": "未下单",
+                "summary": "按当前商品价格试算，实际金额与库存以结算页为准。",
+                "rows": [
+                    {
+                        "label": "购买数量",
+                        "value": f"{projection.get('purchase_count', 0)} 盒",
+                        "meta": f"共 {total_units} 支" if isinstance(total_units, int) else "",
+                    },
+                    {
+                        "label": "商品金额",
+                        "value": str(projection.get("total_price") or "¥0.00"),
+                        "meta": f"单盒 {projection.get('unit_price', '¥0.00')}",
+                    },
+                ],
+                "action": product_action,
+            }
+        ]
+    focused_variant = data.get("focused_variant")
+    if isinstance(focused_variant, Mapping):
+        label = safe_untrusted_excerpt(
+            focused_variant.get("sku_name") or focused_variant.get("name") or "最大包装",
+            80,
+        )
+        availability = safe_untrusted_excerpt(
+            focused_variant.get("availability_label") or "库存待确认", 40
+        )
+        quantity = focused_variant.get("available_quantity")
+        meta = availability
+        if isinstance(quantity, int):
+            meta += f" · 可售 {max(0, quantity)} 件"
+        return [
+            {
+                "kind": "sku_focus",
+                "icon": "款",
+                "eyebrow": "已核实款式",
+                "title": safe_untrusted_excerpt(
+                    data.get("product_name") or data.get("name") or "当前商品", 120
+                ),
+                "badge": (
+                    "最大包装"
+                    if data.get("focused_variant_reason") == "largest_package"
+                    else "指定款式"
+                ),
+                "summary": "只展示本次问题对应的款式，价格与库存来自实时商品数据。",
+                "rows": [
+                    {
+                        "label": label,
+                        "value": _money_value(focused_variant.get("price")),
+                        "meta": meta,
+                    }
+                ],
+                "action": product_action,
+            }
+        ]
     asks_logistics = any(
         term in normalized_text for term in ("物流", "快递", "包裹", "到哪里", "到哪")
     )

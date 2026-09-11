@@ -96,6 +96,14 @@ class DeterministicExclusiveModelGateway:
                 "时间",
                 "几天",
                 "规则",
+                "保证",
+                "承诺",
+                "一定",
+                "所有退款",
+                "固定",
+                "通常",
+                "一般",
+                "到账吗",
             )
             and not _contains(text, "我的退款", "这笔退款", "当前退款", "退款进度")
         ):

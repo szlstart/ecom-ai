@@ -42,6 +42,15 @@ function orderStatus(value: unknown): string {
 function productStatus(value: unknown): string {
   return ({ on_sale: '销售中', off_shelf: '已下架', sold_out: '已售罄' } as Record<string, string>)[stringValue(value)] ?? '状态更新中'
 }
+function orderCreatedAt(value: unknown): string {
+  const raw = stringValue(value)
+  if (!raw) return '订单详情'
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return '订单详情'
+  return `下单于 ${new Intl.DateTimeFormat('zh-CN', {
+    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date)}`
+}
 
 const content = computed(() => objectValue(props.message.content))
 const productCards = computed<JsonObject[]>(() => {
@@ -150,7 +159,7 @@ function cartItems(group: JsonObject): JsonObject[] {
     <RouterLink v-for="card in orderCards" :key="stringValue(card.order_id)" class="rich-message-card order-message-card" :to="orderRoute(card)" @click="emit('navigate')">
       <header>
         <span class="rich-card-logo"><img v-if="safeImageUrl(orderStore(card).logo_url)" :src="safeImageUrl(orderStore(card).logo_url)!" alt="" loading="lazy" /><i v-else>{{ stringValue(orderStore(card).store_name).slice(0, 1) || '店' }}</i></span>
-        <div><strong>{{ stringValue(orderStore(card).store_name) || '店铺订单' }}</strong><small>订单 {{ stringValue(card.display_order_id) || '详情' }}</small></div>
+        <div><strong>{{ stringValue(orderStore(card).store_name) || '店铺订单' }}</strong><small>{{ orderCreatedAt(card.created_at) }}</small></div>
         <b>{{ orderStatus(card.order_status) }}</b>
       </header>
       <div class="order-card-items">

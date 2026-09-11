@@ -434,6 +434,7 @@ def test_multi_agent_fallback_flattens_metrics_and_provides_risk_advice() -> Non
                     "specialist": "observability",
                     "data": {
                         "pending_outbox_events": 2,
+                        "stale_pending_outbox_events": 2,
                         "failed_agent_runs_24h": 1,
                         "successful_runs_after_latest_failure": 35,
                         "unrecovered_agent_failures": 0,
@@ -447,7 +448,7 @@ def test_multi_agent_fallback_flattens_metrics_and_provides_risk_advice() -> Non
         }
     )
     assert "3 个专业 Agent" in rendered
-    assert "2 条 Outbox 事件待处理" in rendered
+    assert "2 条 Outbox 事件超过 5 分钟未处理" in rendered
     assert "已有 35 次成功运行" in rendered
     assert "卡片" in rendered
     assert "user_status_counts" not in rendered

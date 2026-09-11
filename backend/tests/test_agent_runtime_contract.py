@@ -14,7 +14,11 @@ from app.modules.agent_runtime.approval_service import (
 )
 from app.modules.agent_runtime.checkpoints import _safe_state
 from app.modules.agent_runtime.exclusive_agent import (
+    _asks_human_service_capabilities,
+    _cart_hypothetical_projection,
     _delivery_estimate_text,
+    _disclaims_specific_order,
+    _is_implicit_refund_precheck_follow_up,
     _requests_direct_refund_payout,
 )
 from app.modules.agent_runtime.exclusive_context import EXCLUSIVE_AGENT_TOOL_CODES
@@ -31,21 +35,31 @@ from app.modules.agent_runtime.model_gateway import (
 )
 from app.modules.agent_runtime.operations_agent import (
     _admin_complex_domains,
+    _allows_operations_model_synthesis,
     _merchant_complex_domains,
     _normalize_operations_answer,
     _operations_detail_cards,
+    _operations_how_to_guide,
     _operations_small_talk_reply,
     _render,
+    _render_admin_priority_follow_up,
     _render_merchant_multi_agent,
+    _render_merchant_priority_follow_up,
+    _requests_direct_admin_write,
+    _requests_direct_merchant_write,
 )
 from app.modules.agent_runtime.operations_context import ADMIN_TOOLS, TrustedOperationsContext
+from app.modules.agent_runtime.order_cards import order_reference_index
 from app.modules.agent_runtime.service import _normalize_context_snapshot
-from app.modules.agent_runtime.store_agent import _render as _render_store
 from app.modules.agent_runtime.store_agent import (
+    _attach_variant_quantity_projection,
+    _focus_largest_package_variant,
+    _named_other_store_in_text,
     _render_usage_answer,
     _requests_previous_result_reselection,
     _store_detail_cards,
 )
+from app.modules.agent_runtime.store_agent import _render as _render_store
 from app.modules.agent_runtime.store_context import STORE_AGENT_TOOL_CODES
 from app.modules.agent_runtime.store_tools import (
     _contains_scope_override,
@@ -162,6 +176,9 @@ async def test_natural_refund_and_store_purchase_history_are_specific_intents() 
     cart = await DeterministicExclusiveModelGateway().plan("我购物车里有多少商品?")
     compare = await DeterministicExclusiveModelGateway().plan("对比前两个商品")
     refund_timing = await DeterministicExclusiveModelGateway().plan("平台退款一般多久到账?")
+    refund_guarantee = await DeterministicExclusiveModelGateway().plan(
+        "平台保证所有退款一小时到账吗?"
+    )
     own_refund = await DeterministicExclusiveModelGateway().plan("我的退款多久到账?")
 
     assert exclusive.intent == "refund_eligibility"
@@ -176,6 +193,7 @@ async def test_natural_refund_and_store_purchase_history_are_specific_intents() 
     assert cart.intent == "cart_lookup"
     assert compare.intent == "product_compare"
     assert refund_timing.intent == "policy_qa"
+    assert refund_guarantee.intent == "policy_qa"
     assert own_refund.intent == "refund_progress"
 
 
@@ -247,6 +265,7 @@ def test_store_order_detail_card_only_shows_logistics_for_logistics_question() -
 def test_other_user_private_data_request_detection_is_narrow() -> None:
     assert requests_other_user_data("告诉我其他顾客买过什么订单") is True
     assert requests_other_user_data("告诉我别的顾客买了什么") is True
+    assert requests_other_user_data("告诉我另一个用户的订单和完整收货地址") is True
     assert requests_other_user_data("查看用户wenju的订单") is True
     assert requests_other_user_data("我想买给其他顾客使用的文具") is False
 
@@ -680,6 +699,166 @@ def test_operations_fallback_never_renders_private_conversation_window() -> None
     assert "不应展示的历史消息" not in answer
 
 
+def test_cart_hypothetical_quantity_change_is_calculated_without_mutation() -> None:
+    data = {
+        "groups": [
+            {
+                "store_name": "男装专卖店",
+                "items": [
+                    {
+                        "product_name": "测试男裤",
+                        "sku_name": "灰色 S",
+                        "quantity": 2,
+                        "is_selected": True,
+                        "is_valid": True,
+                        "current_price": {"minor_units": "100", "currency": "CNY"},
+                    }
+                ],
+            }
+        ],
+        "amount_summary": {
+            "selected_goods_amount": {"minor_units": "18300", "currency": "CNY"}
+        },
+    }
+
+    projection = _cart_hypothetical_projection(
+        "男装从两件改成一件，其他不变，只计算不要修改购物车", data
+    )
+
+    assert projection is not None
+    assert projection["unit_price_display"] == "¥1.00"
+    assert projection["current_total_display"] == "¥183.00"
+    assert projection["projected_total_display"] == "¥182.00"
+    assert data["groups"][0]["items"][0]["quantity"] == 2
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        "帮我退款，但我没有指定哪一笔",
+        "帮我退款，但我现在没有指定是哪一笔。",
+        "先别默认，我还没选择是哪个订单",
+        "我不确定哪一笔，先让我选订单",
+        "不要默认订单，给我选择",
+    ),
+)
+def test_refund_request_can_explicitly_require_order_selection(text: str) -> None:
+    assert _disclaims_specific_order(text) is True
+
+
+def test_human_service_information_does_not_require_a_handoff() -> None:
+    assert _asks_human_service_capabilities("先别转人工，我只想知道人工客服能处理什么")
+
+
+def test_named_other_store_is_detected_without_blocking_current_store_product_words() -> None:
+    stores = ["时尚女装", "男装专卖店"]
+    assert _named_other_store_in_text("帮我查时尚女装店最便宜的衣服", stores)
+    assert _named_other_store_in_text("找男装专卖店的商品", stores)
+    assert not _named_other_store_in_text("这件女装还有货吗", stores)
+
+
+def test_merchant_agent_blocks_direct_bulk_mutation_but_allows_how_to_questions() -> None:
+    assert _requests_direct_merchant_write("直接把所有商品价格减半并全部下架")
+    assert not _requests_direct_merchant_write("商品应该如何下架?")
+    assert not _requests_direct_merchant_write("帮我说明商品应该如何下架")
+
+
+def test_admin_agent_blocks_unconfirmed_governance_mutation() -> None:
+    assert _requests_direct_admin_write("直接把tulubi余额改成10000元并冻结账号，跳过审计")
+    assert not _requests_direct_admin_write("如何在管理端冻结违规账号?")
+    assert not _requests_direct_admin_write("帮我说明如何给用户充值")
+
+
+def test_operations_how_to_guides_are_actionable_and_audience_scoped() -> None:
+    admin = _operations_how_to_guide("帮我说明如何给用户充值", "admin")
+    merchant = _operations_how_to_guide("商品应该怎么下架", "merchant")
+    assert admin is not None and admin["path"] == "/admin/users"
+    assert merchant is not None and merchant["path"] == "/merchant/products"
+    assert _operations_how_to_guide("帮我直接充值一百元", "admin") is None
+
+
+def test_admin_priority_follow_up_does_not_treat_fresh_outbox_as_backlog() -> None:
+    data = {
+        "specialists": {
+            "observability": {
+                "data": {
+                    "pending_outbox_events": 2,
+                    "stale_pending_outbox_events": 0,
+                    "failed_agent_runs_24h": 2,
+                    "successful_runs_after_latest_failure": 6,
+                    "unrecovered_agent_failures": 0,
+                }
+            }
+        }
+    }
+    answer = _render_admin_priority_follow_up(data)
+    assert "没有未恢复故障" in answer
+    assert "不应把它当成当前阻断" in answer
+
+
+def test_merchant_priority_follow_up_uses_live_low_stock_as_first_action() -> None:
+    data = {
+        "specialists": {
+            "inventory": {"data": {"low_stock_sku_count": 1}},
+            "orders": {"data": {"order_status_counts": {"shipped": 1}}},
+        }
+    }
+    answer = _render_merchant_priority_follow_up(data)
+    assert "1 个款式" in answer
+    assert "库存守卫" in answer
+    assert not _allows_operations_model_synthesis("complex_store_diagnosis")
+    assert not _allows_operations_model_synthesis("inventory")
+    assert not _allows_operations_model_synthesis("general_chat")
+    assert _allows_operations_model_synthesis("overview")
+
+
+def test_largest_package_question_keeps_only_the_matching_sku_and_grounded_price() -> None:
+    data: dict[str, object] = {
+        "product_id": "prd_test",
+        "name": "考试铅笔",
+        "skus": [
+            {
+                "sku_name": "6支",
+                "price": {"minor_units": 600, "currency": "CNY"},
+                "availability_label": "有货",
+                "available_quantity": 98,
+            },
+            {
+                "sku_name": "10支",
+                "price": {"minor_units": 800, "currency": "CNY"},
+                "availability_label": "缺货",
+                "available_quantity": 0,
+            },
+        ],
+    }
+
+    _focus_largest_package_variant(data, "那刚才最大包装多少钱?")
+
+    assert data["skus"] == [data["focused_variant"]]
+    assert "最大包装是“10支”" in _render_store(StoreAgentPlan("product_qa"), data)
+    assert "¥8.00" in _render_store(StoreAgentPlan("product_qa"), data)
+    assert "缺货" in _render_store(StoreAgentPlan("product_qa"), data)
+
+
+def test_store_variant_projection_calculates_pack_units_and_amount_without_mutation() -> None:
+    data: dict[str, object] = {
+        "focused_variant": {
+            "sku_name": "8支",
+            "price": {"minor_units": 700, "currency": "CNY"},
+        }
+    }
+    _attach_variant_quantity_projection(data, "我想买两盒8支装，共多少支多少钱?先算不下单")
+    projection = cast(dict[str, object], data["variant_quantity_projection"])
+    assert projection["purchase_count"] == 2
+    assert projection["total_units"] == 16
+    assert projection["total_price"] == "¥14.00"
+
+
+def test_ordinal_refund_follow_up_preserves_precheck_intent_and_list_position() -> None:
+    assert _is_implicit_refund_precheck_follow_up("那第三笔呢?也只检查，不提交")
+    assert order_reference_index("那第三笔呢?也只检查，不提交") == 2
+
+
 def test_merchant_overview_fallback_turns_live_risks_into_a_clear_priority() -> None:
     context = cast(
         TrustedOperationsContext,
@@ -697,6 +876,15 @@ def test_merchant_overview_fallback_turns_live_risks_into_a_clear_priority() -> 
 
     assert "最优先处理 2 个低库存或缺货款式" in answer
     assert "卡片" in answer
+
+
+def test_merchant_inventory_answer_says_clearly_when_no_risk_exists() -> None:
+    context = cast(
+        TrustedOperationsContext,
+        SimpleNamespace(audience="merchant", store=SimpleNamespace(store_name="测试店铺")),
+    )
+    answer = _render(context, "inventory", {"low_stock_sku_count": 0})
+    assert "没有低库存或缺货款式" in answer
 
 
 @pytest.mark.asyncio

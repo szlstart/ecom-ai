@@ -569,6 +569,8 @@ def _admin_specialist_executor(
 
 def _admin_complex_domains(value: str) -> tuple[str, ...]:
     compact = re.sub(r"\s+", "", value).casefold()
+    if _requests_priority_follow_up(compact):
+        return ("users", "stores", "orders", "runtime")
     domains: list[str] = []
     rules = (
         ("users", ("用户", "账号", "注册", "登录")),
@@ -584,6 +586,8 @@ def _admin_complex_domains(value: str) -> tuple[str, ...]:
 
 def _merchant_complex_domains(value: str) -> tuple[str, ...]:
     compact = re.sub(r"\s+", "", value).casefold()
+    if _requests_priority_follow_up(compact):
+        return ("catalog", "inventory", "orders")
     domains: list[str] = []
     rules = (
         ("catalog", ("商品", "款式", "sku", "价格", "在售")),
@@ -594,6 +598,18 @@ def _merchant_complex_domains(value: str) -> tuple[str, ...]:
         if any(term in compact for term in terms):
             domains.append(domain)
     return tuple(domains)
+
+
+def _requests_priority_follow_up(compact: str) -> bool:
+    ordinal = any(
+        term in compact
+        for term in ("第一项", "第二项", "第三项", "第1项", "第2项", "第3项")
+    )
+    priority_reference = any(
+        term in compact
+        for term in ("优先项", "最优先", "排在最前", "先做什么", "先处理什么")
+    )
+    return ordinal or priority_reference
 
 
 def _operations_specialist(audience: str, domain: str) -> tuple[str, str, str]:
@@ -693,8 +709,24 @@ def _render_merchant_multi_agent(data: Mapping[str, Any]) -> str:
         f"{completed_revenue.get('display', '¥0.00')}。"
     )
     if risks:
-        return overview + "建议先处理" + "、".join(risks) + "。明细和入口已整理在下方卡片中。"
-    return overview + "当前未发现低库存或待履约积压，明细和入口已整理在下方卡片中。"
+        return (
+            overview
+            + "建议按优先级先处理"
+            + "、".join(risks)
+            + "，再复盘在售商品表现。三项行动和入口已整理在下方卡片中。"
+        )
+    zero_sales = sum(int(product.get("sales_count", 0)) <= 0 for product in products)
+    growth_hint = (
+        f"{zero_sales} 件商品暂无销量，先复盘商品信息和价格"
+        if zero_sales
+        else "先复盘在售商品表现并放大已有销量"
+    )
+    return (
+        overview
+        + "当前没有紧急库存或履约告警。建议依次处理: "
+        + growth_hint
+        + ", 检查订单与已确认营业额, 保持库存风险巡检。三项行动和入口已整理在下方卡片中。"
+    )
 
 
 def _render_multi_agent(data: Mapping[str, Any]) -> str:
@@ -1192,14 +1224,104 @@ def _operations_detail_cards(
             # A cross-domain stock diagnosis must not dump the first five products just because
             # the catalog specialist completed first.  Put risks and orders first; catalog cards
             # are useful only when no more specific operational result is available.
+            catalog_data = specialist_results.get("merchant_catalog")
+            inventory_data = specialist_results.get("merchant_inventory")
+            orders_data = specialist_results.get("merchant_orders")
+            products = (
+                [
+                    item
+                    for item in catalog_data.get("on_sale_products", [])
+                    if isinstance(item, Mapping)
+                ]
+                if isinstance(catalog_data, Mapping)
+                else []
+            )
+            low_stock = (
+                int(inventory_data.get("low_stock_sku_count", 0))
+                if isinstance(inventory_data, Mapping)
+                else 0
+            )
+            order_counts = (
+                orders_data.get("order_status_counts")
+                if isinstance(orders_data, Mapping)
+                else {}
+            )
+            counts = order_counts if isinstance(order_counts, Mapping) else {}
+            pending = sum(
+                int(counts.get(key, 0))
+                for key in ("paid", "pending_shipment", "shipped")
+            )
+            revenue = (
+                orders_data.get("completed_order_revenue")
+                if isinstance(orders_data, Mapping)
+                else None
+            )
+            revenue_display = (
+                str(revenue.get("display", "¥0.00")) if isinstance(revenue, Mapping) else "¥0.00"
+            )
+            zero_sales = sum(int(product.get("sales_count", 0)) <= 0 for product in products)
+            priorities: list[dict[str, str]] = []
+            if low_stock:
+                priorities.append(
+                    {
+                        "label": "优先 1 · 库存",
+                        "value": f"处理 {low_stock} 个风险款式",
+                        "meta": "避免缺货影响成交",
+                    }
+                )
+            if pending:
+                priorities.append(
+                    {
+                        "label": f"优先 {len(priorities) + 1} · 履约",
+                        "value": f"跟进 {pending} 笔订单",
+                        "meta": "先处理待发货与运输异常",
+                    }
+                )
+            priorities.append(
+                {
+                    "label": f"优先 {len(priorities) + 1} · 商品",
+                    "value": f"复盘 {len(products)} 件在售商品",
+                    "meta": (
+                        f"{zero_sales} 件暂无销量，检查信息与价格"
+                        if zero_sales
+                        else "复盘销量并优化在售信息"
+                    ),
+                }
+            )
+            priorities.append(
+                {
+                    "label": f"优先 {len(priorities) + 1} · 订单",
+                    "value": f"已确认营业额 {revenue_display}",
+                    "meta": "检查订单结构与待处理状态",
+                }
+            )
+            priorities.append(
+                {
+                    "label": f"优先 {len(priorities) + 1} · 库存",
+                    "value": "保持每日巡检" if not low_stock else "复核补货结果",
+                    "meta": "当前无风险款式" if not low_stock else f"当前 {low_stock} 个风险款式",
+                }
+            )
+            specialist_cards.append(
+                {
+                    "kind": "merchant_priorities",
+                    "icon": "策",
+                    "eyebrow": "经营优先级",
+                    "title": "今天先处理这三件事",
+                    "badge": "需要处理" if low_stock or pending else "经营建议",
+                    "tone": "warning" if low_stock or pending else "",
+                    "summary": "按实时商品、库存、订单和已确认营业额排序。",
+                    "rows": priorities[:3],
+                    "action": {"label": "进入经营首页", "path": "/merchant/dashboard"},
+                }
+            )
             for specialist in ("merchant_inventory", "merchant_orders"):
                 safe_data = specialist_results.get(specialist)
                 if safe_data is not None:
                     specialist_cards.extend(
                         _operations_detail_cards(context, specialist_intents[specialist], safe_data)
                     )
-            catalog_data = specialist_results.get("merchant_catalog")
-            if catalog_data is not None and not specialist_cards:
+            if catalog_data is not None and len(specialist_cards) == 1:
                 specialist_cards.extend(_operations_detail_cards(context, "catalog", catalog_data))
         else:
             for specialist in (

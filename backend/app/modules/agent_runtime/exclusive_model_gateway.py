@@ -44,6 +44,31 @@ class DeterministicExclusiveModelGateway:
         text = re.sub(r"\s+", "", user_text).casefold()
         if is_explicit_handoff_request(user_text):
             return ExclusiveAgentPlan("human_handoff")
+        # “第一个/第二个” is not inherently a product reference.  Once an
+        # order list has been shown, shoppers naturally say “第二笔多少钱” or
+        # “第一笔到哪了”.  Route transaction language before the product-card
+        # ordinal shortcut so the executor can resolve the recent order card.
+        if _contains(text, "第一笔", "第二笔", "第三笔", "第四笔", "第五笔"):
+            if _contains(text, "物流", "快递", "包裹", "到哪", "送达"):
+                return ExclusiveAgentPlan("logistics_lookup")
+            if _contains(text, "退款", "退货", "售后"):
+                if _contains(
+                    text,
+                    "退款资格",
+                    "售后资格",
+                    "资格预检",
+                    "能否退款",
+                    "可以退款",
+                    "是否能退款",
+                    "是否可以退款",
+                    "能退款吗",
+                    "能退吗",
+                    "可退款吗",
+                    "可以退吗",
+                ):
+                    return ExclusiveAgentPlan("refund_precheck")
+                return ExclusiveAgentPlan("refund_eligibility")
+            return ExclusiveAgentPlan("order_lookup")
         if _contains(text, "第一个", "第二个", "第三个", "第四个", "第五个", "刚才推荐"):
             if _contains(text, "对比", "比较", "区别", "差别"):
                 return ExclusiveAgentPlan("product_compare")
@@ -120,7 +145,17 @@ class DeterministicExclusiveModelGateway:
             return ExclusiveAgentPlan("logistics_lookup")
         if _contains(text, "购物车", "购物袋"):
             return ExclusiveAgentPlan("cart_lookup")
-        if _contains(text, "订单", "付款", "收货", "购买记录"):
+        if _contains(
+            text,
+            "订单",
+            "付款",
+            "收货",
+            "购买记录",
+            "买过什么",
+            "买了什么",
+            "购买过什么",
+            "下过什么单",
+        ):
             return ExclusiveAgentPlan("order_lookup")
         if _contains(text, "库存", "有货", "缺货", "款式", "规格", "尺码", "码数"):
             return ExclusiveAgentPlan("product_search", _search_text(user_text))

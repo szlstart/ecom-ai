@@ -30,6 +30,7 @@ from app.modules.agent_runtime.model_gateway import (
     requests_other_user_data,
 )
 from app.modules.agent_runtime.operations_agent import (
+    _admin_complex_domains,
     _merchant_complex_domains,
     _normalize_operations_answer,
     _operations_detail_cards,
@@ -153,6 +154,11 @@ async def test_natural_refund_and_store_purchase_history_are_specific_intents() 
     store_comparison = await DeterministicStoreModelGateway().plan("第二个和第三个有什么区别?")
     store_order_ordinal = await DeterministicStoreModelGateway().plan("第一笔现在到哪里了?")
     exclusive_ordinal = await DeterministicExclusiveModelGateway().plan("第二个适合我吗?")
+    recent_orders = await DeterministicExclusiveModelGateway().plan("我最近买过什么?")
+    second_order = await DeterministicExclusiveModelGateway().plan("第二笔实付多少钱?")
+    second_order_logistics = await DeterministicExclusiveModelGateway().plan(
+        "第二笔实付多少钱?现在物流到哪里了?"
+    )
     cart = await DeterministicExclusiveModelGateway().plan("我购物车里有多少商品?")
     compare = await DeterministicExclusiveModelGateway().plan("对比前两个商品")
     refund_timing = await DeterministicExclusiveModelGateway().plan("平台退款一般多久到账?")
@@ -164,6 +170,9 @@ async def test_natural_refund_and_store_purchase_history_are_specific_intents() 
     assert store_comparison.intent == "product_compare"
     assert store_order_ordinal.intent == "order_explain"
     assert exclusive_ordinal.intent == "product_search"
+    assert recent_orders.intent == "order_lookup"
+    assert second_order.intent == "order_lookup"
+    assert second_order_logistics.intent == "logistics_lookup"
     assert cart.intent == "cart_lookup"
     assert compare.intent == "product_compare"
     assert refund_timing.intent == "policy_qa"
@@ -563,10 +572,13 @@ def test_merchant_multi_agent_stock_diagnosis_prioritizes_risk_over_catalog_dump
         },
     )
 
-    assert len(cards) == 1
-    assert cards[0]["kind"] == "inventory_risk"
-    assert cards[0]["title"] == "当前没有低库存或缺货款式"
-    assert cards[0]["action"] == {
+    assert len(cards) == 2
+    assert cards[0]["kind"] == "merchant_priorities"
+    assert cards[0]["title"] == "今天先处理这三件事"
+    assert len(cards[0]["rows"]) == 3
+    assert cards[1]["kind"] == "inventory_risk"
+    assert cards[1]["title"] == "当前没有低库存或缺货款式"
+    assert cards[1]["action"] == {
         "label": "进入商品管理",
         "path": "/merchant/products",
     }
@@ -586,6 +598,20 @@ def test_operations_answer_localizes_internal_status_codes() -> None:
 def test_merchant_cross_domain_diagnosis_routes_to_bounded_specialists() -> None:
     domains = _merchant_complex_domains("分析本店在售商品、各款式实时库存和待履约订单风险")
     assert domains == ("catalog", "inventory", "orders")
+
+
+def test_operations_priority_follow_up_rechecks_all_relevant_domains() -> None:
+    assert _merchant_complex_domains("第一项为什么排在最前面? 我现在具体先做什么?") == (
+        "catalog",
+        "inventory",
+        "orders",
+    )
+    assert _admin_complex_domains("最优先的风险为什么排第一? 先处理什么?") == (
+        "users",
+        "stores",
+        "orders",
+        "runtime",
+    )
 
 
 def test_merchant_multi_agent_fallback_is_concise_and_defers_details_to_cards() -> None:
@@ -632,6 +658,7 @@ def test_merchant_multi_agent_fallback_is_concise_and_defers_details_to_cards() 
     assert "¥6.00" in answer
     assert "1 个款式达到低库存或缺货阈值" in answer
     assert "1 单仍在待履约或运输阶段" in answer
+    assert "三项行动" in answer
     assert "卡片" in answer
     assert "6支装" not in answer
     assert len(answer) < 180

@@ -33,7 +33,7 @@ from app.modules.agent_runtime.store_tools import (
     _contains_scope_override,
 )
 from app.modules.cart.service import CartService
-from app.modules.catalog.models import ProductSku
+from app.modules.catalog.models import Product, ProductSku
 from app.modules.catalog.repository import CatalogRepository
 from app.modules.inventory.models import Inventory
 from app.modules.logistics.service import LogisticsService
@@ -151,7 +151,7 @@ class ExclusiveToolGateway:
                     group_no=None,
                     price_min=constraints.price_min,
                     price_max=constraints.price_max,
-                    sort="sales",
+                    sort=constraints.sort,
                     position=None,
                     limit=8,
                 )
@@ -164,6 +164,17 @@ class ExclusiveToolGateway:
                     rows.append(row)
                 if len(rows) >= constraints.requested_limit:
                     break
+            if constraints.sort == "price_asc":
+                rows.sort(key=lambda row: (row[0].min_price_amount, row[0].id))
+            elif constraints.sort == "price_desc":
+                rows.sort(key=lambda row: (row[0].min_price_amount, row[0].id), reverse=True)
+            elif constraints.sort == "newest":
+                rows.sort(
+                    key=lambda row: (row[0].published_at or row[0].created_at, row[0].id),
+                    reverse=True,
+                )
+            elif constraints.sort == "sales":
+                rows.sort(key=lambda row: (row[0].sales_count, row[0].id), reverse=True)
             rows = rows[: constraints.requested_limit]
             skus_by_product: dict[int, list[dict[str, object]]] = {}
             stock_by_product: dict[int, int] = {}
@@ -218,6 +229,7 @@ class ExclusiveToolGateway:
                     "keywords": list(constraints.keywords),
                     "price_min": constraints.price_min,
                     "price_max": constraints.price_max,
+                    "sort": constraints.sort,
                 },
                 "as_of": utc_now(),
             }
@@ -229,6 +241,79 @@ class ExclusiveToolGateway:
                 "query": (query or "")[:120],
                 "fallback_query": (fallback_query or "")[:120],
             },
+            handler,
+        )
+
+    async def filter_recent_products(
+        self,
+        context: TrustedExclusiveAgentContext,
+        product_nos: list[str],
+        query: str,
+    ) -> StoreToolResult:
+        """Reapply changed hard constraints to the last visible product set."""
+
+        async def handler() -> dict[str, object]:
+            constraints = _catalog_search_constraints(None, query)
+            rows: list[tuple[Product, Store]] = []
+            for product_no in list(dict.fromkeys(product_nos))[:8]:
+                row = await self.catalog.public_product(product_no)
+                if row is None:
+                    continue
+                product, _store = row
+                if (
+                    constraints.price_min is not None
+                    and product.min_price_amount < constraints.price_min
+                ):
+                    continue
+                if (
+                    constraints.price_max is not None
+                    and product.min_price_amount > constraints.price_max
+                ):
+                    continue
+                rows.append(row)
+            if constraints.sort == "price_asc":
+                rows.sort(key=lambda row: (row[0].min_price_amount, row[0].id))
+            elif constraints.sort == "price_desc":
+                rows.sort(key=lambda row: (row[0].min_price_amount, row[0].id), reverse=True)
+            elif constraints.sort == "newest":
+                rows.sort(
+                    key=lambda row: (row[0].published_at or row[0].created_at, row[0].id),
+                    reverse=True,
+                )
+            elif constraints.sort == "sales":
+                rows.sort(key=lambda row: (row[0].sales_count, row[0].id), reverse=True)
+            rows = rows[: constraints.requested_limit]
+            return {
+                "items": [
+                    {
+                        "product_id": product.product_no,
+                        "store_id": store.store_no,
+                        "store_name": store.store_name,
+                        "name": product.product_name,
+                        "subtitle": product.subtitle,
+                        "price": {
+                            "min_amount": product.min_price_amount,
+                            "max_amount": product.max_price_amount,
+                            "currency": product.currency,
+                        },
+                        "source_version": product.version,
+                    }
+                    for product, store in rows
+                ],
+                "has_more": False,
+                "continued_from_recent_results": True,
+                "applied_filters": {
+                    "price_min": constraints.price_min,
+                    "price_max": constraints.price_max,
+                    "sort": constraints.sort,
+                },
+                "as_of": utc_now(),
+            }
+
+        return await self.execute(
+            context,
+            "catalog.search_products",
+            {"recent_product_ids": product_nos[:8], "query": query[:120]},
             handler,
         )
 
@@ -705,8 +790,8 @@ def _combined_catalog_search_candidates(
     query: str | None, fallback_query: str | None
 ) -> list[str | None]:
     result: list[str | None] = []
-    for source in (query, fallback_query):
-        for candidate in _catalog_search_candidates(source):
+    for raw_source in (query, fallback_query):
+        for candidate in _catalog_search_candidates(raw_source):
             if candidate not in result:
                 result.append(candidate)
     return result[:12]
@@ -720,6 +805,7 @@ class CatalogSearchConstraints:
     price_min: int | None
     price_max: int | None
     requested_limit: int
+    sort: str
 
 
 _PRICE_NUMBER = r"(\d+(?:\.\d{1,2})?)"
@@ -747,7 +833,7 @@ def _catalog_search_constraints(
     # Prefer the server-cleaned request. Model output and the raw sentence are
     # fallbacks only; otherwise filler such as "几件" can accidentally become
     # the first SQL term with one incidental match and truncate better results.
-    for source in (keyword_source, query, fallback_query):
+    for source in (keyword_source,):
         for candidate in _catalog_search_candidates(source):
             if candidate is None and keywords:
                 continue
@@ -756,6 +842,13 @@ def _catalog_search_constraints(
     for keyword in semantic_keywords:
         if keyword not in candidates:
             candidates.append(keyword)
+    optional_sources: tuple[str | None, str | None] = (query, fallback_query)
+    for raw_source in optional_sources:
+        for candidate in _catalog_search_candidates(raw_source):
+            if candidate is None and keywords:
+                continue
+            if candidate not in candidates:
+                candidates.append(candidate)
     for keyword in keywords:
         if keyword not in candidates:
             candidates.append(keyword)
@@ -773,7 +866,21 @@ def _catalog_search_constraints(
         price_min=price_min,
         price_max=price_max,
         requested_limit=_extract_requested_count(original),
+        sort=_extract_catalog_sort(original),
     )
+
+
+def _extract_catalog_sort(text: str) -> str:
+    compact = re.sub(r"\s+", "", text).casefold()
+    if any(marker in compact for marker in ("价格从低到高", "价格升序", "便宜到贵", "低价优先")):
+        return "price_asc"
+    if any(marker in compact for marker in ("价格从高到低", "价格降序", "贵到便宜", "高价优先")):
+        return "price_desc"
+    if any(marker in compact for marker in ("最新上架", "最新优先", "按最新", "最新的")):
+        return "newest"
+    if any(marker in compact for marker in ("销量排序", "销量优先", "卖得最好", "最畅销")):
+        return "sales"
+    return "sales"
 
 
 def _semantic_catalog_expansions(text: str) -> tuple[str, ...]:
@@ -877,6 +984,13 @@ def _strip_catalog_request_syntax(text: str) -> str:
         " ",
         cleaned,
     )
+    cleaned = re.sub(
+        r"(?:按)?价格(?:从低到高|从高到低|升序|降序)|便宜到贵|贵到便宜|低价优先|高价优先|"
+        r"最新上架|最新优先|按最新|销量排序|销量优先|卖得最好|最畅销",
+        " ",
+        cleaned,
+    )
+    cleaned = re.sub(r"[一两二三四五\d]+\s*(?:件|个|款)", " ", cleaned)
     cleaned = re.sub(
         r"(?:麻烦|请|帮我|给我|我想|想要|看看|一下|全平台|当前|在售|搜索|查找|找找|找|推荐)",
         " ",

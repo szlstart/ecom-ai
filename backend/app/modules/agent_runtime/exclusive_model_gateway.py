@@ -49,7 +49,9 @@ class DeterministicExclusiveModelGateway:
         # “第一笔到哪了”.  Route transaction language before the product-card
         # ordinal shortcut so the executor can resolve the recent order card.
         if _contains(text, "第一笔", "第二笔", "第三笔", "第四笔", "第五笔"):
-            if _contains(text, "物流", "快递", "包裹", "到哪", "送达"):
+            if _contains(
+                text, "物流", "快递", "包裹", "到哪", "送达", "没到", "到没到", "还没到"
+            ):
                 return ExclusiveAgentPlan("logistics_lookup")
             if _contains(text, "退款", "退货", "售后"):
                 if _contains(
@@ -149,7 +151,9 @@ class DeterministicExclusiveModelGateway:
             "退货",
         ):
             return ExclusiveAgentPlan("refund_eligibility")
-        if _contains(text, "物流", "快递", "包裹", "到哪", "送达"):
+        if _contains(
+            text, "物流", "快递", "包裹", "到哪", "送达", "没到", "到没到", "还没到"
+        ):
             return ExclusiveAgentPlan("logistics_lookup")
         if _contains(text, "购物车", "购物袋"):
             return ExclusiveAgentPlan("cart_lookup")

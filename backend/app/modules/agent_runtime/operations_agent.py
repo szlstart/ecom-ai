@@ -385,7 +385,7 @@ async def process_operations_run(
     evidence = dict(result.safe_data)
     if context_window.recent_turns or context_window.summary_no:
         evidence["conversation_window"] = context_window.model_projection()
-    answer = _render(context, intent, evidence)
+    answer = _render(context, intent, evidence, user_text=user_text)
     answer_mode = "deterministic_fallback"
     confidence = "high"
     citations: tuple[str, ...] = (f"tool:{tool_code}",)
@@ -521,8 +521,21 @@ def _operations_how_to_guide(value: str, audience: str) -> dict[str, object] | N
     normalized = re.sub(r"\s+", "", value).casefold()
     asks_how = any(
         marker in normalized
-        for marker in ("如何", "怎么", "流程", "在哪里", "入口", "说明", "步骤")
+        for marker in ("如何", "怎么", "流程", "在哪里", "步骤", "操作说明")
     )
+    if not asks_how and "入口" in normalized:
+        asks_how = any(
+            marker in normalized
+            for marker in (
+                "上架入口",
+                "下架入口",
+                "改价入口",
+                "发货入口",
+                "售后入口",
+                "充值入口",
+                "冻结入口",
+            )
+        )
     if not asks_how:
         return None
 
@@ -841,6 +854,11 @@ def _admin_specialist_executor(
 
 def _admin_complex_domains(value: str) -> tuple[str, ...]:
     compact = re.sub(r"\s+", "", value).casefold()
+    if any(
+        term in compact
+        for term in ("平台最需要处理", "平台风险", "运营风险", "最大风险")
+    ):
+        return ("users", "stores", "orders", "runtime")
     if _requests_priority_follow_up(compact):
         return ("users", "stores", "orders", "runtime")
     domains: list[str] = []
@@ -861,14 +879,20 @@ def _merchant_complex_domains(value: str) -> tuple[str, ...]:
     if _requests_priority_follow_up(compact):
         return ("catalog", "inventory", "orders")
     domains: list[str] = []
-    rules = (
-        ("catalog", ("商品", "款式", "sku", "价格", "在售")),
-        ("inventory", ("库存", "缺货", "现货", "补货", "超卖")),
-        ("orders", ("订单", "履约", "发货", "运输", "售后", "营业额", "收益")),
+    inventory_requested = any(
+        term in compact for term in ("库存", "缺货", "现货", "补货", "超卖")
     )
-    for domain, terms in rules:
-        if any(term in compact for term in terms):
-            domains.append(domain)
+    catalog_requested = any(
+        term in compact for term in ("商品", "价格", "在售")
+    ) or (not inventory_requested and any(term in compact for term in ("款式", "sku")))
+    if catalog_requested:
+        domains.append("catalog")
+    if inventory_requested:
+        domains.append("inventory")
+    if any(
+        term in compact for term in ("订单", "履约", "发货", "运输", "售后", "营业额", "收益")
+    ):
+        domains.append("orders")
     return tuple(domains)
 
 
@@ -1046,6 +1070,7 @@ def _render_multi_agent(data: Mapping[str, Any]) -> str:
 
 
 def _render_admin_priority_follow_up(data: Mapping[str, Any]) -> str:
+    diagnosis_prefix = "专业 Agent 已重新完成只读诊断: "
     specialists = data.get("specialists")
     metrics: dict[str, int] = {}
     if isinstance(specialists, Mapping):
@@ -1061,23 +1086,23 @@ def _render_admin_priority_follow_up(data: Mapping[str, Any]) -> str:
     failed = metrics.get("failed_agent_runs_24h", 0)
     recovered = metrics.get("successful_runs_after_latest_failure", 0)
     if stale_events:
-        return (
+        return diagnosis_prefix + (
             f"第一项最重要，因为有 {stale_events} 条 Outbox 事件已超过 5 分钟仍未投递，"
             "它可能延迟订单、消息或通知链路。今天先打开“Agent 与事件链路”卡片，"
             "核对最早事件的类型、创建时间和重试状态。确认影响范围前不要删除或强制重放。"
         )
     if unrecovered:
-        return (
+        return diagnosis_prefix + (
             f"第一项最重要，因为当前仍有 {unrecovered} 个 Agent 故障尚未出现成功恢复证据。"
             "今天先打开“Agent 与事件链路”卡片，定位最新失败运行的错误码和关联请求。"
         )
     if failed:
-        return (
+        return diagnosis_prefix + (
             f"重新核对后没有未恢复故障，也没有超过 5 分钟的事件积压。过去 24 小时虽有 "
             f"{failed} 次失败，但之后已有 {recovered} 次成功运行，所以不应把它当成当前阻断。"
             "今天先打开“Agent 与事件链路”卡片抽查最新一次失败原因，再保持常规监控。"
         )
-    return (
+    return diagnosis_prefix + (
         "重新核对后没有未恢复 Agent 故障或超过 5 分钟的事件积压，目前没有必须立即处理的"
         "平台级风险。今天先从运行诊断卡片做一次例行抽查，再查看订单和店铺状态。"
     )
@@ -1497,7 +1522,13 @@ def _tool_for_intent(intent: str, audience: str) -> str:
     }.get(intent, "governance.platform_overview")
 
 
-def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, Any]) -> str:
+def _render(
+    context: TrustedOperationsContext,
+    intent: str,
+    data: Mapping[str, Any],
+    *,
+    user_text: str = "",
+) -> str:
     if context.audience == "merchant" and intent == "catalog":
         products = data.get("on_sale_products")
         if not isinstance(products, list) or not products:
@@ -1548,6 +1579,13 @@ def _render(context: TrustedOperationsContext, intent: str, data: Mapping[str, A
             low_stock = int(data.get("low_stock_sku_count", 0))
             if low_stock == 0:
                 return "本店当前没有低库存或缺货款式，可继续保持日常库存巡检。"
+            if any(marker in user_text for marker in ("什么影响", "有何影响", "后果")):
+                return (
+                    f"刚才的 {low_stock} 个风险款式若今天不处理，已缺货款式将无法产生新的"
+                    "有效成交，顾客选择时也可能无法结算。低库存款式则更容易在后续下单时"
+                    "售罄。是否影响已有订单仍需到订单页核对库存预占与履约状态，我不会在"
+                    "没有订单证据时猜测。请从下方卡片直接进入该商品处理。"
+                )
             return (
                 f"本店有 {low_stock} 个款式达到低库存或缺货阈值。"
                 "请先打开下方卡片核对实时可售数量和安全库存线。"
@@ -1763,8 +1801,8 @@ def _operations_detail_cards(
     if context.audience == "merchant":
         if intent == "catalog":
             product_cards: list[dict[str, object]] = []
-            products = data.get("on_sale_products")
-            for product in products if isinstance(products, list) else []:
+            product_values = data.get("on_sale_products")
+            for product in product_values if isinstance(product_values, list) else []:
                 if not isinstance(product, Mapping):
                     continue
                 sku_rows: list[dict[str, str]] = []
@@ -1944,8 +1982,8 @@ def _operations_detail_cards(
         ),
     }
     if intent in card_specs:
-        icon, eyebrow, title, counts, labels, path = card_specs[intent]
-        rows = rows_from_counts(counts, labels)
+        icon, eyebrow, title, status_counts, labels, path = card_specs[intent]
+        rows = rows_from_counts(status_counts, labels)
         warning = any(
             int(row["value"]) > 0
             for row in rows

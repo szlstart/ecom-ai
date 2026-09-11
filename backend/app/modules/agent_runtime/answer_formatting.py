@@ -59,6 +59,7 @@ def concise_policy_answer(
             part = re.sub(
                 r"^(?:[-*•>]\s*|\d+[.)、]\s*)", "", raw_part.strip()
             ).strip()
+            part = part.replace(";", "\uff1b").replace(",", "\uff0c")
             if not part or part.startswith("#"):
                 continue
             score = sum(6 for term in query_terms if term in part)

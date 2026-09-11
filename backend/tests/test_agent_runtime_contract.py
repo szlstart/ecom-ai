@@ -15,11 +15,15 @@ from app.modules.agent_runtime.approval_service import (
 from app.modules.agent_runtime.checkpoints import _safe_state
 from app.modules.agent_runtime.exclusive_agent import (
     _asks_human_service_capabilities,
+    _asks_order_logistics_status_difference,
     _cart_hypothetical_projection,
+    _continues_catalog_constraints,
     _delivery_estimate_text,
     _disclaims_specific_order,
+    _has_signed_shipment,
     _is_implicit_refund_precheck_follow_up,
     _requests_direct_refund_payout,
+    _requests_logistics_and_refund_precheck,
 )
 from app.modules.agent_runtime.exclusive_context import EXCLUSIVE_AGENT_TOOL_CODES
 from app.modules.agent_runtime.exclusive_model_gateway import (
@@ -49,12 +53,18 @@ from app.modules.agent_runtime.operations_agent import (
     _requests_direct_merchant_write,
 )
 from app.modules.agent_runtime.operations_context import ADMIN_TOOLS, TrustedOperationsContext
-from app.modules.agent_runtime.order_cards import order_reference_index
+from app.modules.agent_runtime.order_cards import (
+    order_reference_index,
+    referenced_order_no_from_cards,
+)
 from app.modules.agent_runtime.service import _normalize_context_snapshot
 from app.modules.agent_runtime.store_agent import (
+    _asks_store_human_service_capabilities,
     _attach_variant_quantity_projection,
+    _focus_body_weight_variant,
     _focus_largest_package_variant,
     _named_other_store_in_text,
+    _render_size_answer,
     _render_usage_answer,
     _requests_previous_result_reselection,
     _store_detail_cards,
@@ -594,7 +604,7 @@ def test_merchant_multi_agent_stock_diagnosis_prioritizes_risk_over_catalog_dump
     assert len(cards) == 2
     assert cards[0]["kind"] == "merchant_priorities"
     assert cards[0]["title"] == "今天先处理这三件事"
-    assert len(cards[0]["rows"]) == 3
+    assert len(cast(list[object], cards[0]["rows"])) == 3
     assert cards[1]["kind"] == "inventory_risk"
     assert cards[1]["title"] == "当前没有低库存或缺货款式"
     assert cards[1]["action"] == {
@@ -729,7 +739,79 @@ def test_cart_hypothetical_quantity_change_is_calculated_without_mutation() -> N
     assert projection["unit_price_display"] == "¥1.00"
     assert projection["current_total_display"] == "¥183.00"
     assert projection["projected_total_display"] == "¥182.00"
-    assert data["groups"][0]["items"][0]["quantity"] == 2
+    groups = cast(list[dict[str, object]], data["groups"])
+    items = cast(list[dict[str, object]], groups[0]["items"])
+    assert items[0]["quantity"] == 2
+
+
+@pytest.mark.parametrize(
+    ("user_text", "expected_quantity", "expected_total"),
+    (
+        ("购物车里的男装再加1件，其他商品不动，只算一下", 3, "¥184.00"),
+        ("男装少一件，其他不变，不要真的修改", 1, "¥182.00"),
+    ),
+)
+def test_cart_hypothetical_relative_change_is_calculated_without_mutation(
+    user_text: str,
+    expected_quantity: int,
+    expected_total: str,
+) -> None:
+    data = {
+        "groups": [
+            {
+                "store_name": "男装专卖店",
+                "items": [
+                    {
+                        "product_name": "测试男裤",
+                        "sku_name": "灰色 S",
+                        "quantity": 2,
+                        "is_selected": True,
+                        "is_valid": True,
+                        "current_price": {"minor_units": "100", "currency": "CNY"},
+                    }
+                ],
+            }
+        ],
+        "amount_summary": {
+            "selected_goods_amount": {"minor_units": "18300", "currency": "CNY"}
+        },
+    }
+
+    projection = _cart_hypothetical_projection(user_text, data)
+
+    assert projection is not None
+    assert projection["from_quantity"] == 2
+    assert projection["to_quantity"] == expected_quantity
+    assert projection["projected_total_display"] == expected_total
+    groups = cast(list[dict[str, object]], data["groups"])
+    items = cast(list[dict[str, object]], groups[0]["items"])
+    assert items[0]["quantity"] == 2
+
+
+def test_cart_hypothetical_relative_change_refuses_ambiguous_item() -> None:
+    data = {
+        "groups": [
+            {
+                "store_name": "男装专卖店",
+                "items": [
+                    {
+                        "product_name": product_name,
+                        "sku_name": "标准款",
+                        "quantity": 1,
+                        "is_selected": True,
+                        "is_valid": True,
+                        "current_price": {"minor_units": "100", "currency": "CNY"},
+                    }
+                    for product_name in ("男裤", "男衬衫")
+                ],
+            }
+        ],
+        "amount_summary": {
+            "selected_goods_amount": {"minor_units": "200", "currency": "CNY"}
+        },
+    }
+
+    assert _cart_hypothetical_projection("某个商品再加1件，只计算", data) is None
 
 
 @pytest.mark.parametrize(
@@ -775,6 +857,53 @@ def test_operations_how_to_guides_are_actionable_and_audience_scoped() -> None:
     assert admin is not None and admin["path"] == "/admin/users"
     assert merchant is not None and merchant["path"] == "/merchant/products"
     assert _operations_how_to_guide("帮我直接充值一百元", "admin") is None
+    assert (
+        _operations_how_to_guide(
+            "今天店铺最需要优先处理哪三件事? 请结合实时商品、库存和订单说明原因。",
+            "merchant",
+        )
+        is None
+    )
+    assert (
+        _operations_how_to_guide(
+            "本店有没有低库存或缺货款式，只说结论并给处理入口", "merchant"
+        )
+        is None
+    )
+
+
+def test_merchant_inventory_question_does_not_fan_out_only_for_the_word_variant() -> None:
+    assert _merchant_complex_domains("本店有没有低库存或缺货款式") == ("inventory",)
+    assert _merchant_complex_domains("同时分析本店商品和库存") == (
+        "catalog",
+        "inventory",
+    )
+
+
+def test_admin_platform_risk_question_uses_all_trusted_domains() -> None:
+    assert _admin_complex_domains("当前平台最需要处理的风险是什么") == (
+        "users",
+        "stores",
+        "orders",
+        "runtime",
+    )
+
+
+def test_merchant_inventory_follow_up_explains_impact_without_guessing_orders() -> None:
+    context = cast(
+        TrustedOperationsContext,
+        SimpleNamespace(audience="merchant", store=SimpleNamespace(store_name="测试店铺")),
+    )
+    answer = _render(
+        context,
+        "inventory",
+        {"low_stock_sku_count": 1},
+        user_text="这个缺货款式如果今天不处理，会有什么影响?",
+    )
+
+    assert "无法产生新的有效成交" in answer
+    assert "已有订单" in answer
+    assert "不会" in answer
 
 
 def test_admin_priority_follow_up_does_not_treat_fresh_outbox_as_backlog() -> None:
@@ -792,6 +921,7 @@ def test_admin_priority_follow_up_does_not_treat_fresh_outbox_as_backlog() -> No
         }
     }
     answer = _render_admin_priority_follow_up(data)
+    assert "专业 Agent 已重新完成只读诊断" in answer
     assert "没有未恢复故障" in answer
     assert "不应把它当成当前阻断" in answer
 
@@ -854,9 +984,152 @@ def test_store_variant_projection_calculates_pack_units_and_amount_without_mutat
     assert projection["total_price"] == "¥14.00"
 
 
+def test_store_body_weight_reference_focuses_unique_color_variant_without_promising_fit() -> None:
+    data: dict[str, object] = {
+        "items": [
+            {"sku_id": "sku_RED_L", "sku_name": "红色 L 130斤以下"},
+            {"sku_id": "sku_BLACK_M", "sku_name": "黑色 M 110斤以下"},
+            {"sku_id": "sku_BLACK_L", "sku_name": "黑色 L 130斤以下"},
+        ]
+    }
+
+    _focus_body_weight_variant(data, "俺120斤，想穿松快点，黑色咋选")
+
+    assert cast(dict[str, object], data["focused_variant"])["sku_id"] == "sku_BLACK_L"
+    assert data["focused_variant_reason"] == "body_weight_reference"
+    assert data["requested_body_weight_jin"] == 120
+
+
+def test_store_size_answer_rejects_weight_beyond_published_range() -> None:
+    answer = _render_size_answer(
+        {
+            "name": "测试衬衫",
+            "skus": [
+                {"sku_name": "黑色 M 110斤以下"},
+                {"sku_name": "黑色 L 130斤以下"},
+            ],
+        },
+        "那140斤有明确合适的尺码吗",
+    )
+
+    assert answer is not None
+    assert "最高只标注到 130 斤以下" in answer
+    assert "无法确认有明确合适的尺码" in answer
+
+
 def test_ordinal_refund_follow_up_preserves_precheck_intent_and_list_position() -> None:
     assert _is_implicit_refund_precheck_follow_up("那第三笔呢?也只检查，不提交")
     assert order_reference_index("那第三笔呢?也只检查，不提交") == 2
+
+
+def test_order_reference_matches_recent_card_by_product_and_amount() -> None:
+    cards = [
+        {
+            "order_id": "ord_NOTEBOOK",
+            "payable_amount": {"minor_units": "1910", "currency": "CNY"},
+            "store": {"store_name": "文具专卖店"},
+            "items": [{"product_name": "记录本写作本日记本", "sku_name": "B5横线"}],
+        },
+        {
+            "order_id": "ord_PENCIL",
+            "payable_amount": {"minor_units": "600", "currency": "CNY"},
+            "store": {"store_name": "文具专卖店"},
+            "items": [{"product_name": "绿杆2B书写铅笔", "sku_name": "6支"}],
+        },
+    ]
+
+    assert referenced_order_no_from_cards("那笔6元铅笔订单是什么状态", cards) == "ord_PENCIL"
+    assert referenced_order_no_from_cards("记录本到哪里了", cards) == "ord_NOTEBOOK"
+
+
+def test_order_reference_does_not_guess_when_visible_attributes_are_ambiguous() -> None:
+    cards = [
+        {
+            "order_id": "ord_ONE",
+            "store": {"store_name": "文具专卖店"},
+            "items": [{"product_name": "练习本", "sku_name": "A5"}],
+        },
+        {
+            "order_id": "ord_TWO",
+            "store": {"store_name": "文具专卖店"},
+            "items": [{"product_name": "笔记本", "sku_name": "B5"}],
+        },
+    ]
+
+    assert referenced_order_no_from_cards("文具专卖店的订单", cards) is None
+
+
+def test_order_reference_understands_colloquial_approximate_amount() -> None:
+    cards = [
+        {
+            "order_id": "ord_NOTEBOOK",
+            "payable_amount": {"minor_units": "1910"},
+            "items": [{"product_name": "记录本"}],
+        },
+        {
+            "order_id": "ord_PENCIL",
+            "payable_amount": {"minor_units": "600"},
+            "items": [{"product_name": "铅笔"}],
+        },
+    ]
+
+    assert referenced_order_no_from_cards("俺那个19块多的本本咋还没到", cards) == (
+        "ord_NOTEBOOK"
+    )
+
+
+@pytest.mark.asyncio
+async def test_exclusive_planner_understands_colloquial_undelivered_question() -> None:
+    plan = await DeterministicExclusiveModelGateway().plan("俺那个本本咋还没到昂")
+    assert plan.intent == "logistics_lookup"
+
+
+def test_catalog_constraint_follow_up_requires_change_and_previous_result_reference() -> None:
+    assert _continues_catalog_constraints("预算改成5元以内，其他条件不变") is True
+    assert _continues_catalog_constraints("帮我找5元以内的文具") is False
+    assert _continues_catalog_constraints("刚才那些好看吗") is False
+
+
+def test_combined_logistics_and_refund_precheck_requires_both_read_only_intents() -> None:
+    assert (
+        _requests_logistics_and_refund_precheck(
+            "先查第二笔物流，如果签收再检查能否售后，不要提交"
+        )
+        is True
+    )
+    assert _requests_logistics_and_refund_precheck("第二笔物流到哪了") is False
+    assert _has_signed_shipment({"items": [{"shipment_status": "delivered"}]}) is True
+    assert _has_signed_shipment({"items": [{"shipment_status": "in_transit"}]}) is False
+
+
+def test_order_logistics_status_difference_requires_both_status_domains() -> None:
+    assert _asks_order_logistics_status_difference(
+        "为什么订单卡片写运输中，物流却写已签收，到底以哪个为准"
+    )
+    assert not _asks_order_logistics_status_difference("我的物流为什么还没到")
+
+
+def test_store_human_capability_question_does_not_require_handoff() -> None:
+    assert _asks_store_human_service_capabilities("先别转人工，人工客服能处理什么") is True
+    assert _asks_store_human_service_capabilities("现在给我转人工") is False
+
+
+def test_store_product_comparison_explains_exam_tradeoff_without_overclaiming() -> None:
+    answer = _render_store(
+        StoreAgentPlan("product_compare"),
+        {
+            "items": [
+                {"name": "2B考试铅笔"},
+                {"name": "15cm透明直尺"},
+            ]
+        },
+        "第二个和第三个哪个更适合数学考试?",
+    )
+
+    assert "用途不同" in answer
+    assert "几何作图" in answer
+    assert "不能负责任地只选一个" in answer
+    assert "可点击入口" in answer
 
 
 def test_merchant_overview_fallback_turns_live_risks_into_a_clear_priority() -> None:
@@ -945,6 +1218,25 @@ def test_store_usage_answer_uses_only_explicit_merchant_evidence() -> None:
     exam_answer = _render_usage_answer(data, "适合考试吗?")
     assert exam_answer is not None
     assert "没有明确标注“考试”" in exam_answer
+
+
+def test_store_usage_answer_covers_material_and_season_without_guessing() -> None:
+    answer = _render_usage_answer(
+        {
+            "name": "男装秋季宽松裤子",
+            "attributes": [
+                {"name": "面料", "value": "棉"},
+                {"name": "材质成分", "value": "涤纶52% 棉40% 氨纶8%"},
+            ],
+        },
+        "这条裤子是什么面料，适不适合夏天穿",
+    )
+
+    assert answer is not None
+    assert "面料为棉" in answer
+    assert "涤纶52% 棉40% 氨纶8%" in answer
+    assert "没有明确说明适合夏天" in answer
+    assert "不能保证夏季穿着体验" in answer
 
 
 def test_store_product_fallback_answers_maximum_size_instead_of_repeating_catalog() -> None:

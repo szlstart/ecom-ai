@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable, Mapping
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -103,6 +104,145 @@ async def recent_agent_order_nos(
         if len(order_nos) >= max(1, minimum_count):
             return order_nos
     return fallback
+
+
+async def referenced_recent_order_no(
+    session: AsyncSession,
+    conversation: Conversation,
+    *,
+    before_sequence: int,
+    user_text: str,
+) -> str | None:
+    """Resolve a natural order reference from recently rendered trusted cards.
+
+    Users normally remember a purchase by product, variant, store, or amount—not
+    by its public ID. Only server-produced order-card payloads are considered, so
+    matching a phrase never broadens the authenticated user's data scope.
+    """
+
+    rows = list(
+        (
+            await session.scalars(
+                select(Message)
+                .where(
+                    Message.conversation_id == conversation.id,
+                    Message.sender_type == "agent",
+                    Message.sequence_no < before_sequence,
+                )
+                .order_by(Message.sequence_no.desc())
+                .limit(30)
+            )
+        ).all()
+    )
+    cards: list[Mapping[str, object]] = []
+    seen: set[str] = set()
+    latest_single_order_no: str | None = None
+    for message in rows:
+        payload = message.content_payload if isinstance(message.content_payload, dict) else {}
+        raw_cards = payload.get("order_cards")
+        if not isinstance(raw_cards, list):
+            continue
+        message_order_nos = _unique_order_nos(
+            card.get("order_id") for card in raw_cards if isinstance(card, Mapping)
+        )
+        if latest_single_order_no is None and len(message_order_nos) == 1:
+            latest_single_order_no = message_order_nos[0]
+        for card in raw_cards:
+            if not isinstance(card, Mapping):
+                continue
+            order_no = card.get("order_id")
+            if not isinstance(order_no, str) or not order_no.startswith("ord_"):
+                continue
+            if order_no in seen:
+                continue
+            cards.append(card)
+            seen.add(order_no)
+    matched = referenced_order_no_from_cards(user_text, cards)
+    if matched is not None:
+        return matched
+    compact = re.sub(r"\s+", "", user_text).casefold()
+    if latest_single_order_no is not None and any(
+        marker in compact
+        for marker in ("那为什么", "刚才", "这个订单", "这笔订单", "订单卡片", "它")
+    ):
+        return latest_single_order_no
+    return None
+
+
+def referenced_order_no_from_cards(
+    user_text: str,
+    cards: Iterable[Mapping[str, object]],
+) -> str | None:
+    """Choose one uniquely matching order card using user-visible attributes."""
+
+    compact = re.sub(r"\s+", "", user_text).casefold()
+    requested_amounts = _requested_amount_minor_units(compact)
+    scored: list[tuple[int, str]] = []
+    for card in cards:
+        order_no = card.get("order_id")
+        if not isinstance(order_no, str) or not order_no.startswith("ord_"):
+            continue
+        score = 0
+        amount = card.get("payable_amount")
+        if isinstance(amount, Mapping) and str(amount.get("minor_units")) in requested_amounts:
+            score += 20
+        store = card.get("store")
+        if isinstance(store, Mapping):
+            score += _visible_text_match_score(compact, store.get("store_name"), weight=3)
+        items = card.get("items")
+        if isinstance(items, list):
+            for item in items:
+                if not isinstance(item, Mapping):
+                    continue
+                score += _visible_text_match_score(compact, item.get("product_name"), weight=5)
+                score += _visible_text_match_score(compact, item.get("sku_name"), weight=2)
+        if score > 0:
+            scored.append((score, order_no))
+    if not scored:
+        return None
+    scored.sort(reverse=True)
+    best_score = scored[0][0]
+    winners = {order_no for score, order_no in scored if score == best_score}
+    return next(iter(winners)) if len(winners) == 1 else None
+
+
+def _requested_amount_minor_units(compact: str) -> set[str]:
+    result: set[str] = set()
+    for raw in re.findall(r"(?:¥|￥)?(\d+(?:\.\d{1,2})?)元", compact):
+        try:
+            result.add(str(int(Decimal(raw) * 100)))
+        except (InvalidOperation, ValueError):
+            continue
+    for raw in re.findall(r"(\d+)块多", compact):
+        try:
+            base_minor = int(raw) * 100
+        except ValueError:
+            continue
+        result.update(str(base_minor + remainder) for remainder in range(1, 100))
+    return result
+
+
+def _visible_text_match_score(compact: str, value: object, *, weight: int) -> int:
+    if not isinstance(value, str):
+        return 0
+    candidate = re.sub(r"\s+", "", value).casefold()
+    if not candidate:
+        return 0
+    longest = _longest_common_substring_length(compact, candidate)
+    return weight * min(longest, 8) if longest >= 2 else 0
+
+
+def _longest_common_substring_length(left: str, right: str) -> int:
+    previous = [0] * (len(right) + 1)
+    longest = 0
+    for left_char in left:
+        current = [0]
+        for index, right_char in enumerate(right, start=1):
+            value = previous[index - 1] + 1 if left_char == right_char else 0
+            current.append(value)
+            longest = max(longest, value)
+        previous = current
+    return longest
 
 
 def _unique_order_nos(values: Iterable[object]) -> list[str]:

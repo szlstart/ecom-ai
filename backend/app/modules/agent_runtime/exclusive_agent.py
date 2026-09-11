@@ -37,6 +37,7 @@ from app.modules.agent_runtime.order_cards import (
     order_reference_index,
     recent_agent_order_nos,
     referenced_order_no,
+    referenced_recent_order_no,
     requests_direct_transaction_action,
 )
 from app.modules.agent_runtime.product_cards import (
@@ -106,7 +107,7 @@ async def process_exclusive_run(
         await _complete(
             session,
             context,
-            "检测到可能要求绕过系统规则或泄露敏感信息的指令，本次不会调用业务工具。你可以重新描述正常的平台、订单、物流或售后问题。",
+            "检测到可能要求绕过系统规则或泄露敏感信息的指令，我无法执行该请求，本次不会调用业务工具。你可以重新描述正常的平台、订单、物流或售后问题。",
             error_code="AI_PROMPT_INJECTION_BLOCKED",
             degraded_reason="prompt_injection_blocked",
         )
@@ -367,11 +368,22 @@ async def process_exclusive_run(
                 if recent_reference is not None
                 else None
             )
-            result = await tools.search_products(
-                context,
-                str(referenced_name) if isinstance(referenced_name, str) else plan.search_text,
-                fallback_query=trigger_text,
-            )
+            if _continues_catalog_constraints(trigger_text) and recent_cards:
+                result = await tools.filter_recent_products(
+                    context,
+                    [
+                        str(card["product_id"])
+                        for card in recent_cards
+                        if isinstance(card.get("product_id"), str)
+                    ],
+                    trigger_text,
+                )
+            else:
+                result = await tools.search_products(
+                    context,
+                    str(referenced_name) if isinstance(referenced_name, str) else plan.search_text,
+                    fallback_query=trigger_text,
+                )
             if result.status == "succeeded":
                 result.data["presentation"] = "product_cards"
                 if any(
@@ -415,6 +427,13 @@ async def process_exclusive_run(
                     minimum_count=(reference_index + 1 if reference_index is not None else 1),
                 )
                 recent_reference_no = referenced_order_no(trigger_text, recent_order_nos)
+                if recent_reference_no is None:
+                    recent_reference_no = await referenced_recent_order_no(
+                        session,
+                        context.conversation,
+                        before_sequence=context.trigger.sequence_no,
+                        user_text=trigger_text,
+                    )
             ref = context.context_refs.get("order")
             result = (
                 await tools.order_detail(context, explicit_order_no)
@@ -448,6 +467,21 @@ async def process_exclusive_run(
                 tools=tools,
             )
             result = await tools.shipments(context, order_no)
+            if result.status == "succeeded" and _asks_order_logistics_status_difference(
+                trigger_text
+            ):
+                order_detail = await tools.order_detail(context, order_no)
+                if order_detail.status == "succeeded":
+                    result.data["order_status_detail"] = order_detail.data.get("status", {})
+            if result.status == "succeeded" and _requests_logistics_and_refund_precheck(
+                trigger_text
+            ):
+                if _has_signed_shipment(result.data):
+                    eligibility = await tools.refund_precheck(context, order_no)
+                    if eligibility.status == "succeeded":
+                        result.data["combined_refund_precheck"] = eligibility.data
+                else:
+                    result.data["conditional_refund_precheck_skipped"] = True
         elif plan.intent == "refund_precheck":
             order_no = await _read_order_no(
                 trigger_text,
@@ -928,6 +962,15 @@ async def _grounded_answer(
                 "status": "completed",
             }
         )
+    if isinstance(data.get("combined_refund_precheck"), Mapping):
+        steps.append(
+            {
+                "kind": "tool",
+                "label": "检查同一订单的售后资格",
+                "tool_code": "after_sale.check_refund_eligibility",
+                "status": "completed",
+            }
+        )
     steps.append({"kind": "answer", "label": "核验依据并组织答复", "status": "completed"})
     if isinstance(data.get("rag"), dict):
         rag = data["rag"]
@@ -1087,6 +1130,14 @@ async def _read_order_no(
     referenced = referenced_order_no(trigger_text, recent_order_nos)
     if referenced is not None:
         return referenced
+    natural_reference = await referenced_recent_order_no(
+        tools.session,
+        context.conversation,
+        before_sequence=context.trigger.sequence_no,
+        user_text=trigger_text,
+    )
+    if natural_reference is not None:
+        return natural_reference
     if _requests_latest_order(trigger_text) or context.context_refs.get("order") is None:
         return await tools.latest_order_no(context)
     return (await builder.require_active_context(context, "order")).resource_no
@@ -1143,6 +1194,59 @@ def _requests_latest_order(value: str) -> bool:
     return any(
         marker in normalized
         for marker in ("最近订单", "最近一笔", "最新订单", "上一笔订单", "刚买", "刚下单")
+    )
+
+
+def _continues_catalog_constraints(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    has_changed_constraint = any(
+        marker in normalized
+        for marker in (
+            "预算改",
+            "价格改",
+            "改成",
+            "改为",
+            "以内",
+            "以下",
+            "不超过",
+            "从低到高",
+            "从高到低",
+        )
+    )
+    refers_to_previous = any(
+        marker in normalized
+        for marker in (
+            "其他条件不变",
+            "其余条件不变",
+            "刚才那些",
+            "刚才的结果",
+            "上面的结果",
+            "这些里面",
+        )
+    )
+    return has_changed_constraint and refers_to_previous
+
+
+def _requests_logistics_and_refund_precheck(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    asks_logistics = any(term in normalized for term in ("物流", "快递", "包裹", "到哪"))
+    asks_after_sale = any(term in normalized for term in ("售后", "退款", "退货"))
+    asks_check = any(
+        term in normalized
+        for term in ("检查", "能不能", "是否", "资格", "不要提交", "别提交", "先不提交")
+    )
+    return asks_logistics and asks_after_sale and asks_check
+
+
+def _has_signed_shipment(data: Mapping[str, Any]) -> bool:
+    items = data.get("items")
+    if not isinstance(items, list):
+        return False
+    return any(
+        isinstance(item, Mapping)
+        and str(item.get("shipment_status") or "").casefold()
+        in {"delivered", "signed", "received", "completed"}
+        for item in items
     )
 
 
@@ -1324,7 +1428,7 @@ def _exclusive_detail_cards(
                 }
             )
         order_no = data.get("order_id")
-        return [
+        logistics_cards: list[dict[str, object]] = [
             {
                 "kind": "logistics",
                 "icon": "运",
@@ -1340,6 +1444,12 @@ def _exclusive_detail_cards(
                 ),
             }
         ]
+        combined = data.get("combined_refund_precheck")
+        if isinstance(combined, Mapping):
+            logistics_cards.extend(
+                _exclusive_detail_cards(ExclusiveAgentPlan("refund_precheck"), combined)
+            )
+        return logistics_cards
     if plan.intent == "refund_precheck":
         eligibility_value = data.get("refund_eligibility")
         eligibility: Mapping[str, Any] = (
@@ -1399,7 +1509,7 @@ def _exclusive_detail_cards(
         values = data.get("items")
         if "refund_id" in data:
             values = [data]
-        cards: list[dict[str, object]] = []
+        refund_progress_cards: list[dict[str, object]] = []
         for item in (values if isinstance(values, list) else [])[:5]:
             if not isinstance(item, Mapping):
                 continue
@@ -1416,7 +1526,7 @@ def _exclusive_detail_cards(
                         "meta": "售后申请金额",
                     }
                 )
-            cards.append(
+            refund_progress_cards.append(
                 {
                     "kind": "refund_progress",
                     "icon": "退",
@@ -1432,7 +1542,7 @@ def _exclusive_detail_cards(
                     },
                 }
             )
-        return cards
+        return refund_progress_cards
     if plan.intent == "policy_qa":
         values = data.get("knowledge_sources")
         query = safe_untrusted_excerpt(data.get("policy_query") or "", 300)
@@ -1523,6 +1633,7 @@ def _best_policy_excerpt(source_text: str, query_terms: set[str]) -> str:
         re.split(r"(?<=[\u3002\uff01\uff1f\uff1b])|\n+", source_text)
     ):
         part = re.sub(r"^(?:#+\s*|[-*•>]\s*|\d+[.)、]\s*)", "", raw_part.strip())
+        part = part.replace(";", "\uff1b").replace(",", "\uff0c")
         if not part:
             continue
         score = sum(1 for term in query_terms if term in part)
@@ -1590,17 +1701,42 @@ def _cart_hypothetical_projection(
     """
 
     compact = re.sub(r"\s+", "", user_text).casefold()
-    match = re.search(
+    absolute_match = re.search(
         r"从(?P<old>\d+|[一二两三四五六七八九十])件?"
         r"(?:改成|改为|变成|变为|调成|调为)"
         r"(?P<new>\d+|[一二两三四五六七八九十])件?",
         compact,
     )
-    if match is None:
+    relative_match = re.search(
+        r"(?P<direction>再加|增加|加上|多|减少|减去|减|少)"
+        r"(?P<delta>\d+|[一二两三四五六七八九十])件",
+        compact,
+    )
+    if absolute_match is None and relative_match is None:
         return None
-    from_quantity = _natural_quantity(match.group("old"))
-    to_quantity = _natural_quantity(match.group("new"))
-    if from_quantity is None or to_quantity is None or to_quantity < 1 or to_quantity > 99:
+    from_quantity = (
+        _natural_quantity(absolute_match.group("old"))
+        if absolute_match is not None
+        else None
+    )
+    requested_quantity = (
+        _natural_quantity(absolute_match.group("new"))
+        if absolute_match is not None
+        else None
+    )
+    delta = (
+        _natural_quantity(relative_match.group("delta"))
+        if relative_match is not None
+        else None
+    )
+    if absolute_match is not None and (
+        from_quantity is None
+        or requested_quantity is None
+        or requested_quantity < 1
+        or requested_quantity > 99
+    ):
+        return None
+    if relative_match is not None and (delta is None or delta < 1 or delta > 99):
         return None
 
     groups = data.get("groups")
@@ -1623,7 +1759,8 @@ def _cart_hypothetical_projection(
                 continue
             if raw_item.get("is_selected") is not True or raw_item.get("is_valid") is not True:
                 continue
-            if int(raw_item.get("quantity") or 0) != from_quantity:
+            current_quantity = int(raw_item.get("quantity") or 0)
+            if from_quantity is not None and current_quantity != from_quantity:
                 continue
             product_name = re.sub(
                 r"\s+", "", str(raw_item.get("product_name") or "")
@@ -1638,6 +1775,17 @@ def _cart_hypothetical_projection(
         return None
 
     store_name, item = candidates[0]
+    actual_quantity = int(item.get("quantity") or 0)
+    to_quantity: int | None
+    if relative_match is not None:
+        assert delta is not None
+        direction = relative_match.group("direction")
+        signed_delta = -delta if direction in {"减少", "减去", "减", "少"} else delta
+        to_quantity = actual_quantity + signed_delta
+    else:
+        to_quantity = requested_quantity
+    if to_quantity is None or to_quantity < 1 or to_quantity > 99:
+        return None
     price = item.get("current_price")
     amount_summary = data.get("amount_summary")
     selected_amount = (
@@ -1654,7 +1802,7 @@ def _cart_hypothetical_projection(
         return None
     if unit_minor < 0 or current_minor < 0:
         return None
-    projected_minor = current_minor + (to_quantity - from_quantity) * unit_minor
+    projected_minor = current_minor + (to_quantity - actual_quantity) * unit_minor
     if projected_minor < 0:
         return None
     currency = str(price.get("currency") or selected_amount.get("currency") or "CNY")
@@ -1663,7 +1811,7 @@ def _cart_hypothetical_projection(
     return {
         "store_name": safe_untrusted_excerpt(store_name or "店铺", 50),
         "item_label": f"{item_name} · {sku_name}" if sku_name else item_name,
-        "from_quantity": from_quantity,
+        "from_quantity": actual_quantity,
         "to_quantity": to_quantity,
         "unit_price_display": _money_object_display(
             {"minor_units": str(unit_minor), "currency": currency}
@@ -1785,7 +1933,32 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
     if plan.intent == "logistics_lookup":
         if not isinstance(items, list) or not items:
             return "该订单当前没有可见物流包裹。"
-        return f"已更新 {len(items)} 个物流包裹的最新进度。点击卡片可以查看完整物流。"
+        if _asks_order_logistics_status_difference(user_text):
+            status_value = data.get("order_status_detail")
+            status = status_value if isinstance(status_value, Mapping) else {}
+            delivered = _has_signed_shipment(data)
+            if delivered and status.get("fulfillment") in {"shipped", "partial"}:
+                return (
+                    "两处状态描述的是不同阶段\uff1a物流“已签收”表示包裹的实体运输节点已经完成\uff1b"
+                    "订单卡片“运输中”表示交易履约还没有完成确认收货。当前这笔应以物流卡片"
+                    "判断包裹已签收，以订单卡片判断订单尚待确认收货。点击下方卡片可以分别"
+                    "查看订单和完整轨迹。"
+                )
+        answer = f"已更新 {len(items)} 个物流包裹的最新进度。点击卡片可以查看完整物流。"
+        combined = data.get("combined_refund_precheck")
+        if isinstance(combined, Mapping):
+            eligibility_value = combined.get("refund_eligibility")
+            combined_eligibility = (
+                eligibility_value if isinstance(eligibility_value, Mapping) else {}
+            )
+            answer += (
+                " 该订单已签收，售后资格也已检查: 当前可以申请; 本次没有创建或提交申请。"
+                if combined_eligibility.get("eligible") is True
+                else " 该订单已签收，但当前暂不能申请售后，原因已放在资格卡片中。"
+            )
+        elif data.get("conditional_refund_precheck_skipped") is True:
+            answer += " 当前物流尚未签收，所以没有执行你设定的后续售后资格检查。"
+        return answer
     if plan.intent == "refund_precheck":
         eligibility_value = data.get("refund_eligibility")
         eligibility: Mapping[str, Any] = (
@@ -1823,12 +1996,23 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
             for item in (knowledge if isinstance(knowledge, list) else [])
             if isinstance(item, dict)
         )
-        return concise_policy_answer(
+        answer = concise_policy_answer(
             user_text,
             sources,
             intro="根据当前已发布平台规则",
         )
+        if "承诺" in user_text and "不承诺" in answer:
+            return "不承诺。" + answer
+        return answer
     return "已完成查询。"
+
+
+def _asks_order_logistics_status_difference(user_text: str) -> bool:
+    compact = re.sub(r"\s+", "", user_text).casefold()
+    compares = any(marker in compact for marker in ("为什么", "不一致", "矛盾", "以哪个为准"))
+    return compares and "订单" in compact and any(
+        marker in compact for marker in ("物流", "签收", "运输中")
+    )
 
 
 def _comparison_purchase_conclusion(user_text: str, items: list[object]) -> str | None:

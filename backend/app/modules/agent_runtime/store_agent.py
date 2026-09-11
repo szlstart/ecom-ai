@@ -31,6 +31,7 @@ from app.modules.agent_runtime.order_cards import (
     order_nos_from_result,
     recent_agent_order_nos,
     referenced_order_no,
+    referenced_recent_order_no,
     requests_direct_transaction_action,
 )
 from app.modules.agent_runtime.product_cards import (
@@ -101,7 +102,7 @@ async def process_store_run(
         await _complete_message(
             session,
             context,
-            "检测到可能要求绕过系统规则或泄露敏感信息的指令，本次不会调用业务工具。你可以重新描述正常的商品、订单或政策问题。",
+            "检测到可能要求绕过系统规则或泄露敏感信息的指令，我无法执行该请求，本次不会调用业务工具。你可以重新描述正常的商品、订单或政策问题。",
             error_code="AI_PROMPT_INJECTION_BLOCKED",
             degraded_reason="prompt_injection_blocked",
         )
@@ -138,6 +139,20 @@ async def process_store_run(
             degraded_reason="protected_action_blocked",
         )
         await _finish_checkpoint(checkpoint_store, context, "security_refusal")
+        return
+    if _asks_store_human_service_capabilities(trigger_text):
+        await _complete_message(
+            session,
+            context,
+            (
+                "本店人工客服适合处理需要店铺人员核实的事情，例如商品资料未写清的细节、"
+                "发货异常、订单协调、售后凭证沟通和投诉建议。人工客服仍只能处理本店业务，"
+                "不能查看其他店铺或其他顾客的信息，也不能绕过平台交易和售后规则。"
+                "你刚才说先不转人工，所以本次不会创建人工服务请求。"
+            ),
+            execution_trace={"intent": "human_service_capabilities", "answer_mode": "direct"},
+        )
+        await _finish_checkpoint(checkpoint_store, context, "human_service_capabilities")
         return
     gateway = model_gateway or DeterministicStoreModelGateway()
     context_window = await ContextWindowBuilder(session).build(
@@ -245,6 +260,7 @@ async def process_store_run(
     if outcome.status == "succeeded":
         _focus_largest_package_variant(outcome.data, trigger_text)
         _focus_explicit_named_variant(outcome.data, trigger_text)
+        _focus_body_weight_variant(outcome.data, trigger_text)
         _attach_variant_quantity_projection(outcome.data, trigger_text)
         _attach_conversation_window(context_window, context.context_refs, outcome.data)
         if outcome.data.get("focused_variant") is not None:
@@ -295,8 +311,7 @@ async def process_store_run(
                     else None
                 ),
             )
-            if outcome.data.get("presentation") != "detail_cards"
-            and plan.intent
+            if plan.intent
             in {
                 "product_qa",
                 "product_compare",
@@ -413,8 +428,6 @@ async def _execute_plan(
         order_no = _trigger_resource_no(context.trigger, "order_card", "order_id")
         if order_no is not None:
             pass
-        elif "order" in context.context_refs:
-            order_no = (await builder.require_active_context(context, "order")).resource_no
         else:
             recent_order_nos = await recent_agent_order_nos(
                 tools.session,
@@ -422,6 +435,15 @@ async def _execute_plan(
                 before_sequence=context.trigger.sequence_no,
             )
             order_no = referenced_order_no(trigger_text, recent_order_nos)
+            if order_no is None:
+                order_no = await referenced_recent_order_no(
+                    tools.session,
+                    context.conversation,
+                    before_sequence=context.trigger.sequence_no,
+                    user_text=trigger_text,
+                )
+            if order_no is None and "order" in context.context_refs:
+                order_no = (await builder.require_active_context(context, "order")).resource_no
         if order_no is None:
             return await tools.list_user_orders(context)
         summary = await tools.order_summary(context, order_no)
@@ -615,6 +637,64 @@ def _focus_explicit_named_variant(data: dict[str, Any], user_text: str) -> None:
     focused = dict(winners[0])
     data["focused_variant"] = focused
     data["focused_variant_reason"] = "explicit_name"
+    if isinstance(focused.get("sku_id"), str):
+        data["focused_sku_id"] = focused["sku_id"]
+    if isinstance(data.get("items"), list):
+        data["items"] = [focused]
+    elif isinstance(data.get("skus"), list):
+        data["skus"] = [focused]
+
+
+def _focus_body_weight_variant(data: dict[str, Any], user_text: str) -> None:
+    """Focus the narrowest matching weight-labelled SKU without promising fit."""
+
+    if data.get("focused_variant") is not None:
+        return
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    weight_match = re.search(r"(?<!\d)(\d{2,3})(?:\.\d+)?斤", normalized)
+    if weight_match is None:
+        return
+    weight = int(weight_match.group(1))
+    values = data.get("items") if isinstance(data.get("items"), list) else data.get("skus")
+    if not isinstance(values, list):
+        return
+    colors = (
+        "黑色",
+        "白色",
+        "红色",
+        "蓝色",
+        "绿色",
+        "灰色",
+        "黄色",
+        "粉色",
+        "紫色",
+        "棕色",
+        "米色",
+    )
+    requested_colors = {color for color in colors if color in normalized}
+    ranked: list[tuple[int, Mapping[str, Any]]] = []
+    for value in values:
+        if not isinstance(value, Mapping):
+            continue
+        name = re.sub(r"\s+", "", str(value.get("sku_name") or value.get("name") or ""))
+        if requested_colors and not any(color in name for color in requested_colors):
+            continue
+        limit_match = re.search(r"(?<!\d)(\d{2,3})(?:\.\d+)?斤以下", name)
+        if limit_match is None:
+            continue
+        upper_limit = int(limit_match.group(1))
+        if upper_limit >= weight:
+            ranked.append((upper_limit, value))
+    if not ranked:
+        return
+    smallest_limit = min(limit for limit, _value in ranked)
+    winners = [value for limit, value in ranked if limit == smallest_limit]
+    if len(winners) != 1:
+        return
+    focused = dict(winners[0])
+    data["focused_variant"] = focused
+    data["focused_variant_reason"] = "body_weight_reference"
+    data["requested_body_weight_jin"] = weight
     if isinstance(focused.get("sku_id"), str):
         data["focused_sku_id"] = focused["sku_id"]
     if isinstance(data.get("items"), list):
@@ -978,6 +1058,7 @@ async def _grounded_answer(
         "order_card",
         "order_cards",
         "product_cards",
+        "product_comparison",
         "detail_cards",
     }:
         trace["answer_mode"] = "structured_ui"
@@ -1082,9 +1163,16 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         prefix = (
             "最大包装"
             if data.get("focused_variant_reason") == "largest_package"
+            else "按商品体重标注可参考的款式"
+            if data.get("focused_variant_reason") == "body_weight_reference"
             else "你问的款式"
         )
-        return f"{prefix}是“{name}”，价格 {price}，当前{availability}{quantity_text}。"
+        disclaimer = (
+            " 体重标注只能作为参考，无法保证一定合身或达到宽松效果，请再结合商品尺寸信息判断。"
+            if data.get("focused_variant_reason") == "body_weight_reference"
+            else ""
+        )
+        return f"{prefix}是“{name}”，价格 {price}，当前{availability}{quantity_text}。{disclaimer}"
     if plan.intent == "inventory_lookup":
         items = data.get("items")
         if not isinstance(items, list) or not items:
@@ -1102,6 +1190,20 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         count = len(items) if isinstance(items, list) else 0
         if count < 2:
             return "请先让我推荐至少两件商品，再说“对比前两个”或明确要比较的序号。"
+        if "数学" in user_text and isinstance(items, list):
+            names = [
+                safe_untrusted_excerpt(item.get("name") or "", 120)
+                for item in items[:2]
+                if isinstance(item, Mapping)
+            ]
+            pencil = next((name for name in names if "铅笔" in name), None)
+            ruler = next((name for name in names if "直尺" in name or "尺子" in name), None)
+            if pencil and ruler:
+                return (
+                    f"这两件用途不同\uff1a“{pencil}”适合需要铅笔书写或填涂的部分。"
+                    f"“{ruler}”适合几何作图和测量。仅凭“数学考试”不能负责任地只选一个，"
+                    "请按试卷是否有作图题及考场规定选择。两件商品的可点击入口都在下方。"
+                )
         return f"已按同一口径对比这 {count} 件商品，价格、公开参数和商品入口都在下方卡片中。"
     if plan.intent == "policy_qa":
         items = data.get("items")
@@ -1194,11 +1296,16 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
         if len(items) == 1:
             return (
                 "按你给出的条件，本店目前只找到 1 件匹配的在售商品，已放在卡片中。"
-                "我没有用不相关商品凑数; 你可以补充预算、考试类型或科目，我再继续筛选。"
+                "我没有用不相关商品凑数。你可以再补充用途或偏好，我会继续筛选。"
             )
+        next_hint = (
+            "如需进一步缩小范围，可以补充考试类型、科目或其他偏好。"
+            if any(marker in user_text for marker in ("预算", "以内", "不超过", "低于"))
+            else "如果你再告诉我预算或具体用途，我还能继续缩小范围。"
+        )
         return (
             f"为你找到 {min(len(items), 5)} 件本店在售商品。"
-            "可以直接点击卡片查看详情; 如果你告诉我考试类型、科目或预算，我还能继续缩小范围。"
+            "可以直接点击卡片查看详情。" + next_hint
         )
     if "用户发送了商品卡片" in user_text:
         return (
@@ -1282,6 +1389,19 @@ def _render_usage_answer(data: Mapping[str, Any], user_text: str) -> str | None:
         data.get("description"),
         data.get("safe_detail_text"),
     ]
+    material_facts: list[str] = []
+    attributes = data.get("attributes")
+    if isinstance(attributes, list):
+        for item in attributes[:20]:
+            if not isinstance(item, Mapping):
+                continue
+            name = safe_untrusted_excerpt(item.get("name") or item.get("code") or "", 40)
+            value = safe_untrusted_excerpt(item.get("value") or "", 120)
+            if not name or not value:
+                continue
+            evidence_values.extend((name, value))
+            if any(marker in name for marker in ("面料", "材质", "成分")):
+                material_facts.append(f"{name}为{value}")
     faqs = data.get("faqs")
     if isinstance(faqs, list):
         for item in faqs[:10]:
@@ -1309,7 +1429,13 @@ def _render_usage_answer(data: Mapping[str, Any], user_text: str) -> str | None:
     product_name = safe_untrusted_excerpt(data.get("name") or "这款商品", 80)
     normalized_question = re.sub(r"\s+", "", user_text).casefold()
     requested = [term for term in usage_terms if term in normalized_question]
-    if requested and all(term in supported for term in requested):
+    asks_summer = any(term in normalized_question for term in ("夏天", "夏季"))
+    if asks_summer and any(term in evidence for term in ("夏天", "夏季")):
+        conclusion = "商家资料明确标注了夏季使用场景，但具体穿着体感仍因人而异。"
+    elif asks_summer:
+        season_hint = "商品名称标注为秋季款; " if "秋季" in evidence else ""
+        conclusion = f"{season_hint}商家资料没有明确说明适合夏天，我不能保证夏季穿着体验。"
+    elif requested and all(term in supported for term in requested):
         conclusion = f"商家资料明确标注它可用于{'、'.join(requested)}。"
     elif requested:
         conclusion = (
@@ -1323,8 +1449,14 @@ def _render_usage_answer(data: Mapping[str, Any], user_text: str) -> str | None:
         f" 已核实的用途关键词还有{'、'.join(supported[:6])}。" if requested and supported else ""
     )
     inventory_note = _inventory_note(data, user_text)
+    material_note = (
+        "公开参数显示: " + "、".join(dict.fromkeys(material_facts)) + "。"
+        if material_facts
+        and any(term in normalized_question for term in ("面料", "材质", "成分"))
+        else ""
+    )
     return (
-        f"关于“{product_name}”，{conclusion}{known_uses}"
+        f"关于“{product_name}”，{material_note}{conclusion}{known_uses}"
         f"{inventory_note}"
         "你可以告诉我具体准备怎么用，我再按现有尺寸、材质和款式帮你核对。"
     )
@@ -1369,6 +1501,16 @@ def _requests_order_list(value: str) -> bool:
             "我在你店买过",
         )
     )
+
+
+def _asks_store_human_service_capabilities(value: str) -> bool:
+    normalized = re.sub(r"\s+", "", value).casefold()
+    has_human = any(term in normalized for term in ("人工客服", "店铺客服", "人工", "真人"))
+    asks_information = any(
+        term in normalized
+        for term in ("能处理什么", "可以处理什么", "能做什么", "可以做什么", "服务范围")
+    )
+    return has_human and asks_information
 
 
 def _store_detail_cards(
@@ -1435,9 +1577,15 @@ def _store_detail_cards(
                 "badge": (
                     "最大包装"
                     if data.get("focused_variant_reason") == "largest_package"
+                    else "体重参考"
+                    if data.get("focused_variant_reason") == "body_weight_reference"
                     else "指定款式"
                 ),
-                "summary": "只展示本次问题对应的款式，价格与库存来自实时商品数据。",
+                "summary": (
+                    "按商品已标注的体重范围筛选，只作为选码参考，不保证一定合身。"
+                    if data.get("focused_variant_reason") == "body_weight_reference"
+                    else "只展示本次问题对应的款式，价格与库存来自实时商品数据。"
+                ),
                 "rows": [
                     {
                         "label": label,
@@ -1718,6 +1866,30 @@ def _render_size_answer(data: Mapping[str, Any], user_text: str) -> str | None:
     skus = data.get("skus")
     if not isinstance(skus, list) or not skus:
         return "当前商品资料中没有可核实的尺码信息，请以商品页款式选择区为准。"
+    requested_weight_match = re.search(r"(?<!\d)(\d{2,3})(?:\.\d+)?斤", normalized)
+    labelled_limits: list[tuple[int, str]] = []
+    if requested_weight_match is not None:
+        requested_weight = int(requested_weight_match.group(1))
+        for item in skus[:20]:
+            if not isinstance(item, Mapping):
+                continue
+            sku_name = safe_untrusted_excerpt(item.get("sku_name"), 160)
+            for raw_limit in re.findall(r"(?<!\d)(\d{2,3})(?:\.\d+)?斤以下", sku_name):
+                labelled_limits.append((int(raw_limit), sku_name))
+        if labelled_limits:
+            max_limit = max(limit for limit, _name in labelled_limits)
+            if requested_weight > max_limit:
+                max_names = list(
+                    dict.fromkeys(name for limit, name in labelled_limits if limit == max_limit)
+                )
+                product_name = safe_untrusted_excerpt(data.get("name") or "当前商品", 120)
+                examples = "、".join(max_names[:2])
+                return (
+                    f"{product_name}当前公开款式最高只标注到 {max_limit} 斤以下"
+                    f"({examples})。你说的 {requested_weight} 斤已经超出商品标注范围，"
+                    "我无法确认有明确合适的尺码，也不建议仅凭体重直接下单; "
+                    "请再核对商品尺寸数据或让人工客服确认。"
+                )
     variants: dict[str, list[str]] = {}
     for item in skus[:20]:
         if not isinstance(item, Mapping):

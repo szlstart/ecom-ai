@@ -633,7 +633,7 @@ class StoreToolGateway:
                     group_no=None,
                     price_min=constraints.price_min,
                     price_max=constraints.price_max,
-                    sort="sales",
+                    sort=constraints.sort,
                     position=None,
                     limit=5,
                 )
@@ -645,6 +645,19 @@ class StoreToolGateway:
                     rows.append(row)
                 if len(rows) >= constraints.requested_limit:
                     break
+            if constraints.sort == "price_asc":
+                rows.sort(key=lambda row: (row[0].min_price_amount, row[0].id))
+            elif constraints.sort == "price_desc":
+                rows.sort(
+                    key=lambda row: (row[0].min_price_amount, row[0].id), reverse=True
+                )
+            elif constraints.sort == "newest":
+                rows.sort(
+                    key=lambda row: (row[0].published_at or row[0].created_at, row[0].id),
+                    reverse=True,
+                )
+            elif constraints.sort == "sales":
+                rows.sort(key=lambda row: (row[0].sales_count, row[0].id), reverse=True)
             rows = rows[: constraints.requested_limit]
             return {
                 "query": search_text,
@@ -666,6 +679,7 @@ class StoreToolGateway:
                     "keywords": list(constraints.keywords),
                     "price_min": constraints.price_min,
                     "price_max": constraints.price_max,
+                    "sort": constraints.sort,
                 },
                 "as_of": utc_now(),
                 "data_scope": {"store_id": context.store.store_no},

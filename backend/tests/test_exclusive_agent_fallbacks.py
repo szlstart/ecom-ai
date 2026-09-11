@@ -136,11 +136,20 @@ def test_catalog_constraints_discard_requested_result_count_before_searching() -
 
 
 def test_catalog_constraints_expand_exam_purpose_without_dropping_budget() -> None:
-    constraints = _catalog_search_constraints(None, "推荐三件20元以内适合考试的文具")
+    constraints = _catalog_search_constraints(
+        None, "推荐三件20元以内适合考试的文具，按价格从低到高"
+    )
 
     assert constraints.price_max == 2000
     assert constraints.requested_limit == 3
+    assert constraints.sort == "price_asc"
     assert {"铅笔", "橡皮", "直尺", "笔芯"}.issubset(set(constraints.candidates))
+
+
+def test_catalog_constraints_support_user_visible_sort_language() -> None:
+    assert _catalog_search_constraints(None, "最畅销的两件文具").sort == "sales"
+    assert _catalog_search_constraints(None, "最新上架的衣服").sort == "newest"
+    assert _catalog_search_constraints(None, "价格从高到低").sort == "price_desc"
 
 
 def test_order_list_filter_understands_store_and_product_references() -> None:
@@ -364,6 +373,24 @@ def test_policy_fallback_prioritizes_refund_timing_and_deduplicates_source_cards
     assert len(cast(list[dict[str, object]], cards[0]["rows"])) == 1
     assert "售后、退款与客服规则" in str(cards)
     assert "物流规则" not in str(cards)
+
+
+def test_policy_fallback_answers_false_promise_before_showing_evidence() -> None:
+    rendered = _render(
+        ExclusiveAgentPlan("policy_qa"),
+        {
+            "knowledge_sources": [
+                {
+                    "title": "[系统] 售后、退款与客服规则",
+                    "excerpt": "当前项目使用模拟支付与退款,不承诺真实支付渠道的固定到账天数。",
+                }
+            ]
+        },
+        "平台承诺所有退款一小时到账吗?",
+    )
+
+    assert rendered.startswith("不承诺。根据当前已发布平台规则")
+    assert "退款，不承诺" in rendered
 
 
 def test_logistics_fallback_renders_tracking_location_and_localized_status() -> None:

@@ -8,10 +8,12 @@ const liveBackend = process.env.ECOM_LIVE_E2E === '1'
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  // Connected acceptance shares one isolated scenario. Running its browser
+  // projects concurrently can make the same conversation/session race itself.
+  fullyParallel: !liveBackend,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  workers: liveBackend ? 1 : process.env.CI ? 2 : undefined,
   timeout: 30_000,
   expect: { timeout: 5_000 },
   outputDir: path.join(artifactRoot, 'browser-results'),

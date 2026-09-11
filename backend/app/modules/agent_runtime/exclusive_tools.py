@@ -825,7 +825,7 @@ def _catalog_search_constraints(
     original = re.sub(r"\s+", " ", (fallback_query or query or "").strip())[:240]
     price_min = _extract_price_bound(original, lower=True)
     price_max = _extract_price_bound(original, lower=False)
-    keyword_source = _strip_catalog_request_syntax(original)
+    keyword_source = _strip_catalog_request_syntax(_latest_catalog_subject(original))
     keywords = _catalog_keywords(keyword_source)
     semantic_keywords = _semantic_catalog_expansions(original)
 
@@ -867,6 +867,82 @@ def _catalog_search_constraints(
         price_max=price_max,
         requested_limit=_extract_requested_count(original),
         sort=_extract_catalog_sort(original),
+    )
+
+
+def catalog_query_with_inherited_constraints(
+    current_text: str,
+    previous_text: str | None,
+) -> str:
+    """Carry explicit catalogue constraints through a natural correction.
+
+    A follow-up such as ``改要男装，预算和排序不变`` changes the subject but
+    intentionally keeps the prior budget, result count and sort.  The dialogue
+    is still untrusted: this helper only copies bounded presentation filters;
+    the catalogue tool continues to enforce public/on-sale scope itself.
+    """
+
+    current = re.sub(r"\s+", " ", current_text.strip())[:240]
+    previous = re.sub(r"\s+", " ", (previous_text or "").strip())[:240]
+    compact = re.sub(r"\s+", "", current).casefold()
+    if not previous or "不变" not in compact:
+        return current
+
+    prior = _catalog_search_constraints(None, previous)
+    current_constraints = _catalog_search_constraints(None, current)
+    additions: list[str] = []
+    if current_constraints.price_min is None and prior.price_min is not None:
+        additions.append(f"{prior.price_min / 100:g}元以上")
+    if current_constraints.price_max is None and prior.price_max is not None:
+        additions.append(f"{prior.price_max / 100:g}元以内")
+    if not _has_explicit_catalog_sort(current) and _has_explicit_catalog_sort(previous):
+        additions.append(
+            {
+                "price_asc": "价格从低到高",
+                "price_desc": "价格从高到低",
+                "newest": "最新上架",
+                "sales": "销量排序",
+            }[prior.sort]
+        )
+    if _extract_requested_count(current) == 5 and _extract_requested_count(previous) != 5:
+        additions.append(f"{prior.requested_limit}件")
+    return " ".join([current, *additions]).strip()[:240]
+
+
+def _latest_catalog_subject(text: str) -> str:
+    """Prefer the shopper's last explicit correction over abandoned subjects."""
+
+    value = text
+    correction_parts = re.split(r"(?:算了|不对|改口了?|前面说错了)[，,:\uff1a\s]*", value)
+    if len(correction_parts) > 1 and correction_parts[-1].strip():
+        value = correction_parts[-1]
+    replacement = re.search(r"(?:不要了|换一个|换一种).*?(?:改成|改为|换成)\s*(.+)", value)
+    if replacement is not None and replacement.group(1).strip():
+        value = replacement.group(1)
+    return value.strip()
+
+
+def _has_explicit_catalog_sort(text: str) -> bool:
+    compact = re.sub(r"\s+", "", text).casefold()
+    return any(
+        marker in compact
+        for marker in (
+            "价格从低到高",
+            "价格升序",
+            "便宜到贵",
+            "低价优先",
+            "价格从高到低",
+            "价格降序",
+            "贵到便宜",
+            "高价优先",
+            "最新上架",
+            "最新优先",
+            "按最新",
+            "销量排序",
+            "销量优先",
+            "卖得最好",
+            "最畅销",
+        )
     )
 
 
@@ -997,6 +1073,13 @@ def _strip_catalog_request_syntax(text: str) -> str:
         cleaned,
     )
     cleaned = re.sub(r"(?:几件|几款|几个|一些|一批)", " ", cleaned)
+    cleaned = re.sub(
+        r"(?:预算和排序|预算、排序|预算|价格|排序|数量|其他条件|其余条件)不变",
+        " ",
+        cleaned,
+    )
+    cleaned = re.sub(r"(?:预算|排序)", " ", cleaned)
+    cleaned = re.sub(r"(?:我)?(?:改要|改成|改为|换成)", " ", cleaned)
     cleaned = re.sub(r"(?:适合|用于|用来|使用|能用来|可以买来|的)", " ", cleaned)
     cleaned = re.sub(r"[\u3001\u3002\uff0c\uff01\uff1f\uff1a\uff1b,:;!?]+", " ", cleaned)
     return re.sub(r"\s+", " ", cleaned).strip()

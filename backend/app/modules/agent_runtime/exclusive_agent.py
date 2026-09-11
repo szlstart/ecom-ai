@@ -25,9 +25,13 @@ from app.modules.agent_runtime.exclusive_model_gateway import (
     DeterministicExclusiveModelGateway,
     ExclusiveAgentPlan,
     ExclusiveModelGateway,
+    _strip_negated_intent_phrases,
     complete_exclusive_plan,
 )
-from app.modules.agent_runtime.exclusive_tools import ExclusiveToolGateway
+from app.modules.agent_runtime.exclusive_tools import (
+    ExclusiveToolGateway,
+    catalog_query_with_inherited_constraints,
+)
 from app.modules.agent_runtime.memory_runtime import AgentMemoryRuntime, explicit_memory_request
 from app.modules.agent_runtime.model_gateway import ModelGatewayError, requests_other_user_data
 from app.modules.agent_runtime.models import AgentRun, AgentToolApproval
@@ -368,6 +372,18 @@ async def process_exclusive_run(
                 if recent_reference is not None
                 else None
             )
+            previous_catalog_text = next(
+                (
+                    turn.text
+                    for turn in reversed(context_window.recent_turns)
+                    if turn.role == "用户"
+                ),
+                None,
+            )
+            effective_catalog_text = catalog_query_with_inherited_constraints(
+                trigger_text,
+                previous_catalog_text,
+            )
             if _continues_catalog_constraints(trigger_text) and recent_cards:
                 result = await tools.filter_recent_products(
                     context,
@@ -376,13 +392,13 @@ async def process_exclusive_run(
                         for card in recent_cards
                         if isinstance(card.get("product_id"), str)
                     ],
-                    trigger_text,
+                    effective_catalog_text,
                 )
             else:
                 result = await tools.search_products(
                     context,
                     str(referenced_name) if isinstance(referenced_name, str) else plan.search_text,
-                    fallback_query=trigger_text,
+                    fallback_query=effective_catalog_text,
                 )
             if result.status == "succeeded":
                 result.data["presentation"] = "product_cards"
@@ -756,7 +772,7 @@ async def _platform_policy(
     session: AsyncSession, context: TrustedExclusiveAgentContext
 ) -> StoreToolResult:
     now = utc_now()
-    query = (context.trigger.text_content or "").strip()
+    query = _strip_negated_intent_phrases((context.trigger.text_content or "").strip())
     statement = (
         select(PlatformContentEntry, PlatformContentVersion)
         .join(PlatformContentVersion, PlatformContentVersion.entry_id == PlatformContentEntry.id)
@@ -795,6 +811,7 @@ async def _platform_policy(
     return StoreToolResult(
         "succeeded",
         {
+            "policy_query": query,
             "items": [
                 {
                     "content_id": entry.content_no,
@@ -804,7 +821,7 @@ async def _platform_policy(
                     "effective_at": version.effective_at,
                 }
                 for entry, version in rows
-            ]
+            ],
         },
     )
 
@@ -1138,6 +1155,18 @@ async def _read_order_no(
     )
     if natural_reference is not None:
         return natural_reference
+    matched_orders = await tools.list_orders(context, trigger_text)
+    matched_items = (
+        matched_orders.data.get("items") if matched_orders.status == "succeeded" else None
+    )
+    if (
+        isinstance(matched_items, list)
+        and len(matched_items) == 1
+        and isinstance(matched_items[0], Mapping)
+    ):
+        matched_order_no = matched_items[0].get("order_id")
+        if isinstance(matched_order_no, str):
+            return matched_order_no
     if _requests_latest_order(trigger_text) or context.context_refs.get("order") is None:
         return await tools.latest_order_no(context)
     return (await builder.require_active_context(context, "order")).resource_no
@@ -1204,8 +1233,6 @@ def _continues_catalog_constraints(value: str) -> bool:
         for marker in (
             "预算改",
             "价格改",
-            "改成",
-            "改为",
             "以内",
             "以下",
             "不超过",
@@ -1610,7 +1637,7 @@ def _exclusive_detail_cards(
                     "meta": _best_policy_excerpt(source_text, query_terms),
                 }
             )
-            if len(policy_rows) >= 1:
+            if len(policy_rows) >= 2:
                 break
         if policy_rows:
             return [
@@ -1715,20 +1742,12 @@ def _cart_hypothetical_projection(
     if absolute_match is None and relative_match is None:
         return None
     from_quantity = (
-        _natural_quantity(absolute_match.group("old"))
-        if absolute_match is not None
-        else None
+        _natural_quantity(absolute_match.group("old")) if absolute_match is not None else None
     )
     requested_quantity = (
-        _natural_quantity(absolute_match.group("new"))
-        if absolute_match is not None
-        else None
+        _natural_quantity(absolute_match.group("new")) if absolute_match is not None else None
     )
-    delta = (
-        _natural_quantity(relative_match.group("delta"))
-        if relative_match is not None
-        else None
-    )
+    delta = _natural_quantity(relative_match.group("delta")) if relative_match is not None else None
     if absolute_match is not None and (
         from_quantity is None
         or requested_quantity is None
@@ -1762,9 +1781,7 @@ def _cart_hypothetical_projection(
             current_quantity = int(raw_item.get("quantity") or 0)
             if from_quantity is not None and current_quantity != from_quantity:
                 continue
-            product_name = re.sub(
-                r"\s+", "", str(raw_item.get("product_name") or "")
-            ).casefold()
+            product_name = re.sub(r"\s+", "", str(raw_item.get("product_name") or "")).casefold()
             sku_name = re.sub(r"\s+", "", str(raw_item.get("sku_name") or "")).casefold()
             item_referenced = any(
                 value and len(value) >= 2 and value in compact for value in (product_name, sku_name)
@@ -1789,9 +1806,7 @@ def _cart_hypothetical_projection(
     price = item.get("current_price")
     amount_summary = data.get("amount_summary")
     selected_amount = (
-        amount_summary.get("selected_goods_amount")
-        if isinstance(amount_summary, Mapping)
-        else None
+        amount_summary.get("selected_goods_amount") if isinstance(amount_summary, Mapping) else None
     )
     if not isinstance(price, Mapping) or not isinstance(selected_amount, Mapping):
         return None
@@ -1900,6 +1915,9 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
                     "我已经看到这笔订单了。你想查付款、发货、物流、收货，"
                     "还是退款售后? 我会沿着这笔订单继续帮你处理。"
                 )
+            receipt_explanation = _confirm_receipt_explanation(data, user_text)
+            if receipt_explanation is not None:
+                return receipt_explanation
             return "已找到这笔订单。点击卡片可查看详情或继续处理。"
         if not isinstance(items, list) or not items:
             return "你的账号下暂未查询到可见订单。"
@@ -1965,6 +1983,13 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
             eligibility_value if isinstance(eligibility_value, Mapping) else {}
         )
         eligible = eligibility.get("eligible") is True
+        combined_explanation = _refund_amount_and_receipt_explanation(
+            data,
+            eligibility,
+            user_text,
+        )
+        if combined_explanation is not None:
+            return combined_explanation
         lines = [
             (
                 "资格检查完成: 当前可以申请售后。金额、类型和下一步入口已整理在卡片中。"
@@ -1996,22 +2021,96 @@ def _render(plan: ExclusiveAgentPlan, data: Mapping[str, Any], user_text: str = 
             for item in (knowledge if isinstance(knowledge, list) else [])
             if isinstance(item, dict)
         )
+        policy_query = safe_untrusted_excerpt(data.get("policy_query") or user_text, 500)
         answer = concise_policy_answer(
-            user_text,
+            policy_query,
             sources,
             intro="根据当前已发布平台规则",
         )
-        if "承诺" in user_text and "不承诺" in answer:
+        if "承诺" in policy_query and "不承诺" in answer:
             return "不承诺。" + answer
         return answer
     return "已完成查询。"
 
 
+def _confirm_receipt_explanation(data: Mapping[str, Any], user_text: str) -> str | None:
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    if "确认收货" not in normalized:
+        return None
+    actions = data.get("available_actions")
+    available = actions if isinstance(actions, list) else []
+    status_value = data.get("status")
+    status = status_value if isinstance(status_value, Mapping) else {}
+    order_label = _status_label("order", status.get("order"))
+    fulfillment_label = _status_label("fulfillment", status.get("fulfillment"))
+    if "confirm_receipt" in available:
+        return (
+            f"可以。这笔订单目前为“{order_label}”，履约状态为“{fulfillment_label}”，"
+            "订单详情页已经提供“确认收货”按钮。请先核对商品确实收到且无异常后再自行确认; "
+            "本次只做状态说明，没有替你操作。"
+        )
+    if status.get("order") == "completed" or status.get("fulfillment") == "received":
+        return (
+            f"不能再次确认。这笔订单已经是“{order_label}”，履约状态为“{fulfillment_label}”，"
+            "说明收货环节已经完成，所以页面不会再提供确认收货操作。本次没有修改订单。"
+        )
+    return (
+        f"现在还不能确认。这笔订单目前为“{order_label}”，履约状态为“{fulfillment_label}”，"
+        "只有订单进入可确认收货阶段时，详情页才会显示对应按钮。本次只做状态说明，没有操作。"
+    )
+
+
+def _refund_amount_and_receipt_explanation(
+    data: Mapping[str, Any],
+    eligibility: Mapping[str, Any],
+    user_text: str,
+) -> str | None:
+    """Answer amount-basis and receipt-prerequisite follow-ups from live data."""
+
+    normalized = re.sub(r"\s+", "", user_text).casefold()
+    if not (
+        any(marker in normalized for marker in ("为什么最多", "最多是", "申请上限", "可退上限"))
+        and any(
+            marker in normalized
+            for marker in ("确认收货", "运输中", "创建申请", "提交申请")
+        )
+    ):
+        return None
+    suggested = eligibility.get("suggested_refund_amount")
+    amount = _money_object_display(suggested) if isinstance(suggested, Mapping) else None
+    status_value = data.get("status")
+    status = status_value if isinstance(status_value, Mapping) else {}
+    fulfillment_label = _status_label("fulfillment", status.get("fulfillment"))
+    eligible = eligibility.get("eligible") is True
+    amount_sentence = (
+        f"建议申请金额上限是 {amount}，因为它按这笔订单当前仍可申请售后的商品实付金额计算; "
+        if amount is not None
+        else "申请金额上限按这笔订单当前仍可申请售后的商品实付金额计算; "
+    )
+    if eligible:
+        receipt_sentence = (
+            f"当前履约状态为“{fulfillment_label}”，资格预检已经显示可申请，"
+            "不需要为了申请售后而先确认收货。只有实际收到商品且核对无异常时，才应自行确认收货。"
+        )
+    else:
+        receipt_sentence = (
+            f"当前履约状态为“{fulfillment_label}”，资格预检暂未通过，"
+            "是否确认收货应以是否真实收到商品为准，不能把确认收货当作绕过售后限制的步骤。"
+        )
+    return (
+        amount_sentence
+        + receipt_sentence
+        + "最终金额以售后提交页核对结果为准。本次只做解释和资格检查，没有创建或提交申请。"
+    )
+
+
 def _asks_order_logistics_status_difference(user_text: str) -> bool:
     compact = re.sub(r"\s+", "", user_text).casefold()
     compares = any(marker in compact for marker in ("为什么", "不一致", "矛盾", "以哪个为准"))
-    return compares and "订单" in compact and any(
-        marker in compact for marker in ("物流", "签收", "运输中")
+    return (
+        compares
+        and "订单" in compact
+        and any(marker in compact for marker in ("物流", "签收", "运输中"))
     )
 
 
@@ -2094,9 +2193,10 @@ async def _attach_platform_knowledge(
         return
     context.run.current_phase = "retrieving"
     context.run.version += 1
+    policy_query = _strip_negated_intent_phrases(context.trigger.text_content or "平台规则")
     try:
         result = await KnowledgeService(mysql, checkpoint_store.session).search_for_agent(
-            query=context.trigger.text_content or "平台规则",
+            query=policy_query,
             scope_type="platform",
             scope_no="platform",
             limit=6,
@@ -2121,7 +2221,7 @@ async def _attach_platform_knowledge(
         }
         for item in result.items
     ]
-    data["policy_query"] = context.trigger.text_content or "平台规则"
+    data["policy_query"] = policy_query
     data["rag"] = {
         "scope": "platform:platform",
         "returned_count": len(result.items),

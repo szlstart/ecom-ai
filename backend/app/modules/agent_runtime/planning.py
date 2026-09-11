@@ -28,9 +28,7 @@ class ModelAgentDecision(BaseModel):
     search_text: str | None = Field(default=None, max_length=120)
 
 
-def decision_json_schema(
-    intents: Sequence[str], capabilities: Sequence[str]
-) -> dict[str, object]:
+def decision_json_schema(intents: Sequence[str], capabilities: Sequence[str]) -> dict[str, object]:
     """Return a provider schema with closed intent/capability enums."""
 
     schema = ModelAgentDecision.model_json_schema()
@@ -74,9 +72,7 @@ def validate_model_decision(
         raise ValueError("model requested a capability outside the selected intent")
     capabilities = requested or allowed
     missing_slots = tuple(
-        item.strip()[:64]
-        for item in dict.fromkeys(decision.missing_slots)
-        if item.strip()
+        item.strip()[:64] for item in dict.fromkeys(decision.missing_slots) if item.strip()
     )
     human_handoff = decision.intent == "human_handoff"
     strategy: ResponseStrategy

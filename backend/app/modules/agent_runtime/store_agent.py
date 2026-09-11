@@ -384,7 +384,7 @@ async def _execute_plan(
             return recommendations
         recommendations.data["presentation"] = "product_cards"
         items = recommendations.data.get("items")
-        product_nos = (
+        all_product_nos = (
             [
                 str(item["product_id"])
                 for item in items[:4]
@@ -393,10 +393,21 @@ async def _execute_plan(
             if isinstance(items, list)
             else []
         )
+        reference_indices = product_card_reference_indices(trigger_text)
+        product_nos = (
+            [
+                all_product_nos[index]
+                for index in reference_indices[:4]
+                if index < len(all_product_nos)
+            ]
+            if len(reference_indices) >= 2
+            else all_product_nos
+        )
         if len(product_nos) >= 2:
             comparison = await tools.compare_products(context, product_nos)
             if comparison.status == "succeeded":
                 recommendations.data["comparison"] = comparison.data.get("items", [])
+                recommendations.data["comparison_requested"] = len(reference_indices) >= 2
         return recommendations
     if plan.intent == "product_compare":
         reference_indices = product_card_reference_indices(trigger_text)
@@ -1303,10 +1314,18 @@ def _render(plan: StoreAgentPlan, data: Mapping[str, Any], user_text: str = "") 
             if any(marker in user_text for marker in ("预算", "以内", "不超过", "低于"))
             else "如果你再告诉我预算或具体用途，我还能继续缩小范围。"
         )
-        return (
-            f"为你找到 {min(len(items), 5)} 件本店在售商品。"
-            "可以直接点击卡片查看详情。" + next_hint
+        recommendation_answer = (
+            f"为你找到 {min(len(items), 5)} 件本店在售商品。可以直接点击卡片查看详情。" + next_hint
         )
+        comparison = data.get("comparison")
+        if data.get("comparison_requested") is True and isinstance(comparison, list):
+            comparison_answer = _render(
+                StoreAgentPlan("product_compare"),
+                {"items": comparison},
+                user_text,
+            )
+            return recommendation_answer + " " + comparison_answer
+        return recommendation_answer
     if "用户发送了商品卡片" in user_text:
         return (
             "我看到你发来的商品了，关键信息已放在下方卡片中。"
@@ -1451,8 +1470,7 @@ def _render_usage_answer(data: Mapping[str, Any], user_text: str) -> str | None:
     inventory_note = _inventory_note(data, user_text)
     material_note = (
         "公开参数显示: " + "、".join(dict.fromkeys(material_facts)) + "。"
-        if material_facts
-        and any(term in normalized_question for term in ("面料", "材质", "成分"))
+        if material_facts and any(term in normalized_question for term in ("面料", "材质", "成分"))
         else ""
     )
     return (
@@ -1518,6 +1536,17 @@ def _store_detail_cards(
     data: Mapping[str, Any],
     user_text: str = "",
 ) -> list[dict[str, object]]:
+    comparison = data.get("comparison")
+    if (
+        plan.intent == "product_recommend"
+        and data.get("comparison_requested") is True
+        and isinstance(comparison, list)
+    ):
+        return _store_detail_cards(
+            StoreAgentPlan("product_compare"),
+            {"items": comparison},
+            user_text,
+        )
     product_no = data.get("product_id")
     product_action = (
         {"resource_type": "product", "resource_id": product_no, "label": "打开商品详情"}
@@ -1533,9 +1562,7 @@ def _store_detail_cards(
                 "kind": "purchase_projection",
                 "icon": "算",
                 "eyebrow": "购买试算",
-                "title": safe_untrusted_excerpt(
-                    projection.get("sku_name") or "当前款式", 80
-                ),
+                "title": safe_untrusted_excerpt(projection.get("sku_name") or "当前款式", 80),
                 "badge": "未下单",
                 "summary": "按当前商品价格试算，实际金额与库存以结算页为准。",
                 "rows": [

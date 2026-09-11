@@ -16,6 +16,7 @@ from app.modules.agent_runtime.exclusive_tools import (
     _catalog_search_constraints,
     _combined_catalog_search_candidates,
     _filter_order_rows,
+    catalog_query_with_inherited_constraints,
 )
 from app.modules.agent_runtime.operations_agent import _render_multi_agent
 
@@ -150,6 +151,31 @@ def test_catalog_constraints_support_user_visible_sort_language() -> None:
     assert _catalog_search_constraints(None, "最畅销的两件文具").sort == "sales"
     assert _catalog_search_constraints(None, "最新上架的衣服").sort == "newest"
     assert _catalog_search_constraints(None, "价格从高到低").sort == "price_desc"
+
+
+def test_catalog_constraints_follow_the_last_explicit_subject_correction() -> None:
+    constraints = _catalog_search_constraints(
+        None,
+        "不要文具，先找女装; 算了，改成男装，预算 200 元以内，按价格从低到高给我 3 个",
+    )
+
+    assert constraints.keywords == ("男装",)
+    assert constraints.price_max == 20_000
+    assert constraints.requested_limit == 3
+    assert constraints.sort == "price_asc"
+
+
+def test_catalog_follow_up_inherits_prior_budget_count_and_sort() -> None:
+    query = catalog_query_with_inherited_constraints(
+        "不对，我改要男装，预算和排序不变。",
+        "找女装，预算 200 元以内，按价格从低到高给我 3 个",
+    )
+    constraints = _catalog_search_constraints(None, query)
+
+    assert constraints.keywords == ("男装",)
+    assert constraints.price_max == 20_000
+    assert constraints.requested_limit == 3
+    assert constraints.sort == "price_asc"
 
 
 def test_order_list_filter_understands_store_and_product_references() -> None:

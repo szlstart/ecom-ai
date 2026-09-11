@@ -333,9 +333,7 @@ def _compact_summary(previous: str, new_lines: list[str]) -> str:
                 _append_unique(dossier["commitments"], value, 8)
             if _looks_like_open_question(value):
                 _append_unique(dossier["unresolved_questions"], value, 8)
-        for resource in re.findall(
-            r"\b(?:prd|sku|ord|ref|shp|sto)_[A-Za-z0-9]{6,40}\b", value
-        ):
+        for resource in re.findall(r"\b(?:prd|sku|ord|ref|shp|sto)_[A-Za-z0-9]{6,40}\b", value):
             _append_unique(dossier["resource_mentions"], resource, 8)
     return _bounded_dossier_json(dossier)
 

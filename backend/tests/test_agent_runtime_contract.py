@@ -17,11 +17,13 @@ from app.modules.agent_runtime.exclusive_agent import (
     _asks_human_service_capabilities,
     _asks_order_logistics_status_difference,
     _cart_hypothetical_projection,
+    _confirm_receipt_explanation,
     _continues_catalog_constraints,
     _delivery_estimate_text,
     _disclaims_specific_order,
     _has_signed_shipment,
     _is_implicit_refund_precheck_follow_up,
+    _refund_amount_and_receipt_explanation,
     _requests_direct_refund_payout,
     _requests_logistics_and_refund_precheck,
 )
@@ -56,6 +58,7 @@ from app.modules.agent_runtime.operations_context import ADMIN_TOOLS, TrustedOpe
 from app.modules.agent_runtime.order_cards import (
     order_reference_index,
     referenced_order_no_from_cards,
+    requests_direct_transaction_action,
 )
 from app.modules.agent_runtime.service import _normalize_context_snapshot
 from app.modules.agent_runtime.store_agent import (
@@ -635,12 +638,88 @@ def test_operations_priority_follow_up_rechecks_all_relevant_domains() -> None:
         "inventory",
         "orders",
     )
+
+
+def test_merchant_inventory_guide_keeps_named_variant_and_target_quantity() -> None:
+    guide = _operations_how_to_guide(
+        "10支装铅笔缺货了，如何把库存补到100件? 只告诉我步骤，不要替我修改。",
+        "merchant",
+    )
+
+    assert guide is not None
+    assert "10支装" in str(guide["answer"])
+    assert "100 件" in str(guide["answer"])
+    assert "选中10支装" in cast(list[str], guide["steps"])
     assert _admin_complex_domains("最优先的风险为什么排第一? 先处理什么?") == (
         "users",
         "stores",
         "orders",
         "runtime",
     )
+
+
+def test_privacy_and_transaction_guards_cover_natural_buyer_phrasing() -> None:
+    assert requests_other_user_data("列一下本店其他买家的订单") is True
+    assert requests_direct_transaction_action("替我把刚才那笔订单确认收货") is True
+    assert requests_direct_transaction_action("给我解释确认收货规则，只说明别操作") is False
+
+
+@pytest.mark.asyncio
+async def test_exclusive_planner_ignores_explicitly_negated_refund_intent() -> None:
+    plan = await DeterministicExclusiveModelGateway().plan(
+        "我不是要退款，也不要转人工; 只想知道物流签收后多久会自动确认收货。"
+    )
+
+    assert plan.intent == "policy_qa"
+
+    precheck = await DeterministicExclusiveModelGateway().plan(
+        "帮我看那本 19 块多的记录本最多能退多少钱，只做资格检查，不要创建草稿。"
+    )
+    assert precheck.intent == "refund_precheck"
+
+    combined_follow_up = await DeterministicExclusiveModelGateway().plan(
+        "为什么最多是 19.10 元? 它还在运输中，我需要先确认收货吗? 仍然只解释，别创建申请。"
+    )
+    assert combined_follow_up.intent == "refund_precheck"
+
+
+def test_confirm_receipt_question_explains_live_order_state_without_acting() -> None:
+    completed = _confirm_receipt_explanation(
+        {
+            "status": {"order": "completed", "fulfillment": "received"},
+            "available_actions": ["review", "apply_after_sale"],
+        },
+        "我那个一块钱的裤子现在能确认收货吗? 只解释原因，别操作。",
+    )
+    available = _confirm_receipt_explanation(
+        {
+            "status": {"order": "shipped", "fulfillment": "shipped"},
+            "available_actions": ["confirm_receipt"],
+        },
+        "现在可以确认收货吗? 只解释。",
+    )
+
+    assert completed is not None and "不能再次确认" in completed
+    assert available is not None and "可以" in available and "没有替你操作" in available
+
+
+def test_refund_amount_and_receipt_follow_up_answers_both_questions() -> None:
+    answer = _refund_amount_and_receipt_explanation(
+        {
+            "status": {"order": "shipped", "fulfillment": "shipped"},
+            "available_actions": ["confirm_receipt", "apply_after_sale"],
+        },
+        {
+            "eligible": True,
+            "suggested_refund_amount": {"minor_units": "1910", "currency": "CNY"},
+        },
+        "为什么最多是 19.10 元? 它还在运输中，我需要先确认收货吗? 仍然只解释，别创建申请。",
+    )
+
+    assert answer is not None
+    assert "¥19.10" in answer
+    assert "不需要为了申请售后而先确认收货" in answer
+    assert "没有创建或提交申请" in answer
 
 
 def test_merchant_multi_agent_fallback_is_concise_and_defers_details_to_cards() -> None:
@@ -726,9 +805,7 @@ def test_cart_hypothetical_quantity_change_is_calculated_without_mutation() -> N
                 ],
             }
         ],
-        "amount_summary": {
-            "selected_goods_amount": {"minor_units": "18300", "currency": "CNY"}
-        },
+        "amount_summary": {"selected_goods_amount": {"minor_units": "18300", "currency": "CNY"}},
     }
 
     projection = _cart_hypothetical_projection(
@@ -772,9 +849,7 @@ def test_cart_hypothetical_relative_change_is_calculated_without_mutation(
                 ],
             }
         ],
-        "amount_summary": {
-            "selected_goods_amount": {"minor_units": "18300", "currency": "CNY"}
-        },
+        "amount_summary": {"selected_goods_amount": {"minor_units": "18300", "currency": "CNY"}},
     }
 
     projection = _cart_hypothetical_projection(user_text, data)
@@ -806,9 +881,7 @@ def test_cart_hypothetical_relative_change_refuses_ambiguous_item() -> None:
                 ],
             }
         ],
-        "amount_summary": {
-            "selected_goods_amount": {"minor_units": "200", "currency": "CNY"}
-        },
+        "amount_summary": {"selected_goods_amount": {"minor_units": "200", "currency": "CNY"}},
     }
 
     assert _cart_hypothetical_projection("某个商品再加1件，只计算", data) is None
@@ -865,9 +938,7 @@ def test_operations_how_to_guides_are_actionable_and_audience_scoped() -> None:
         is None
     )
     assert (
-        _operations_how_to_guide(
-            "本店有没有低库存或缺货款式，只说结论并给处理入口", "merchant"
-        )
+        _operations_how_to_guide("本店有没有低库存或缺货款式，只说结论并给处理入口", "merchant")
         is None
     )
 
@@ -920,8 +991,12 @@ def test_admin_priority_follow_up_does_not_treat_fresh_outbox_as_backlog() -> No
             }
         }
     }
-    answer = _render_admin_priority_follow_up(data)
+    answer = _render_admin_priority_follow_up(
+        data,
+        user_text="最优先的风险为什么排第一? 先处理什么?",
+    )
     assert "专业 Agent 已重新完成只读诊断" in answer
+    assert "第一项是运行诊断" in answer
     assert "没有未恢复故障" in answer
     assert "不应把它当成当前阻断" in answer
 
@@ -940,6 +1015,80 @@ def test_merchant_priority_follow_up_uses_live_low_stock_as_first_action() -> No
     assert not _allows_operations_model_synthesis("inventory")
     assert not _allows_operations_model_synthesis("general_chat")
     assert _allows_operations_model_synthesis("overview")
+
+
+def test_priority_follow_up_explains_the_requested_second_item() -> None:
+    merchant_data = {
+        "specialists": {
+            "inventory": {"data": {"low_stock_sku_count": 1}},
+            "orders": {"data": {"order_status_counts": {"shipped": 1}}},
+            "catalog": {"data": {"on_sale_products": []}},
+        }
+    }
+    merchant_answer = _render_merchant_priority_follow_up(
+        merchant_data,
+        user_text="第二项为什么? 不要重复总览。",
+    )
+    admin_answer = _render_admin_priority_follow_up(
+        {
+            "specialists": {
+                "orders": {
+                    "data": {
+                        "order_status_counts": {
+                            "completed": 2,
+                            "shipped": 1,
+                            "pending_shipment": 0,
+                        }
+                    }
+                }
+            }
+        },
+        user_text="第二项为什么排在第二?",
+    )
+
+    assert "第2项是履约跟进" in merchant_answer
+    assert "第2项最急" not in merchant_answer
+    assert "第二项是交易履约" in admin_answer
+    assert "运输中 1 笔" in admin_answer
+
+
+def test_admin_multi_agent_cards_honor_requested_count_and_ordinal_focus() -> None:
+    context = cast(
+        TrustedOperationsContext,
+        SimpleNamespace(audience="admin", store=None),
+    )
+    specialists = {
+        "observability": {
+            "specialist": "observability",
+            "data": {"pending_outbox_events": 1},
+        },
+        "governance_orders": {
+            "specialist": "governance_orders",
+            "data": {"order_status_counts": {"shipped": 1}},
+        },
+        "governance_stores": {
+            "specialist": "governance_stores",
+            "data": {"store_status_counts": {"active": 3}},
+        },
+        "governance_users": {
+            "specialist": "governance_users",
+            "data": {"user_status_counts": {"active": 5}},
+        },
+    }
+    limited = _operations_detail_cards(
+        context,
+        "complex_platform_diagnosis",
+        {"specialists": specialists, "requested_card_limit": 3},
+    )
+    focused = _operations_detail_cards(
+        context,
+        "complex_platform_diagnosis",
+        {"specialists": specialists, "priority_focus": 2},
+    )
+
+    assert len(limited) == 3
+    assert len(focused) == 1
+    assert focused[0]["kind"] == "admin_orders"
 
 
 def test_largest_package_question_keeps_only_the_matching_sku_and_grounded_price() -> None:
@@ -1073,9 +1222,7 @@ def test_order_reference_understands_colloquial_approximate_amount() -> None:
         },
     ]
 
-    assert referenced_order_no_from_cards("俺那个19块多的本本咋还没到", cards) == (
-        "ord_NOTEBOOK"
-    )
+    assert referenced_order_no_from_cards("俺那个19块多的本本咋还没到", cards) == ("ord_NOTEBOOK")
 
 
 @pytest.mark.asyncio
@@ -1092,9 +1239,7 @@ def test_catalog_constraint_follow_up_requires_change_and_previous_result_refere
 
 def test_combined_logistics_and_refund_precheck_requires_both_read_only_intents() -> None:
     assert (
-        _requests_logistics_and_refund_precheck(
-            "先查第二笔物流，如果签收再检查能否售后，不要提交"
-        )
+        _requests_logistics_and_refund_precheck("先查第二笔物流，如果签收再检查能否售后，不要提交")
         is True
     )
     assert _requests_logistics_and_refund_precheck("第二笔物流到哪了") is False
@@ -1178,6 +1323,40 @@ def test_named_store_product_scores_above_stale_context_product() -> None:
         _product_match_score("6支装现在能买吗", "斑马笔芯", ["10支黑色", "10支蓝色"])
     )
     assert _product_match_score("黑色 L 多少钱，还剩几件", "拉夏贝尔法式碎花方领短袖衬衫") < 2
+
+
+def test_store_recommendation_can_answer_an_inline_ordinal_comparison() -> None:
+    data = {
+        "items": [
+            {"product_id": "prd_1", "name": "泡沫橡皮擦"},
+            {"product_id": "prd_2", "name": "2B考试铅笔"},
+            {"product_id": "prd_3", "name": "15cm透明直尺"},
+        ],
+        "comparison_requested": True,
+        "comparison": [
+            {
+                "product_id": "prd_2",
+                "name": "2B考试铅笔",
+                "price": {"min_amount": 600, "max_amount": 600, "currency": "CNY"},
+                "attributes": [],
+            },
+            {
+                "product_id": "prd_3",
+                "name": "15cm透明直尺",
+                "price": {"min_amount": 871, "max_amount": 871, "currency": "CNY"},
+                "attributes": [],
+            },
+        ],
+    }
+    prompt = "给我三件文具，再比较第二件和第三件哪个更适合数学考试"
+    answer = _render_store(StoreAgentPlan("product_recommend"), data, prompt)
+    cards = _store_detail_cards(StoreAgentPlan("product_recommend"), data, prompt)
+
+    assert "为你找到 3 件" in answer
+    assert "用途不同" in answer
+    assert "2B考试铅笔" in answer
+    assert "15cm透明直尺" in answer
+    assert cards[0]["kind"] == "product_compare"
 
 
 def test_store_inventory_fallback_localizes_status_price_and_quantity() -> None:

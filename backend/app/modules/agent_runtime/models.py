@@ -252,9 +252,7 @@ class AiMemoryCleanupTask(MutableMySQLModel, MySQLBase):
     __tablename__ = "ai_memory_cleanup_tasks"
     __table_args__ = (
         UniqueConstraint("task_no", name="uk_ai_memory_cleanup_tasks_no"),
-        UniqueConstraint(
-            "user_id", "idempotency_key_hash", name="uk_ai_memory_cleanup_user_key"
-        ),
+        UniqueConstraint("user_id", "idempotency_key_hash", name="uk_ai_memory_cleanup_user_key"),
         CheckConstraint(
             "task_status IN ('queued','running','succeeded','partial_failed','failed')",
             name="ai_memory_cleanup_status",

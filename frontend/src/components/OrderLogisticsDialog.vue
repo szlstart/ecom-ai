@@ -105,7 +105,7 @@ onBeforeUnmount(teardown)
     <div v-if="orderId" class="logistics-overlay" @mousedown.self="close">
       <section ref="dialog" class="logistics-dialog" role="dialog" aria-modal="true" aria-labelledby="logistics-title" tabindex="-1">
         <header class="logistics-dialog-header">
-          <div><p>ORDER LOGISTICS</p><h2 id="logistics-title">查看物流</h2><span>订单号 {{ orderId }}</span></div>
+          <div><p>订单配送进度</p><h2 id="logistics-title">查看物流</h2><span>订单号 {{ orderId }}</span></div>
           <button type="button" aria-label="关闭物流弹窗" @click="close">×</button>
         </header>
 
@@ -133,8 +133,16 @@ onBeforeUnmount(teardown)
 
           <div class="logistics-content">
             <section class="tracking-card">
-              <header><div><small>承运商</small><strong>{{ current.carrier_name }}</strong></div><span class="simulation-badge">模拟物流</span></header>
-              <dl><div><dt>物流编号</dt><dd>{{ current.tracking_no }} <button type="button" @click="copyTracking">{{ copied ? '已复制' : '复制' }}</button></dd></div><div><dt>包裹内容</dt><dd>{{ current.items.map((item) => `${item.product_name}（${item.sku_name}）×${item.quantity}`).join('、') }}</dd></div></dl>
+              <header><div><small>本次配送</small><strong>{{ current.carrier_name }}</strong></div><span class="simulation-badge">模拟物流</span></header>
+              <div class="tracking-number"><span>物流编号</span><strong>{{ current.tracking_no }}</strong><button type="button" @click="copyTracking">{{ copied ? '已复制' : '复制单号' }}</button></div>
+              <div class="parcel-contents">
+                <h3>包裹内容 <small>共 {{ current.items.reduce((total, item) => total + item.quantity, 0) }} 件</small></h3>
+                <article v-for="item in current.items" :key="item.order_item_id">
+                  <span class="parcel-product-icon" aria-hidden="true">物</span>
+                  <div><strong>{{ item.product_name }}</strong><small>{{ item.sku_name }}</small></div>
+                  <b>× {{ item.quantity }}</b>
+                </article>
+              </div>
             </section>
 
             <section class="tracks-card">
@@ -189,17 +197,23 @@ onBeforeUnmount(teardown)
 .route-line { position: relative; height: 2px; background: #b8c5e8; }
 .route-line::after { position: absolute; top: -4px; right: -1px; content: ''; border-width: 5px 0 5px 8px; border-style: solid; border-color: transparent transparent transparent #5275dd; }
 .route-line i { position: absolute; top: -4px; left: 46%; width: 10px; height: 10px; border-radius: 50%; background: #3158d8; box-shadow: 0 0 0 4px #e7ecff; }
-.logistics-content { padding: 0 22px; display: grid; grid-template-columns: minmax(250px, .78fr) minmax(0, 1.4fr); align-items: start; gap: 16px; }
+.logistics-content { padding: 0 22px; display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 16px; }
 .tracking-card, .tracks-card { padding: 20px; border: 1px solid #e0e5ee; border-radius: 16px; background: #fff; }
 .tracking-card > header, .tracks-card > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .tracking-card > header > div { display: grid; gap: 3px; }
 .tracking-card small { color: #8a94a7; }
 .simulation-badge { padding: 5px 8px; color: #805719; border-radius: 999px; background: #fff3d8; font-size: .68rem; font-weight: 800; }
-.tracking-card dl { margin: 18px 0 0; display: grid; gap: 15px; }
-.tracking-card dl div { display: grid; gap: 5px; }
-.tracking-card dt { color: #8a94a7; font-size: .72rem; }
-.tracking-card dd { margin: 0; overflow-wrap: anywhere; line-height: 1.55; }
-.tracking-card dd button { padding: 3px 7px; color: #3158d8; border: 0; background: transparent; font-size: .72rem; }
+.tracking-number { margin-top: 16px; padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; color: #738097; border-radius: 12px; background: #f5f7fb; font-size: .76rem; }
+.tracking-number strong { min-width: 0; color: #27344d; overflow-wrap: anywhere; letter-spacing: .04em; }
+.tracking-number button { padding: 5px 9px; color: #3158d8; border: 1px solid #cbd5ef; background: #fff; font-size: .72rem; }
+.parcel-contents { margin-top: 18px; display: grid; gap: 10px; }
+.parcel-contents h3 { margin: 0 0 2px; display: flex; align-items: baseline; gap: 8px; font-size: .92rem; }
+.parcel-contents h3 small { font-size: .7rem; font-weight: 500; }
+.parcel-contents article { min-width: 0; padding: 10px; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 11px; border: 1px solid #edf0f5; border-radius: 12px; }
+.parcel-product-icon { width: 42px; height: 42px; display: grid; place-items: center; color: #3158d8; border-radius: 10px; background: #eef2ff; font-size: .72rem; font-weight: 800; }
+.parcel-contents article div { min-width: 0; display: grid; gap: 4px; }
+.parcel-contents article strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; }
+.parcel-contents article b { color: #27344d; font-size: .8rem; }
 .tracks-card h3 { margin: 0; }
 .tracks-card > header span { display: flex; align-items: center; gap: 6px; color: #218158; font-size: .72rem; }
 .tracks-card > header span i { width: 7px; height: 7px; border-radius: 50%; background: #27a36c; animation: logistics-pulse 1.3s infinite; }
@@ -234,5 +248,7 @@ onBeforeUnmount(teardown)
   .logistics-note { margin-inline: 14px; }
   .logistics-progress { padding-inline: 15px; }
   .logistics-progress span { font-size: .7rem; }
+  .tracking-number { grid-template-columns: 1fr auto; }
+  .tracking-number > span { grid-column: 1 / -1; }
 }
 </style>

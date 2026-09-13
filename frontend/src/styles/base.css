@@ -1030,7 +1030,7 @@ tr.selected td { background: #f0f4ff; }
 .cart-quantity-stepper button:last-child { border-radius: 0 9px 9px 0; }
 .cart-quantity-stepper input { width: 54px; }
 .cart-remove { justify-self: center; }
-.order-page, .order-detail-page { display: grid; gap: 20px; }
+.order-page, .order-detail-page { width: 100%; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .order-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
 .order-tabs button { flex: 0 0 auto; padding: 9px 14px; color: #3158d8; border: 1px solid #c9d3ec; background: #fff; }
 .order-tabs button.active { color: #fff; border-color: #3158d8; background: #3158d8; }
@@ -1046,6 +1046,8 @@ tr.selected td { background: #f0f4ff; }
 .order-product-entry { width: 100%; margin: 0; color: inherit; border: 0; border-radius: 0; background: transparent; font: inherit; text-align: left; }
 .order-product-entry:hover { text-decoration: none; background: #fbfcff; }
 .order-item-summary { padding: 14px 0; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; align-items: center; gap: 14px; border-bottom: 1px solid #edf0f5; }
+.order-item-summary > span, .order-detail-item > span:not(.item-price) { min-width: 0; display: grid; gap: 4px; }
+.order-item-summary > span > strong, .order-detail-item > span > strong { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 .order-item-summary img, .order-detail-item img { border-radius: 10px; object-fit: cover; background: #f0f2f6; }
 .order-image-placeholder { width: 72px; height: 72px; display: grid; place-items: center; color: #8a93a5; border-radius: 10px; background: #f0f2f6; }
 .order-card > footer { justify-content: flex-end; flex-wrap: wrap; }
@@ -1055,9 +1057,15 @@ tr.selected td { background: #f0f4ff; }
 .order-action.disabled { pointer-events: none; color: #8a93a5; border-color: #d7dce5; background: #f3f4f7; }
 .order-detail-hero { padding: 28px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #243f9b, #3158d8); }
 .order-detail-hero .eyebrow, .order-detail-hero p { color: #dce5ff; }
+.order-detail-hero p { overflow-wrap: anywhere; }
 .order-detail-hero h1 { margin: 5px 0; }
+.order-detail-hero .order-actions { max-width: 540px; }
+.order-hero-action { color: #fff; border: 1px solid rgb(255 255 255 / 38%); background: rgb(255 255 255 / 10%); backdrop-filter: blur(8px); }
+.order-hero-action:hover { border-color: #fff; background: rgb(255 255 255 / 19%); }
+.order-hero-action.action-view_logistics, .order-hero-action.action-review, .order-hero-action.action-pay { color: #2447b1; border-color: #fff; background: #fff; box-shadow: 0 8px 20px rgb(14 31 87 / 20%); }
+.order-hero-action.action-apply_after_sale { color: #fff; }
 .order-detail-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, .75fr); align-items: start; gap: 20px; }
-.order-detail-main, .order-detail-side { display: grid; gap: 20px; }
+.order-detail-main, .order-detail-side { min-width: 0; display: grid; gap: 20px; }
 .order-section { display: grid; gap: 12px; }
 .order-section h2, .order-section p { margin-block: 0; }
 .order-detail-item { padding: 14px 0; display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: 14px; color: inherit; border-top: 1px solid #edf0f5; }
@@ -1071,6 +1079,9 @@ tr.selected td { background: #f0f4ff; }
 .item-price { text-align: right; font-weight: 700; }
 .amount-list { grid-template-columns: 1fr auto; }
 .amount-list .total { padding-top: 12px; color: #172033; border-top: 1px solid #e3e7ef; font-size: 1.08rem; font-weight: 800; }
+.consumer-order-timeline li { min-height: 82px; }
+.consumer-order-timeline li strong { color: #23345d; }
+.consumer-order-timeline li p { margin-top: 6px; color: #6f7b91; line-height: 1.6; }
 .cart-summary-bar { position: sticky; z-index: 8; bottom: 16px; min-height: 82px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; gap: 20px; border: 1px solid #d9dfeb; border-radius: 18px; background: rgb(255 255 255 / 96%); box-shadow: 0 18px 48px rgb(27 49 101 / 16%); backdrop-filter: blur(12px); }
 .cart-summary-actions, .cart-checkout-summary { display: flex; align-items: center; gap: 14px; }
 .cart-checkout-summary > span:first-child b { color: #3158d8; }

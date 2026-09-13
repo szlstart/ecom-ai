@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { formatMoney } from '@/api/catalog'
@@ -14,7 +14,7 @@ import OrderLogisticsDialog from '@/components/OrderLogisticsDialog.vue'
 import { confirmAction, promptAction } from '@/composables/confirmation'
 import { useUserAuthStore } from '@/stores/user-auth'
 import { formatChinaRegion } from '@/utils/china-regions'
-import { userOrderStatusLabel } from '@/utils/order-status'
+import { consumerOrderEvents, userOrderStatusLabel } from '@/utils/order-status'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,12 +34,9 @@ function token(): string {
 }
 function statusLabel(status: string, currentShipment = true): string {
   if (currentShipment && status === 'shipped' && shipmentStatus.value === 'delivered') return userOrderStatusLabel(status, shipmentStatus.value)
-  return ({ pending_payment: '等待付款', paid: '已支付', pending_shipment: '商家正在备货', shipped: '商品运输中', completed: '订单已完成', cancelled: '订单已取消', closed: '订单已关闭', unpaid: '未付款', unfulfilled: '未履约', none: '无售后' } as Record<string, string>)[status] ?? status
+  return ({ pending_payment: '等待付款', paid: '已支付', pending_shipment: '商家正在备货', shipped: '商品运输中', completed: '订单已完成', cancelled: '订单已取消', closed: '订单已关闭', unpaid: '未付款', unfulfilled: '等待备货', none: '暂无售后' } as Record<string, string>)[status] ?? '状态更新中'
 }
-function eventLabel(code: string, target: string): string {
-  if (code === 'order.created') return `订单已创建：${statusLabel(target, false)}`
-  return `${code}：${statusLabel(target, false)}`
-}
+const displayEvents = computed(() => consumerOrderEvents(order.value?.events ?? []))
 function actionLabel(code: string): string {
   return ({ pay: '去支付', cancel_order: '取消订单', apply_after_sale: '申请售后', view_after_sale: '查看售后', view_logistics: '查看物流', review: '评价', delete_order: '删除订单', confirm_receipt: '确认收货', contact_store: '联系商家', repurchase: '再次购买' } as Record<string, string>)[code] ?? code
 }
@@ -135,7 +132,7 @@ onMounted(load)
         <header class="order-detail-hero">
           <div><p class="eyebrow">订单状态</p><h1>{{ statusLabel(order.order_status) }}</h1><p>订单号 {{ order.order_id }} · {{ dateTime(order.created_at) }}</p></div>
           <div class="order-actions">
-            <button v-for="action in order.available_actions" :key="action.code" type="button" :disabled="busy || !action.enabled || hidden !== null" @click="runAction(action)">{{ busy ? '处理中…' : actionLabel(action.code) }}</button>
+            <button v-for="action in order.available_actions" :key="action.code" type="button" :class="`order-hero-action action-${action.code}`" :disabled="busy || !action.enabled || hidden !== null" @click="runAction(action)">{{ busy ? '处理中…' : actionLabel(action.code) }}</button>
           </div>
         </header>
         <p v-if="order.order_status === 'shipped'" class="alert info">收到商品后请点击“确认收货”。如果物流已经签收且你没有操作，系统会在签收满 7 天后自动确认，届时订单进入“已完成”，并开放评价和售后入口。</p>
@@ -159,9 +156,9 @@ onMounted(load)
               </OrderProductEntry>
             </article>
             <article class="card order-section">
-              <p class="eyebrow">订单进度</p><h2>状态时间线</h2>
-              <ol class="timeline">
-                <li v-for="event in order.events" :key="event.event_id"><strong>{{ eventLabel(event.event_code, event.to_status) }}</strong><time :datetime="event.occurred_at">{{ dateTime(event.occurred_at) }}</time><p v-if="event.reason">{{ event.reason }}</p></li>
+              <p class="eyebrow">订单进度</p><h2>订单旅程</h2>
+              <ol class="timeline consumer-order-timeline">
+                <li v-for="event in displayEvents" :key="event.event_id"><strong>{{ event.title }}</strong><time :datetime="event.occurred_at">{{ dateTime(event.occurred_at) }}</time><p>{{ event.description }}</p></li>
               </ol>
             </article>
           </main>

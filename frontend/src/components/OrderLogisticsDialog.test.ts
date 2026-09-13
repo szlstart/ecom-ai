@@ -60,7 +60,10 @@ describe('OrderLogisticsDialog', () => {
     expect(document.body.textContent).toContain('ECOMTEST123456')
     expect(document.body.textContent).toContain('正在派送中…')
     expect(document.body.textContent).toContain('天河区')
-    expect(document.body.textContent).toContain('测试商品（绿色款）×1')
+    expect(document.body.textContent).toContain('包裹内容 共 1 件')
+    expect(document.body.textContent).toContain('测试商品')
+    expect(document.body.textContent).toContain('绿色款')
+    expect(document.body.textContent).toContain('× 1')
     expect(mocks.listOrderShipments).toHaveBeenCalledWith('ord_test', 'user-token')
 
     document.querySelector<HTMLElement>('.logistics-overlay')!.dispatchEvent(

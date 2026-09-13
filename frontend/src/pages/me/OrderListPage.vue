@@ -92,7 +92,7 @@ function page(cursor: string | null) {
 }
 async function runAction(action: OrderAction, order: OrderSummary) {
   if (!action.enabled || busyOrder.value) return
-  if (action.code === 'pay') {
+  if (['pay', 'apply_after_sale', 'view_after_sale', 'review'].includes(action.code)) {
     await router.push({ name: action.target.name, params: action.target.params })
     return
   }

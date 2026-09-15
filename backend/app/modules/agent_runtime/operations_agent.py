@@ -1709,7 +1709,21 @@ def _admin_complex_domains(value: str) -> tuple[str, ...]:
     )
     explicit_ai_governance = any(
         term in compact
-        for term in ("知识库", "rag", "skill", "mcp", "模型配置", "模型质量", "评估", "发布门禁")
+        for term in (
+            "知识库",
+            "rag",
+            "skill",
+            "mcp",
+            "模型配置",
+            "模型质量",
+            "评估",
+            "发布门禁",
+            "系统提示词",
+            "提示词",
+            "prompt",
+            "agent配置",
+            "agent版本",
+        )
     )
     explicit_business_domain = any(
         term in compact
@@ -1750,7 +1764,20 @@ def _admin_complex_domains(value: str) -> tuple[str, ...]:
         ("support", ("客服", "工单", "人工队列", "接待")),
         (
             "ai_governance",
-            ("知识库", "rag", "skill", "mcp", "模型配置", "模型质量", "评估"),
+            (
+                "知识库",
+                "rag",
+                "skill",
+                "mcp",
+                "模型配置",
+                "模型质量",
+                "评估",
+                "系统提示词",
+                "提示词",
+                "prompt",
+                "agent配置",
+                "agent版本",
+            ),
         ),
         (
             "runtime",
@@ -8079,7 +8106,21 @@ def _deterministic_intent(text: str, audience: str) -> str:
     if audience == "admin" and any(term in compact for term in ("客服", "工单", "人工队列")):
         return "support"
     if audience == "admin" and any(
-        term in compact for term in ("知识库", "rag", "skill", "mcp", "模型质量", "评估")
+        term in compact
+        for term in (
+            "知识库",
+            "rag",
+            "skill",
+            "mcp",
+            "模型配置",
+            "模型质量",
+            "评估",
+            "系统提示词",
+            "提示词",
+            "prompt",
+            "agent配置",
+            "agent版本",
+        )
     ):
         return "ai_governance"
     if any(
@@ -9531,9 +9572,7 @@ def _operations_detail_cards(
                         if specialist != "merchant_catalog":
                             merchant_detail_cards.extend(domain_cards[1:])
             specialist_cards.extend(primary_cards)
-            specialist_cards.extend(
-                merchant_detail_cards[: max(0, 12 - len(specialist_cards))]
-            )
+            specialist_cards.extend(merchant_detail_cards[: max(0, 12 - len(specialist_cards))])
             if catalog_data is not None and len(specialist_cards) == 1:
                 specialist_cards.extend(_operations_detail_cards(context, "catalog", catalog_data))
         else:

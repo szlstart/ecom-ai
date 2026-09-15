@@ -1145,6 +1145,9 @@ def test_narrow_operations_tools_stay_within_specialist_policy(
 def test_admin_ai_governance_queries_do_not_fan_out_to_runtime() -> None:
     assert _admin_complex_domains("查看最近 AI 评估结果和发布门禁") == ("ai_governance",)
     assert _admin_complex_domains("列出 Agent 的模型配置和版本") == ("ai_governance",)
+    prompt_write = "把 Agent admin_copilot 的系统提示词改为新的平台治理规则"
+    assert _admin_complex_domains(prompt_write) == ("ai_governance",)
+    assert _deterministic_operations_plan(prompt_write, "admin").tasks[0].intent == "ai_governance"
     assert _admin_complex_domains("查看最近 Agent 运行告警和 Trace") == ("runtime",)
     assert _admin_complex_domains(
         "请只读检查平台用户、店铺、订单和 Agent 运行状态，指出真实风险"
@@ -1352,8 +1355,7 @@ def test_merchant_catalog_and_inventory_overview_keeps_two_authorized_domains() 
         ("merchant_catalog", "store_ops.catalog_summary"),
     ]
     assert all(
-        tool in SPECIALIST_POLICIES[specialist].allowed_tools
-        for _, specialist, tool, _ in resolved
+        tool in SPECIALIST_POLICIES[specialist].allowed_tools for _, specialist, tool, _ in resolved
     )
 
 

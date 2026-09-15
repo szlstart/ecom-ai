@@ -3526,6 +3526,53 @@ def test_priority_follow_up_explains_the_requested_second_item() -> None:
     assert "运输中 1 笔" in admin_answer
 
 
+def test_merchant_priority_follow_up_keeps_one_live_evidence_card() -> None:
+    context = cast(
+        TrustedOperationsContext,
+        SimpleNamespace(
+            audience="merchant",
+            store=SimpleNamespace(store_name="测试店铺"),
+            trigger=SimpleNamespace(text_content="第一项为什么排在最前面？我现在具体先做什么？"),
+        ),
+    )
+    inventory_skus = [
+        {
+            "product_id": f"prd_{index}",
+            "product_name": f"低库存商品 {index}",
+            "sku_name": "标准款",
+            "available_quantity": index,
+            "safety_stock_quantity": 5,
+        }
+        for index in range(1, 4)
+    ]
+    evidence = {
+        "priority_focus": 1,
+        "specialists": {
+            "merchant_catalog": {
+                "specialist": "merchant_catalog",
+                "data": {"on_sale_products": []},
+            },
+            "merchant_inventory": {
+                "specialist": "merchant_inventory",
+                "data": {
+                    "low_stock_sku_count": 3,
+                    "inventory_skus": inventory_skus,
+                },
+            },
+            "merchant_orders": {
+                "specialist": "merchant_orders",
+                "data": {"order_status_counts": {}},
+            },
+        },
+    }
+
+    cards = _operations_detail_cards(context, "complex_store_diagnosis", evidence)
+
+    assert len(cards) == 2
+    assert cards[0]["kind"] == "merchant_priorities"
+    assert cards[1]["kind"] == "merchant_inventory_item"
+
+
 def test_admin_multi_agent_cards_honor_requested_count_and_ordinal_focus() -> None:
     context = cast(
         TrustedOperationsContext,

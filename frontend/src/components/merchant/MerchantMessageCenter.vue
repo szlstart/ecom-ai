@@ -44,7 +44,10 @@ const props = withDefaults(defineProps<{ storeId?: string; storeName?: string; s
 
 const auth = useAdminAuthStore()
 const route = useRoute()
-const loading = ref(false)
+// Keep the conversation in an explicit loading state until the initial history
+// request settles. This prevents a brief empty-thread flash and ensures actions
+// are not taken against a half-hydrated conversation.
+const loading = ref(true)
 const sending = ref(false)
 const error = ref('')
 const draft = ref('')
@@ -538,7 +541,7 @@ onBeforeUnmount(() => {
         <main class="merchant-chat-main">
           <header><div><strong>{{ title }}</strong><small>{{ subtitle }}</small></div><div class="actions"><button v-if="canReply" class="secondary small" :disabled="sending" @click="finishHumanService">结束人工服务</button><button class="secondary small" type="button" :disabled="sending" @click="clearHistory">清除记录</button></div></header>
           <p v-if="error" class="merchant-chat-error">{{ error }}</p>
-          <div ref="timeline" class="merchant-chat-timeline">
+          <div ref="timeline" class="merchant-chat-timeline" aria-label="聊天消息">
             <button v-if="selectedKey === 'exclusive' ? exclusivePreviousCursor : supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
             <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><h2>你好，我是 AI 经营助理</h2><p>我会结合本店商品、实时库存、订单和营业额给出经营判断，并把结果整理成可操作卡片。</p></div>
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>

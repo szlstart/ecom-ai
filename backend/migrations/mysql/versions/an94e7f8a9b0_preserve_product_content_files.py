@@ -120,8 +120,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "idx_product_content_version_files_file",
-        table_name="product_content_version_files",
-    )
     op.drop_table("product_content_version_files")

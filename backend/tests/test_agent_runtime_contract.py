@@ -1058,6 +1058,12 @@ def test_operations_context_allowlists_include_all_confirmed_business_actions() 
         ("runtime", "查看最近 Agent 调用链路", "observability.traces.search"),
         ("runtime", "查询近7天 Agent 成本、延迟和成功率", "observability.cost_metrics"),
         ("ai_governance", "列出 Agent 的模型配置和版本", "governance.ai.agents.list"),
+        ("ai_governance", "创建版本化 Prompt 草稿", "governance.ai.agents.list"),
+        (
+            "ai_governance",
+            "把 Agent admin_copilot 的系统提示词改为所有实时结论必须来自授权工具",
+            "governance.ai.agents.list",
+        ),
         ("ai_governance", "列出 Skill 和工具绑定", "governance.ai.skills.list"),
         ("ai_governance", "列出 MCP 工具及风险级别", "governance.ai.tools.list"),
         (

@@ -9739,7 +9739,7 @@ def _requests_support_reply(value: str) -> bool:
         )
     ) or bool(
         re.search(
-            r"(?:给|向)(?:顾客|用户|商家).{0,100}(?:发送|发)(?:.{0,30})?(?:商品|订单)卡片",
+            r"(?:给|向)(?:顾客|用户|商家).{0,100}(?:发送|发).{0,120}(?:商品|订单).{0,80}卡片",
             compact,
         )
     )
@@ -9747,8 +9747,13 @@ def _requests_support_reply(value: str) -> bool:
 
 def _support_attachment_kind(value: str) -> Literal["product", "order"] | None:
     compact = _compact(value)
-    product = any(marker in compact for marker in ("商品卡片", "产品卡片"))
-    order = any(marker in compact for marker in ("订单卡片", "购买记录卡片"))
+    asks_for_card = "卡片" in compact
+    product = any(marker in compact for marker in ("商品卡片", "产品卡片")) or (
+        asks_for_card and any(marker in compact for marker in ("商品", "产品"))
+    )
+    order = any(marker in compact for marker in ("订单卡片", "购买记录卡片")) or (
+        asks_for_card and any(marker in compact for marker in ("订单", "购买记录"))
+    )
     if product == order:
         return None
     return "product" if product else "order"

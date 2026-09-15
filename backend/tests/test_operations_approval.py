@@ -244,6 +244,11 @@ def test_merchant_write_detection_distinguishes_query_from_command() -> None:
     assert _requests_support_action("给顾客发消息，回复内容: 已为您核对")
     assert _requests_support_action("给顾客 tulubi 发送最近订单卡片")
     assert _requests_support_action("向用户 tulubi 发送商品卡片 三端验收笔记本")
+    targeted_order_card = (
+        "给顾客 tulubi 发送订单 ord_01M2HVDKR16818D4M5R591A9P7 的卡片"
+    )
+    assert _requests_support_action(targeted_order_card)
+    assert _support_attachment_kind(targeted_order_card) == "order"
     assert _support_reply_content("回复顾客 tulubi，回复内容: 已为您核对") == "已为您核对"
     assert appears_to_request_operations_write("回复顾客 tulubi，回复内容: 已为您核对", "merchant")
 

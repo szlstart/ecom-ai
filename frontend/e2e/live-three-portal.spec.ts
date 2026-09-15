@@ -359,7 +359,12 @@ function persistAgentQualityObservations(observations: AgentQualityObservation[]
 
 test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
   test.skip(!enabled, 'set ECOM_LIVE_E2E=1 to exercise the real FastAPI test stack')
-  test.describe.configure({ mode: 'serial' })
+  // These journeys intentionally mutate the same seeded order, product and
+  // conversations. Retrying the whole serial group would replay successful
+  // writes from an earlier attempt and test a different state (for example,
+  // creating the same SKU twice), so failures must be fixed from their first
+  // deterministic run rather than masked by a contaminated retry.
+  test.describe.configure({ mode: 'serial', retries: 0 })
 
   test('LIVE-MULTI-ACCOUNT keeps shopper and merchant identities isolated across tabs', async ({ browser, isMobile }) => {
     test.setTimeout(240_000)
@@ -1342,7 +1347,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await merchantWorkspace.getByRole('button', { name: /AI 经营助理/ }).click()
     const cardAction = await askOperationsAgent(
       merchantWorkspace,
-      `给顾客 ${data.consumer_username} 发送最近订单卡片`,
+      `给顾客 ${data.consumer_username} 发送订单 ${targetOrderId} 的卡片`,
       '向 AI 经营助理描述经营问题…',
       '.merchant-chat-bubble-row:not(.mine):not(.system) .merchant-chat-bubble:not(.agent-stream)',
       'merchant_copilot',
@@ -1350,7 +1355,11 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     )
     await expect(cardAction.reply.getByLabel('操作确认卡')).toContainText('确认发送订单卡片')
     await cardAction.reply.getByRole('button', { name: '确认执行' }).click()
-    await expect(workspace.getByLabel('聊天消息').locator('.order-message-card').last()).toContainText(
+    const targetOrderCard = workspace
+      .getByLabel('聊天消息')
+      .locator(`.order-message-card[href="/me/orders/${targetOrderId}"]`)
+      .last()
+    await expect(targetOrderCard).toContainText(
       '三端联动验收笔记本',
       { timeout: 25_000 },
     )

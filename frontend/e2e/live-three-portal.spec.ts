@@ -238,14 +238,15 @@ async function askConsumerAgent(
   const replies = workspace.locator(
     '.message-row.theirs:not(.conversation-welcome-row) .message-bubble:not(.agent-stream)',
   )
+  const sentMessages = workspace.locator('.message-row.mine .message-bubble[data-sequence]')
+  const sentCountBefore = await sentMessages.count()
   const started = Date.now()
   await workspace.getByPlaceholder('输入消息…').fill(prompt)
   await workspace.getByRole('button', { name: '发送', exact: true }).click()
-  const sentMessage = workspace
-    .locator('.message-row.mine .message-bubble[data-sequence]')
-    .filter({ hasText: prompt })
-    .last()
+  await expect(sentMessages).toHaveCount(sentCountBefore + 1, { timeout: 15_000 })
+  const sentMessage = sentMessages.last()
   await expect(sentMessage).toBeVisible({ timeout: 15_000 })
+  await expect(sentMessage).toContainText(prompt)
   const sentSequence = Number(await sentMessage.getAttribute('data-sequence'))
   expect(Number.isFinite(sentSequence)).toBe(true)
   await expect.poll(async () => {
@@ -286,14 +287,17 @@ async function askOperationsAgent(
   persistObservations = true,
 ) {
   const replies = workspace.locator(replySelector)
+  const sentMessages = workspace.locator(
+    '.merchant-chat-bubble-row.mine [data-sequence], .admin-chat-timeline article.mine [data-sequence]',
+  )
+  const sentCountBefore = await sentMessages.count()
   const started = Date.now()
   await workspace.getByPlaceholder(placeholder).fill(prompt)
   await workspace.getByRole('button', { name: '发送', exact: true }).click()
-  const sentMessage = workspace
-    .locator('[data-sequence]')
-    .filter({ hasText: prompt })
-    .last()
+  await expect(sentMessages).toHaveCount(sentCountBefore + 1, { timeout: 15_000 })
+  const sentMessage = sentMessages.last()
   await expect(sentMessage).toBeVisible({ timeout: 15_000 })
+  await expect(sentMessage).toContainText(prompt)
   const sentSequence = Number(await sentMessage.getAttribute('data-sequence'))
   expect(Number.isFinite(sentSequence)).toBe(true)
   await expect.poll(async () => {

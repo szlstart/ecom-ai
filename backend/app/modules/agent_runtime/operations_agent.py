@@ -9553,12 +9553,15 @@ def _operations_detail_cards(
                 )
                 focused_data = specialist_results.get(focused_specialist)
                 if focused_data is not None:
+                    # An ordinal follow-up asks for one ranked item, not another
+                    # domain-wide card dump. Keep the priority explanation plus
+                    # one live evidence card so the next action stays focused.
                     specialist_cards.extend(
                         _operations_detail_cards(
                             context,
                             specialist_intents[focused_specialist],
                             focused_data,
-                        )
+                        )[:1]
                     )
                 return (specialist_cards + failed_subtasks)[:12]
             primary_cards: list[dict[str, object]] = []

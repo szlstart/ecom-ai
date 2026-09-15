@@ -1354,11 +1354,17 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
       observations,
     )
     await expect(cardAction.reply.getByLabel('操作确认卡')).toContainText('确认发送订单卡片')
-    await cardAction.reply.getByRole('button', { name: '确认执行' }).click()
-    const targetOrderCard = workspace
+    const targetOrderCards = workspace
       .getByLabel('聊天消息')
       .locator(`.order-message-card[href="/me/orders/${targetOrderId}"]`)
-      .last()
+    const targetOrderCardCount = await targetOrderCards.count()
+    const cardSendResult = await confirmOperationsAction(
+      merchantWorkspace,
+      '.merchant-chat-bubble-row:not(.mine):not(.system) .merchant-chat-bubble:not(.agent-stream)',
+    )
+    await expect(cardSendResult).toContainText('订单卡片已发送')
+    await expect(targetOrderCards).toHaveCount(targetOrderCardCount + 1, { timeout: 25_000 })
+    const targetOrderCard = targetOrderCards.last()
     await expect(targetOrderCard).toContainText(
       '三端联动验收笔记本',
       { timeout: 25_000 },

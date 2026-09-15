@@ -5,8 +5,8 @@ from sqlalchemy import UniqueConstraint
 from app.database.base import MySQLBase
 from app.main import create_app
 from app.modules.messaging import models as messaging_models  # noqa: F401
-from app.modules.messaging.support_schemas import SupportMessageRequest
 from app.modules.messaging.schemas import MessageCreateRequest
+from app.modules.messaging.support_schemas import SupportMessageRequest
 
 
 def test_messaging_schema_has_sequence_and_read_cursor_uniques() -> None:

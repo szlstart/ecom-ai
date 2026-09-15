@@ -2331,7 +2331,7 @@ def test_merchant_policy_only_question_rejects_extra_model_catalog_task() -> Non
 
 
 def test_merchant_policy_sources_keep_only_the_requested_rule_topic() -> None:
-    sources = [
+    sources: list[dict[str, object]] = [
         {"excerpt": "商家提交商品后执行自动审核；命中禁售规则后进入需修改。"},
         {"excerpt": "用户余额支付成功后进入待结算。"},
         {"excerpt": "物流长时间没有新轨迹时可联系平台客服。"},

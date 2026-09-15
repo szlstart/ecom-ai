@@ -2992,8 +2992,8 @@ def _store_detail_cards(
         for item in (values if isinstance(values, list) else [])[:8]:
             if not isinstance(item, Mapping):
                 continue
-            specifications = item.get("specifications")
-            specification_text = _sku_specification_text(specifications)
+            sku_specifications = item.get("specifications")
+            specification_text = _sku_specification_text(sku_specifications)
             available_quantity = item.get("available_quantity")
             availability = _availability_label(item)
             stock_text = (

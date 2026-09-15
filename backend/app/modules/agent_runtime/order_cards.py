@@ -101,18 +101,22 @@ async def recent_agent_order_nos(
     before_sequence: int,
     minimum_count: int = 1,
 ) -> list[str]:
-    """Return cards from the latest prior Agent turn that presented orders."""
+    """Return cards from the latest trusted conversation turn that presented orders.
 
+    Human support staff can send the canonical order-card payload directly.  That
+    selection must survive hand-back to the Agent instead of being shadowed by an
+    older Agent order list stored in the continuity snapshot.
+    """
+
+    state = await ConversationStateRuntime(session).load(
+        conversation,
+        before_sequence=before_sequence,
+    )
     state_cards = latest_card_set(
-        await ConversationStateRuntime(session).load(
-            conversation,
-            before_sequence=before_sequence,
-        ),
+        state,
         "order",
         minimum_count=minimum_count,
     )
-    if state_cards is not None:
-        return _unique_order_nos(card.get("order_id") for card in state_cards)
 
     rows = list(
         (
@@ -120,8 +124,8 @@ async def recent_agent_order_nos(
                 select(Message)
                 .where(
                     Message.conversation_id == conversation.id,
-                    Message.sender_type == "agent",
                     Message.sequence_no < before_sequence,
+                    Message.message_status != "hidden",
                 )
                 .order_by(Message.sequence_no.desc())
                 # Keep enough structured turns for a realistic support session.
@@ -131,18 +135,33 @@ async def recent_agent_order_nos(
             )
         ).all()
     )
+    # A canonical card sent by the shopper or human support after the last Agent
+    # snapshot is an explicit focus change.  Do not tunnel through it to an older
+    # multi-order result merely because the older result has more cards.
+    state_sequence = state.source_sequence_no if state is not None else 0
+    for message in rows:
+        if message.sequence_no <= state_sequence:
+            break
+        direct_order_nos = _unique_order_nos(
+            card.get("order_id") for card in _message_order_cards(message)
+        )
+        if direct_order_nos:
+            return direct_order_nos
+    if state_cards is not None:
+        return _unique_order_nos(card.get("order_id") for card in state_cards)
+
     fallback: list[str] = []
     for message in rows:
         payload = message.content_payload if isinstance(message.content_payload, dict) else {}
-        cards = payload.get("order_cards")
+        cards = _message_order_cards(message)
         trace = payload.get("execution_trace")
         trace_intent = trace.get("intent") if isinstance(trace, Mapping) else None
-        if trace_intent == "order_lookup" and (not isinstance(cards, list) or not cards):
+        if trace_intent == "order_lookup" and not cards:
             # “当前没有待付款订单” is a real, completed order-list result. It
             # owns deictic references such as “刚才第一笔”; skipping across this
             # empty turn would silently bind them to an unrelated older order.
             return []
-        if not isinstance(cards, list):
+        if not cards:
             continue
         order_nos = _unique_order_nos(
             card.get("order_id") for card in cards if isinstance(card, Mapping)
@@ -174,8 +193,8 @@ async def referenced_recent_order_no(
                 select(Message)
                 .where(
                     Message.conversation_id == conversation.id,
-                    Message.sender_type == "agent",
                     Message.sequence_no < before_sequence,
+                    Message.message_status != "hidden",
                 )
                 .order_by(Message.sequence_no.desc())
                 .limit(30)
@@ -187,15 +206,15 @@ async def referenced_recent_order_no(
     latest_visible_order_nos: list[str] | None = None
     for message in rows:
         payload = message.content_payload if isinstance(message.content_payload, dict) else {}
-        raw_cards = payload.get("order_cards")
+        raw_cards = _message_order_cards(message)
         trace = payload.get("execution_trace")
         trace_intent = trace.get("intent") if isinstance(trace, Mapping) else None
-        if trace_intent == "order_lookup" and (not isinstance(raw_cards, list) or not raw_cards):
+        if trace_intent == "order_lookup" and not raw_cards:
             # Stop at the newest explicit empty result. A later named query can
             # still search live orders, but pronouns and ordinals must not tunnel
             # through to stale visual context.
             break
-        if not isinstance(raw_cards, list):
+        if not raw_cards:
             continue
         message_order_nos = _unique_order_nos(
             card.get("order_id") for card in raw_cards if isinstance(card, Mapping)
@@ -234,6 +253,18 @@ async def referenced_recent_order_no(
     ):
         return latest_visible_order_nos[0]
     return None
+
+
+def _message_order_cards(message: Message) -> list[Mapping[str, object]]:
+    """Normalize Agent collections and canonical single-card chat messages."""
+
+    payload = message.content_payload if isinstance(message.content_payload, Mapping) else {}
+    raw_cards = payload.get("order_cards")
+    if isinstance(raw_cards, list):
+        return [card for card in raw_cards if isinstance(card, Mapping)]
+    if message.message_type == "order_card" and isinstance(payload.get("order_id"), str):
+        return [payload]
+    return []
 
 
 def extreme_order_no_from_cards(

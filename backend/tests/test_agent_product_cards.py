@@ -1,4 +1,5 @@
 from app.modules.agent_runtime.order_cards import (
+    _message_order_cards,
     extreme_order_no_from_cards,
     order_reference_index,
     referenced_order_no,
@@ -11,6 +12,7 @@ from app.modules.agent_runtime.product_cards import (
     product_card_reference_indices,
     referenced_product_card,
 )
+from app.modules.messaging.models import Message
 
 
 def test_short_affirmative_requires_exact_acknowledgement() -> None:
@@ -59,6 +61,24 @@ def test_resolves_order_ordinals_but_does_not_guess_between_multiple_orders() ->
     assert referenced_order_no("这个订单到哪了?", ["ord_ONLY"]) == "ord_ONLY"
     assert referenced_order_no("这笔能退款吗?", ["ord_ONLY"]) == "ord_ONLY"
     assert referenced_order_no("现在可以检查售后资格吗?不要提交", ["ord_ONLY"]) == "ord_ONLY"
+
+
+def test_normalizes_agent_and_human_order_card_message_shapes() -> None:
+    agent_message = Message(
+        message_type="text",
+        content_payload={"order_cards": [{"order_id": "ord_AGENT"}]},
+    )
+    human_message = Message(
+        message_type="order_card",
+        content_payload={"order_id": "ord_HUMAN", "items": []},
+    )
+
+    assert [card["order_id"] for card in _message_order_cards(agent_message)] == [
+        "ord_AGENT"
+    ]
+    assert [card["order_id"] for card in _message_order_cards(human_message)] == [
+        "ord_HUMAN"
+    ]
 
 
 def test_order_ordinal_resolution_respects_text_order_and_explicit_corrections() -> None:

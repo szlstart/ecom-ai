@@ -283,7 +283,11 @@ async def test_merchant_agent_requests_after_sale_materials_without_deciding_ref
             audience="merchant",
             store=store,
         )
-        prepared, error = await prepare_operations_action(session, context, trigger.text_content or "")
+        prepared, error = await prepare_operations_action(
+            session,
+            context,
+            trigger.text_content or "",
+        )
         assert error is None and prepared is not None
         assert prepared.action_type == "merchant_refund_more_info"
         approval = await build_operations_approval(session, context, prepared)

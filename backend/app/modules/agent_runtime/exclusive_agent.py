@@ -6994,17 +6994,18 @@ async def _attach_platform_knowledge(
         }
         for item in result.items
     ]
-    data["knowledge_sources"] = _compact_policy_sources(
+    compacted_sources = _compact_policy_sources(
         raw_sources,
         retrieval_query,
         limit=4,
     )
+    data["knowledge_sources"] = compacted_sources
     data["policy_query"] = policy_query
     data["policy_retrieval_query"] = retrieval_query
     data["rag"] = {
         "scope": "platform:platform",
         "returned_count": len(result.items),
-        "used_count": len(data["knowledge_sources"]),
+        "used_count": len(compacted_sources),
         "degraded": result.degraded,
         "retrieval_mode": "keyword_only" if result.degraded else "hybrid",
     }
@@ -7066,7 +7067,7 @@ def _compact_policy_sources(
         domain_score = sum(12 for term in domain_terms if term in title)
         domain_score += sum(3 for term in domain_terms if term in excerpt)
         overlap_score = sum(1 for term in query_terms if term in searchable)
-        retrieval_score = float(source.get("score") or 0.0)
+        retrieval_score = float(str(source.get("score") or 0.0))
         ranked.append((domain_score + overlap_score, retrieval_score, -position, source))
     ranked.sort(reverse=True, key=lambda item: (item[0], item[1], item[2]))
 

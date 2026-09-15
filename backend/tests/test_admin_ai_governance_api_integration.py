@@ -559,19 +559,19 @@ async def test_admin_ai_manager_creates_immutable_prompt_draft_without_switching
             )
             .order_by(AgentVersion.version_no.desc())
         ) if runtime_definition is not None else None
-        conversation = await session.scalar(
+        runtime_conversation = await session.scalar(
             select(Conversation)
             .where(Conversation.user_id == admin_user.id, Conversation.is_fixed.is_(True))
             .order_by(Conversation.id.desc())
         ) if admin_user is not None else None
         assert admin_user is not None and runtime_definition is not None
-        assert runtime_version is not None and conversation is not None
+        assert runtime_version is not None and runtime_conversation is not None
         stale_prompt = "你是待提交的并发验收 Agent，只使用实时证据并等待管理员确认。"
-        conversation.last_sequence_no += 1
+        runtime_conversation.last_sequence_no += 1
         stale_trigger = Message(
             message_no=new_prefixed_ulid("msg_"),
-            conversation_id=conversation.id,
-            sequence_no=conversation.last_sequence_no,
+            conversation_id=runtime_conversation.id,
+            sequence_no=runtime_conversation.last_sequence_no,
             sender_type="user",
             sender_id=admin_user.id,
             message_type="text",
@@ -584,7 +584,7 @@ async def test_admin_ai_manager_creates_immutable_prompt_draft_without_switching
         await session.flush()
         stale_run = AgentRun(
             run_no=new_prefixed_ulid("run_"),
-            conversation_id=conversation.id,
+            conversation_id=runtime_conversation.id,
             trigger_message_id=stale_trigger.id,
             agent_version_id=runtime_version.id,
             run_status="running",
@@ -596,7 +596,7 @@ async def test_admin_ai_manager_creates_immutable_prompt_draft_without_switching
         await session.flush()
         stale_context = TrustedOperationsContext(
             run=stale_run,
-            conversation=conversation,
+            conversation=runtime_conversation,
             trigger=stale_trigger,
             user=admin_user,
             agent_definition=runtime_definition,

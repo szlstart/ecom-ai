@@ -2774,14 +2774,14 @@ async def _prepare_admin_action(
         password_ciphertext = security.encrypt(
             "agent-action:merchant-password", security.new_opaque_token(32)
         ).hex()
-        payload: dict[str, object] = {
+        store_create_payload: dict[str, object] = {
             "new_store_name": fields["store_name"],
             "new_merchant_username": fields["merchant_username"],
             "new_merchant_email": fields["merchant_email"],
             "password_ciphertext": password_ciphertext,
         }
         if fields.get("description") is not None:
-            payload["new_description"] = fields["description"]
+            store_create_payload["new_description"] = fields["description"]
         return PreparedOperationsAction(
             action_type="admin_store_create",
             title="确认创建店铺与商家账号",
@@ -2790,7 +2790,7 @@ async def _prepare_admin_action(
                 "商家首次使用前必须通过登记邮箱重置密码，聊天中不收集或显示密码。"
             ),
             target_label=str(fields["store_name"]),
-            payload=payload,
+            payload=store_create_payload,
             resource_versions={
                 "store_name_available": normalized_name,
                 "merchant_username_available": normalized_username,
@@ -5773,7 +5773,7 @@ async def _execute_action(
         access = await _operations_admin_access(session, context, "products:publish")
         service = ProductAdminService(session, get_settings())
         try:
-            result = await service.submit_review(
+            submit_result = await service.submit_review(
                 access,
                 product.product_no,
                 AdminProductCommandRequest(
@@ -5785,23 +5785,23 @@ async def _execute_action(
             )
         except Exception as exc:
             raise _service_conflict(exc, "商品资料或审核状态已经变化，请重新核对。") from exc
-        status = str(result.status)
+        status = str(submit_result.status)
         answer = (
-            f"“{result.product_name}”已通过自动审核并上架销售。"
+            f"“{submit_result.product_name}”已通过自动审核并上架销售。"
             if status == "on_sale"
-            else f"“{result.product_name}”自动审核后状态为"
+            else f"“{submit_result.product_name}”自动审核后状态为"
             f"“{_product_status_label(status)}”，请按提示修改后重新提交。"
         )
         return (
             answer,
             {
-                "product_id": result.product_id,
-                "product_name": result.product_name,
+                "product_id": submit_result.product_id,
+                "product_name": submit_result.product_name,
                 "status": status,
-                "missing_requirements": result.completeness.missing_requirements,
-                "version": result.version,
+                "missing_requirements": submit_result.completeness.missing_requirements,
+                "version": submit_result.version,
             },
-            result.product_id,
+            submit_result.product_id,
         )
 
     if action_type == "merchant_product_fulfillment":
@@ -5997,7 +5997,7 @@ async def _execute_action(
             )
             .with_for_update()
         )
-        inventory = (
+        sku_inventory = (
             await session.scalar(
                 select(Inventory).where(Inventory.sku_id == sku.id).with_for_update()
             )
@@ -6008,7 +6008,7 @@ async def _execute_action(
             store is None
             or product is None
             or sku is None
-            or inventory is None
+            or sku_inventory is None
             or product.store_id != store.id
             or sku.product_id != product.id
             or sku.store_id != store.id
@@ -6030,7 +6030,7 @@ async def _execute_action(
         _require_version(store.version, expected.get("store"))
         _require_version(product.version, expected.get("product"))
         _require_version(sku.version, expected.get("sku"))
-        _require_version(inventory.version, expected.get("inventory"))
+        _require_version(sku_inventory.version, expected.get("inventory"))
         if product.product_status not in {"draft", "rejected", "off_shelf", "on_sale"}:
             raise OperationsActionConflict(
                 "PRODUCT_NOT_EDITABLE", "商品状态已经变化，当前不能修改款式。"
@@ -6046,10 +6046,10 @@ async def _execute_action(
             raise OperationsActionConflict(
                 "AGENT_ACTION_ARGUMENT_INVALID", "库存数量超出允许范围。"
             )
-        if new_stock < inventory.reserved_quantity:
+        if new_stock < sku_inventory.reserved_quantity:
             raise OperationsActionConflict(
                 "INVENTORY_BELOW_RESERVED",
-                f"当前已有 {inventory.reserved_quantity} 件预占，不能将库存设得更低。",
+                f"当前已有 {sku_inventory.reserved_quantity} 件预占，不能将库存设得更低。",
             )
         duplicate_name = await session.scalar(
             select(ProductSku.id).where(
@@ -6066,11 +6066,11 @@ async def _execute_action(
         before = {
             "sku_name": sku.sku_name,
             "price_minor": sku.sale_price_amount,
-            "stock_quantity": inventory.on_hand_quantity,
-            "reserved_quantity": inventory.reserved_quantity,
+            "stock_quantity": sku_inventory.on_hand_quantity,
+            "reserved_quantity": sku_inventory.reserved_quantity,
         }
         sku_changed = sku.sku_name != new_name or sku.sale_price_amount != new_price
-        stock_changed = inventory.on_hand_quantity != new_stock
+        stock_changed = sku_inventory.on_hand_quantity != new_stock
         sku.sku_name = new_name
         sku.sale_price_amount = new_price
         if sku.market_price_amount < new_price:
@@ -6079,27 +6079,27 @@ async def _execute_action(
             sku.version += 1
             product.version += 1
         if stock_changed:
-            stock_before = inventory.on_hand_quantity
-            inventory.on_hand_quantity = new_stock
-            inventory.version += 1
+            stock_before = sku_inventory.on_hand_quantity
+            sku_inventory.on_hand_quantity = new_stock
+            sku_inventory.version += 1
             session.add(
                 InventoryLog(
-                    inventory_id=inventory.id,
+                    inventory_id=sku_inventory.id,
                     sku_id=sku.id,
                     operation_type="agent_set",
                     on_hand_delta=new_stock - stock_before,
                     reserved_delta=0,
                     on_hand_before=stock_before,
                     on_hand_after=new_stock,
-                    reserved_before=inventory.reserved_quantity,
-                    reserved_after=inventory.reserved_quantity,
+                    reserved_before=sku_inventory.reserved_quantity,
+                    reserved_after=sku_inventory.reserved_quantity,
                     reference_type="agent_action",
                     reference_no=action.action_no,
                     idempotency_key=action.idempotency_key,
                     actor_type="merchant" if is_merchant_action else "admin",
                     actor_id=context.user.id,
                     reason="由 AI 确认卡原子修改商品款式",
-                    inventory_version=inventory.version,
+                    inventory_version=sku_inventory.version,
                 )
             )
             _outbox(
@@ -6108,7 +6108,7 @@ async def _execute_action(
                 "inventory.adjusted.v1",
                 "inventory",
                 sku.sku_no,
-                inventory.version,
+                sku_inventory.version,
                 {
                     "product_id": product.product_no,
                     "sku_id": sku.sku_no,
@@ -6150,8 +6150,8 @@ async def _execute_action(
         after = {
             "sku_name": sku.sku_name,
             "price_minor": sku.sale_price_amount,
-            "stock_quantity": inventory.on_hand_quantity,
-            "reserved_quantity": inventory.reserved_quantity,
+            "stock_quantity": sku_inventory.on_hand_quantity,
+            "reserved_quantity": sku_inventory.reserved_quantity,
         }
         if not is_merchant_action:
             _admin_audit(
@@ -6165,8 +6165,8 @@ async def _execute_action(
             )
         return (
             f"款式“{sku.sku_name}”已更新：售价 {_money(sku.sale_price_amount)}，"
-            f"库存 {inventory.on_hand_quantity} 件，可售 "
-            f"{inventory.on_hand_quantity - inventory.reserved_quantity} 件。",
+            f"库存 {sku_inventory.on_hand_quantity} 件，可售 "
+            f"{sku_inventory.on_hand_quantity - sku_inventory.reserved_quantity} 件。",
             {
                 "store_id": store.store_no,
                 "product_id": product.product_no,
@@ -6174,9 +6174,11 @@ async def _execute_action(
                 "sku_id": sku.sku_no,
                 "sku_name": sku.sku_name,
                 "price_minor": sku.sale_price_amount,
-                "on_hand_quantity": inventory.on_hand_quantity,
-                "reserved_quantity": inventory.reserved_quantity,
-                "available_quantity": inventory.on_hand_quantity - inventory.reserved_quantity,
+                "on_hand_quantity": sku_inventory.on_hand_quantity,
+                "reserved_quantity": sku_inventory.reserved_quantity,
+                "available_quantity": (
+                    sku_inventory.on_hand_quantity - sku_inventory.reserved_quantity
+                ),
                 "version": sku.version,
             },
             sku.sku_no,
@@ -6356,7 +6358,7 @@ async def _execute_action(
         settings = get_settings()
         order_service = OrderService(session, settings, SecurityService(settings))
         try:
-            result = await order_service.admin_cancel(
+            cancel_result = await order_service.admin_cancel(
                 access,
                 order.order_no,
                 AdminOrderCancellationRequest(
@@ -6369,15 +6371,16 @@ async def _execute_action(
         except Exception as exc:
             raise _service_conflict(exc, "订单或支付状态已经变化，本次没有取消交易。") from exc
         return (
-            f"订单 {result.order.order_id} 所属未付款交易已取消，库存预占已按订单服务规则释放。",
+            f"订单 {cancel_result.order.order_id} 所属未付款交易已取消，"
+            "库存预占已按订单服务规则释放。",
             {
-                "order_id": result.order.order_id,
-                "order_status": result.order.order_status,
-                "payment_status": result.order.payment_status,
-                "available_actions": result.order.available_actions,
-                "version": result.order.version,
+                "order_id": cancel_result.order.order_id,
+                "order_status": cancel_result.order.order_status,
+                "payment_status": cancel_result.order.payment_status,
+                "available_actions": cancel_result.order.available_actions,
+                "version": cancel_result.order.version,
             },
-            result.order.order_id,
+            cancel_result.order.order_id,
         )
 
     if action_type == "admin_shipment_progress":
@@ -7291,7 +7294,7 @@ async def _execute_action(
             password = SecurityService(get_settings()).decrypt(
                 "agent-action:user-password", bytes.fromhex(ciphertext_hex)
             )
-            request = AdminUserCreateRequest(
+            user_create_request = AdminUserCreateRequest(
                 username=username,
                 password=password,
                 email=normalized_email,
@@ -7314,25 +7317,25 @@ async def _execute_action(
         access = await _operations_admin_access(session, context, "users:manage")
         try:
             user_result = await RbacService(session, SecurityService(get_settings())).create_user(
-                access, request, action.idempotency_key
+                access, user_create_request, action.idempotency_key
             )
         except Exception as exc:
             raise _service_conflict(exc, "用户创建条件已经变化，请重新核对。") from exc
         created_user = await session.scalar(
             select(User).where(User.user_no == user_result.user_id).with_for_update()
         )
-        created_credential = (
-            await session.scalar(
-                select(UserCredential)
-                .where(
-                    UserCredential.user_id == created_user.id,
-                    UserCredential.credential_type == "password",
-                    UserCredential.credential_status == "active",
-                )
-                .with_for_update()
+        if created_user is None:
+            raise OperationsActionConflict(
+                "USER_NOT_CONFIGURED", "用户已创建但账号回读异常，请由管理员核查。"
             )
-            if created_user is not None
-            else None
+        created_credential = await session.scalar(
+            select(UserCredential)
+            .where(
+                UserCredential.user_id == created_user.id,
+                UserCredential.credential_type == "password",
+                UserCredential.credential_status == "active",
+            )
+            .with_for_update()
         )
         if created_credential is None:
             raise OperationsActionConflict(
@@ -7503,7 +7506,7 @@ async def _execute_action(
             password = SecurityService(get_settings()).decrypt(
                 "agent-action:merchant-password", bytes.fromhex(ciphertext_hex)
             )
-            request = AdminStoreCreateRequest(
+            store_create_request = AdminStoreCreateRequest(
                 store_name=store_name,
                 description=description,
                 merchant_username=merchant_username,
@@ -7537,7 +7540,7 @@ async def _execute_action(
         access = await _operations_admin_access(session, context, "stores:manage")
         try:
             store_result = await AdminStoreService(session, get_settings()).create_store(
-                access, request, action.idempotency_key
+                access, store_create_request, action.idempotency_key
             )
         except Exception as exc:
             raise _service_conflict(exc, "店铺创建条件已经变化，请重新核对。") from exc
@@ -8009,20 +8012,24 @@ async def _execute_action(
         amount_minor = int(str(payload.get("amount_minor") or 0))
         if direction not in {"credit", "debit"} or not 1 <= amount_minor <= 100_000_000:
             raise OperationsActionConflict("AGENT_ACTION_ARGUMENT_INVALID", "调整方向或金额无效。")
-        before = wallet.balance_amount
-        if direction == "debit" and amount_minor > before:
+        wallet_balance_before = wallet.balance_amount
+        if direction == "debit" and amount_minor > wallet_balance_before:
             raise OperationsActionConflict(
                 "WALLET_INSUFFICIENT_BALANCE", "扣减金额不能超过用户当前余额。"
             )
-        after = before + amount_minor if direction == "credit" else before - amount_minor
+        wallet_balance_after = (
+            wallet_balance_before + amount_minor
+            if direction == "credit"
+            else wallet_balance_before - amount_minor
+        )
         transaction = WalletTransaction(
             transaction_no=new_prefixed_ulid("wtx_"),
             wallet_id=wallet.id,
             transaction_type="admin_adjustment",
             direction=direction,
             amount=amount_minor,
-            balance_before=before,
-            balance_after=after,
+            balance_before=wallet_balance_before,
+            balance_after=wallet_balance_after,
             currency="CNY",
             business_type="agent_admin_adjustment",
             business_no=action.action_no,
@@ -8031,7 +8038,7 @@ async def _execute_action(
             occurred_at=now,
         )
         session.add(transaction)
-        wallet.balance_amount = after
+        wallet.balance_amount = wallet_balance_after
         wallet.version += 1
         _admin_audit(
             session,
@@ -8039,9 +8046,9 @@ async def _execute_action(
             action_type,
             "user_wallet",
             wallet.wallet_no,
-            {"balance_minor": before, "currency": "CNY"},
+            {"balance_minor": wallet_balance_before, "currency": "CNY"},
             {
-                "balance_minor": after,
+                "balance_minor": wallet_balance_after,
                 "currency": "CNY",
                 "transaction_no": transaction.transaction_no,
             },
@@ -8058,19 +8065,19 @@ async def _execute_action(
                 "transaction_no": transaction.transaction_no,
                 "direction": direction,
                 "amount_minor": amount_minor,
-                "balance_minor": after,
+                "balance_minor": wallet_balance_after,
             },
         )
         return (
             f"“{user.username}”账户余额已{('增加' if direction == 'credit' else '扣减')}"
-            f" {_money(amount_minor)}，最新余额为 {_money(after)}。",
+            f" {_money(amount_minor)}，最新余额为 {_money(wallet_balance_after)}。",
             {
                 "user_id": user.user_no,
                 "username": user.username,
                 "direction": direction,
                 "amount_minor": amount_minor,
-                "balance_minor": after,
-                "balance_display": _money(after),
+                "balance_minor": wallet_balance_after,
+                "balance_display": _money(wallet_balance_after),
                 "transaction_id": transaction.transaction_no,
             },
             transaction.transaction_no,

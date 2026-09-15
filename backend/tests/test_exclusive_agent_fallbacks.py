@@ -1937,7 +1937,8 @@ def test_single_selected_logistics_card_does_not_renumber_it_as_first_order() ->
     )
 
     assert "第 1 笔订单" not in str(cards)
-    assert cards[0]["action"]["resource_id"] == "ord_SECOND"
+    action = cast(dict[str, object], cards[0]["action"])
+    assert action["resource_id"] == "ord_SECOND"
 
 
 def test_logistics_reason_answer_explains_missing_later_node_without_claiming_loss() -> None:

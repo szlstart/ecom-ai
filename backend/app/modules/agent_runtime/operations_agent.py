@@ -5308,7 +5308,7 @@ async def _snapshot(
                 )
             ).all()
         )
-        published_policies = [
+        published_policy_entries = [
             {
                 "policy_type": policy.policy_type,
                 "title": policy.title,
@@ -5321,7 +5321,7 @@ async def _snapshot(
         ]
         after_sale_policies = [
             policy
-            for policy in published_policies
+            for policy in published_policy_entries
             if any(
                 marker in f"{policy.get('policy_type', '')}{policy.get('title', '')}".casefold()
                 for marker in ("after_sale", "refund", "return", "售后", "退款", "退换")
@@ -5372,7 +5372,7 @@ async def _snapshot(
                         for code, name, count in recent_carrier_rows
                     ],
                 },
-                "published_policies": published_policies,
+                "published_policies": published_policy_entries,
                 "after_sale_policies": after_sale_policies,
                 "missing_items": missing_items,
                 "is_complete": not missing_items,
@@ -9347,13 +9347,13 @@ def _operations_detail_cards(
                     trigger_text,
                     display_focus or "",
                 ):
-                    detail_cards = [
+                    focused_detail_cards = [
                         card
                         for card in focused_cards
                         if str(card.get("kind") or "").endswith("_item")
                     ]
-                    if detail_cards:
-                        focused_cards = detail_cards[:1]
+                    if focused_detail_cards:
+                        focused_cards = focused_detail_cards[:1]
                 return (focused_cards + failed_subtasks)[:12]
             commerce_specialists = {
                 "merchant_catalog",
@@ -9510,7 +9510,7 @@ def _operations_detail_cards(
                     )
                 return (specialist_cards + failed_subtasks)[:12]
             primary_cards: list[dict[str, object]] = []
-            detail_cards: list[dict[str, object]] = []
+            merchant_detail_cards: list[dict[str, object]] = []
             for specialist in (
                 "merchant_profile",
                 "merchant_catalog",
@@ -9529,9 +9529,11 @@ def _operations_detail_cards(
                     if domain_cards:
                         primary_cards.append(domain_cards[0])
                         if specialist != "merchant_catalog":
-                            detail_cards.extend(domain_cards[1:])
+                            merchant_detail_cards.extend(domain_cards[1:])
             specialist_cards.extend(primary_cards)
-            specialist_cards.extend(detail_cards[: max(0, 12 - len(specialist_cards))])
+            specialist_cards.extend(
+                merchant_detail_cards[: max(0, 12 - len(specialist_cards))]
+            )
             if catalog_data is not None and len(specialist_cards) == 1:
                 specialist_cards.extend(_operations_detail_cards(context, "catalog", catalog_data))
         else:
@@ -9576,16 +9578,16 @@ def _operations_detail_cards(
             if isinstance(requested_limit, int):
                 admin_entries = admin_entries[: max(1, min(requested_limit, 4))]
             primary_cards = []
-            detail_cards = []
+            admin_detail_cards: list[dict[str, object]] = []
             for specialist, safe_data in admin_entries:
                 domain_cards = _operations_detail_cards(
                     context, specialist_intents[specialist], safe_data
                 )
                 if domain_cards:
                     primary_cards.append(domain_cards[0])
-                    detail_cards.extend(domain_cards[1:])
+                    admin_detail_cards.extend(domain_cards[1:])
             specialist_cards.extend(primary_cards)
-            specialist_cards.extend(detail_cards[: max(0, 12 - len(primary_cards))])
+            specialist_cards.extend(admin_detail_cards[: max(0, 12 - len(primary_cards))])
         if specialist_cards or failed_subtasks:
             return (specialist_cards + failed_subtasks)[:12]
 
@@ -12610,7 +12612,7 @@ async def _complete(
             if isinstance(result, Mapping) and isinstance(result.get("data"), Mapping):
                 order_data_sources.append(result["data"])
     seen_order_ids: set[str] = set()
-    explicit_display_focus = _explicit_operations_display_focus(context.trigger.text_content)
+    explicit_display_focus = _explicit_operations_display_focus(context.trigger.text_content or "")
     for order_data in order_data_sources:
         if explicit_display_focus not in {None, "orders"}:
             continue

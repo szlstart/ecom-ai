@@ -44426,6 +44426,7 @@
               "admin_user_password_reset_requirement",
               "admin_user_wallet_adjust",
               "admin_user_profile",
+              "admin_user_avatar_update",
               "admin_user_delete",
               "admin_user_address_create",
               "admin_user_address_update",
@@ -44554,7 +44555,8 @@
             "type": "string",
             "enum": [
               "store_logo",
-              "product_sku_image"
+              "product_sku_image",
+              "user_avatar"
             ],
             "title": "Purpose"
           },
@@ -44565,10 +44567,30 @@
             "title": "File Id"
           },
           "store_id": {
-            "type": "string",
-            "maxLength": 40,
-            "pattern": "^sto_[0-9A-Z]+$",
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^sto_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Store Id"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^usr_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
           },
           "product_id": {
             "anyOf": [
@@ -44601,8 +44623,7 @@
         "type": "object",
         "required": [
           "purpose",
-          "file_id",
-          "store_id"
+          "file_id"
         ],
         "title": "AgentAssetMessageContent",
         "description": "A file already uploaded through the governed file pipeline.\n\nThis content type is accepted only by the merchant AI assistant and the\nplatform administrator AI manager endpoints.  The messaging service\nresolves every public identifier again and stores a trusted display\nsnapshot; callers cannot use it to bind an arbitrary file or cross a store\nboundary."

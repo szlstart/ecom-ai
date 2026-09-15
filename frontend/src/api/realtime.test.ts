@@ -31,6 +31,25 @@ class MockWebSocket {
 afterEach(() => { MockWebSocket.instances.length = 0; vi.unstubAllGlobals() })
 
 describe('RealtimeConnection', () => {
+  it('still attempts a real connection when navigator.onLine is a stale false hint', async () => {
+    vi.stubGlobal('WebSocket', MockWebSocket)
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false)
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({
+        data: { ticket: 'rt_stale_offline', expires_in: 30, websocket_path: '/ws/v1', subprotocol: 'ecom.realtime.v1' },
+        meta: { request_id: 'req_stale_offline', pagination: null },
+      }), { status: 200, headers: { 'content-type': 'application/json' } }),
+    )
+    const connection = new RealtimeConnection({
+      audience: 'user', token: () => 'access-secret', onState: () => undefined, onEvent: () => undefined,
+    })
+
+    connection.start()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(MockWebSocket.instances).toHaveLength(1))
+    connection.stop()
+  })
+
   it('keeps the one-time ticket out of the URL and deduplicates event frames', async () => {
     vi.stubGlobal('WebSocket', MockWebSocket)
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -94,6 +113,63 @@ describe('RealtimeConnection', () => {
     await vi.waitFor(() => expect(handled).toEqual(['start:rte_1']))
     releaseFirst?.()
     await vi.waitFor(() => expect(handled).toEqual(['start:rte_1', 'end:rte_1', 'start:rte_2', 'end:rte_2']))
+    connection.stop()
+  })
+
+  it('drops the old websocket and reconnects when the active account changes', async () => {
+    vi.stubGlobal('WebSocket', MockWebSocket)
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({
+      data: {
+        ticket: `rt_${MockWebSocket.instances.length + 1}`,
+        expires_in: 30,
+        websocket_path: '/ws/v1',
+        subprotocol: 'ecom.realtime.v1',
+      },
+      meta: { request_id: 'req_identity_switch', pagination: null },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    let token = 'account-a-token'
+    const connection = new RealtimeConnection({
+      audience: 'user', token: () => token, onState: () => undefined, onEvent: () => undefined,
+    })
+
+    connection.start()
+    await vi.waitFor(() => expect(MockWebSocket.instances).toHaveLength(1))
+    const first = MockWebSocket.instances[0]!
+    first.open()
+    token = 'account-b-token'
+
+    await vi.waitFor(() => expect(MockWebSocket.instances).toHaveLength(2), { timeout: 1_500 })
+    expect(first.readyState).toBe(3)
+    connection.stop()
+  })
+
+  it('does not relabel an in-flight old-account ticket as the new account', async () => {
+    vi.stubGlobal('WebSocket', MockWebSocket)
+    let releaseFirstTicket: ((response: Response) => void) | undefined
+    const firstTicket = new Promise<Response>((resolve) => { releaseFirstTicket = resolve })
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(async () => firstTicket)
+      .mockResolvedValue(new Response(JSON.stringify({
+        data: { ticket: 'rt_account_b', expires_in: 30, websocket_path: '/ws/v1', subprotocol: 'ecom.realtime.v1' },
+        meta: { request_id: 'req_account_b', pagination: null },
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    let token = 'account-a-token'
+    const connection = new RealtimeConnection({
+      audience: 'user', token: () => token, onState: () => undefined, onEvent: () => undefined,
+    })
+
+    connection.start()
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    token = 'account-b-token'
+    releaseFirstTicket?.(new Response(JSON.stringify({
+      data: { ticket: 'rt_account_a', expires_in: 30, websocket_path: '/ws/v1', subprotocol: 'ecom.realtime.v1' },
+      meta: { request_id: 'req_account_a', pagination: null },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+
+    await vi.waitFor(() => expect(MockWebSocket.instances).toHaveLength(2), { timeout: 1_500 })
+    expect(MockWebSocket.instances[0]!.protocols).toContain('ticket.rt_account_a')
+    expect(MockWebSocket.instances[0]!.readyState).toBe(3)
+    expect(MockWebSocket.instances[1]!.protocols).toContain('ticket.rt_account_b')
     connection.stop()
   })
 

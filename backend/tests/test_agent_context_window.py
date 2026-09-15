@@ -26,6 +26,23 @@ def test_context_window_keeps_current_message_first_and_marks_history_untrusted(
     assert projection["omitted_count"] == 4
 
 
+def test_planning_context_stays_bounded_for_long_conversations() -> None:
+    window = ContextWindow(
+        recent_turns=tuple(
+            RecentTurn(f"msg_{index}", "用户", "很长的历史消息" * 150)
+            for index in range(10)
+        ),
+        omitted_count=60,
+        character_count=9000,
+    ).with_summary("较早对话摘要" * 500, summary_no="sum_long", message_count=60)
+
+    planning = window.planning_input("当前问题: 请推荐三件现货商品并查询发货时效")
+
+    assert len(planning) <= 7000
+    assert planning.startswith("CURRENT_UNTRUSTED_MESSAGE")
+    assert "RECENT_UNTRUSTED_DIALOGUE_FOR_COREFERENCE_ONLY" in planning
+
+
 def test_context_window_redacts_secrets_and_isolates_old_injection() -> None:
     sensitive = _safe_dialogue_text(
         "邮箱 demo@example.com 手机 13800138000 Bearer abc.def.ghi sk-testsecret123456789"

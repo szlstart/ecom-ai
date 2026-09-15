@@ -782,6 +782,8 @@ class AdminStoreService:
         store_no: str,
         payload: AdminStorePolicyCreateRequest,
         idempotency_key: str,
+        *,
+        commit: bool = True,
     ) -> AdminStorePolicyView:
         store = await self._store_for_scope(access, store_no, for_update=True)
         claim = await self.idempotency.begin(
@@ -823,7 +825,10 @@ class AdminStoreService:
         )
         self.idempotency.complete(claim, response_status=201, resource_no=policy.policy_no)
         result = _policy_view(policy, store.store_no)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return result
 
     async def update_policy(
@@ -833,6 +838,8 @@ class AdminStoreService:
         policy_no: str,
         payload: AdminStorePolicyUpdateRequest,
         expected_version: int,
+        *,
+        commit: bool = True,
     ) -> AdminStorePolicyView:
         store = await self._store_for_scope(access, store_no)
         policy = await self.repository.policy_by_no(store.id, policy_no, for_update=True)
@@ -881,7 +888,10 @@ class AdminStoreService:
             scope_id=store.id,
         )
         result = _policy_view(policy, store.store_no)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return result
 
     async def publish_policy(
@@ -892,6 +902,8 @@ class AdminStoreService:
         payload: AdminPolicyCommandRequest,
         expected_version: int,
         idempotency_key: str,
+        *,
+        commit: bool = True,
     ) -> AdminStorePolicyView:
         return await self._policy_command(
             access,
@@ -901,6 +913,7 @@ class AdminStoreService:
             expected_version,
             idempotency_key,
             command="publish",
+            commit=commit,
         )
 
     async def withdraw_policy(
@@ -911,6 +924,8 @@ class AdminStoreService:
         payload: AdminPolicyCommandRequest,
         expected_version: int,
         idempotency_key: str,
+        *,
+        commit: bool = True,
     ) -> AdminStorePolicyView:
         return await self._policy_command(
             access,
@@ -920,6 +935,7 @@ class AdminStoreService:
             expected_version,
             idempotency_key,
             command="withdraw",
+            commit=commit,
         )
 
     async def _policy_command(
@@ -932,6 +948,7 @@ class AdminStoreService:
         idempotency_key: str,
         *,
         command: str,
+        commit: bool,
     ) -> AdminStorePolicyView:
         store = await self._store_for_scope(access, store_no)
         claim = await self.idempotency.begin(
@@ -1021,7 +1038,10 @@ class AdminStoreService:
         )
         self.idempotency.complete(claim, response_status=200, resource_no=policy.policy_no)
         result = _policy_view(policy, store.store_no)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return result
 
     async def _store_for_scope(

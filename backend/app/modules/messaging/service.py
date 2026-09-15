@@ -805,7 +805,12 @@ class MessagingService:
         )
 
     async def send(
-        self, user: User, conversation_no: str, payload: MessageCreateRequest
+        self,
+        user: User,
+        conversation_no: str,
+        payload: MessageCreateRequest,
+        *,
+        operations_audience: Literal["merchant", "admin"] | None = None,
     ) -> MessageView:
         conversation = await self.repository.by_no(user.id, conversation_no, for_update=True)
         if conversation is None:
@@ -819,7 +824,10 @@ class MessagingService:
         resumed_ticket = False
         sla_before = None
         message_type, text_content, content_payload = await self._message_content(
-            user, conversation, payload
+            user,
+            conversation,
+            payload,
+            operations_audience=operations_audience,
         )
         blocked = bool(text_content and blocks_message(text_content))
         if not blocked:
@@ -966,7 +974,12 @@ class MessagingService:
         return _message_view(message)
 
     async def _message_content(
-        self, user: User, conversation: Conversation, payload: MessageCreateRequest
+        self,
+        user: User,
+        conversation: Conversation,
+        payload: MessageCreateRequest,
+        *,
+        operations_audience: Literal["merchant", "admin"] | None = None,
     ) -> tuple[str, str | None, dict[str, object] | None]:
         content = payload.content
         if content.type == "text":
@@ -981,6 +994,17 @@ class MessagingService:
                     content.sku_id,
                 ),
             )
+        if content.type == "agent_asset":
+            return (
+                "agent_asset",
+                None,
+                await self._agent_asset_payload(
+                    user,
+                    conversation,
+                    content.model_dump(),
+                    operations_audience=operations_audience,
+                ),
+            )
         return (
             "order_card",
             None,
@@ -990,6 +1014,135 @@ class MessagingService:
                 content.order_id,
             ),
         )
+
+    async def _agent_asset_payload(
+        self,
+        user: User,
+        conversation: Conversation,
+        content: dict[str, object],
+        *,
+        operations_audience: Literal["merchant", "admin"] | None,
+    ) -> dict[str, object]:
+        """Resolve a governed AI asset command into a trusted display snapshot."""
+
+        from app.modules.catalog.models import Product, ProductSku
+
+        if operations_audience is None or conversation.conversation_type != "exclusive":
+            raise _invalid_agent_asset(
+                "AGENT_ASSET_SCOPE_INVALID",
+                "图片操作只能从 AI 经营助理或 AI 管家的受控上传入口发起。",
+            )
+        purpose = str(content.get("purpose") or "")
+        file_no = str(content.get("file_id") or "")
+        if purpose == "user_avatar":
+            if operations_audience != "admin":
+                raise _invalid_agent_asset(
+                    "AGENT_ASSET_SCOPE_INVALID", "只有平台 AI 管家可以修改用户头像。"
+                )
+            if any(content.get(key) is not None for key in ("store_id", "product_id", "sku_id")):
+                raise _invalid_agent_asset(
+                    "AGENT_ASSET_ARGUMENT_INVALID", "更新用户头像时不能同时指定店铺、商品或款式。"
+                )
+            target_user_no = str(content.get("user_id") or "")
+            target_user = await self.session.scalar(
+                select(User).where(User.user_no == target_user_no)
+            )
+            if target_user is None:
+                raise _invalid_agent_asset("AGENT_ASSET_USER_NOT_FOUND", "目标用户不存在。")
+            file = await self.session.scalar(
+                select(FileObject).where(FileObject.file_no == file_no)
+            )
+            if (
+                file is None
+                or file.purpose != "user_avatar"
+                or file.owner_type != "user"
+                or file.owner_no != target_user.user_no
+                or file.file_status != "active"
+                or file.scan_status != "safe"
+                or file.visibility != "public_derivative"
+            ):
+                raise _invalid_agent_asset(
+                    "AGENT_ASSET_FILE_NOT_BINDABLE",
+                    "头像尚未通过安全处理、用途不匹配，或不属于目标用户。",
+                )
+            return {
+                "purpose": purpose,
+                "file_id": file.file_no,
+                "image_url": f"/api/v1/files/{file.file_no}",
+                "user_id": target_user.user_no,
+                "username": target_user.username,
+                "operations_audience": operations_audience,
+            }
+        store_no = str(content.get("store_id") or "")
+        store = await self.session.scalar(select(Store).where(Store.store_no == store_no))
+        if store is None:
+            raise _invalid_agent_asset("AGENT_ASSET_STORE_NOT_FOUND", "目标店铺不存在。")
+        if operations_audience == "merchant" and store.owner_user_id != user.id:
+            raise _invalid_agent_asset(
+                "AGENT_ASSET_SCOPE_INVALID", "只能为当前商家自己的店铺上传图片。"
+            )
+        file = await self.session.scalar(select(FileObject).where(FileObject.file_no == file_no))
+        expected_file_purpose = "store_logo" if purpose == "store_logo" else "product"
+        if (
+            file is None
+            or file.purpose != expected_file_purpose
+            or file.owner_type != "store"
+            or file.owner_no != store.store_no
+            or file.file_status != "active"
+            or file.scan_status != "safe"
+            or file.visibility != "public_derivative"
+        ):
+            raise _invalid_agent_asset(
+                "AGENT_ASSET_FILE_NOT_BINDABLE",
+                "图片尚未通过安全处理、用途不匹配，或不属于目标店铺。",
+            )
+        common: dict[str, object] = {
+            "purpose": purpose,
+            "file_id": file.file_no,
+            "image_url": f"/api/v1/files/{file.file_no}",
+            "store_id": store.store_no,
+            "store_name": store.store_name,
+            "operations_audience": operations_audience,
+        }
+        if purpose == "store_logo":
+            if content.get("product_id") is not None or content.get("sku_id") is not None:
+                raise _invalid_agent_asset(
+                    "AGENT_ASSET_ARGUMENT_INVALID", "更新店铺 Logo 时不能同时指定商品或款式。"
+                )
+            return common
+        if purpose != "product_sku_image":
+            raise _invalid_agent_asset("AGENT_ASSET_PURPOSE_INVALID", "不支持该图片操作类型。")
+        product_no = str(content.get("product_id") or "")
+        sku_no = str(content.get("sku_id") or "")
+        product = await self.session.scalar(
+            select(Product).where(
+                Product.product_no == product_no,
+                Product.store_id == store.id,
+                Product.deleted_at.is_(None),
+            )
+        )
+        if product is None:
+            raise _invalid_agent_asset(
+                "AGENT_ASSET_PRODUCT_NOT_FOUND", "目标商品不存在或不属于所选店铺。"
+            )
+        sku = await self.session.scalar(
+            select(ProductSku).where(
+                ProductSku.sku_no == sku_no,
+                ProductSku.product_id == product.id,
+                ProductSku.sku_status == "active",
+            )
+        )
+        if sku is None:
+            raise _invalid_agent_asset(
+                "AGENT_ASSET_SKU_NOT_FOUND", "目标款式不存在、已停用或不属于所选商品。"
+            )
+        return {
+            **common,
+            "product_id": product.product_no,
+            "product_name": product.product_name,
+            "sku_id": sku.sku_no,
+            "sku_name": sku.sku_name,
+        }
 
     async def product_card_payload(
         self,
@@ -1156,6 +1309,7 @@ class MessagingService:
             "payment_status": order.payment_status,
             "fulfillment_status": order.fulfillment_status,
             "after_sale_status": order.after_sale_status,
+            "has_pending_review": any(item.review_status == "pending" for item in items),
             "store": {
                 "store_id": store.store_no if store else None,
                 "store_name": store.store_name if store else "店铺",
@@ -1545,4 +1699,13 @@ def _not_found() -> ApplicationError:
         code="RESOURCE_NOT_FOUND",
         title="Resource not found",
         detail="会话或消息不存在。",
+    )
+
+
+def _invalid_agent_asset(code: str, detail: str) -> ApplicationError:
+    return ApplicationError(
+        status=422,
+        code=code,
+        title="Agent asset is invalid",
+        detail=detail,
     )

@@ -18,14 +18,20 @@ export ECOM_FILE_SCANNER_HOST='127.0.0.1'
 export ECOM_FILE_SCANNER_PORT=13310
 export ECOM_RUN_INTEGRATION_TESTS=1
 export ECOM_RUN_FILE_INTEGRATION_TESTS=1
-# Acceptance fixtures exercise the deterministic fallback gateway. Live model
-# compatibility and quality are evaluated by the separate provider/eval jobs.
-export ECOM_AGENT_MODEL_API_URL=''
-export ECOM_AGENT_MODEL_API_KEY=''
-export ECOM_AGENT_MODEL_NAME=''
-export ECOM_AGENT_MODEL_REQUIRED=false
-export ECOM_EMBEDDING_API_URL=''
-export ECOM_EMBEDDING_API_KEY=''
+# The repeatable default remains provider-independent.  An explicit opt-in runs
+# the same isolated browser fixture through the model and embedding providers
+# configured in the repository .env without copying secrets into this script.
+if [[ "${ECOM_ACCEPTANCE_USE_CONFIGURED_MODEL:-0}" != "1" ]]; then
+  export ECOM_AGENT_MODEL_API_URL=''
+  export ECOM_AGENT_MODEL_API_KEY=''
+  export ECOM_AGENT_MODEL_NAME=''
+  export ECOM_AGENT_MODEL_REQUIRED=false
+  export ECOM_EMBEDDING_API_URL=''
+  export ECOM_EMBEDDING_API_KEY=''
+else
+  unset ECOM_AGENT_MODEL_API_URL ECOM_AGENT_MODEL_API_KEY ECOM_AGENT_MODEL_NAME
+  unset ECOM_AGENT_MODEL_REQUIRED ECOM_EMBEDDING_API_URL ECOM_EMBEDDING_API_KEY
+fi
 
 cd "${repo_root}"
 
@@ -49,4 +55,16 @@ docker exec "${mysql_container}" sh -ec 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -
 docker exec "${postgres_container}" sh -ec 'createdb -U "$POSTGRES_USER" -O "$POSTGRES_USER" ecom_ai_ai_test'
 
 make migrate seed
-make acceptance-test
+if [[ "${1:-}" == "--pytest" ]]; then
+  shift
+  cd backend
+  "${PYTHON_BIN:-/opt/miniconda3/envs/ecom-ai/bin/python}" -m pytest "$@"
+elif [[ $# -gt 0 ]]; then
+  # Developer-focused connected regression: preserve the same exact isolated
+  # namespaces and cleanup guarantees while forwarding Playwright file/grep
+  # filters to the live browser runner.
+  PYTHON_BIN="${PYTHON_BIN:-/opt/miniconda3/envs/ecom-ai/bin/python}" \
+    ./scripts/run-live-browser-acceptance.sh "$@"
+else
+  make acceptance-test
+fi

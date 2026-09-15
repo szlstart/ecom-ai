@@ -33,6 +33,18 @@ POLICIES = {
         permissions=("products:create", "products:update"),
         processor="public_image",
     ),
+    "product_detail": UploadPolicy(
+        purpose="product_detail",
+        version="product-detail-image-ocr-v1",
+        allowed_mime_types=("image/jpeg", "image/png", "image/webp"),
+        allowed_extensions=("jpg", "jpeg", "png", "webp"),
+        max_size_bytes=10 * MIB,
+        max_count=50,
+        max_pixels=40_000_000,
+        owner_type="store",
+        permissions=("products:create", "products:update"),
+        processor="public_image",
+    ),
     "store_logo": UploadPolicy(
         purpose="store_logo",
         version="store-logo-v1",

@@ -16,11 +16,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
+from app.modules.after_sale.models import RefundApplication
 from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
 from app.modules.agent_runtime.models import AgentToolAudit
+from app.modules.agent_runtime.public_trace import audit_projection, result_count
 from app.modules.agent_runtime.store_context import TrustedStoreAgentContext
+from app.modules.cart.schemas import CartItemCreateRequest
+from app.modules.cart.service import CartService
 from app.modules.catalog.models import Product, ProductAttribute, ProductSku
-from app.modules.catalog.repository import CatalogRepository
+from app.modules.catalog.repository import CatalogRepository, described_image_file_ids
 from app.modules.inventory.models import Inventory
 from app.modules.logistics.models import Shipment, ShipmentTrack
 from app.modules.messaging.human_schemas import HumanHandoffRequest
@@ -28,6 +32,7 @@ from app.modules.messaging.models import HumanServiceTicket
 from app.modules.messaging.service import MessagingService
 from app.modules.orders.domain import OrderPolicySnapshot, available_action_codes
 from app.modules.orders.models import Order, OrderItem
+from app.modules.reviews.models import Review
 from app.modules.stores.repository import StoreRepository
 
 ToolStatus = Literal["succeeded", "denied", "failed", "unknown"]
@@ -48,6 +53,7 @@ class StoreToolGateway:
         self.catalog = CatalogRepository(session)
         self.stores = StoreRepository(session)
         self._call_counts: dict[str, int] = {}
+        self.execution_records: list[dict[str, object]] = []
 
     async def execute(
         self,
@@ -89,6 +95,19 @@ class StoreToolGateway:
                 result = StoreToolResult("unknown", {}, "TOOL_TIMEOUT_UNKNOWN")
             except Exception:
                 result = StoreToolResult("failed", {}, "TOOL_EXECUTION_FAILED")
+        latency_ms = max(0, int((time.monotonic() - started) * 1000))
+        self.execution_records.append(
+            {
+                "sequence": len(self.execution_records) + 1,
+                "tool_code": tool_code,
+                "arguments": audit_projection(arguments),
+                "status": result.status,
+                "result": audit_projection(result.data),
+                "result_count": result_count(result.data),
+                "error_code": result.error_code,
+                "latency_ms": latency_ms,
+            }
+        )
         self.session.add(
             AgentToolAudit(
                 audit_no=new_prefixed_ulid("taud_"),
@@ -98,7 +117,7 @@ class StoreToolGateway:
                 arguments_hash=payload_hash,
                 outcome=result.status,
                 error_code=result.error_code,
-                latency_ms=max(0, int((time.monotonic() - started) * 1000)),
+                latency_ms=latency_ms,
             )
         )
         await self.session.flush()
@@ -126,8 +145,31 @@ class StoreToolGateway:
                 ).all()
             )
             content = await self.catalog.published_content(product)
+            image_ocr = await self.catalog.content_image_ocr_texts(
+                content.id if content else None,
+                exclude_file_nos=described_image_file_ids(content.safe_blocks if content else None),
+            )
             faqs = await self.catalog.public_faqs(product.id)
             fulfillment = await self.catalog.fulfillment_profile(product.id)
+            public_reviews = list(
+                (
+                    await self.session.scalars(
+                        select(Review)
+                        .where(
+                            Review.product_id == product.id,
+                            Review.store_id == context.store.id,
+                            Review.review_status == "published",
+                            Review.published_at.is_not(None),
+                        )
+                        .order_by(
+                            Review.helpful_count.desc(),
+                            Review.published_at.desc(),
+                            Review.id.desc(),
+                        )
+                        .limit(5)
+                    )
+                ).all()
+            )
             now = utc_now()
             return {
                 "product_id": product.product_no,
@@ -152,7 +194,13 @@ class StoreToolGateway:
                     }
                     for sku, inventory in sku_rows[:20]
                 ],
-                "safe_detail_text": content.safe_text[:6000] if content else None,
+                "safe_detail_text": _combined_detail_text(
+                    content.safe_text if content else None, image_ocr
+                ),
+                "image_descriptions": [
+                    {"file_id": file_no, "text": text[:2000], "source": "product_detail_ocr"}
+                    for file_no, text in image_ocr[:10]
+                ],
                 "faqs": [
                     {
                         "faq_id": faq.faq_no,
@@ -162,6 +210,21 @@ class StoreToolGateway:
                     }
                     for faq, version in faqs[:10]
                 ],
+                "review_summary": {
+                    "rating_score": str(product.rating_score),
+                    "review_count": product.review_count,
+                    "samples": [
+                        {
+                            "review_id": review.review_no,
+                            "rating": review.rating,
+                            "content": (review.content or "")[:300],
+                            "published_at": review.published_at,
+                        }
+                        for review in public_reviews
+                        if review.content
+                    ],
+                    "source": "published_product_reviews",
+                },
                 "dispatch_estimate": {
                     "status": "available" if fulfillment else "unavailable",
                     "min_at": (
@@ -176,11 +239,11 @@ class StoreToolGateway:
                     ),
                     "source": "store_fulfillment_profile" if fulfillment else None,
                     "source_updated_at": fulfillment.updated_at if fulfillment else None,
-                    "as_of": now,
+                    "as_of": now.isoformat(),
                     "disclaimer_code": "ESTIMATE_NOT_GUARANTEE" if fulfillment else None,
                 },
                 "source_version": product.version,
-                "as_of": now,
+                "as_of": now.isoformat(),
                 "data_scope": {"store_id": context.store.store_no},
             }
 
@@ -302,12 +365,12 @@ class StoreToolGateway:
                 statement = statement.where(ProductSku.sku_no.in_(unique))
             rows = list((await self.session.execute(statement.order_by(ProductSku.id))).all())
             rows = rows[:4] if not sku_nos else rows
-            if len(rows) < 2 or (sku_nos and len(rows) != len(set(sku_nos))):
+            if not rows or (sku_nos and len(rows) != len(set(sku_nos))):
                 raise _not_accessible()
             return {
                 "product_id": product.product_no,
                 "items": [_sku(sku, inventory) for sku, inventory in rows],
-                "as_of": utc_now(),
+                "as_of": utc_now().isoformat(),
                 "source_version": product.version,
                 "data_scope": {"store_id": context.store.store_no},
             }
@@ -353,7 +416,7 @@ class StoreToolGateway:
                         "availability_label": _availability_label(inventory),
                         "available_quantity": _available_quantity(inventory),
                         "price": _money_projection(sku.sale_price_amount, sku.currency),
-                        "as_of": inventory.updated_at if inventory else utc_now(),
+                        "as_of": (inventory.updated_at if inventory else utc_now()).isoformat(),
                     }
                     for sku, inventory, _product_name in rows
                 ],
@@ -364,6 +427,46 @@ class StoreToolGateway:
             context,
             "catalog.get_inventory_availability",
             {"product_id": product_no},
+            handler,
+        )
+
+    async def add_cart_item(
+        self,
+        context: TrustedStoreAgentContext,
+        product_no: str,
+        sku_no: str,
+        quantity: int,
+    ) -> StoreToolResult:
+        """Add only an active SKU owned by the conversation-bound store."""
+
+        safe_quantity = min(99, max(1, quantity))
+
+        async def handler() -> dict[str, object]:
+            scoped_sku = await self.session.scalar(
+                select(ProductSku)
+                .join(Product, Product.id == ProductSku.product_id)
+                .where(
+                    Product.product_no == product_no,
+                    Product.store_id == context.store.id,
+                    Product.product_status == "on_sale",
+                    ProductSku.sku_no == sku_no,
+                    ProductSku.store_id == context.store.id,
+                    ProductSku.sku_status == "active",
+                )
+            )
+            if scoped_sku is None:
+                raise _not_accessible()
+            view = await CartService(self.session).add(
+                context.user,
+                CartItemCreateRequest(sku_id=sku_no, quantity=safe_quantity),
+                f"store-agent-cart-add-{context.trigger.message_no}",
+            )
+            return view.model_dump(mode="json")
+
+        return await self.execute(
+            context,
+            "cart.add_item",
+            {"product_id": product_no, "sku_id": sku_no, "quantity": safe_quantity},
             handler,
         )
 
@@ -410,7 +513,7 @@ class StoreToolGateway:
                 )
             return {
                 "items": items,
-                "as_of": utc_now(),
+                "as_of": utc_now().isoformat(),
                 "data_scope": {"store_id": context.store.store_no},
             }
 
@@ -443,7 +546,7 @@ class StoreToolGateway:
                     "currency": "CNY",
                     "source_version": "platform-free-shipping-v1",
                 },
-                "as_of": utc_now(),
+                "as_of": utc_now().isoformat(),
                 "data_scope": {"store_id": context.store.store_no},
             }
 
@@ -519,7 +622,7 @@ class StoreToolGateway:
                 "page_target": {"name": "my-order-detail", "order_id": order.order_no},
                 "available_actions": available_action_codes(policy, utc_now()),
                 "source_version": order.version,
-                "as_of": utc_now(),
+                "as_of": utc_now().isoformat(),
                 "data_scope": {
                     "user_id": context.user.user_no,
                     "store_id": context.store.store_no,
@@ -544,7 +647,11 @@ class StoreToolGateway:
                             Order.user_hidden_at.is_(None),
                         )
                         .order_by(Order.created_at.desc(), Order.id.desc())
-                        .limit(5)
+                        # Keep enough rows for natural references such as “那笔
+                        # 6 元订单”。The response card builder still limits the
+                        # default visual list, while the Agent can uniquely match
+                        # an older order without asking for a public order number.
+                        .limit(20)
                     )
                 ).all()
             )
@@ -595,7 +702,7 @@ class StoreToolGateway:
                     }
                     for order in orders
                 ],
-                "as_of": utc_now(),
+                "as_of": utc_now().isoformat(),
                 "data_scope": {
                     "user_id": context.user.user_no,
                     "store_id": context.store.store_no,
@@ -604,6 +711,83 @@ class StoreToolGateway:
             }
 
         return await self.execute(context, "order.list_user_store_orders", {}, handler)
+
+    async def list_user_refunds(self, context: TrustedStoreAgentContext) -> StoreToolResult:
+        """List this customer's after-sale applications for the bound store only."""
+
+        async def handler() -> dict[str, object]:
+            rows = list(
+                (
+                    await self.session.execute(
+                        select(RefundApplication, Order)
+                        .join(Order, Order.id == RefundApplication.order_id)
+                        .where(
+                            RefundApplication.user_id == context.user.id,
+                            RefundApplication.store_id == context.store.id,
+                            Order.user_id == context.user.id,
+                            Order.store_id == context.store.id,
+                        )
+                        .order_by(
+                            RefundApplication.submitted_at.desc(),
+                            RefundApplication.id.desc(),
+                        )
+                        .limit(10)
+                    )
+                ).all()
+            )
+            order_ids = [order.id for _refund, order in rows]
+            order_items = (
+                list(
+                    (
+                        await self.session.scalars(
+                            select(OrderItem)
+                            .where(OrderItem.order_id.in_(order_ids))
+                            .order_by(OrderItem.order_id, OrderItem.id)
+                        )
+                    ).all()
+                )
+                if order_ids
+                else []
+            )
+            first_item_by_order: dict[int, OrderItem] = {}
+            for item in order_items:
+                first_item_by_order.setdefault(item.order_id, item)
+            return {
+                "items": [
+                    {
+                        "refund_id": refund.refund_no,
+                        "order_id": order.order_no,
+                        "product_name": (
+                            first_item_by_order[order.id].product_name
+                            if order.id in first_item_by_order
+                            else "本店订单"
+                        ),
+                        "refund_type": refund.refund_type,
+                        "refund_status": refund.refund_status,
+                        "reason_code": refund.reason_code,
+                        "reason_detail": refund.reason_detail,
+                        "requested_amount": _money_projection(
+                            refund.requested_amount, refund.currency
+                        ),
+                        "submitted_at": refund.submitted_at.isoformat(),
+                        "source_version": refund.version,
+                    }
+                    for refund, order in rows
+                ],
+                "presentation": "after_sale_cards",
+                "as_of": utc_now().isoformat(),
+                "data_scope": {
+                    "user_id": context.user.user_no,
+                    "store_id": context.store.store_no,
+                },
+            }
+
+        return await self.execute(
+            context,
+            "after_sale.list_user_store_refunds",
+            {},
+            handler,
+        )
 
     async def recommendations(
         self, context: TrustedStoreAgentContext, search_text: str | None
@@ -643,8 +827,34 @@ class StoreToolGateway:
                         continue
                     seen_product_ids.add(product.id)
                     rows.append(row)
-                if len(rows) >= constraints.requested_limit:
+                if len(rows) >= max(constraints.requested_limit * 3, 12):
                     break
+            rows = [
+                row
+                for row in rows
+                if _matches_recommendation_scenario(
+                    search_text or "",
+                    row[0].product_name,
+                    row[0].subtitle,
+                )
+            ]
+            if rows:
+                candidate_ids = [row[0].id for row in rows]
+                in_stock_product_ids = set(
+                    await self.session.scalars(
+                        select(ProductSku.product_id)
+                        .join(Inventory, Inventory.sku_id == ProductSku.id)
+                        .where(
+                            ProductSku.product_id.in_(candidate_ids),
+                            ProductSku.store_id == context.store.id,
+                            ProductSku.sku_status == "active",
+                            Inventory.inventory_status == "active",
+                            Inventory.on_hand_quantity - Inventory.reserved_quantity > 0,
+                        )
+                        .distinct()
+                    )
+                )
+                rows = [row for row in rows if row[0].id in in_stock_product_ids]
             if constraints.sort == "price_asc":
                 rows.sort(key=lambda row: (row[0].min_price_amount, row[0].id))
             elif constraints.sort == "price_desc":
@@ -679,7 +889,8 @@ class StoreToolGateway:
                     "price_max": constraints.price_max,
                     "sort": constraints.sort,
                 },
-                "as_of": utc_now(),
+                "inventory_policy": "available_sku_required",
+                "as_of": utc_now().isoformat(),
                 "data_scope": {"store_id": context.store.store_no},
             }
 
@@ -753,7 +964,7 @@ class StoreToolGateway:
             return {
                 "order_id": order.order_no,
                 "items": items,
-                "as_of": utc_now(),
+                "as_of": utc_now().isoformat(),
                 "data_scope": {
                     "user_id": context.user.user_no,
                     "store_id": context.store.store_no,
@@ -785,7 +996,7 @@ class StoreToolGateway:
                     if ticket is not None
                     else None
                 ),
-                "as_of": utc_now(),
+                "as_of": utc_now().isoformat(),
             }
 
         return await self.execute(context, "support.get_ticket_status", {}, handler)
@@ -820,6 +1031,20 @@ class StoreToolGateway:
             {"ticket_type": ticket_type, "reason_code": reason_code},
             handler,
         )
+
+
+def _combined_detail_text(
+    merchant_text: str | None, image_ocr: list[tuple[str, str]], *, limit: int = 12_000
+) -> str | None:
+    parts: list[str] = []
+    if merchant_text:
+        parts.append(merchant_text)
+    for index, (_file_no, text) in enumerate(image_ocr, start=1):
+        normalized = " ".join(text.split())
+        if normalized and normalized not in parts:
+            parts.append(f"详情图{index}识别文字: {normalized}")
+    combined = "\n".join(parts).strip()
+    return combined[:limit] or None
 
 
 def _attribute(item: ProductAttribute) -> dict[str, object]:
@@ -905,6 +1130,27 @@ def _product_match_score(
         if len(normalized_alias) >= 2 and normalized_alias in query_compact:
             score += max(3, min(8, len(normalized_alias)))
     return score
+
+
+def _matches_recommendation_scenario(
+    query: str,
+    product_name: str,
+    subtitle: str | None,
+) -> bool:
+    normalized_query = re.sub(r"\s+", "", query).casefold()
+    searchable = re.sub(r"\s+", "", f"{product_name} {subtitle or ''}").casefold()
+    scenario_terms: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+        (
+            ("考试", "考场", "备考"),
+            ("考试", "铅笔", "橡皮", "直尺", "尺子", "笔芯", "中性笔", "笔记本"),
+        ),
+        (("画画", "绘画", "画图"), ("绘画", "画图", "铅笔", "橡皮", "直尺", "画笔")),
+        (("记录", "记事", "日程"), ("记录本", "记事本", "笔记本", "日记本", "计划本")),
+    )
+    for triggers, evidence_terms in scenario_terms:
+        if any(term in normalized_query for term in triggers):
+            return any(term in searchable for term in evidence_terms)
+    return True
 
 
 _SCOPE_KEYS = frozenset({"userid", "userno", "storeid", "storeno", "conversationid", "contextid"})

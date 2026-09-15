@@ -6,7 +6,8 @@ import time
 from datetime import datetime, timedelta
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import exists, func, select
+from sqlalchemy.orm import aliased
 
 from app.core.config import get_settings
 from app.core.exceptions import ApplicationError
@@ -36,6 +37,7 @@ from app.modules.agent_runtime.store_agent import process_store_run
 from app.modules.agent_runtime.trigger_text import agent_trace_question
 from app.modules.identity.models import User
 from app.modules.messaging.models import Conversation, Message
+from app.modules.messaging.sequence import lock_conversation_for_append
 from app.modules.system.models import OutboxEvent
 
 logger = structlog.get_logger(__name__)
@@ -119,11 +121,28 @@ async def process_batch(limit: int = 20) -> int:
     run_nos: list[str] = []
     async for session in mysql_session():
         await AgentApprovalService(session, settings, security).reconcile_unknown(limit=limit)
+        running_run = aliased(AgentRun)
+        earlier_queued_run = aliased(AgentRun)
         runs = list(
             (
                 await session.scalars(
                     select(AgentRun)
-                    .where(AgentRun.run_status == "queued")
+                    .where(
+                        AgentRun.run_status == "queued",
+                        ~exists(
+                            select(running_run.id).where(
+                                running_run.conversation_id == AgentRun.conversation_id,
+                                running_run.run_status == "running",
+                            )
+                        ),
+                        AgentRun.id
+                        == select(func.min(earlier_queued_run.id))
+                        .where(
+                            earlier_queued_run.conversation_id == AgentRun.conversation_id,
+                            earlier_queued_run.run_status == "queued",
+                        )
+                        .scalar_subquery(),
+                    )
                     .order_by(AgentRun.created_at, AgentRun.id)
                     .with_for_update(skip_locked=True)
                     .limit(limit)
@@ -248,10 +267,11 @@ async def process_batch(limit: int = 20) -> int:
                     failed.current_phase = "failed"
                     failed.error_code = "AGENT_RUNTIME_UNHANDLED_ERROR"
                     failed.version += 1
-                    failed_conversation = await session.get(
-                        Conversation, failed.conversation_id
-                    )
-                    if failed_conversation is not None and failed.response_message_id is None:
+                    failed_conversation = await session.get(Conversation, failed.conversation_id)
+                    # A resumed confirmation run already points at its approval card.  An
+                    # unhandled execution failure still needs a new terminal message;
+                    # otherwise every client waits forever on the settled-card cursor.
+                    if failed_conversation is not None:
                         await _persist_failure_response(
                             session,
                             failed,
@@ -289,6 +309,7 @@ async def _persist_failure_response(
         "本次智能处理发生异常，系统已记录故障且没有执行任何写操作。"
         "你可以稍后重试。若问题持续，请联系人工客服。"
     )
+    conversation = await lock_conversation_for_append(session, conversation.id)
     conversation.last_sequence_no += 1
     conversation.last_message_at = now
     conversation.version += 1
@@ -304,7 +325,7 @@ async def _persist_failure_response(
         content_payload={
             "run_id": run.run_no,
             "execution_trace": {
-                "version": "public-agent-trace-v2",
+                "version": "auditable-agent-trace-v3",
                 "run_id": run.run_no,
                 "agent": agent_code,
                 "status": "failed",
@@ -323,6 +344,10 @@ async def _persist_failure_response(
                     }
                 ],
                 "raw_reasoning_exposed": False,
+                "tool_calls": [],
+                "context_trace": None,
+                "knowledge_trace": None,
+                "memory_trace": None,
             },
         },
         agent_version_id=run.agent_version_id,
@@ -401,15 +426,34 @@ async def run() -> None:
         loop.add_signal_handler(signal_name, stopping.set)
     logger.info("agent_runtime_worker_started")
     next_provider_probe = 0.0
+    provider_probe_task: asyncio.Task[None] | None = None
+
+    async def probe_provider_in_background() -> None:
+        """Keep a slow provider health check off the message dispatch path."""
+
+        try:
+            provider_health = await probe_model_provider(
+                settings, get_redis(), force=True
+            )
+            logger.info(
+                "agent_model_provider_probed",
+                status=provider_health.status,
+                error_code=provider_health.error_code,
+                latency_ms=provider_health.latency_ms,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("agent_model_provider_probe_failed")
+
     try:
         while not stopping.is_set():
-            if time.monotonic() >= next_provider_probe:
-                provider_health = await probe_model_provider(settings, get_redis(), force=True)
-                logger.info(
-                    "agent_model_provider_probed",
-                    status=provider_health.status,
-                    error_code=provider_health.error_code,
-                    latency_ms=provider_health.latency_ms,
+            if time.monotonic() >= next_provider_probe and (
+                provider_probe_task is None or provider_probe_task.done()
+            ):
+                provider_probe_task = asyncio.create_task(
+                    probe_provider_in_background(),
+                    name="agent-model-provider-probe",
                 )
                 next_provider_probe = (
                     time.monotonic() + settings.agent_provider_health_interval_seconds
@@ -423,6 +467,9 @@ async def run() -> None:
             except TimeoutError:
                 pass
     finally:
+        if provider_probe_task is not None and not provider_probe_task.done():
+            provider_probe_task.cancel()
+            await asyncio.gather(provider_probe_task, return_exceptions=True)
         await close_redis()
         await close_postgres()
         await close_mysql()

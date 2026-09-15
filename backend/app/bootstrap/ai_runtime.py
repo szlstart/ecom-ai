@@ -9,7 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
 from app.modules.agent_runtime.models import AgentDefinition, AgentVersion
-from app.modules.knowledge.contracts import CONFIRMATION_REQUIRED_TOOLS, READ_ONLY_TOOLS
+from app.modules.knowledge.contracts import (
+    CONFIRMATION_REQUIRED_TOOLS,
+    DIRECT_WRITE_TOOLS,
+    READ_ONLY_TOOLS,
+)
 from app.modules.knowledge.mcp_registry import server_for_tool
 from app.modules.knowledge.models import (
     AgentSkillBinding,
@@ -60,16 +64,18 @@ SKILLS: tuple[SkillSeed, ...] = (
         (
             "order.list_user_store_orders",
             "order.get_store_order_summary",
+            "after_sale.list_user_store_refunds",
             "logistics.get_store_order_shipments",
             "support.create_store_ticket",
             "support.get_ticket_status",
+            "cart.add_item",
         ),
     ),
     SkillSeed(
         "user_shopping_assist",
         "全平台选购助手",
-        "按用户明确需求检索公开在售商品。推荐须说明依据，价格和库存以结算为准。",
-        ("catalog.search_products", "catalog.compare_products"),
+        "按用户明确需求检索公开在售商品，并从已发布知识库回答平台规则。推荐须说明依据，价格和库存以结算为准。",
+        ("catalog.search_products", "catalog.compare_products", "rag.policy.search"),
     ),
     SkillSeed(
         "user_order_assist",
@@ -79,6 +85,11 @@ SKILLS: tuple[SkillSeed, ...] = (
             "order.list_user_orders",
             "order.get_user_order_detail",
             "cart.get_mine",
+            "cart.add_item",
+            "cart.update_quantity",
+            "cart.remove_item",
+            "cart.clear.commit",
+            "checkout.create_session",
             "logistics.get_user_order_shipments",
             "after_sale.list_user_refunds",
             "after_sale.get_user_refund_detail",
@@ -97,39 +108,158 @@ SKILLS: tuple[SkillSeed, ...] = (
         ),
     ),
     SkillSeed(
+        "user_account_asset_assist",
+        "用户账户资料与资产助手",
+        "只读取当前登录用户本人的收货地址、余额、商品收藏、店铺收藏与已确认偏好，不得根据聊天文字切换用户范围。",
+        (
+            "address.list_mine",
+            "account.profile.get_mine",
+            "account.wallet.get_mine",
+            "account.favorites.list_mine",
+            "favorite.add_product",
+            "favorite.remove_product",
+            "favorite.add_store",
+            "favorite.remove_store",
+            "memory.list_mine",
+        ),
+    ),
+    SkillSeed(
         "merchant_operations_assist",
         "商家经营助手",
-        "只分析当前商家所属店铺的商品、订单、库存、物流与评价。默认只读。",
+        "只分析当前商家所属店铺的商品、订单、库存、物流与评价。写操作必须生成独立确认卡，确认后按版本执行并回读。",
         (
             "store_ops.overview",
+            "store_ops.profile.get",
+            "store_ops.revenue_metrics",
             "store_ops.catalog_summary",
+            "store_ops.catalog.get_product",
             "store_ops.order_summary",
+            "store_ops.orders.list",
+            "store_ops.orders.get",
             "store_ops.inventory_risks",
+            "store_ops.inventory.get_skus",
+            "store_ops.review_summary",
+            "store_ops.reviews.list",
+            "store_ops.service_summary",
+            "store_ops.conversations.list",
+            "store_ops.policy_summary",
+            "store_ops.policy.manage.commit",
+            "store_ops.after_sale.list",
+            "store_ops.profile.update.commit",
+            "store_ops.profile.logo.update.commit",
+            "store_ops.account.email.update.commit",
+            "store_ops.status.update.commit",
+            "store_ops.catalog.status.commit",
+            "store_ops.catalog.delete.commit",
+            "store_ops.catalog.submit_review.commit",
+            "store_ops.catalog.update_image_description.commit",
+            "store_ops.catalog.fulfillment.update.commit",
+            "store_ops.catalog.save_draft.commit",
+            "store_ops.catalog.update.commit",
+            "store_ops.catalog.skus.create.commit",
+            "store_ops.catalog.skus.update.commit",
+            "store_ops.catalog.skus.disable.commit",
+            "store_ops.catalog.skus.image.replace.commit",
+            "store_ops.catalog.faqs.upsert.commit",
+            "store_ops.catalog.faqs.delete.commit",
+            "store_ops.catalog.detail_sections.upsert.commit",
+            "store_ops.catalog.detail_sections.delete.commit",
+            "store_ops.inventory.adjust.commit",
+            "store_ops.price.update.commit",
+            "store_ops.shipment.create.commit",
+            "store_ops.shipment.progress.commit",
+            "store_ops.review.reply.commit",
+            "store_ops.after_sale.decide.commit",
+            "store_ops.after_sale.request_more_info.commit",
+            "store_ops.support.claim.commit",
+            "store_ops.conversations.send_message.commit",
+            "store_ops.support.resolve.commit",
         ),
     ),
     SkillSeed(
         "merchant_daily_brief",
         "商家每日经营简报",
-        "汇总当前店铺营业额、商品和订单状态，先给优先级，再用卡片提供处理入口。只读。",
-        ("store_ops.overview",),
+        "汇总当前店铺营业额、商品和订单状态。营业状态变更必须先生成确认卡。",
+        (
+            "store_ops.overview",
+            "store_ops.profile.get",
+            "store_ops.revenue_metrics",
+            "store_ops.profile.update.commit",
+            "store_ops.profile.logo.update.commit",
+            "store_ops.account.email.update.commit",
+            "store_ops.status.update.commit",
+        ),
     ),
     SkillSeed(
         "merchant_catalog_insight",
         "商家商品经营分析",
-        "分析当前店铺在售商品、款式、价格、销量和实时库存，不读取其他店铺数据。",
-        ("store_ops.catalog_summary",),
+        "分析当前店铺商品、款式、价格、销量和实时库存。改价及上下架必须先生成确认卡。",
+        (
+            "store_ops.catalog_summary",
+            "store_ops.catalog.get_product",
+            "store_ops.catalog.status.commit",
+            "store_ops.catalog.delete.commit",
+            "store_ops.catalog.submit_review.commit",
+            "store_ops.catalog.update_image_description.commit",
+            "store_ops.catalog.fulfillment.update.commit",
+            "store_ops.catalog.save_draft.commit",
+            "store_ops.catalog.update.commit",
+            "store_ops.catalog.skus.create.commit",
+            "store_ops.catalog.skus.update.commit",
+            "store_ops.catalog.skus.disable.commit",
+            "store_ops.catalog.skus.image.replace.commit",
+            "store_ops.catalog.faqs.upsert.commit",
+            "store_ops.catalog.faqs.delete.commit",
+            "store_ops.catalog.detail_sections.upsert.commit",
+            "store_ops.catalog.detail_sections.delete.commit",
+            "store_ops.price.update.commit",
+        ),
     ),
     SkillSeed(
         "merchant_inventory_guard",
         "商家库存守卫",
-        "识别当前店铺缺货和低于安全库存线的款式，给出补货优先级，不直接修改库存。",
-        ("store_ops.inventory_risks",),
+        "识别当前店铺缺货和低库存款式。明确目标后生成库存调整预览，只有运营人员确认才执行。",
+        (
+            "store_ops.inventory_risks",
+            "store_ops.inventory.get_skus",
+            "store_ops.inventory.adjust.commit",
+        ),
     ),
     SkillSeed(
         "merchant_fulfillment_assist",
         "商家订单履约助手",
-        "汇总当前店铺订单、待履约金额和已确认营业额，提供订单处理入口，不修改订单状态。",
-        ("store_ops.order_summary",),
+        "汇总当前店铺订单、待履约金额和已确认营业额。创建发货包裹或推进模拟物流节点必须先展示确认卡。",
+        (
+            "store_ops.order_summary",
+            "store_ops.orders.list",
+            "store_ops.orders.get",
+            "store_ops.shipment.create.commit",
+            "store_ops.shipment.progress.commit",
+        ),
+    ),
+    SkillSeed(
+        "merchant_review_service_assist",
+        "商家评价与客服助手",
+        "汇总本店评价、待回复评价和顾客人工服务队列。公开回复评价必须先展示确认卡。",
+        (
+            "store_ops.review_summary",
+            "store_ops.reviews.list",
+            "store_ops.service_summary",
+            "store_ops.conversations.list",
+            "store_ops.after_sale.list",
+            "store_ops.review.reply.commit",
+            "store_ops.after_sale.decide.commit",
+            "store_ops.after_sale.request_more_info.commit",
+            "store_ops.support.claim.commit",
+            "store_ops.conversations.send_message.commit",
+            "store_ops.support.resolve.commit",
+        ),
+    ),
+    SkillSeed(
+        "merchant_policy_assist",
+        "商家规则与政策助手",
+        "读取本店已发布服务政策及平台商家规则，不得将草稿政策当成公开承诺。",
+        ("store_ops.policy_summary", "store_ops.policy.manage.commit"),
     ),
     SkillSeed(
         "merchant_platform_support",
@@ -143,35 +273,158 @@ SKILLS: tuple[SkillSeed, ...] = (
         "聚合脱敏的商城运行信息并给出处置建议。不得读取密码、密钥或绕过审批执行写操作。",
         (
             "governance.platform_overview",
+            "governance.metrics.query",
             "governance.user_summary",
+            "governance.users.search",
+            "governance.users.addresses.list",
+            "governance.users.cart.list",
+            "governance.users.favorites.list",
+            "governance.users.orders.list",
+            "governance.users.wallet.get",
             "governance.store_summary",
+            "governance.stores.search",
+            "governance.stores.service_profile",
+            "governance.catalog.search",
             "governance.order_summary",
+            "governance.trade.payment_timeline",
+            "governance.trade.shipments.get",
+            "governance.after_sale.timeline",
+            "governance.after_sale_summary",
+            "governance.support_summary",
+            "governance.ai_summary",
+            "governance.ai.agents.list",
+            "governance.ai.skills.list",
+            "governance.ai.tools.list",
+            "governance.knowledge.documents.list",
+            "governance.ai.evaluations.list",
             "observability.runtime_health",
+            "observability.traces.search",
+            "observability.traces.get",
+            "observability.cost_metrics",
+            "observability.dead_letters.list",
         ),
     ),
     SkillSeed(
         "admin_user_governance",
         "平台用户治理助手",
-        "汇总平台用户状态并识别需要人工核对的账号风险，具体治理操作必须进入管理页面。",
-        ("governance.user_summary",),
+        "汇总平台用户状态并识别账号风险。冻结、解冻和强制下线必须生成确认卡并在确认后审计执行。",
+        (
+            "governance.user_summary",
+            "governance.users.search",
+            "governance.users.addresses.list",
+            "governance.users.cart.list",
+            "governance.users.favorites.list",
+            "governance.users.orders.list",
+            "governance.users.wallet.get",
+            "governance.users.status.commit",
+            "governance.users.force_logout.commit",
+            "governance.users.create.commit",
+            "governance.users.require_password_reset.commit",
+            "governance.users.wallet.adjust.commit",
+            "governance.users.update_profile.commit",
+            "governance.users.avatar.update.commit",
+            "governance.users.delete.commit",
+            "governance.users.addresses.delete.commit",
+            "governance.users.addresses.set_default.commit",
+            "governance.users.addresses.create.commit",
+            "governance.users.addresses.update.commit",
+            "governance.users.cart.update_quantity.commit",
+            "governance.users.cart.remove_item.commit",
+            "governance.users.cart.clear.commit",
+            "governance.users.favorites.remove_product.commit",
+            "governance.users.favorites.remove_store.commit",
+        ),
     ),
     SkillSeed(
         "admin_store_governance",
         "平台店铺治理助手",
-        "汇总店铺和商品状态，给出治理优先级，不在聊天中直接暂停店铺或下架商品。",
-        ("governance.store_summary",),
+        "汇总店铺和商品状态。暂停店铺或上下架商品必须生成确认卡并在确认后审计执行。",
+        (
+            "governance.store_summary",
+            "governance.stores.search",
+            "governance.stores.service_profile",
+            "governance.catalog.search",
+            "governance.stores.status.commit",
+            "governance.stores.create.commit",
+            "governance.stores.update.commit",
+            "governance.stores.logo.update.commit",
+            "governance.stores.merchant_email.update.commit",
+            "governance.stores.delete.commit",
+            "governance.catalog.status.commit",
+            "governance.catalog.delete.commit",
+            "governance.catalog.update.commit",
+            "governance.catalog.update_image_description.commit",
+            "governance.catalog.faqs.upsert.commit",
+            "governance.catalog.faqs.delete.commit",
+            "governance.catalog.skus.create.commit",
+            "governance.catalog.skus.update.commit",
+            "governance.catalog.skus.disable.commit",
+            "governance.catalog.skus.image.replace.commit",
+            "governance.catalog.detail_sections.upsert.commit",
+            "governance.catalog.detail_sections.delete.commit",
+            "governance.catalog.review.commit",
+        ),
     ),
     SkillSeed(
         "admin_order_governance",
         "平台交易履约助手",
-        "汇总平台订单状态与履约风险，提供订单治理入口，不在聊天中改变资金或订单状态。",
-        ("governance.order_summary",),
+        "汇总平台订单和包裹轨迹; 模拟物流节点只能针对唯一包裹生成确认卡，确认后按状态机审计推进。",
+        (
+            "governance.order_summary",
+            "governance.trade.payment_timeline",
+            "governance.trade.shipments.get",
+            "governance.trade.orders.cancel.commit",
+            "governance.trade.shipments.progress.commit",
+        ),
     ),
     SkillSeed(
         "admin_runtime_observability",
         "平台 AI 与任务运行诊断",
         "检查 Agent、异步事件和故障恢复状态，所有结论必须来自实时运行数据。",
-        ("observability.runtime_health",),
+        (
+            "observability.runtime_health",
+            "observability.traces.search",
+            "observability.traces.get",
+            "observability.cost_metrics",
+            "observability.dead_letters.list",
+            "observability.dead_letters.replay_request.commit",
+        ),
+    ),
+    SkillSeed(
+        "admin_after_sale_support_governance",
+        "平台售后与客服治理助手",
+        "汇总平台售后状态和人工服务队列，提供治理入口，不代替审核决定。",
+        (
+            "governance.after_sale_summary",
+            "governance.after_sale.timeline",
+            "governance.after_sale.decide.commit",
+            "governance.after_sale.request_more_info.commit",
+            "governance.support_summary",
+            "governance.support.claim.commit",
+            "governance.support.send_message.commit",
+            "governance.support.resolve.commit",
+        ),
+    ),
+    SkillSeed(
+        "admin_ai_governance",
+        "平台 AI 治理助手",
+        "核对 Agent、知识和运行质量状态，模型、Skill、工具发布仍需独立准入。",
+        (
+            "governance.ai_summary",
+            "governance.ai.agents.list",
+            "governance.ai.skills.list",
+            "governance.ai.tools.list",
+            "governance.knowledge.documents.list",
+            "governance.ai.evaluations.list",
+            "governance.knowledge.documents.publish.commit",
+            "governance.knowledge.documents.withdraw.commit",
+            "governance.ai.agents.prompt_draft.create.commit",
+            "governance.ai.agents.publish_request.commit",
+            "governance.ai.skills.publish_request.commit",
+            "governance.ai.tools.publish_request.commit",
+            "governance.ai.evaluations.run.commit",
+            "observability.runtime_health",
+        ),
     ),
 )
 
@@ -206,7 +459,12 @@ AGENTS: tuple[AgentSeed, ...] = (
         + "\n你是消费者的专属客服。结合最近会话和服务端绑定的商品、订单、物流或售后上下文"
         "理解连续问题，处理平台规则、全平台商品检索、本人订单物流和售后协助。回答应直达"
         "当前问题，并清楚区分公开商品事实、用户本人数据和平台规则。",
-        ("user_shopping_assist", "user_order_assist", "user_after_sale_assist"),
+        (
+            "user_shopping_assist",
+            "user_order_assist",
+            "user_after_sale_assist",
+            "user_account_asset_assist",
+        ),
     ),
     AgentSeed(
         "merchant_copilot",
@@ -216,12 +474,15 @@ AGENTS: tuple[AgentSeed, ...] = (
         + "\n你是店铺运营人员的 AI 经营助理。结合当前店铺商品、实时库存、订单、履约、"
         "营业额、评价和平台商家规则理解连续问题。先给经营结论和处理优先级，详细事实交给"
         "结构化卡片展示，不要输出数据库字段清单。只分析经营人员有权管理的店铺。你可以"
-        "生成建议和草稿，但不能代替经营人员修改库存、发布或下架商品，也不能代替平台审批。",
+        "生成建议和草稿。对明确的本店库存、价格、商品状态或营业状态变更，必须先展示影响预览，"
+        "只有运营人员点击确认后才能按资源版本执行并回读。不能代替平台审批。",
         (
             "merchant_daily_brief",
             "merchant_catalog_insight",
             "merchant_inventory_guard",
             "merchant_fulfillment_assist",
+            "merchant_review_service_assist",
+            "merchant_policy_assist",
             "merchant_platform_support",
         ),
         executable=True,
@@ -240,6 +501,8 @@ AGENTS: tuple[AgentSeed, ...] = (
             "admin_user_governance",
             "admin_store_governance",
             "admin_order_governance",
+            "admin_after_sale_support_governance",
+            "admin_ai_governance",
             "admin_runtime_observability",
         ),
         executable=True,
@@ -269,7 +532,7 @@ async def seed_ai_runtime(session: AsyncSession) -> None:
 
 async def _seed_tools(session: AsyncSession, published_at: datetime) -> dict[str, ToolVersion]:
     versions: dict[str, ToolVersion] = {}
-    for tool_code in sorted(READ_ONLY_TOOLS | CONFIRMATION_REQUIRED_TOOLS):
+    for tool_code in sorted(READ_ONLY_TOOLS | DIRECT_WRITE_TOOLS | CONFIRMATION_REQUIRED_TOOLS):
         definition = await session.scalar(
             select(ToolDefinition).where(ToolDefinition.tool_code == tool_code)
         )
@@ -400,13 +663,13 @@ async def _seed_agents(
             definition.display_name = item.name
             definition.version += 1
         target_version_no = (
-            8
+            26
             if item.code == "admin_copilot"
-            else 7
+            else 20
             if item.code == "merchant_copilot"
-            else 6
+            else 14
             if item.code == "exclusive_support"
-            else 4
+            else 5
         )
         version = await session.scalar(
             select(AgentVersion).where(
@@ -420,14 +683,8 @@ async def _seed_agents(
         if version is None:
             policy_config: dict[str, object] = {
                 "prompt_version": "safe-agent-v6",
-                "max_tool_calls": 6,
-                "max_delegations": (
-                    4
-                    if item.code == "admin_copilot"
-                    else 3
-                    if item.code == "merchant_copilot"
-                    else 0
-                ),
+                "max_tool_calls": (8 if item.code in {"admin_copilot", "merchant_copilot"} else 6),
+                "max_delegations": (8 if item.code in {"admin_copilot", "merchant_copilot"} else 0),
                 "max_delegation_depth": 1,
                 "raw_chain_of_thought_exposed": False,
             }

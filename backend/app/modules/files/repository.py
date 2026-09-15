@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from sqlalchemy import select, update
+from sqlalchemy import case, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -136,6 +136,48 @@ class FileRepository:
                     FileObject.scan_status == "pending",
                 )
                 .values(scan_status="processing", version=FileObject.version + 1)
+            ),
+        )
+        return result.rowcount == 1
+
+    async def ocr_pending_files(self, limit: int) -> list[FileObject]:
+        return list(
+            (
+                await self.session.scalars(
+                    select(FileObject)
+                    .where(
+                        FileObject.parent_file_id.is_(None),
+                        FileObject.file_status == "active",
+                        FileObject.scan_status == "safe",
+                        FileObject.ocr_status == "pending",
+                    )
+                    # Fresh product-detail uploads must not wait behind the one-time
+                    # legacy backfill (whose historical purpose is usually "product").
+                    .order_by(
+                        case((FileObject.purpose == "product_detail", 0), else_=1),
+                        FileObject.created_at,
+                        FileObject.id,
+                    )
+                    .limit(limit)
+                    .with_for_update(skip_locked=True)
+                )
+            ).all()
+        )
+
+    async def claim_ocr(self, file_id: int, version: int) -> bool:
+        result = cast(
+            CursorResult[tuple[()]],
+            await self.session.execute(
+                update(FileObject)
+                .where(
+                    FileObject.id == file_id,
+                    FileObject.version == version,
+                    FileObject.parent_file_id.is_(None),
+                    FileObject.file_status == "active",
+                    FileObject.scan_status == "safe",
+                    FileObject.ocr_status == "pending",
+                )
+                .values(ocr_status="processing", version=FileObject.version + 1)
             ),
         )
         return result.rowcount == 1

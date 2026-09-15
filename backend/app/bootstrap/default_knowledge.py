@@ -13,14 +13,17 @@ from app.modules.catalog.models import (
     Product,
     ProductAttribute,
     ProductContentVersion,
+    ProductContentVersionFile,
     ProductFaq,
     ProductFaqVersion,
     ProductSku,
 )
+from app.modules.catalog.repository import described_image_file_ids
 from app.modules.files import models as file_models  # noqa: F401
+from app.modules.files.models import FileObject
 from app.modules.identity import models as identity_models  # noqa: F401
 from app.modules.knowledge.cleaning import clean_document_text
-from app.modules.knowledge.indexing import create_index_job
+from app.modules.knowledge.indexing import CHUNK_STRATEGY_VERSION, create_index_job
 from app.modules.knowledge.models import KnowledgeDocument
 from app.modules.rbac.models import Role, UserRole
 from app.modules.stores.models import Store, StoreServicePolicy
@@ -63,9 +66,7 @@ async def seed_default_knowledge(
     documents: list[KnowledgeDocument] = []
     for source in sources:
         item = await mysql.scalar(
-            select(KnowledgeDocument).where(
-                KnowledgeDocument.document_no == source.document_no
-            )
+            select(KnowledgeDocument).where(KnowledgeDocument.document_no == source.document_no)
         )
         content_version = _content_version(source.safe_text)
         if item is None:
@@ -182,9 +183,7 @@ async def seed_default_knowledge(
     return KnowledgeSeedResult(created, updated, jobs_created, withdrawn)
 
 
-async def _reconcile_terminal_commands(
-    mysql: AsyncSession, postgres: AsyncSession
-) -> None:
+async def _reconcile_terminal_commands(mysql: AsyncSession, postgres: AsyncSession) -> None:
     commands = list(
         (
             await mysql.scalars(
@@ -246,17 +245,23 @@ async def _store_sources(mysql: AsyncSession) -> list[_SourceDocument]:
             )
         ).all()
     )
-    return [await _store_source(mysql, store) for store in stores]
+    sources: list[_SourceDocument] = []
+    for store in stores:
+        sources.extend(await _store_sources_for_one(mysql, store))
+    return sources
 
 
-async def _store_source(mysql: AsyncSession, store: Store) -> _SourceDocument:
-    lines = [
-        f"# {store.store_name}公开商品与服务资料",
+async def _store_sources_for_one(
+    mysql: AsyncSession,
+    store: Store,
+) -> list[_SourceDocument]:
+    profile_lines = [
+        f"# 店铺: {store.store_name}",
         "",
-        "以下内容仅用于商品介绍与店铺公开服务咨询。价格、库存、订单、支付、物流和售后状态必须通过实时业务工具查询。",
+        "以下内容仅用于店铺介绍与公开服务咨询。实时交易状态必须通过业务工具查询。",
     ]
     if store.description:
-        lines.extend(("", "## 店铺介绍", store.description))
+        profile_lines.extend(("", "## 店铺介绍", store.description))
     policies = list(
         (
             await mysql.scalars(
@@ -270,9 +275,18 @@ async def _store_source(mysql: AsyncSession, store: Store) -> _SourceDocument:
         ).all()
     )
     if policies:
-        lines.extend(("", "## 店铺服务政策"))
+        profile_lines.extend(("", "## 店铺服务政策"))
         for policy in policies:
-            lines.extend((f"### {policy.title}", policy.content))
+            profile_lines.extend((f"### {policy.title}", policy.content))
+    sources = [
+        _SourceDocument(
+            document_no=_document_no(f"store:{store.store_no}:profile"),
+            scope_type="store",
+            scope_no=store.store_no,
+            title=f"[系统] {store.store_name}公开资料与服务政策",
+            safe_text=clean_document_text("\n".join(profile_lines)),
+        )
+    ]
     products = list(
         (
             await mysql.scalars(
@@ -287,9 +301,14 @@ async def _store_source(mysql: AsyncSession, store: Store) -> _SourceDocument:
         ).all()
     )
     for product in products:
-        lines.extend(("", f"## 商品: {product.product_name}"))
+        lines = [
+            f"# 商品: {product.product_name}",
+            f"所属店铺: {store.store_name}",
+            f"商品编号: {product.product_no}",
+            "价格、库存、订单、支付、物流和售后状态必须通过实时业务工具查询。",
+        ]
         if product.description:
-            lines.append(product.description)
+            lines.extend(("## 商品介绍", product.description))
         content = (
             await mysql.scalar(
                 select(ProductContentVersion).where(
@@ -301,7 +320,35 @@ async def _store_source(mysql: AsyncSession, store: Store) -> _SourceDocument:
             else None
         )
         if content and content.safe_text:
-            lines.extend(("### 商品详情", content.safe_text))
+            lines.extend(("## 商品详情", content.safe_text))
+        if content:
+            described_files = described_image_file_ids(content.safe_blocks)
+            ocr_statement = (
+                select(FileObject.ocr_text)
+                .join(
+                    ProductContentVersionFile,
+                    ProductContentVersionFile.file_id == FileObject.id,
+                )
+                .where(
+                    ProductContentVersionFile.content_version_id == content.id,
+                    FileObject.ocr_status == "completed",
+                    FileObject.ocr_text.is_not(None),
+                )
+                .order_by(ProductContentVersionFile.id)
+            )
+            if described_files:
+                ocr_statement = ocr_statement.where(FileObject.file_no.not_in(described_files))
+            image_ocr_rows = (await mysql.execute(ocr_statement)).all()
+            image_ocr_texts = [text for (text,) in image_ocr_rows if text]
+            if image_ocr_texts:
+                lines.append("## 详情图片说明")
+                for index, text in enumerate(image_ocr_texts, start=1):
+                    lines.extend(
+                        (
+                            f"### 图片 {index}",
+                            " ".join(text.split()),
+                        )
+                    )
         attributes = list(
             (
                 await mysql.scalars(
@@ -312,7 +359,7 @@ async def _store_source(mysql: AsyncSession, store: Store) -> _SourceDocument:
             ).all()
         )
         if attributes:
-            lines.append("### 规格参数")
+            lines.append("## 规格参数")
             lines.extend(
                 f"- {attribute.attribute_name}: {attribute.value_text}{attribute.unit or ''}"
                 for attribute in attributes
@@ -330,7 +377,7 @@ async def _store_source(mysql: AsyncSession, store: Store) -> _SourceDocument:
             ).all()
         )
         if skus:
-            lines.append("### 可选款式")
+            lines.append("## 可选款式")
             lines.extend(f"- {sku.sku_name}" for sku in skus)
         faqs = (
             await mysql.execute(
@@ -348,17 +395,19 @@ async def _store_source(mysql: AsyncSession, store: Store) -> _SourceDocument:
             )
         ).all()
         if faqs:
-            lines.append("### 常见问题")
+            lines.append("## 常见问题")
             for faq, answer in faqs:
-                lines.extend((f"- 问: {faq.question}", f"  答: {answer.safe_text}"))
-    safe_text = clean_document_text("\n".join(lines))
-    return _SourceDocument(
-        document_no=_document_no(f"store:{store.store_no}"),
-        scope_type="store",
-        scope_no=store.store_no,
-        title=f"[系统] {store.store_name}公开商品与服务资料",
-        safe_text=safe_text,
-    )
+                lines.extend((f"### 问: {faq.question}", answer.safe_text))
+        sources.append(
+            _SourceDocument(
+                document_no=_document_no(f"store:{store.store_no}:product:{product.product_no}"),
+                scope_type="store",
+                scope_no=store.store_no,
+                title=f"[系统] {store.store_name}商品: {product.product_name}",
+                safe_text=clean_document_text("\n".join(lines)),
+            )
+        )
+    return sources
 
 
 async def _platform_administrator_id(mysql: AsyncSession) -> int | None:
@@ -377,7 +426,7 @@ async def _platform_administrator_id(mysql: AsyncSession) -> int | None:
             )
             .order_by(UserRole.id)
             .limit(1)
-        )
+        ),
     )
 
 
@@ -398,12 +447,15 @@ async def _has_active_generation(
                  AND generation.generation_status='active'
                  AND chunk.content_version=:content_version
                  AND chunk.embedding_model_code=:embedding_model_code
-                 AND chunk.embedding IS NOT NULL"""
+                 AND chunk.embedding IS NOT NULL
+                 AND chunk.metadata->>'semantic_boundary'='true'
+                 AND chunk.metadata->>'chunk_strategy_version'=:chunk_strategy_version"""
         ),
         {
             "document_no": document_no,
             "content_version": content_version,
             "embedding_model_code": embedding_model_code,
+            "chunk_strategy_version": CHUNK_STRATEGY_VERSION,
         },
     )
     return bool(count)
@@ -412,9 +464,7 @@ async def _has_active_generation(
 async def _scope_id(mysql: AsyncSession, item: KnowledgeDocument) -> int:
     if item.scope_type == "platform":
         return 0
-    return (
-        await mysql.scalar(select(Store.id).where(Store.store_no == item.scope_no))
-    ) or 0
+    return (await mysql.scalar(select(Store.id).where(Store.store_no == item.scope_no))) or 0
 
 
 def _document_no(identity: str) -> str:

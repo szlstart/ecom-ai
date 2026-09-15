@@ -32,23 +32,33 @@ export interface SessionBootstrap {
 interface SharedAuthState {
   access_token: string
   csrf_token: string
+  session_id: string
+  user: UserSummary
+}
+
+interface PersistedAuthHint {
+  csrf_token: string
+  session_id: string
   user: UserSummary
 }
 
 type AuthChannelMessage =
-  | { type: 'state-request'; source_id: string; request_id: string; rejected_token: string | null }
+  | { type: 'state-request'; source_id: string; request_id: string; session_id: string; rejected_token: string | null }
   | { type: 'state-response'; source_id: string; target_id: string; request_id: string; state: SharedAuthState }
-  | { type: 'session-updated'; source_id: string; state: SharedAuthState }
-  | { type: 'session-cleared'; source_id: string }
+  | { type: 'session-updated'; source_id: string; previous_session_id: string | null; state: SharedAuthState }
+  | { type: 'session-cleared'; source_id: string; session_id: string }
 
 const AUTH_CHANNEL_NAME = 'ecom-user-auth-v1'
 const AUTH_REFRESH_LOCK_NAME = 'ecom-user-auth-refresh-v1'
+const AUTH_TAB_STORAGE_KEY = 'ecom:user-auth:tab:v2'
 const PEER_RESPONSE_TIMEOUT_MS = 180
 
 export const useUserAuthStore = defineStore('user-auth', () => {
+  const restoredHint = readPersistedHint()
   const accessToken = ref<string | null>(null)
-  const csrfToken = ref<string | null>(readCookie('ecom_user_csrf'))
-  const user = ref<UserSummary | null>(null)
+  const csrfToken = ref<string | null>(restoredHint?.csrf_token ?? readCookie('ecom_user_csrf'))
+  const sessionId = ref<string | null>(restoredHint?.session_id ?? null)
+  const user = ref<UserSummary | null>(restoredHint?.user ?? null)
   const tabId = crypto.randomUUID()
   const channel = createAuthChannel()
   const pendingPeerRequests = new Map<string, (accepted: boolean) => void>()
@@ -63,26 +73,35 @@ export const useUserAuthStore = defineStore('user-auth', () => {
     }
   }
 
-  function accept(bootstrap: SessionBootstrap, broadcast = true) {
+  function accept(
+    bootstrap: SessionBootstrap,
+    broadcast = true,
+    previousSessionId: string | null = null,
+  ) {
     rememberAccessToken(bootstrap.access_token)
     accessToken.value = bootstrap.access_token
     csrfToken.value = bootstrap.csrf_token
+    sessionId.value = bootstrap.session.session_id
     user.value = bootstrap.user
-    if (broadcast) broadcastState('session-updated')
+    persistHint()
+    if (broadcast) broadcastState(previousSessionId)
   }
 
   function acceptSharedState(state: SharedAuthState) {
     rememberAccessToken(state.access_token)
     accessToken.value = state.access_token
     csrfToken.value = state.csrf_token
+    sessionId.value = state.session_id
     user.value = state.user
+    persistHint()
   }
 
   function currentSharedState(): SharedAuthState | null {
-    if (!isUsableAccessToken(accessToken.value) || !accessToken.value || !user.value) return null
+    if (!isUsableAccessToken(accessToken.value) || !accessToken.value || !sessionId.value || !user.value) return null
     return {
       access_token: accessToken.value,
-      csrf_token: readCookie('ecom_user_csrf') ?? csrfToken.value ?? '',
+      csrf_token: csrfToken.value ?? '',
+      session_id: sessionId.value,
       // Vue stores objects in deep reactive proxies. BroadcastChannel performs
       // the structured-clone algorithm and rejects proxies with DataCloneError,
       // which previously left a successful login modal open with a misleading
@@ -91,27 +110,49 @@ export const useUserAuthStore = defineStore('user-auth', () => {
     }
   }
 
-  function broadcastState(type: 'session-updated') {
+  function broadcastState(previousSessionId: string | null) {
     const state = currentSharedState()
-    if (state) channel?.postMessage({ type, source_id: tabId, state } satisfies AuthChannelMessage)
+    if (state) channel?.postMessage({
+      type: 'session-updated',
+      source_id: tabId,
+      previous_session_id: previousSessionId,
+      state,
+    } satisfies AuthChannelMessage)
+  }
+
+  function persistHint() {
+    if (!csrfToken.value || !sessionId.value || !user.value) return
+    writePersistedHint({
+      csrf_token: csrfToken.value,
+      session_id: sessionId.value,
+      user: { ...user.value },
+    })
   }
 
   function clearLocal() {
     accessToken.value = null
     csrfToken.value = null
+    sessionId.value = null
     user.value = null
     knownAccessTokens.clear()
+    removePersistedHint()
   }
 
   function clear(broadcast = true) {
+    const clearedSessionId = sessionId.value
     clearLocal()
-    if (broadcast) {
-      channel?.postMessage({ type: 'session-cleared', source_id: tabId } satisfies AuthChannelMessage)
+    if (broadcast && clearedSessionId) {
+      channel?.postMessage({
+        type: 'session-cleared',
+        source_id: tabId,
+        session_id: clearedSessionId,
+      } satisfies AuthChannelMessage)
     }
   }
 
   function requestPeerState(rejectedToken: string | null = null): Promise<boolean> {
-    if (!channel) return Promise.resolve(false)
+    if (!channel || !sessionId.value) return Promise.resolve(false)
+    const selectedSessionId = sessionId.value
     const requestId = crypto.randomUUID()
     return new Promise((resolve) => {
       const timer = window.setTimeout(() => {
@@ -127,19 +168,24 @@ export const useUserAuthStore = defineStore('user-auth', () => {
         type: 'state-request',
         source_id: tabId,
         request_id: requestId,
+        session_id: selectedSessionId,
         rejected_token: rejectedToken,
       } satisfies AuthChannelMessage)
     })
   }
 
   async function refreshFromServer(rotate: boolean): Promise<boolean> {
+    const selectedSessionId = sessionId.value
+    if (!csrfToken.value) return false
     try {
-      const latestCsrfToken = readCookie('ecom_user_csrf') ?? csrfToken.value
       const response = await apiRequest<SessionBootstrap>(rotate ? '/auth/token-refresh' : '/auth/session-resume', {
         method: 'POST',
-        headers: latestCsrfToken ? { 'X-CSRF-Token': latestCsrfToken } : undefined,
+        headers: {
+          'X-CSRF-Token': csrfToken.value,
+          ...(selectedSessionId ? { 'X-Auth-Session': selectedSessionId } : {}),
+        },
       })
-      accept(response.data)
+      accept(response.data, true, rotate ? selectedSessionId : null)
       return true
     } catch (cause) {
       if (cause instanceof ApiProblem && (cause.body.status === 401 || cause.body.status === 403)) {
@@ -154,7 +200,7 @@ export const useUserAuthStore = defineStore('user-auth', () => {
     if (await requestPeerState(rejectedToken)) return true
     const locks = navigator.locks
     if (!locks) return refreshFromServer(force)
-    return locks.request(AUTH_REFRESH_LOCK_NAME, async () => {
+    return locks.request(`${AUTH_REFRESH_LOCK_NAME}:${sessionId.value ?? 'none'}`, async () => {
       if (
         isUsableAccessToken(accessToken.value)
         && (!rejectedToken || accessToken.value !== rejectedToken)
@@ -173,11 +219,14 @@ export const useUserAuthStore = defineStore('user-auth', () => {
   }
 
   async function logout() {
+    const selectedSessionId = sessionId.value
     if (accessToken.value) {
-      const latestCsrfToken = readCookie('ecom_user_csrf') ?? csrfToken.value
       await apiRequest<void>(
         '/auth/logout',
-        { method: 'POST', headers: { 'X-CSRF-Token': latestCsrfToken ?? '' } },
+        { method: 'POST', headers: {
+          'X-CSRF-Token': csrfToken.value ?? '',
+          ...(selectedSessionId ? { 'X-Auth-Session': selectedSessionId } : {}),
+        } },
         accessToken.value,
       ).catch(() => undefined)
     }
@@ -187,7 +236,8 @@ export const useUserAuthStore = defineStore('user-auth', () => {
   function updateUser(patch: Partial<UserSummary>) {
     if (!user.value) return
     user.value = { ...user.value, ...patch }
-    broadcastState('session-updated')
+    persistHint()
+    broadcastState(null)
   }
 
   channel?.addEventListener('message', (event: MessageEvent<AuthChannelMessage>) => {
@@ -195,7 +245,11 @@ export const useUserAuthStore = defineStore('user-auth', () => {
     if (!message || message.source_id === tabId) return
     if (message.type === 'state-request') {
       const state = currentSharedState()
-      if (state && state.access_token !== message.rejected_token) {
+      if (
+        state
+        && state.session_id === message.session_id
+        && state.access_token !== message.rejected_token
+      ) {
         channel.postMessage({
           type: 'state-response',
           source_id: tabId,
@@ -207,17 +261,21 @@ export const useUserAuthStore = defineStore('user-auth', () => {
       return
     }
     if (message.type === 'state-response') {
-      if (message.target_id !== tabId) return
+      if (message.target_id !== tabId || message.state.session_id !== sessionId.value) return
       acceptSharedState(message.state)
       pendingPeerRequests.get(message.request_id)?.(true)
       return
     }
     if (message.type === 'session-updated') {
+      if (
+        sessionId.value !== message.state.session_id
+        && sessionId.value !== message.previous_session_id
+      ) return
       acceptSharedState(message.state)
       for (const resolve of pendingPeerRequests.values()) resolve(true)
       return
     }
-    clearLocal()
+    if (sessionId.value === message.session_id) clearLocal()
   })
 
   registerUserAuthRecovery(async (failedAccessToken) => {
@@ -241,13 +299,39 @@ export const useUserAuthStore = defineStore('user-auth', () => {
     })
   }
 
-  return { accessToken, csrfToken, user, isAuthenticated, accept, refresh, logout, clear, updateUser }
+  function hasRefreshHint(): boolean {
+    return Boolean(csrfToken.value)
+  }
+
+  return { accessToken, csrfToken, sessionId, user, isAuthenticated, hasRefreshHint, accept, refresh, logout, clear, updateUser }
 })
+
+function readPersistedHint(): PersistedAuthHint | null {
+  try {
+    const raw = window.sessionStorage.getItem(AUTH_TAB_STORAGE_KEY)
+    if (!raw) return null
+    const value = JSON.parse(raw) as Partial<PersistedAuthHint>
+    if (!value.session_id || !value.csrf_token || !value.user?.user_id) return null
+    return value as PersistedAuthHint
+  } catch {
+    return null
+  }
+}
 
 function readCookie(name: string): string | null {
   const prefix = `${encodeURIComponent(name)}=`
   const item = document.cookie.split('; ').find((cookie) => cookie.startsWith(prefix))
   return item ? decodeURIComponent(item.slice(prefix.length)) : null
+}
+
+function writePersistedHint(value: PersistedAuthHint): void {
+  try { window.sessionStorage.setItem(AUTH_TAB_STORAGE_KEY, JSON.stringify(value)) }
+  catch { /* Session persistence is an enhancement; the in-memory session remains usable. */ }
+}
+
+function removePersistedHint(): void {
+  try { window.sessionStorage.removeItem(AUTH_TAB_STORAGE_KEY) }
+  catch { /* Ignore unavailable browser storage. */ }
 }
 
 function createAuthChannel(): BroadcastChannel | null {

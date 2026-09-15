@@ -14,7 +14,14 @@ RUN python -m venv /opt/venv \
 
 FROM python-base AS runtime
 ARG BUILD_SHA=development
-RUN groupadd --system --gid 10001 app \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get -o Acquire::Retries=5 update \
+    && apt-get -o Acquire::Retries=5 install --fix-missing --no-install-recommends -y \
+        tesseract-ocr \
+        tesseract-ocr-chi-sim \
+        tesseract-ocr-eng \
+    && groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --home-dir /nonexistent app
 COPY --from=dependencies /opt/venv /opt/venv
 COPY app /app/app

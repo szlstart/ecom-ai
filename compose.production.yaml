@@ -81,6 +81,12 @@ services:
       ECOM_FILE_SCANNER_ENABLED: "true"
       ECOM_FILE_SCANNER_HOST: ${ECOM_FILE_SCANNER_HOST:?external malware scanner host required}
       ECOM_FILE_SCANNER_PORT: ${ECOM_FILE_SCANNER_PORT:-3310}
+      ECOM_OCR_ENABLED: ${ECOM_OCR_ENABLED:-true}
+      ECOM_OCR_COMMAND: ${ECOM_OCR_COMMAND:-tesseract}
+      ECOM_OCR_LANGUAGES: ${ECOM_OCR_LANGUAGES:-chi_sim+eng}
+      ECOM_OCR_TIMEOUT_SECONDS: ${ECOM_OCR_TIMEOUT_SECONDS:-45}
+      ECOM_OCR_BATCH_SIZE: ${ECOM_OCR_BATCH_SIZE:-3}
+      ECOM_OCR_MAX_CHARS: ${ECOM_OCR_MAX_CHARS:-8000}
 
   lifecycle-worker:
     <<: *api-runtime

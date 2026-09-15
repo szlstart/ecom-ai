@@ -33,7 +33,15 @@ export function runEvaluation(payload: {
   candidate_version: string
   require_significant_gain: boolean
 }, token: string): Promise<ApiResult<EvaluationRun>> {
-  return apiRequest('/admin/ai/evaluations', { method: 'POST', body: JSON.stringify(payload) }, token)
+  return apiRequest(
+    '/admin/ai/evaluations',
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': createIdempotencyKey('ai-evaluation') },
+      body: JSON.stringify(payload),
+    },
+    token,
+  )
 }
 
 export interface ObservabilitySummary {

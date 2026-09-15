@@ -39,6 +39,7 @@ def create_app() -> FastAPI:
             "Idempotency-Key",
             "If-Match",
             "X-CSRF-Token",
+            "X-Auth-Session",
             "X-Request-ID",
         ],
         expose_headers=["ETag", "Retry-After", "X-Request-ID"],

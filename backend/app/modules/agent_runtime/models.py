@@ -97,6 +97,38 @@ class AgentRun(MutableMySQLModel, MySQLBase):
     degraded_reason: Mapped[str | None] = mapped_column(String(64))
 
 
+class AgentConversationState(MutableMySQLModel, MySQLBase):
+    """Versioned, conversation-scoped continuity state for Agent routing.
+
+    The JSON payload contains references and task continuity only. Volatile
+    commerce facts must still be refreshed through authorized business tools.
+    """
+
+    __tablename__ = "ai_conversation_states"
+    __table_args__ = (
+        UniqueConstraint("conversation_id", name="uk_ai_conversation_states_conversation"),
+        Index(
+            "idx_ai_conversation_states_source",
+            "conversation_id",
+            "source_sequence_no",
+        ),
+    )
+
+    conversation_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("conversations.id"), nullable=False
+    )
+    state_schema_version: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="conversation_state_v2"
+    )
+    topic_generation: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), nullable=False, default=1, server_default="1"
+    )
+    source_sequence_no: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True), nullable=False, default=0, server_default="0"
+    )
+    state_payload: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+
+
 class AgentDelegation(MutableMySQLModel, MySQLBase):
     __tablename__ = "ai_agent_delegations"
     __table_args__ = (
@@ -347,10 +379,11 @@ class AgentToolApproval(MutableMySQLModel, MySQLBase):
     conversation_id: Mapped[int] = mapped_column(
         BIGINT(unsigned=True), ForeignKey("conversations.id"), nullable=False
     )
-    draft_id: Mapped[int] = mapped_column(
-        BIGINT(unsigned=True), ForeignKey("ai_refund_drafts.id"), nullable=False
+    draft_id: Mapped[int | None] = mapped_column(
+        BIGINT(unsigned=True), ForeignKey("ai_refund_drafts.id"), nullable=True
     )
     action_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    action_payload: Mapped[dict[str, object] | None] = mapped_column(JSON)
     arguments_hash: Mapped[bytes] = mapped_column(BINARY(32), nullable=False)
     resource_versions: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
     approval_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")

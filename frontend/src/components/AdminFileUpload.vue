@@ -16,17 +16,24 @@ interface FileVariant {
   file_id: string
   status: string
   scan_status: string
+  ocr_status: 'not_requested' | 'pending' | 'processing' | 'completed' | 'no_text' | 'failed'
+}
+
+interface FileMetadata extends FileVariant {
+  ocr_text: string | null
+  ocr_error_code: string | null
 }
 
 interface UploadSession {
   upload_id: string
   upload_status: string
   upload: { method: string; url: string; headers: Record<string, string>; expires_at: string } | null
+  source_file: FileVariant | null
   bindable_file: FileVariant | null
 }
 
 const props = withDefaults(defineProps<{ purpose: string; businessContextId?: string | null; label?: string; disabled?: boolean; accessToken?: string | null }>(), { disabled: false })
-const emit = defineEmits<{ uploaded: [fileId: string]; busyChanged: [busy: boolean] }>()
+const emit = defineEmits<{ uploaded: [fileId: string, metadata?: FileMetadata]; busyChanged: [busy: boolean] }>()
 const auth = useAdminAuthStore()
 const uploadToken = computed(() => props.accessToken === undefined ? auth.accessToken : props.accessToken)
 const policy = ref<UploadPolicy | null>(null)
@@ -80,9 +87,18 @@ async function upload(throwOnError = false) {
       headers: { 'Idempotency-Key': createIdempotencyKey('file-complete') },
       body: JSON.stringify({ sha256, provider_checksum: uploadResponse.headers.get('etag') }),
     }, uploadToken.value)
-    const fileId = await waitUntilBindable(session.upload_id)
-    status.value = `文件已通过扫描：${fileId}`
-    emit('uploaded', fileId)
+    const bindable = await waitUntilBindable(session.upload_id)
+    const metadata = props.purpose === 'product_detail'
+      ? (await apiRequest<FileMetadata>(`/files/${encodeURIComponent(bindable.file_id)}/metadata`, {}, uploadToken.value)).data
+      : undefined
+    status.value = props.purpose === 'product_detail'
+      ? metadata?.ocr_status === 'completed'
+        ? '图片安全扫描与文字识别已完成。'
+        : metadata?.ocr_status === 'no_text'
+          ? '图片安全扫描已完成，未识别到清晰文字，可手动填写图片说明。'
+          : '图片安全扫描已完成，文字识别失败，可手动填写图片说明。'
+      : '图片已通过安全扫描，可以交给 Agent 核对。'
+    emit('uploaded', bindable.file_id, metadata)
     selected.value = null
   } catch (cause) {
     error.value = cause instanceof Error && !(cause instanceof TypeError) ? cause.message : errorMessage(cause)
@@ -97,15 +113,19 @@ async function uploadFile(file: File) {
   await upload(true)
 }
 
-async function waitUntilBindable(uploadId: string): Promise<string> {
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+async function waitUntilBindable(uploadId: string): Promise<FileVariant> {
+  for (let attempt = 0; attempt < 90; attempt += 1) {
     const current = (await apiRequest<UploadSession>(`/file-upload-sessions/${encodeURIComponent(uploadId)}`, {}, uploadToken.value)).data
-    if (current.bindable_file?.status === 'active' && current.bindable_file.scan_status === 'safe') return current.bindable_file.file_id
-    if (current.bindable_file?.scan_status === 'rejected') throw new Error('文件未通过安全扫描，请更换文件。')
-    status.value = `安全扫描处理中（${attempt + 1}/30）…`
+    const bindable = current.bindable_file
+    if (bindable?.status === 'active' && bindable.scan_status === 'safe') {
+      if (props.purpose !== 'product_detail' || ['completed', 'no_text', 'failed'].includes(bindable.ocr_status)) return bindable
+      status.value = `图片已通过安全扫描，正在识别文字（${attempt + 1}/90）…`
+    }
+    if (current.source_file?.scan_status === 'rejected') throw new Error('图片无法安全解码或未通过安全扫描，请更换图片。')
+    else if (bindable?.scan_status !== 'safe') status.value = `安全扫描处理中（${attempt + 1}/90）…`
     await new Promise((resolve) => window.setTimeout(resolve, 1000))
   }
-  throw new Error('安全扫描仍在进行。可稍后从上传记录重试绑定。')
+  throw new Error('图片安全处理或文字识别仍在进行。请稍后重试。')
 }
 
 async function digest(file: File): Promise<string> {

@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.knowledge.contracts import CONFIRMATION_REQUIRED_TOOLS, READ_ONLY_TOOLS
+from app.modules.knowledge.contracts import (
+    CONFIRMATION_REQUIRED_TOOLS,
+    DIRECT_WRITE_TOOLS,
+    READ_ONLY_TOOLS,
+)
 from app.modules.knowledge.models import RuntimeKillSwitch
 
 
@@ -28,7 +32,28 @@ MCP_SERVERS = {
             "order-mcp", frozenset(code for code in READ_ONLY_TOOLS if code.startswith("order."))
         ),
         McpServerDefinition(
-            "cart-mcp", frozenset(code for code in READ_ONLY_TOOLS if code.startswith("cart."))
+            "cart-mcp",
+            frozenset(
+                code
+                for code in READ_ONLY_TOOLS | DIRECT_WRITE_TOOLS | CONFIRMATION_REQUIRED_TOOLS
+                if code.startswith("cart.")
+            ),
+        ),
+        McpServerDefinition(
+            "checkout-mcp",
+            frozenset(
+                code
+                for code in READ_ONLY_TOOLS | DIRECT_WRITE_TOOLS | CONFIRMATION_REQUIRED_TOOLS
+                if code.startswith("checkout.")
+            ),
+        ),
+        McpServerDefinition(
+            "account-mcp",
+            frozenset(
+                code
+                for code in READ_ONLY_TOOLS | DIRECT_WRITE_TOOLS | CONFIRMATION_REQUIRED_TOOLS
+                if code.startswith(("address.", "account.", "favorite."))
+            ),
         ),
         McpServerDefinition(
             "logistics-mcp",
@@ -59,16 +84,32 @@ MCP_SERVERS = {
             ),
         ),
         McpServerDefinition(
+            "knowledge-mcp",
+            frozenset(code for code in READ_ONLY_TOOLS if code.startswith("rag.")),
+        ),
+        McpServerDefinition(
             "store-ops-mcp",
-            frozenset(code for code in READ_ONLY_TOOLS if code.startswith("store_ops.")),
+            frozenset(
+                code
+                for code in READ_ONLY_TOOLS | CONFIRMATION_REQUIRED_TOOLS
+                if code.startswith("store_ops.")
+            ),
         ),
         McpServerDefinition(
             "governance-mcp",
-            frozenset(code for code in READ_ONLY_TOOLS if code.startswith("governance.")),
+            frozenset(
+                code
+                for code in READ_ONLY_TOOLS | CONFIRMATION_REQUIRED_TOOLS
+                if code.startswith("governance.")
+            ),
         ),
         McpServerDefinition(
             "observability-mcp",
-            frozenset(code for code in READ_ONLY_TOOLS if code.startswith("observability.")),
+            frozenset(
+                code
+                for code in READ_ONLY_TOOLS | CONFIRMATION_REQUIRED_TOOLS
+                if code.startswith("observability.")
+            ),
         ),
     )
 }

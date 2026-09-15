@@ -16,7 +16,8 @@ def test_compact_summary_is_a_bounded_deduplicated_conversation_dossier() -> Non
     dossier = json.loads(result)
 
     assert len(result) <= MAX_SUMMARY_CHARACTERS
-    assert dossier["schema_version"] == "conversation_dossier_v1"
+    assert dossier["schema_version"] == "conversation_dossier_v2"
+    assert dossier["summary_generation"] == 1
     assert dossier["business_fact_authoritative"] is False
     assert dossier["current_goal"] == "确认继续比较"
     assert result.count("用户: 确认继续比较") == 1
@@ -46,3 +47,4 @@ def test_compact_summary_preserves_goal_constraints_commitments_and_open_questio
         "我会继续帮你对比库存。你更想先看声音还是价格?"
     ]
     assert dossier["completed_actions"] == ["已查到两个候选商品"]
+    assert dossier["resolved_tasks"] == ["已查到两个候选商品"]

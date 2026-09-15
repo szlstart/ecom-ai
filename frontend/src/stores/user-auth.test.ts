@@ -30,17 +30,22 @@ class FakeBroadcastChannel extends EventTarget {
   }
 }
 
-function bootstrap(accessToken: string): SessionBootstrap {
+function bootstrap(
+  accessToken: string,
+  userId = 'usr_test',
+  username = 'two-tabs',
+  sessionId = 'ses_test',
+): SessionBootstrap {
   return {
     user: {
-      user_id: 'usr_test',
-      username: 'two-tabs',
+      user_id: userId,
+      username,
       nickname: '双标签用户',
       avatar_url: null,
       account_status: 'active',
     },
     session: {
-      session_id: 'ses_test',
+      session_id: sessionId,
       client_type: 'web',
       device_name: null,
       audience: 'user',
@@ -59,6 +64,8 @@ function bootstrap(accessToken: string): SessionBootstrap {
 describe('user auth cross-tab synchronization', () => {
   beforeEach(() => {
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel)
+    window.sessionStorage.clear()
+    document.cookie = 'ecom_user_csrf=; Max-Age=0; path=/'
   })
 
   afterEach(() => {
@@ -81,6 +88,7 @@ describe('user auth cross-tab synchronization', () => {
   })
 
   it('resumes the current server session without rotation when no peer tab is available', async () => {
+    document.cookie = 'ecom_user_csrf=csrf-test; path=/'
     const response = bootstrap('resumed-user-token')
     const serverResume = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
       JSON.stringify({ data: response, meta: { request_id: 'req_resume', pagination: null } }),
@@ -123,5 +131,26 @@ describe('user auth cross-tab synchronization', () => {
     expect(restored).toBe(true)
     expect(onlyTab.accessToken).toBe('rotated-after-rejection')
     expect(String(serverRefresh.mock.calls[0]?.[0])).toContain('/auth/token-refresh')
+    expect(new Headers(serverRefresh.mock.calls[0]?.[1]?.headers).get('X-Auth-Session')).toBe('ses_test')
+  })
+
+  it('keeps different shopper identities isolated when two tabs log in independently', async () => {
+    const firstTab = useUserAuthStore(createPinia())
+    firstTab.accept(bootstrap('token-a', 'usr_a', 'buyer-a', 'ses_a'))
+    const secondTab = useUserAuthStore(createPinia())
+    secondTab.accept(bootstrap('token-b', 'usr_b', 'buyer-b', 'ses_b'))
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
+
+    expect(firstTab.accessToken).toBe('token-a')
+    expect(firstTab.user?.user_id).toBe('usr_a')
+    expect(firstTab.sessionId).toBe('ses_a')
+    expect(secondTab.accessToken).toBe('token-b')
+    expect(secondTab.user?.user_id).toBe('usr_b')
+    expect(secondTab.sessionId).toBe('ses_b')
+
+    secondTab.clear()
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
+    expect(firstTab.isAuthenticated).toBe(true)
+    expect(firstTab.user?.username).toBe('buyer-a')
   })
 })

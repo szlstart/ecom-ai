@@ -11,19 +11,50 @@ _POLICY_TERMS = (
     "支付宝",
     "扣款",
     "余额",
+    "提现",
+    "转账",
     "支付",
     "退款",
+    "退换",
+    "退换货",
+    "换货",
+    "质量",
+    "质量问题",
+    "商品质量",
+    "凭证",
+    "原路",
+    "原支付渠道",
+    "退回",
     "到账",
     "多久",
     "时效",
+    "自动更新",
+    "自动推进",
+    "更新机制",
+    "更新规则",
+    "固定",
+    "每5秒",
+    "每五秒",
+    "几秒",
+    "更新",
     "处理时间",
     "退货",
     "售后",
     "物流",
+    "物流节点",
+    "店铺人员",
+    "平台管理员",
+    "Agent",
     "发货",
     "签收",
     "运费",
     "包邮",
+    "暂停营业",
+    "恢复营业",
+    "购物车",
+    "不可购买",
+    "结算",
+    "新订单",
     "订单",
     "库存",
     "价格",
@@ -51,23 +82,30 @@ def concise_policy_answer(
         title = re.sub(r"^\[(?:系统|店铺)\]\s*", "", title)
         content = safe_untrusted_excerpt(raw_content, 1200)
         for raw_part in re.split(r"(?<=[\u3002\uff01\uff1f\uff1b])|\n+", content):
-            # Indexed Markdown is whitespace-normalized, so a heading and its first
-            # bullet can share one fragment ("## 模拟充值 - 当前..."). Keep the
-            # factual bullet instead of discarding the complete fragment as a heading.
-            if " - " in raw_part:
-                raw_part = raw_part.rsplit(" - ", 1)[-1]
-            part = re.sub(r"^(?:[-*•>]\s*|\d+[.)、]\s*)", "", raw_part.strip()).strip()
-            part = part.replace(";", "\uff1b").replace(",", "\uff0c")
-            if not part or part.startswith("#"):
-                continue
-            score = sum(6 for term in query_terms if term in part)
-            score += sum(2 for term in query_terms if term in title)
-            candidates.append((score, -position, safe_untrusted_excerpt(part, 260), title))
-            position += 1
+            # Indexed Markdown may normalize an entire section to one line:
+            # "## 模拟轨迹 - 规则 A - 规则 B".  Score every bullet instead of
+            # retaining only the last bullet or treating the whole line as a heading.
+            for fragment in raw_part.split(" - "):
+                part = re.sub(
+                    r"^(?:[-*•>]\s*|\d+[.)、]\s*)", "", fragment.strip()
+                ).strip()
+                part = part.replace(";", "\uff1b").replace(",", "\uff0c")
+                if not part or part.startswith("#"):
+                    continue
+                score = sum(6 for term in query_terms if term in part)
+                score += sum(2 for term in query_terms if term in title)
+                candidates.append(
+                    (score, -position, safe_untrusted_excerpt(part, 260), title)
+                )
+                position += 1
 
     if not candidates:
         return intro
     candidates.sort(reverse=True)
+    if query_terms:
+        # Never fill a policy answer with unrelated zero-score chunks merely
+        # because the retriever returned them in the same namespace.
+        candidates = [item for item in candidates if item[0] > 0]
     limit = 1 if any(marker in query for marker in ("一句话", "简短", "简要", "只回答")) else 2
     selected: list[tuple[str, str]] = []
     selected_texts: set[str] = set()

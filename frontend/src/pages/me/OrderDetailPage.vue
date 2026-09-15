@@ -166,7 +166,7 @@ onMounted(load)
             <article class="card order-section"><p class="eyebrow">收货信息</p><h2>{{ order.address.recipient_name }}</h2><p>{{ order.address.phone_masked }}</p><p>{{ formatChinaRegion(order.address) }} {{ order.address.address }}</p><small>此处展示下单时的地址快照，修改地址簿不会影响本订单。</small></article>
             <article class="card order-section"><p class="eyebrow">金额明细</p><dl class="amount-list"><dt>商品金额</dt><dd>{{ formatMoney(order.amounts.goods_amount) }}</dd><dt>运费</dt><dd>{{ formatMoney(order.amounts.freight_amount) }}</dd><dt>调整金额</dt><dd>{{ formatMoney(order.amounts.adjustment_amount) }}</dd><dt>实付金额</dt><dd>{{ formatMoney(order.amounts.paid_amount) }}</dd><dt class="total">应付金额</dt><dd class="total">{{ formatMoney(order.amounts.payable_amount) }}</dd></dl></article>
             <article v-if="order.buyer_remark" class="card order-section"><p class="eyebrow">买家留言</p><p>{{ order.buyer_remark }}</p></article>
-            <article v-if="order.fulfillment_status === 'unfulfilled'" class="alert info"><strong>物流信息</strong><p>{{ order.payment_status === 'paid' ? '支付已完成，模拟物流单正在自动生成。可点击“查看物流”实时查看。' : '商家正在备货，暂无物流信息。' }}</p></article>
+            <article v-if="order.fulfillment_status === 'unfulfilled'" class="alert info"><strong>物流信息</strong><p>{{ order.payment_status === 'paid' ? '支付已完成，商家正在备货；创建包裹后可点击“查看物流”查看节点。' : '商家正在备货，暂无物流信息。' }}</p></article>
           </aside>
         </div>
       </template>

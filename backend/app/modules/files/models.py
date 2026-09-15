@@ -12,7 +12,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER, VARBINARY
+from sqlalchemy.dialects.mysql import BIGINT, BINARY, INTEGER, MEDIUMTEXT, VARBINARY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import MutableMySQLModel, MySQLBase
@@ -78,6 +78,7 @@ class FileObject(MutableMySQLModel, MySQLBase):
         Index("idx_file_objects_owner", "owner_type", "owner_no", "file_status", "id"),
         Index("idx_file_objects_lifecycle", "file_status", "expires_at", "id"),
         Index("idx_file_objects_hash", "sha256", "size_bytes"),
+        Index("idx_file_objects_ocr", "ocr_status", "purpose", "id"),
     )
 
     file_no: Mapped[str] = mapped_column(String(40), nullable=False)
@@ -107,6 +108,14 @@ class FileObject(MutableMySQLModel, MySQLBase):
     visibility: Mapped[str] = mapped_column(String(24), nullable=False, default="private")
     sensitivity_level: Mapped[str] = mapped_column(String(4), nullable=False)
     scan_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    ocr_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="not_requested", server_default="not_requested"
+    )
+    ocr_text: Mapped[str | None] = mapped_column(MEDIUMTEXT)
+    ocr_engine: Mapped[str | None] = mapped_column(String(64))
+    ocr_language: Mapped[str | None] = mapped_column(String(32))
+    ocr_processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
+    ocr_error_code: Mapped[str | None] = mapped_column(String(64))
     file_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending_upload")
     storage_version_id: Mapped[str | None] = mapped_column(String(128))
     encryption_key_version: Mapped[int | None] = mapped_column(SmallInteger)

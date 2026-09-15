@@ -17,6 +17,7 @@ families:
   ADM-AUDIT: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_admin_password_mfa_audience_and_reauthentication_lifecycle]}
   ADM-AUTH: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_admin_password_mfa_audience_and_reauthentication_lifecycle]}
   AGENT-PROVIDER: {layers: [unit], selectors: [backend/tests/test_agent_provider_gateway.py::test_provider_health_probes_models_structured_stream_and_usage, backend/tests/test_agent_provider_gateway.py::test_provider_health_reports_unconfigured_without_network]}
+  AGENT-OPS: {layers: [unit, contract, security], selectors: [backend/tests/test_operations_approval.py::test_merchant_write_detection_distinguishes_query_from_command, backend/tests/test_operations_approval.py::test_admin_write_detection_keeps_read_only_questions_read_only, "frontend/src/components/messaging/ChatMessageContent.test.ts::keeps a settled operational approval settled after messages are reloaded"]}
   ADM-BATCH: {layers: [integration], selectors: [backend/tests/test_batch_job_api_integration.py::test_product_import_precheck_confirm_and_execute]}
   ADM-CATALOG: {layers: [integration], selectors: [backend/tests/test_catalog_api_integration.py::test_admin_taxonomy_and_inventory_adjustment_invariants]}
   ADM-CONTENT: {layers: [contract, integration, security], selectors: [backend/tests/test_content_api_integration.py::test_admin_content_version_publish_public_projection_and_withdrawal]}
@@ -45,7 +46,7 @@ families:
   ADM-USER-STATUS: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_admin_password_mfa_audience_and_reauthentication_lifecycle]}
   AI-CONSENT: {layers: [contract, integration, security], selectors: [backend/tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry]}
   AI-FEEDBACK: {layers: [contract, integration], selectors: [backend/tests/test_ai_feedback_api_integration.py::test_ai_feedback_is_owned_versioned_idempotent_and_agent_only]}
-  AI-MEMORY: {layers: [integration, security], selectors: [backend/tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry, backend/tests/test_exclusive_agent_integration.py::test_exclusive_agent_refund_requires_consent_and_button_approval]}
+  AI-MEMORY: {layers: [integration, security], selectors: [backend/tests/test_ai_privacy_api_integration.py::test_ai_memory_owner_revision_tombstone_disable_and_retry, backend/tests/test_exclusive_agent_integration.py::test_exclusive_agent_refund_requires_button_approval_without_persistent_consent]}
   AUTH-LOGIN: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-CAPTCHA: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
   AUTH-LOGOUT: {layers: [integration, security], selectors: [backend/tests/test_identity_api_integration.py::test_user_authentication_profile_address_and_session_lifecycle]}
@@ -85,6 +86,7 @@ families:
   SEARCH: {layers: [contract, integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}
   SECURITY: {layers: [unit, security], selectors: [backend/tests/test_security.py::test_access_token_is_audience_bound, backend/tests/test_prompt_safety.py::test_direct_multilingual_and_encoded_prompt_injection_is_detected]}
   SHIP-USER: {layers: [contract, integration, security], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
+  SHIP-SIMULATION: {layers: [unit, contract], selectors: [backend/tests/test_logistics_domain.py::test_fake_express_is_excluded_from_timed_sync_candidates, backend/tests/test_logistics_contract.py::test_user_logistics_operations_and_role_specific_dtos_are_published]}
   SHIP-WEBHOOK: {layers: [integration, security], selectors: [backend/tests/test_checkout_api_integration.py::test_checkout_snapshot_idempotency_etag_and_repricing]}
   STORE: {layers: [contract, integration], selectors: [backend/tests/test_catalog_api_integration.py::test_public_catalog_store_cursor_and_favorite_lifecycle]}
   SYSTEM-STATE: {layers: [ui], selectors: ["frontend/src/router/routes.test.ts::registers deterministic recovery routes"]}

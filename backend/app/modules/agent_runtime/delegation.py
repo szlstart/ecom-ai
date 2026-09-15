@@ -23,8 +23,8 @@ DelegationStatus = Literal[
     "reused",
 ]
 
-MAX_DELEGATIONS = 4
-MAX_PARALLEL_SPECIALISTS = 3
+MAX_DELEGATIONS = 6
+MAX_PARALLEL_SPECIALISTS = 4
 MAX_DELEGATION_DEPTH = 1
 
 
@@ -152,7 +152,28 @@ SPECIALIST_POLICIES: Mapping[str, SpecialistPolicy] = {
         "order",
         frozenset({"order.list_user_orders", "order.get_user_order_detail"}),
     ),
-    "logistics": SpecialistPolicy("logistics", frozenset({"logistics.get_user_order_shipments"})),
+    "cart": SpecialistPolicy("cart", frozenset({"cart.get_mine"})),
+    "account": SpecialistPolicy(
+        "account",
+        frozenset(
+            {
+                "address.list_mine",
+                "account.profile.get_mine",
+                "account.wallet.get_mine",
+                "account.favorites.list_mine",
+                "memory.list_mine",
+            }
+        ),
+    ),
+    "logistics": SpecialistPolicy(
+        "logistics",
+        frozenset(
+            {
+                "order.list_user_orders",
+                "logistics.get_user_order_shipments",
+            }
+        ),
+    ),
     "after_sales": SpecialistPolicy(
         "after_sales",
         frozenset(
@@ -172,22 +193,103 @@ SPECIALIST_POLICIES: Mapping[str, SpecialistPolicy] = {
         "policy", frozenset({"rag.policy.search", "catalog.get_store_policy"})
     ),
     "governance_users": SpecialistPolicy(
-        "governance_users", frozenset({"governance.user_summary"})
+        "governance_users",
+        frozenset(
+            {
+                "governance.users.search",
+                "governance.users.addresses.list",
+                "governance.users.cart.list",
+                "governance.users.favorites.list",
+                "governance.users.wallet.get",
+                "governance.users.orders.list",
+            }
+        ),
     ),
     "governance_stores": SpecialistPolicy(
-        "governance_stores", frozenset({"governance.store_summary"})
+        "governance_stores",
+        frozenset({"governance.stores.search", "governance.stores.service_profile"}),
+    ),
+    "governance_catalog": SpecialistPolicy(
+        "governance_catalog", frozenset({"governance.catalog.search"})
     ),
     "governance_orders": SpecialistPolicy(
         "governance_orders", frozenset({"governance.order_summary"})
     ),
-    "observability": SpecialistPolicy("observability", frozenset({"observability.runtime_health"})),
+    "governance_payments": SpecialistPolicy(
+        "governance_payments",
+        frozenset({"governance.trade.payment_timeline"}),
+    ),
+    "governance_logistics": SpecialistPolicy(
+        "governance_logistics",
+        frozenset({"governance.trade.shipments.get"}),
+    ),
+    "governance_metrics": SpecialistPolicy(
+        "governance_metrics", frozenset({"governance.metrics.query"})
+    ),
+    "observability": SpecialistPolicy(
+        "observability",
+        frozenset(
+            {
+                "observability.runtime_health",
+                "observability.dead_letters.list",
+                "observability.traces.get",
+                "observability.traces.search",
+                "observability.cost_metrics",
+            }
+        ),
+    ),
     "merchant_catalog": SpecialistPolicy(
-        "merchant_catalog", frozenset({"store_ops.catalog_summary"})
+        "merchant_catalog",
+        frozenset({"store_ops.catalog_summary", "store_ops.catalog.get_product"}),
     ),
     "merchant_inventory": SpecialistPolicy(
-        "merchant_inventory", frozenset({"store_ops.inventory_risks"})
+        "merchant_inventory",
+        frozenset({"store_ops.inventory_risks", "store_ops.inventory.get_skus"}),
     ),
-    "merchant_orders": SpecialistPolicy("merchant_orders", frozenset({"store_ops.order_summary"})),
+    "merchant_orders": SpecialistPolicy(
+        "merchant_orders",
+        frozenset(
+            {
+                "store_ops.order_summary",
+                "store_ops.orders.list",
+                "store_ops.orders.get",
+                "store_ops.revenue_metrics",
+            }
+        ),
+    ),
+    "merchant_review_service": SpecialistPolicy(
+        "merchant_review_service",
+        frozenset({"store_ops.review_summary", "store_ops.reviews.list"}),
+    ),
+    "merchant_customer_service": SpecialistPolicy(
+        "merchant_customer_service",
+        frozenset({"store_ops.service_summary", "store_ops.conversations.list"}),
+    ),
+    "merchant_policy": SpecialistPolicy("merchant_policy", frozenset({"store_ops.policy_summary"})),
+    "merchant_profile": SpecialistPolicy("merchant_profile", frozenset({"store_ops.profile.get"})),
+    "merchant_after_sale": SpecialistPolicy(
+        "merchant_after_sale", frozenset({"store_ops.after_sale.list"})
+    ),
+    "governance_after_sale": SpecialistPolicy(
+        "governance_after_sale",
+        frozenset({"governance.after_sale_summary", "governance.after_sale.timeline"}),
+    ),
+    "governance_support": SpecialistPolicy(
+        "governance_support", frozenset({"governance.support_summary"})
+    ),
+    "governance_ai": SpecialistPolicy(
+        "governance_ai",
+        frozenset(
+            {
+                "governance.ai_summary",
+                "governance.ai.agents.list",
+                "governance.ai.skills.list",
+                "governance.ai.tools.list",
+                "governance.knowledge.documents.list",
+                "governance.ai.evaluations.list",
+            }
+        ),
+    ),
 }
 
 

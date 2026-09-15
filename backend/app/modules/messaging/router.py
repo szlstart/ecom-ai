@@ -136,7 +136,12 @@ async def send_admin_ai_message(
     service: MessagingServiceDependency,
 ) -> Envelope[MessageView]:
     conversation = await service.get_or_create_exclusive(context.user)
-    result = await service.send(context.user, conversation.conversation_id, payload)
+    result = await service.send(
+        context.user,
+        conversation.conversation_id,
+        payload,
+        operations_audience="admin",
+    )
     _no_store(response)
     return Envelope(data=result)
 
@@ -248,7 +253,12 @@ async def send_merchant_exclusive_message(
     service: MessagingServiceDependency,
 ) -> Envelope[MessageView]:
     conversation = await service.get_or_create_exclusive(context.user)
-    result = await service.send(context.user, conversation.conversation_id, payload)
+    result = await service.send(
+        context.user,
+        conversation.conversation_id,
+        payload,
+        operations_audience="merchant",
+    )
     _no_store(response)
     return Envelope(data=result)
 

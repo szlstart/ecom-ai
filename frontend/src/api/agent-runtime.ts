@@ -1,4 +1,7 @@
 import { apiRequest, createIdempotencyKey, type ApiResult } from '@/api/http'
+import type { components } from '@/api/generated/schema'
+
+type AgentApprovalActionType = components['schemas']['AgentApprovalView']['action_type']
 
 export interface AgentConsent {
   consent_id: string
@@ -17,7 +20,7 @@ export interface AgentToolApproval {
   approval_id: string
   run_id: string
   conversation_id: string
-  action_type: 'refund_submit'
+  action_type: AgentApprovalActionType
   approval_status: 'pending' | 'approved' | 'rejected' | 'expired' | 'consumed'
   decision: 'approve' | 'reject' | null
   draft: Record<string, unknown>
@@ -198,6 +201,38 @@ export function decideAgentToolApproval(
     headers: {
       'If-Match': `"v${version}"`,
       'Idempotency-Key': createIdempotencyKey(`agent-${decision}`),
+    },
+    body: JSON.stringify({ decision }),
+  }, token)
+}
+
+export function decideMerchantAgentToolApproval(
+  approvalId: string,
+  decision: 'approve' | 'reject',
+  version: number,
+  token: string,
+): Promise<ApiResult<AgentToolApproval>> {
+  return apiRequest(`/merchant/agent-tool-approvals/${encodeURIComponent(approvalId)}/decisions`, {
+    method: 'POST',
+    headers: {
+      'If-Match': `"v${version}"`,
+      'Idempotency-Key': createIdempotencyKey(`merchant-agent-${decision}`),
+    },
+    body: JSON.stringify({ decision }),
+  }, token)
+}
+
+export function decideAdminAgentToolApproval(
+  approvalId: string,
+  decision: 'approve' | 'reject',
+  version: number,
+  token: string,
+): Promise<ApiResult<AgentToolApproval>> {
+  return apiRequest(`/admin/agent-tool-approvals/${encodeURIComponent(approvalId)}/decisions`, {
+    method: 'POST',
+    headers: {
+      'If-Match': `"v${version}"`,
+      'Idempotency-Key': createIdempotencyKey(`admin-agent-${decision}`),
     },
     body: JSON.stringify({ decision }),
   }, token)

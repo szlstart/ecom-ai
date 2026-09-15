@@ -6,7 +6,7 @@ import re
 import unicodedata
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -37,6 +37,7 @@ from app.modules.logistics.repository import LogisticsRepository
 from app.modules.logistics.schemas import (
     AdminShipmentCreateRequest,
     AdminShipmentDetail,
+    AdminShipmentSimulationEventRequest,
     AdminShipmentVoidRequest,
     AdminTrackingCorrectionRequest,
     DeliveryEstimate,
@@ -540,6 +541,118 @@ class LogisticsService:
         await self.session.commit()
         return result
 
+    async def record_simulation_event(
+        self,
+        access: AdminAccess,
+        shipment_no: str,
+        payload: AdminShipmentSimulationEventRequest,
+        expected_version: int,
+        idempotency_key: str,
+    ) -> AdminShipmentDetail:
+        """Advance the local fake carrier by one explicit, audited event."""
+
+        claim = await self.idempotency.begin(
+            scope_key=(
+                f"admin:shipment-simulation:{access.context.user.user_no}:{shipment_no}"
+            ),
+            idempotency_key=idempotency_key,
+            payload={"expected_version": expected_version, **payload.model_dump(mode="json")},
+            resource_type="shipment",
+        )
+        if claim.replayed and claim.record.response_body is not None:
+            return AdminShipmentDetail.model_validate(claim.record.response_body)
+
+        row = await self.repository.shipment_by_no(shipment_no, for_update=True)
+        if row is None:
+            raise _not_found()
+        shipment, order, store = row
+        access.require_scope("store", store.id)
+        _require_version(shipment.version, expected_version, resource="包裹")
+        previous_status = shipment.shipment_status
+        if shipment.carrier_code != "fake_express":
+            raise ApplicationError(
+                status=409,
+                code="SHIPMENT_SIMULATION_NOT_ALLOWED",
+                title="Shipment simulation not allowed",
+                detail="只有本地模拟承运商的包裹可以手动推进物流节点。",
+            )
+        if shipment.shipment_status in {"delivered", "returned", "closed", "voided"}:
+            raise ApplicationError(
+                status=409,
+                code="SHIPMENT_SIMULATION_ALREADY_TERMINAL",
+                title="Shipment simulation already terminal",
+                detail="该包裹已经进入终态，不能继续添加模拟物流节点。",
+            )
+
+        track_status = (
+            "in_transit" if payload.event_type == "out_for_delivery" else payload.event_type
+        )
+        provider_status = payload.event_type
+        command = _shipment_command(track_status)
+        transition = SHIPMENT_TRANSITIONS[command]
+        if (
+            shipment.shipment_status != track_status
+            and shipment.shipment_status not in transition[0]
+        ):
+            raise ApplicationError(
+                status=409,
+                code="SHIPMENT_STATE_CONFLICT",
+                title="Shipment state conflict",
+                detail="当前物流节点不能直接推进到所选状态，请按实际运输顺序更新。",
+            )
+
+        now = utc_now()
+        occurred_at = (
+            _naive_utc(payload.occurred_at) if payload.occurred_at is not None else now
+        )
+        provider_event_id = new_prefixed_ulid("lpe_")
+        snapshot = LogisticsProviderSnapshot(
+            provider_request_id=provider_event_id,
+            tracks=(
+                LogisticsProviderTrack(
+                    provider_event_id=provider_event_id,
+                    status=cast(Any, track_status),
+                    provider_status=provider_status,
+                    description=payload.description,
+                    location_text=payload.location_text,
+                    occurred_at=occurred_at,
+                ),
+            ),
+        )
+        await self._apply_provider_snapshot(
+            shipment,
+            snapshot,
+            order=order,
+            sync_type="manual",
+            response_hash=canonical_request_hash(payload.model_dump(mode="json")),
+            now=now,
+        )
+        record_admin_operation(
+            self.session,
+            access,
+            action="record_simulation_event",
+            target_type="shipment",
+            target_no=shipment.shipment_no,
+            before={"shipment_status": previous_status, "version": expected_version},
+            after={
+                "shipment_status": shipment.shipment_status,
+                "provider_status": shipment.provider_status,
+                "version": shipment.version,
+            },
+            scope_type="store",
+            scope_id=store.id,
+        )
+        await self.session.flush()
+        result = await self._admin_view(shipment, order, store)
+        self.idempotency.complete(
+            claim,
+            response_status=200,
+            resource_no=shipment.shipment_no,
+            response_body=result.model_dump(mode="json"),
+        )
+        await self.session.commit()
+        return result
+
     async def void_shipment(
         self,
         access: AdminAccess,
@@ -885,14 +998,12 @@ class LogisticsService:
         stale_after_seconds: int = 300,
     ) -> int:
         now = utc_now()
-        created = await self._create_automatic_shipments(limit=limit, now=now)
         candidates = await self.repository.sync_candidates(
             now=now,
             stale_before=now - timedelta(seconds=stale_after_seconds),
-            simulated_stale_before=now - timedelta(seconds=1),
             limit=limit,
         )
-        processed = created
+        processed = 0
         for candidate in candidates:
             if await self.sync_shipment(candidate.shipment_no, now=now):
                 processed += 1
@@ -920,13 +1031,12 @@ class LogisticsService:
             tracking_no = self.security.decrypt(
                 "shipment-tracking-no", candidate.tracking_no_ciphertext
             )
-            if candidate.carrier_code == "fake_express":
-                snapshot = await self._simulated_snapshot(candidate, tracking_no, effective_now)
-            else:
-                snapshot = await _provider(candidate.carrier_code).query_tracking(
-                    carrier_code=candidate.carrier_code,
-                    tracking_no=tracking_no,
-                )
+            # fake_express is deliberately excluded by sync_candidates.  Its
+            # state is advanced only by an explicit, authorized command.
+            snapshot = await _provider(candidate.carrier_code).query_tracking(
+                carrier_code=candidate.carrier_code,
+                tracking_no=tracking_no,
+            )
             locked = await self.repository.shipment_by_no(shipment_no, for_update=True)
             if locked is None:
                 return False
@@ -988,7 +1098,7 @@ class LogisticsService:
         shipment: Shipment,
         snapshot: LogisticsProviderSnapshot,
         *,
-        sync_type: Literal["poll", "webhook", "reconcile"],
+        sync_type: Literal["poll", "webhook", "reconcile", "manual"],
         response_hash: bytes,
         now: datetime,
         duration_ms: int = 0,
@@ -1122,110 +1232,6 @@ class LogisticsService:
         )
         return created, duplicates
 
-    async def _create_automatic_shipments(self, *, limit: int, now: datetime) -> int:
-        created = 0
-        for order_no in await self.repository.automatic_shipment_candidates(limit):
-            row = await self.repository.admin_order(order_no, for_update=True)
-            if row is None:
-                continue
-            order, store = row
-            if (
-                order.payment_status not in {"paid", "partially_refunded"}
-                or order.order_status != "pending_shipment"
-                or order.fulfillment_status != "unfulfilled"
-                or order.after_sale_status == "in_progress"
-                or await self.repository.allocated_quantities(order.id)
-            ):
-                continue
-            order_items = await self.repository.order_items_for_update(order.id)
-            if not order_items:
-                continue
-            tracking_no = _normalize_tracking_no(
-                f"ECOM{new_prefixed_ulid('trk_').replace('_', '')}"
-            )
-            tracking_hash = self.security.keyed_hash(
-                "shipment-tracking-no", f"fake_express:{tracking_no}"
-            )
-            started_at = order.paid_at or now
-            shipment = Shipment(
-                shipment_no=new_prefixed_ulid("shp_"),
-                order_id=order.id,
-                store_id=store.id,
-                carrier_code="fake_express",
-                carrier_name="Ecom 速运",
-                tracking_no_ciphertext=self.security.encrypt(
-                    "shipment-tracking-no", tracking_no
-                ),
-                tracking_no_hash=tracking_hash,
-                tracking_no_masked=_mask_tracking_no(tracking_no),
-                shipment_status="created",
-                estimated_delivery_min_at=started_at + timedelta(seconds=20),
-                estimated_delivery_max_at=started_at + timedelta(seconds=25),
-                estimate_source="carrier",
-                estimate_updated_at=now,
-                shipped_at=started_at,
-                key_version=1,
-            )
-            self.session.add(shipment)
-            await self.session.flush()
-            for item in order_items:
-                remaining = item.quantity - item.refunded_quantity
-                if remaining > 0:
-                    self.session.add(
-                        ShipmentItem(
-                            shipment_id=shipment.id,
-                            order_item_id=item.id,
-                            quantity=remaining,
-                        )
-                    )
-            self.session.add(
-                OutboxEvent(
-                    event_no=new_prefixed_ulid("evt_"),
-                    event_type="shipment.automatic_created.v1",
-                    aggregate_type="shipment",
-                    aggregate_no=shipment.shipment_no,
-                    aggregate_version=shipment.version,
-                    payload={
-                        "shipment_id": shipment.shipment_no,
-                        "order_id": order.order_no,
-                        "carrier_code": shipment.carrier_code,
-                    },
-                    event_status="pending",
-                    available_at=now,
-                    attempt_count=0,
-                    # A synchronizer does not run inside an HTTP request, so the
-                    # request context is normally empty. Outbox trace IDs are
-                    # nevertheless required and must start a new background trace.
-                    trace_id=request_id_context.get() or new_prefixed_ulid("req_"),
-                )
-            )
-            created += 1
-        if created:
-            await self.session.commit()
-        return created
-
-    async def _simulated_snapshot(
-        self, shipment: Shipment, tracking_no: str, now: datetime
-    ) -> LogisticsProviderSnapshot:
-        started_at = shipment.shipped_at or shipment.created_at
-        address = await self.repository.order_address(shipment.order_id)
-        origin = await self.repository.shipment_origin_region_code(shipment.id)
-        destination_district = address.district_code if address is not None else None
-        destination_address = (
-            self.security.decrypt("address-detail", address.address_ciphertext)
-            if address is not None
-            else None
-        )
-        return _simulated_tracking_snapshot(
-            shipment_no=shipment.shipment_no,
-            tracking_no=tracking_no,
-            started_at=started_at,
-            now=now,
-            origin_region_code=origin,
-            destination_district_code=destination_district,
-            destination_address=destination_address,
-        )
-
     async def _project_order_shipped(
         self, order: Order, shipment: Shipment, now: datetime
     ) -> None:
@@ -1254,10 +1260,10 @@ class LogisticsService:
                 state_dimension="fulfillment",
                 from_status=previous_fulfillment,
                 to_status="shipped",
-                event_code="shipment.automatic_dispatched",
+                event_code="shipment.dispatched",
                 actor_type="system",
                 actor_id=None,
-                reason="模拟物流首条发货轨迹已生成",
+                reason="首条发货轨迹已记录",
                 order_version=order.version,
                 request_id=request_id,
                 trace_id=request_id,
@@ -1276,10 +1282,10 @@ class LogisticsService:
                 state_dimension="order",
                 from_status=previous_order,
                 to_status="shipped",
-                event_code="order.automatic_shipped",
+                event_code="order.shipment_recorded",
                 actor_type="system",
                 actor_id=None,
-                reason="模拟物流已发货",
+                reason="物流包裹进入运输流程",
                 order_version=order.version,
                 request_id=request_id,
                 trace_id=request_id,
@@ -1296,7 +1302,7 @@ class LogisticsService:
                 payload={
                     "order_id": order.order_no,
                     "shipment_id": shipment.shipment_no,
-                    "source": "automatic_simulation",
+                    "source": "logistics_event",
                 },
                 event_status="pending",
                 available_at=now,
@@ -1470,56 +1476,6 @@ def _items(rows: list[tuple[ShipmentItem, OrderItem]]) -> list[ShipmentItemView]
     return result
 
 
-def _simulated_tracking_snapshot(
-    *,
-    shipment_no: str,
-    tracking_no: str,
-    started_at: datetime,
-    now: datetime,
-    origin_region_code: str | None,
-    destination_district_code: str | None,
-    destination_address: str | None,
-) -> LogisticsProviderSnapshot:
-    definitions = (
-        (5, "picked_up", "WAITING_PICKUP", "已发货，待揽收", origin_region_code),
-        (10, "in_transit", "PICKED_UP", "已揽收，开始运输", origin_region_code),
-        (
-            15,
-            "in_transit",
-            "OUT_FOR_DELIVERY",
-            "正在派送中…",
-            destination_district_code,
-        ),
-        (20, "delivered", "DELIVERED", "已签收", destination_address),
-    )
-    tracks: list[LogisticsProviderTrack] = []
-    for offset, status, provider_status, description, location in definitions:
-        occurred_at = started_at + timedelta(seconds=offset)
-        if now < occurred_at:
-            continue
-        tracks.append(
-            LogisticsProviderTrack(
-                provider_event_id=f"auto:{shipment_no}:{provider_status.lower()}",
-                status=cast(
-                    Literal[
-                        "picked_up", "in_transit", "delivered", "exception", "returned"
-                    ],
-                    status,
-                ),
-                provider_status=provider_status,
-                description=description,
-                location_text=location,
-                occurred_at=occurred_at,
-            )
-        )
-    return LogisticsProviderSnapshot(
-        provider_request_id=f"auto-query-{tracking_no[-6:]}-{int(now.timestamp())}",
-        tracks=tuple(tracks),
-        estimated_delivery_min_at=started_at + timedelta(seconds=20),
-        estimated_delivery_max_at=started_at + timedelta(seconds=25),
-    )
-
-
 def _estimate(shipment: Shipment) -> DeliveryEstimate:
     available = (
         shipment.estimated_delivery_min_at is not None
@@ -1678,7 +1634,7 @@ def _safe_provider_text(
 def _sync_log(
     shipment: Shipment,
     *,
-    sync_type: Literal["poll", "webhook", "reconcile"],
+    sync_type: Literal["poll", "webhook", "reconcile", "manual"],
     sync_status: Literal["success", "no_change", "retry", "failed"],
     provider_request_id: str | None,
     track_count: int,

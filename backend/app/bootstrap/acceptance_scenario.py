@@ -18,10 +18,17 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
 from app.core.testing_safety import validate_integration_test_environment
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
-from app.modules.catalog.models import Category, Product, ProductFulfillmentProfile, ProductSku
+from app.modules.catalog.models import (
+    Category,
+    Product,
+    ProductContentVersion,
+    ProductFulfillmentProfile,
+    ProductSku,
+)
 from app.modules.finance.models import UserWallet
 from app.modules.identity.models import User, UserAddress, UserCredential
 from app.modules.inventory.models import Inventory
+from app.modules.knowledge.models import SkillDefinition, SkillVersion
 from app.modules.messaging.models import Conversation
 from app.modules.rbac.models import Role, UserRole
 from app.modules.stores.models import ShippingTemplate, ShippingTemplateRule, Store
@@ -35,6 +42,7 @@ TEST_PASSWORD = "Acceptance-only-password-2026!"
 STORE_NAME = "验收文具店"
 PRODUCT_NAME = "三端联动验收笔记本"
 MERCHANT_SKU_CODE = "ACCEPTANCE-NOTEBOOK-V1"
+AI_GOVERNANCE_SKILL_CODE = "acceptance.agent-release"
 
 
 @dataclass(frozen=True)
@@ -52,6 +60,7 @@ class AcceptanceScenario:
     product_id: str
     sku_id: str
     address_id: str
+    ai_governance_skill_id: str
 
 
 async def seed_acceptance_scenario(session: AsyncSession) -> AcceptanceScenario:
@@ -97,6 +106,7 @@ async def seed_acceptance_scenario(session: AsyncSession) -> AcceptanceScenario:
     if store is None:
         raise RuntimeError("acceptance merchant store was not created")
     product, sku = await _create_product(session, store)
+    governance_skill = await _ensure_ai_governance_skill(session)
     await session.commit()
     return AcceptanceScenario(
         scenario_version=SCENARIO_VERSION,
@@ -112,7 +122,55 @@ async def seed_acceptance_scenario(session: AsyncSession) -> AcceptanceScenario:
         product_id=product.product_no,
         sku_id=sku.sku_no,
         address_id=address.address_no,
+        ai_governance_skill_id=governance_skill.skill_no,
     )
+
+
+async def _ensure_ai_governance_skill(session: AsyncSession) -> SkillDefinition:
+    """Keep one evaluated draft available for the AI-manager approval browser flow."""
+
+    definition = await session.scalar(
+        select(SkillDefinition).where(SkillDefinition.skill_code == AI_GOVERNANCE_SKILL_CODE)
+    )
+    if definition is None:
+        definition = SkillDefinition(
+            skill_no=new_prefixed_ulid("skl_"),
+            skill_code=AI_GOVERNANCE_SKILL_CODE,
+            display_name="AI 管家发布审批验收 Skill",
+            skill_status="active",
+        )
+        session.add(definition)
+        await session.flush()
+    version = await session.scalar(
+        select(SkillVersion).where(
+            SkillVersion.skill_id == definition.id,
+            SkillVersion.version_no == 1,
+        )
+    )
+    if version is None:
+        version = SkillVersion(
+            skill_id=definition.id,
+            version_no=1,
+            version_status="draft",
+            input_schema={
+                "type": "object",
+                "properties": {"query": {"type": "string"}},
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+            output_schema={
+                "type": "object",
+                "properties": {"answer": {"type": "string"}},
+                "required": ["answer"],
+                "additionalProperties": False,
+            },
+            instructions="仅处理隔离验收数据库中的发布审批验证。",
+            evaluation_report={"passed": True, "suite": "browser-approval-v1"},
+            published_at=None,
+        )
+        session.add(version)
+        await session.flush()
+    return definition
 
 
 async def _create_consumer(
@@ -219,10 +277,7 @@ async def _create_product(
     store: Store,
 ) -> tuple[Product, ProductSku]:
     category = await session.scalar(
-        select(Category)
-        .where(Category.category_status == "active")
-        .order_by(Category.id)
-        .limit(1)
+        select(Category).where(Category.category_status == "active").order_by(Category.id).limit(1)
     )
     if category is None:
         raise RuntimeError("reference category is not seeded")
@@ -255,6 +310,40 @@ async def _create_product(
     )
     session.add_all([shipping, product])
     await session.flush()
+    base_detail_blocks = [
+        {"type": "heading", "level": 2, "text": "商品说明"},
+        {
+            "type": "paragraph",
+            "text": "这是隔离验收商品的基线详情，用于验证 Agent 更新局部内容时不会误删其他章节。",
+        },
+    ]
+    base_detail_source = json.dumps(base_detail_blocks, ensure_ascii=False)
+    base_detail_text = (
+        "商品说明 这是隔离验收商品的基线详情，用于验证 Agent 更新局部内容时不会误删其他章节。"
+    )
+    base_detail_version = ProductContentVersion(
+        content_version_no=new_prefixed_ulid("pcv_"),
+        product_id=product.id,
+        content_version=1,
+        source_format="structured",
+        source_content=base_detail_source,
+        source_hash=hashlib.sha256(base_detail_source.encode()).digest(),
+        public_content_format="structured_v1",
+        safe_blocks=base_detail_blocks,
+        safe_html=None,
+        safe_text=base_detail_text,
+        content_hash=hashlib.sha256(base_detail_text.encode()).digest(),
+        sanitizer_policy_version=1,
+        content_schema_version=1,
+        security_scan_status="passed",
+        version_status="published",
+        created_by=store.owner_user_id,
+        published_at=now,
+    )
+    session.add(base_detail_version)
+    await session.flush()
+    product.current_detail_content_version_id = base_detail_version.id
+    product.published_detail_content_version_id = base_detail_version.id
     session.add_all(
         [
             ShippingTemplateRule(
@@ -321,6 +410,8 @@ async def _existing_scenario(
     )
     if store is None or product is None or sku is None or address is None:
         raise RuntimeError("acceptance scenario is incomplete; recreate the isolated database")
+    governance_skill = await _ensure_ai_governance_skill(session)
+    await session.commit()
     return AcceptanceScenario(
         scenario_version=SCENARIO_VERSION,
         consumer_username=consumer.username,
@@ -335,6 +426,7 @@ async def _existing_scenario(
         product_id=product.product_no,
         sku_id=sku.sku_no,
         address_id=address.address_no,
+        ai_governance_skill_id=governance_skill.skill_no,
     )
 
 

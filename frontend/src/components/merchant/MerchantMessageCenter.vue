@@ -26,14 +26,17 @@ import {
   deleteMerchantExclusiveConversation,
   listMerchantExclusiveMessages,
   putMerchantExclusiveReadCursor,
+  sendMerchantExclusiveAsset,
   sendMerchantExclusiveMessageResilient,
 } from '@/api/merchant-support'
-import type { ChatMessage } from '@/api/messaging'
+import type { AgentAssetMessageInput, ChatMessage } from '@/api/messaging'
+import AgentAssetPicker from '@/components/messaging/AgentAssetPicker.vue'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import MessageAttachmentPicker, { type MessagePickerOrder, type MessagePickerProduct } from '@/components/messaging/MessageAttachmentPicker.vue'
 import { liveTraceFromEvent, RealtimeConnection, updateLiveTrace, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { listAdminOrders, type AdminOrderSummary } from '@/api/orders'
+import { decideMerchantAgentToolApproval } from '@/api/agent-runtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import { confirmAction } from '@/composables/confirmation'
 
@@ -64,6 +67,7 @@ const liveTrace = ref<AgentLiveTrace | null>(null)
 const openMenuKey = ref('')
 const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
 const attachmentOpen = ref(false)
+const assetPickerOpen = ref(false)
 const attachmentLoading = ref(false)
 const attachmentSendingId = ref<string | null>(null)
 const attachmentProducts = ref<MessagePickerProduct[]>([])
@@ -102,6 +106,14 @@ const agentPrompts = ['生成今日经营简报', '检查待发货与售后订�
 const humanTemplates = ['您好，我已接入本次服务，请告诉我需要重点处理的问题。', '我正在为您核对订单和物流，请稍等。', '为了继续处理，请补充具体商品或订单信息。']
 
 function token() { return auth.accessToken! }
+async function decideOperationApproval(
+  approvalId: string,
+  decision: 'approve' | 'reject',
+  version: number,
+) {
+  await decideMerchantAgentToolApproval(approvalId, decision, version, token())
+  window.setTimeout(() => { void refreshActiveMessages() }, 350)
+}
 function statusLabel(value: string) {
   return ({ queued: '等待接待', assigned: '已分配', active: '正在沟通', waiting_user: '等待顾客', resolved: '已解决', closed: '已关闭' } as Record<string, string>)[value] ?? value
 }
@@ -288,6 +300,15 @@ async function refreshActiveMessages() {
     const known = new Set(target.value.map((item) => item.message_id))
     const incoming = page.items.filter((item) => !known.has(item.message_id))
     target.value = [...target.value, ...incoming]
+    const persistedAgentReply = [...incoming]
+      .reverse()
+      .find((item) => item.sender_type === 'agent' && traceRunId(item) === streamingReply.value?.runId)
+    if (persistedAgentReply) {
+      selectedTraceRunId.value = traceRunId(persistedAgentReply)
+      streamingReply.value = null
+      liveTrace.value = null
+      traceRunning.value = false
+    }
     error.value = ''
     if (shouldScroll) await scrollBottom()
     if (incoming.length) await markActiveRead(target.value.at(-1))
@@ -344,6 +365,9 @@ function handleRealtime(event: RealtimeEvent) {
     if (message?.content?.run_id && message.content.run_id === streamingReply.value?.runId) {
       streamingReply.value = null
       liveTrace.value = null
+      // Approval previews persist a final message for this phase but remain
+      // waiting for a human decision, so no completed event is emitted yet.
+      traceRunning.value = false
     }
     const incoming = conversationId === exclusiveConversationId.value
       ? message?.sender_type !== 'user'
@@ -368,6 +392,33 @@ async function send() {
     await scrollBottom()
   } catch (cause) { error.value = messageSendError(cause) }
   finally { sending.value = false }
+}
+async function submitCardPrompt(value: string) {
+  if (selectedKey.value !== 'exclusive' || sending.value || !value.trim()) return
+  draft.value = value.trim()
+  await nextTick()
+  await send()
+}
+
+async function sendAgentAsset(input: AgentAssetMessageInput) {
+  if (selectedKey.value !== 'exclusive' || sending.value) return
+  sending.value = true
+  error.value = ''
+  try {
+    const sent = (await sendMerchantExclusiveAsset(input, token())).data
+    exclusiveMessages.value.push(sent)
+    assetPickerOpen.value = false
+    await scrollBottom()
+  } catch (cause) { error.value = messageSendError(cause) }
+  finally { sending.value = false }
+}
+
+function openComposerAttachments() {
+  if (selectedKey.value === 'exclusive') {
+    assetPickerOpen.value = true
+    return
+  }
+  void openAttachments()
 }
 
 async function useQuickText(text: string, sendImmediately: boolean) {
@@ -491,14 +542,15 @@ onBeforeUnmount(() => {
             <button v-if="selectedKey === 'exclusive' ? exclusivePreviousCursor : supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button>
             <div v-if="selectedKey === 'exclusive' && !activeMessages.length && !loading" class="merchant-chat-welcome"><span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><h2>你好，我是 AI 经营助理</h2><p>我会结合本店商品、实时库存、订单和营业额给出经营判断，并把结果整理成可操作卡片。</p></div>
             <p v-if="loading" class="merchant-chat-loading">正在读取消息…</p>
-            <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isRight(item), system: item.sender_type === 'system', 'trace-selectable': traceRunId(item), 'trace-selected': traceRunId(item) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(item) || selectedTraceRunId"><span v-if="item.sender_type !== 'system'" class="merchant-chat-avatar" :class="{ platform: item.sender_type === 'agent' }"><img v-if="avatarUrl(item)" :src="avatarUrl(item)!" alt="" />{{ avatarUrl(item) ? '' : avatarLabel(item) }}</span><div class="merchant-chat-bubble"><ChatMessageContent :message="item" audience="merchant" /><time v-if="item.sender_type !== 'system'">{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
+            <article v-for="item in activeMessages" :key="item.message_id" class="merchant-chat-bubble-row" :class="{ mine: isRight(item), system: item.sender_type === 'system', 'trace-selectable': traceRunId(item), 'trace-selected': traceRunId(item) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(item) || selectedTraceRunId"><span v-if="item.sender_type !== 'system'" class="merchant-chat-avatar" :class="{ platform: item.sender_type === 'agent' }"><img v-if="avatarUrl(item)" :src="avatarUrl(item)!" alt="" />{{ avatarUrl(item) ? '' : avatarLabel(item) }}</span><div class="merchant-chat-bubble" :data-sequence="item.sequence_no" :data-message-id="item.message_id"><ChatMessageContent :message="item" audience="merchant" :approval-decision="decideOperationApproval" @prompt="submitCardPrompt" /><time v-if="item.sender_type !== 'system'">{{ new Date(item.sent_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</time></div></article>
             <article v-if="streamingReply" class="merchant-chat-bubble-row" :class="{ mine: selectedKey !== 'exclusive' }"><span class="merchant-chat-avatar platform"><img src="/ai-avatar.svg" alt="" /></span><div class="merchant-chat-bubble agent-stream" aria-live="polite"><p v-if="streamingReply.text">{{ streamingReply.text }}</p><p v-else class="agent-thinking-indicator">正在思考<span>·</span><span>·</span><span>·</span></p><time>正在生成回复…</time></div></article>
           </div>
           <div class="message-quick-actions" aria-label="快捷操作"><button v-for="item in selectedKey === 'exclusive' ? agentPrompts : humanTemplates" :key="item" type="button" :disabled="sending || (selectedKey !== 'exclusive' && !canReply)" @click="useQuickText(item, selectedKey === 'exclusive')">{{ item }}</button></div>
-          <form class="merchant-chat-composer unified-chat-composer" :class="{ 'without-attachments': selectedKey === 'exclusive' }" @submit.prevent="send"><button v-if="selectedKey !== 'exclusive'" type="button" class="message-plus-button" :disabled="!canReply" aria-label="发送商品或订单" title="发送商品或该顾客的本店订单" @click="openAttachments">＋</button><textarea v-model="draft" rows="3" maxlength="4000" :disabled="selectedKey !== 'exclusive' && !canReply" :placeholder="selectedKey === 'exclusive' ? '向 AI 经营助理描述经营问题…' : canReply ? '回复顾客…' : 'AI 正在接待；转人工后可在这里回复'" @keydown.enter.exact.prevent="send" /><button class="unified-chat-send" :disabled="sending || !draft.trim() || (selectedKey !== 'exclusive' && !canReply)">{{ sending ? '发送中…' : '发送' }}</button><small>{{ selectedKey === 'exclusive' || canReply ? 'Enter 发送 · Shift + Enter 换行' : '输入区始终保留；AI 转人工后即可回复' }}</small></form>
+          <form class="merchant-chat-composer unified-chat-composer" @submit.prevent="send"><button type="button" class="message-plus-button" :disabled="selectedKey !== 'exclusive' && !canReply" :aria-label="selectedKey === 'exclusive' ? '给 AI 经营助理上传图片' : '发送商品或订单'" :title="selectedKey === 'exclusive' ? '上传店铺 Logo 或款式图片并交给 Agent 核对' : '发送商品或该顾客的本店订单'" @click="openComposerAttachments">＋</button><textarea v-model="draft" rows="3" maxlength="4000" :disabled="selectedKey !== 'exclusive' && !canReply" :placeholder="selectedKey === 'exclusive' ? '向 AI 经营助理描述经营问题…' : canReply ? '回复顾客…' : 'AI 正在接待；转人工后可在这里回复'" @keydown.enter.exact.prevent="send" /><button type="button" class="unified-chat-send" :disabled="sending || !draft.trim() || (selectedKey !== 'exclusive' && !canReply)" @click="send">{{ sending ? '发送中…' : '发送' }}</button><small>{{ selectedKey === 'exclusive' || canReply ? 'Enter 发送 · Shift + Enter 换行' : '输入区始终保留；AI 转人工后即可回复' }}</small></form>
         </main>
         <AgentTracePanel :messages="activeMessages" :selected-run-id="selectedTraceRunId" :running="traceRunning" :live-trace="liveTrace" title="思考过程" />
       </section>
       <MessageAttachmentPicker :open="attachmentOpen" :loading="attachmentLoading" :products="attachmentProducts" :orders="attachmentOrders" :sending-id="attachmentSendingId" title="发送给当前顾客" product-title="本店在售商品" order-title="该顾客在本店的订单" @close="attachmentOpen = false" @product="sendPickedProduct" @order="sendPickedOrder" />
+      <AgentAssetPicker :open="assetPickerOpen" audience="merchant" :access-token="token()" :merchant-store-id="currentStore?.store_id || storeId || null" :merchant-store-name="resolvedStoreName" :busy="sending" @close="assetPickerOpen = false" @submit="sendAgentAsset" />
   </div>
 </template>

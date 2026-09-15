@@ -21,6 +21,7 @@ from app.modules.catalog.models import (
     Product,
     ProductAttribute,
     ProductContentVersion,
+    ProductContentVersionFile,
     ProductFaq,
     ProductFaqVersion,
     ProductFulfillmentProfile,
@@ -676,7 +677,7 @@ class ProductAdminService:
             if existing:
                 return _content_view(existing)
         sanitized = sanitize_content(payload.source_format, payload.source_content)
-        await self._validate_content_files(store, sanitized)
+        content_files = await self._validate_content_files(store, sanitized)
         version = ProductContentVersion(
             content_version_no=new_prefixed_ulid("pcv_"),
             product_id=product.id,
@@ -697,6 +698,12 @@ class ProductAdminService:
         )
         self.session.add(version)
         await self.session.flush()
+        for file in content_files:
+            self.session.add(
+                ProductContentVersionFile(content_version_id=version.id, file_id=file.id)
+            )
+            file.reference_count += 1
+            file.version += 1
         product.current_detail_content_version_id = version.id
         if product.product_status == "on_sale":
             previous = await self.repository.content_version_by_id(
@@ -1407,7 +1414,9 @@ class ProductAdminService:
             None,
         )
 
-    async def _validate_content_files(self, store: Store, content: SanitizedContent) -> None:
+    async def _validate_content_files(
+        self, store: Store, content: SanitizedContent
+    ) -> list[FileObject]:
         files = await self.repository.files_by_nos(list(content.referenced_file_ids))
         if len(files) != len(content.referenced_file_ids) or any(
             file.owner_type != "store"
@@ -1421,6 +1430,7 @@ class ProductAdminService:
             raise _invalid(
                 "PRODUCT_CONTENT_FILE_NOT_BINDABLE", "详情图片必须属于本店并通过安全扫描。"
             )
+        return files
 
     async def _command_claim(
         self,

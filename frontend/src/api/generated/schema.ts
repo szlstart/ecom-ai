@@ -294,6 +294,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/merchant/agent-tool-approvals/{approval_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Merchant Agent Tool Approval */
+        post: operations["MerchantAgentToolApproval_DecideMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/agent-tool-approvals/{approval_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide Admin Agent Tool Approval */
+        post: operations["AdminAgentToolApproval_DecideMine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ai/runs/provider-health": {
         parameters: {
             query?: never;
@@ -2523,7 +2557,8 @@ export interface paths {
         put?: never;
         /** Add Cart Item */
         post: operations["CartItem_Create"];
-        delete?: never;
+        /** Clear All Cart Items */
+        delete: operations["CartItem_ClearAll"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3566,6 +3601,23 @@ export interface paths {
         put?: never;
         /** Refresh Shipment */
         post: operations["AdminShipment_Refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/shipments/{shipment_id}/simulation-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Simulation Event */
+        post: operations["AdminShipment_RecordSimulationEvent"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6650,6 +6702,27 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * AdminShipmentSimulationEventRequest
+         * @description One explicit logistics event for the local fake carrier.
+         *
+         *     The command deliberately has no delay or automatic-next-step field.  A store
+         *     operator, platform administrator, or an approved Agent action must submit each
+         *     event explicitly.
+         */
+        AdminShipmentSimulationEventRequest: {
+            /**
+             * Event Type
+             * @enum {string}
+             */
+            event_type: "picked_up" | "in_transit" | "out_for_delivery" | "delivered" | "exception" | "returned";
+            /** Description */
+            description: string;
+            /** Location Text */
+            location_text?: string | null;
+            /** Occurred At */
+            occurred_at?: string | null;
+        };
         /** AdminShipmentVoidRequest */
         AdminShipmentVoidRequest: {
             /** Reason Code */
@@ -7250,9 +7323,9 @@ export interface components {
             conversation_id: string;
             /**
              * Action Type
-             * @constant
+             * @enum {string}
              */
-            action_type: "refund_submit";
+            action_type: "refund_submit" | "cart_clear" | "merchant_store_status" | "merchant_store_profile" | "merchant_store_email_update" | "merchant_store_logo_update" | "merchant_inventory_set" | "merchant_price_set" | "merchant_product_status" | "merchant_product_delete" | "merchant_product_submit" | "merchant_product_image_description" | "merchant_product_fulfillment" | "merchant_product_draft_create" | "merchant_product_profile" | "merchant_product_sku_create" | "merchant_product_sku_update" | "merchant_product_sku_disable" | "merchant_product_sku_image_replace" | "merchant_product_faq_upsert" | "merchant_product_faq_delete" | "merchant_product_detail_section_upsert" | "merchant_product_detail_section_delete" | "merchant_store_policy_manage" | "merchant_refund_decision" | "merchant_refund_more_info" | "merchant_support_claim" | "merchant_support_reply" | "merchant_support_resolve" | "merchant_shipment_create" | "merchant_shipment_progress" | "merchant_review_reply" | "admin_user_status" | "admin_user_force_logout" | "admin_user_create" | "admin_user_password_reset_requirement" | "admin_user_wallet_adjust" | "admin_user_profile" | "admin_user_delete" | "admin_user_address_create" | "admin_user_address_update" | "admin_user_address_delete" | "admin_user_address_set_default" | "admin_user_cart_item_update" | "admin_user_cart_item_delete" | "admin_user_cart_clear" | "admin_user_favorite_product_remove" | "admin_user_favorite_store_remove" | "admin_store_status" | "admin_store_create" | "admin_store_profile" | "admin_store_merchant_email_update" | "admin_store_logo_update" | "admin_store_delete" | "admin_product_status" | "admin_product_delete" | "admin_product_profile" | "admin_product_image_description" | "admin_product_faq_upsert" | "admin_product_faq_delete" | "admin_product_sku_create" | "admin_product_sku_update" | "admin_product_sku_disable" | "admin_product_sku_image_replace" | "admin_product_detail_section_upsert" | "admin_product_detail_section_delete" | "admin_product_review" | "admin_order_cancel" | "admin_shipment_progress" | "admin_refund_decision" | "admin_refund_more_info" | "admin_support_claim" | "admin_support_reply" | "admin_support_resolve" | "admin_dead_letter_replay_request" | "admin_knowledge_document_publish" | "admin_knowledge_document_withdraw" | "admin_ai_agent_prompt_draft_create" | "admin_ai_agent_publish_request" | "admin_ai_skill_publish_request" | "admin_ai_tool_publish_request" | "admin_ai_evaluation_run";
             /**
              * Approval Status
              * @enum {string}
@@ -7273,6 +7346,36 @@ export interface components {
             decided_at: string | null;
             /** Version */
             version: number;
+        };
+        /**
+         * AgentAssetMessageContent
+         * @description A file already uploaded through the governed file pipeline.
+         *
+         *     This content type is accepted only by the merchant AI assistant and the
+         *     platform administrator AI manager endpoints.  The messaging service
+         *     resolves every public identifier again and stores a trusted display
+         *     snapshot; callers cannot use it to bind an arbitrary file or cross a store
+         *     boundary.
+         */
+        AgentAssetMessageContent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "agent_asset";
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "store_logo" | "product_sku_image";
+            /** File Id */
+            file_id: string;
+            /** Store Id */
+            store_id: string;
+            /** Product Id */
+            product_id?: string | null;
+            /** Sku Id */
+            sku_id?: string | null;
         };
         /** AgentConsentGrantRequest */
         AgentConsentGrantRequest: {
@@ -9475,6 +9578,8 @@ export interface components {
             status: string;
             /** Scan Status */
             scan_status: string;
+            /** Ocr Status */
+            ocr_status: string;
             /** Content Type */
             content_type: string;
             /** Size Bytes */
@@ -9493,6 +9598,16 @@ export interface components {
             owner_id: string;
             /** Visibility */
             visibility: string;
+            /** Ocr Text */
+            ocr_text?: string | null;
+            /** Ocr Engine */
+            ocr_engine?: string | null;
+            /** Ocr Language */
+            ocr_language?: string | null;
+            /** Ocr Processed At */
+            ocr_processed_at?: string | null;
+            /** Ocr Error Code */
+            ocr_error_code?: string | null;
         };
         /** FileUploadCompleteRequest */
         FileUploadCompleteRequest: {
@@ -9582,6 +9697,8 @@ export interface components {
             status: string;
             /** Scan Status */
             scan_status: string;
+            /** Ocr Status */
+            ocr_status: string;
             /** Content Type */
             content_type: string;
             /** Size Bytes */
@@ -9915,7 +10032,7 @@ export interface components {
             /** Client Message Id */
             client_message_id: string;
             /** Content */
-            content: components["schemas"]["TextMessageContent"] | components["schemas"]["ProductCardMessageContent"] | components["schemas"]["OrderCardMessageContent"];
+            content: components["schemas"]["TextMessageContent"] | components["schemas"]["ProductCardMessageContent"] | components["schemas"]["OrderCardMessageContent"] | components["schemas"]["AgentAssetMessageContent"];
         };
         /** MessageList */
         MessageList: {
@@ -13420,6 +13537,98 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    MerchantAgentToolApproval_DecideMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentApprovalView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminAgentToolApproval_DecideMine: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentApprovalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AgentApprovalView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     AdminAgentProviderHealth_Get: {
         parameters: {
             query?: {
@@ -13644,6 +13853,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
+                "X-Auth-Session"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -13681,6 +13891,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
+                "X-Auth-Session"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -14837,7 +15048,9 @@ export interface operations {
     AdminAiEvaluation_Run: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -19113,6 +19326,44 @@ export interface operations {
             503: components["responses"]["Problem503"];
         };
     };
+    CartItem_ClearAll: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_CartView_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
     CartItem_Delete: {
         parameters: {
             query?: never;
@@ -21764,6 +22015,53 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            429: components["responses"]["Problem429"];
+            500: components["responses"]["Problem500"];
+            503: components["responses"]["Problem503"];
+        };
+    };
+    AdminShipment_RecordSimulationEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                shipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminShipmentSimulationEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Envelope_AdminShipmentDetail_"];
+                };
+            };
+            401: components["responses"]["Problem401"];
+            403: components["responses"]["Problem403"];
+            404: components["responses"]["Problem404"];
+            409: components["responses"]["Problem409"];
+            412: components["responses"]["Problem412"];
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            428: components["responses"]["Problem428"];
             429: components["responses"]["Problem429"];
             500: components["responses"]["Problem500"];
             503: components["responses"]["Problem503"];
@@ -25261,6 +25559,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
+                "X-Auth-Session"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -25298,6 +25597,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
+                "X-Auth-Session"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -25444,6 +25744,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
+                "X-Auth-Session"?: string | null;
             };
             path?: never;
             cookie?: {
@@ -25481,6 +25782,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-CSRF-Token"?: string | null;
+                "X-Auth-Session"?: string | null;
             };
             path?: never;
             cookie?: {

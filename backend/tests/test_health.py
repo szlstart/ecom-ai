@@ -38,6 +38,26 @@ async def test_untrusted_request_id_is_replaced(client: AsyncClient) -> None:
     assert len(response.headers["x-request-id"]) == 30
 
 
+async def test_cors_preflight_allows_tab_scoped_auth_session_header(
+    client: AsyncClient,
+) -> None:
+    response = await client.options(
+        "/api/v1/auth/session",
+        headers={
+            "Origin": "http://127.0.0.1:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "x-auth-session,x-csrf-token",
+        },
+    )
+
+    assert response.status_code == 200
+    allowed_headers = {
+        header.strip().lower()
+        for header in response.headers["access-control-allow-headers"].split(",")
+    }
+    assert {"x-auth-session", "x-csrf-token"} <= allowed_headers
+
+
 async def test_metrics_is_visible_only_to_configured_monitoring_networks(
     client: AsyncClient,
 ) -> None:

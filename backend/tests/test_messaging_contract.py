@@ -6,6 +6,7 @@ from app.database.base import MySQLBase
 from app.main import create_app
 from app.modules.messaging import models as messaging_models  # noqa: F401
 from app.modules.messaging.support_schemas import SupportMessageRequest
+from app.modules.messaging.schemas import MessageCreateRequest
 
 
 def test_messaging_schema_has_sequence_and_read_cursor_uniques() -> None:
@@ -161,6 +162,33 @@ def test_support_message_accepts_exactly_one_text_product_or_order_payload() -> 
             client_message_id="cmsg_01ABCDEF",
             text="重复内容",
             order_id="ord_01ORDER",
+        )
+
+
+def test_operations_asset_message_has_closed_store_product_and_sku_contract() -> None:
+    logo = MessageCreateRequest.model_validate(
+        {
+            "client_message_id": "cmsg_01ASSETLOGO",
+            "content": {
+                "type": "agent_asset",
+                "purpose": "store_logo",
+                "file_id": "file_01ASSET",
+                "store_id": "sto_01STORE",
+            },
+        }
+    )
+    assert logo.content.type == "agent_asset"
+    with pytest.raises(ValidationError):
+        MessageCreateRequest.model_validate(
+            {
+                "client_message_id": "cmsg_01ASSETBAD",
+                "content": {
+                    "type": "agent_asset",
+                    "purpose": "arbitrary_file",
+                    "file_id": "file_01ASSET",
+                    "store_id": "sto_01STORE",
+                },
+            }
         )
 
 

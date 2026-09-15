@@ -106,7 +106,7 @@ async function submitShipment() {
   try {
     await createAdminShipment(shippingOrder.value.order.order_id, shipmentEtag.value, { carrier_code: shipment.carrier_code, carrier_name: shipment.carrier_name, tracking_no: shipment.tracking_no.trim(), items: lines }, token())
     shippingOrder.value = null
-    notice.value = '包裹已创建，订单和顾客端物流状态已经同步更新。'
+    notice.value = '包裹已创建，订单已进入运输中；物流节点需要由承运方或授权的经营助理更新。'
     await load(true)
   } catch (cause) { error.value = errorMessage(cause) }
   finally { shipmentBusy.value = false }

@@ -63,8 +63,30 @@ class OrderCardMessageContent(StrictRequest):
     order_id: str = Field(pattern=r"^ord_[0-9A-Z]+$", max_length=40)
 
 
+class AgentAssetMessageContent(StrictRequest):
+    """A file already uploaded through the governed file pipeline.
+
+    This content type is accepted only by the merchant AI assistant and the
+    platform administrator AI manager endpoints.  The messaging service
+    resolves every public identifier again and stores a trusted display
+    snapshot; callers cannot use it to bind an arbitrary file or cross a store
+    boundary.
+    """
+
+    type: Literal["agent_asset"] = "agent_asset"
+    purpose: Literal["store_logo", "product_sku_image", "user_avatar"]
+    file_id: str = Field(pattern=r"^file_[0-9A-Z]+$", max_length=40)
+    store_id: str | None = Field(default=None, pattern=r"^sto_[0-9A-Z]+$", max_length=40)
+    user_id: str | None = Field(default=None, pattern=r"^usr_[0-9A-Z]+$", max_length=40)
+    product_id: str | None = Field(default=None, pattern=r"^prd_[0-9A-Z]+$", max_length=40)
+    sku_id: str | None = Field(default=None, pattern=r"^sku_[0-9A-Z]+$", max_length=40)
+
+
 MessageContent = Annotated[
-    TextMessageContent | ProductCardMessageContent | OrderCardMessageContent,
+    TextMessageContent
+    | ProductCardMessageContent
+    | OrderCardMessageContent
+    | AgentAssetMessageContent,
     Field(discriminator="type"),
 ]
 

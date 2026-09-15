@@ -1,4 +1,4 @@
-import { createClientMessageId, type ChatMessage, type Conversation, type ConversationClear, type ConversationContext, type ConversationDeletion, type MessagePage } from '@/api/messaging'
+import { createClientMessageId, type AgentAssetMessageInput, type ChatMessage, type Conversation, type ConversationClear, type ConversationContext, type ConversationDeletion, type MessagePage } from '@/api/messaging'
 import { apiRequest, createIdempotencyKey, retryTransientNetworkRequest, type ApiResult } from '@/api/http'
 
 export type SupportTicketStatus = 'queued' | 'assigned' | 'active' | 'waiting_user' | 'resolved' | 'closed'
@@ -195,6 +195,17 @@ export function sendAdminAiMessageResilient(
   clientMessageId = createClientMessageId(),
 ): Promise<ApiResult<ChatMessage>> {
   return retryTransientNetworkRequest(() => sendAdminAiMessage(text, token, clientMessageId))
+}
+
+export function sendAdminAiAsset(
+  input: AgentAssetMessageInput,
+  token: string,
+  clientMessageId = createClientMessageId(),
+): Promise<ApiResult<ChatMessage>> {
+  return retryTransientNetworkRequest(() => apiRequest('/admin/support/ai-conversation/messages', {
+    method: 'POST',
+    body: JSON.stringify({ client_message_id: clientMessageId, content: { type: 'agent_asset', ...input } }),
+  }, token))
 }
 
 export function putAdminAiReadCursor(message: ChatMessage, token: string): Promise<ApiResult<{ unread_count: number }>> {

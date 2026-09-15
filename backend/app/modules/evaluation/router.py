@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter
 
-from app.api.dependencies import DatabaseSession
+from app.api.dependencies import DatabaseSession, IdempotencyKey
 from app.api.schemas import Envelope
 from app.core.observability import metrics
 from app.modules.evaluation.schemas import (
@@ -35,9 +35,12 @@ async def list_evaluations(
 async def create_evaluation(
     payload: EvaluationRunCreate,
     session: DatabaseSession,
+    idempotency_key: IdempotencyKey,
     access: Annotated[AdminAccess, require_admin_permission("ai_evaluations:run")],
 ) -> Envelope[EvaluationRunView]:
-    return Envelope(data=await EvaluationService(session).create(access, payload))
+    return Envelope(
+        data=await EvaluationService(session).create(access, payload, idempotency_key)
+    )
 
 
 @observability_router.get(

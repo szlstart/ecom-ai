@@ -110,6 +110,111 @@ async def test_shadow_index_and_acl_filtered_keyword_retrieval() -> None:
         await close_postgres()
 
 
+async def test_stale_index_job_cannot_replace_newer_active_generation() -> None:
+    settings = get_settings()
+    initialize_postgres(settings.postgres_dsn)
+    suffix = secrets.token_hex(6)
+    document_no = f"kdoc_stale_{suffix}"
+    active_generation = f"kgen_active_{suffix}"
+    active_chunk = f"kch_active_{suffix}"
+    job_no = f"idx_stale_{suffix}"
+    command_no = f"job_stale_{suffix}"
+    provider = DisabledEmbeddingProvider("ecom-multilingual-v1", 1536)
+    try:
+        async for session in postgres_session():
+            await session.execute(
+                text(
+                    """INSERT INTO knowledge.index_generations
+                    (generation_no, document_no, scope_type, scope_no, model_code,
+                     generation_status, activated_at)
+                    VALUES (:generation_no,:document_no,'platform','platform',:model_code,
+                            'active',now())"""
+                ),
+                {
+                    "generation_no": active_generation,
+                    "document_no": document_no,
+                    "model_code": provider.model_code,
+                },
+            )
+            await session.execute(
+                text(
+                    """INSERT INTO knowledge.document_chunks
+                    (chunk_no, document_no, content_version, generation_no, scope_type,
+                     scope_no, safe_text, embedding, embedding_model_code, metadata)
+                    VALUES (:chunk_no,:document_no,'kver_current',:generation_no,'platform',
+                            'platform','new rule',NULL,:model_code,'{}'::jsonb)"""
+                ),
+                {
+                    "chunk_no": active_chunk,
+                    "document_no": document_no,
+                    "generation_no": active_generation,
+                    "model_code": provider.model_code,
+                },
+            )
+            await session.execute(
+                text(
+                    """INSERT INTO knowledge.indexing_jobs
+                    (job_no, command_job_no, scope_type, scope_no, job_status, progress)
+                    VALUES (:job_no,:command_no,'platform','platform','queued',0)"""
+                ),
+                {"job_no": job_no, "command_no": command_no},
+            )
+            await session.commit()
+
+            result = await run_index_job(
+                session,
+                {
+                    "document_no": document_no,
+                    "content_version": "kver_stale",
+                    "scope_type": "platform",
+                    "scope_no": "platform",
+                    "safe_text": "old rule",
+                },
+                job_no,
+                provider,
+                activation_guard=_deny_activation,
+            )
+
+            assert result.status == "failed"
+            assert result.error_code == "KNOWLEDGE_DOCUMENT_VERSION_STALE"
+            active = await session.scalar(
+                text(
+                    "SELECT generation_no FROM knowledge.index_generations "
+                    "WHERE document_no=:document_no AND generation_status='active'"
+                ),
+                {"document_no": document_no},
+            )
+            assert active == active_generation
+            stale_chunks = await session.scalar(
+                text(
+                    "SELECT count(*) FROM knowledge.document_chunks "
+                    "WHERE document_no=:document_no AND content_version='kver_stale'"
+                ),
+                {"document_no": document_no},
+            )
+            assert stale_chunks == 0
+
+            await session.execute(
+                text("DELETE FROM knowledge.document_chunks WHERE document_no=:document_no"),
+                {"document_no": document_no},
+            )
+            await session.execute(
+                text("DELETE FROM knowledge.indexing_jobs WHERE command_job_no=:command_no"),
+                {"command_no": command_no},
+            )
+            await session.execute(
+                text("DELETE FROM knowledge.index_generations WHERE document_no=:document_no"),
+                {"document_no": document_no},
+            )
+            await session.commit()
+    finally:
+        await close_postgres()
+
+
+async def _deny_activation() -> bool:
+    return False
+
+
 async def test_agent_retrieval_rechecks_trusted_scope_version_and_publication(
     client: AsyncClient,
 ) -> None:

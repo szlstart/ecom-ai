@@ -267,7 +267,7 @@ class FileService:
         file = await self.repository.file(file_no)
         if file is None or not await self._can_read(actor, file):
             raise _not_found()
-        return _metadata_view(file)
+        return _metadata_view(file, include_ocr_text=await self._can_manage(actor, file))
 
     async def file_url(self, actor: FileActor | None, file_no: str) -> str:
         file = await self.repository.file(file_no)
@@ -311,6 +311,37 @@ class FileService:
                 actor.context.user.id, "platform", 0, policy.permissions
             )
             return bool(permissions)
+        return False
+
+    async def _can_manage(self, actor: FileActor | None, file: FileObject) -> bool:
+        """OCR text is editable back-office data and is never returned anonymously."""
+
+        if actor is None:
+            return False
+        if file.owner_type == "user" and file.owner_no == actor.context.user.user_no:
+            return True
+        if file.upload_session_id is not None:
+            upload = await self.repository.upload_session_by_id(file.upload_session_id)
+            if upload is not None and upload.uploader_user_id == actor.context.user.id:
+                return True
+        if actor.audience != "admin":
+            return False
+        policy = upload_policy(file.purpose)
+        if file.owner_type == "store":
+            store = await self.repository.store(file.owner_no)
+            if store is None:
+                return False
+            return bool(
+                await self.repository.actor_store_permissions(
+                    actor.context.user.id, store.id, policy.permissions
+                )
+            )
+        if file.owner_type == "platform":
+            return bool(
+                await self.repository.actor_scope_permissions(
+                    actor.context.user.id, "platform", 0, policy.permissions
+                )
+            )
         return False
 
     async def _authorize_owner(
@@ -432,6 +463,7 @@ def _variant_view(file: FileObject) -> FileVariantView:
         variant=file.variant,
         status=file.file_status,
         scan_status=file.scan_status,
+        ocr_status=file.ocr_status,
         content_type=file.detected_mime_type,
         size_bytes=file.size_bytes,
         width=file.width,
@@ -442,13 +474,18 @@ def _variant_view(file: FileObject) -> FileVariantView:
     )
 
 
-def _metadata_view(file: FileObject) -> FileMetadataView:
+def _metadata_view(file: FileObject, *, include_ocr_text: bool) -> FileMetadataView:
     return FileMetadataView(
         **_variant_view(file).model_dump(),
         purpose=file.purpose,
         owner_type=file.owner_type,
         owner_id=file.owner_no,
         visibility=file.visibility,
+        ocr_text=file.ocr_text if include_ocr_text else None,
+        ocr_engine=file.ocr_engine if include_ocr_text else None,
+        ocr_language=file.ocr_language if include_ocr_text else None,
+        ocr_processed_at=file.ocr_processed_at if include_ocr_text else None,
+        ocr_error_code=file.ocr_error_code if include_ocr_text else None,
     )
 
 

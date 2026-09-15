@@ -4,7 +4,7 @@ import re
 from datetime import timedelta
 from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
@@ -19,7 +19,6 @@ from app.modules.after_sale.schemas import (
     RefundType,
 )
 from app.modules.after_sale.service import AfterSaleService
-from app.modules.agent_runtime.consent import require_active_consent
 from app.modules.agent_runtime.exclusive_context import TrustedExclusiveAgentContext
 from app.modules.agent_runtime.models import (
     AgentRefundDraft,
@@ -28,8 +27,10 @@ from app.modules.agent_runtime.models import (
     AgentToolApproval,
 )
 from app.modules.agent_runtime.schemas import AgentApprovalDecisionRequest, AgentApprovalView
+from app.modules.cart.service import CartService
 from app.modules.identity.models import User
 from app.modules.messaging.models import Conversation, Message
+from app.modules.messaging.sequence import lock_conversation_for_append
 from app.modules.orders.models import Order, OrderItem
 from app.modules.stores.models import Store
 from app.modules.system.models import IdempotencyRecord, OutboxEvent
@@ -80,6 +81,8 @@ class AgentApprovalService:
             draft = (
                 await self.session.get(AgentRefundDraft, approval.draft_id, with_for_update=True)
                 if approval is not None
+                and approval.action_type == "refund_submit"
+                and approval.draft_id is not None
                 else None
             )
             run = await self.session.get(AgentRun, action.run_id, with_for_update=True)
@@ -151,14 +154,6 @@ class AgentApprovalService:
         order_no: str,
         user_text: str,
     ) -> dict[str, object]:
-        await require_active_consent(
-            self.session,
-            context.user,
-            consent_type="after_sale_write",
-            scope_type="user",
-            scope_no=None,
-            now=utc_now(),
-        )
         row = (
             await self.session.execute(
                 select(Order, Store)
@@ -226,7 +221,7 @@ class AgentApprovalService:
                 title="Refund not eligible",
                 detail="当前订单商品不符合自动退款申请条件。",
             )
-        detail = user_text.strip()[:500]
+        detail = _reason_detail(user_text, reason_code)
         draft_payload: dict[str, object] = {
             "order_id": order.order_no,
             "items": [{"order_item_id": candidate.order_item_no, "quantity": quantity}],
@@ -301,6 +296,81 @@ class AgentApprovalService:
         await self._expire_if_needed(approval, draft, run)
         return _approval_view(approval, draft, run, conversation)
 
+    async def build_cart_clear_approval(
+        self,
+        context: TrustedExclusiveAgentContext,
+        cart_data: dict[str, object],
+        *,
+        extra_content: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        cart_id = cart_data.get("cart_id")
+        cart_version = cart_data.get("version")
+        total_quantity = cart_data.get("cart_total_quantity")
+        if not isinstance(cart_id, str) or not isinstance(cart_version, int):
+            raise ApplicationError(
+                status=409,
+                code="CART_EMPTY",
+                title="Cart is empty",
+                detail="购物车中没有需要清空的商品。",
+            )
+        if not isinstance(total_quantity, int) or total_quantity <= 0:
+            raise ApplicationError(
+                status=409,
+                code="CART_EMPTY",
+                title="Cart is empty",
+                detail="购物车中没有需要清空的商品。",
+            )
+        amount_summary = cart_data.get("amount_summary")
+        payload: dict[str, object] = {
+            "cart_id": cart_id,
+            "cart_version": cart_version,
+            "total_quantity": total_quantity,
+            "selected_quantity": (
+                cart_data["selected_quantity"]
+                if isinstance(cart_data.get("selected_quantity"), int)
+                else 0
+            ),
+            "selected_amount": (
+                amount_summary.get("selected_goods_amount")
+                if isinstance(amount_summary, dict)
+                else None
+            ),
+        }
+        now = utc_now()
+        expires_at = now + timedelta(minutes=10)
+        approval = AgentToolApproval(
+            approval_no=new_prefixed_ulid("apr_"),
+            run_id=context.run.id,
+            user_id=context.user.id,
+            conversation_id=context.conversation.id,
+            draft_id=None,
+            action_type="cart_clear",
+            action_payload=payload,
+            arguments_hash=canonical_request_hash(payload),
+            resource_versions={
+                "cart": cart_version,
+                "agent_version": context.agent_version.version_no,
+            },
+            approval_status="pending",
+            decision=None,
+            expires_at=expires_at,
+        )
+        self.session.add(approval)
+        await self.session.flush()
+        context.run.run_status = "waiting"
+        context.run.current_phase = "waiting_confirmation"
+        context.run.version += 1
+        await self._cart_clear_approval_message(
+            context,
+            approval,
+            extra_content=extra_content,
+        )
+        return {
+            "approval_id": approval.approval_no,
+            "expires_at": expires_at,
+            "cart_version": cart_version,
+        }
+
     async def decide(
         self,
         user: User,
@@ -341,6 +411,23 @@ class AgentApprovalService:
         approval.decision = payload.decision
         approval.decided_at = now
         approval.version += 1
+        if run.response_message_id is not None:
+            message = await self.session.get(Message, run.response_message_id, with_for_update=True)
+            if message is not None and message.message_type in {
+                "agent_action_approval",
+                "refund_approval",
+            }:
+                message.content_payload = {
+                    **(message.content_payload or {}),
+                    "approval_status": approval.approval_status,
+                    "decision": approval.decision,
+                    "decided_at": now.isoformat() + "Z",
+                    "approval_version": approval.version,
+                    "execution_status": (
+                        "queued" if payload.decision == "approve" else "cancelled"
+                    ),
+                }
+                message.version += 1
         run.run_status = "queued"
         run.current_phase = "approval_decided"
         run.version += 1
@@ -372,7 +459,11 @@ class AgentApprovalService:
                 title="Approval required",
                 detail="缺少退款提交确认。",
             )
-        draft = await self.session.get(AgentRefundDraft, approval.draft_id, with_for_update=True)
+        draft = (
+            await self.session.get(AgentRefundDraft, approval.draft_id, with_for_update=True)
+            if approval.draft_id is not None
+            else None
+        )
         if draft is None or draft.user_id != context.user.id:
             raise _not_accessible()
         if approval.approval_status == "rejected":
@@ -403,14 +494,6 @@ class AgentApprovalService:
                 detail="确认参数校验失败，未执行退款提交。",
             )
         await self._validate_resource_versions(context, approval, draft)
-        await require_active_consent(
-            self.session,
-            context.user,
-            consent_type="after_sale_write",
-            scope_type="user",
-            scope_no=None,
-            now=utc_now(),
-        )
         approval_id = approval.id
         draft_id = draft.id
         eligibility_token = self.security.decrypt(
@@ -529,6 +612,115 @@ class AgentApprovalService:
         await self.session.commit()
         return "succeeded", refund.refund_id, None
 
+    async def execute_cart_clear(
+        self, context: TrustedExclusiveAgentContext
+    ) -> tuple[str, dict[str, object] | None, str | None]:
+        approval = await self.session.scalar(
+            select(AgentToolApproval)
+            .where(
+                AgentToolApproval.run_id == context.run.id,
+                AgentToolApproval.action_type == "cart_clear",
+            )
+            .with_for_update()
+        )
+        if approval is None or approval.user_id != context.user.id:
+            raise _not_accessible()
+        payload = approval.action_payload
+        if approval.approval_status == "rejected":
+            return "rejected", None, None
+        if approval.approval_status not in {"approved", "consumed"}:
+            raise ApplicationError(
+                status=409,
+                code="AGENT_APPROVAL_NOT_APPROVED",
+                title="Approval not approved",
+                detail="清空购物车尚未获得有效确认。",
+            )
+        if approval.approval_status == "consumed":
+            return "succeeded", {"cart_total_quantity": 0}, None
+        if approval.expires_at <= utc_now():
+            approval.approval_status = "expired"
+            approval.version += 1
+            return "expired", None, "AGENT_APPROVAL_EXPIRED"
+        if (
+            not isinstance(payload, dict)
+            or canonical_request_hash(payload) != approval.arguments_hash
+        ):
+            raise ApplicationError(
+                status=409,
+                code="AGENT_APPROVAL_ARGUMENTS_MISMATCH",
+                title="Approval arguments mismatch",
+                detail="确认内容校验失败，没有清空购物车。",
+            )
+        cart_version = approval.resource_versions.get("cart")
+        if (
+            not isinstance(cart_version, int)
+            or context.agent_version.version_no
+            != approval.resource_versions.get("agent_version")
+        ):
+            raise ApplicationError(
+                status=409,
+                code="AGENT_APPROVAL_RESOURCE_CHANGED",
+                title="Approved resource changed",
+                detail="购物车或 Agent 版本已经变化，请重新发起清空操作。",
+            )
+
+        action = await self.session.scalar(
+            select(AgentToolAction).where(AgentToolAction.approval_id == approval.id)
+        )
+        if action is None:
+            action = AgentToolAction(
+                action_no=new_prefixed_ulid("act_"),
+                approval_id=approval.id,
+                run_id=context.run.id,
+                action_type="cart_clear",
+                arguments_hash=approval.arguments_hash,
+                idempotency_key=f"agent-action-{approval.approval_no}",
+                action_status="running",
+                started_at=utc_now(),
+            )
+            self.session.add(action)
+        approval_id = approval.id
+        await self.session.flush()
+        try:
+            cart = await CartService(self.session).clear_all(context.user, cart_version)
+        except ApplicationError as exc:
+            await self.session.rollback()
+            approval = await self.session.get(
+                AgentToolApproval, approval_id, with_for_update=True
+            )
+            action = await self.session.scalar(
+                select(AgentToolAction)
+                .where(AgentToolAction.approval_id == approval_id)
+                .with_for_update()
+            )
+            if approval is not None:
+                approval.approval_status = "consumed"
+                approval.consumed_at = utc_now()
+                approval.version += 1
+            if action is not None:
+                action.action_status = "failed"
+                action.error_code = exc.code
+                action.finished_at = utc_now()
+                action.version += 1
+            await self.session.commit()
+            return "failed", None, exc.code
+        approval = await self.session.get(AgentToolApproval, approval_id, with_for_update=True)
+        action = await self.session.scalar(
+            select(AgentToolAction)
+            .where(AgentToolAction.approval_id == approval_id)
+            .with_for_update()
+        )
+        assert approval is not None and action is not None
+        approval.approval_status = "consumed"
+        approval.consumed_at = utc_now()
+        approval.version += 1
+        action.action_status = "succeeded"
+        action.resource_no = cart.cart_id
+        action.finished_at = utc_now()
+        action.version += 1
+        await self.session.commit()
+        return "succeeded", cast(dict[str, object], cart.model_dump(mode="json")), None
+
     async def _validate_resource_versions(
         self,
         context: TrustedExclusiveAgentContext,
@@ -577,7 +769,9 @@ class AgentApprovalService:
         amount: dict[str, Any],
     ) -> None:
         now = utc_now()
-        conversation = context.conversation
+        conversation = await lock_conversation_for_append(
+            self.session, context.conversation.id
+        )
         conversation.last_sequence_no += 1
         conversation.last_message_at = now
         conversation.version += 1
@@ -610,7 +804,11 @@ class AgentApprovalService:
                 "policy_version": draft.draft_payload["policy_version"],
                 "expires_at": approval.expires_at.isoformat() + "Z",
                 "requires_explicit_confirmation": True,
+                "approval_status": "pending",
+                "execution_status": "waiting_confirmation",
             },
+            agent_version_id=context.agent_version.id,
+            ai_run_no=context.run.run_no,
             message_status="sent",
             moderation_status="passed",
             sent_at=now,
@@ -618,6 +816,75 @@ class AgentApprovalService:
         self.session.add(message)
         await self.session.flush()
         conversation.last_message_id = message.id
+        context.run.response_message_id = message.id
+        context.run.public_output = message.text_content
+        self.session.add(
+            OutboxEvent(
+                event_no=new_prefixed_ulid("evt_"),
+                event_type="message.sent.v1",
+                aggregate_type="conversation",
+                aggregate_no=conversation.conversation_no,
+                aggregate_version=conversation.version,
+                payload={
+                    "conversation_id": conversation.conversation_no,
+                    "message_id": message.message_no,
+                },
+                event_status="pending",
+                available_at=now,
+                attempt_count=0,
+                trace_id=context.run.trace_id,
+            )
+        )
+
+    async def _cart_clear_approval_message(
+        self,
+        context: TrustedExclusiveAgentContext,
+        approval: AgentToolApproval,
+        *,
+        extra_content: dict[str, object] | None,
+    ) -> None:
+        now = utc_now()
+        conversation = await lock_conversation_for_append(
+            self.session, context.conversation.id
+        )
+        conversation.last_sequence_no += 1
+        conversation.last_message_at = now
+        conversation.version += 1
+        payload = approval.action_payload or {}
+        message = Message(
+            message_no=new_prefixed_ulid("msg_"),
+            conversation_id=conversation.id,
+            sequence_no=conversation.last_sequence_no,
+            client_message_no=None,
+            sender_type="agent",
+            sender_id=None,
+            message_type="agent_action_approval",
+            text_content="我已读取当前购物车。清空会移除全部商品，请核对后确认。",
+            content_payload={
+                "run_id": context.run.run_no,
+                "approval_id": approval.approval_no,
+                "approval_version": approval.version,
+                "action_type": "cart_clear",
+                "total_quantity": payload.get("total_quantity"),
+                "selected_quantity": payload.get("selected_quantity"),
+                "selected_amount": payload.get("selected_amount"),
+                "expires_at": approval.expires_at.isoformat() + "Z",
+                "requires_explicit_confirmation": True,
+                "approval_status": "pending",
+                "execution_status": "waiting_confirmation",
+                **(extra_content or {}),
+            },
+            agent_version_id=context.agent_version.id,
+            ai_run_no=context.run.run_no,
+            message_status="sent",
+            moderation_status="passed",
+            sent_at=now,
+        )
+        self.session.add(message)
+        await self.session.flush()
+        conversation.last_message_id = message.id
+        context.run.response_message_id = message.id
+        context.run.public_output = message.text_content
         self.session.add(
             OutboxEvent(
                 event_no=new_prefixed_ulid("evt_"),
@@ -638,16 +905,19 @@ class AgentApprovalService:
 
     async def _owned(
         self, user: User, approval_no: str, *, for_update: bool = False
-    ) -> tuple[AgentToolApproval, AgentRefundDraft, AgentRun, Conversation] | None:
+    ) -> tuple[AgentToolApproval, AgentRefundDraft | None, AgentRun, Conversation] | None:
         statement = (
             select(AgentToolApproval, AgentRefundDraft, AgentRun, Conversation)
-            .join(AgentRefundDraft, AgentRefundDraft.id == AgentToolApproval.draft_id)
+            .outerjoin(AgentRefundDraft, AgentRefundDraft.id == AgentToolApproval.draft_id)
             .join(AgentRun, AgentRun.id == AgentToolApproval.run_id)
             .join(Conversation, Conversation.id == AgentToolApproval.conversation_id)
             .where(
                 AgentToolApproval.approval_no == approval_no,
                 AgentToolApproval.user_id == user.id,
-                AgentRefundDraft.user_id == user.id,
+                or_(
+                    AgentToolApproval.draft_id.is_(None),
+                    AgentRefundDraft.user_id == user.id,
+                ),
                 Conversation.user_id == user.id,
                 Conversation.conversation_type == "exclusive",
             )
@@ -656,18 +926,19 @@ class AgentApprovalService:
             statement = statement.with_for_update()
         row = (await self.session.execute(statement)).one_or_none()
         return cast(
-            tuple[AgentToolApproval, AgentRefundDraft, AgentRun, Conversation] | None,
+            tuple[AgentToolApproval, AgentRefundDraft | None, AgentRun, Conversation] | None,
             row,
         )
 
     async def _expire_if_needed(
-        self, approval: AgentToolApproval, draft: AgentRefundDraft, run: AgentRun
+        self, approval: AgentToolApproval, draft: AgentRefundDraft | None, run: AgentRun
     ) -> None:
         if approval.approval_status == "pending" and approval.expires_at <= utc_now():
             approval.approval_status = "expired"
             approval.version += 1
-            draft.draft_status = "expired"
-            draft.version += 1
+            if draft is not None:
+                draft.draft_status = "expired"
+                draft.version += 1
             run.run_status = "queued"
             run.current_phase = "approval_expired"
             run.version += 1
@@ -708,14 +979,57 @@ def _reason_code(user_text: str) -> str:
         return "NOT_AS_DESCRIBED"
     if any(term in user_text for term in ("发错", "错发", "不是我买")):
         return "WRONG_ITEM"
-    if any(term in user_text for term in ("不想要", "不需要", "买错")):
+    if any(term in user_text for term in ("不想要", "不需要", "不再需要", "买错")):
         return "NO_LONGER_NEEDED"
     return "OTHER"
 
 
+def _reason_detail(user_text: str, reason_code: str) -> str:
+    """Keep the confirmation card readable when the user only says “退款”."""
+
+    labels = {
+        "DAMAGED": "商品破损或故障",
+        "NOT_AS_DESCRIBED": "商品与描述不符",
+        "WRONG_ITEM": "收到的商品不对",
+        "NO_LONGER_NEEDED": "不再需要该商品",
+    }
+    if reason_code in labels:
+        return labels[reason_code]
+    compact = re.sub(r"\s+", "", user_text)
+    explicit_reason = re.search(
+        r"(?:原因(?:是|为|\uFF1A|:)?|因为)([^\uFF0C\u3002\uFF1B;]{2,120})",
+        user_text,
+    )
+    if explicit_reason is not None:
+        detail = re.sub(
+            r"(?:\uFF0C|\u3002|\uFF1B|;)?(?:请|帮我)?(?:准备|生成|创建)?(?:退款)?草稿.*$",
+            "",
+            explicit_reason.group(1),
+        ).strip()
+        if detail:
+            return detail[:500]
+    if (
+        compact in {
+            "退款",
+            "申请退款",
+            "我要退款",
+            "帮我退款",
+            "给我退款",
+            "那就帮我申请退款",
+            "那就退款",
+        }
+        or (
+            any(term in compact for term in ("退款", "售后"))
+            and any(term in compact for term in ("草稿", "申请", "提交", "先别", "不要提交"))
+        )
+    ):
+        return "其他原因\uFF08未补充具体说明\uFF09"
+    return user_text.strip()[:500] or "其他原因\uFF08未补充具体说明\uFF09"
+
+
 def _approval_view(
     approval: AgentToolApproval,
-    draft: AgentRefundDraft,
+    draft: AgentRefundDraft | None,
     run: AgentRun,
     conversation: Conversation,
 ) -> AgentApprovalView:
@@ -723,10 +1037,10 @@ def _approval_view(
         approval_id=approval.approval_no,
         run_id=run.run_no,
         conversation_id=conversation.conversation_no,
-        action_type="refund_submit",
+        action_type=cast(Any, approval.action_type),
         approval_status=cast(Any, approval.approval_status),
         decision=cast(Any, approval.decision),
-        draft=draft.draft_payload,
+        draft=draft.draft_payload if draft is not None else approval.action_payload or {},
         expires_at=approval.expires_at,
         decided_at=approval.decided_at,
         version=approval.version,

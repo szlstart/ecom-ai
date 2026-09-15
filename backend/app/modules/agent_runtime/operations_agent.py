@@ -8320,10 +8320,21 @@ def _tool_for_query(intent: str, audience: str, user_text: str) -> str:
                 return "governance.knowledge.documents.list"
             if any(term in compact for term in ("skill", "技能", "能力绑定")):
                 return "governance.ai.skills.list"
+            if any(
+                term in compact
+                for term in (
+                    "agent",
+                    "智能体",
+                    "模型配置",
+                    "模型版本",
+                    "系统提示词",
+                    "提示词",
+                    "prompt",
+                )
+            ):
+                return "governance.ai.agents.list"
             if any(term in compact for term in ("mcp", "tool", "工具", "权限策略")):
                 return "governance.ai.tools.list"
-            if any(term in compact for term in ("agent", "智能体", "模型配置", "模型版本")):
-                return "governance.ai.agents.list"
         if intent == "after_sale" and any(
             term in compact
             for term in (

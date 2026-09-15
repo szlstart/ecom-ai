@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main, "codex/**"]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -90,10 +90,21 @@ jobs:
           pnpm --dir frontend install --frozen-lockfile
       - name: Start file security dependencies
         run: |
+          minio_image="quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e"
+          for attempt in 1 2 3; do
+            if docker pull "$minio_image"; then
+              break
+            fi
+            if [[ "$attempt" == "3" ]]; then
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
           docker run --detach --name ecom-minio-ci --publish 9000:9000 \
+            --pull=never \
             --env MINIO_ROOT_USER="$ECOM_OBJECT_STORAGE_ACCESS_KEY" \
             --env MINIO_ROOT_PASSWORD="$ECOM_OBJECT_STORAGE_SECRET_KEY" \
-            quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e \
+            "$minio_image" \
             server /data
           docker run --detach --name ecom-clamav-ci --publish 3310:3310 \
             --health-cmd='printf health | clamdscan --stream - --no-summary >/dev/null 2>&1' \

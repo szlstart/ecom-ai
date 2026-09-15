@@ -235,6 +235,9 @@ async function askConsumerAgent(
   agent: AgentQualityObservation['agent'],
   observations: AgentQualityObservation[],
 ) {
+  // The composer can mount before the initial history request settles. Wait for
+  // the hydrated timeline so retries never mistake old messages for this turn.
+  await expect(workspace.getByLabel('聊天消息')).toBeVisible({ timeout: 15_000 })
   const replies = workspace.locator(
     '.message-row.theirs:not(.conversation-welcome-row) .message-bubble:not(.agent-stream)',
   )
@@ -286,6 +289,10 @@ async function askOperationsAgent(
   observations: AgentQualityObservation[],
   persistObservations = true,
 ) {
+  await expect(workspace.getByLabel('聊天消息')).toBeVisible({ timeout: 15_000 })
+  await expect(workspace.locator('.merchant-chat-loading, .admin-chat-loading')).toHaveCount(0, {
+    timeout: 15_000,
+  })
   const replies = workspace.locator(replySelector)
   const sentMessages = workspace.locator(
     '.merchant-chat-bubble-row.mine [data-sequence], .admin-chat-timeline article.mine [data-sequence]',

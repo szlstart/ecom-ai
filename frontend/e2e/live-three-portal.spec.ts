@@ -903,6 +903,11 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     await consumer.goto(`/products/${data.product_id}?sku_id=${data.sku_id}`)
     await consumer.getByRole('button', { name: '联系客服', exact: true }).click()
     const workspace = consumer.getByLabel('用户消息中心')
+    const cancelExistingQueue = workspace.getByRole('button', { name: '取消排队' })
+    if (await cancelExistingQueue.isVisible()) {
+      await cancelExistingQueue.click()
+      await expect(cancelExistingQueue).toHaveCount(0, { timeout: 15_000 })
+    }
 
     const recommendation = await askConsumerAgent(
       workspace,
@@ -955,6 +960,13 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
     expect(recentOrders.observation.order_cards).toBeGreaterThan(0)
     await expect(recentOrders.reply).toContainText('三端联动验收笔记本')
     await expect(recentOrders.reply).toContainText('实付 ¥12.99')
+    const targetOrderHref = await recentOrders.reply
+      .locator('.order-message-card')
+      .filter({ hasText: '实付 ¥12.99' })
+      .first()
+      .getAttribute('href')
+    const targetOrderId = targetOrderHref?.match(/ord_[0-9A-Z]+/i)?.[0]
+    expect(targetOrderId).toBeTruthy()
 
     const amountFollowUp = await askConsumerAgent(
       workspace,
@@ -1236,7 +1248,7 @@ test.describe('LIVE-THREE-PORTAL connected acceptance', () => {
 
     const shipmentCreateAction = await askOperationsAgent(
       merchantWorkspace,
-      `把顾客 ${data.consumer_username} 的待发货订单安排发货`,
+      `把顾客 ${data.consumer_username} 的待发货订单 ${targetOrderId} 安排发货`,
       '向 AI 经营助理描述经营问题…',
       '.merchant-chat-bubble-row:not(.mine):not(.system) .merchant-chat-bubble:not(.agent-stream)',
       'merchant_copilot',

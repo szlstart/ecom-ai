@@ -15,7 +15,11 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # A clean runner installs browsers, migrates two databases, runs 827 backend
+    # tests, then exercises the three live portals. Individual commands and
+    # Playwright cases keep their own strict timeouts; this job limit only needs
+    # enough headroom for the complete release gate.
+    timeout-minutes: 45
     services:
       mysql:
         image: mysql:8.4.11

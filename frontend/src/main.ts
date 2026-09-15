@@ -22,7 +22,7 @@ const userAuth = useUserAuthStore(pinia)
 const managementAuth = useAdminAuthStore(pinia)
 if (managementPortal && managementAuth.hasRefreshHint(managementPortal)) {
   await managementAuth.refresh(managementPortal)
-} else if (!managementPortal && userAuth.csrfToken) {
+} else if (!managementPortal && userAuth.hasRefreshHint()) {
   await userAuth.refresh()
 }
 

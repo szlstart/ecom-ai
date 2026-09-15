@@ -8,6 +8,7 @@ import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from typing import cast
 
@@ -26,15 +27,23 @@ from app.modules.after_sale.service import AfterSaleService
 from app.modules.agent_runtime.exclusive_context import TrustedExclusiveAgentContext
 from app.modules.agent_runtime.handoff_intent import is_explicit_handoff_request
 from app.modules.agent_runtime.models import AgentToolAudit
+from app.modules.agent_runtime.public_trace import audit_projection, result_count
 from app.modules.agent_runtime.store_tools import (
     StoreToolResult,
     _availability_label,
     _available_quantity,
+    _combined_detail_text,
     _contains_scope_override,
 )
+from app.modules.cart.schemas import CartItemCreateRequest, CartItemPatchRequest
 from app.modules.cart.service import CartService
 from app.modules.catalog.models import Product, ProductSku
-from app.modules.catalog.repository import CatalogRepository
+from app.modules.catalog.repository import CatalogRepository, described_image_file_ids
+from app.modules.catalog.service import CatalogService
+from app.modules.checkout.schemas import CartSource, CheckoutCreateRequest
+from app.modules.checkout.service import CheckoutService
+from app.modules.finance.models import UserWallet, WalletTransaction
+from app.modules.identity.models import UserAddress, UserCredential
 from app.modules.inventory.models import Inventory
 from app.modules.logistics.service import LogisticsService
 from app.modules.messaging.human_schemas import HumanHandoffRequest
@@ -42,7 +51,10 @@ from app.modules.messaging.models import HumanServiceTicket
 from app.modules.messaging.service import MessagingService
 from app.modules.orders.domain import OrderPolicySnapshot, available_action_codes
 from app.modules.orders.models import Order, OrderItem
+from app.modules.payments.models import Payment
 from app.modules.stores.models import Store
+from app.modules.stores.repository import StoreRepository
+from app.modules.stores.service import StoreService
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +70,10 @@ class ExclusiveToolGateway:
         self.settings = settings
         self.security = security
         self.catalog = CatalogRepository(session)
+        self.stores = StoreRepository(session)
         self.after_sale = AfterSaleService(session, settings, security)
         self._call_counts: dict[str, int] = {}
+        self.execution_records: list[dict[str, object]] = []
 
     async def execute(
         self,
@@ -92,6 +106,11 @@ class ExclusiveToolGateway:
                 and trusted_approval_no is not None
                 and arguments.get("approval_id") == trusted_approval_no
             )
+            or (
+                tool_code == "cart.clear.commit"
+                and trusted_approval_no is not None
+                and arguments.get("approval_id") == trusted_approval_no
+            )
         ):
             result = StoreToolResult("denied", {}, "TOOL_CONFIRMATION_REQUIRED")
         elif _contains_scope_override(arguments):
@@ -110,6 +129,19 @@ class ExclusiveToolGateway:
             except Exception:
                 logger.exception("exclusive agent tool failed", extra={"tool_code": tool_code})
                 result = StoreToolResult("failed", {}, "TOOL_EXECUTION_FAILED")
+        latency_ms = max(0, int((time.monotonic() - started) * 1000))
+        self.execution_records.append(
+            {
+                "sequence": len(self.execution_records) + 1,
+                "tool_code": tool_code,
+                "arguments": audit_projection(arguments),
+                "status": result.status,
+                "result": audit_projection(result.data),
+                "result_count": result_count(result.data),
+                "error_code": result.error_code,
+                "latency_ms": latency_ms,
+            }
+        )
         self.session.add(
             AgentToolAudit(
                 audit_no=new_prefixed_ulid("taud_"),
@@ -119,7 +151,7 @@ class ExclusiveToolGateway:
                 arguments_hash=arguments_hash,
                 outcome=result.status,
                 error_code=result.error_code,
-                latency_ms=max(0, int((time.monotonic() - started) * 1000)),
+                latency_ms=latency_ms,
             )
         )
         await self.session.flush()
@@ -134,6 +166,17 @@ class ExclusiveToolGateway:
     ) -> StoreToolResult:
         async def handler() -> dict[str, object]:
             constraints = _catalog_search_constraints(query, fallback_query)
+            # Only the shopper's current request may create a hard colour
+            # constraint.  ``query`` can contain confirmed long-term memory
+            # appended by the Agent as a soft ranking hint; treating that hint
+            # as an explicit filter can erase an otherwise exact named-product
+            # result (for example a remembered preference for dark blue while
+            # the shopper asks to recommend a specific keyboard).
+            requested_colors = _explicit_catalog_colors(fallback_query or query or "")
+            preference_text = " ".join(value for value in (query, fallback_query) if value)
+            preferred_colors = _preferred_catalog_colors(preference_text)
+            requested_seasons = _requested_catalog_seasons(preference_text)
+            requested_weight = _requested_catalog_weight(preference_text)
             candidates = list(constraints.candidates)
             if constraints.semantic_keywords:
                 candidates = list(
@@ -162,8 +205,26 @@ class ExclusiveToolGateway:
                         continue
                     seen_product_ids.add(product.id)
                     rows.append(row)
-                if len(rows) >= constraints.requested_limit:
+                if (
+                    len(rows) >= constraints.requested_limit
+                    and not requested_colors
+                    and not preferred_colors
+                    and not requested_seasons
+                    and requested_weight is None
+                ):
                     break
+            # Hard product-kind constraints come from the shopper's natural
+            # request, not from an exact product name recovered from a recent
+            # card.  Otherwise a follow-up on an eraser whose official name
+            # contains ``铅笔擦`` is incorrectly treated as a fresh pencil
+            # search and the focused product is filtered out.
+            kind_request_text = fallback_query or query or ""
+            rows = [
+                row
+                for row in rows
+                if _matches_explicit_catalog_kind(row[0].product_name, kind_request_text)
+            ]
+            excluded_terms = _excluded_catalog_terms(preference_text)
             if constraints.sort == "price_asc":
                 rows.sort(key=lambda row: (row[0].min_price_amount, row[0].id))
             elif constraints.sort == "price_desc":
@@ -175,7 +236,6 @@ class ExclusiveToolGateway:
                 )
             elif constraints.sort == "sales":
                 rows.sort(key=lambda row: (row[0].sales_count, row[0].id), reverse=True)
-            rows = rows[: constraints.requested_limit]
             skus_by_product: dict[int, list[dict[str, object]]] = {}
             stock_by_product: dict[int, int] = {}
             product_ids = [product.id for product, _store in rows]
@@ -205,6 +265,90 @@ class ExclusiveToolGateway:
                     stock_by_product[sku.product_id] = (
                         stock_by_product.get(sku.product_id, 0) + available
                     )
+            if excluded_terms:
+                rows = [
+                    (product, store)
+                    for product, store in rows
+                    if not any(
+                        term
+                        in " ".join(
+                            [
+                                str(product.product_name or ""),
+                                str(product.subtitle or ""),
+                                *[
+                                    str(sku.get("sku_name") or "")
+                                    for sku in skus_by_product.get(product.id, [])
+                                ],
+                            ]
+                        ).casefold()
+                        for term in excluded_terms
+                    )
+                ]
+            if requested_colors:
+                rows = [
+                    (product, store)
+                    for product, store in rows
+                    if any(
+                        color
+                        in " ".join(
+                            [
+                                str(product.product_name or ""),
+                                str(product.subtitle or ""),
+                                *[
+                                    str(sku.get("sku_name") or "")
+                                    for sku in skus_by_product.get(product.id, [])
+                                ],
+                            ]
+                        ).casefold()
+                        for color in requested_colors
+                    )
+                ][: constraints.requested_limit]
+            if requested_seasons:
+                rows = [
+                    (product, store)
+                    for product, store in rows
+                    if _matches_requested_catalog_seasons(
+                        " ".join(
+                            [
+                                str(product.product_name or ""),
+                                str(product.subtitle or ""),
+                                *[
+                                    str(sku.get("sku_name") or "")
+                                    for sku in skus_by_product.get(product.id, [])
+                                ],
+                            ]
+                        ),
+                        requested_seasons,
+                    )
+                ]
+            if requested_weight is not None:
+                rows = [
+                    (product, store)
+                    for product, store in rows
+                    if any(
+                        (_catalog_sku_weight_limit(str(sku.get("sku_name") or "")) or 0)
+                        >= requested_weight
+                        for sku in skus_by_product.get(product.id, [])
+                    )
+                ]
+            if preferred_colors:
+                rows.sort(
+                    key=lambda row: _catalog_color_preference_score(
+                        " ".join(
+                            [
+                                str(row[0].product_name or ""),
+                                str(row[0].subtitle or ""),
+                                *[
+                                    str(sku.get("sku_name") or "")
+                                    for sku in skus_by_product.get(row[0].id, [])
+                                ],
+                            ]
+                        ),
+                        preferred_colors,
+                    ),
+                    reverse=True,
+                )
+            rows = rows[: constraints.requested_limit]
             return {
                 "items": [
                     {
@@ -230,8 +374,13 @@ class ExclusiveToolGateway:
                     "price_min": constraints.price_min,
                     "price_max": constraints.price_max,
                     "sort": constraints.sort,
+                    "colors": list(requested_colors),
+                    "preferred_colors": list(preferred_colors),
+                    "seasons": list(requested_seasons),
+                    "weight_jin": requested_weight,
+                    "excluded_terms": list(excluded_terms),
                 },
-                "as_of": utc_now(),
+                "as_of": utc_now().isoformat(),
             }
 
         return await self.execute(
@@ -241,6 +390,229 @@ class ExclusiveToolGateway:
                 "query": (query or "")[:120],
                 "fallback_query": (fallback_query or "")[:120],
             },
+            handler,
+        )
+
+    async def list_addresses(
+        self,
+        context: TrustedExclusiveAgentContext,
+    ) -> StoreToolResult:
+        async def handler() -> dict[str, object]:
+            rows = list(
+                (
+                    await self.session.scalars(
+                        select(UserAddress)
+                        .where(
+                            UserAddress.user_id == context.user.id,
+                            UserAddress.deleted_at.is_(None),
+                        )
+                        .order_by(UserAddress.is_default.desc(), UserAddress.id.desc())
+                    )
+                ).all()
+            )
+            return {
+                "items": [
+                    {
+                        "address_id": item.address_no,
+                        "recipient_name": self.security.decrypt(
+                            "address-recipient", item.recipient_name_ciphertext
+                        ),
+                        "phone": self.security.decrypt("address-phone", item.phone_ciphertext),
+                        "country_code": item.country_code,
+                        "province_code": item.province_code,
+                        "city_code": item.city_code,
+                        "district_code": item.district_code,
+                        "address": self.security.decrypt(
+                            "address-detail", item.address_ciphertext
+                        ),
+                        "is_default": item.is_default,
+                        "version": item.version,
+                    }
+                    for item in rows
+                ],
+                "active_count": len(rows),
+            }
+
+        return await self.execute(context, "address.list_mine", {}, handler)
+
+    async def get_wallet(self, context: TrustedExclusiveAgentContext) -> StoreToolResult:
+        async def handler() -> dict[str, object]:
+            wallet = await self.session.scalar(
+                select(UserWallet).where(
+                    UserWallet.user_id == context.user.id,
+                    UserWallet.currency == "CNY",
+                )
+            )
+            transactions = (
+                list(
+                    (
+                        await self.session.scalars(
+                            select(WalletTransaction)
+                            .where(WalletTransaction.wallet_id == wallet.id)
+                            .order_by(
+                                WalletTransaction.occurred_at.desc(),
+                                WalletTransaction.id.desc(),
+                            )
+                            .limit(10)
+                        )
+                    ).all()
+                )
+                if wallet is not None
+                else []
+            )
+            return {
+                "balance": _money_projection(wallet.balance_amount if wallet else 0, "CNY"),
+                "wallet_status": wallet.wallet_status if wallet else "active",
+                "source_version": wallet.version if wallet else 0,
+                "transactions": [
+                    {
+                        "transaction_type": item.transaction_type,
+                        "direction": item.direction,
+                        "amount": _money_projection(item.amount, item.currency),
+                        "balance_after": _money_projection(item.balance_after, item.currency),
+                        "channel": item.channel,
+                        "description": item.description,
+                        "occurred_at": item.occurred_at.isoformat(),
+                    }
+                    for item in transactions
+                ],
+            }
+
+        return await self.execute(context, "account.wallet.get_mine", {}, handler)
+
+    async def get_profile(self, context: TrustedExclusiveAgentContext) -> StoreToolResult:
+        async def handler() -> dict[str, object]:
+            email_credential = await self.session.scalar(
+                select(UserCredential)
+                .where(
+                    UserCredential.user_id == context.user.id,
+                    UserCredential.credential_type == "email",
+                    UserCredential.credential_status == "active",
+                )
+                .order_by(UserCredential.is_primary.desc(), UserCredential.id.desc())
+                .limit(1)
+            )
+            email = None
+            if (
+                email_credential is not None
+                and email_credential.identifier_ciphertext is not None
+            ):
+                email = self.security.decrypt(
+                    "user-credential:email", email_credential.identifier_ciphertext
+                )
+            return {
+                "profile": {
+                    "username": context.user.username,
+                    "nickname": context.user.nickname,
+                    "email": email,
+                    "locale": context.user.locale,
+                    "timezone": context.user.timezone,
+                },
+                "as_of": utc_now().isoformat(),
+            }
+
+        return await self.execute(context, "account.profile.get_mine", {}, handler)
+
+    async def list_favorites(self, context: TrustedExclusiveAgentContext) -> StoreToolResult:
+        async def handler() -> dict[str, object]:
+            # A SQLAlchemy AsyncSession must not execute two statements
+            # concurrently.  Keep the two user-scoped reads sequential while
+            # still presenting them as one account-assets result.
+            product_rows = await self.catalog.favorite_products(context.user.id, 8)
+            store_rows = await self.stores.followed_stores(context.user.id, 8)
+            return {
+                "items": [
+                    {
+                        "product_id": product.product_no,
+                        "store_id": store.store_no,
+                        "store_name": store.store_name,
+                        "name": product.product_name,
+                        "price": {
+                            "min_amount": product.min_price_amount,
+                            "max_amount": product.max_price_amount,
+                            "currency": product.currency,
+                        },
+                        "source_version": product.version,
+                    }
+                    for product, store in product_rows
+                ],
+                "followed_stores": [
+                    {
+                        "store_id": store.store_no,
+                        "store_name": store.store_name,
+                        "store_status": store.store_status,
+                        "rating": str(store.rating_score),
+                        "source_version": store.version,
+                    }
+                    for store in store_rows
+                ],
+                "favorite_product_count": len(product_rows),
+                "followed_store_count": len(store_rows),
+            }
+
+        # Both reads belong to one account-assets intent and share the same trusted
+        # user scope.  The public tool contract intentionally returns both lists so
+        # a compound sentence cannot silently drop either kind of favorite.
+        return await self.execute(
+            context,
+            "account.favorites.list_mine",
+            {},
+            handler,
+        )
+
+    async def set_product_favorite(
+        self,
+        context: TrustedExclusiveAgentContext,
+        product_no: str,
+        *,
+        enabled: bool,
+    ) -> StoreToolResult:
+        tool_code = "favorite.add_product" if enabled else "favorite.remove_product"
+
+        async def handler() -> dict[str, object]:
+            await CatalogService(self.session, self.settings).set_favorite(
+                context.user.id,
+                product_no,
+                enabled,
+            )
+            return {
+                "product_id": product_no,
+                "is_favorited": enabled,
+                "changed": True,
+            }
+
+        return await self.execute(
+            context,
+            tool_code,
+            {"product_id": product_no},
+            handler,
+        )
+
+    async def set_store_favorite(
+        self,
+        context: TrustedExclusiveAgentContext,
+        store_no: str,
+        *,
+        enabled: bool,
+    ) -> StoreToolResult:
+        tool_code = "favorite.add_store" if enabled else "favorite.remove_store"
+
+        async def handler() -> dict[str, object]:
+            await StoreService(self.session, self.settings).set_follow(
+                context.user.id,
+                store_no,
+                enabled,
+            )
+            return {
+                "store_id": store_no,
+                "is_favorited": enabled,
+                "changed": True,
+            }
+
+        return await self.execute(
+            context,
+            tool_code,
+            {"target_store_public_id": store_no},
             handler,
         )
 
@@ -307,7 +679,7 @@ class ExclusiveToolGateway:
                     "price_max": constraints.price_max,
                     "sort": constraints.sort,
                 },
-                "as_of": utc_now(),
+                "as_of": utc_now().isoformat(),
             }
 
         return await self.execute(
@@ -354,13 +726,57 @@ class ExclusiveToolGateway:
             items_by_order: dict[int, list[OrderItem]] = {}
             for item in order_items:
                 items_by_order.setdefault(item.order_id, []).append(item)
-            rows = _filter_order_rows(rows, items_by_order, query)[:5]
+            filtered = _filter_order_rows(rows, items_by_order, query)
+            payment_rows = (
+                list(
+                    (
+                        await self.session.scalars(
+                            select(Payment)
+                            .where(
+                                Payment.user_id == context.user.id,
+                                Payment.trade_order_id.in_(
+                                    [order.trade_order_id for order, _store in rows]
+                                ),
+                            )
+                            .order_by(Payment.created_at.desc(), Payment.id.desc())
+                        )
+                    ).all()
+                )
+                if rows
+                else []
+            )
+            payment_by_trade: dict[int, Payment] = {}
+            for payment in payment_rows:
+                payment_by_trade.setdefault(payment.trade_order_id, payment)
+            state_counts = _requested_order_state_counts(filtered, items_by_order, query)
+            per_state_limit = _requested_order_per_state_limit(query)
+            if per_state_limit is not None and _requests_order_state_overview(query):
+                filtered = _limit_orders_per_requested_state(
+                    filtered,
+                    items_by_order,
+                    query,
+                    per_state_limit,
+                )
+            result_limit = (
+                20
+                if _requests_order_spend_summary_query(query)
+                else 8
+                if _requests_order_state_overview(query)
+                else _requested_order_limit(query)
+            )
+            rows = filtered[:result_limit]
             return {
                 "items": [
-                    self._order_projection(order, store, items_by_order.get(order.id, []))
+                    self._order_projection(
+                        order,
+                        store,
+                        items_by_order.get(order.id, []),
+                        payment_by_trade.get(order.trade_order_id),
+                    )
                     for order, store in rows
                 ],
-                "as_of": utc_now(),
+                "requested_state_counts": state_counts,
+                "as_of": utc_now().isoformat(),
                 "presentation": "order_cards",
             }
 
@@ -378,6 +794,120 @@ class ExclusiveToolGateway:
 
         return await self.execute(context, "cart.get_mine", {}, handler)
 
+    async def create_cart_checkout_preview(
+        self, context: TrustedExclusiveAgentContext
+    ) -> StoreToolResult:
+        cart = await CartService(self.session).get(context.user)
+        cart_data = cart.model_dump(mode="json")
+        selected_item_nos = [
+            str(item["cart_item_id"])
+            for group in cart_data.get("groups", [])
+            if isinstance(group, dict)
+            for item in group.get("items", [])
+            if isinstance(item, dict)
+            and item.get("is_selected") is True
+            and item.get("is_valid") is True
+            and isinstance(item.get("cart_item_id"), str)
+        ]
+        if not selected_item_nos:
+            return StoreToolResult(
+                "succeeded",
+                {
+                    "checkout_unavailable": "NO_VALID_SELECTED_CART_ITEMS",
+                    "cart": cart_data,
+                },
+            )
+
+        async def handler() -> dict[str, object]:
+            view = await CheckoutService(self.session).create(
+                context.user,
+                CheckoutCreateRequest(
+                    source=CartSource(
+                        source_type="cart",
+                        cart_item_ids=selected_item_nos,
+                    ),
+                    address_id=None,
+                ),
+                f"agent-checkout-{context.trigger.message_no}",
+            )
+            return view.model_dump(mode="json")
+
+        return await self.execute(
+            context,
+            "checkout.create_session",
+            {"selected_cart_item_count": len(selected_item_nos)},
+            handler,
+        )
+
+    async def add_cart_item(
+        self,
+        context: TrustedExclusiveAgentContext,
+        sku_no: str,
+        quantity: int,
+    ) -> StoreToolResult:
+        safe_quantity = min(99, max(1, quantity))
+
+        async def handler() -> dict[str, object]:
+            view = await CartService(self.session).add(
+                context.user,
+                CartItemCreateRequest(sku_id=sku_no, quantity=safe_quantity),
+                f"agent-cart-add-{context.trigger.message_no}",
+            )
+            return view.model_dump(mode="json")
+
+        return await self.execute(
+            context,
+            "cart.add_item",
+            {"sku_id": sku_no, "quantity": safe_quantity},
+            handler,
+        )
+
+    async def update_cart_quantity(
+        self,
+        context: TrustedExclusiveAgentContext,
+        item_no: str,
+        quantity: int,
+        cart_version: int,
+    ) -> StoreToolResult:
+        safe_quantity = min(99, max(1, quantity))
+
+        async def handler() -> dict[str, object]:
+            view = await CartService(self.session).patch(
+                context.user,
+                item_no,
+                CartItemPatchRequest(quantity=safe_quantity),
+                cart_version,
+            )
+            return view.model_dump(mode="json")
+
+        return await self.execute(
+            context,
+            "cart.update_quantity",
+            {"cart_item_id": item_no, "quantity": safe_quantity, "version": cart_version},
+            handler,
+        )
+
+    async def remove_cart_item(
+        self,
+        context: TrustedExclusiveAgentContext,
+        item_no: str,
+        cart_version: int,
+    ) -> StoreToolResult:
+        async def handler() -> dict[str, object]:
+            view = await CartService(self.session).delete(
+                context.user,
+                item_no,
+                cart_version,
+            )
+            return view.model_dump(mode="json")
+
+        return await self.execute(
+            context,
+            "cart.remove_item",
+            {"cart_item_id": item_no, "version": cart_version},
+            handler,
+        )
+
     async def compare_products(
         self, context: TrustedExclusiveAgentContext, product_nos: list[str]
     ) -> StoreToolResult:
@@ -389,6 +919,13 @@ class ExclusiveToolGateway:
                     continue
                 product, store = row
                 sku_rows = await self.catalog.public_skus(product.id)
+                content = await self.catalog.published_content(product)
+                image_ocr = await self.catalog.content_image_ocr_texts(
+                    content.id if content else None,
+                    exclude_file_nos=described_image_file_ids(
+                        content.safe_blocks if content else None
+                    ),
+                )
                 available = sum(_available_quantity(inventory) for _sku, inventory in sku_rows)
                 items.append(
                     {
@@ -396,6 +933,17 @@ class ExclusiveToolGateway:
                         "name": product.product_name,
                         "subtitle": product.subtitle,
                         "description": product.description,
+                        "safe_detail_text": _combined_detail_text(
+                            content.safe_text if content else None, image_ocr
+                        ),
+                        "image_descriptions": [
+                            {
+                                "file_id": file_no,
+                                "text": text[:2000],
+                                "source": "product_detail_ocr",
+                            }
+                            for file_no, text in image_ocr[:10]
+                        ],
                         "store_id": store.store_no,
                         "store_name": store.store_name,
                         "price": {
@@ -405,12 +953,23 @@ class ExclusiveToolGateway:
                         },
                         "available_stock": available,
                         "sku_count": len(sku_rows),
+                        "skus": [
+                            {
+                                "sku_id": sku.sku_no,
+                                "sku_name": sku.sku_name,
+                                "price": _money_projection(
+                                    sku.sale_price_amount, sku.currency
+                                ),
+                                "available_stock": _available_quantity(inventory),
+                            }
+                            for sku, inventory in sku_rows
+                        ],
                         "rating": str(product.rating_score),
                         "sales_count": product.sales_count,
                         "source_version": product.version,
                     }
                 )
-            return {"items": items, "as_of": utc_now()}
+            return {"items": items, "as_of": utc_now().isoformat()}
 
         return await self.execute(
             context,
@@ -442,7 +1001,16 @@ class ExclusiveToolGateway:
                     )
                 ).all()
             )
-            return self._order_projection(order, store, items)
+            payment = await self.session.scalar(
+                select(Payment)
+                .where(
+                    Payment.user_id == context.user.id,
+                    Payment.trade_order_id == order.trade_order_id,
+                )
+                .order_by(Payment.created_at.desc(), Payment.id.desc())
+                .limit(1)
+            )
+            return self._order_projection(order, store, items, payment)
 
         return await self.execute(
             context, "order.get_user_order_detail", {"order_id": order_no}, handler
@@ -475,6 +1043,40 @@ class ExclusiveToolGateway:
             context,
             "logistics.get_user_order_shipments",
             {"order_id": order_no},
+            handler,
+        )
+
+    async def shipments_for_orders(
+        self, context: TrustedExclusiveAgentContext, order_nos: list[str]
+    ) -> StoreToolResult:
+        """Read a bounded set of this user's order shipments in one tool call."""
+
+        scoped_order_nos = list(dict.fromkeys(order_nos))[:5]
+
+        async def handler() -> dict[str, object]:
+            service = LogisticsService(
+                self.session,
+                self.security,
+                self.settings.security_hmac_secret.get_secret_value(),
+            )
+            items: list[dict[str, object]] = []
+            for order_no in scoped_order_nos:
+                result = await service.list_for_order(context.user, order_no)
+                payload = result.model_dump(mode="json")
+                for raw_item in payload.get("items", []):
+                    if not isinstance(raw_item, dict):
+                        continue
+                    items.append({"order_id": order_no, **raw_item})
+            return {
+                "items": items,
+                "order_ids": scoped_order_nos,
+                "queried_order_count": len(scoped_order_nos),
+            }
+
+        return await self.execute(
+            context,
+            "logistics.get_user_order_shipments",
+            {"order_ids": scoped_order_nos},
             handler,
         )
 
@@ -623,7 +1225,12 @@ class ExclusiveToolGateway:
         return await self.execute(context, "support.get_ticket_status", {}, handler)
 
     @staticmethod
-    def _order_projection(order: Order, store: Store, items: list[OrderItem]) -> dict[str, object]:
+    def _order_projection(
+        order: Order,
+        store: Store,
+        items: list[OrderItem],
+        payment: Payment | None = None,
+    ) -> dict[str, object]:
         policy = OrderPolicySnapshot(
             order_status=order.order_status,
             payment_status=order.payment_status,
@@ -656,6 +1263,17 @@ class ExclusiveToolGateway:
                 "paid": _money_projection(order.paid_amount, order.currency),
                 "refunded": _money_projection(order.refunded_amount, order.currency),
             },
+            "payment": (
+                {
+                    "method": payment.payment_method,
+                    "provider": payment.provider,
+                    "status": payment.payment_status,
+                    "paid_amount": _money_projection(payment.paid_amount, payment.currency),
+                    "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
+                }
+                if payment is not None
+                else None
+            ),
             "items": [
                 {
                     "order_item_id": item.order_item_no,
@@ -674,7 +1292,7 @@ class ExclusiveToolGateway:
             ],
             "available_actions": available_action_codes(policy, utc_now()),
             "source_version": order.version,
-            "as_of": utc_now(),
+            "as_of": utc_now().isoformat(),
         }
 
 
@@ -706,7 +1324,7 @@ def _catalog_search_candidates(query: str | None) -> list[str | None]:
     # `search_text`, such as "铅笔商品，列出商品名、店铺、价格和库存".
     # Those columns are presentation instructions rather than catalog terms.
     raw_search_phrase = re.split(
-        r"(?:[\uff0c,\uff1b;\u3002]\s*(?:请)?(?:列出|展示|显示|告诉我|说明)"
+        r"(?:[\uff0c,\uff1b;\u3002]\s*(?:并且?|同时)?(?:请)?(?:列出|展示|显示|告诉我|说明)"
         r"|(?:所有|全部)?款式(?:的)?(?:名称|名字|价格|库存))",
         raw,
         maxsplit=1,
@@ -847,6 +1465,22 @@ def _catalog_search_constraints(
         for candidate in _catalog_search_candidates(raw_source):
             if candidate is None and keywords:
                 continue
+            if (
+                keywords
+                and candidate is not None
+                and not any(
+                    keyword.casefold() in candidate.casefold()
+                    or candidate.casefold() in keyword.casefold()
+                    for keyword in keywords
+                )
+            ):
+                # Once the server has extracted a concrete catalogue subject,
+                # provider/raw fallbacks may only refine that subject.  Numeric
+                # budget fragments (for example ``500``) and instruction words
+                # such as ``帮我找`` must never become independent SQL queries,
+                # otherwise a nonexistent product can degrade into unrelated
+                # in-budget merchandise.
+                continue
             if candidate not in candidates:
                 candidates.append(candidate)
     for keyword in keywords:
@@ -906,6 +1540,50 @@ def catalog_query_with_inherited_constraints(
         )
     if _extract_requested_count(current) == 5 and _extract_requested_count(previous) != 5:
         additions.append(f"{prior.requested_limit}件")
+    prior_colors = _explicit_catalog_colors(previous)
+    if not _explicit_catalog_colors(current) and prior_colors:
+        additions.extend(prior_colors)
+    # Preserve bounded semantic constraints that are not represented by the
+    # price/sort parser.  A correction may explicitly remove one dimension
+    # (for example “季节不限”) while keeping audience, weight and colour intent.
+    current_compact = re.sub(r"\s+", "", current).casefold()
+    previous_compact = re.sub(r"\s+", "", previous).casefold()
+    audience_markers = (
+        "女装",
+        "男装",
+        "童装",
+        "女鞋",
+        "男鞋",
+        "文具",
+        "办公用品",
+    )
+    if not any(marker in current_compact for marker in audience_markers):
+        additions.extend(
+            marker for marker in audience_markers if marker in previous_compact
+        )
+    if _requested_catalog_weight(current) is None:
+        prior_weight = _requested_catalog_weight(previous)
+        if prior_weight is not None:
+            additions.append(f"适合{prior_weight}斤")
+    if not _preferred_catalog_colors(current):
+        if "深色" in previous_compact:
+            additions.append("深色优先")
+        elif "浅色" in previous_compact:
+            additions.append("浅色优先")
+    explicitly_unbounded_season = any(
+        marker in current_compact
+        for marker in ("季节不限", "不限季节", "四季均可", "季节放宽")
+    )
+    if not explicitly_unbounded_season and not _requested_catalog_seasons(current):
+        season_labels = {
+            "spring": "春季",
+            "summer": "夏季",
+            "autumn": "秋季",
+            "winter": "冬季",
+        }
+        additions.extend(
+            season_labels[season] for season in _requested_catalog_seasons(previous)
+        )
     return " ".join([current, *additions]).strip()[:240]
 
 
@@ -922,6 +1600,22 @@ def _latest_catalog_subject(text: str) -> str:
     return value.strip()
 
 
+def _excluded_catalog_terms(text: str) -> tuple[str, ...]:
+    """Extract explicit shopper exclusions without inventing negative preferences."""
+
+    values: list[str] = []
+    for match in re.finditer(
+        r"(?:不要|排除|剔除|不看|别推荐|不是)(.{1,16}?)(?=，|,|。|;|预算|价格|排序|$)",
+        text,
+    ):
+        phrase = re.sub(r"(?:的)?(?:商品|文具|款式|品类)$", "", match.group(1).strip())
+        for term in re.split(r"(?:或者|或是|和|与|、)", phrase):
+            normalized = re.sub(r"\s+", "", term).casefold().strip(" 的了")
+            if 1 < len(normalized) <= 12 and normalized not in {"太贵", "修改", "提交"}:
+                values.append(normalized)
+    return tuple(dict.fromkeys(values))
+
+
 def _has_explicit_catalog_sort(text: str) -> bool:
     compact = re.sub(r"\s+", "", text).casefold()
     return any(
@@ -931,10 +1625,15 @@ def _has_explicit_catalog_sort(text: str) -> bool:
             "价格升序",
             "便宜到贵",
             "低价优先",
+            "最便宜",
+            "价格不贵",
+            "别太贵",
             "价格从高到低",
             "价格降序",
             "贵到便宜",
             "高价优先",
+            "最贵",
+            "不便宜",
             "最新上架",
             "最新优先",
             "按最新",
@@ -948,9 +1647,25 @@ def _has_explicit_catalog_sort(text: str) -> bool:
 
 def _extract_catalog_sort(text: str) -> str:
     compact = re.sub(r"\s+", "", text).casefold()
-    if any(marker in compact for marker in ("价格从低到高", "价格升序", "便宜到贵", "低价优先")):
+    if any(marker in compact for marker in ("不便宜", "价格高一些", "预算高一些")):
+        return "price_desc"
+    if any(
+        marker in compact
+        for marker in (
+            "价格从低到高",
+            "价格升序",
+            "便宜到贵",
+            "低价优先",
+            "最便宜",
+            "价格不贵",
+            "别太贵",
+        )
+    ):
         return "price_asc"
-    if any(marker in compact for marker in ("价格从高到低", "价格降序", "贵到便宜", "高价优先")):
+    if any(
+        marker in compact
+        for marker in ("价格从高到低", "价格降序", "贵到便宜", "高价优先", "最贵")
+    ):
         return "price_desc"
     if any(marker in compact for marker in ("最新上架", "最新优先", "按最新", "最新的")):
         return "newest"
@@ -968,6 +1683,21 @@ def _semantic_catalog_expansions(text: str) -> tuple[str, ...]:
         result.extend(("铅笔", "橡皮", "直尺", "笔芯", "笔记本"))
     if any(term in normalized for term in ("办公", "上班", "会议")):
         result.extend(("笔", "笔记本", "记录本", "直尺"))
+    # Audience/category phrases are useful broad candidates before hard SKU,
+    # season, colour and price filters are applied.  Without these bounded
+    # candidates a natural sentence such as “适合130斤的夏季女装” becomes one
+    # indivisible SQL substring and returns nothing despite eligible products.
+    for marker in (
+        "女装",
+        "男装",
+        "童装",
+        "女鞋",
+        "男鞋",
+        "文具",
+        "办公用品",
+    ):
+        if marker in normalized:
+            result.append(marker)
     return tuple(dict.fromkeys(result))
 
 
@@ -994,12 +1724,65 @@ def _filter_order_rows(
     normalized = re.sub(r"\s+", "", query or "").casefold()
     if not normalized:
         return rows
+    day_offset: int | None = None
+    if "前两天" in normalized or "前天" in normalized:
+        day_offset = 2
+    elif "昨天" in normalized:
+        day_offset = 1
+    elif "今天" in normalized or "今日" in normalized:
+        day_offset = 0
+    if day_offset is not None:
+        target_day = (utc_now() - timedelta(days=day_offset)).date()
+        dated = [(order, store) for order, store in rows if order.created_at.date() == target_day]
+        if dated:
+            rows = dated
+    requested_amounts = _requested_order_amounts(query)
+    if requested_amounts:
+        amount_matches = [
+            (order, store)
+            for order, store in rows
+            if order.paid_amount in requested_amounts or order.payable_amount in requested_amounts
+        ]
+        if amount_matches:
+            return amount_matches
+    requested_states: set[str] = set()
+    state_markers = (
+        ("pending_payment", ("待付款", "待支付", "未付款")),
+        ("pending_shipment", ("待发货", "备货")),
+        ("shipped", ("运输中", "已发货", "物流中")),
+        ("completed", ("已完成", "已收货")),
+        ("pending_review", ("待评价", "未评价")),
+        ("after_sale", ("售后中", "退款中", "售后订单")),
+    )
+    for state, markers in state_markers:
+        if any(marker in normalized for marker in markers):
+            requested_states.add(state)
+    if requested_states:
+        state_matches = []
+        for order, store in rows:
+            item_rows = items_by_order.get(order.id, [])
+            matched = (
+                order.order_status in requested_states
+                or (
+                    "pending_review" in requested_states
+                    and order.order_status == "completed"
+                    and any(item.review_status == "pending" for item in item_rows)
+                )
+                or (
+                    "after_sale" in requested_states
+                    and order.after_sale_status != "none"
+                )
+            )
+            if matched:
+                state_matches.append((order, store))
+        return state_matches
     product_query = re.sub(
         r"(?:订单|刚刚|刚才|我的|这个|那个|状态|买的|购买的|查一下|看看)",
         "",
         normalized,
     )
-    matches: list[tuple[Order, Store]] = []
+    store_matches: list[tuple[Order, Store]] = []
+    product_matches: list[tuple[Order, Store]] = []
     for order, store in rows:
         store_name = re.sub(r"\s+", "", store.store_name).casefold()
         store_stem = re.sub(r"(?:官方)?(?:旗舰店|专卖店|店铺|商店)$", "", store_name)
@@ -1010,9 +1793,209 @@ def _filter_order_rows(
             _meaningful_product_reference(item.product_name, product_query)
             for item in items_by_order.get(order.id, [])
         )
-        if store_match or product_match:
-            matches.append((order, store))
-    return matches or rows
+        if store_match:
+            store_matches.append((order, store))
+        if product_match:
+            product_matches.append((order, store))
+    if store_matches and product_matches:
+        product_ids = {order.id for order, _store in product_matches}
+        intersection = [row for row in store_matches if row[0].id in product_ids]
+        if intersection:
+            return intersection
+    return product_matches or store_matches or rows
+
+
+def _requested_order_amounts(query: str | None) -> set[int]:
+    amounts: set[int] = set()
+    for raw in re.findall(r"(?:¥|￥)?(\d+(?:\.\d{1,2})?)元", query or ""):
+        try:
+            amounts.add(int(Decimal(raw) * 100))
+        except (InvalidOperation, ValueError):
+            continue
+    return amounts
+
+
+def _requests_order_state_overview(query: str | None) -> bool:
+    normalized = re.sub(r"\s+", "", query or "").casefold()
+    if any(
+        marker in normalized
+        for marker in (
+            "按状态",
+            "每种状态",
+            "各种状态",
+            "所有状态",
+            "分别看看",
+            "分别列出",
+            "分别展示",
+            "分别找",
+        )
+    ):
+        return True
+    state_groups = (
+        ("待付款", "待支付", "未付款"),
+        ("待发货", "备货"),
+        ("运输中", "已发货", "物流中"),
+        ("已完成", "已收货"),
+        ("待评价", "未评价"),
+        ("售后中", "退款中", "售后订单"),
+    )
+    return sum(any(marker in normalized for marker in markers) for markers in state_groups) >= 2
+
+
+def _requests_order_spend_summary_query(query: str | None) -> bool:
+    normalized = re.sub(r"\s+", "", query or "").casefold()
+    return "订单" in normalized and any(
+        marker in normalized
+        for marker in (
+            "累计实付",
+            "总共实付",
+            "一共实付",
+            "累计消费",
+            "一共花",
+            "总共花",
+            "累计花",
+            "花了多少钱",
+            "已退款多少",
+            "退款总额",
+            "净支出",
+        )
+    )
+
+
+def _requested_order_limit(query: str | None) -> int:
+    """Honor a shopper's explicit order-card count without broadening results."""
+
+    text = query or ""
+    chinese_numbers = {
+        "一": 1,
+        "两": 2,
+        "二": 2,
+        "三": 3,
+        "四": 4,
+        "五": 5,
+        "六": 6,
+        "七": 7,
+        "八": 8,
+    }
+    match = re.search(
+        r"(?:最近|展示|列出|只(?:展示|看)?)?\s*(?<!哪)([一两二三四五六七八\d]+)\s*笔",
+        text,
+    )
+    if match is None:
+        normalized = re.sub(r"\s+", "", text)
+        if "订单" in normalized and any(
+            marker in normalized for marker in ("哪些", "哪几笔", "可以取消", "可以确认收货")
+        ):
+            return 8
+        return 5
+    raw = match.group(1)
+    value = int(raw) if raw.isdigit() else chinese_numbers.get(raw, 5)
+    return max(1, min(value, 8))
+
+
+def _requested_order_per_state_limit(query: str | None) -> int | None:
+    """Return an explicit per-state card cap such as “每种最多1笔”."""
+
+    text = re.sub(r"\s+", "", query or "")
+    match = re.search(
+        r"每(?:种|类|个状态)(?:最多|至多|只(?:要|展示|看)?)?([一两二三四五\d]+)笔",
+        text,
+    )
+    if match is None:
+        return None
+    chinese_numbers = {"一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5}
+    raw = match.group(1)
+    value = int(raw) if raw.isdigit() else chinese_numbers.get(raw, 1)
+    return max(1, min(value, 3))
+
+
+def _limit_orders_per_requested_state(
+    rows: list[tuple[Order, Store]],
+    items_by_order: dict[int, list[OrderItem]],
+    query: str | None,
+    per_state_limit: int,
+) -> list[tuple[Order, Store]]:
+    """Keep the newest bounded cards for each state explicitly requested."""
+
+    normalized = re.sub(r"\s+", "", query or "").casefold()
+    state_groups = (
+        ("pending_payment", ("待付款", "待支付", "未付款")),
+        ("pending_shipment", ("待发货", "备货")),
+        ("shipped", ("运输中", "已发货", "物流中")),
+        ("pending_review", ("待评价", "未评价")),
+        ("after_sale", ("售后中", "退款中", "售后订单")),
+        ("completed", ("已完成", "已收货")),
+    )
+    selected: list[tuple[Order, Store]] = []
+    seen_order_ids: set[int] = set()
+    for state, markers in state_groups:
+        if not any(marker in normalized for marker in markers):
+            continue
+        matched_count = 0
+        for order, store in rows:
+            if order.id in seen_order_ids:
+                continue
+            item_rows = items_by_order.get(order.id, [])
+            matches = (
+                (state == "pending_payment" and order.order_status == "pending_payment")
+                or (state == "pending_shipment" and order.order_status == "pending_shipment")
+                or (state == "shipped" and order.order_status == "shipped")
+                or (state == "completed" and order.order_status == "completed")
+                or (
+                    state == "pending_review"
+                    and order.order_status == "completed"
+                    and any(item.review_status == "pending" for item in item_rows)
+                )
+                or (state == "after_sale" and order.after_sale_status != "none")
+            )
+            if not matches:
+                continue
+            selected.append((order, store))
+            seen_order_ids.add(order.id)
+            matched_count += 1
+            if matched_count >= per_state_limit:
+                break
+    return selected
+
+
+def _requested_order_state_counts(
+    rows: list[tuple[Order, Store]],
+    items_by_order: dict[int, list[OrderItem]],
+    query: str | None,
+) -> dict[str, int]:
+    normalized = re.sub(r"\s+", "", query or "").casefold()
+    requested = {
+        "待付款": ("待付款", "待支付", "未付款"),
+        "待发货": ("待发货", "备货"),
+        "运输中": ("运输中", "已发货", "物流中"),
+        "待评价": ("待评价", "未评价"),
+        "售后中": ("售后中", "退款中", "售后订单"),
+        "已完成": ("已完成", "已收货"),
+    }
+    counts: dict[str, int] = {}
+    for label, markers in requested.items():
+        if not any(marker in normalized for marker in markers):
+            continue
+        counts[label] = sum(
+            1
+            for order, _store in rows
+            if (
+                (label == "待付款" and order.order_status == "pending_payment")
+                or (label == "待发货" and order.order_status == "pending_shipment")
+                or (label == "运输中" and order.order_status == "shipped")
+                or (label == "已完成" and order.order_status == "completed")
+                or (
+                    label == "待评价"
+                    and order.order_status == "completed"
+                    and any(
+                        item.review_status == "pending"
+                        for item in items_by_order.get(order.id, [])
+                    )
+                )
+                or (label == "售后中" and order.after_sale_status != "none")
+            )
+        )
+    return counts
 
 
 def _meaningful_product_reference(product_name: str, normalized_query: str) -> bool:
@@ -1024,10 +2007,27 @@ def _meaningful_product_reference(product_name: str, normalized_query: str) -> b
             continue
         if token in product:
             return True
+    # Chinese questions are commonly written without spaces, so the regex
+    # above may produce one long sentence rather than the noun “铅笔/直尺”.
+    # Match bounded character n-grams after excluding generic order language.
+    compact = re.sub(
+        r"(?:订单|刚刚|刚才|我的|这个|那个|状态|买的|购买的|我在|专卖店|店铺|"
+        r"发货|签收|收货|物流|快递|评价|如果|已经|还能|不能|是否|能否|了吗|吗)",
+        "",
+        normalized_query,
+    )
+    chinese = "".join(re.findall(r"[\u4e00-\u9fff]", compact))
+    for width in range(min(8, len(chinese)), 1, -1):
+        if any(
+            chinese[index : index + width] in product
+            for index in range(len(chinese) - width + 1)
+        ):
+            return True
     return False
 
 
 def _extract_price_bound(text: str, *, lower: bool) -> int | None:
+    patterns: tuple[str, ...]
     if lower:
         patterns = (
             rf"{_PRICE_NUMBER}\s*元\s*(?:以上|起|起步|不少于|不低于)",
@@ -1036,30 +2036,59 @@ def _extract_price_bound(text: str, *, lower: bool) -> int | None:
     else:
         patterns = (
             rf"{_PRICE_NUMBER}\s*元\s*(?:以内|以下|内|封顶|不超过|最多)",
-            rf"(?:不超过|最多|最高|预算(?:是|为|在)?|控制在)\s*{_PRICE_NUMBER}\s*元?",
+            rf"(?:不超过|最多|最高|预算(?:是|为|在|改成|改为)?|价格(?:改成|改为)|控制在)\s*{_PRICE_NUMBER}\s*元?(?!\s*(?:件|款|个|笔|种))",
+            rf"(?:放宽|提高|调整|改|收紧)(?:到|为|成)\s*{_PRICE_NUMBER}\s*元?",
         )
-    for pattern in patterns:
-        match = re.search(pattern, text)
-        if match is None:
-            continue
+    matches = [
+        match
+        for pattern in patterns
+        if (match := re.search(pattern, text)) is not None
+    ]
+    for match in sorted(matches, key=lambda item: item.start()):
         try:
             return int(Decimal(match.group(1)) * 100)
         except (InvalidOperation, ValueError):
-            return None
+            continue
     return None
 
 
 def _strip_catalog_request_syntax(text: str) -> str:
+    # Presentation/evidence requests after a concrete product phrase are not
+    # part of the catalogue subject.  Keep them out of SQL candidates while
+    # leaving the answer layer free to expose verified sources.
+    text = re.sub(
+        r"(?:[，,；;]\s*)?(?:结果)?(?:需要|需|请|要)?(?:使用|用|以)?"
+        r"(?:可点击的?)?(?:商品|订单)?(?:卡片|列表)(?:的?形式)?"
+        r"(?:来)?(?:展示|显示|呈现)?.*$",
+        " ",
+        text,
+    )
+    text = re.sub(
+        r"(?:[，,\uff1b;]\s*)?(?:并且?|同时)(?:请)?(?:说明|告诉我|展示|列出).*$",
+        " ",
+        text,
+    )
     cleaned = re.sub(
         rf"{_PRICE_NUMBER}\s*元\s*(?:以内|以下|以上|内|起|起步|封顶|不超过|不少于|不低于|最多)?",
         " ",
         text,
     )
     cleaned = re.sub(
-        rf"(?:不超过|最多|最高|最低|至少|预算(?:是|为|在)?|控制在)\s*{_PRICE_NUMBER}\s*元?",
+        rf"(?:不超过|最多|最高|最低|至少|预算(?:是|为|在|改成|改为)?|价格(?:改成|改为)|控制在)\s*{_PRICE_NUMBER}\s*元?",
         " ",
         cleaned,
     )
+    cleaned = re.sub(
+        rf"(?:放宽|提高|调整|改|收紧)(?:到|为|成)\s*{_PRICE_NUMBER}\s*元?",
+        " ",
+        cleaned,
+    )
+    cleaned = re.sub(
+        r"(?:仅|只)?(?:在|从)?(?:本店|当前店铺|店内|全平台)(?:的?范围内)?",
+        " ",
+        cleaned,
+    )
+    cleaned = re.sub(r"价格\s*(?:在|为|是)", " ", cleaned)
     cleaned = re.sub(
         r"(?:按)?价格(?:从低到高|从高到低|升序|降序)|便宜到贵|贵到便宜|低价优先|高价优先|"
         r"最新上架|最新优先|按最新|销量排序|销量优先|卖得最好|最畅销",
@@ -1068,10 +2097,11 @@ def _strip_catalog_request_syntax(text: str) -> str:
     )
     cleaned = re.sub(r"[一两二三四五\d]+\s*(?:件|个|款)", " ", cleaned)
     cleaned = re.sub(
-        r"(?:麻烦|请|帮我|给我|我想|想要|看看|一下|全平台|当前|在售|搜索|查找|找找|找|推荐)",
+        r"(?:麻烦|请|帮我|给我|我想|想要|看看|一下|全平台|当前|在售|搜索|查找|找找|找|推荐|介绍|讲讲|了解)",
         " ",
         cleaned,
     )
+    cleaned = re.sub(r"(?:我)?(?:喜欢|偏好)", " ", cleaned)
     cleaned = re.sub(r"(?:几件|几款|几个|一些|一批)", " ", cleaned)
     cleaned = re.sub(
         r"(?:预算和排序|预算、排序|预算|价格|排序|数量|其他条件|其余条件)不变",
@@ -1085,10 +2115,137 @@ def _strip_catalog_request_syntax(text: str) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
+def _explicit_catalog_colors(text: str) -> tuple[str, ...]:
+    normalized = re.sub(r"\s+", "", text).casefold()
+    colors = (
+        "红色",
+        "橙色",
+        "黄色",
+        "绿色",
+        "蓝色",
+        "紫色",
+        "粉色",
+        "黑色",
+        "白色",
+        "灰色",
+        "棕色",
+        "米色",
+        "藏青色",
+    )
+    return tuple(
+        color
+        for color in colors
+        if color in normalized
+        and re.search(rf"(?:更喜欢|偏爱|优先|倾向).{{0,4}}{re.escape(color)}", normalized)
+        is None
+    )
+
+
+def _preferred_catalog_colors(text: str) -> tuple[str, ...]:
+    normalized = re.sub(r"\s+", "", text).casefold()
+    if "深色" in normalized:
+        return ("黑色", "藏青色", "藏蓝色", "深灰色", "灰色", "棕色")
+    if "浅色" in normalized:
+        return ("白色", "米色", "浅灰色", "粉色", "黄色")
+    colors = (
+        "红色",
+        "橙色",
+        "黄色",
+        "绿色",
+        "蓝色",
+        "紫色",
+        "粉色",
+        "黑色",
+        "白色",
+        "灰色",
+        "棕色",
+        "米色",
+        "藏青色",
+    )
+    preferred = tuple(
+        color
+        for color in colors
+        if re.search(rf"(?:更喜欢|偏爱|优先|倾向).{{0,4}}{re.escape(color)}", normalized)
+    )
+    if preferred:
+        return preferred
+    return ()
+
+
+def _requested_catalog_seasons(text: str) -> tuple[str, ...]:
+    normalized = re.sub(r"\s+", "", text).casefold()
+    seasons: list[str] = []
+    markers = {
+        "spring": ("春天", "春季", "春装"),
+        "summer": ("夏天", "夏季", "夏装"),
+        "autumn": ("秋天", "秋季", "秋装"),
+        "winter": ("冬天", "冬季", "冬装"),
+    }
+    for season, values in markers.items():
+        if any(value in normalized for value in values):
+            seasons.append(season)
+    return tuple(seasons)
+
+
+def _matches_requested_catalog_seasons(
+    product_text: str,
+    requested_seasons: tuple[str, ...],
+) -> bool:
+    normalized = re.sub(r"\s+", "", product_text).casefold()
+    season_markers = {
+        "spring": ("春季", "春装", "春秋"),
+        "summer": ("夏季", "夏装", "春夏", "夏秋"),
+        "autumn": ("秋季", "秋装", "春秋", "夏秋"),
+        "winter": ("冬季", "冬装"),
+    }
+    declared = {
+        season
+        for season, markers in season_markers.items()
+        if any(marker in normalized for marker in markers)
+    }
+    return not declared or bool(declared.intersection(requested_seasons))
+
+
+def _catalog_color_preference_score(
+    product_text: str,
+    preferred_colors: tuple[str, ...],
+) -> int:
+    normalized = re.sub(r"\s+", "", product_text).casefold()
+    return sum(color in normalized for color in preferred_colors)
+
+
+def _requested_catalog_weight(text: str) -> int | None:
+    normalized = re.sub(r"\s+", "", text).casefold()
+    match = re.search(r"(?P<weight>\d{2,3})斤", normalized)
+    return int(match.group("weight")) if match is not None else None
+
+
+def _matches_explicit_catalog_kind(product_name: str, request_text: str) -> bool:
+    """Keep an explicit product noun from being diluted by purpose expansions."""
+
+    name = re.sub(r"\s+", "", product_name).casefold()
+    request = re.sub(r"\s+", "", request_text).casefold()
+    if "铅笔" in request and "文具" not in request:
+        return "铅笔" in name and not any(term in name for term in ("铅笔擦", "橡皮", "擦除"))
+    if "直尺" in request and "文具" not in request:
+        return "直尺" in name or "尺子" in name
+    if "橡皮" in request and "文具" not in request:
+        return "橡皮" in name or "铅笔擦" in name
+    if "笔芯" in request and "文具" not in request:
+        return "笔芯" in name
+    return True
+
+
+def _catalog_sku_weight_limit(sku_name: str) -> int | None:
+    limits = [int(value) for value in re.findall(r"(\d{2,3})斤(?:以下|以内)?", sku_name)]
+    return max(limits) if limits else None
+
+
 def _catalog_keywords(text: str) -> tuple[str, ...]:
     generic = {"", "商品", "东西", "一些", "一款", "几款", "看看"}
     result: list[str] = []
     for token in re.findall(r"[\u4e00-\u9fffA-Za-z0-9]+", text):
+        token = re.sub(r"(?:商品|产品)$", "", token)
         if len(token) < 2 or token in generic:
             continue
         result.append(token[:120])

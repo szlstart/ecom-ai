@@ -11,6 +11,7 @@ from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
 from app.integrations.object_storage import ObjectMetadata, ObjectStorage
 from app.modules.files.models import FileObject
+from app.modules.files.ocr import OcrProcessingError, TesseractOcrEngine
 from app.modules.files.policies import upload_policy
 from app.modules.files.repository import FileRepository
 from app.modules.files.scanner import (
@@ -42,10 +43,12 @@ class FileProcessor:
         session: AsyncSession,
         storage: ObjectStorage,
         scanner: MalwareScanner,
+        ocr: TesseractOcrEngine | None = None,
     ) -> None:
         self.session = session
         self.storage = storage
         self.scanner = scanner
+        self.ocr = ocr
         self.repository = FileRepository(session)
 
     async def process_batch(self, limit: int = 10) -> int:
@@ -57,6 +60,22 @@ class FileProcessor:
             if await self.repository.claim_scan(file_id, version):
                 await self.session.commit()
                 await self._process_claimed(file_id)
+                processed += 1
+            else:
+                await self.session.rollback()
+        return processed
+
+    async def process_ocr_batch(self, limit: int = 3) -> int:
+        if self.ocr is None:
+            return 0
+        candidates = await self.repository.ocr_pending_files(limit)
+        identities = [(item.id, item.version) for item in candidates]
+        await self.session.rollback()
+        processed = 0
+        for file_id, version in identities:
+            if await self.repository.claim_ocr(file_id, version):
+                await self.session.commit()
+                await self._process_ocr_claimed(file_id)
                 processed += 1
             else:
                 await self.session.rollback()
@@ -143,9 +162,13 @@ class FileProcessor:
         if locked is None or locked.scan_status != "processing":
             await self.session.rollback()
             return
-        existing = await self.repository.variants(locked.id)
-        if not existing:
-            for variant, object_key, metadata in uploaded:
+        existing = {
+            (item.variant, item.processor_version): item
+            for item in await self.repository.variants(locked.id)
+        }
+        for variant, object_key, metadata in uploaded:
+            derived = existing.get((variant.variant, PROCESSOR_VERSION))
+            if derived is None:
                 self.session.add(
                     FileObject(
                         file_no=new_prefixed_ulid("file_"),
@@ -170,15 +193,59 @@ class FileProcessor:
                         ),
                         sensitivity_level="L0",
                         scan_status="safe",
+                        ocr_status=(
+                            "pending" if locked.purpose == "product_detail" else "not_requested"
+                        ),
                         file_status="active",
                         storage_version_id=metadata.version_id,
                         activated_at=utc_now(),
                     )
                 )
+            else:
+                # Preserve a stable public file number when regenerating a
+                # derivative whose object was removed by an older collector.
+                derived.bucket = "public-assets"
+                derived.object_key = object_key
+                derived.purpose = locked.purpose
+                derived.owner_type = locked.owner_type
+                derived.owner_no = locked.owner_no
+                derived.upload_session_id = locked.upload_session_id
+                derived.declared_mime_type = locked.declared_mime_type
+                derived.detected_mime_type = variant.content_type
+                derived.size_bytes = len(variant.payload)
+                derived.sha256 = variant.sha256
+                derived.provider_checksum = metadata.etag
+                derived.width = variant.width
+                derived.height = variant.height
+                derived.visibility = (
+                    "private" if locked.purpose == "review_image" else "public_derivative"
+                )
+                derived.sensitivity_level = "L0"
+                derived.scan_status = "safe"
+                if locked.purpose == "product_detail":
+                    derived.ocr_status = "pending"
+                    derived.ocr_text = None
+                    derived.ocr_engine = None
+                    derived.ocr_language = None
+                    derived.ocr_processed_at = None
+                    derived.ocr_error_code = None
+                derived.file_status = "active"
+                derived.storage_version_id = metadata.version_id
+                derived.expires_at = None
+                derived.deleted_at = None
+                derived.activated_at = now
+                derived.version += 1
         locked.detected_mime_type = result.detected_content_type
         locked.width = result.width
         locked.height = result.height
         locked.scan_status = "safe"
+        if locked.purpose == "product_detail":
+            locked.ocr_status = "pending"
+            locked.ocr_text = None
+            locked.ocr_engine = None
+            locked.ocr_language = None
+            locked.ocr_processed_at = None
+            locked.ocr_error_code = None
         locked.file_status = "active"
         locked.activated_at = utc_now()
         locked.version += 1
@@ -187,6 +254,94 @@ class FileProcessor:
             "file.activated.v1",
             locked,
             {"variant_count": len(result.variants)},
+        )
+        await self.session.commit()
+
+    async def _process_ocr_claimed(self, file_id: int) -> None:
+        source = await self.repository.file_by_id(file_id)
+        if source is None or source.ocr_status != "processing":
+            await self.session.rollback()
+            return
+        candidate = FileProcessingSource(
+            id=source.id,
+            file_no=source.file_no,
+            bucket=source.bucket,
+            object_key=source.object_key,
+            purpose=source.purpose,
+            declared_mime_type=source.declared_mime_type,
+            size_bytes=source.size_bytes,
+            sha256=source.sha256,
+        )
+        await self.session.rollback()
+        try:
+            payload = await self.storage.read(
+                candidate.bucket, candidate.object_key, candidate.size_bytes
+            )
+            if hashlib.sha256(payload).digest() != candidate.sha256:
+                raise OcrProcessingError("OCR_SOURCE_CHECKSUM_MISMATCH")
+            if self.ocr is None:
+                raise OcrProcessingError("OCR_ENGINE_UNAVAILABLE")
+            result = await self.ocr.extract(payload)
+            await self._finish_ocr(
+                candidate.id,
+                status="completed" if result.text else "no_text",
+                text=result.text or None,
+                engine=result.engine,
+                language=result.language,
+                error_code=None,
+            )
+        except OcrProcessingError as exc:
+            await self._finish_ocr(
+                candidate.id,
+                status="failed",
+                text=None,
+                engine=None,
+                language=None,
+                error_code=exc.code,
+            )
+        except Exception:
+            await self._finish_ocr(
+                candidate.id,
+                status="failed",
+                text=None,
+                engine=None,
+                language=None,
+                error_code="OCR_UNEXPECTED_ERROR",
+            )
+
+    async def _finish_ocr(
+        self,
+        file_id: int,
+        *,
+        status: str,
+        text: str | None,
+        engine: str | None,
+        language: str | None,
+        error_code: str | None,
+    ) -> None:
+        source = await self.repository.file_by_id(file_id, for_update=True)
+        if source is None or source.ocr_status != "processing":
+            await self.session.rollback()
+            return
+        now = utc_now()
+        targets = [source, *await self.repository.variants(source.id)]
+        for target in targets:
+            target.ocr_status = status
+            target.ocr_text = text
+            target.ocr_engine = engine
+            target.ocr_language = language
+            target.ocr_processed_at = now
+            target.ocr_error_code = error_code
+            target.version += 1
+        _event(
+            self.session,
+            "file.ocr_completed.v1" if status in {"completed", "no_text"} else "file.ocr_failed.v1",
+            source,
+            {
+                "ocr_status": status,
+                "character_count": len(text or ""),
+                "error_code": error_code,
+            },
         )
         await self.session.commit()
 

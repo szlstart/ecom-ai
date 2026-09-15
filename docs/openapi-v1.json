@@ -1647,6 +1647,277 @@
         ]
       }
     },
+    "/api/v1/merchant/agent-tool-approvals/{approval_id}/decisions": {
+      "post": {
+        "tags": [
+          "agent-runtime"
+        ],
+        "summary": "Decide Merchant Agent Tool Approval",
+        "operationId": "MerchantAgentToolApproval_DecideMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Approval Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentApprovalDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AgentApprovalView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.MerchantAgentToolApproval_DecideMine",
+        "x-domain-command": "MerchantAgentToolApproval_DecideMine",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "MCH-MSG-01"
+        ],
+        "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:resolve",
+          "store_scope",
+          "merchant_exclusive_conversation_owner"
+        ],
+        "x-test-case-ids": [
+          "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
+          "MCH-PORTAL-*"
+        ]
+      }
+    },
+    "/api/v1/admin/agent-tool-approvals/{approval_id}/decisions": {
+      "post": {
+        "tags": [
+          "agent-runtime"
+        ],
+        "summary": "Decide Admin Agent Tool Approval",
+        "operationId": "AdminAgentToolApproval_DecideMine",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Approval Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentApprovalDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AgentApprovalView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminAgentToolApproval_DecideMine",
+        "x-domain-command": "AdminAgentToolApproval_DecideMine",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "ADM-MSG-01"
+        ],
+        "x-scope-policy": [
+          "support:queue_read",
+          "support:claim",
+          "support:reply",
+          "support:resolve",
+          "platform_admin_session"
+        ],
+        "x-test-case-ids": [
+          "ADM-AUTH-*",
+          "ADM-SUPPORT-*",
+          "AGENT-OPS-*"
+        ]
+      }
+    },
     "/api/v1/admin/ai/runs/provider-health": {
       "get": {
         "tags": [
@@ -2177,6 +2448,22 @@
             }
           },
           {
+            "name": "X-Auth-Session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Auth-Session"
+            }
+          },
+          {
             "name": "ecom_user_refresh",
             "in": "cookie",
             "required": false,
@@ -2267,6 +2554,22 @@
                 }
               ],
               "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "X-Auth-Session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Auth-Session"
             }
           },
           {
@@ -4822,6 +5125,11 @@
         ],
         "summary": "List Evaluations",
         "operationId": "AdminAiEvaluation_List",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -4849,11 +5157,6 @@
             "$ref": "#/components/responses/Problem503"
           }
         },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "x-audit-event": "access.AdminAiEvaluation_List",
         "x-domain-command": "none",
         "x-idempotency-policy": "safe_read",
@@ -4880,15 +5183,38 @@
         ],
         "summary": "Create Evaluation",
         "operationId": "AdminAiEvaluation_Run",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EvaluationRunCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "202": {
@@ -4930,14 +5256,9 @@
             "$ref": "#/components/responses/Problem503"
           }
         },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "x-audit-event": "command.AdminAiEvaluation_Run",
         "x-domain-command": "AdminAiEvaluation_Run",
-        "x-idempotency-policy": "job_intent_no_automatic_retry",
+        "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -12619,6 +12940,7 @@
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -12680,6 +13002,7 @@
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -12743,6 +13066,7 @@
         ],
         "x-test-case-ids": [
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -12860,6 +13184,7 @@
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -12948,6 +13273,7 @@
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -13038,6 +13364,7 @@
         "x-test-case-ids": [
           "ADM-PRODUCT-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -13199,7 +13526,8 @@
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "AGENT-OPS-*"
         ]
       },
       "delete": {
@@ -13259,7 +13587,8 @@
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "AGENT-OPS-*"
         ]
       }
     },
@@ -13321,7 +13650,8 @@
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "AGENT-OPS-*"
         ]
       },
       "get": {
@@ -13433,7 +13763,8 @@
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "AGENT-OPS-*"
         ]
       },
       "post": {
@@ -13516,7 +13847,8 @@
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "AGENT-OPS-*"
         ]
       }
     },
@@ -13601,7 +13933,8 @@
         ],
         "x-test-case-ids": [
           "ADM-AUTH-*",
-          "ADM-SUPPORT-*"
+          "ADM-SUPPORT-*",
+          "AGENT-OPS-*"
         ]
       }
     },
@@ -13713,6 +14046,7 @@
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -14030,6 +14364,7 @@
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -14167,6 +14502,7 @@
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -14260,6 +14596,7 @@
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       },
@@ -14368,6 +14705,7 @@
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -14463,6 +14801,7 @@
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -14573,6 +14912,7 @@
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -14699,6 +15039,7 @@
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -15213,6 +15554,7 @@
         "x-test-case-ids": [
           "ADM-AUTH-*",
           "ADM-SUPPORT-*",
+          "AGENT-OPS-*",
           "MCH-PORTAL-*"
         ]
       }
@@ -15795,6 +16137,96 @@
         "x-audit-event": "command.CartItem_Create",
         "x-domain-command": "CartItem_Create",
         "x-idempotency-policy": "idempotency_key_required",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [],
+        "x-requirement-id": [
+          "USR-CART-01"
+        ],
+        "x-scope-policy": [
+          "current_user"
+        ],
+        "x-test-case-ids": [
+          "BROWSER-GUARD-*",
+          "CART-*"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "cart"
+        ],
+        "summary": "Clear All Cart Items",
+        "operationId": "CartItem_ClearAll",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_CartView_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.CartItem_ClearAll",
+        "x-domain-command": "CartItem_ClearAll",
+        "x-idempotency-policy": "if_match_required_by_domain",
         "x-owner-kind": [
           "vue_route"
         ],
@@ -22330,10 +22762,12 @@
           "shipments:read",
           "shipments:correct",
           "shipments:void",
-          "shipments:refresh"
+          "shipments:refresh",
+          "shipments:create"
         ],
         "x-test-case-ids": [
-          "ADM-SHIP-VOID-*"
+          "ADM-SHIP-VOID-*",
+          "SHIP-SIMULATION-*"
         ]
       }
     },
@@ -22467,10 +22901,12 @@
           "shipments:read",
           "shipments:correct",
           "shipments:void",
-          "shipments:refresh"
+          "shipments:refresh",
+          "shipments:create"
         ],
         "x-test-case-ids": [
-          "ADM-SHIP-VOID-*"
+          "ADM-SHIP-VOID-*",
+          "SHIP-SIMULATION-*"
         ]
       }
     },
@@ -22604,10 +23040,12 @@
           "shipments:read",
           "shipments:correct",
           "shipments:void",
-          "shipments:refresh"
+          "shipments:refresh",
+          "shipments:create"
         ],
         "x-test-case-ids": [
-          "ADM-SHIP-VOID-*"
+          "ADM-SHIP-VOID-*",
+          "SHIP-SIMULATION-*"
         ]
       }
     },
@@ -22709,10 +23147,151 @@
           "shipments:read",
           "shipments:correct",
           "shipments:void",
-          "shipments:refresh"
+          "shipments:refresh",
+          "shipments:create"
         ],
         "x-test-case-ids": [
-          "ADM-SHIP-VOID-*"
+          "ADM-SHIP-VOID-*",
+          "SHIP-SIMULATION-*"
+        ]
+      }
+    },
+    "/api/v1/admin/shipments/{shipment_id}/simulation-events": {
+      "post": {
+        "tags": [
+          "logistics-administration"
+        ],
+        "summary": "Record Simulation Event",
+        "operationId": "AdminShipment_RecordSimulationEvent",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Shipment Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminShipmentSimulationEventRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Envelope_AdminShipmentDetail_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Problem401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem409"
+          },
+          "412": {
+            "$ref": "#/components/responses/Problem412"
+          },
+          "428": {
+            "$ref": "#/components/responses/Problem428"
+          },
+          "429": {
+            "$ref": "#/components/responses/Problem429"
+          },
+          "500": {
+            "$ref": "#/components/responses/Problem500"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem503"
+          }
+        },
+        "x-audit-event": "command.AdminShipment_RecordSimulationEvent",
+        "x-domain-command": "AdminShipment_RecordSimulationEvent",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": [
+          "vue_route"
+        ],
+        "x-permission-codes": [
+          "shipments:create"
+        ],
+        "x-requirement-id": [
+          "ADM-SHIP-02"
+        ],
+        "x-scope-policy": [
+          "shipments:read",
+          "shipments:correct",
+          "shipments:void",
+          "shipments:refresh",
+          "shipments:create"
+        ],
+        "x-test-case-ids": [
+          "ADM-SHIP-VOID-*",
+          "SHIP-SIMULATION-*"
         ]
       }
     },
@@ -32321,6 +32900,22 @@
             }
           },
           {
+            "name": "X-Auth-Session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Auth-Session"
+            }
+          },
+          {
             "name": "ecom_merchant_refresh",
             "in": "cookie",
             "required": false,
@@ -32411,6 +33006,22 @@
                 }
               ],
               "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "X-Auth-Session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Auth-Session"
             }
           },
           {
@@ -32732,6 +33343,22 @@
             }
           },
           {
+            "name": "X-Auth-Session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Auth-Session"
+            }
+          },
+          {
             "name": "ecom_admin_refresh",
             "in": "cookie",
             "required": false,
@@ -32822,6 +33449,22 @@
                 }
               ],
               "title": "X-Csrf-Token"
+            }
+          },
+          {
+            "name": "X-Auth-Session",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Auth-Session"
             }
           },
           {
@@ -41554,6 +42197,60 @@
         ],
         "title": "AdminShipmentDetail"
       },
+      "AdminShipmentSimulationEventRequest": {
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "picked_up",
+              "in_transit",
+              "out_for_delivery",
+              "delivered",
+              "exception",
+              "returned"
+            ],
+            "title": "Event Type"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Description"
+          },
+          "location_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Text"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_type",
+          "description"
+        ],
+        "title": "AdminShipmentSimulationEventRequest",
+        "description": "One explicit logistics event for the local fake carrier.\n\nThe command deliberately has no delay or automatic-next-step field.  A store\noperator, platform administrator, or an approved Agent action must submit each\nevent explicitly."
+      },
       "AdminShipmentVoidRequest": {
         "properties": {
           "reason_code": {
@@ -43690,7 +44387,90 @@
           },
           "action_type": {
             "type": "string",
-            "const": "refund_submit",
+            "enum": [
+              "refund_submit",
+              "cart_clear",
+              "merchant_store_status",
+              "merchant_store_profile",
+              "merchant_store_email_update",
+              "merchant_store_logo_update",
+              "merchant_inventory_set",
+              "merchant_price_set",
+              "merchant_product_status",
+              "merchant_product_delete",
+              "merchant_product_submit",
+              "merchant_product_image_description",
+              "merchant_product_fulfillment",
+              "merchant_product_draft_create",
+              "merchant_product_profile",
+              "merchant_product_sku_create",
+              "merchant_product_sku_update",
+              "merchant_product_sku_disable",
+              "merchant_product_sku_image_replace",
+              "merchant_product_faq_upsert",
+              "merchant_product_faq_delete",
+              "merchant_product_detail_section_upsert",
+              "merchant_product_detail_section_delete",
+              "merchant_store_policy_manage",
+              "merchant_refund_decision",
+              "merchant_refund_more_info",
+              "merchant_support_claim",
+              "merchant_support_reply",
+              "merchant_support_resolve",
+              "merchant_shipment_create",
+              "merchant_shipment_progress",
+              "merchant_review_reply",
+              "admin_user_status",
+              "admin_user_force_logout",
+              "admin_user_create",
+              "admin_user_password_reset_requirement",
+              "admin_user_wallet_adjust",
+              "admin_user_profile",
+              "admin_user_delete",
+              "admin_user_address_create",
+              "admin_user_address_update",
+              "admin_user_address_delete",
+              "admin_user_address_set_default",
+              "admin_user_cart_item_update",
+              "admin_user_cart_item_delete",
+              "admin_user_cart_clear",
+              "admin_user_favorite_product_remove",
+              "admin_user_favorite_store_remove",
+              "admin_store_status",
+              "admin_store_create",
+              "admin_store_profile",
+              "admin_store_merchant_email_update",
+              "admin_store_logo_update",
+              "admin_store_delete",
+              "admin_product_status",
+              "admin_product_delete",
+              "admin_product_profile",
+              "admin_product_image_description",
+              "admin_product_faq_upsert",
+              "admin_product_faq_delete",
+              "admin_product_sku_create",
+              "admin_product_sku_update",
+              "admin_product_sku_disable",
+              "admin_product_sku_image_replace",
+              "admin_product_detail_section_upsert",
+              "admin_product_detail_section_delete",
+              "admin_product_review",
+              "admin_order_cancel",
+              "admin_shipment_progress",
+              "admin_refund_decision",
+              "admin_refund_more_info",
+              "admin_support_claim",
+              "admin_support_reply",
+              "admin_support_resolve",
+              "admin_dead_letter_replay_request",
+              "admin_knowledge_document_publish",
+              "admin_knowledge_document_withdraw",
+              "admin_ai_agent_prompt_draft_create",
+              "admin_ai_agent_publish_request",
+              "admin_ai_skill_publish_request",
+              "admin_ai_tool_publish_request",
+              "admin_ai_evaluation_run"
+            ],
             "title": "Action Type"
           },
           "approval_status": {
@@ -43761,6 +44541,71 @@
           "version"
         ],
         "title": "AgentApprovalView"
+      },
+      "AgentAssetMessageContent": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "agent_asset",
+            "title": "Type",
+            "default": "agent_asset"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "store_logo",
+              "product_sku_image"
+            ],
+            "title": "Purpose"
+          },
+          "file_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^file_[0-9A-Z]+$",
+            "title": "File Id"
+          },
+          "store_id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^sto_[0-9A-Z]+$",
+            "title": "Store Id"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^prd_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "sku_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^sku_[0-9A-Z]+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sku Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "purpose",
+          "file_id",
+          "store_id"
+        ],
+        "title": "AgentAssetMessageContent",
+        "description": "A file already uploaded through the governed file pipeline.\n\nThis content type is accepted only by the merchant AI assistant and the\nplatform administrator AI manager endpoints.  The messaging service\nresolves every public identifier again and stores a trusted display\nsnapshot; callers cannot use it to bind an arbitrary file or cross a store\nboundary."
       },
       "AgentConsentGrantRequest": {
         "properties": {
@@ -50365,6 +51210,10 @@
             "type": "string",
             "title": "Scan Status"
           },
+          "ocr_status": {
+            "type": "string",
+            "title": "Ocr Status"
+          },
           "content_type": {
             "type": "string",
             "title": "Content Type"
@@ -50421,6 +51270,62 @@
           "visibility": {
             "type": "string",
             "title": "Visibility"
+          },
+          "ocr_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Text"
+          },
+          "ocr_engine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Engine"
+          },
+          "ocr_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Language"
+          },
+          "ocr_processed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Processed At"
+          },
+          "ocr_error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ocr Error Code"
           }
         },
         "additionalProperties": false,
@@ -50430,6 +51335,7 @@
           "variant",
           "status",
           "scan_status",
+          "ocr_status",
           "content_type",
           "size_bytes",
           "width",
@@ -50708,6 +51614,10 @@
             "type": "string",
             "title": "Scan Status"
           },
+          "ocr_status": {
+            "type": "string",
+            "title": "Ocr Status"
+          },
           "content_type": {
             "type": "string",
             "title": "Content Type"
@@ -50757,6 +51667,7 @@
           "variant",
           "status",
           "scan_status",
+          "ocr_status",
           "content_type",
           "size_bytes",
           "width",
@@ -51668,12 +52579,16 @@
               },
               {
                 "$ref": "#/components/schemas/OrderCardMessageContent"
+              },
+              {
+                "$ref": "#/components/schemas/AgentAssetMessageContent"
               }
             ],
             "title": "Content",
             "discriminator": {
               "propertyName": "type",
               "mapping": {
+                "agent_asset": "#/components/schemas/AgentAssetMessageContent",
                 "order_card": "#/components/schemas/OrderCardMessageContent",
                 "product_card": "#/components/schemas/ProductCardMessageContent",
                 "text": "#/components/schemas/TextMessageContent"

@@ -24,7 +24,9 @@ STORE_AGENT_TOOL_CODES = frozenset(
         "catalog.get_store_policy",
         "order.list_user_store_orders",
         "order.get_store_order_summary",
+        "after_sale.list_user_store_refunds",
         "logistics.get_store_order_shipments",
+        "cart.add_item",
         "support.create_store_ticket",
         "support.get_ticket_status",
     }

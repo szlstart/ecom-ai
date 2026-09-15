@@ -22,7 +22,7 @@ import {
 } from '@/api/admin-catalog'
 import { getCategories, type Category } from '@/api/catalog'
 import { listAdminReviews, replyAdminReview, type AdminReview } from '@/api/admin-reviews'
-import { errorMessage, resolveApiAssetUrl } from '@/api/http'
+import { apiRequest, errorMessage, resolveApiAssetUrl } from '@/api/http'
 import AdminFileUpload from '@/components/AdminFileUpload.vue'
 import PageState from '@/components/PageState.vue'
 import { useAdminAuthStore } from '@/stores/admin-auth'
@@ -30,6 +30,11 @@ import { imageFileFromClipboard } from '@/utils/clipboard-image'
 
 interface Fulfillment { shipping_template_id: string; origin_region_code: string; dispatch_min_hours: number; dispatch_max_hours: number; purchase_notice: string | null; profile_version: number; version: number }
 interface FileUploadHandle { uploadFile: (file: File) => Promise<void> }
+interface DetailImageMetadata {
+  ocr_status: 'not_requested' | 'pending' | 'processing' | 'completed' | 'no_text' | 'failed'
+  ocr_text: string | null
+  ocr_error_code: string | null
+}
 interface RegionOption { code: string; name: string }
 interface DetailBlock {
   key: string
@@ -38,6 +43,8 @@ interface DetailBlock {
   items: string[]
   file_id: string
   alt: string
+  description: string
+  ocr_status: DetailImageMetadata['ocr_status'] | ''
   level: 2 | 3
 }
 interface FaqDraft { key: string; faq_id: string | null; question: string; answer: string }
@@ -94,6 +101,7 @@ const replyingReviewId = ref('')
 const basic = reactive({ store_id: '', category_id: '', brand_id: '', product_name: '' })
 const skuForm = reactive({ name: '', sale_price: '', stock: 0 })
 const detailBlocks = ref<DetailBlock[]>([])
+const lastSavedDetailSignature = ref('')
 const faqDrafts = ref<FaqDraft[]>([])
 const fulfillment = reactive({ shipping_template_id: '', origin_region_code: '', dispatch_min_hours: 24, dispatch_max_hours: 48, purchase_notice: '' })
 const originProvinceCode = ref('')
@@ -156,7 +164,13 @@ function restoreEditorDrafts(snapshot: ReturnType<typeof captureEditorDrafts>) {
   selectedSkuId.value = activeSkus.value.some((item) => item.sku_id === snapshot.selectedSkuId) ? snapshot.selectedSkuId : (activeSkus.value[0]?.sku_id ?? '')
   selectedImage.value = Math.max(0, Math.min(snapshot.selectedImage, activeImages.value.length - 1))
   attributes.value = snapshot.attributes
-  detailBlocks.value = snapshot.detailBlocks
+  detailBlocks.value = snapshot.detailBlocks.map((item) => ({
+    ...blankDetailBlock(item.type),
+    ...item,
+    items: Array.isArray(item.items) ? [...item.items] : [],
+    description: typeof item.description === 'string' ? item.description : '',
+    ocr_status: typeof item.ocr_status === 'string' ? item.ocr_status : '',
+  }))
   faqDrafts.value = snapshot.faqDrafts
   Object.assign(fulfillment, snapshot.fulfillment)
   originProvinceCode.value = snapshot.originProvinceCode
@@ -214,7 +228,7 @@ function inventoryFor(skuId: string) { return inventories.value.find((item) => i
 function detailKey() { detailBlockSequence += 1; return `detail-${detailBlockSequence}` }
 function faqKey() { faqDraftSequence += 1; return `faq-draft-${faqDraftSequence}` }
 function addFaq() { faqDrafts.value.push({ key: faqKey(), faq_id: null, question: '', answer: '' }) }
-function blankDetailBlock(type: DetailBlock['type'] = 'paragraph'): DetailBlock { return { key: detailKey(), type, text: '', items: [], file_id: '', alt: '', level: 2 } }
+function blankDetailBlock(type: DetailBlock['type'] = 'paragraph'): DetailBlock { return { key: detailKey(), type, text: '', items: [], file_id: '', alt: '', description: '', ocr_status: '', level: 2 } }
 function parseDetailBlocks(version: AdminContentVersion): DetailBlock[] {
   if (version.source_format === 'structured') {
     try {
@@ -226,7 +240,7 @@ function parseDetailBlocks(version: AdminContentVersion): DetailBlock[] {
           if (raw.type === 'paragraph' && typeof raw.text === 'string') return [{ ...blankDetailBlock('paragraph'), text: raw.text }]
           if (raw.type === 'heading' && typeof raw.text === 'string') return [{ ...blankDetailBlock('heading'), text: raw.text, level: raw.level === 3 ? 3 : 2 }]
           if (raw.type === 'bullet_list' && Array.isArray(raw.items)) return [{ ...blankDetailBlock('bullet_list'), items: raw.items.filter((item): item is string => typeof item === 'string') }]
-          if (raw.type === 'image' && typeof raw.file_id === 'string') return [{ ...blankDetailBlock('image'), file_id: raw.file_id, alt: typeof raw.alt === 'string' ? raw.alt : basic.product_name }]
+          if (raw.type === 'image' && typeof raw.file_id === 'string') return [{ ...blankDetailBlock('image'), file_id: raw.file_id, alt: typeof raw.alt === 'string' ? raw.alt : basic.product_name, description: typeof raw.description === 'string' ? raw.description : '' }]
           return []
         })
         if (blocks.length) return blocks
@@ -257,6 +271,20 @@ function removeDetailBlock(index: number) {
 function detailBlockLabel(block: DetailBlock) { return ({ paragraph: '文字', heading: '标题', bullet_list: '列表', image: '图片' } as const)[block.type] }
 function detailImageUrl(fileId: string) {
   return detailPreviewUrls.get(fileId) ?? (fileId && !fileId.startsWith('local-preview:') ? resolveApiAssetUrl(`/api/v1/files/${fileId}`) : '')
+}
+function ocrStatusLabel(block: DetailBlock) {
+  return ({ completed: 'OCR 已完成，可继续人工修改', no_text: 'OCR 未识别到清晰文字，请人工补充', failed: 'OCR 识别失败，请人工补充', pending: '等待 OCR 识别', processing: 'OCR 识别中' } as Record<string, string>)[block.ocr_status] ?? ''
+}
+async function hydrateDetailImageDescriptions() {
+  const targets = detailBlocks.value.filter((block) => block.type === 'image' && block.file_id && !block.file_id.startsWith('local-preview:'))
+  await Promise.all(targets.map(async (block) => {
+    try {
+      const metadata = (await apiRequest<DetailImageMetadata>(`/files/${encodeURIComponent(block.file_id)}/metadata`, {}, token())).data
+      block.ocr_status = metadata.ocr_status
+      // An explicit merchant/admin description always wins over a later OCR rescan.
+      if (!block.description.trim() && metadata.ocr_text) block.description = metadata.ocr_text
+    } catch { /* The image itself remains editable when OCR metadata is temporarily unavailable. */ }
+  }))
 }
 function skuImage(skuId: string) { return images.value.find((image) => image.sku_id === skuId) ?? null }
 function selectOriginProvince() { originCityCode.value = ''; fulfillment.origin_region_code = originProvinceCode.value }
@@ -322,13 +350,18 @@ async function load(options: { preserveDrafts?: boolean } = {}) {
     if (detailResult.data.current_detail_content_version_id) {
       const version = (await adminGet<AdminContentVersion>(path(`/detail-content-versions/${encodeURIComponent(detailResult.data.current_detail_content_version_id)}`), token())).data
       detailBlocks.value = parseDetailBlocks(version)
-    } else detailBlocks.value = [blankDetailBlock('paragraph')]
+      lastSavedDetailSignature.value = JSON.stringify(serializedDetailBlocks())
+    } else {
+      detailBlocks.value = [blankDetailBlock('paragraph')]
+      lastSavedDetailSignature.value = ''
+    }
     if (store.value) shippingTemplates.value = (await adminGet<AdminShippingTemplate[]>(`/admin/stores/${encodeURIComponent(store.value.store_id)}/shipping-templates`, token())).data
     if (fulfillmentResult.data) Object.assign(fulfillment, { ...fulfillmentResult.data, purchase_notice: fulfillmentResult.data.purchase_notice ?? '' })
     if (!fulfillment.shipping_template_id) fulfillment.shipping_template_id = shippingTemplates.value.find((item) => item.status === 'effective')?.template_id ?? ''
     restoreOriginSelection(fulfillment.origin_region_code)
     loaded = true
     if (!draftSnapshot && restoreLocalEditorDraft()) notice.value = '已恢复上次尚未提交的本地编辑内容。'
+    await hydrateDetailImageDescriptions()
   } catch (cause) { error.value = errorMessage(cause) }
   finally {
     if (draftSnapshot && loaded) restoreEditorDrafts(draftSnapshot)
@@ -484,6 +517,7 @@ function queueDetailContentSave() {
     if (!product.value || !blocks.length) return
     detailSaving.value = true
     await adminCreate(path('/detail-content-versions'), { source_format: 'structured', source_content: JSON.stringify(blocks) }, token(), `${adminMode.value ? 'admin' : 'merchant'}-detail-autosave-${Date.now()}`)
+    lastSavedDetailSignature.value = JSON.stringify(blocks)
     await refreshProduct()
   })
   detailSavePromise = pending
@@ -516,13 +550,15 @@ function failDetailImageUpload() {
   }
   pendingDetailImageKey.value = ''
 }
-function addDetailImage(fileId: string) {
+function addDetailImage(fileId: string, metadata?: DetailImageMetadata) {
   const pending = detailBlocks.value.find((item) => item.key === pendingDetailImageKey.value)
   if (pending) {
     revokeDetailPreview(pending.file_id)
     pending.file_id = fileId
+    pending.ocr_status = metadata?.ocr_status ?? ''
+    if (!pending.description.trim() && metadata?.ocr_text) pending.description = metadata.ocr_text
   }
-  else detailBlocks.value.push({ ...blankDetailBlock('image'), file_id: fileId, alt: basic.product_name || '商品详情图片' })
+  else detailBlocks.value.push({ ...blankDetailBlock('image'), file_id: fileId, alt: basic.product_name || '商品详情图片', description: metadata?.ocr_text ?? '', ocr_status: metadata?.ocr_status ?? '' })
   pendingDetailImageKey.value = ''
   persistLocalEditorDraft()
   detailUploadError.value = ''
@@ -568,7 +604,7 @@ function serializedDetailBlocks() {
       const items = block.items.map((item) => item.trim()).filter(Boolean)
       return items.length ? [{ type: 'bullet_list', items }] : []
     }
-    if (block.type === 'image' && block.file_id) return [{ type: 'image', file_id: block.file_id, alt: block.alt.trim() || basic.product_name || '商品详情图片' }]
+    if (block.type === 'image' && block.file_id) return [{ type: 'image', file_id: block.file_id, alt: block.alt.trim() || basic.product_name || '商品详情图片', description: block.description.trim() }]
     return []
   })
 }
@@ -629,8 +665,10 @@ async function saveEditorData(requireComplete: boolean) {
   await refreshProduct()
   await adminReplace(path('/attributes'), { items: attributePayload() }, token(), product.value.version)
   await refreshProduct()
-  if (blocks.length) {
+  const detailSignature = JSON.stringify(blocks)
+  if (blocks.length && detailSignature !== lastSavedDetailSignature.value) {
     await adminCreate(path('/detail-content-versions'), { source_format: 'structured', source_content: JSON.stringify(blocks) }, token(), `${adminMode.value ? 'admin' : 'merchant'}-detail-finish-${Date.now()}`)
+    lastSavedDetailSignature.value = detailSignature
     await refreshProduct()
   }
   if (originProvinceCode.value) {
@@ -708,7 +746,7 @@ onMounted(() => { resetSku(); void load() })
           <section class="card"><header><div><p class="eyebrow">发货与购买须知</p><h2>让顾客在下单前了解</h2></div></header><fieldset class="merchant-origin-field"><legend>发货地</legend><div class="field-grid"><label>省份<select v-model="originProvinceCode" required :disabled="!canEdit" @change="selectOriginProvince"><option value="" disabled>请选择省份</option><option v-for="item in originProvinces" :key="item.code" :value="item.code">{{ item.name }}</option></select></label><label>城市<select v-model="originCityCode" :disabled="!canEdit || !originProvinceCode" @change="selectOriginCity"><option value="">全省</option><option v-for="item in originCities" :key="item.code" :value="item.code">{{ item.name }}</option></select></label></div></fieldset><div class="field-grid"><label>最早发货（小时）<input v-model.number="fulfillment.dispatch_min_hours" type="number" min="0" :disabled="!canEdit" /></label><label>最晚发货（小时）<input v-model.number="fulfillment.dispatch_max_hours" type="number" min="0" :disabled="!canEdit" /></label></div><label>购买须知<textarea v-model.trim="fulfillment.purchase_notice" rows="4" maxlength="3000" :disabled="!canEdit" /></label></section>
         </section>
 
-        <section class="merchant-content-editor card"><header><div><p class="eyebrow">商品详情</p><h2>按顾客从上到下看到的顺序编辑</h2><p>文字和图片会严格按照这里的排列顺序展示；可上传图片，也可点击粘贴区后按 Command + V 或 Ctrl + V。</p></div><button v-if="canEdit" type="button" class="secondary" :disabled="editorBusy" @click="addDetailText">＋ 添加文字</button></header><div class="merchant-detail-block-list"><article v-for="(block, index) in detailBlocks" :key="block.key" class="merchant-detail-block" :class="`is-${block.type}`"><header><strong>{{ index + 1 }} · {{ detailBlockLabel(block) }}</strong><div v-if="canEdit" class="actions"><button type="button" class="secondary small" :disabled="index === 0 || editorBusy" @click="moveDetailBlock(index, -1)">上移</button><button type="button" class="secondary small" :disabled="index === detailBlocks.length - 1 || editorBusy" @click="moveDetailBlock(index, 1)">下移</button><button type="button" class="danger small" :disabled="editorBusy" @click="removeDetailBlock(index)">删除</button></div></header><textarea v-if="block.type === 'paragraph'" v-model="block.text" rows="5" maxlength="100000" :disabled="!canEdit" placeholder="输入这一段商品介绍……" /><template v-else-if="block.type === 'heading'"><input v-model.trim="block.text" maxlength="255" :disabled="!canEdit" /><select v-model="block.level" :disabled="!canEdit"><option :value="2">大标题</option><option :value="3">小标题</option></select></template><textarea v-else-if="block.type === 'bullet_list'" :value="block.items.join('\n')" rows="5" :disabled="!canEdit" @input="block.items = ($event.target as HTMLTextAreaElement).value.split('\n')" /><figure v-else-if="block.type === 'image'"><img :src="detailImageUrl(block.file_id) || undefined" :alt="block.alt" /><label>图片说明<input v-model.trim="block.alt" maxlength="255" :disabled="!canEdit" placeholder="例如：面料纹理细节" /></label></figure></article><p v-if="!detailBlocks.length" class="merchant-detail-empty">还没有详情内容。请先添加文字，或在下方上传、粘贴图片。</p></div><div v-if="canEdit" ref="detailPasteArea" class="merchant-detail-image-insert" :class="{ focused: detailPasteFocused, busy: detailPasteBusy || detailUploadBusy }" tabindex="0" role="button" aria-label="商品详情图片粘贴上传区" @click="detailPasteArea?.focus()" @focus="detailPasteFocused = true" @blur="detailPasteFocused = false" @paste="pasteDetailImage"><strong>{{ detailPasteBusy || detailUploadBusy ? '正在读取、扫描并上传详情图片…' : '上传或粘贴一张详情图片' }}</strong><p>新图片会添加到当前详情的最下方，之后可使用“上移 / 下移”调整位置。</p><AdminFileUpload ref="detailImageUpload" purpose="product" :business-context-id="product.store_id" label="从本地选择详情图片" @uploaded="addDetailImage" @busy-changed="detailUploadBusy = $event" /></div><p v-if="detailUploadNotice" class="success-text" role="status">{{ detailUploadNotice }}</p><p v-if="detailUploadError" class="error-text" role="alert">{{ detailUploadError }}</p></section>
+        <section class="merchant-content-editor card"><header><div><p class="eyebrow">商品详情</p><h2>按顾客从上到下看到的顺序编辑</h2><p>文字和图片会严格按照这里的排列顺序展示；详情图片会自动 OCR 识别文字，商家与超级管理员均可校正图片说明。</p></div><button v-if="canEdit" type="button" class="secondary" :disabled="editorBusy" @click="addDetailText">＋ 添加文字</button></header><div class="merchant-detail-block-list"><article v-for="(block, index) in detailBlocks" :key="block.key" class="merchant-detail-block" :class="`is-${block.type}`"><header><strong>{{ index + 1 }} · {{ detailBlockLabel(block) }}</strong><div v-if="canEdit" class="actions"><button type="button" class="secondary small" :disabled="index === 0 || editorBusy" @click="moveDetailBlock(index, -1)">上移</button><button type="button" class="secondary small" :disabled="index === detailBlocks.length - 1 || editorBusy" @click="moveDetailBlock(index, 1)">下移</button><button type="button" class="danger small" :disabled="editorBusy" @click="removeDetailBlock(index)">删除</button></div></header><textarea v-if="block.type === 'paragraph'" v-model="block.text" rows="5" maxlength="100000" :disabled="!canEdit" placeholder="输入这一段商品介绍……" /><template v-else-if="block.type === 'heading'"><input v-model.trim="block.text" maxlength="255" :disabled="!canEdit" /><select v-model="block.level" :disabled="!canEdit"><option :value="2">大标题</option><option :value="3">小标题</option></select></template><textarea v-else-if="block.type === 'bullet_list'" :value="block.items.join('\n')" rows="5" :disabled="!canEdit" @input="block.items = ($event.target as HTMLTextAreaElement).value.split('\n')" /><figure v-else-if="block.type === 'image'"><img :src="detailImageUrl(block.file_id) || undefined" :alt="block.alt" /><label>图片说明（OCR 自动识别，可编辑）<textarea v-model="block.description" rows="6" maxlength="8000" :disabled="!canEdit" placeholder="图片中的规格、材质、功能、使用方法等文字会自动填入这里，也可以人工修正。" /></label><small v-if="ocrStatusLabel(block)" class="muted">{{ ocrStatusLabel(block) }}</small></figure></article><p v-if="!detailBlocks.length" class="merchant-detail-empty">还没有详情内容。请先添加文字，或在下方上传、粘贴图片。</p></div><div v-if="canEdit" ref="detailPasteArea" class="merchant-detail-image-insert" :class="{ focused: detailPasteFocused, busy: detailPasteBusy || detailUploadBusy }" tabindex="0" role="button" aria-label="商品详情图片粘贴上传区" @click="detailPasteArea?.focus()" @focus="detailPasteFocused = true" @blur="detailPasteFocused = false" @paste="pasteDetailImage"><strong>{{ detailPasteBusy || detailUploadBusy ? '正在读取、安全扫描并识别图片文字…' : '上传或粘贴一张详情图片' }}</strong><p>新图片会添加到当前详情最下方；OCR 完成后会自动填写图片说明，可继续人工修改。</p><AdminFileUpload ref="detailImageUpload" purpose="product_detail" :business-context-id="product.store_id" label="从本地选择详情图片" @uploaded="addDetailImage" @busy-changed="detailUploadBusy = $event" /></div><p v-if="detailUploadNotice" class="success-text" role="status">{{ detailUploadNotice }}</p><p v-if="detailUploadError" class="error-text" role="alert">{{ detailUploadError }}</p></section>
 
         <section class="merchant-faq-editor card"><header><div><p class="eyebrow">常见问题</p><h2>提前回答顾客最常问的问题</h2><p>新增、修改或删除后，点击页面底部“完成编辑”统一更新到商品。</p></div><button v-if="canEdit" type="button" class="secondary" @click="addFaq">＋ 新增</button></header><div class="merchant-faq-draft-list"><article v-for="(item, index) in faqDrafts" :key="item.key"><header><strong>问题 {{ index + 1 }}</strong><button v-if="canEdit" type="button" class="danger small" @click="faqDrafts.splice(index, 1)">删除这组问答</button></header><label>问题<input v-model="item.question" maxlength="1000" :disabled="!canEdit" placeholder="例如：尺码偏大还是偏小？" /></label><label>回答<textarea v-model="item.answer" rows="5" maxlength="100000" :disabled="!canEdit" placeholder="请输入给顾客看的答案" /></label></article><p v-if="!faqDrafts.length" class="muted">暂时没有常见问题，需要时点击“新增”。</p></div></section>
 

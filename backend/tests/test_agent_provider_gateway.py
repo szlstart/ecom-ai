@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 
 import httpx
 import pytest
 
+import app.modules.agent_runtime.provider_gateway as provider_gateway_module
 from app.core.config import Settings
 from app.modules.agent_runtime.model_gateway import ModelGatewayError
 from app.modules.agent_runtime.provider_gateway import (
@@ -124,6 +126,178 @@ async def test_provider_store_plan_uses_closed_schema_without_tools() -> None:
     assert plan.search_text is None
     assert plan.confidence == 0.94
     assert plan.required_capabilities == ("catalog.get_inventory_availability",)
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_provider_store_supervisor_preserves_multiple_business_goals() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        schema = payload["response_format"]["json_schema"]["schema"]
+        assert schema["properties"]["tasks"]["maxItems"] == 4
+        assert len(payload["messages"][1]["content"]) > 0
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "tasks": [
+                                        {
+                                            "subtask_key": "task_1",
+                                            "intent": "product_qa",
+                                            "objective": "核对当前商品尺码和发货承诺",
+                                        },
+                                        {
+                                            "subtask_key": "task_2",
+                                            "intent": "inventory_lookup",
+                                            "objective": "查询最大码实时库存",
+                                        },
+                                    ],
+                                    "goal_ledger": [
+                                        {
+                                            "goal_key": "goal_1",
+                                            "description": "核对当前商品尺码和发货承诺",
+                                            "assigned_task_key": "task_1",
+                                        },
+                                        {
+                                            "goal_key": "goal_2",
+                                            "description": "查询最大码实时库存",
+                                            "assigned_task_key": "task_2",
+                                        },
+                                    ],
+                                    "coverage_complete": True,
+                                    "confidence": 0.92,
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    plan = await planner.plan_store_tasks("这件衣服最大码还有货吗,付款后多久发?")
+
+    assert [task.intent for task in plan.tasks] == ["product_qa", "inventory_lookup"]
+    assert [goal.assigned_task_key for goal in plan.goal_ledger] == ["task_1", "task_2"]
+    assert plan.coverage_complete is True
+    assert plan.confidence == 0.92
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_provider_supervisor_rejects_plan_without_complete_goal_ledger() -> None:
+    async def respond(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "tasks": [
+                                        {
+                                            "subtask_key": "task_1",
+                                            "intent": "product_qa",
+                                            "objective": "只处理了商品介绍",
+                                        }
+                                    ],
+                                    "goal_ledger": [
+                                        {
+                                            "goal_key": "goal_1",
+                                            "description": "商品介绍",
+                                            "assigned_task_key": "task_1",
+                                        }
+                                    ],
+                                    "coverage_complete": False,
+                                    "confidence": 0.4,
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    with pytest.raises(ModelGatewayError, match="incomplete supervisor goal ledger"):
+        await planner.plan_store_tasks("介绍商品，同时查库存和发货政策")
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_provider_operations_supervisor_preserves_merchant_business_goals() -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        schema = payload["response_format"]["json_schema"]["schema"]
+        assert schema["properties"]["tasks"]["maxItems"] == 8
+        assert set(schema["properties"]["tasks"]["items"]["properties"]["intent"]["enum"]) == {
+            "overview",
+            "profile",
+            "catalog",
+            "inventory",
+            "orders",
+            "reviews",
+            "service",
+            "policy",
+            "after_sale",
+            "human_handoff",
+        }
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "tasks": [
+                                        {
+                                            "subtask_key": "task_1",
+                                            "intent": "inventory",
+                                            "objective": "核对本店缺货款式",
+                                        },
+                                        {
+                                            "subtask_key": "task_2",
+                                            "intent": "orders",
+                                            "objective": "核对待履约订单",
+                                        },
+                                    ],
+                                    "goal_ledger": [
+                                        {
+                                            "goal_key": "goal_1",
+                                            "description": "核对本店缺货款式",
+                                            "assigned_task_key": "task_1",
+                                        },
+                                        {
+                                            "goal_key": "goal_2",
+                                            "description": "核对待履约订单",
+                                            "assigned_task_key": "task_2",
+                                        },
+                                    ],
+                                    "coverage_complete": True,
+                                    "confidence": 0.96,
+                                },
+                                ensure_ascii=False,
+                            )
+                        }
+                    }
+                ]
+            },
+        )
+
+    planner, client = _planner(httpx.MockTransport(respond))
+    plan = await planner.plan_operations_tasks("库存和待发货订单有哪些风险?", "merchant_copilot")
+
+    assert [task.intent for task in plan.tasks] == ["inventory", "orders"]
+    assert len(plan.goal_ledger) == 2
+    assert plan.confidence == 0.96
     await client.aclose()
 
 
@@ -400,6 +574,47 @@ async def test_streamed_responses_uses_one_grounding_verdict() -> None:
 
 
 @pytest.mark.asyncio
+async def test_streamed_responses_bounds_the_post_stream_grounding_verifier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def respond(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        if payload.get("stream") is True:
+            frames = [
+                {"type": "response.output_text.delta", "delta": "当前有 2 笔待发货订单。"},
+                {"type": "response.completed"},
+            ]
+            return httpx.Response(
+                200,
+                text="".join(
+                    f"data: {json.dumps(frame, ensure_ascii=False)}\n\n" for frame in frames
+                ),
+            )
+        await asyncio.sleep(1)
+        return httpx.Response(500)
+
+    monkeypatch.setattr(provider_gateway_module, "GROUNDING_VERIFIER_BUDGET_SECONDS", 0.01)
+    client = httpx.AsyncClient(transport=httpx.MockTransport(respond))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1",
+        api_key="model-secret",
+        model="gpt-5.5",
+        wire_api="responses",
+        timeout_seconds=5,
+        client=client,
+    )
+    with pytest.raises(ModelGatewayError, match="grounding verifier timed out"):
+        await planner.synthesize(
+            agent_prompt="只按证据回答",
+            user_text="有哪些待发货订单?",
+            intent="complex_store_diagnosis",
+            evidence={"pending_shipment_count": 2},
+            source_ids=("tool:order.list",),
+        )
+    await client.aclose()
+
+
+@pytest.mark.asyncio
 async def test_streamed_responses_rejects_answer_after_grounding_failure() -> None:
     async def respond(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content)
@@ -600,6 +815,41 @@ async def test_responses_stream_buffers_streamed_error_before_classification() -
     with pytest.raises(ModelGatewayError, match="request failed"):
         await planner._request_responses_stream(
             {"model": "gpt-5.5", "stream": True}, stream_callback=None
+        )
+    await client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_responses_json_normalizes_remote_protocol_disconnect() -> None:
+    async def disconnect(request: httpx.Request) -> httpx.Response:
+        raise httpx.RemoteProtocolError(
+            "provider disconnected before response headers", request=request
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(disconnect))
+    planner = OpenAICompatiblePlanner(
+        api_url="https://models.invalid/v1",
+        api_key="model-secret",
+        model="gpt-5.5",
+        wire_api="responses",
+        timeout_seconds=5,
+        client=client,
+    )
+
+    with pytest.raises(ModelGatewayError, match="request failed"):
+        await planner._request_responses_json(
+            {
+                "model": "gpt-5.5",
+                "messages": [{"role": "user", "content": "hello"}],
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "test",
+                        "schema": {"type": "object"},
+                        "strict": True,
+                    },
+                },
+            }
         )
     await client.aclose()
 

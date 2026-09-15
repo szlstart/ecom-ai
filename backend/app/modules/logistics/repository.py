@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import cast
 
-from sqlalchemy import and_, exists, func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -191,9 +191,7 @@ class LogisticsRepository:
         now: datetime,
         stale_before: datetime,
         limit: int,
-        simulated_stale_before: datetime | None = None,
     ) -> list[Shipment]:
-        simulated_threshold = simulated_stale_before or stale_before
         latest_log = aliased(LogisticsSyncLog)
         latest_log_id = (
             select(func.max(LogisticsSyncLog.id))
@@ -210,16 +208,13 @@ class LogisticsRepository:
                         Shipment.shipment_status.in_(
                             {"created", "picked_up", "in_transit", "exception"}
                         ),
+                        # The local fake carrier is controlled explicitly by
+                        # merchant/admin actions (and later by an approved
+                        # Agent tool).  It must never advance on a timer.
+                        Shipment.carrier_code != "fake_express",
                         or_(
                             latest_log.id.is_(None),
-                            and_(
-                                Shipment.carrier_code == "fake_express",
-                                latest_log.created_at < simulated_threshold,
-                            ),
-                            and_(
-                                Shipment.carrier_code != "fake_express",
-                                latest_log.created_at < stale_before,
-                            ),
+                            latest_log.created_at < stale_before,
                             and_(
                                 latest_log.sync_status == "retry",
                                 latest_log.next_retry_at.is_not(None),
@@ -233,30 +228,6 @@ class LogisticsRepository:
                         Shipment.last_track_at,
                         Shipment.id,
                     )
-                    .limit(limit)
-                )
-            ).all()
-        )
-
-    async def automatic_shipment_candidates(self, limit: int) -> list[str]:
-        active_shipment_exists = exists(
-            select(Shipment.id).where(
-                Shipment.order_id == Order.id,
-                Shipment.shipment_status != "voided",
-            )
-        )
-        return list(
-            (
-                await self.session.scalars(
-                    select(Order.order_no)
-                    .where(
-                        Order.payment_status.in_({"paid", "partially_refunded"}),
-                        Order.order_status == "pending_shipment",
-                        Order.fulfillment_status == "unfulfilled",
-                        Order.after_sale_status != "in_progress",
-                        ~active_shipment_exists,
-                    )
-                    .order_by(Order.paid_at, Order.id)
                     .limit(limit)
                 )
             ).all()

@@ -8,7 +8,7 @@ from app.bootstrap.default_knowledge import (
 def test_platform_knowledge_sources_are_packaged_and_stable() -> None:
     sources = _platform_sources()
 
-    assert len(sources) == 4
+    assert len(sources) == 5
     assert {item.scope_type for item in sources} == {"platform"}
     assert {item.scope_no for item in sources} == {"platform"}
     assert all(item.title.startswith("[系统] ") for item in sources)

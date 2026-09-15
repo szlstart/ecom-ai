@@ -45,6 +45,7 @@ class FileVariantView(StrictRequest):
     variant: str
     status: str
     scan_status: str
+    ocr_status: str
     content_type: str
     size_bytes: int
     width: int | None
@@ -75,3 +76,8 @@ class FileMetadataView(FileVariantView):
     owner_type: str
     owner_id: str
     visibility: str
+    ocr_text: str | None = None
+    ocr_engine: str | None = None
+    ocr_language: str | None = None
+    ocr_processed_at: datetime | None = None
+    ocr_error_code: str | None = None

@@ -18,21 +18,24 @@ import {
   resolveSupportTicket,
   sendSupportOrderCard,
   sendSupportProductCard,
+  sendAdminAiAsset,
   sendAdminAiMessageResilient,
   sendSupportMessageResilient,
   type SupportConversation,
   type SupportWorkspace,
 } from '@/api/admin-support'
 import { errorMessage, messageSendError, resolveApiAssetUrl } from '@/api/http'
-import { createClientMessageId, type ChatMessage } from '@/api/messaging'
+import { createClientMessageId, type AgentAssetMessageInput, type ChatMessage } from '@/api/messaging'
 import { liveTraceFromEvent, RealtimeConnection, updateLiveTrace, type AgentLiveTrace, type RealtimeEvent, type RealtimeState } from '@/api/realtime'
 import { useAdminAuthStore } from '@/stores/admin-auth'
 import AgentTracePanel from '@/components/messaging/AgentTracePanel.vue'
+import AgentAssetPicker from '@/components/messaging/AgentAssetPicker.vue'
 import ChatMessageContent from '@/components/messaging/ChatMessageContent.vue'
 import MessageAttachmentPicker, { type MessagePickerOrder, type MessagePickerProduct } from '@/components/messaging/MessageAttachmentPicker.vue'
 import { confirmAction } from '@/composables/confirmation'
 import { adminGet, requireAdminToken, type AdminProductSummary } from '@/api/admin-catalog'
 import { listAdminOrders, type AdminOrderSummary } from '@/api/orders'
+import { decideAdminAgentToolApproval } from '@/api/agent-runtime'
 
 const emit = defineEmits<{ 'unread-change': [count: number] }>()
 const auth = useAdminAuthStore()
@@ -60,6 +63,7 @@ const liveTrace = ref<AgentLiveTrace | null>(null)
 const openMenuKey = ref('')
 const streamingReply = ref<{ runId: string; text: string; chunkIndex: number } | null>(null)
 const attachmentOpen = ref(false)
+const assetPickerOpen = ref(false)
 const attachmentLoading = ref(false)
 const attachmentSendingId = ref<string | null>(null)
 const attachmentProducts = ref<MessagePickerProduct[]>([])
@@ -86,7 +90,32 @@ const userReplyTemplates = ['您好，我已接入本次平台服务，请告诉
 const merchantReplyTemplates = ['您好，我已接入本次商家平台服务，请说明需要平台协助的事项。', '我正在核对店铺、商品和订单状态，请稍等。', '为了继续处理，请补充涉及的商品、订单或审核信息。']
 
 function token(): string { if (!auth.accessToken) throw new Error('管理会话不可用'); return auth.accessToken }
+async function decideOperationApproval(
+  approvalId: string,
+  decision: 'approve' | 'reject',
+  version: number,
+) {
+  await decideAdminAgentToolApproval(approvalId, decision, version, token())
+  window.setTimeout(() => { void refreshActiveMessages() }, 350)
+}
 function dateTime(value: string): string { return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
+function ticketStatusLabel(value: SupportConversation['active_ticket_status']): string {
+  return ({
+    queued: '等待人工接待',
+    assigned: '已分配待接入',
+    active: '人工处理中',
+    waiting_user: '等待对方回复',
+    resolved: '人工服务已结束',
+    closed: '会话已关闭',
+  } as Record<string, string>)[value || ''] || '状态同步中'
+}
+function conversationStatusLabel(item: SupportConversation): string {
+  if (!item.requires_human) return item.participant_type === 'merchant' ? 'AI 经营助理接待中' : 'AI 接待中'
+  return ticketStatusLabel(item.active_ticket_status)
+}
+function ticketPriorityLabel(value: SupportWorkspace['ticket']['priority'] | undefined): string {
+  return ({ low: '低', normal: '普通', high: '高', urgent: '紧急' } as Record<string, string>)[value || ''] || '普通'
+}
 function traceRunId(message: ChatMessage): string | null {
   const trace = message.content?.execution_trace
   const value = trace && typeof trace === 'object' && !Array.isArray(trace)
@@ -193,7 +222,18 @@ async function refreshActiveMessages() {
       ? (await listAdminAiMessages(token(), { afterSequence })).data
       : (await listSupportMessages(current!.conversation_id, token(), { afterSequence })).data
     if (selected.value !== activeKey) return
-    appendUnique(target, page.items)
+    const known = new Set(target.map((item) => item.message_id))
+    const incoming = page.items.filter((item) => !known.has(item.message_id))
+    appendUnique(target, incoming)
+    const persistedAgentReply = [...incoming]
+      .reverse()
+      .find((item) => item.sender_type === 'agent' && traceRunId(item) === streamingReply.value?.runId)
+    if (persistedAgentReply) {
+      selectedTraceRunId.value = traceRunId(persistedAgentReply)
+      streamingReply.value = null
+      liveTrace.value = null
+      traceRunning.value = false
+    }
     error.value = ''
     if (shouldScroll) await scrollBottom()
   } catch (cause) { error.value = errorMessage(cause) }
@@ -236,6 +276,11 @@ function handleRealtime(event: RealtimeEvent) {
     if (message?.content?.run_id && message.content.run_id === streamingReply.value?.runId) {
       streamingReply.value = null
       liveTrace.value = null
+      // A persisted approval card is the terminal response of the preview
+      // phase.  There is no agent.response.completed event until the human
+      // decides, so stop the live trace and render its waiting-confirmation
+      // snapshot instead of leaving the rail stuck on "思考中".
+      traceRunning.value = false
     }
   }
   if (['message.created', 'unread.updated', 'support.ticket.updated'].includes(event.type)) scheduleRefresh()
@@ -266,6 +311,24 @@ async function send() {
     }
     await scrollBottom()
   } catch (cause) { reply.value = text; error.value = messageSendError(cause) }
+  finally { busy.value = false }
+}
+async function submitCardPrompt(value: string) {
+  if (selected.value !== 'ai' || busy.value || !value.trim()) return
+  reply.value = value.trim()
+  await nextTick()
+  await send()
+}
+
+async function sendAgentAsset(input: AgentAssetMessageInput) {
+  if (selected.value !== 'ai' || busy.value) return
+  busy.value = true
+  error.value = ''
+  try {
+    aiMessages.value.push((await sendAdminAiAsset(input, token())).data)
+    assetPickerOpen.value = false
+    await scrollBottom()
+  } catch (cause) { error.value = messageSendError(cause) }
   finally { busy.value = false }
 }
 
@@ -430,8 +493,8 @@ onBeforeUnmount(() => {
         <label class="admin-chat-search"><span>⌕</span><input v-model="search" placeholder="搜索会话" /></label>
         <div class="admin-chat-list">
           <div class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = 'ai'"><button class="admin-chat-item ai" :class="{ active: selected === 'ai' }" @click.stop="selectAi"><span class="admin-chat-avatar ai"><img src="/ai-avatar.svg" alt="" /></span><span><strong>AI 管家</strong><small>只读诊断助手 · 固定置顶</small></span><time>置顶</time></button><div v-if="openMenuKey === 'ai'" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry('ai', 'AI 管家')">删除对话</button></div></div>
-          <section class="admin-chat-group"><button class="admin-chat-group-title" @click="userGroupOpen = !userGroupOpen"><span>{{ userGroupOpen ? '⌄' : '›' }} 用户消息</span><b>{{ userConversations.length }}<i v-if="userUnread">{{ userUnread > 99 ? '99+' : userUnread }}</i></b></button><template v-if="userGroupOpen"><div v-for="item in userConversations" :key="item.conversation_id" class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = item.conversation_id"><button class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click.stop="selectConversation(item)"><span class="admin-chat-avatar"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? '等待人工接待' : 'AI 接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><div v-if="openMenuKey === item.conversation_id" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry(item.conversation_id, item.participant_name)">删除对话</button></div></div><p v-if="!userConversations.length">暂无用户会话</p></template></section>
-          <section class="admin-chat-group"><button class="admin-chat-group-title" @click="storeGroupOpen = !storeGroupOpen"><span>{{ storeGroupOpen ? '⌄' : '›' }} 店铺消息</span><b>{{ storeConversations.length }}<i v-if="storeUnread">{{ storeUnread > 99 ? '99+' : storeUnread }}</i></b></button><template v-if="storeGroupOpen"><div v-for="item in storeConversations" :key="item.conversation_id" class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = item.conversation_id"><button class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click.stop="selectConversation(item)"><span class="admin-chat-avatar store"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) || '店' }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ item.requires_human ? '等待平台人工接待' : 'AI 经营助理接待中' }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><div v-if="openMenuKey === item.conversation_id" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry(item.conversation_id, item.participant_name)">删除对话</button></div></div><p v-if="!storeConversations.length">暂无店铺会话</p></template></section>
+          <section class="admin-chat-group"><button class="admin-chat-group-title" @click="userGroupOpen = !userGroupOpen"><span>{{ userGroupOpen ? '⌄' : '›' }} 用户消息</span><b>{{ userConversations.length }}<i v-if="userUnread">{{ userUnread > 99 ? '99+' : userUnread }}</i></b></button><template v-if="userGroupOpen"><div v-for="item in userConversations" :key="item.conversation_id" class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = item.conversation_id"><button class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click.stop="selectConversation(item)"><span class="admin-chat-avatar"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ conversationStatusLabel(item) }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><div v-if="openMenuKey === item.conversation_id" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry(item.conversation_id, item.participant_name)">删除对话</button></div></div><p v-if="!userConversations.length">暂无用户会话</p></template></section>
+          <section class="admin-chat-group"><button class="admin-chat-group-title" @click="storeGroupOpen = !storeGroupOpen"><span>{{ storeGroupOpen ? '⌄' : '›' }} 店铺消息</span><b>{{ storeConversations.length }}<i v-if="storeUnread">{{ storeUnread > 99 ? '99+' : storeUnread }}</i></b></button><template v-if="storeGroupOpen"><div v-for="item in storeConversations" :key="item.conversation_id" class="message-conversation-entry" @contextmenu.prevent.stop="openMenuKey = item.conversation_id"><button class="admin-chat-item" :class="{ active: selected === item.conversation_id }" @click.stop="selectConversation(item)"><span class="admin-chat-avatar store"><img v-if="item.participant_avatar_url" :src="resolveApiAssetUrl(item.participant_avatar_url) || undefined" alt="" /><template v-else>{{ item.participant_name.slice(0, 1) || '店' }}</template></span><span><strong>{{ item.participant_name }}</strong><small>{{ conversationStatusLabel(item) }} · {{ item.last_message_preview || '新会话' }}</small></span><b v-if="item.unread_count" :class="{ neutral: !item.requires_human }">{{ item.unread_count }}</b><time>{{ item.last_message_at ? dateTime(item.last_message_at) : '' }}</time></button><div v-if="openMenuKey === item.conversation_id" class="message-conversation-menu" role="menu" @click.stop><button type="button" role="menuitem" @click="deleteConversationEntry(item.conversation_id, item.participant_name)">删除对话</button></div></div><p v-if="!storeConversations.length">暂无店铺会话</p></template></section>
         </div>
       </aside>
 
@@ -441,13 +504,13 @@ onBeforeUnmount(() => {
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取 AI 会话…</div>
           <section v-else class="admin-chat-conversation admin-ai-chat">
-            <div ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-if="!aiMessages.length" class="admin-ai-welcome"><span class="admin-chat-bubble-avatar"><img src="/ai-avatar.svg" alt="" /></span><div><p>你好，我是 AI 管家。用户、店铺、商品、订单和运行状态都可以问我。今天想先查看哪一部分？</p></div></article><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user', 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(message) || selectedTraceRunId"><span class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'user' ? '管理员' : 'AI 管家'"><template v-if="message.sender_type === 'user'">{{ initials }}</template><img v-else src="/ai-avatar.svg" alt="" /></span><div><ChatMessageContent :message="message" audience="admin" /><time>{{ dateTime(message.sent_at) }}</time></div></article><article v-if="streamingReply"><span class="admin-chat-bubble-avatar"><img src="/ai-avatar.svg" alt="" /></span><div class="agent-stream" aria-live="polite"><p v-if="streamingReply.text">{{ streamingReply.text }}</p><p v-else class="agent-thinking-indicator">正在思考<span>·</span><span>·</span><span>·</span></p><time>正在生成回复…</time></div></article></div>
-            <div class="message-quick-actions" aria-label="AI 管家快捷指令"><button v-for="item in aiPrompts" :key="item" type="button" :disabled="busy" @click="useQuickText(item, true)">{{ item }}</button></div><form class="admin-chat-composer" @submit.prevent="send"><textarea v-model="reply" maxlength="4000" placeholder="询问平台概况、用户、店铺、订单或 Agent 运行状态…" @keydown.enter.exact.prevent="send" /><div><span>默认只读 · 右侧同步展示可核验分析</span><button :disabled="!reply.trim() || busy">{{ busy ? '发送中…' : '发送' }}</button></div></form>
+            <div ref="timeline" class="admin-chat-timeline"><button v-if="aiPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-if="!aiMessages.length" class="admin-ai-welcome"><span class="admin-chat-bubble-avatar"><img src="/ai-avatar.svg" alt="" /></span><div><p>你好，我是 AI 管家。用户、店铺、商品、订单和运行状态都可以问我。今天想先查看哪一部分？</p></div></article><article v-for="message in aiMessages" :key="message.message_id" :class="{ mine: message.sender_type === 'user', 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }" @click="selectedTraceRunId = traceRunId(message) || selectedTraceRunId"><span class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'user' ? '管理员' : 'AI 管家'"><template v-if="message.sender_type === 'user'">{{ initials }}</template><img v-else src="/ai-avatar.svg" alt="" /></span><div :data-sequence="message.sequence_no" :data-message-id="message.message_id"><ChatMessageContent :message="message" audience="admin" :approval-decision="decideOperationApproval" @prompt="submitCardPrompt" /><time>{{ dateTime(message.sent_at) }}</time></div></article><article v-if="streamingReply"><span class="admin-chat-bubble-avatar"><img src="/ai-avatar.svg" alt="" /></span><div class="agent-stream" aria-live="polite"><p v-if="streamingReply.text">{{ streamingReply.text }}</p><p v-else class="agent-thinking-indicator">正在思考<span>·</span><span>·</span><span>·</span></p><time>正在生成回复…</time></div></article></div>
+            <div class="message-quick-actions" aria-label="AI 管家快捷指令"><button v-for="item in aiPrompts" :key="item" type="button" :disabled="busy" @click="useQuickText(item, true)">{{ item }}</button></div><form class="admin-chat-composer admin-ai-composer" @submit.prevent="send"><button type="button" class="message-plus-button" :disabled="busy" aria-label="给 AI 管家上传图片" title="上传店铺 Logo 或款式图片并交给 Agent 核对" @click="assetPickerOpen = true">＋</button><textarea v-model="reply" maxlength="4000" placeholder="询问平台概况、用户、店铺、订单或 Agent 运行状态…" @keydown.enter.exact.prevent="send" /><div><span>默认只读 · 写操作均需核对确认卡</span><button type="button" :disabled="!reply.trim() || busy" @click="send">{{ busy ? '发送中…' : '发送' }}</button></div></form>
           </section>
         </template>
 
         <template v-else>
-          <header class="admin-chat-header"><div><strong>{{ selectedConversation?.participant_type === 'merchant' ? '商家平台服务' : '用户专属客服' }} · {{ selectedConversation?.participant_name }}</strong><small>{{ selectedConversation?.requires_human ? `平台人工接待 · ${selectedTicket?.ticket_status || '同步中'}` : selectedConversation?.participant_type === 'merchant' ? 'AI 经营助理正在接待 · 完整历史已同步' : '专属客服 AI 正在接待 · 完整历史已同步' }}</small></div><div class="actions"><button v-if="canChat" class="secondary small" :disabled="busy" @click="finishHumanService">结束人工服务</button><button class="secondary small" type="button" :disabled="busy" @click="clearHistory">清除记录</button><RouterLink v-if="selectedTicket" :to="`/admin/support/tickets/${selectedTicket.ticket_id}`">完整工作台 ↗</RouterLink></div></header>
+          <header class="admin-chat-header"><div><strong>{{ selectedConversation?.participant_type === 'merchant' ? '商家平台服务' : '用户专属客服' }} · {{ selectedConversation?.participant_name }}</strong><small>{{ selectedConversation?.requires_human ? `平台人工接待 · ${ticketStatusLabel(selectedTicket?.ticket_status || selectedConversation.active_ticket_status)}` : selectedConversation?.participant_type === 'merchant' ? 'AI 经营助理正在接待 · 完整历史已同步' : '专属客服 AI 正在接待 · 完整历史已同步' }}</small></div><div class="actions"><button v-if="canChat" class="secondary small" :disabled="busy" @click="finishHumanService">结束人工服务</button><button class="secondary small" type="button" :disabled="busy" @click="clearHistory">清除记录</button><RouterLink v-if="selectedTicket" :to="`/admin/support/tickets/${selectedTicket.ticket_id}`">完整工作台 ↗</RouterLink></div></header>
           <p v-if="error" class="alert error">{{ error }}</p>
           <div v-if="loading" class="admin-chat-loading">正在读取会话…</div>
           <section
@@ -457,7 +520,7 @@ onBeforeUnmount(() => {
           >
             <div v-if="selectedConversation.requires_human && !assignedToMe" class="admin-chat-claim compact"><span>◍</span><div><h2>{{ selectedTicket?.ticket_status === 'queued' ? '对方正在等待人工接待' : '会话由其他客服处理' }}</h2><p>历史消息可查看；领取后才可人工回复，避免多人同时处理。</p></div><button v-if="selectedTicket?.ticket_status === 'queued' && auth.has('support:claim')" :disabled="busy" @click="claim">领取会话</button></div>
             <div ref="timeline" class="admin-chat-timeline"><button v-if="supportPreviousCursor" type="button" class="message-history-button" :disabled="loadingEarlier" @click="loadEarlier">{{ loadingEarlier ? '正在读取更早消息…' : '加载更早消息' }}</button><article v-for="message in messages" :key="message.message_id" :class="{ mine: ['human','agent'].includes(message.sender_type), system: message.sender_type === 'system' }"><span v-if="message.sender_type !== 'system'" class="admin-chat-bubble-avatar" :aria-label="message.sender_type === 'human' ? '平台客服' : message.sender_type === 'agent' ? selectedConversation.participant_type === 'merchant' ? 'AI 经营助理' : '专属客服 AI' : selectedConversation.participant_type === 'merchant' ? '店铺' : '用户'"><img v-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" /><img v-else-if="message.sender_type === 'user' && selectedConversation.participant_avatar_url" :src="resolveApiAssetUrl(selectedConversation.participant_avatar_url) || undefined" alt="" /><template v-else>{{ message.sender_type === 'human' ? initials : selectedConversation.participant_name.slice(0, 1) }}</template></span><div><ChatMessageContent :message="message" audience="admin" /><time v-if="message.sender_type !== 'system'">{{ dateTime(message.sent_at) }}</time></div></article><article v-if="streamingReply" class="mine"><span class="admin-chat-bubble-avatar"><img src="/ai-avatar.svg" alt="" /></span><div class="agent-stream" aria-live="polite"><p v-if="streamingReply.text">{{ streamingReply.text }}</p><p v-else class="agent-thinking-indicator">正在思考<span>·</span><span>·</span><span>·</span></p><time>正在生成回复…</time></div></article><p v-if="!messages.length && !streamingReply" class="empty-state">暂无聊天消息</p></div>
-            <div class="message-quick-actions" aria-label="人工服务快捷回复"><button v-for="item in selectedConversation.participant_type === 'merchant' ? merchantReplyTemplates : userReplyTemplates" :key="item" type="button" :disabled="busy || !canChat" @click="useQuickText(item, false)">{{ item }}</button></div><form class="admin-chat-composer operator-composer" @submit.prevent="send"><button v-if="selectedConversation.participant_type === 'user'" class="message-plus-button" type="button" :disabled="!canChat" aria-label="发送商品或订单" @click="openAttachments">＋</button><textarea v-model="reply" maxlength="4000" :disabled="!canChat" :placeholder="canChat ? '输入人工回复…' : selectedConversation.requires_human ? '领取后可回复' : 'AI 正在接待；需要转人工时会进入人工队列'" /><div><span>{{ canChat ? '回复会立即同步给对方，并写入 AI 上下文' : 'AI 与人工消息共用同一条会话历史' }}</span><button :disabled="!canChat || !reply.trim() || busy">发送</button></div></form>
+            <div class="message-quick-actions" aria-label="人工服务快捷回复"><button v-for="item in selectedConversation.participant_type === 'merchant' ? merchantReplyTemplates : userReplyTemplates" :key="item" type="button" :disabled="busy || !canChat" @click="useQuickText(item, false)">{{ item }}</button></div><form class="admin-chat-composer operator-composer" @submit.prevent="send"><button v-if="selectedConversation.participant_type === 'user'" class="message-plus-button" type="button" :disabled="!canChat" aria-label="发送商品或订单" @click="openAttachments">＋</button><textarea v-model="reply" maxlength="4000" :disabled="!canChat" :placeholder="canChat ? '输入人工回复…' : selectedConversation.requires_human ? '领取后可回复' : 'AI 正在接待；需要转人工时会进入人工队列'" /><div><span>{{ canChat ? '回复会立即同步给对方，并写入 AI 上下文' : 'AI 与人工消息共用同一条会话历史' }}</span><button type="button" :disabled="!canChat || !reply.trim() || busy" @click="send">发送</button></div></form>
           </section>
         </template>
       </main>
@@ -466,7 +529,7 @@ onBeforeUnmount(() => {
         <header><div><small>当前服务对象</small><strong>{{ selectedConversation?.participant_name || '尚未选择会话' }}</strong></div><span :class="selectedConversation?.requires_human ? 'active' : ''">{{ selectedConversation?.requires_human ? '人工处理中' : 'AI 接待中' }}</span></header>
         <template v-if="selectedConversation">
           <section class="operator-profile-card"><span class="admin-chat-avatar" :class="{ store: selectedConversation.participant_type === 'merchant' }"><img v-if="selectedConversation.participant_avatar_url" :src="resolveApiAssetUrl(selectedConversation.participant_avatar_url) || undefined" alt="" /><template v-else>{{ selectedConversation.participant_name.slice(0, 1) }}</template></span><div><strong>{{ selectedConversation.participant_type === 'merchant' ? '店铺运营人员' : '商城用户' }}</strong><small>{{ selectedConversation.participant_type === 'merchant' ? '平台商家服务' : '平台用户服务' }}</small></div><RouterLink :to="selectedConversation.participant_type === 'merchant' ? '/admin/stores' : `/admin/users/${encodeURIComponent(selectedConversation.participant_id)}`">查看资料 ›</RouterLink></section>
-          <section class="operator-ticket-card"><h3>本次服务</h3><dl><div><dt>接待状态</dt><dd>{{ selectedTicket ? selectedTicket.ticket_status : 'AI 接待中' }}</dd></div><div><dt>优先级</dt><dd>{{ selectedTicket?.priority || '普通' }}</dd></div><div><dt>问题摘要</dt><dd>{{ selectedTicket?.handoff_summary || selectedConversation.last_message_preview || '等待对方说明' }}</dd></div></dl></section>
+          <section class="operator-ticket-card"><h3>本次服务</h3><dl><div><dt>接待状态</dt><dd>{{ selectedTicket ? ticketStatusLabel(selectedTicket.ticket_status) : 'AI 接待中' }}</dd></div><div><dt>优先级</dt><dd>{{ ticketPriorityLabel(selectedTicket?.priority) }}</dd></div><div><dt>问题摘要</dt><dd>{{ selectedTicket?.handoff_summary || selectedConversation.last_message_preview || '等待对方说明' }}</dd></div></dl></section>
           <section class="operator-context-card"><h3>相关业务</h3><template v-if="workspace?.business_contexts.length"><component :is="businessContextRoute(item.context_type, item.resource_id) ? RouterLink : 'span'" v-for="item in workspace.business_contexts" :key="item.context_id" :to="businessContextRoute(item.context_type, item.resource_id) || undefined"><b>{{ businessContextLabel(item.context_type) }}</b><small>{{ item.resource_id }}</small><i>›</i></component></template><p v-else>当前没有绑定商品、订单或售后对象，可让对方发送对应卡片。</p></section>
           <nav class="operator-action-links"><RouterLink v-if="selectedConversation.participant_type === 'user'" :to="`/admin/users/${encodeURIComponent(selectedConversation.participant_id)}`">用户资料</RouterLink><RouterLink v-if="selectedConversation.participant_type === 'user'" :to="{ path: '/admin/orders', query: { q: selectedConversation.participant_id } }">用户订单</RouterLink><RouterLink v-if="selectedConversation.participant_type === 'merchant'" to="/admin/stores">店铺治理</RouterLink><RouterLink v-if="selectedConversation.participant_type === 'merchant'" to="/admin/orders">店铺订单</RouterLink></nav>
         </template>
@@ -474,5 +537,6 @@ onBeforeUnmount(() => {
       </aside>
     </section>
     <MessageAttachmentPicker :open="attachmentOpen" :loading="attachmentLoading" :products="attachmentProducts" :orders="attachmentOrders" :sending-id="attachmentSendingId" title="发送给当前用户" product-title="可发送商品" order-title="该用户的订单" @close="attachmentOpen = false" @product="sendPickedProduct" @order="sendPickedOrder" />
+    <AgentAssetPicker :open="assetPickerOpen" audience="admin" :access-token="token()" :busy="busy" @close="assetPickerOpen = false" @submit="sendAgentAsset" />
   </div>
 </template>

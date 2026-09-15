@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   adminUpdate: vi.fn(),
   getCategories: vi.fn(),
   listAdminReviews: vi.fn(),
+  apiRequest: vi.fn(),
   pastedFile: null as File | null,
   uploadBarrier: null as Promise<void> | null,
   persistedImages: [] as Array<Record<string, unknown>>,
@@ -36,6 +37,10 @@ vi.mock('@/api/catalog', async (importOriginal) => ({
 vi.mock('@/api/admin-reviews', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/api/admin-reviews')>(),
   listAdminReviews: mocks.listAdminReviews,
+}))
+vi.mock('@/api/http', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/api/http')>(),
+  apiRequest: mocks.apiRequest,
 }))
 
 const product = {
@@ -69,13 +74,20 @@ const inventory = {
 const uploadedFileId = 'file_01ARZ3NDEKTSV4RRFFQ69G5FAV'
 
 const FileUploadStub = defineComponent({
+  props: { purpose: { type: String, default: 'product' } },
   emits: ['uploaded'],
-  setup(_props, { emit, expose }) {
+  setup(props, { emit, expose }) {
     expose({
       async uploadFile(file: File) {
         mocks.pastedFile = file
         if (mocks.uploadBarrier) await mocks.uploadBarrier
-        emit('uploaded', uploadedFileId)
+        emit(
+          'uploaded',
+          uploadedFileId,
+          props.purpose === 'product_detail'
+            ? { ocr_status: 'completed', ocr_text: '图片识别：棉 95%，冷水手洗', ocr_error_code: null }
+            : undefined,
+        )
       },
     })
     return () => h('div', { class: 'file-upload-stub' }, '从本地选择图片')
@@ -135,6 +147,7 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     })
     mocks.getCategories.mockResolvedValue({ data: [] })
     mocks.listAdminReviews.mockResolvedValue({ data: { items: [], next_cursor: null } })
+    mocks.apiRequest.mockResolvedValue({ data: { ocr_status: 'completed', ocr_text: '历史图片识别文字', ocr_error_code: null } })
     mocks.adminGet.mockImplementation(async (path: string) => {
       if (path === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
       if (path === '/admin/stores/sto_test') return { data: store }
@@ -245,7 +258,7 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
 
     const addText = wrapper.findAll('button').find((button) => button.text().includes('添加文字'))
     await addText!.trigger('click')
-    const textareas = wrapper.findAll<HTMLTextAreaElement>('.merchant-detail-block textarea')
+    const textareas = wrapper.findAll<HTMLTextAreaElement>('.merchant-detail-block.is-paragraph textarea')
     await textareas[1]!.setValue('第二段文字')
     const finishDraft = wrapper.findAll('button').find((button) => button.text() === '暂存为草稿')
     await finishDraft!.trigger('click')
@@ -255,7 +268,7 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     expect(detailCall?.[1]).toMatchObject({ source_format: 'structured' })
     expect(JSON.parse(detailCall?.[1].source_content as string)).toEqual([
       { type: 'paragraph', text: '第一段文字' },
-      { type: 'image', file_id: uploadedFileId, alt: '剪贴板测试商品' },
+      { type: 'image', file_id: uploadedFileId, alt: '剪贴板测试商品', description: '图片识别：棉 95%，冷水手洗' },
       { type: 'paragraph', text: '第二段文字' },
     ])
   })
@@ -309,8 +322,44 @@ describe('MerchantProductEditorPage clipboard image upload', () => {
     expect(wrapper.findAll('.merchant-detail-block').map((block) => block.classes().find((name) => name.startsWith('is-')))).toEqual([
       'is-paragraph', 'is-image', 'is-paragraph',
     ])
-    expect(wrapper.findAll<HTMLTextAreaElement>('.merchant-detail-block textarea').map((field) => field.element.value)).toEqual(['上方文字', '下方文字'])
+    expect(wrapper.findAll<HTMLTextAreaElement>('.merchant-detail-block.is-paragraph textarea').map((field) => field.element.value)).toEqual(['上方文字', '下方文字'])
     expect(wrapper.get('.merchant-detail-block.is-image img').attributes('src')).toContain(uploadedFileId)
+    expect(wrapper.get<HTMLTextAreaElement>('.merchant-detail-block.is-image textarea').element.value).toBe('历史图片识别文字')
+  })
+
+  it('does not recreate unchanged detail content when saving an unrelated field', async () => {
+    mocks.adminGet.mockImplementation(async (requestPath: string) => {
+      if (requestPath === '/admin/stores?limit=20') return { data: { items: [store], next_cursor: null } }
+      if (requestPath === '/admin/products/prd_test') return { data: { ...product, current_detail_content_version_id: 'pcv_test' } }
+      if (requestPath.endsWith('/detail-content-versions/pcv_test')) return { data: {
+        version_id: 'pcv_test', content_version: 1, source_format: 'structured',
+        source_content: JSON.stringify([
+          { type: 'paragraph', text: '已经保存的详情' },
+          { type: 'image', file_id: uploadedFileId, alt: '详情图', description: '历史图片识别文字' },
+        ]),
+        public_content_format: 'structured_v1', safe_blocks: [], safe_html: null,
+        safe_text: '已经保存的详情', security_scan_status: 'passed', status: 'draft', created_at: '2026-08-27T00:00:00Z',
+      } }
+      if (requestPath.endsWith('/skus')) return { data: [sku] }
+      if (requestPath.endsWith('/images') || requestPath.endsWith('/attributes') || requestPath.endsWith('/faqs')) return { data: [] }
+      if (requestPath.startsWith('/admin/inventories?')) return { data: { items: [inventory] } }
+      if (requestPath.endsWith('/fulfillment-profile')) return { data: null }
+      if (requestPath.endsWith('/shipping-templates')) return { data: [] }
+      throw new Error(`unexpected path: ${requestPath}`)
+    })
+    const wrapper = await mountPage()
+    await wrapper.get<HTMLInputElement>('.merchant-product-info-editor input').setValue('只修改商品名称')
+    const finishDraft = wrapper.findAll('button').find((button) => button.text() === '暂存为草稿')
+    await finishDraft!.trigger('click')
+    await flushPromises()
+
+    expect(mocks.adminCreate.mock.calls.filter(([requestPath]) => requestPath.endsWith('/detail-content-versions'))).toHaveLength(0)
+    expect(mocks.adminUpdate).toHaveBeenCalledWith(
+      '/admin/products/prd_test',
+      expect.objectContaining({ product_name: '只修改商品名称' }),
+      'merchant-token',
+      1,
+    )
   })
 
   it('shows only the direct style fields and keeps stock beside its style', async () => {

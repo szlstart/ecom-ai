@@ -354,6 +354,29 @@ class ProductContentVersion(MutableMySQLModel, MySQLBase):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=False))
 
 
+class ProductContentVersionFile(MutableMySQLModel, MySQLBase):
+    """Keep embedded detail images visible to file lifecycle reconciliation."""
+
+    __tablename__ = "product_content_version_files"
+    __table_args__ = (
+        UniqueConstraint(
+            "content_version_id", "file_id", name="uk_product_content_version_files_version_file"
+        ),
+        Index("idx_product_content_version_files_file", "file_id", "content_version_id"),
+    )
+
+    content_version_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True),
+        ForeignKey("product_content_versions.id", name="fk_pcv_files_version"),
+        nullable=False,
+    )
+    file_id: Mapped[int] = mapped_column(
+        BIGINT(unsigned=True),
+        ForeignKey("file_objects.id", name="fk_pcv_files_file"),
+        nullable=False,
+    )
+
+
 class ProductFaqVersion(MutableMySQLModel, MySQLBase):
     __tablename__ = "product_faq_versions"
     __table_args__ = (

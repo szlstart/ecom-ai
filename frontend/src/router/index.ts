@@ -155,6 +155,7 @@ const router = createRouter({
 })
 router.beforeEach(async (to) => {
   if (to.path === '/merchant' || to.path === '/merchant/') {
+    if (to.query.switch === '1') return true
     const auth = useAdminAuthStore()
     if (auth.isAuthenticatedFor('merchant') || await auth.refresh('merchant')) return { path: '/merchant/products' }
     return true

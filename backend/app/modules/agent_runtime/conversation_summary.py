@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, utc_now
 from app.modules.agent_runtime.context_window import (
+    MAX_CONTEXT_CHARACTERS,
     MAX_RECENT_MESSAGES,
     ContextWindow,
     _role,
@@ -19,8 +20,8 @@ from app.modules.agent_runtime.context_window import (
 )
 from app.modules.messaging.models import Conversation, Message
 
-SUMMARY_PROMPT_VERSION = "deterministic-dossier-v2"
-SUMMARY_MODEL_NAME = "deterministic-safe-dossier-v2"
+SUMMARY_PROMPT_VERSION = "deterministic-dossier-v3"
+SUMMARY_MODEL_NAME = "deterministic-safe-dossier-v3"
 SUMMARY_EXPIRY_DAYS = 90
 MIN_NEW_MESSAGES = 8
 MAX_NEW_MESSAGES = 50
@@ -56,6 +57,7 @@ class ConversationSummaryRuntime:
         *,
         user_no: str,
         store_no: str | None,
+        context_pressure: bool = False,
     ) -> RollingConversationSummary | None:
         if trigger.sequence_no <= MAX_RECENT_MESSAGES + 1:
             return None
@@ -129,7 +131,8 @@ class ConversationSummaryRuntime:
             for message in messages
             if (safe_text := _safe_dialogue_text(message.text_content or ""))
         ]
-        if len(turns) < MIN_NEW_MESSAGES:
+        minimum_new_messages = 4 if context_pressure else MIN_NEW_MESSAGES
+        if len(turns) < minimum_new_messages:
             await self.postgres.commit()
             return (
                 RollingConversationSummary(
@@ -284,6 +287,10 @@ async def attach_rolling_summary(
             trigger,
             user_no=user_no,
             store_no=store_no,
+            context_pressure=(
+                window.omitted_count > 0
+                or window.character_count >= int(MAX_CONTEXT_CHARACTERS * 0.65)
+            ),
         )
     except Exception:
         await postgres.rollback()
@@ -301,6 +308,10 @@ def _compact_summary(previous: str, new_lines: list[str]) -> str:
     """Rewrite previous and new turns into a bounded e-commerce continuity dossier."""
 
     dossier = _load_previous_dossier(previous)
+    generation_value = dossier.get("summary_generation")
+    dossier["summary_generation"] = (
+        generation_value + 1 if isinstance(generation_value, int) else 1
+    )
     for line in new_lines:
         role, _, text_value = line.partition(":")
         value = text_value.strip()
@@ -310,6 +321,9 @@ def _compact_summary(previous: str, new_lines: list[str]) -> str:
         if role == "用户":
             if not _is_small_reply(value):
                 dossier["current_goal"] = value
+                _append_unique(dossier["active_goals"], value, 6)
+            if _contains_any(value, "不是这个", "不是刚才", "我说的是", "更正", "改成"):
+                _append_unique(dossier["explicit_corrections"], value, 6)
             if _contains_any(
                 value,
                 "预算",
@@ -329,10 +343,12 @@ def _compact_summary(previous: str, new_lines: list[str]) -> str:
         else:
             if _contains_any(value, "已经", "已为", "已读取", "查到", "确认了", "创建了", "提交了"):
                 _append_unique(dossier["completed_actions"], value, 8)
+                _append_unique(dossier["resolved_tasks"], value, 8)
             if _contains_any(value, "我会", "我来", "可以继续", "接下来", "帮你", "为你查询"):
                 _append_unique(dossier["commitments"], value, 8)
             if _looks_like_open_question(value):
                 _append_unique(dossier["unresolved_questions"], value, 8)
+                _append_unique(dossier["open_tasks"], value, 8)
         for resource in re.findall(r"\b(?:prd|sku|ord|ref|shp|sto)_[A-Za-z0-9]{6,40}\b", value):
             _append_unique(dossier["resource_mentions"], resource, 8)
     return _bounded_dossier_json(dossier)
@@ -340,28 +356,51 @@ def _compact_summary(previous: str, new_lines: list[str]) -> str:
 
 def _load_previous_dossier(previous: str) -> dict[str, object]:
     empty: dict[str, object] = {
-        "schema_version": "conversation_dossier_v1",
+        "schema_version": "conversation_dossier_v2",
+        "summary_generation": 0,
         "trust_level": "untrusted_dialogue_continuity",
         "business_fact_authoritative": False,
         "current_goal": None,
+        "active_goals": [],
+        "resolved_tasks": [],
+        "open_tasks": [],
+        "explicit_corrections": [],
         "resource_mentions": [],
         "user_constraints": [],
         "completed_actions": [],
         "commitments": [],
         "unresolved_questions": [],
         "continuity_notes": [],
+        "facts_requiring_refresh": [
+            "price",
+            "inventory",
+            "cart",
+            "wallet",
+            "order",
+            "logistics",
+            "refund",
+            "favorites",
+            "address",
+        ],
+        "do_not_carry_forward": [],
     }
     try:
         parsed = json.loads(previous) if previous else {}
     except (json.JSONDecodeError, TypeError):
         parsed = {}
-    if isinstance(parsed, dict) and parsed.get("schema_version") == "conversation_dossier_v1":
+    if isinstance(parsed, dict) and parsed.get("schema_version") in {
+        "conversation_dossier_v1",
+        "conversation_dossier_v2",
+    }:
         for key in empty:
             value = parsed.get(key)
             if key == "current_goal":
                 empty[key] = value if isinstance(value, str) else None
+            elif key == "summary_generation":
+                empty[key] = value if isinstance(value, int) else 0
             elif isinstance(empty[key], list) and isinstance(value, list):
                 empty[key] = [str(item) for item in value if isinstance(item, str)][-12:]
+        empty["schema_version"] = "conversation_dossier_v2"
         return empty
     legacy_lines = [line for line in previous.splitlines() if line and not line.startswith("[")]
     empty["continuity_notes"] = legacy_lines[-12:]
@@ -386,11 +425,16 @@ def _bounded_dossier_json(dossier: dict[str, object]) -> str:
         return serialized
     for key in (
         "continuity_notes",
+        "active_goals",
+        "resolved_tasks",
+        "open_tasks",
+        "explicit_corrections",
         "completed_actions",
         "commitments",
         "unresolved_questions",
         "user_constraints",
         "resource_mentions",
+        "do_not_carry_forward",
     ):
         values = dossier.get(key)
         while (
@@ -428,7 +472,7 @@ def _is_small_reply(value: str) -> bool:
 
 
 def _looks_like_open_question(value: str) -> bool:
-    return value.rstrip().endswith(("?", "？")) or _contains_any(  # noqa: RUF001
+    return value.rstrip().endswith(("?", "？")) or _contains_any(
         value,
         "你想先",
         "你更关心",

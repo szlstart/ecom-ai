@@ -20,6 +20,10 @@ def test_user_logistics_operations_and_role_specific_dtos_are_published() -> Non
             "/api/v1/admin/shipments/{shipment_id}/refreshes",
             "post",
         ): "AdminShipment_Refresh",
+        (
+            "/api/v1/admin/shipments/{shipment_id}/simulation-events",
+            "post",
+        ): "AdminShipment_RecordSimulationEvent",
     }
     for (path, method), operation_id in expected.items():
         assert schema["paths"][path][method]["operationId"] == operation_id

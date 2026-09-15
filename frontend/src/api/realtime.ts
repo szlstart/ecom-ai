@@ -74,8 +74,10 @@ export class RealtimeConnection {
   private socket: WebSocket | null = null
   private stopped = false
   private retryTimer: number | undefined
+  private identityTimer: number | undefined
   private attempt = 0
   private connecting = false
+  private principalToken: string | null = null
   private readonly seenEventIds = new Set<string>()
   private eventQueue: Promise<void> = Promise.resolve()
 
@@ -83,30 +85,41 @@ export class RealtimeConnection {
 
   start(): void {
     this.stopped = false
+    if (!this.identityTimer) {
+      this.identityTimer = window.setInterval(() => this.checkIdentity(), 500)
+    }
     void this.connect(false)
   }
 
   stop(): void {
     this.stopped = true
     if (this.retryTimer) window.clearTimeout(this.retryTimer)
+    if (this.identityTimer) window.clearInterval(this.identityTimer)
     this.retryTimer = undefined
+    this.identityTimer = undefined
     this.socket?.close(1000, 'page closed')
     this.socket = null
+    this.principalToken = null
   }
 
   private async connect(reconnecting: boolean): Promise<void> {
     if (this.socket?.readyState === WebSocket.OPEN || this.socket?.readyState === WebSocket.CONNECTING) return
-    if (this.stopped || this.connecting || !navigator.onLine) {
-      this.options.onState(navigator.onLine ? 'polling' : 'offline')
-      return
-    }
+    if (this.stopped || this.connecting) return
     this.connecting = true
-    this.options.onState('polling')
+    // navigator.onLine is only a browser hint.  VPNs, captive portals and
+    // Playwright/WebKit network services can report `false` while the API is
+    // still reachable.  Always attempt the authenticated ticket request and
+    // let that real request decide whether realtime is unavailable.
+    this.options.onState(navigator.onLine ? 'polling' : 'offline')
     try {
       if (reconnecting) await this.options.beforeReconnect?.()
       const path = this.options.audience === 'admin' ? '/support/realtime/tickets' : '/realtime/tickets'
-      const ticket = (await apiRequest<RealtimeTicket>(path, { method: 'POST' }, this.options.token())).data
+      // Keep the socket bound to the exact credential that minted its ticket.
+      // The tab may switch accounts while this request is in flight.
+      const ticketToken = this.options.token()
+      const ticket = (await apiRequest<RealtimeTicket>(path, { method: 'POST' }, ticketToken)).data
       if (this.stopped) return
+      this.principalToken = ticketToken
       const socket = new WebSocket(resolveWebSocketUrl(ticket.websocket_path), [ticket.subprotocol, `ticket.${ticket.ticket}`])
       this.socket = socket
       socket.onopen = () => {
@@ -140,6 +153,20 @@ export class RealtimeConnection {
     } finally {
       this.connecting = false
     }
+  }
+
+  private checkIdentity(): void {
+    if (this.stopped || !this.principalToken) return
+    let currentToken: string
+    try { currentToken = this.options.token() }
+    catch { currentToken = '' }
+    if (currentToken === this.principalToken) return
+    const previousSocket = this.socket
+    this.socket = null
+    this.principalToken = null
+    this.seenEventIds.clear()
+    previousSocket?.close(1000, 'authentication changed')
+    this.scheduleReconnect()
   }
 
   private scheduleReconnect(): void {

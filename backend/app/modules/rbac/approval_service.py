@@ -50,6 +50,7 @@ class AdminApprovalRequestService:
         *,
         idempotency_key: str,
         ttl_minutes: int = 30,
+        commit: bool = True,
     ) -> ApprovalRequiredView:
         claim = await self.idempotency.begin(
             scope_key=(
@@ -146,7 +147,10 @@ class AdminApprovalRequestService:
             resource_no=item.approval_request_no,
             response_body=cast(dict[str, object], result.model_dump(mode="json")),
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return result
 
     @staticmethod

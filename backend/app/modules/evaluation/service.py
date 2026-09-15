@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import request_id_context
 from app.core.id_generator import new_prefixed_ulid
+from app.core.idempotency import IdempotencyService
 from app.core.security import utc_now
 from app.modules.evaluation.models import AiEvaluationRun
 from app.modules.evaluation.runner import load_dataset
@@ -21,6 +22,7 @@ DATASET_PATH = Path(__file__).resolve().parent / "data" / "release-holdout-v3.js
 DATASET_MANIFEST = load_dataset(DATASET_PATH)
 DATASET_SHA256 = DATASET_MANIFEST.sha256
 DATASET_CASE_COUNT = len(DATASET_MANIFEST.cases)
+DATASET_ID = DATASET_MANIFEST.dataset_id
 DATASET_VERSION = DATASET_MANIFEST.version
 BASELINE_TYPE = "prompt"
 BASELINE_VERSION = "ecom-safe-router-v1"
@@ -44,7 +46,9 @@ class EvaluationService:
         )
         return EvaluationRunList(items=[_view(row) for row in rows])
 
-    async def create(self, access: AdminAccess, payload: EvaluationRunCreate) -> EvaluationRunView:
+    async def create(
+        self, access: AdminAccess, payload: EvaluationRunCreate, idempotency_key: str
+    ) -> EvaluationRunView:
         access.require_scope("platform", 0)
         if payload.dataset_version != DATASET_VERSION:
             raise ValueError("evaluation dataset version is not active")
@@ -61,6 +65,29 @@ class EvaluationService:
                 code="AI_EVALUATION_TARGET_UNSUPPORTED",
                 title="Unsupported evaluation target",
                 detail="当前只允许评估已登记的生产基线与候选策略。",
+            )
+        idempotency = IdempotencyService(self.session)
+        claim = await idempotency.begin(
+            scope_key=f"admin:ai-evaluation:{access.context.user.user_no}",
+            idempotency_key=idempotency_key,
+            payload=payload.model_dump(mode="json"),
+            resource_type="ai_evaluation_run",
+        )
+        if claim.replayed and claim.record.resource_no:
+            existing = await self.session.scalar(
+                select(AiEvaluationRun).where(
+                    AiEvaluationRun.evaluation_run_no == claim.record.resource_no
+                )
+            )
+            if existing is not None:
+                return _view(existing)
+            from app.core.exceptions import ApplicationError
+
+            raise ApplicationError(
+                status=409,
+                code="IDEMPOTENCY_RESULT_UNAVAILABLE",
+                title="Idempotency result unavailable",
+                detail="原评估任务已不可用，不能使用同一幂等键再次创建。",
             )
         evaluation_no = new_prefixed_ulid("evr_")
         trace_id = request_id_context.get() or new_prefixed_ulid("req_")
@@ -112,6 +139,7 @@ class EvaluationService:
             scope_type="platform",
             scope_id=0,
         )
+        idempotency.complete(claim, response_status=202, resource_no=evaluation_no)
         await self.session.commit()
         await self.session.refresh(row)
         return _view(row)

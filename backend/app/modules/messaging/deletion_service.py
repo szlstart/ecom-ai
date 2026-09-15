@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from sqlalchemy import select, text, update
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import request_id_context
 from app.core.exceptions import ApplicationError
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import utc_now
-from app.modules.agent_runtime.models import AgentRun
+from app.modules.agent_runtime.models import AgentConversationState, AgentRun
 from app.modules.identity.models import User
 from app.modules.messaging.models import (
     Conversation,
@@ -68,9 +68,7 @@ class ConversationDeletionService:
         )
         if not allowed:
             raise _not_found()
-        return await self._clear(
-            conversation, actor_type="admin", actor_id=access.context.user.id
-        )
+        return await self._clear(conversation, actor_type="admin", actor_id=access.context.user.id)
 
     async def _clear(
         self, conversation: Conversation, *, actor_type: str, actor_id: int
@@ -96,9 +94,7 @@ class ConversationDeletionService:
         run_nos = list(
             (
                 await self.mysql.scalars(
-                    select(AgentRun.run_no).where(
-                        AgentRun.conversation_id == conversation.id
-                    )
+                    select(AgentRun.run_no).where(AgentRun.conversation_id == conversation.id)
                 )
             ).all()
         )
@@ -161,6 +157,11 @@ class ConversationDeletionService:
                 ConversationContext.context_status == "active",
             )
             .values(context_status="inactive", active_context_key=None)
+        )
+        await self.mysql.execute(
+            delete(AgentConversationState).where(
+                AgentConversationState.conversation_id == conversation.id
+            )
         )
         conversation.conversation_status = "active"
         conversation.last_message_id = None
@@ -260,6 +261,11 @@ class ConversationDeletionService:
                 ConversationContext.context_status == "active",
             )
             .values(context_status="inactive", active_context_key=None)
+        )
+        await self.mysql.execute(
+            delete(AgentConversationState).where(
+                AgentConversationState.conversation_id == conversation.id
+            )
         )
         self.mysql.add(
             ConversationStatusLog(

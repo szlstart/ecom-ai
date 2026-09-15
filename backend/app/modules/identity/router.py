@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Header, Request, Response, status
@@ -41,6 +42,8 @@ user_router = APIRouter(prefix="/users/me", tags=["current-user"])
 USER_REFRESH_COOKIE = "ecom_user_refresh"
 USER_REFRESH_COOKIE_PATH = "/api/v1/auth"
 USER_CSRF_COOKIE = "ecom_user_csrf"
+AUTH_SESSION_HEADER = "X-Auth-Session"
+_SESSION_NO_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 @auth_router.get(
@@ -74,7 +77,12 @@ async def register_user(
         _client_ip(request),
         request.headers.get("user-agent", "unknown")[:512],
     )
-    _set_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
+    _set_refresh_cookie(
+        response,
+        result.refresh_token,
+        result.payload.csrf_token,
+        result.payload.session.session_id,
+    )
     _no_store(response)
     return Envelope(data=result.payload)
 
@@ -95,7 +103,12 @@ async def login(
         _client_ip(request),
         request.headers.get("user-agent", "unknown")[:512],
     )
-    _set_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
+    _set_refresh_cookie(
+        response,
+        result.refresh_token,
+        result.payload.csrf_token,
+        result.payload.session.session_id,
+    )
     _no_store(response)
     return Envelope(data=result.payload)
 
@@ -106,13 +119,15 @@ async def login(
     operation_id="AuthSession_Resume",
 )
 async def resume_session(
+    request: Request,
     response: Response,
     service: IdentityServiceDependency,
     refresh_token: Annotated[str | None, Cookie(alias=USER_REFRESH_COOKIE)] = None,
     csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+    auth_session_id: Annotated[str | None, Header(alias=AUTH_SESSION_HEADER)] = None,
 ) -> Envelope[SessionBootstrap]:
     payload = await service.resume(
-        refresh_token,
+        _selected_refresh_token(request, USER_REFRESH_COOKIE, auth_session_id, refresh_token),
         csrf_token,
         "user",
         allowed_client_types=frozenset({"web"}),
@@ -132,16 +147,26 @@ async def refresh_token(
     service: IdentityServiceDependency,
     refresh_token: Annotated[str | None, Cookie(alias=USER_REFRESH_COOKIE)] = None,
     csrf_token: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+    auth_session_id: Annotated[str | None, Header(alias=AUTH_SESSION_HEADER)] = None,
 ) -> Envelope[SessionBootstrap]:
     result = await service.refresh(
-        refresh_token,
+        _selected_refresh_token(request, USER_REFRESH_COOKIE, auth_session_id, refresh_token),
         csrf_token,
         "user",
         _client_ip(request),
         request.headers.get("user-agent", "unknown")[:512],
         allowed_client_types=frozenset({"web"}),
     )
-    _set_refresh_cookie(response, result.refresh_token, result.payload.csrf_token)
+    if auth_session_id:
+        _delete_scoped_refresh_cookie(
+            response, USER_REFRESH_COOKIE, USER_REFRESH_COOKIE_PATH, auth_session_id
+        )
+    _set_refresh_cookie(
+        response,
+        result.refresh_token,
+        result.payload.csrf_token,
+        result.payload.session.session_id,
+    )
     _no_store(response)
     return Envelope(data=result.payload)
 
@@ -164,6 +189,12 @@ async def logout(
         secure=get_settings().refresh_cookie_secure,
         httponly=True,
         samesite="lax",
+    )
+    _delete_scoped_refresh_cookie(
+        response,
+        USER_REFRESH_COOKIE,
+        USER_REFRESH_COOKIE_PATH,
+        context.session.session_no,
     )
     response.delete_cookie(
         USER_CSRF_COOKIE,
@@ -455,17 +486,26 @@ async def set_default_address(
     return Envelope(data=await service.set_default_address(context.user.id, payload.address_id))
 
 
-def _set_refresh_cookie(response: Response, refresh_token: str, csrf_token: str) -> None:
+def _set_refresh_cookie(
+    response: Response,
+    refresh_token: str,
+    csrf_token: str,
+    session_no: str,
+) -> None:
     settings = get_settings()
-    response.set_cookie(
+    for cookie_name in (
         USER_REFRESH_COOKIE,
-        refresh_token,
-        max_age=settings.refresh_token_ttl_days * 24 * 60 * 60,
-        path=USER_REFRESH_COOKIE_PATH,
-        secure=settings.refresh_cookie_secure,
-        httponly=True,
-        samesite="lax",
-    )
+        _scoped_refresh_cookie_name(USER_REFRESH_COOKIE, session_no),
+    ):
+        response.set_cookie(
+            cookie_name,
+            refresh_token,
+            max_age=settings.refresh_token_ttl_days * 24 * 60 * 60,
+            path=USER_REFRESH_COOKIE_PATH,
+            secure=settings.refresh_cookie_secure,
+            httponly=True,
+            samesite="lax",
+        )
     response.set_cookie(
         USER_CSRF_COOKIE,
         csrf_token,
@@ -473,6 +513,43 @@ def _set_refresh_cookie(response: Response, refresh_token: str, csrf_token: str)
         path="/",
         secure=settings.refresh_cookie_secure,
         httponly=False,
+        samesite="lax",
+    )
+
+
+def _selected_refresh_token(
+    request: Request,
+    base_cookie_name: str,
+    session_no: str | None,
+    legacy_refresh_token: str | None,
+) -> str | None:
+    if session_no is None:
+        return legacy_refresh_token
+    return request.cookies.get(_scoped_refresh_cookie_name(base_cookie_name, session_no))
+
+
+def _scoped_refresh_cookie_name(base_cookie_name: str, session_no: str) -> str:
+    if not _SESSION_NO_PATTERN.fullmatch(session_no):
+        raise ApplicationError(
+            status=400,
+            code="AUTH_SESSION_SELECTOR_INVALID",
+            title="Invalid auth session selector",
+            detail="登录会话标识无效，请重新登录。",
+        )
+    return f"{base_cookie_name}_{session_no}"
+
+
+def _delete_scoped_refresh_cookie(
+    response: Response,
+    base_cookie_name: str,
+    path: str,
+    session_no: str,
+) -> None:
+    response.delete_cookie(
+        _scoped_refresh_cookie_name(base_cookie_name, session_no),
+        path=path,
+        secure=get_settings().refresh_cookie_secure,
+        httponly=True,
         samesite="lax",
     )
 

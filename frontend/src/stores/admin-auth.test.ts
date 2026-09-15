@@ -30,17 +30,22 @@ class FakeBroadcastChannel extends EventTarget {
   }
 }
 
-function session(accessToken: string): SessionBootstrap {
+function session(
+  accessToken: string,
+  userId = 'usr_merchant_test',
+  username = 'merchant-tabs',
+  sessionId = 'ses_merchant_test',
+): SessionBootstrap {
   return {
     user: {
-      user_id: 'usr_merchant_test',
-      username: 'merchant-tabs',
+      user_id: userId,
+      username,
       nickname: '商家双标签',
       avatar_url: null,
       account_status: 'active',
     },
     session: {
-      session_id: 'ses_merchant_test',
+      session_id: sessionId,
       client_type: 'merchant',
       device_name: null,
       audience: 'admin',
@@ -67,6 +72,8 @@ describe('management auth cross-tab synchronization', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/merchant/products')
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel)
+    window.sessionStorage.clear()
+    document.cookie = 'ecom_merchant_csrf=; Max-Age=0; path=/'
   })
 
   afterEach(() => {
@@ -96,6 +103,7 @@ describe('management auth cross-tab synchronization', () => {
   })
 
   it('uses the non-rotating merchant resume endpoint when no peer tab is available', async () => {
+    document.cookie = 'ecom_merchant_csrf=merchant-csrf-test; path=/'
     const server = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(envelope(session('resumed-merchant-token')))
       .mockResolvedValueOnce(envelope({
@@ -134,6 +142,7 @@ describe('management auth cross-tab synchronization', () => {
     expect(restored).toBe(true)
     expect(onlyTab.accessToken).toBe('rotated-merchant-token')
     expect(String(server.mock.calls[0]?.[0])).toContain('/merchant/auth/token-refresh')
+    expect(new Headers(server.mock.calls[0]?.[1]?.headers).get('X-Auth-Session')).toBe('ses_merchant_test')
   })
 
   it('clears every tab on logout and ignores a late state broadcast from the revoked session', async () => {
@@ -171,5 +180,31 @@ describe('management auth cross-tab synchronization', () => {
     await new Promise<void>((resolve) => queueMicrotask(resolve))
     expect(firstTab.accessToken).toBeNull()
     expect(secondTab.accessToken).toBeNull()
+  })
+
+  it('does not let a second merchant login replace another merchant tab', async () => {
+    const server = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(envelope({
+        session: session('token-shop-a', 'usr_shop_a', 'shop-a', 'ses_shop_a'),
+        permission_codes: ['products:read'],
+        scopes: [{ scope_type: 'store', scope_id: 11 }],
+      }))
+      .mockResolvedValueOnce(envelope({
+        session: session('token-shop-b', 'usr_shop_b', 'shop-b', 'ses_shop_b'),
+        permission_codes: ['orders:read'],
+        scopes: [{ scope_type: 'store', scope_id: 22 }],
+      }))
+    const firstTab = useAdminAuthStore(createPinia())
+    await firstTab.merchantPasswordLogin('shop-a', 'password', 'tab a')
+    const secondTab = useAdminAuthStore(createPinia())
+    await secondTab.merchantPasswordLogin('shop-b', 'password', 'tab b')
+    await new Promise<void>((resolve) => queueMicrotask(resolve))
+
+    expect(firstTab.accessToken).toBe('token-shop-a')
+    expect(firstTab.userId).toBe('usr_shop_a')
+    expect(firstTab.scopes).toEqual([{ scope_type: 'store', scope_id: 11 }])
+    expect(secondTab.accessToken).toBe('token-shop-b')
+    expect(secondTab.userId).toBe('usr_shop_b')
+    expect(secondTab.scopes).toEqual([{ scope_type: 'store', scope_id: 22 }])
   })
 })

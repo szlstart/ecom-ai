@@ -127,7 +127,11 @@ def process_public_image(
             )
     except ApplicationError:
         raise
-    except (UnidentifiedImageError, OSError, ValueError) as exc:
+    # Pillow uses ``SyntaxError`` for malformed chunk headers/CRC values in
+    # otherwise recognizable images.  That is a permanent client-file error,
+    # not a transient processor outage, so reject it instead of retrying the
+    # same object forever.
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError) as exc:
         raise _unsafe_image("文件不是可安全解码的图片。") from exc
 
 

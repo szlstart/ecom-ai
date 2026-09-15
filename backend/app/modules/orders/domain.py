@@ -90,9 +90,9 @@ def available_action_codes(snapshot: OrderPolicySnapshot, now: datetime) -> list
         and snapshot.expires_at > now
     ):
         actions.extend(("pay", "cancel_order"))
-    # Paid orders receive an automatically generated simulated waybill. Expose
-    # the logistics entry while the first worker cycle is still creating it so
-    # the customer never has to refresh the order page to discover the action.
+    # A paid order may not have a package yet. Keep the logistics entry visible
+    # while the merchant prepares shipment; the page can then explain the
+    # current fulfilment state instead of relying on a timer-created waybill.
     if (
         snapshot.payment_status in {"paid", "partially_refunded"}
         and snapshot.order_status == "pending_shipment"
@@ -109,6 +109,7 @@ def available_action_codes(snapshot: OrderPolicySnapshot, now: datetime) -> list
     if (
         snapshot.payment_status in {"paid", "partially_refunded"}
         and snapshot.order_status not in {"cancelled", "closed"}
+        and snapshot.after_sale_status != "in_progress"
         and snapshot.has_refundable_items
     ):
         actions.append("apply_after_sale")

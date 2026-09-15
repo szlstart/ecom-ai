@@ -9,6 +9,7 @@ from app.modules.logistics.dependencies import LogisticsServiceDependency
 from app.modules.logistics.schemas import (
     AdminShipmentCreateRequest,
     AdminShipmentDetail,
+    AdminShipmentSimulationEventRequest,
     AdminShipmentVoidRequest,
     AdminTrackingCorrectionRequest,
     ShipmentRefreshResult,
@@ -132,5 +133,31 @@ async def refresh_shipment(
         shipment_id,
         idempotency_key,
     )
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/shipments/{shipment_id}/simulation-events",
+    response_model=Envelope[AdminShipmentDetail],
+    operation_id="AdminShipment_RecordSimulationEvent",
+)
+async def record_simulation_event(
+    shipment_id: str,
+    payload: AdminShipmentSimulationEventRequest,
+    response: Response,
+    service: LogisticsServiceDependency,
+    idempotency_key: IdempotencyKey,
+    access: Annotated[AdminAccess, require_admin_permission("shipments:create")],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AdminShipmentDetail]:
+    result = await service.record_simulation_event(
+        access,
+        shipment_id,
+        payload,
+        _expected_version(if_match),
+        idempotency_key,
+    )
+    response.headers["ETag"] = _etag(result.version)
     _no_store(response)
     return Envelope(data=result)

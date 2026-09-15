@@ -111,7 +111,7 @@ class LogisticsSyncLog(AppendOnlyMySQLModel, MySQLBase):
     __tablename__ = "logistics_sync_logs"
     __table_args__ = (
         CheckConstraint(
-            "sync_type IN ('poll', 'webhook', 'reconcile')",
+            "sync_type IN ('poll', 'webhook', 'reconcile', 'manual')",
             name="logistics_sync_type",
         ),
         CheckConstraint(

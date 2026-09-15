@@ -153,6 +153,27 @@ class AdminShipmentVoidRequest(StrictRequest):
     reason: str = Field(min_length=2, max_length=500)
 
 
+class AdminShipmentSimulationEventRequest(StrictRequest):
+    """One explicit logistics event for the local fake carrier.
+
+    The command deliberately has no delay or automatic-next-step field.  A store
+    operator, platform administrator, or an approved Agent action must submit each
+    event explicitly.
+    """
+
+    event_type: Literal[
+        "picked_up",
+        "in_transit",
+        "out_for_delivery",
+        "delivered",
+        "exception",
+        "returned",
+    ]
+    description: str = Field(min_length=1, max_length=1000)
+    location_text: str | None = Field(default=None, max_length=255)
+    occurred_at: AwareDatetime | None = None
+
+
 class FakeLogisticsWebhook(StrictRequest):
     provider_event_id: str = Field(min_length=5, max_length=128)
     shipment_id: str = Field(pattern=r"^shp_[0-9A-Z]+$", max_length=40)

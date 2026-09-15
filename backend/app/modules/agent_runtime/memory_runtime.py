@@ -374,14 +374,46 @@ def _looks_sensitive(value: str) -> bool:
 
 
 def explicit_memory_request(value: str) -> str | None:
-    match = re.fullmatch(
-        r"\s*(?:请|麻烦你|帮我)?记住[\uFF1A:,，\s]*(.{1,500}?)\s*[。\uFF01!]?\s*",
+    compact = re.sub(r"\s+", "", value).casefold()
+    if any(marker in compact for marker in ("不要记住", "别记住", "不用记住", "取消记住")):
+        return None
+    # Users commonly put the persistence cue in the middle of a sentence, for
+    # example “以后推荐文具时，记住我喜欢蓝色的”.  Requiring the sentence to
+    # start with “记住” silently turned that into a product search.
+    match = re.search(
+        r"(?:请|麻烦你|帮我)?记住(?!的|了|过)[\uFF1A:,，\s]*(.{1,500}?)\s*[。\uFF01!]?\s*$",
         value,
     )
     if match is None:
         return None
     candidate = match.group(1).strip()
+    candidate = re.split(
+        r"(?:[,，]\s*)?(?:并)?(?:顺便|同时|再)(?:帮我)?(?:推荐|搜索|找)",
+        candidate,
+        maxsplit=1,
+    )[0].strip(" ,，;")
+    candidate = re.split(
+        r"[，,;]?\s*(?:先)?(?:让我|等我|需要我)?(?:确认|同意|核对)"
+        r"(?:后|以后|再)?(?:才)?(?:保存|记住|生效)?|"
+        r"[，,;]?\s*(?:但)?(?:先)?(?:不要|别)(?:真正|直接|立即)?(?:保存|写入|生效)",
+        candidate,
+        maxsplit=1,
+    )[0].strip(" ,，;")
+    if not candidate:
+        # The persistence cue may appear after the preference, e.g.
+        # “以后买文具预算 50 元以内，请记住，但先不要真正保存”.  In that
+        # form the useful fact is before “记住”; never turn the trailing control
+        # instruction into the memory value.
+        candidate = value[: match.start()].strip(" ,，;。！!")
     return candidate if candidate and not _looks_sensitive(candidate) else None
+
+
+def is_sensitive_explicit_memory_request(value: str) -> bool:
+    """Detect an explicit persistence request that contains forbidden data."""
+
+    if not re.search(r"(?:请|麻烦你|帮我)?记住(?!的|了|过)", value):
+        return False
+    return _looks_sensitive(value)
 
 
 def _classify_explicit_preference(value: str) -> tuple[str, str]:

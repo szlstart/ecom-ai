@@ -96,6 +96,12 @@ class Settings(BaseSettings):
     file_scanner_host: str = "127.0.0.1"
     file_scanner_port: int = Field(default=13310, ge=1, le=65535)
     file_scanner_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
+    ocr_enabled: bool = True
+    ocr_command: str = "tesseract"
+    ocr_languages: str = "chi_sim+eng"
+    ocr_timeout_seconds: float = Field(default=45.0, gt=0, le=180)
+    ocr_batch_size: int = Field(default=3, ge=1, le=20)
+    ocr_max_chars: int = Field(default=8000, ge=500, le=20_000)
     file_reconciliation_interval_seconds: int = Field(default=3600, ge=60, le=86_400)
     file_reconciliation_max_objects: int = Field(default=100_000, ge=100, le=1_000_000)
     file_orphan_grace_days: int = Field(default=14, ge=1, le=90)

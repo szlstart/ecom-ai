@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import PaginationMeta
@@ -189,6 +190,29 @@ class StoreService:
                 for store in rows
             ]
         )
+
+    async def remove_follow_as_admin(self, user_id: int, store_no: str) -> None:
+        """Remove an existing relation even when the store is suspended or closed."""
+        row = (
+            await self.session.execute(
+                select(StoreFollow, Store)
+                .join(Store, Store.id == StoreFollow.store_id)
+                .where(
+                    Store.store_no == store_no,
+                    StoreFollow.user_id == user_id,
+                    StoreFollow.deleted_at.is_(None),
+                )
+                .with_for_update()
+            )
+        ).one_or_none()
+        if row is None:
+            raise _not_found()
+        follow, store = row
+        follow.deleted_at = utc_now()
+        follow.version += 1
+        store.follower_count = max(store.follower_count - 1, 0)
+        store.version += 1
+        await self.session.commit()
 
     async def _store_view(
         self,

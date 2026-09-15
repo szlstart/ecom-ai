@@ -11,6 +11,15 @@ from app.core.config import get_settings
 from app.core.id_generator import new_prefixed_ulid
 from app.core.security import SecurityService, canonical_request_hash, utc_now
 from app.database.mysql import mysql_session
+from app.modules.agent_runtime.models import AgentDefinition, AgentRun, AgentVersion
+from app.modules.agent_runtime.operations_approval import (
+    build_operations_approval,
+    execute_operations_approval,
+    prepare_operations_action,
+)
+from app.modules.agent_runtime.operations_context import ADMIN_TOOLS, TrustedOperationsContext
+from app.modules.identity.models import User
+from app.modules.messaging.models import Conversation, Message
 from app.modules.rbac.models import AdminApprovalRequest
 from app.modules.system.models import DeadLetterEvent, OutboxEvent
 from app.workers.admin_approval_worker import AdminApprovalWorker
@@ -104,6 +113,108 @@ async def test_dead_letter_preview_requires_immutable_payload_and_dual_control(
     )
     assert mfa.status_code == 200, mfa.text
     headers = {"Authorization": f"Bearer {mfa.json()['data']['session']['access_token']}"}
+
+    # AI 管家的确认只创建现有双人审批资源，不能直接重新投递事件。
+    async for session in mysql_session():
+        admin_user = await session.scalar(
+            select(User).where(User.username_normalized == f"dlq_admin_{suffix}")
+        )
+        definition = await session.scalar(
+            select(AgentDefinition).where(AgentDefinition.agent_code == "admin_copilot")
+        )
+        assert admin_user is not None and definition is not None
+        version = await session.scalar(
+            select(AgentVersion)
+            .where(
+                AgentVersion.agent_id == definition.id,
+                AgentVersion.version_status == "published",
+            )
+            .order_by(AgentVersion.version_no.desc())
+        )
+        assert version is not None
+        conversation = Conversation(
+            conversation_no=new_prefixed_ulid("cv_"),
+            user_id=admin_user.id,
+            conversation_type="exclusive",
+            is_fixed=True,
+            conversation_status="active",
+            last_sequence_no=1,
+            last_message_at=now,
+        )
+        session.add(conversation)
+        await session.flush()
+        trigger = Message(
+            message_no=new_prefixed_ulid("msg_"),
+            conversation_id=conversation.id,
+            sequence_no=1,
+            sender_type="user",
+            sender_id=admin_user.id,
+            message_type="text",
+            text_content=f"请重放死信 {dead_no}，原因: 已确认消费者幂等并完成故障修复",
+            message_status="sent",
+            moderation_status="passed",
+            sent_at=now,
+        )
+        session.add(trigger)
+        await session.flush()
+        run = AgentRun(
+            run_no=new_prefixed_ulid("run_"),
+            conversation_id=conversation.id,
+            trigger_message_id=trigger.id,
+            agent_version_id=version.id,
+            run_status="running",
+            current_phase="executing",
+            trace_id=new_prefixed_ulid("trc_"),
+            context_snapshot=[],
+        )
+        session.add(run)
+        await session.flush()
+        context = TrustedOperationsContext(
+            run=run,
+            conversation=conversation,
+            trigger=trigger,
+            user=admin_user,
+            agent_definition=definition,
+            agent_version=version,
+            allowed_tools=ADMIN_TOOLS,
+            audience="admin",
+            store=None,
+        )
+        prepared, error = await prepare_operations_action(
+            session, context, trigger.text_content or ""
+        )
+        assert error is None and prepared is not None
+        assert prepared.action_type == "admin_dead_letter_replay_request"
+        agent_approval = await build_operations_approval(session, context, prepared)
+        agent_approval.approval_status = "approved"
+        agent_approval.decision = "approve"
+        agent_approval.decided_at = utc_now()
+        agent_approval.version += 1
+        execution_status, _answer, operation_result, error_code = (
+            await execute_operations_approval(session, context, agent_approval)
+        )
+        assert execution_status == "succeeded" and error_code is None
+        assert operation_result["status"] == "approval_required"
+        ai_approval_no = str(operation_result["approval_request_id"])
+        await session.commit()
+
+    async for session in mysql_session():
+        ai_approval = await session.scalar(
+            select(AdminApprovalRequest).where(
+                AdminApprovalRequest.approval_request_no == ai_approval_no
+            )
+        )
+        unchanged_source = await session.scalar(
+            select(OutboxEvent).where(OutboxEvent.event_no == source_no)
+        )
+        unchanged_dead = await session.scalar(
+            select(DeadLetterEvent).where(DeadLetterEvent.dead_letter_no == dead_no)
+        )
+        assert ai_approval is not None
+        assert ai_approval.action_code == "events.dead_letter.replay.v1"
+        assert ai_approval.required_approval_count == 2
+        assert unchanged_source is not None and unchanged_source.event_status == "failed"
+        assert unchanged_dead is not None and unchanged_dead.dead_status == "open"
 
     detail = await client.get(f"/api/v1/admin/dead-letter-events/{dead_no}", headers=headers)
     assert detail.status_code == 200, detail.text

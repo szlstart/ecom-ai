@@ -130,9 +130,11 @@ def test_available_actions_share_the_hide_policy() -> None:
     ]
     in_transit_after_sale = _snapshot(
         order_status="shipped",
+        payment_status="paid",
         fulfillment_status="shipped",
         after_sale_status="in_progress",
         has_after_sale_history=True,
+        has_refundable_items=True,
     )
     assert available_action_codes(in_transit_after_sale, utc_now()) == [
         "view_logistics",

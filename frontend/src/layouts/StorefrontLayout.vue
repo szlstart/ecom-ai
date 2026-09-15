@@ -77,8 +77,13 @@ async function logout() {
   if (route.meta.requiresAuth) await router.replace('/')
 }
 
+function switchAccount() {
+  userMenu.value?.removeAttribute('open')
+  openAuth('login')
+}
+
 onMounted(() => {
-  if (!auth.isAuthenticated && auth.csrfToken) void auth.refresh()
+  if (!auth.isAuthenticated && auth.hasRefreshHint()) void auth.refresh()
   greetingEmojiTimer = window.setInterval(() => {
     greetingEmojiIndex.value = (greetingEmojiIndex.value + 1) % greetingEmojis.length
   }, 5_000)
@@ -112,6 +117,7 @@ watch(() => route.fullPath, () => userMenu.value?.removeAttribute('open'))
             <summary :aria-label="`${greeting}${greetingEmoji}，${displayName}，打开账号菜单`">{{ greeting }}{{ greetingEmoji }}，{{ displayName }}</summary>
             <div class="user-menu-panel">
               <RouterLink to="/me">查看我的</RouterLink>
+              <button type="button" @click="switchAccount">切换账号</button>
               <button type="button" @click="logout">退出登录</button>
             </div>
           </details>

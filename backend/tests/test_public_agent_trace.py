@@ -7,6 +7,8 @@ from app.modules.agent_runtime.public_trace import ensure_public_trace, public_t
 
 def test_result_count_does_not_hide_rag_sources_behind_an_empty_items_list() -> None:
     assert result_count({"items": [], "knowledge_sources": [{"document_id": "kdoc_1"}]}) == 1
+    assert result_count({"compound_results": {"orders": {}, "wallet": {}, "address": {}}}) == 3
+    assert result_count({"specialists": {"catalog": {}, "orders": {}, "policy": {}}}) == 3
 
 
 def test_public_trace_explains_question_actions_and_result_without_private_reasoning() -> None:
@@ -31,7 +33,7 @@ def test_public_trace_explains_question_actions_and_result_without_private_reaso
         tool_code="catalog.search_products",
     )
 
-    assert trace["version"] == "public-agent-trace-v2"
+    assert trace["version"] == "auditable-agent-trace-v3"
     assert trace["question"] == "帮我找三件适合画画的商品"
     assert "全平台在售商品" in str(trace["analysis_summary"])
     assert "2 项可用结果" in str(trace["result_summary"])
@@ -58,7 +60,7 @@ def test_ensure_public_trace_upgrades_security_and_memory_responses() -> None:
         data={},
     )
 
-    assert trace["version"] == "public-agent-trace-v2"
+    assert trace["version"] == "auditable-agent-trace-v3"
     assert trace["question"] == "请记住我喜欢蓝色"
     assert trace["raw_reasoning_exposed"] is False
 
@@ -124,6 +126,24 @@ def test_public_trace_explains_supervisor_and_specialist_delegations() -> None:
                 "latency_ms": 42,
             },
         ],
+        extra={
+            "planning_source": "provider_model_supervisor",
+            "goal_ledger": [
+                {
+                    "goal_key": "goal_1",
+                    "description": "分析用户、店铺和订单",
+                    "assigned_task_key": "task_1",
+                }
+            ],
+            "coverage_complete": True,
+            "subtasks": [
+                {
+                    "subtask_key": "task_1",
+                    "specialist": "治理诊断 Agent",
+                    "intent": "complex_platform_diagnosis",
+                }
+            ],
+        },
     )
 
     details = cast(list[str], trace["analysis_details"])
@@ -133,3 +153,84 @@ def test_public_trace_explains_supervisor_and_specialist_delegations() -> None:
     assert "governance.order_summary" in details[1]
     assert "42 毫秒" in details[1]
     assert "raw_private_reasoning" not in trace
+    orchestration = cast(dict[str, object], trace["orchestration_trace"])
+    assert orchestration["planning_source"] == "provider_model_supervisor"
+    assert orchestration["coverage_complete"] is True
+    assert orchestration["goal_ledger"] == [
+        {
+            "goal_key": "goal_1",
+            "description": "分析用户、店铺和订单",
+            "assigned_task_key": "task_1",
+        }
+    ]
+
+
+def test_auditable_trace_includes_tool_arguments_results_context_rag_and_memory() -> None:
+    trace = public_trace(
+        run_id="run_audit",
+        agent="专属客服 Supervisor Agent",
+        model="gpt-test",
+        question="结合偏好查规则",
+        intent="personalized_recommendation",
+        data={
+            "_audit_tool_calls": [
+                {
+                    "tool_code": "catalog.search_products",
+                    "arguments": {"query": "蓝色文具", "api_key": "must-not-leak"},
+                    "status": "succeeded",
+                    "result": {"items": [{"product_id": "prd_1"}]},
+                    "result_count": 1,
+                    "latency_ms": 17,
+                }
+            ],
+            "conversation_window": {"included_count": 2, "recent_turns": []},
+            "rag": {"scope": "platform:platform", "retrieval_mode": "hybrid"},
+            "knowledge_sources": [
+                {"document_id": "kdoc_1", "title": "平台规则", "score": 0.92}
+            ],
+            "memory": {"scope": "exclusive", "authorized": True, "used_count": 1},
+            "recalled_memories": [
+                {"memory_id": "mem_1", "value": "喜欢蓝色", "relevance": 0.88}
+            ],
+        },
+        steps=[
+            {
+                "kind": "tool",
+                "label": "搜索商品",
+                "tool_code": "catalog.search_products",
+                "status": "succeeded",
+            }
+        ],
+        source_ids=["tool:catalog.search_products", "knowledge:kdoc_1", "memory:mem_1"],
+        tool_code="catalog.search_products",
+    )
+
+    calls = cast(list[dict[str, object]], trace["tool_calls"])
+    assert calls[0]["arguments"] == {
+        "query": "蓝色文具",
+        "api_key": "[受保护值未进入消息轨迹]",
+    }
+    context = cast(dict[str, object], trace["context_trace"])
+    assert context["status"] == "read"
+    assert cast(dict[str, object], context["window"])["included_count"] == 2
+    assert cast(dict[str, object], trace["knowledge_trace"])["matches"]
+    assert cast(dict[str, object], trace["memory_trace"])["items"]
+    step = cast(list[dict[str, object]], trace["steps"])[0]
+    assert cast(dict[str, object], step["tool_call"])["latency_ms"] == 17
+
+
+def test_auditable_trace_explicitly_records_components_not_invoked() -> None:
+    trace = public_trace(
+        run_id="run_skipped",
+        agent="专属客服",
+        model="gpt-test",
+        question="查询购物车",
+        intent="cart_lookup",
+        data={},
+        steps=[],
+    )
+
+    assert cast(dict[str, object], trace["knowledge_trace"])["status"] == "not_invoked"
+    assert cast(dict[str, object], trace["memory_trace"])["status"] == "not_invoked"
+    assert cast(dict[str, object], trace["context_trace"])["status"] == "not_recorded"
+    assert cast(dict[str, object], trace["model_invocation"])["provider_request_sent"] is False

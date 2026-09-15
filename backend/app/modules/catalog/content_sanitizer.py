@@ -10,6 +10,7 @@ from typing import Literal, cast
 from app.core.exceptions import ApplicationError
 
 MAX_SOURCE_BYTES = 100_000
+MAX_IMAGE_DESCRIPTION_CHARS = 8000
 _FILE_URL = re.compile(r"^/api/v1/files/(file_[0-9A-HJKMNP-TV-Z]{26})$")
 _ALLOWED_TAGS = {
     "p",
@@ -115,10 +116,11 @@ def _sanitize_structured(source_content: str) -> SanitizedContent:
             blocks.append({"type": block_type, "items": normalized_items})
             text_parts.extend(normalized_items)
         elif block_type == "image":
-            if set(candidate) - {"type", "file_id", "alt"}:
+            if set(candidate) - {"type", "file_id", "alt", "description"}:
                 raise _invalid("图片 Block 包含未知字段。")
             file_id = candidate.get("file_id")
             alt = candidate.get("alt")
+            description = candidate.get("description", "")
             if (
                 not isinstance(file_id, str)
                 or _FILE_URL.fullmatch(f"/api/v1/files/{file_id}") is None
@@ -126,7 +128,23 @@ def _sanitize_structured(source_content: str) -> SanitizedContent:
                 raise _invalid("图片 Block 必须引用有效 file_id。")
             if not isinstance(alt, str) or not 1 <= len(alt.strip()) <= 255:
                 raise _invalid("图片 Block 必须包含 1 到 255 字符的 alt。")
-            blocks.append({"type": block_type, "file_id": file_id, "alt": alt.strip()})
+            if (
+                not isinstance(description, str)
+                or len(description.strip()) > MAX_IMAGE_DESCRIPTION_CHARS
+            ):
+                raise _invalid(
+                    f"图片说明最多允许 {MAX_IMAGE_DESCRIPTION_CHARS} 个字符。"
+                )
+            clean_image: dict[str, object] = {
+                "type": block_type,
+                "file_id": file_id,
+                "alt": alt.strip(),
+            }
+            normalized_description = _normalized_text(description)
+            if normalized_description:
+                clean_image["description"] = normalized_description
+                text_parts.append(normalized_description)
+            blocks.append(clean_image)
             file_ids.append(file_id)
             text_parts.append(alt.strip())
         else:

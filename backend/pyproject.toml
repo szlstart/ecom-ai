@@ -70,7 +70,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
-allowed-confusables = ["，"]
+# These are intentional Chinese prose punctuation in user-facing replies and
+# natural-language regression prompts, not identifier lookalikes.
+allowed-confusables = ["，", "。", "！", "；", "？", "：", "（", "）"]
 
 [tool.mypy]
 python_version = "3.13"

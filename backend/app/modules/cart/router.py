@@ -117,3 +117,20 @@ async def clear_invalid_cart_items(
     response.headers["ETag"] = _etag(item.version)
     _no_store(response)
     return Envelope(data=item)
+
+
+@router.delete(
+    "/items",
+    response_model=Envelope[CartView],
+    operation_id="CartItem_ClearAll",
+)
+async def clear_all_cart_items(
+    response: Response,
+    service: CartServiceDependency,
+    context: UserContext,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[CartView]:
+    item = await service.clear_all(context.user, _expected_version(if_match))
+    response.headers["ETag"] = _etag(item.version)
+    _no_store(response)
+    return Envelope(data=item)

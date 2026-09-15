@@ -44,5 +44,8 @@ describe('ProductCard', () => {
     expect(wrapper.text()).not.toContain('一句话卖点')
     expect(wrapper.text()).not.toContain('旧商品简介')
     expect(wrapper.text()).not.toContain('99.99')
+    expect(wrapper.get('.product-card').classes()).toContain('navigation-surface')
+    expect(wrapper.get('.product-name').classes()).toContain('surface-primary-link')
+    expect(wrapper.get('.store-link').attributes('href')).toBe('/stores/sto_public')
   })
 })

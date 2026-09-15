@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -22,6 +24,8 @@ from app.modules.knowledge.embedding import (
 from app.modules.knowledge.models import KnowledgeDocument
 from app.modules.system.models import AdminBatchJob
 
+CHUNK_STRATEGY_VERSION = "semantic-markdown-v3"
+
 
 @dataclass(frozen=True)
 class IndexJobState:
@@ -30,6 +34,14 @@ class IndexJobState:
     status: str
     progress: int
     error_code: str | None
+
+
+@dataclass(frozen=True)
+class StructuredChunk:
+    text: str
+    heading_path: tuple[str, ...]
+    section_type: str
+    parent_section_id: str
 
 
 async def create_index_job(
@@ -118,6 +130,8 @@ async def run_index_job(
     document: KnowledgeDocument | dict[str, object],
     job_no: str,
     embedder: EmbeddingProvider,
+    *,
+    activation_guard: Callable[[], Awaitable[bool]] | None = None,
 ) -> IndexJobState:
     """Build a shadow generation and atomically switch the active document index."""
     if isinstance(document, dict):
@@ -135,6 +149,15 @@ async def run_index_job(
             document.safe_text,
         )
     generation_no = new_prefixed_ulid("kgen_")
+    resource_no_match = re.search(r"^商品编号:\s*(prd_[A-Za-z0-9]+)\s*$", body, re.MULTILINE)
+    resource_no = resource_no_match.group(1) if resource_no_match else None
+    source_type = (
+        "platform_policy"
+        if scope_type == "platform"
+        else "store_product"
+        if resource_no is not None
+        else "store_profile"
+    )
     await postgres.execute(
         text("""INSERT INTO knowledge.embedding_models
         (model_code, provider, dimension, model_status)
@@ -168,7 +191,8 @@ async def run_index_job(
     )
     if claimed.rowcount != 1:
         raise RuntimeError("knowledge index job is no longer executable")
-    chunks = safe_chunks(body)
+    structured = structured_chunks(body)
+    chunks = [item.text for item in structured]
     try:
         embeddings: list[list[float] | None] = list(await embedder.embed(chunks))
     except (EmbeddingUnavailable, httpx.HTTPError):
@@ -176,6 +200,7 @@ async def run_index_job(
             raise
         embeddings = [None] * len(chunks)
     for index, chunk in enumerate(chunks):
+        structure = structured[index]
         embedding = embeddings[index]
         chunk_no = (
             "kch_" + hashlib.sha256(f"{document_no}:{version}:{index}".encode()).hexdigest()[:30]
@@ -204,9 +229,58 @@ async def run_index_job(
                 "embedding": vector_literal(embedding) if embedding is not None else None,
                 "model_code": embedder.model_code,
                 "metadata": json.dumps(
-                    {"chunk_index": index, "index_version": version}, separators=(",", ":")
+                    {
+                        "chunk_index": index,
+                        "index_version": version,
+                        "heading_path": list(structure.heading_path),
+                        "section_type": structure.section_type,
+                        "parent_section_id": structure.parent_section_id,
+                        "semantic_boundary": True,
+                        "chunk_strategy_version": CHUNK_STRATEGY_VERSION,
+                        "source_type": source_type,
+                        "scope_type": scope_type,
+                        "scope_no": scope_no,
+                        "resource_no": resource_no,
+                        "image_order": _image_order(structure.heading_path),
+                    },
+                    separators=(",", ":"),
                 ),
             },
+        )
+    if activation_guard is not None and not await activation_guard():
+        await postgres.execute(
+            text(
+                """UPDATE knowledge.index_generations
+                   SET generation_status='retired'
+                   WHERE generation_no=:generation_no"""
+            ),
+            {"generation_no": generation_no},
+        )
+        await postgres.execute(
+            text(
+                """UPDATE knowledge.indexing_jobs
+                   SET job_status='failed', progress=100,
+                       error_code='KNOWLEDGE_DOCUMENT_VERSION_STALE',
+                       error_owner='command', status_version=status_version+1,
+                       updated_at=now()
+                   WHERE job_no=:job_no"""
+            ),
+            {"job_no": job_no},
+        )
+        await postgres.execute(
+            text(
+                """DELETE FROM knowledge.document_chunks
+                   WHERE document_no=:document_no AND generation_no=:generation_no"""
+            ),
+            {"document_no": document_no, "generation_no": generation_no},
+        )
+        await postgres.commit()
+        return IndexJobState(
+            job_no,
+            "",
+            "failed",
+            100,
+            "KNOWLEDGE_DOCUMENT_VERSION_STALE",
         )
     await postgres.execute(
         text("""UPDATE knowledge.index_generations
@@ -258,6 +332,94 @@ def chunk_text(body: str, *, size: int = 1200, overlap: int = 160) -> list[str]:
 
 def safe_chunks(body: str) -> list[str]:
     return [safe_untrusted_excerpt(chunk, len(chunk)) for chunk in chunk_text(body)]
+
+
+def structured_chunks(
+    body: str,
+    *,
+    size: int = 650,
+    overlap: int = 80,
+) -> list[StructuredChunk]:
+    """Split Markdown by semantic section before applying bounded overlap.
+
+    Overlap is restricted to one heading section, so product, FAQ, policy, and
+    OCR image boundaries cannot be blended by the generic character splitter.
+    """
+
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    if not lines:
+        return [StructuredChunk("", (), "unknown", "root")]
+    heading_path: list[str] = []
+    sections: list[tuple[tuple[str, ...], list[str]]] = []
+    current_path: tuple[str, ...] = ()
+    current_lines: list[str] = []
+    for line in lines:
+        match = re.match(r"^(#{1,6})\s+(.+)$", line)
+        if match is not None:
+            if _section_has_body(current_lines):
+                sections.append((current_path, current_lines))
+            level = len(match.group(1))
+            heading = match.group(2).strip()
+            heading_path = heading_path[: level - 1]
+            heading_path.append(heading)
+            current_path = tuple(heading_path)
+            current_lines = [line]
+            continue
+        current_lines.append(line)
+    if _section_has_body(current_lines):
+        sections.append((current_path, current_lines))
+
+    result: list[StructuredChunk] = []
+    for path, section_lines in sections:
+        section_text = "\n".join(section_lines)
+        breadcrumb = " > ".join(path)
+        parent_id = hashlib.sha256(breadcrumb.encode()).hexdigest()[:20] if breadcrumb else "root"
+        section_type = _section_type(path)
+        for part in chunk_text(section_text, size=size, overlap=overlap):
+            safe = safe_untrusted_excerpt(part, len(part))
+            if safe:
+                result.append(
+                    StructuredChunk(
+                        text=safe,
+                        heading_path=path,
+                        section_type=section_type,
+                        parent_section_id=parent_id,
+                    )
+                )
+    return result or [StructuredChunk("", (), "unknown", "root")]
+
+
+def _section_type(path: tuple[str, ...]) -> str:
+    heading = path[-1] if path else ""
+    breadcrumb = " > ".join(path)
+    if "常见问题" in breadcrumb or heading.startswith(("问:", "问：")):
+        return "faq"
+    if "图片" in heading or "OCR" in heading.upper():
+        return "image_ocr"
+    if "款式" in heading or "SKU" in heading.upper():
+        return "sku"
+    if "规格" in heading or "参数" in heading:
+        return "attributes"
+    if "政策" in breadcrumb or "规则" in breadcrumb:
+        return "policy"
+    if "详情" in heading:
+        return "product_detail"
+    if "商品" in heading:
+        return "product"
+    if "店铺" in heading:
+        return "store"
+    return "general"
+
+
+def _image_order(path: tuple[str, ...]) -> int | None:
+    if not path:
+        return None
+    match = re.search(r"图片\s*(\d+)", path[-1])
+    return int(match.group(1)) if match else None
+
+
+def _section_has_body(lines: list[str]) -> bool:
+    return any(not re.match(r"^#{1,6}\s+", line) for line in lines)
 
 
 async def reconcile_index_job(

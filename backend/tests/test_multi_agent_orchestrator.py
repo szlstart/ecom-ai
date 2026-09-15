@@ -18,6 +18,7 @@ from app.modules.agent_runtime.delegation import (
     TrustedDelegationScope,
     topological_order,
 )
+from app.modules.agent_runtime.operations_agent import _render_multi_agent
 from app.modules.knowledge.contracts import READ_ONLY_TOOLS
 
 
@@ -277,9 +278,7 @@ async def test_audit_failure_blocks_execution_and_scope_mismatch_is_discarded() 
     assert result == {}
     assert traces[0].error_code == "AI_DELEGATION_AUDIT_FAILED"
 
-    async def wrong_scope(
-        packet: DelegationPacket, budget: DelegationBudget
-    ) -> SpecialistResult:
+    async def wrong_scope(packet: DelegationPacket, budget: DelegationBudget) -> SpecialistResult:
         return SpecialistResult(
             packet.specialist_code,
             "succeeded",
@@ -306,7 +305,7 @@ def test_dag_cycle_count_and_depth_are_hard_failures() -> None:
     with pytest.raises(ValueError, match="acyclic"):
         topological_order({"a": frozenset({"b"}), "b": frozenset({"a"})})
     packets = tuple(
-        _packet(f"dlg_{index}", "catalog", "catalog.search_products") for index in range(5)
+        _packet(f"dlg_{index}", "catalog", "catalog.search_products") for index in range(7)
     )
     with pytest.raises(ValueError, match="count"):
         asyncio.run(
@@ -315,7 +314,7 @@ def test_dag_cycle_count_and_depth_are_hard_failures() -> None:
                 parent_tools=frozenset({"catalog.search_products"}),
                 parent_scope=_scope(),
                 parent_resource_refs=_parent_refs(),
-                budget=_budget(tokens=50, tools=5, models=5),
+                budget=_budget(tokens=70, tools=7, models=7),
             )
         )
     invalid_depth = _packet("dlg_depth", "catalog", "catalog.search_products")
@@ -355,6 +354,8 @@ async def test_recursive_and_duplicate_delegations_are_rejected() -> None:
             parent_resource_refs=_parent_refs(),
             budget=_budget(tokens=20, tools=2, models=2),
         )
+
+
 def test_release_gate_and_router_keep_unproven_intents_on_single_agent() -> None:
     gate = MultiAgentReleaseGate()
     approved = gate.evaluate(
@@ -415,7 +416,9 @@ def test_release_gate_and_router_keep_unproven_intents_on_single_agent() -> None
 
 def test_specialist_tool_sets_match_published_read_contracts() -> None:
     assert set(SPECIALIST_POLICIES) == {
+        "account",
         "catalog",
+        "cart",
         "order",
         "logistics",
         "after_sales",
@@ -423,11 +426,50 @@ def test_specialist_tool_sets_match_published_read_contracts() -> None:
         "policy",
         "governance_users",
         "governance_stores",
+        "governance_catalog",
         "governance_orders",
+        "governance_payments",
+        "governance_logistics",
+        "governance_metrics",
         "observability",
         "merchant_catalog",
+        "merchant_profile",
         "merchant_inventory",
         "merchant_orders",
+        "merchant_after_sale",
+        "merchant_review_service",
+        "merchant_customer_service",
+        "merchant_policy",
+        "governance_after_sale",
+        "governance_support",
+        "governance_ai",
     }
     for policy in SPECIALIST_POLICIES.values():
         assert policy.allowed_tools <= READ_ONLY_TOOLS | {"rag.policy.search"}
+
+
+def test_operations_multi_agent_order_fallback_prefers_precise_card_summary() -> None:
+    answer = _render_multi_agent(
+        {
+            "specialists": {
+                "orders": {
+                    "data": {
+                        "query_mode": "list",
+                        "applied_filters": {
+                            "customer_name": "tulubi",
+                            "store_name": "文具专卖店",
+                            "statuses": [],
+                        },
+                        "recent_orders": [{"order_id": "ord_1"}, {"order_id": "ord_2"}],
+                    }
+                },
+                "users": {"data": {"user_status_counts": {"active": 1}}},
+            }
+        }
+    )
+
+    assert (
+        answer
+        == "已找到用户 tulubi、文具专卖店的 2 笔订单，商品、金额与状态已整理在下方可操作卡片中。"
+    )
+    assert "事件积压" not in answer

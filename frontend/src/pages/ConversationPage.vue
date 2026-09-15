@@ -10,11 +10,7 @@ import {
   decideAgentToolApproval,
   deleteAiMemory,
   getAgentToolApproval,
-  grantAfterSaleAgentConsent,
-  listAgentConsents,
   listAiMemories,
-  revokeAgentConsent,
-  type AgentConsent,
   type AgentToolApproval,
   type AiMemoryItem,
 } from '@/api/agent-runtime'
@@ -73,8 +69,6 @@ const connectionState = ref<'connected' | 'polling' | 'offline'>('polling')
 const humanBusy = ref(false)
 const humanNotice = ref('')
 const humanTicket = ref<HumanServiceTicket | null>(null)
-const agentConsents = ref<AgentConsent[]>([])
-const consentBusy = ref(false)
 const consentNotice = ref('')
 const approvalStates = ref<Record<string, AgentToolApproval>>({})
 const approvalBusy = ref<string | null>(null)
@@ -108,16 +102,11 @@ const activeContextRoute = computed<RouteLocationRaw | null>(() => {
   if (context.context_type === 'store') return `/stores/${encodeURIComponent(context.resource_id)}`
   return null
 })
-const activeAfterSaleConsent = computed(() => agentConsents.value.find((item) => (
-  item.consent_type === 'after_sale_write'
-  && item.scope_type === 'user'
-  && item.status === 'active'
-  && (!item.expires_at || apiDate(item.expires_at).getTime() > Date.now())
-)) ?? null)
 let pollTimer: number | undefined
 let realtime: RealtimeConnection | undefined
 let observer: IntersectionObserver | undefined
 let readRetryTimer: number | undefined
+let consentNoticeTimer: number | undefined
 let readTarget = 0
 let lastReadSubmitted = 0
 let readSending = false
@@ -129,6 +118,15 @@ const elements = new Map<number, HTMLElement>()
 
 function closeEmbeddedNavigation() {
   // Message center is a normal route; card navigation no longer needs to close a popup.
+}
+
+function showConsentNotice(message: string) {
+  if (consentNoticeTimer) window.clearTimeout(consentNoticeTimer)
+  consentNotice.value = message
+  consentNoticeTimer = window.setTimeout(() => {
+    consentNotice.value = ''
+    consentNoticeTimer = undefined
+  }, 3600)
 }
 
 function token(): string {
@@ -276,7 +274,42 @@ function mergeMessages(incoming: ChatMessage[], shouldScroll: boolean) {
   const additions = incoming.filter((item) => !known.has(item.message_id))
   if (!additions.length) return
   messages.value = [...messages.value, ...additions].sort((left, right) => left.sequence_no - right.sequence_no)
-  void refreshApprovals(additions)
+  // Realtime events normally select the active run immediately. Polling is the
+  // recovery path after a reconnect, so it must also move the trace panel to
+  // the newest completed Agent run instead of leaving an older run selected.
+  const latestTraceMessage = [...additions]
+    .reverse()
+    .find((item) => item.sender_type === 'agent' && traceRunId(item))
+  const latestTraceRunId = latestTraceMessage ? traceRunId(latestTraceMessage) : null
+  if (latestTraceRunId) {
+    selectedTraceRunId.value = latestTraceRunId
+    emit('trace-select', latestTraceRunId)
+  }
+  const persistedStreamingReply = [...additions]
+    .reverse()
+    .find((item) => item.sender_type === 'agent' && traceRunId(item) === streamingReply.value?.runId)
+  if (persistedStreamingReply) {
+    streamingReply.value = null
+    liveTrace.value = null
+    emit('trace-progress', null)
+    emit('trace-running', false)
+  }
+  // Approval cards are a terminal response for the current streaming phase:
+  // the Agent has finished preparing a preview and is now waiting for a human
+  // decision.  There is intentionally no agent.response.completed event until
+  // that decision happens, so close the live spinner as soon as the persisted
+  // approval card arrives and let the trace panel render its auditable record.
+  const waitingApproval = [...additions]
+    .reverse()
+    .find((item) => ['refund_approval', 'agent_action_approval'].includes(item.message_type) && traceRunId(item))
+  if (waitingApproval) {
+    const approvalRunId = traceRunId(waitingApproval)
+    if (!streamingReply.value || streamingReply.value.runId === approvalRunId) streamingReply.value = null
+    liveTrace.value = null
+    emit('trace-progress', null)
+    emit('trace-running', false)
+  }
+  void refreshApprovals(messages.value)
   if (!shouldScroll) newBelowCount.value += additions.filter((item) => item.sender_type !== 'user').length
   const visibleIncomingSequence = shouldScroll && document.visibilityState === 'visible'
     ? Math.max(0, ...additions.filter((item) => item.sender_type !== 'user').map((item) => item.sequence_no))
@@ -290,11 +323,8 @@ function mergeMessages(incoming: ChatMessage[], shouldScroll: boolean) {
     }
   })
 }
-async function refreshAgentConsents() {
-  agentConsents.value = (await listAgentConsents(token())).data.items
-}
 async function refreshApprovals(candidates: ChatMessage[] = messages.value) {
-  const ids = [...new Set(candidates.filter((item) => item.message_type === 'refund_approval').map(approvalId).filter(Boolean))]
+  const ids = [...new Set(candidates.filter((item) => ['refund_approval', 'agent_action_approval'].includes(item.message_type)).map(approvalId).filter(Boolean))]
   await Promise.all(ids.map(async (id) => {
     try {
       const state = (await getAgentToolApproval(id, token())).data
@@ -319,38 +349,14 @@ async function decideMemory(message: ChatMessage, decision: 'activate' | 'reject
     if (decision === 'activate') {
       const activated = (await activateAiMemory(id, state.version, token())).data
       memoryStates.value = { ...memoryStates.value, [id]: { status: activated.status, version: activated.version } }
-      consentNotice.value = '偏好已在你的明确确认后写入长期记忆，可随时在 AI 个性化与记忆中更正或删除。'
+      showConsentNotice('偏好已在你的明确确认后写入长期记忆，可随时在 AI 个性化与记忆中更正或删除。')
     } else {
       await deleteAiMemory(id, state.version, token())
       memoryStates.value = { ...memoryStates.value, [id]: { status: 'deleted', version: state.version + 1 } }
-      consentNotice.value = '候选偏好已拒绝并停止使用。'
+      showConsentNotice('候选偏好已拒绝并停止使用。')
     }
   } catch (cause) { error.value = errorMessage(cause); await refreshMemoryCards([message]) }
   finally { memoryBusy.value = null }
-}
-async function grantAfterSaleConsent() {
-  if (consentBusy.value || !await confirmAction('授权专属客服在未来 30 天内协助准备售后申请草稿？实际提交仍必须由你逐次点击确认。')) return
-  consentBusy.value = true
-  error.value = ''
-  try {
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    const granted = (await grantAfterSaleAgentConsent(token(), expiresAt)).data
-    agentConsents.value = [granted, ...agentConsents.value]
-    consentNotice.value = '售后协助授权已生效；退款提交仍需逐次核对并点击确认。'
-  } catch (cause) { error.value = errorMessage(cause) }
-  finally { consentBusy.value = false }
-}
-async function revokeAfterSaleConsent() {
-  const consent = activeAfterSaleConsent.value
-  if (!consent || consentBusy.value || !await confirmAction('确认撤销专属客服的售后协助授权吗？未提交的审批将无法继续执行。', { tone: 'danger' })) return
-  consentBusy.value = true
-  error.value = ''
-  try {
-    const revoked = (await revokeAgentConsent(consent.consent_id, token())).data
-    agentConsents.value = agentConsents.value.map((item) => item.consent_id === revoked.consent_id ? revoked : item)
-    consentNotice.value = '售后协助授权已撤销。'
-  } catch (cause) { error.value = errorMessage(cause) }
-  finally { consentBusy.value = false }
 }
 async function decideApproval(message: ChatMessage, decision: 'approve' | 'reject') {
   const id = approvalId(message)
@@ -358,16 +364,25 @@ async function decideApproval(message: ChatMessage, decision: 'approve' | 'rejec
   const cardVersion = Number(message.content?.approval_version)
   const version = state?.version ?? cardVersion
   if (!id || !Number.isSafeInteger(version) || approvalBusy.value) return
-  const prompt = decision === 'approve'
-    ? `确认提交订单 ${contentString(message, 'order_id')} 的退款申请，申请金额 ${requestedAmountLabel(message)}？`
-    : '确认拒绝并关闭这份退款申请草稿吗？'
-  if (!await confirmAction(prompt, { tone: decision === 'reject' ? 'danger' : 'default' })) return
+  const actionType = contentString(message, 'action_type') || approvalFor(message)?.action_type
+  // Rejecting a proposed Agent action keeps the user's current business data
+  // unchanged.  The card button itself is an explicit decision, so asking for
+  // a second confirmation here only adds friction.  Executing a write still
+  // keeps the additional confirmation dialog.
+  if (decision === 'approve') {
+    const prompt = actionType === 'cart_clear'
+      ? `确认清空购物车中的 ${contentNumber(message, 'total_quantity') ?? 0} 件商品？此操作不会删除订单或收藏。`
+      : `确认提交“${contentString(message, 'product_name') || '该商品'}”的退款申请，申请金额 ${requestedAmountLabel(message)}？`
+    if (!await confirmAction(prompt)) return
+  }
   approvalBusy.value = id
   error.value = ''
   try {
     const result = (await decideAgentToolApproval(id, decision, version, token())).data
     approvalStates.value = { ...approvalStates.value, [id]: result }
-    consentNotice.value = decision === 'approve' ? '已确认提交，专属客服正在处理，请勿重复操作。' : '已拒绝该退款申请草稿。'
+    showConsentNotice(actionType === 'cart_clear'
+      ? decision === 'approve' ? '已确认，专属客服正在清空购物车。' : '已取消清空，购物车保持不变。'
+      : decision === 'approve' ? '已确认提交，专属客服正在处理，请勿重复操作。' : '已拒绝该退款申请草稿。')
     window.setTimeout(() => void poll(), 600)
   } catch (cause) {
     error.value = errorMessage(cause)
@@ -401,7 +416,6 @@ async function load() {
     previousCursor.value = history.data.previous_cursor
     await Promise.all([
       refreshHumanTicket(),
-      detail.data.conversation_type === 'exclusive' ? refreshAgentConsents() : Promise.resolve(),
       refreshApprovals(history.data.items),
       refreshMemoryCards(history.data.items),
     ])
@@ -440,14 +454,17 @@ async function loadEarlier() {
 function timelineScrolled() {
   if ((messageList.value?.scrollTop ?? 999) < 48) void loadEarlier()
 }
-async function poll() {
-  if (loading.value || !navigator.onLine) { connectionState.value = 'offline'; return }
+async function poll(forceScroll = false) {
+  if (loading.value) return
   const afterSequence = messages.value.at(-1)?.sequence_no ?? 0
-  const shouldScroll = nearBottom()
+  const shouldScroll = forceScroll || nearBottom()
   try {
     const response = await listMessages(conversationId.value, token(), { afterSequence, limit: 100 })
     mergeMessages(response.data.items, shouldScroll)
     await refreshHumanTicket()
+    // A successful REST catch-up proves that the service is reachable even
+    // when navigator.onLine is stale.  Keep showing fallback mode until the
+    // websocket itself reconnects.
     connectionState.value = 'polling'
   } catch { connectionState.value = 'offline' }
 }
@@ -483,16 +500,26 @@ async function handleRealtime(event: RealtimeEvent) {
   }
   if (event.type === 'agent.response.completed') {
     emit('trace-running', false)
+    const runId = event.data.run_id
+    if (typeof runId === 'string' && streamingReply.value?.runId === runId) {
+      streamingReply.value = null
+    }
+    // Completion can race the persisted message.created frame. Always perform
+    // a REST catch-up and keep the active reply visible. Otherwise a growing
+    // streaming placeholder can make nearBottom() false and leave the finished
+    // card below the viewport until the user reloads or re-enters the page.
+    await poll(true)
     return
   }
   if (event.type === 'message.created') {
     const message = event.data.message as ChatMessage | undefined
     if (!message || typeof message.message_id !== 'string' || typeof message.sequence_no !== 'number') return
     const lastSequence = messages.value.at(-1)?.sequence_no ?? 0
-    const shouldScroll = nearBottom()
+    const runId = message.content?.run_id
+    const isActiveRun = typeof runId === 'string' && streamingReply.value?.runId === runId
+    const shouldScroll = nearBottom() || isActiveRun
     if (message.sequence_no > lastSequence + 1) await poll()
     mergeMessages([message], shouldScroll)
-    const runId = message.content?.run_id
     if (typeof runId === 'string' && streamingReply.value?.runId === runId) {
       streamingReply.value = null
       liveTrace.value = null
@@ -563,6 +590,12 @@ async function send() {
   await nextTick(scrollToBottom)
   try { await deliver(item) }
   finally { sending.value = false }
+}
+async function submitCardPrompt(value: string) {
+  if (sending.value || !value.trim()) return
+  draft.value = value.trim()
+  await nextTick()
+  await send()
 }
 async function openAttachments() {
   if (!conversation.value || attachmentLoading.value) return
@@ -722,7 +755,7 @@ function onlineChanged() {
 }
 
 watch(draft, persistDraft)
-watch(conversationId, async () => { pending.value = []; streamingReply.value = null; liveTrace.value = null; emit('trace-running', false); emit('trace-progress', null); newBelowCount.value = 0; previousCursor.value = null; agentConsents.value = []; approvalStates.value = {}; selectedTraceRunId.value = null; attachmentOpen.value = false; emit('trace-select', null); await load() })
+watch(conversationId, async () => { pending.value = []; streamingReply.value = null; liveTrace.value = null; emit('trace-running', false); emit('trace-progress', null); newBelowCount.value = 0; previousCursor.value = null; approvalStates.value = {}; selectedTraceRunId.value = null; attachmentOpen.value = false; emit('trace-select', null); await load() })
 onMounted(async () => {
   await load()
   realtime = new RealtimeConnection({
@@ -733,7 +766,11 @@ onMounted(async () => {
     beforeReconnect: poll,
   })
   realtime.start()
-  pollTimer = window.setInterval(() => void poll(), 10_000)
+  // The websocket remains the primary path.  This short REST catch-up loop is
+  // the recovery contract for missed/out-of-order frames and unreliable
+  // browser online hints, so Agent replies and human-handoff system messages
+  // cannot remain visible only in the conversation-list preview.
+  pollTimer = window.setInterval(() => void poll(), 5_000)
   document.addEventListener('visibilitychange', visibilityChanged)
   window.addEventListener('online', onlineChanged)
   window.addEventListener('offline', onlineChanged)
@@ -741,6 +778,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   emit('trace-running', false)
   if (pollTimer) window.clearInterval(pollTimer)
+  if (consentNoticeTimer) window.clearTimeout(consentNoticeTimer)
   realtime?.stop()
   clearReadState()
   document.removeEventListener('visibilitychange', visibilityChanged)
@@ -766,19 +804,6 @@ onBeforeUnmount(() => {
       <span class="conversation-context-cover"><img v-if="activeContextImage()" :src="activeContextImage()!" alt="" /><i v-else>{{ activeContext.context_type === 'product' ? '商' : '询' }}</i></span>
       <div><small>当前咨询</small><strong>{{ contextLabel(activeContext).replace('正在咨询', '') }}</strong><b v-if="activeContextPrice()">{{ activeContextPrice() }}</b></div>
     </div>
-    <details v-if="conversation?.conversation_type === 'exclusive'" class="agent-consent-card" aria-labelledby="after-sale-consent-heading">
-      <summary>
-        <span class="agent-consent-icon" aria-hidden="true">盾</span>
-        <span><strong id="after-sale-consent-heading">售后协助授权</strong><small>{{ activeAfterSaleConsent ? '已授权，可为当前订单准备售后草稿' : '按需授权，不会自动提交退款' }}</small></span>
-        <em>管理授权</em>
-      </summary>
-      <div class="agent-consent-body">
-        <p v-if="activeAfterSaleConsent">已授权专属客服准备售后草稿<span v-if="activeAfterSaleConsent.expires_at">，有效期至 {{ dateTimeLabel(activeAfterSaleConsent.expires_at) }}</span>。每次退款提交仍需你核对卡片并点击确认。</p>
-        <p v-else>授权后，专属客服可以根据你的当前订单准备售后草稿；授权本身不会创建退款，聊天中的“确认”也不会触发提交。</p>
-        <button v-if="activeAfterSaleConsent" type="button" class="small secondary" :disabled="consentBusy" @click="revokeAfterSaleConsent">{{ consentBusy ? '处理中…' : '撤销授权' }}</button>
-        <button v-else type="button" class="small" :disabled="consentBusy" @click="grantAfterSaleConsent">{{ consentBusy ? '授权中…' : '授权售后协助 30 天' }}</button>
-      </div>
-    </details>
     <section v-if="humanTicket && !['resolved','closed'].includes(humanTicket.ticket_status)" class="alert info human-ticket-status" aria-live="polite">
       <span v-if="humanTicket.ticket_status === 'queued'">人工客服排队中<span v-if="humanTicket.queue_position">，当前第 {{ humanTicket.queue_position }} 位</span>。</span>
       <span v-else-if="humanTicket.ticket_status === 'waiting_user'">人工客服正在等待你的补充信息。</span>
@@ -792,7 +817,7 @@ onBeforeUnmount(() => {
         <div v-for="message in messages" :key="message.message_id" :class="['message-row', message.sender_type === 'system' ? 'system-message-row' : message.sender_type === 'user' ? 'mine' : 'theirs']">
           <span v-if="message.sender_type !== 'system'" class="message-avatar" :class="{ agent: message.sender_type === 'agent', store: message.sender_type === 'human' && !platformHuman, platform: message.sender_type === 'human' && platformHuman }" aria-hidden="true"><img v-if="message.sender_type === 'user' && userAvatarUrl" :src="userAvatarUrl" alt="" /><img v-else-if="message.sender_type === 'human' && !platformHuman && storeLogoUrl" :src="storeLogoUrl" alt="" /><img v-else-if="message.sender_type === 'agent'" src="/ai-avatar.svg" alt="" />{{ message.sender_type === 'user' ? userAvatarUrl ? '' : userAvatarLabel : message.sender_type === 'agent' ? '' : message.sender_type === 'human' && platformHuman ? '管' : storeLogoUrl ? '' : '店' }}</span>
           <article :ref="(element) => setMessageElement(element as Element | null, message)" :class="['message-bubble', message.sender_type === 'system' ? 'system-message-bubble' : message.sender_type === 'user' ? 'mine' : 'theirs', { 'trace-selectable': traceRunId(message), 'trace-selected': traceRunId(message) === selectedTraceRunId }]" @click="selectTrace(message)">
-          <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" />
+          <ChatMessageContent :message="message" audience="user" @navigate="closeEmbeddedNavigation" @prompt="submitCardPrompt" />
           <section v-if="message.message_type === 'resolution_check'" class="resolution-check-actions">
             <template v-if="resolutionAnswered(message)"><span>已反馈：{{ resolutionAnswered(message) === 'resolved' ? '已解决' : '没解决' }}</span></template>
             <template v-else><button type="button" class="secondary small" :disabled="resolutionBusy === message.message_id" @click.stop="answerResolutionCheck(message, false)">没解决</button><button type="button" class="small" :disabled="resolutionBusy === message.message_id" @click.stop="answerResolutionCheck(message, true)">已解决</button></template>
@@ -800,7 +825,7 @@ onBeforeUnmount(() => {
           <section v-if="message.message_type === 'refund_approval' && message.content" class="refund-approval-card" :aria-label="`退款申请确认：${approvalStatusLabel(message)}`">
             <header><strong>退款申请确认</strong><span class="badge">{{ approvalStatusLabel(message) }}</span></header>
             <dl>
-              <div><dt>订单</dt><dd>{{ contentString(message, 'order_id') }}</dd></div>
+              <div><dt>店铺</dt><dd>{{ contentString(message, 'store_name') || '商城店铺' }}</dd></div>
               <div><dt>商品</dt><dd>{{ contentString(message, 'product_name') }} · {{ contentString(message, 'sku_name') }}</dd></div>
               <div><dt>数量</dt><dd>{{ contentNumber(message, 'quantity') ?? '—' }} 件</dd></div>
               <div><dt>退款方式</dt><dd>{{ contentString(message, 'refund_type') === 'return_and_refund' ? '退货退款' : '仅退款' }}</dd></div>
@@ -814,6 +839,20 @@ onBeforeUnmount(() => {
             <div v-if="approvalStatus(message) === 'pending'" class="actions">
               <button type="button" class="secondary" :disabled="approvalBusy === approvalId(message)" @click="decideApproval(message, 'reject')">拒绝</button>
               <button type="button" :disabled="approvalBusy === approvalId(message)" @click="decideApproval(message, 'approve')">{{ approvalBusy === approvalId(message) ? '处理中…' : '核对无误，确认提交' }}</button>
+            </div>
+          </section>
+          <section v-if="message.message_type === 'agent_action_approval' && contentString(message, 'action_type') === 'cart_clear'" class="refund-approval-card agent-action-approval-card" :aria-label="`清空购物车确认：${approvalStatusLabel(message)}`">
+            <header><strong>清空购物车确认</strong><span class="badge">{{ approvalStatusLabel(message) }}</span></header>
+            <dl>
+              <div><dt>影响范围</dt><dd>仅当前账号的购物车</dd></div>
+              <div><dt>将移除</dt><dd><strong>{{ contentNumber(message, 'total_quantity') ?? 0 }} 件商品</strong></dd></div>
+              <div><dt>不会影响</dt><dd>订单、收藏、账户余额</dd></div>
+              <div><dt>有效期</dt><dd>{{ dateTimeLabel(contentString(message, 'expires_at')) }}</dd></div>
+            </dl>
+            <p class="approval-warning">只有点击“确认清空”才会执行；聊天文字不会被当作确认。</p>
+            <div v-if="approvalStatus(message) === 'pending'" class="actions">
+              <button type="button" class="secondary" :disabled="approvalBusy === approvalId(message)" @click.stop="decideApproval(message, 'reject')">保留商品</button>
+              <button type="button" class="danger" :disabled="approvalBusy === approvalId(message)" @click.stop="decideApproval(message, 'approve')">{{ approvalBusy === approvalId(message) ? '处理中…' : '确认清空' }}</button>
             </div>
           </section>
           <section v-if="message.message_type === 'memory_candidate' && message.content" class="memory-candidate-card" :aria-label="`长期记忆候选：${memoryState(message).status}`">
@@ -838,7 +877,7 @@ onBeforeUnmount(() => {
     <form class="message-composer rich-message-composer unified-chat-composer" @submit.prevent="send">
       <button v-if="conversation" type="button" class="message-plus-button" aria-label="发送商品或订单" title="发送商品或订单" @click="openAttachments">＋</button>
       <label><span class="sr-only">输入消息</span><textarea v-model="draft" maxlength="4000" placeholder="输入消息…" required @keydown.enter.exact.prevent="send" /></label>
-      <button :disabled="sending || !draft.trim()">{{ sending ? '发送中…' : '发送' }}</button>
+      <button type="button" :disabled="sending || !draft.trim()" @click="send">{{ sending ? '发送中…' : '发送' }}</button>
     </form>
     <MessageAttachmentPicker :open="attachmentOpen" :loading="attachmentLoading" :products="attachmentProducts" :orders="attachmentOrders" :sending-id="attachmentSendingId" :title="conversation?.store_id ? '发送本店商品或订单' : '发送商品或我的订单'" :product-title="conversation?.store_id ? '店铺商品' : '商城商品'" :order-title="conversation?.store_id ? '本店订单' : '我的订单'" @close="attachmentOpen = false" @product="sendPickedProduct" @order="sendPickedOrder" />
   </section>

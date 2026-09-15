@@ -4,6 +4,7 @@ import pytest
 
 from app.core.exceptions import ApplicationError
 from app.modules.catalog.content_sanitizer import sanitize_content
+from app.modules.catalog.repository import described_image_file_ids
 
 
 def test_plain_text_and_structured_content_produce_safe_payloads() -> None:
@@ -19,14 +20,24 @@ def test_plain_text_and_structured_content_produce_safe_payloads() -> None:
             [
                 {"type": "heading", "level": 2, "text": "商品特点"},
                 {"type": "bullet_list", "items": ["耐用", "轻便"]},
-                {"type": "image", "file_id": file_id, "alt": "商品正面图"},
+                {
+                    "type": "image",
+                    "file_id": file_id,
+                    "alt": "商品正面图",
+                    "description": "图片标注: 100% 聚酯纤维，建议冷水洗涤",
+                },
             ],
             ensure_ascii=False,
         ),
     )
     assert structured.referenced_file_ids == (file_id,)
     assert structured.safe_html is None
-    assert structured.safe_text == "商品特点 耐用 轻便 商品正面图"
+    assert structured.safe_text == (
+        "商品特点 耐用 轻便 图片标注: 100% 聚酯纤维，建议冷水洗涤 商品正面图"
+    )
+    assert structured.safe_blocks is not None
+    assert structured.safe_blocks[-1]["description"] == "图片标注: 100% 聚酯纤维，建议冷水洗涤"
+    assert described_image_file_ids(structured.safe_blocks) == {file_id}
 
 
 def test_html_content_is_allowlisted_and_normalized() -> None:

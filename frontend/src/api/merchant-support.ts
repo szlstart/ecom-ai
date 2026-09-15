@@ -1,4 +1,4 @@
-import { createClientMessageId, type ChatMessage, type Conversation, type ConversationClear, type ConversationDeletion, type MessagePage, type ReadCursor } from '@/api/messaging'
+import { createClientMessageId, type AgentAssetMessageInput, type ChatMessage, type Conversation, type ConversationClear, type ConversationDeletion, type MessagePage, type ReadCursor } from '@/api/messaging'
 import { apiRequest, createIdempotencyKey, retryTransientNetworkRequest, type ApiResult } from '@/api/http'
 
 export function getMerchantExclusiveConversation(token: string): Promise<ApiResult<Conversation>> {
@@ -45,6 +45,17 @@ export function sendMerchantExclusiveMessageResilient(
   return retryTransientNetworkRequest(
     () => sendMerchantExclusiveMessage(text, token, clientMessageId),
   )
+}
+
+export function sendMerchantExclusiveAsset(
+  input: AgentAssetMessageInput,
+  token: string,
+  clientMessageId = createClientMessageId(),
+): Promise<ApiResult<ChatMessage>> {
+  return retryTransientNetworkRequest(() => apiRequest('/merchant/support/exclusive-conversation/messages', {
+    method: 'POST',
+    body: JSON.stringify({ client_message_id: clientMessageId, content: { type: 'agent_asset', ...input } }),
+  }, token))
 }
 
 export function ensureMerchantHumanService(text: string, messageId: string, token: string) {

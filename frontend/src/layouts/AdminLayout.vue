@@ -118,7 +118,7 @@ watch(() => route.fullPath, () => { sidebarOpen.value = false; profileOpen.value
         <button class="admin-search-trigger" @click="openSearch"><span>⌕</span><span>搜索管理功能</span><kbd>⌘ K</kbd></button>
         <div class="admin-topbar-actions">
           <RouterLink v-if="auth.has('support:queue_read')" class="admin-message-trigger" :class="{ unread: unreadCount > 0 }" aria-label="打开消息中心" to="/admin/messages"><span>◍</span><span>消息</span><b v-if="unreadCount">{{ unreadCount > 99 ? '99+' : unreadCount }}</b></RouterLink>
-          <div class="admin-profile-menu" @click.stop><button @click="profileOpen = !profileOpen"><span class="admin-profile-avatar">{{ initials }}</span><span class="admin-profile-copy"><strong>{{ profile?.nickname || '平台管理员' }}</strong><small>{{ profile?.username || '正在载入…' }}</small></span><span>⌄</span></button><div v-if="profileOpen" class="admin-profile-dropdown"><button @click="logout">退出登录</button></div></div>
+          <div class="admin-profile-menu" @click.stop><button @click="profileOpen = !profileOpen"><span class="admin-profile-avatar">{{ initials }}</span><span class="admin-profile-copy"><strong>{{ profile?.nickname || '平台管理员' }}</strong><small>{{ profile?.username || '正在载入…' }}</small></span><span>⌄</span></button><div v-if="profileOpen" class="admin-profile-dropdown"><RouterLink to="/admin/login?switch=1">切换管理员账号</RouterLink><button @click="logout">退出登录</button></div></div>
         </div>
       </header>
       <main class="admin-content" :class="{ 'message-workspace-content': route.path === '/admin/messages' }"><RouterView :key="route.path" /></main>

@@ -13,7 +13,7 @@ describe('SafeContentRenderer', () => {
           content_hash: 'hash',
           safe_blocks: [
             { type: 'paragraph', text: '第一段文字' },
-            { type: 'image', file_id: 'file_01ARZ3NDEKTSV4RRFFQ69G5FAV', alt: '中间图片' },
+            { type: 'image', file_id: 'file_01ARZ3NDEKTSV4RRFFQ69G5FAV', alt: '中间图片', description: '仅供后台与 AI 使用的 OCR 图片说明' },
             { type: 'paragraph', text: '第二段文字' },
           ],
           safe_html: null,
@@ -27,5 +27,6 @@ describe('SafeContentRenderer', () => {
     expect(children.map((element) => element.textContent)).toEqual(['第一段文字', '', '第二段文字'])
     expect(wrapper.get('img').attributes('src')).toContain('/api/v1/files/file_01ARZ3NDEKTSV4RRFFQ69G5FAV')
     expect(wrapper.html()).not.toContain('v-html')
+    expect(wrapper.text()).not.toContain('仅供后台与 AI 使用的 OCR 图片说明')
   })
 })

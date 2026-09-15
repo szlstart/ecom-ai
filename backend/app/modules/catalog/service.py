@@ -8,6 +8,7 @@ from datetime import timedelta
 from decimal import Decimal
 from typing import Literal, cast
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import PaginationMeta
@@ -373,6 +374,27 @@ class CatalogService:
         elif favorite is not None and favorite.deleted_at is None:
             favorite.deleted_at = now
             favorite.version += 1
+        await self.session.commit()
+
+    async def remove_favorite_as_admin(self, user_id: int, product_no: str) -> None:
+        """Remove an existing relation even when the product is no longer public."""
+        row = (
+            await self.session.execute(
+                select(ProductFavorite, Product)
+                .join(Product, Product.id == ProductFavorite.product_id)
+                .where(
+                    Product.product_no == product_no,
+                    ProductFavorite.user_id == user_id,
+                    ProductFavorite.deleted_at.is_(None),
+                )
+                .with_for_update()
+            )
+        ).one_or_none()
+        if row is None:
+            raise _not_found()
+        favorite, _product = row
+        favorite.deleted_at = utc_now()
+        favorite.version += 1
         await self.session.commit()
 
     async def favorite_products(self, user_id: int, limit: int) -> ProductList:

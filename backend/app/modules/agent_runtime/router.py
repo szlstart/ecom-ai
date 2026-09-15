@@ -2,7 +2,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Query, Response, status
 
-from app.api.dependencies import IdempotencyKey, UserContext
+from app.api.dependencies import (
+    IdempotencyKey,
+    MerchantContext,
+    PlatformAdminContext,
+    UserContext,
+)
 from app.api.schemas import Envelope
 from app.modules.agent_runtime.dependencies import (
     AgentApprovalServiceDependency,
@@ -311,6 +316,58 @@ async def decide_agent_tool_approval(
     payload: AgentApprovalDecisionRequest,
     response: Response,
     context: UserContext,
+    service: AgentApprovalServiceDependency,
+    idempotency_key: IdempotencyKey,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AgentApprovalView]:
+    result = await service.decide(
+        context.user,
+        approval_id,
+        payload,
+        _expected_version(if_match),
+        idempotency_key,
+    )
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/merchant/agent-tool-approvals/{approval_id}/decisions",
+    response_model=Envelope[AgentApprovalView],
+    operation_id="MerchantAgentToolApproval_DecideMine",
+)
+async def decide_merchant_agent_tool_approval(
+    approval_id: str,
+    payload: AgentApprovalDecisionRequest,
+    response: Response,
+    context: MerchantContext,
+    service: AgentApprovalServiceDependency,
+    idempotency_key: IdempotencyKey,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Envelope[AgentApprovalView]:
+    result = await service.decide(
+        context.user,
+        approval_id,
+        payload,
+        _expected_version(if_match),
+        idempotency_key,
+    )
+    response.headers["ETag"] = _etag(result.version)
+    _no_store(response)
+    return Envelope(data=result)
+
+
+@router.post(
+    "/admin/agent-tool-approvals/{approval_id}/decisions",
+    response_model=Envelope[AgentApprovalView],
+    operation_id="AdminAgentToolApproval_DecideMine",
+)
+async def decide_admin_agent_tool_approval(
+    approval_id: str,
+    payload: AgentApprovalDecisionRequest,
+    response: Response,
+    context: PlatformAdminContext,
     service: AgentApprovalServiceDependency,
     idempotency_key: IdempotencyKey,
     if_match: Annotated[str | None, Header(alias="If-Match")] = None,

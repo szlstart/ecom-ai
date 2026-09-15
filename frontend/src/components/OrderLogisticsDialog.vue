@@ -110,8 +110,8 @@ onBeforeUnmount(teardown)
         </header>
 
         <div v-if="error" class="logistics-error" role="alert"><strong>物流暂时没有加载成功</strong><span>{{ error }}</span><button type="button" @click="load(true)">重新加载</button></div>
-        <div v-else-if="loading && !shipments.length" class="logistics-loading"><span class="logistics-loader" aria-hidden="true"></span><strong>正在查询物流信息</strong><p>支付后的模拟运单会由后端自动生成，无需手动刷新。</p></div>
-        <div v-else-if="!shipments.length" class="logistics-loading"><span class="parcel-icon" aria-hidden="true">▣</span><strong>订单已支付，商家正在打包</strong><p>物流单生成后会自动出现在这里，请保持弹窗开启。</p></div>
+        <div v-else-if="loading && !shipments.length" class="logistics-loading"><span class="logistics-loader" aria-hidden="true"></span><strong>正在查询物流信息</strong><p>正在读取商家或授权 AI 经营助理记录的最新物流节点。</p></div>
+        <div v-else-if="!shipments.length" class="logistics-loading"><span class="parcel-icon" aria-hidden="true">▣</span><strong>订单已支付，商家正在打包</strong><p>商家创建包裹后，物流信息会展示在这里。</p></div>
 
         <template v-else-if="current">
           <nav v-if="shipments.length > 1" class="shipment-tabs" aria-label="选择包裹">
@@ -120,7 +120,7 @@ onBeforeUnmount(teardown)
 
           <section class="logistics-hero">
             <div class="logistics-status-icon" :class="{ delivered: isTerminal }" aria-hidden="true">{{ isTerminal ? '✓' : '↗' }}</div>
-            <div><span>{{ isTerminal ? '运输已完成' : '运输进行中 · 自动更新' }}</span><h3>{{ headline }}</h3><p>当前位置：{{ currentLocation }}</p></div>
+            <div><span>{{ isTerminal ? '运输已完成' : '运输进行中 · 节点实时同步' }}</span><h3>{{ headline }}</h3><p>当前位置：{{ currentLocation }}</p></div>
           </section>
 
           <ol class="logistics-progress" aria-label="配送进度">
@@ -133,7 +133,7 @@ onBeforeUnmount(teardown)
 
           <div class="logistics-content">
             <section class="tracking-card">
-              <header><div><small>本次配送</small><strong>{{ current.carrier_name }}</strong></div><span class="simulation-badge">模拟物流</span></header>
+              <header><div><small>本次配送</small><strong>{{ current.carrier_name }}</strong></div><span class="simulation-badge">开发环境承运商</span></header>
               <div class="tracking-number"><span>物流编号</span><strong>{{ current.tracking_no }}</strong><button type="button" @click="copyTracking">{{ copied ? '已复制' : '复制单号' }}</button></div>
               <div class="parcel-contents">
                 <h3>包裹内容 <small>共 {{ current.items.reduce((total, item) => total + item.quantity, 0) }} 件</small></h3>
@@ -152,7 +152,7 @@ onBeforeUnmount(teardown)
                   <i></i><div><strong>{{ track.description }}</strong><p v-if="track.location_text">{{ locationName(track.location_text) }}</p><time :datetime="track.occurred_at">{{ dateTime(track.occurred_at) }}</time></div>
                 </li>
               </ol>
-              <div v-else class="waiting-track"><span></span><div><strong>等待第一条物流轨迹</strong><p>系统将在支付后约 5 秒更新为“已发货，待揽收”。</p></div></div>
+              <div v-else class="waiting-track"><span></span><div><strong>等待第一条物流轨迹</strong><p>商家已经创建运单，承运方更新节点后会显示在这里。</p></div></div>
             </section>
           </div>
           <footer class="logistics-note"><span>盾</span><p><strong>物流信息由后端持久化记录</strong><small>关闭弹窗、刷新页面或更换设备后，进度不会丢失。物流签收不等于确认收货。</small></p></footer>

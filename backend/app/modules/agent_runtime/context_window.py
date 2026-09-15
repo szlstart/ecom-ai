@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.agent_runtime.conversation_state import ConversationStateSnapshot
 from app.modules.agent_runtime.prompt_safety import detects_prompt_injection, safe_untrusted_excerpt
 from app.modules.messaging.models import Conversation, Message
 
@@ -16,6 +17,7 @@ MAX_RECENT_MESSAGES = 10
 MAX_CONTEXT_CHARACTERS = 4_800
 MAX_MESSAGE_CHARACTERS = 800
 MAX_DOSSIER_ITEMS = 6
+MAX_PLANNING_CONTEXT_CHARACTERS = 7_000
 
 
 @dataclass(frozen=True)
@@ -78,6 +80,7 @@ class ContextWindow:
     rolling_summary: str | None = None
     summary_no: str | None = None
     summarized_message_count: int = 0
+    conversation_state: ConversationStateSnapshot | None = None
 
     def with_summary(self, summary: str, *, summary_no: str, message_count: int) -> ContextWindow:
         return ContextWindow(
@@ -87,29 +90,53 @@ class ContextWindow:
             rolling_summary=safe_untrusted_excerpt(summary, 3000),
             summary_no=summary_no,
             summarized_message_count=message_count,
+            conversation_state=self.conversation_state,
+        )
+
+    def with_conversation_state(self, state: ConversationStateSnapshot | None) -> ContextWindow:
+        return ContextWindow(
+            recent_turns=self.recent_turns,
+            omitted_count=self.omitted_count,
+            character_count=self.character_count,
+            rolling_summary=self.rolling_summary,
+            summary_no=self.summary_no,
+            summarized_message_count=self.summarized_message_count,
+            conversation_state=state,
         )
 
     def planning_input(self, current_text: str) -> str:
-        current = safe_untrusted_excerpt(current_text, 4000)
-        if not self.recent_turns and not self.rolling_summary:
+        current = safe_untrusted_excerpt(current_text, 2500)
+        if not self.recent_turns and not self.rolling_summary and self.conversation_state is None:
             return current
-        sections = ["CURRENT_UNTRUSTED_MESSAGE:\n" + current]
+        sections = ["CURRENT_UNTRUSTED_MESSAGE:\n" + current[:1800]]
+        if self.conversation_state is not None:
+            sections.append(
+                "TYPED_CONVERSATION_STATE_V2_FOR_COREFERENCE_ONLY:\n"
+                + json.dumps(
+                    self.conversation_state.planning_projection(),
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )[:2200]
+            )
         sections.append(
             "CONVERSATION_DOSSIER_JSON_FOR_CONTINUITY_ONLY:\n"
             + json.dumps(
                 self.dossier().projection(),
                 ensure_ascii=False,
                 separators=(",", ":"),
-            )
+            )[:1000]
         )
         if self.rolling_summary:
             sections.append(
-                "ROLLING_UNTRUSTED_SUMMARY_FOR_CONTINUITY_ONLY:\n" + self.rolling_summary
+                "ROLLING_UNTRUSTED_SUMMARY_FOR_CONTINUITY_ONLY:\n"
+                + self.rolling_summary[:800]
             )
         if self.recent_turns:
             history = "\n".join(f"{item.role}: {item.text}" for item in self.recent_turns)
-            sections.append("RECENT_UNTRUSTED_DIALOGUE_FOR_COREFERENCE_ONLY:\n" + history)
-        return "\n\n".join(sections)[:8000]
+            sections.append(
+                "RECENT_UNTRUSTED_DIALOGUE_FOR_COREFERENCE_ONLY:\n" + history[-1400:]
+            )
+        return "\n\n".join(sections)[:MAX_PLANNING_CONTEXT_CHARACTERS]
 
     def dossier(self, resource_refs: Mapping[str, Any] | None = None) -> ConversationDossier:
         return _build_dossier(self, resource_refs or {})
@@ -118,6 +145,8 @@ class ContextWindow:
         """Expose sanitized continuity to the answer model, not to the public trace."""
 
         projection = self.evidence_projection()
+        if self.conversation_state is not None:
+            projection["conversation_state"] = self.conversation_state.planning_projection()
         projection["dossier"] = self.dossier(resource_refs).projection()
         if self.rolling_summary:
             projection["rolling_summary"] = {
@@ -140,6 +169,11 @@ class ContextWindow:
             "included_count": len(self.recent_turns),
             "omitted_count": self.omitted_count,
             "character_count": self.character_count,
+            "conversation_state": (
+                self.conversation_state.evidence_projection()
+                if self.conversation_state is not None
+                else None
+            ),
             "rolling_summary": (
                 {
                     "summary_id": self.summary_no,
@@ -405,7 +439,7 @@ def _looks_like_commitment(value: str) -> bool:
 
 
 def _looks_like_open_question(value: str) -> bool:
-    return value.rstrip().endswith(("?", "？")) or any(  # noqa: RUF001
+    return value.rstrip().endswith(("?", "？")) or any(
         token in value
         for token in (
             "你想先",

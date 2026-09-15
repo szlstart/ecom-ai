@@ -1,6 +1,6 @@
 """Generated from docs/traceability.yaml; do not edit manually."""
 
-SOURCE_SHA256 = "d0dc510e2bd84df54fa0fb099629d1b370a96e0121a10d2d54062d7570b9d7e6"
+SOURCE_SHA256 = "d104fc5208d26a10b3207dc6883a4f97db7b2e15d5165e9e03b665d9fdfb3b71"
 OPERATIONS: dict[str, dict[str, object]] = {
     "AboutContent_GetPublished": {
         "x-audit-event": "none",
@@ -112,6 +112,22 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["ai_agents:read", "ai_agents:manage", "ai_agents:publish"],
         "x-test-case-ids": ["ADM-AGENT-*"],
     },
+    "AdminAgentToolApproval_DecideMine": {
+        "x-audit-event": "command.AdminAgentToolApproval_DecideMine",
+        "x-domain-command": "AdminAgentToolApproval_DecideMine",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["ADM-MSG-01"],
+        "x-scope-policy": [
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:resolve",
+            "platform_admin_session",
+        ],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*"],
+    },
     "AdminAgentVersion_Create": {
         "x-audit-event": "command.AdminAgentVersion_Create",
         "x-domain-command": "AdminAgentVersion_Create",
@@ -156,7 +172,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "support:resolve",
             "platform_admin_session",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*"],
     },
     "AdminAiConversation_DeleteMine": {
         "x-audit-event": "command.AdminAiConversation_DeleteMine",
@@ -172,7 +188,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "support:resolve",
             "platform_admin_session",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*"],
     },
     "AdminAiConversation_PutMine": {
         "x-audit-event": "command.AdminAiConversation_PutMine",
@@ -189,7 +205,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "platform_super_admin_conversation_owner",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*"],
     },
     "AdminAiEvaluation_List": {
         "x-audit-event": "access.AdminAiEvaluation_List",
@@ -204,7 +220,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
     "AdminAiEvaluation_Run": {
         "x-audit-event": "command.AdminAiEvaluation_Run",
         "x-domain-command": "AdminAiEvaluation_Run",
-        "x-idempotency-policy": "job_intent_no_automatic_retry",
+        "x-idempotency-policy": "idempotency_key_required",
         "x-owner-kind": ["vue_route"],
         "x-permission-codes": ["ai_evaluations:run"],
         "x-requirement-id": ["ADM-EVAL-01"],
@@ -256,7 +272,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "platform_super_admin_conversation_owner",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*"],
     },
     "AdminAiMessage_ListMine": {
         "x-audit-event": "none",
@@ -273,7 +289,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "platform_super_admin_conversation_owner",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*"],
     },
     "AdminAiReadCursor_PutMine": {
         "x-audit-event": "command.AdminAiReadCursor_PutMine",
@@ -290,7 +306,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "platform_super_admin_conversation_owner",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*"],
     },
     "AdminApproval_Decide": {
         "x-audit-event": "command.AdminApproval_Decide",
@@ -2078,8 +2094,9 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "shipments:correct",
             "shipments:void",
             "shipments:refresh",
+            "shipments:create",
         ],
-        "x-test-case-ids": ["ADM-SHIP-VOID-*"],
+        "x-test-case-ids": ["ADM-SHIP-VOID-*", "SHIP-SIMULATION-*"],
     },
     "AdminShipment_Create": {
         "x-audit-event": "command.AdminShipment_Create",
@@ -2120,8 +2137,25 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "shipments:correct",
             "shipments:void",
             "shipments:refresh",
+            "shipments:create",
         ],
-        "x-test-case-ids": ["ADM-SHIP-VOID-*"],
+        "x-test-case-ids": ["ADM-SHIP-VOID-*", "SHIP-SIMULATION-*"],
+    },
+    "AdminShipment_RecordSimulationEvent": {
+        "x-audit-event": "command.AdminShipment_RecordSimulationEvent",
+        "x-domain-command": "AdminShipment_RecordSimulationEvent",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": ["shipments:create"],
+        "x-requirement-id": ["ADM-SHIP-02"],
+        "x-scope-policy": [
+            "shipments:read",
+            "shipments:correct",
+            "shipments:void",
+            "shipments:refresh",
+            "shipments:create",
+        ],
+        "x-test-case-ids": ["ADM-SHIP-VOID-*", "SHIP-SIMULATION-*"],
     },
     "AdminShipment_Refresh": {
         "x-audit-event": "command.AdminShipment_Refresh",
@@ -2135,8 +2169,9 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "shipments:correct",
             "shipments:void",
             "shipments:refresh",
+            "shipments:create",
         ],
-        "x-test-case-ids": ["ADM-SHIP-VOID-*"],
+        "x-test-case-ids": ["ADM-SHIP-VOID-*", "SHIP-SIMULATION-*"],
     },
     "AdminShipment_Void": {
         "x-audit-event": "command.AdminShipment_Void",
@@ -2150,8 +2185,9 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "shipments:correct",
             "shipments:void",
             "shipments:refresh",
+            "shipments:create",
         ],
-        "x-test-case-ids": ["ADM-SHIP-VOID-*"],
+        "x-test-case-ids": ["ADM-SHIP-VOID-*", "SHIP-SIMULATION-*"],
     },
     "AdminShippingTemplate_Create": {
         "x-audit-event": "command.AdminShippingTemplate_Create",
@@ -3553,6 +3589,16 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["current_user"],
         "x-test-case-ids": ["BROWSER-GUARD-*", "CART-*"],
     },
+    "CartItem_ClearAll": {
+        "x-audit-event": "command.CartItem_ClearAll",
+        "x-domain-command": "CartItem_ClearAll",
+        "x-idempotency-policy": "if_match_required_by_domain",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["USR-CART-01"],
+        "x-scope-policy": ["current_user"],
+        "x-test-case-ids": ["BROWSER-GUARD-*", "CART-*"],
+    },
     "CartItem_Create": {
         "x-audit-event": "command.CartItem_Create",
         "x-domain-command": "CartItem_Create",
@@ -4120,6 +4166,23 @@ OPERATIONS: dict[str, dict[str, object]] = {
         "x-scope-policy": ["stores:read", "stores:manage", "store_owner"],
         "x-test-case-ids": ["ADM-STORE-*", "FILE-UPLOAD-*", "FINANCE-*", "MCH-PORTAL-*"],
     },
+    "MerchantAgentToolApproval_DecideMine": {
+        "x-audit-event": "command.MerchantAgentToolApproval_DecideMine",
+        "x-domain-command": "MerchantAgentToolApproval_DecideMine",
+        "x-idempotency-policy": "idempotency_key_required+if_match_required_by_domain",
+        "x-owner-kind": ["vue_route"],
+        "x-permission-codes": [],
+        "x-requirement-id": ["MCH-MSG-01"],
+        "x-scope-policy": [
+            "support:queue_read",
+            "support:claim",
+            "support:reply",
+            "support:resolve",
+            "store_scope",
+            "merchant_exclusive_conversation_owner",
+        ],
+        "x-test-case-ids": ["ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
+    },
     "MerchantAuthSession_Resume": {
         "x-audit-event": "command.MerchantAuthSession_Resume",
         "x-domain-command": "MerchantAuthSession_Resume",
@@ -4195,7 +4258,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "store_scope",
             "merchant_exclusive_conversation_owner",
         ],
-        "x-test-case-ids": ["ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "MerchantExclusiveConversation_DeleteMine": {
         "x-audit-event": "command.MerchantExclusiveConversation_DeleteMine",
@@ -4212,7 +4275,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "store_scope",
             "merchant_exclusive_conversation_owner",
         ],
-        "x-test-case-ids": ["ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "MerchantExclusiveConversation_PutMine": {
         "x-audit-event": "command.MerchantExclusiveConversation_PutMine",
@@ -4234,7 +4297,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "support:resolve",
             "store_scope",
         ],
-        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "MerchantExclusiveMessage_CreateMine": {
         "x-audit-event": "command.MerchantExclusiveMessage_CreateMine",
@@ -4256,7 +4319,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "support:resolve",
             "store_scope",
         ],
-        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "MerchantExclusiveMessage_ListMine": {
         "x-audit-event": "none",
@@ -4278,7 +4341,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "support:resolve",
             "store_scope",
         ],
-        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "MerchantExclusiveReadCursor_PutMine": {
         "x-audit-event": "command.MerchantExclusiveReadCursor_PutMine",
@@ -4300,7 +4363,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "support:resolve",
             "store_scope",
         ],
-        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-PRODUCT-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "MerchantHumanServiceRequest_CreateMine": {
         "x-audit-event": "command.MerchantHumanServiceRequest_CreateMine",
@@ -4957,7 +5020,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "support:transfer",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "SupportConversation_ClearMessages": {
         "x-audit-event": "command.SupportConversation_ClearMessages",
@@ -4975,7 +5038,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "merchant_exclusive_conversation_owner",
             "platform_admin_session",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "SupportConversation_Delete": {
         "x-audit-event": "command.SupportConversation_Delete",
@@ -4993,7 +5056,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "merchant_exclusive_conversation_owner",
             "platform_admin_session",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "SupportConversation_List": {
         "x-audit-event": "access.SupportConversation_List",
@@ -5011,7 +5074,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "merchant_exclusive_conversation_owner",
             "platform_admin_session",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "SupportInternalNote_Create": {
         "x-audit-event": "command.SupportInternalNote_Create",
@@ -5068,7 +5131,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "support:transfer",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "SupportMessage_Send": {
         "x-audit-event": "command.SupportMessage_Send",
@@ -5107,7 +5170,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "support:transfer",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "SupportRealtimeTicket_Create": {
         "x-audit-event": "command.SupportRealtimeTicket_Create",
@@ -5138,7 +5201,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "support:transfer",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "SupportTicket_Get": {
         "x-audit-event": "access.SupportTicket_Get",
@@ -5187,7 +5250,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "support:transfer",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "SupportTicket_Resume": {
         "x-audit-event": "command.SupportTicket_Resume",
@@ -5262,7 +5325,7 @@ OPERATIONS: dict[str, dict[str, object]] = {
             "platform_admin_session",
             "support:transfer",
         ],
-        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "MCH-PORTAL-*"],
+        "x-test-case-ids": ["ADM-AUTH-*", "ADM-SUPPORT-*", "AGENT-OPS-*", "MCH-PORTAL-*"],
     },
     "TradeOrder_GetMine": {
         "x-audit-event": "none",

@@ -45,7 +45,7 @@ class AgentLiveStreamPublisher:
             self.reasoning_index += 1
             event_type = "agent.response.reasoning.delta"
             chunk_index = self.reasoning_index
-            text = text_so_far[:6000]
+            text = text_so_far[:12_000]
         elif kind in {"answer", "answer_replace"}:
             # Providers commonly emit one or two characters per delta. Coalesce those
             # micro-deltas before Redis while preserving cumulative text semantics.

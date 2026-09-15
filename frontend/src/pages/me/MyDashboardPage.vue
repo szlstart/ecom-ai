@@ -67,35 +67,35 @@ async function logout() {
       <div class="my-center-hero-actions">
         <button class="my-logout-button" type="button" :disabled="loggingOut" @click="logout">{{ loggingOut ? '正在退出…' : '退出登录' }}</button>
       </div>
-      <div class="my-wallet-panel">
+      <div class="my-wallet-panel navigation-surface">
         <div><p>账户余额</p><strong>{{ money(wallet?.balance.minor_units) }}</strong><small>模拟充值余额，可用于商城内支付</small></div>
-        <RouterLink to="/me/wallet">充值与明细 <span aria-hidden="true">→</span></RouterLink>
+        <RouterLink class="surface-primary-link" to="/me/wallet">充值与明细 <span aria-hidden="true">→</span></RouterLink>
       </div>
       <div v-if="data" class="my-ai-service-pill" :class="`is-${agentHealth}`" aria-live="polite"><span aria-hidden="true">✦</span> {{ agentHealthLabel }}<span v-if="data.unread_message_count"> · {{ data.unread_message_count }} 条未读消息</span></div>
     </header>
     <p v-if="error" class="alert error">{{ error }}</p>
     <div v-if="data" class="dashboard-sections">
-      <article class="dashboard-card dashboard-card-orders premium-dashboard-card">
-        <div class="dashboard-card-heading"><div class="dashboard-heading-copy"><span class="dashboard-section-icon" aria-hidden="true">▣</span><div><p class="eyebrow">订单</p><h2>我的订单</h2><p>查看订单进度，及时完成支付、收货与评价。</p></div></div><RouterLink class="dashboard-main-link" to="/me/orders?view=all">全部订单 <span aria-hidden="true">→</span></RouterLink></div>
+      <article class="dashboard-card dashboard-card-orders premium-dashboard-card navigation-surface">
+        <div class="dashboard-card-heading"><div class="dashboard-heading-copy"><span class="dashboard-section-icon" aria-hidden="true">▣</span><div><p class="eyebrow">订单</p><h2>我的订单</h2><p>查看订单进度，及时完成支付、收货与评价。</p></div></div><RouterLink class="dashboard-main-link surface-primary-link" to="/me/orders?view=all">全部订单 <span aria-hidden="true">→</span></RouterLink></div>
         <div class="my-order-shortcuts"><RouterLink v-for="(count, key) in data.order_counts" :key="key" :to="{ path: '/me/orders', query: { view: String(key) } }"><span>{{ orderCountLabels[key] ?? key }}</span><strong>{{ count }}</strong><small>查看订单</small></RouterLink></div>
       </article>
 
-      <article class="dashboard-card dashboard-card-address premium-dashboard-card dashboard-row-card">
+      <article class="dashboard-card dashboard-card-address premium-dashboard-card dashboard-row-card navigation-surface">
         <span class="dashboard-section-icon" aria-hidden="true">⌖</span>
         <div><p class="eyebrow">配送</p><h2>默认收货地址</h2><p v-if="data.default_address" class="dashboard-primary-copy"><strong>{{ data.default_address.recipient_name }}</strong><span>{{ data.default_address.address }}</span></p><p v-else class="dashboard-empty-copy">尚未设置默认收货地址，添加后结算更快捷。</p></div>
-        <RouterLink class="dashboard-main-link" to="/me/addresses">管理收货地址 <span aria-hidden="true">→</span></RouterLink>
+        <RouterLink class="dashboard-main-link surface-primary-link" to="/me/addresses">管理收货地址 <span aria-hidden="true">→</span></RouterLink>
       </article>
 
-      <article class="dashboard-card dashboard-card-favorites premium-dashboard-card dashboard-row-card">
+      <article class="dashboard-card dashboard-card-favorites premium-dashboard-card dashboard-row-card navigation-surface">
         <span class="dashboard-section-icon favorite" aria-hidden="true">♥</span>
         <div><p class="eyebrow">收藏</p><h2>我的收藏</h2><p>心仪商品与关注店铺集中管理，随时继续选购。</p><div class="dashboard-quick-links"><RouterLink to="/me/favorites/products">商品收藏</RouterLink><RouterLink to="/me/favorites/stores">店铺收藏</RouterLink></div></div>
-        <RouterLink class="dashboard-main-link" to="/me/favorites/products">查看收藏 <span aria-hidden="true">→</span></RouterLink>
+        <RouterLink class="dashboard-main-link surface-primary-link" to="/me/favorites/products">查看收藏 <span aria-hidden="true">→</span></RouterLink>
       </article>
 
-      <article class="dashboard-card dashboard-card-security premium-dashboard-card dashboard-row-card">
+      <article class="dashboard-card dashboard-card-security premium-dashboard-card dashboard-row-card navigation-surface">
         <span class="dashboard-section-icon security" aria-hidden="true">◇</span>
         <div><p class="eyebrow">安全</p><h2>账号与安全</h2><p>管理登录密码、绑定邮箱与账户注销。</p></div>
-        <RouterLink class="dashboard-main-link" to="/me/settings/security">安全设置 <span aria-hidden="true">→</span></RouterLink>
+        <RouterLink class="dashboard-main-link surface-primary-link" to="/me/settings/security">安全设置 <span aria-hidden="true">→</span></RouterLink>
       </article>
     </div>
   </section>

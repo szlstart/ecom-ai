@@ -35,3 +35,4 @@ async def test_acceptance_scenario_is_complete_and_idempotent(
         assert first.product_id.startswith("prd_")
         assert first.sku_id.startswith("sku_")
         assert first.address_id.startswith("addr_")
+        assert first.ai_governance_skill_id.startswith("skl_")

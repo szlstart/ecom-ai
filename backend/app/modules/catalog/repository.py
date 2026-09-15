@@ -15,6 +15,7 @@ from app.modules.catalog.models import (
     Product,
     ProductAttribute,
     ProductContentVersion,
+    ProductContentVersionFile,
     ProductFaq,
     ProductFaqVersion,
     ProductFavorite,
@@ -25,6 +26,23 @@ from app.modules.catalog.models import (
 from app.modules.files.models import FileObject
 from app.modules.inventory.models import Inventory
 from app.modules.stores.models import Store, StoreProductGroup, StoreProductGroupItem
+
+
+def described_image_file_ids(
+    safe_blocks: list[dict[str, object]] | None,
+) -> set[str]:
+    """Files with human-editable descriptions must not fall back to raw OCR."""
+
+    if not safe_blocks:
+        return set()
+    return {
+        file_no
+        for block in safe_blocks
+        if block.get("type") == "image"
+        and isinstance((file_no := block.get("file_id")), str)
+        and isinstance(block.get("description"), str)
+        and bool(cast(str, block["description"]).strip())
+    }
 
 
 class CatalogRepository:
@@ -212,6 +230,32 @@ class CatalogRepository:
                 )
             ),
         )
+
+    async def content_image_ocr_texts(
+        self,
+        content_version_id: int | None,
+        *,
+        exclude_file_nos: set[str] | None = None,
+    ) -> list[tuple[str, str]]:
+        if content_version_id is None:
+            return []
+        statement = (
+            select(FileObject.file_no, FileObject.ocr_text)
+                .join(
+                    ProductContentVersionFile,
+                    ProductContentVersionFile.file_id == FileObject.id,
+                )
+                .where(
+                    ProductContentVersionFile.content_version_id == content_version_id,
+                    FileObject.ocr_status == "completed",
+                    FileObject.ocr_text.is_not(None),
+                )
+                .order_by(ProductContentVersionFile.id)
+        )
+        if exclude_file_nos:
+            statement = statement.where(FileObject.file_no.not_in(exclude_file_nos))
+        rows = (await self.session.execute(statement)).all()
+        return [(file_no, text) for file_no, text in rows if text]
 
     async def fulfillment_profile(self, product_id: int) -> ProductFulfillmentProfile | None:
         return cast(

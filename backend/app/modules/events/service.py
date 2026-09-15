@@ -57,7 +57,13 @@ class DeadLetterService:
         access.require_scope(item.scope_type, item.scope_id)
         return _view(item)
 
-    async def preview(self, access: AdminAccess, dead_letter_no: str) -> DeadLetterReplayPreview:
+    async def preview(
+        self,
+        access: AdminAccess,
+        dead_letter_no: str,
+        *,
+        commit: bool = True,
+    ) -> DeadLetterReplayPreview:
         item = await self.repository.by_no(dead_letter_no)
         if item is None:
             raise _not_found()
@@ -98,7 +104,10 @@ class DeadLetterService:
             scope_type=item.scope_type,
             scope_id=item.scope_id,
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return DeadLetterReplayPreview(
             dead_letter=_view(item),
             replayable=not blockers,
@@ -122,6 +131,8 @@ class DeadLetterService:
         payload: DeadLetterReplayRequest,
         expected_version: int,
         idempotency_key: str,
+        *,
+        commit: bool = True,
     ) -> ApprovalRequiredView:
         item = await self.repository.by_no(dead_letter_no)
         if item is None:
@@ -187,6 +198,7 @@ class DeadLetterService:
                 reason=payload.reason,
             ),
             idempotency_key=idempotency_key,
+            commit=commit,
         )
 
     async def execute_replay(

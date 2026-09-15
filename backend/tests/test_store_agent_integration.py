@@ -16,8 +16,13 @@ from app.core.security import SecurityService, utc_now
 from app.database.mysql import mysql_session
 from app.database.postgres import postgres_session
 from app.database.redis import get_redis
+from app.modules.after_sale.models import RefundApplication
 from app.modules.agent_runtime.checkpoints import AgentCheckpointStore
-from app.modules.agent_runtime.model_gateway import ModelGatewayError, StoreAgentPlan
+from app.modules.agent_runtime.model_gateway import (
+    ModelGatewayError,
+    StoreAgentPlan,
+    StoreSupervisorPlan,
+)
 from app.modules.agent_runtime.models import AgentRun, AgentToolAudit
 from app.modules.agent_runtime.store_agent import process_store_run
 from app.modules.catalog.models import Category, Product, ProductSku
@@ -246,6 +251,23 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
                 after_sale_status="none",
             )
         )
+        session.add(
+            RefundApplication(
+                refund_no=new_prefixed_ulid("ref_"),
+                order_id=order.id,
+                user_id=user.id,
+                store_id=store.id,
+                refund_type="refund_only",
+                refund_status="merchant_review",
+                reason_code="DAMAGED",
+                reason_detail="包装破损",
+                requested_amount=12900,
+                approved_amount=0,
+                currency="CNY",
+                policy_snapshot={"version": "integration"},
+                submitted_at=now,
+            )
+        )
         await session.commit()
         token, _ = security.create_access_token(
             user_no=user.user_no,
@@ -399,6 +421,20 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
     history_content = cast(dict[str, object], history_reply["content"])
     history_cards = cast(list[dict[str, object]], history_content["order_cards"])
     assert [item["order_id"] for item in history_cards] == [order_no]
+
+    after_sale_message = await _send(
+        client, headers, conversation_no, "我在你店的售后进度怎么样?"
+    )
+    await _drain_agent()
+    after_sale_reply = _reply_after(
+        await _messages(client, headers, conversation_no), after_sale_message
+    )
+    assert "1 笔售后申请" in str(after_sale_reply["text"])
+    after_sale_content = cast(dict[str, object], after_sale_reply["content"])
+    after_sale_cards = cast(list[dict[str, object]], after_sale_content["detail_cards"])
+    assert after_sale_cards[0]["kind"] == "store_after_sale_progress"
+    assert after_sale_cards[0]["badge"] == "商家处理中"
+    assert "¥129.00" in str(after_sale_cards)
 
     current = await client.get(f"/api/v1/conversations/{conversation_no}", headers=headers)
     order_context = await client.put(
@@ -560,7 +596,7 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
         injection_run = next(
             item for item in runs if item.trigger_message_id == injection_trigger_id
         )
-        assert len(runs) == 15
+        assert len(runs) == 16
         assert all(item.run_status == "completed" for item in runs)
         assert injection_run.error_code == "AI_PROMPT_INJECTION_BLOCKED"
         assert not any(item.run_id == injection_run.id for item in audits)
@@ -569,6 +605,13 @@ async def test_store_agent_scope_context_tools_and_handoff(client: AsyncClient) 
         assert any(
             item.tool_code == "order.list_user_store_orders"
             and item.scope_snapshot["store_no"] == store_no
+            and item.outcome == "succeeded"
+            for item in audits
+        )
+        assert any(
+            item.tool_code == "after_sale.list_user_store_refunds"
+            and item.scope_snapshot["store_no"] == store_no
+            and item.scope_snapshot["user_no"] == user.user_no
             and item.outcome == "succeeded"
             for item in audits
         )
@@ -800,4 +843,7 @@ def _product(store_id: int, category_id: int, name: str) -> Product:
 
 class _FailingModelGateway:
     async def plan(self, _user_text: str) -> StoreAgentPlan:
+        raise ModelGatewayError("simulated unavailable model")
+
+    async def plan_tasks(self, _user_text: str) -> StoreSupervisorPlan:
         raise ModelGatewayError("simulated unavailable model")

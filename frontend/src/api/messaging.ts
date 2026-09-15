@@ -40,6 +40,15 @@ export interface ChatMessage {
   sent_at: string
 }
 
+export interface AgentAssetMessageInput {
+  purpose: 'store_logo' | 'product_sku_image' | 'user_avatar'
+  file_id: string
+  store_id: string | null
+  user_id: string | null
+  product_id: string | null
+  sku_id: string | null
+}
+
 export interface MessagePage {
   items: ChatMessage[]
   previous_cursor: string | null

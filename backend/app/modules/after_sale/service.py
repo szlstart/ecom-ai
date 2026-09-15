@@ -61,6 +61,7 @@ from app.modules.after_sale.schemas import (
     RefundType,
 )
 from app.modules.catalog.schemas import Money
+from app.modules.finance.models import UserWallet, WalletTransaction
 from app.modules.identity.models import User
 from app.modules.orders.models import Order, OrderItem, TradeOrder
 from app.modules.payments.models import Payment
@@ -1214,6 +1215,42 @@ class AfterSaleService:
                     code="REFUND_AMOUNT_EXCEEDS_LIMIT",
                     title="Refund exceeds payment",
                     detail="累计退款金额超过支付、订单或交易单可退金额。",
+                )
+            if payment.payment_method == "wallet_balance":
+                wallet = await self.session.scalar(
+                    select(UserWallet)
+                    .where(
+                        UserWallet.user_id == payment.user_id,
+                        UserWallet.currency == payment.currency,
+                    )
+                    .with_for_update()
+                )
+                if wallet is None or wallet.wallet_status != "active":
+                    raise ApplicationError(
+                        status=409,
+                        code="REFUND_WALLET_UNAVAILABLE",
+                        title="Refund wallet unavailable",
+                        detail="原余额支付账户当前不可用，退款未入账。",
+                    )
+                balance_before = wallet.balance_amount
+                wallet.balance_amount += amount
+                wallet.version += 1
+                self.session.add(
+                    WalletTransaction(
+                        transaction_no=new_prefixed_ulid("wtx_"),
+                        wallet_id=wallet.id,
+                        transaction_type="refund",
+                        direction="credit",
+                        amount=amount,
+                        balance_before=balance_before,
+                        balance_after=wallet.balance_amount,
+                        currency=payment.currency,
+                        business_type="refund_payment",
+                        business_no=record.refund_payment_no,
+                        channel="balance",
+                        description="订单退款原路退回商城余额",
+                        occurred_at=now,
+                    )
                 )
             payment.refunded_amount += amount
             payment.payment_status = (

@@ -45,6 +45,7 @@ const EVENT_COPY: Record<string, { title: string; description: string }> = {
   'payment.succeeded': { title: '付款成功', description: '付款已确认，商家将开始备货。' },
   'order.fulfillment_initialized': { title: '商家开始备货', description: '商品正在打包，物流信息生成后可随时查看。' },
   'shipment.automatic_dispatched': { title: '包裹已发出', description: '商品已交给承运商，运输进度将持续更新。' },
+  'shipment.dispatched': { title: '包裹已发出', description: '商家已经创建包裹，后续节点将按实际记录同步。' },
   'order.receipt_confirmed': { title: '已确认收货', description: '订单已完成，可以发表评价或申请售后。' },
   'order.receipt_auto_confirmed': { title: '系统确认收货', description: '物流签收已满 7 天，订单已自动完成。' },
   'order.user_cancelled': { title: '订单已取消', description: '订单已按你的申请取消。' },

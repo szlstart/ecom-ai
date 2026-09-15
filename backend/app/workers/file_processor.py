@@ -12,6 +12,7 @@ from app.core.logging import configure_logging
 from app.core.worker_health import start_worker_heartbeat
 from app.database.mysql import close_mysql, initialize_mysql, mysql_session
 from app.integrations.object_storage import get_object_storage
+from app.modules.files.ocr import TesseractOcrEngine
 from app.modules.files.processor import FileProcessor
 from app.modules.files.reconciliation import (
     FileGarbageCollector,
@@ -29,6 +30,7 @@ async def run() -> None:
     initialize_mysql(settings.mysql_dsn)
     storage = get_object_storage()
     scanner = ClamAvScanner(settings)
+    ocr = TesseractOcrEngine(settings) if settings.ocr_enabled else None
     inventory_storage = cast(ObjectInventoryStorage, storage)
     stopping = asyncio.Event()
     start_worker_heartbeat("file-worker", settings, stopping)
@@ -41,10 +43,12 @@ async def run() -> None:
     try:
         while not stopping.is_set():
             processed = 0
+            ocr_processed = 0
             expired = 0
             async for session in mysql_session():
-                processor = FileProcessor(session, storage, scanner)
+                processor = FileProcessor(session, storage, scanner, ocr)
                 processed = await processor.process_batch()
+                ocr_processed = await processor.process_ocr_batch(settings.ocr_batch_size)
                 expired = await processor.expire_uploads()
                 if time.monotonic() >= next_gc:
                     next_gc = time.monotonic() + settings.file_gc_interval_seconds
@@ -72,10 +76,11 @@ async def run() -> None:
                     except Exception:
                         await session.rollback()
                         logger.exception("file_reconciliation_failed")
-            if processed or expired:
+            if processed or ocr_processed or expired:
                 logger.info(
                     "file_processor_batch_completed",
                     processed=processed,
+                    ocr_processed=ocr_processed,
                     expired_uploads=expired,
                 )
                 continue

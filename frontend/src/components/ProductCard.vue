@@ -13,7 +13,7 @@ const detailTarget = computed(() => ({
 </script>
 
 <template>
-  <article class="product-card" :id="`product-${product.product_id}`">
+  <article class="product-card navigation-surface" :id="`product-${product.product_id}`">
     <RouterLink :to="detailTarget" class="product-card-image" :aria-label="`查看 ${product.product_name}`">
       <img
         v-if="product.main_image"
@@ -26,7 +26,7 @@ const detailTarget = computed(() => ({
       <span v-else class="image-placeholder" aria-hidden="true">暂无图片</span>
     </RouterLink>
     <div class="product-card-body">
-      <RouterLink :to="detailTarget" class="product-name">{{ product.product_name }}</RouterLink>
+      <RouterLink :to="detailTarget" class="product-name surface-primary-link">{{ product.product_name }}</RouterLink>
       <p class="product-price">
         {{ formatMoney(product.price) }}
         <small v-if="product.price_range">起</small>

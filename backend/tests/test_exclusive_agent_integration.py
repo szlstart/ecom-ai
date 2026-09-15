@@ -41,7 +41,7 @@ pytestmark = [
 ]
 
 
-async def test_exclusive_agent_refund_requires_consent_and_button_approval(
+async def test_exclusive_agent_refund_requires_button_approval_without_persistent_consent(
     client: AsyncClient,
 ) -> None:
     suffix = secrets.token_hex(5)
@@ -380,30 +380,9 @@ async def test_exclusive_agent_refund_requires_consent_and_button_approval(
         "label": "查看订单售后",
     }
 
-    no_consent_message = await _send(
+    draft_message = await _send(
         client, headers, conversation_no, "这个键盘不合适，我要申请退款"
     )
-    await _drain_agent()
-    no_consent_reply = _reply_after(
-        await _messages(client, headers, conversation_no), no_consent_message
-    )
-    assert "先明确授权" in str(no_consent_reply["text"])
-    assert await _refund_count(user.id) == 0
-
-    consent = await client.post(
-        "/api/v1/users/me/agent-consents",
-        headers={**headers, "Idempotency-Key": f"consent-{suffix}"},
-        json={
-            "consent_type": "after_sale_write",
-            "scope_type": "user",
-            "scope_id": None,
-            "policy_version": "ai-after-sale-v1",
-            "expires_at": (now + timedelta(days=30)).isoformat() + "Z",
-        },
-    )
-    assert consent.status_code == 201
-
-    draft_message = await _send(client, headers, conversation_no, "这个键盘不合适，我要申请退款")
     await _drain_agent()
     messages = await _messages(client, headers, conversation_no)
     approval_message = _reply_after(messages, draft_message)

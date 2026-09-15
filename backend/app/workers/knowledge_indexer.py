@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import signal
+from functools import partial
 
 import structlog
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bootstrap.default_knowledge import seed_default_knowledge
 from app.core.config import get_settings
@@ -65,11 +67,18 @@ async def process_one() -> bool:
                 embedder = embedding_provider(settings)
                 if command.request_config.get("embedding_model_code") != embedder.model_code:
                     raise RuntimeError("knowledge job embedding model snapshot is unavailable")
+
                 await run_index_job(
                     postgres,
                     document,
                     command.execution_job_no or "",
                     embedder,
+                    activation_guard=partial(
+                        _document_version_is_current,
+                        mysql,
+                        document_no,
+                        content_version,
+                    ),
                 )
             except Exception:
                 await postgres.rollback()
@@ -86,6 +95,21 @@ async def process_one() -> bool:
             await reconcile_index_job(mysql, postgres, command.job_no)
         return True
     return False
+
+
+async def _document_version_is_current(
+    mysql: AsyncSession,
+    document_no: object,
+    content_version: object,
+) -> bool:
+    current = await mysql.scalar(
+        select(KnowledgeDocument.id).where(
+            KnowledgeDocument.document_no == document_no,
+            KnowledgeDocument.content_version == content_version,
+            KnowledgeDocument.document_status == "published",
+        )
+    )
+    return current is not None
 
 
 async def sync_system_knowledge() -> None:

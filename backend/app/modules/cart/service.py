@@ -182,6 +182,24 @@ class CartService:
             await self.session.rollback()
         return await self._fresh_view(user.id)
 
+    async def clear_all(self, user: User, expected_version: int) -> CartView:
+        """Remove every cart line after an optimistic-version check."""
+
+        cart = await self._cart_for_write(user.id, expected_version)
+        items = list(
+            (
+                await self.session.scalars(
+                    select(CartItem).where(CartItem.cart_id == cart.id).with_for_update()
+                )
+            ).all()
+        )
+        for item in items:
+            await self.session.delete(item)
+        cart.item_count = 0
+        _touch(cart)
+        await self.session.commit()
+        return await self._fresh_view(user.id)
+
     async def _cart_for_write(self, user_id: int, expected_version: int) -> Cart:
         cart = await self.repository.cart(user_id, for_update=True)
         if cart is None:
